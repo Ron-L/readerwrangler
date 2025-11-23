@@ -282,19 +282,6 @@ See CONTRIBUTING.md for detailed examples.
 
 ## Session Management
 
-### Token Monitoring
-
-**Token Budget:** 200,000 total, compaction triggers at ~20% remaining
-
-**Threshold-Based Actions:**
-
-| Zone | Remaining | Action |
-|------|-----------|--------|
-| 🟢 Green | >35% | Normal operation |
-| 🟡 Yellow | 25-35% | Caution - track task costs, warn before large tasks |
-| 🟠 Orange | 22-25% | Prepare for compaction - check git status, ping user |
-| 🔴 Red | <22% | EMERGENCY - stop work, ping user immediately |
-
 ### Session Checklist Protocol
 
 **Purpose**: Track short-term subtasks within a conversation, separate from TODO.md.
