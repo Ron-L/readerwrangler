@@ -5,64 +5,26 @@ description: Core development workflow rules including version management, appro
 
 # Software Development Ground Rules
 
-## ⚠️ CRITICAL: READ THIS FIRST - IMMEDIATE ACTION REQUIRED
-
-**Before proceeding with ANY task, you MUST:**
-
-### 1. Read Actively, Not Passively
-Every rule in this document is an **executable instruction**, not documentation to "be aware of."
-
-### 2. Identify Session Context IMMEDIATELY
-**Session Context Indicators** (if ANY are true, execute actions below):
-- System message says "This session is being continued from a previous conversation"
-- User says "read the ground rules" early in conversation
-- Conversation history shows gaps or summary language
-- You notice context percentage was recently high (>80%)
-
-**If context compaction occurred:**
-- Read SKILL-Development-Ground-Rules.md (this file) completely
-- Read CONTRIBUTING.md for decision frameworks
-- Read SKILL-Amazon-Book-Organizer.md for project-specific patterns
-- Display "Proof of Digestion" checklist (below) in next response
-
-### 3. Display Proof of Digestion
-**After reading these ground rules, IMMEDIATELY display this in your next response:**
-
-```
-✓ Ground Rules Digestion Checklist:
-- [✓] Read SKILL-Development-Ground-Rules.md completely
-- [✓] Read CONTRIBUTING.md for decision frameworks
-- [✓] Identified session context: [New session / Post-compaction / Mid-session]
-- [✓] Rule #0 reminder will appear at top of every response
-- [✓] Rule #2 (Approval Workflow) will be checked before ANY operations
-```
-
-### 4. Verify Success
-**How to know you're doing this correctly:**
-- ✓ First response includes Rule #0 reminder (timestamp + horizontal rule)
-- ✓ Digestion checklist displayed with context identified
-- ✓ You can cite specific rule numbers when making decisions
-- ✓ You check approval before ANY code changes or git operations
-
-### 5. Session-Start Priority Actions
-**If this is post-compaction or new session start:**
-1. Display Rule #0 reminder at top of response
-2. Display Digestion Checklist with identified context
-3. THEN respond to user's request
-
----
-
 ## Core Rules (NEVER violate these)
 
-### 0. Recursive Rule Display (Unbreakable)
+### 0. Status Line Display (Unbreakable)
 **At the start of EVERY response**, display:
 ```
-📋 Ground Rules Active - Full rules in SKILL-Development-Ground-Rules.md [YYYY-MM-DD HH:MM:SS Local]
----
+📋 Ground Rules Active - Full rules in SKILL-Development-Ground-Rules.md [YYYY-MM-DD HH:MM:SS Local] | ██░░░ 25% left 🟡
 ```
-Timestamp format: User's local time in ISO 8601 (e.g., `[2025-11-19 09:33:21 Local]`)
 
-Exception: Skip only if user explicitly requests it be turned off.
+**Components:**
+- **Timestamp**: User's local time in ISO 8601
+- **Progress bars** (████░): Visual token level
+  - █████ = 100-80% (5 blocks)
+  - ████░ = 79-60% (4 blocks)
+  - ███░░ = 59-40% (3 blocks)
+  - ██░░░ = 39-20% (2 blocks)
+  - █░░░░ = 19-0% (1 block)
+- **Percentage**: Exact tokens remaining
+- **Freshness indicator**: 🟢 Fresh (last 2 responses) | 🟡 Recent (2-4) | 🟠 Stale (5-7) | 🔴 Ancient (8+)
+
+**Exception**: Skip only if user explicitly requests it be turned off.
 
 ### 1. Version Management
 - **BEFORE** making ANY code change, increment the version letter
@@ -86,7 +48,7 @@ Exception: Skip only if user explicitly requests it be turned off.
 
 ### 2. Approval Workflow
 - **STOP and ASK** before making any code changes, commits, reverts, or git operations
-- Questions like "should we?", "thoughts?", "what do you think?", "your thoughts?", etc. are requests for **DISCUSSION**, NOT approval
+- Questions like "should we?", "thoughts?", "what do you think?" are requests for **DISCUSSION**, NOT approval
 - Wait for explicit "yes", "go ahead", "please proceed", or similar confirmation
 - **NEVER** "get ahead of yourself" by implementing during discussion
 
@@ -103,20 +65,13 @@ Exception: Skip only if user explicitly requests it be turned off.
 - Always run git pull/fetch before committing to ensure local is current
 - Check for conflicts and resolve before pushing
 
-## Rule Enforcement Protocol
+---
 
-**Purpose**: Ensure Ground Rules are actively applied, not just passively available in context.
+## Rule Enforcement Protocol
 
 When taking rule-sensitive actions, Claude MUST explicitly check the relevant rule:
 
 ### Before Proposing a Version Change:
-1. State: "**Checking Ground Rule #1 (Version Management)...**"
-2. Quote the current version
-3. Quote the relevant pattern (starting new work / iterating / releasing)
-4. Show the calculated next version with reasoning
-5. Then propose the change
-
-**Example:**
 ```
 Checking Ground Rule #1 (Version Management)...
 Current version: v3.2.0
@@ -126,12 +81,6 @@ Next version: v3.2.1.a
 ```
 
 ### Before Any Git Operation:
-1. State: "**Checking Ground Rule #2 (Approval Workflow)...**"
-2. Quote what the user approved (exact words)
-3. Confirm the operation matches the approval
-4. Then execute
-
-**Example:**
 ```
 Checking Ground Rule #2 (Approval Workflow)...
 User approval: "yes, proceed with commit"
@@ -145,294 +94,37 @@ Proceeding with commit...
 2. Run: `git fetch`
 3. Check for upstream changes
 4. If conflicts exist, resolve before proceeding
-5. Then commit
 
 ### Before Modifying Any Code File:
-1. State: "**Checking Ground Rule #1 (Version Management)...**"
-2. Verify version was already incremented in this session
-3. If not incremented yet, STOP and increment first
-4. Show verification before editing
+1. Verify version was already incremented in this session
+2. If not incremented yet, STOP and increment first
 
-**Example:**
-```
-Checking Ground Rule #1 (Version Management)...
-Version already incremented: v3.2.1.a ✓
-Proceeding with code changes...
-```
+### After Completing File Changes:
+1. List all modified/created files
+2. Summarize what changed in each
+3. Ask: "Should I proceed with committing these changes?"
+4. STOP and wait for explicit approval
 
-### After Completing File Changes (Before Commit):
-1. State: "**Documentation/code changes complete**"
-2. List all modified/created files
-3. Summarize what changed in each
-4. Ask: "Should I proceed with committing these changes?"
-5. STOP and wait for explicit approval
-6. Only when approved, proceed to "Before Any Commit" protocol
-
-**Example:**
-```
-Documentation changes complete:
-- README.md: Replaced "FOR CLAUDE" section with Documentation Guide
-- NOTES.md: Removed redundant checklists
-- CONTRIBUTING.md: Created comprehensive reference (NEW FILE)
-- SKILL-Development-Ground-Rules.md: Added all protocols
-
-Should I proceed with committing these changes?
-[STOP AND WAIT]
-```
-
-**Critical:** This protocol triggers even for documentation-only changes. Ground Rule #2 applies to ALL commits, not just code commits.
-
-### Phase Completion Protocol:
-When marking a TODO phase/task as complete:
-
-1. **Update TODO.md**:
-   - Mark all completed checkboxes [x]
-   - Update phase status to "COMPLETE" or add completion date
-   - Add commit reference if applicable
-
-2. **Update NOTES.md**:
-   - Move phase from "IN PROGRESS" to completed section
-   - Add completion date and commit reference
-   - Document any lessons learned or findings
-
-3. **Update CHANGELOG.md**:
-   - Add entry to Unreleased or new version section
-   - Include technical notes if applicable
-
-4. **Verify documentation consistency**:
-   - Check that TODO.md, NOTES.md, and CHANGELOG.md all tell the same story
-   - Ensure no orphaned references to "in progress" work
-
-5. **Ask for approval** before committing documentation updates
-
-### Documentation Update Check:
-Before any commit, verify:
-1. **CHANGELOG.md** - Updated for code releases (not doc-only changes)
-2. **NOTES.md** - Updated if work context changed
-3. **TODO.md** - Marked completed tasks
-
-### Release Finalization Check:
-Before removing version letter (finalizing release):
-1. Verify: CHANGELOG.md updated with version entry
-2. Verify: NOTES.md marked as RELEASED ✅
-3. Verify: TODO.md tasks marked complete
-4. Verify: README.md project version updated
-5. Show checklist completion status
-6. Then remove letter and tag
-7. After push completes → Trigger Post-Release Review (see below)
-
-### After Push/Tag Completes (Post-Release Review):
-**This protocol is MANDATORY after every code release that increments project version.**
-
-1. State: "**Checking Ground Rule: Post-Release Review...**"
-2. Ask user: "Release v[X.Y.Z] complete. Ready for post-mortem?"
-3. When user confirms, conduct brief review:
-   - What worked well?
-   - What mistakes were made?
-   - What lessons learned?
-   - Any ground rules need updating?
-4. Document lessons in NOTES.md under the release entry
-5. If patterns emerge, propose ground rules updates
-
-**Does NOT apply to:**
-- Documentation-only changes (no version increment)
-- Letter-version commits during development (only final release)
-
-**Important Notes:**
-- This protocol is NOT optional - it must happen even if it feels repetitive
-- The user prefers seeing rules applied visibly rather than having them violated silently
-- Only adds verbosity when rules are actually being invoked (not every response)
-- Estimated token cost: ~50-100 tokens per check (negligible vs rule violations)
-
-### Session Checklist Protocol
-
-**Purpose**: Track short-term subtasks within a conversation, separate from TODO.md (long-term roadmap).
-
-**Trigger phrases** (when user says any of these, apply this protocol):
-- "add this to the Session Checklist"
-- "add to checklist"
-- "checklist item"
-- "session task"
-- User provides the current Session Checklist after context compaction
-
-**Rules:**
-1. Print the Session Checklist after completing each task
-2. When user gives multiple items, add them to the checklist and address ONE at a time
-3. Mark items [x] as completed, [ ] as pending
-4. Format: "Session Checklist:" followed by checkbox items
-
-**Post-compaction recovery:**
-After context compaction, user may paste the current Session Checklist. Resume tracking from that state.
-
-**Example:**
-```
-Session Checklist:
-- [x] Fix dialog bug
-- [x] Test localStorage persistence
-- [ ] Update CHANGELOG.md ← current
-- [ ] Squash commits
-- [ ] Tag release
-```
-
-## Token Monitoring and Proactive Compaction Management
-
-**Purpose**: Prevent mid-task context compaction by actively monitoring token usage and preparing comprehensive summaries before automatic compaction triggers.
-
-### Token Budget
-- **Total tokens**: 200,000
-- **Compaction trigger**: ~20% remaining (40,000 tokens)
-- **Your responsibility**: Monitor usage and prepare summary at 22-25% threshold
-
-### Status Line Format
-Include token status in Rule #0 display at the start of every response:
-
-```
-📋 Ground Rules Active [2025-11-19 14:48:15] | ██░░░ 25% left 🟡
-                                                  ↑       ↑      ↑
-                                               progress exact  fresh
-```
-
-**Components:**
-- **Progress bars** (████░): Visual token level
-  - █████ = 100-80% (5 blocks)
-  - ████░ = 79-60% (4 blocks)
-  - ███░░ = 59-40% (3 blocks)
-  - ██░░░ = 39-20% (2 blocks)
-  - █░░░░ = 19-0% (1 block)
-- **Percentage**: Exact number for precision (e.g., "25% left")
-- **Freshness indicator**: Colored dot showing data staleness
-  - 🟢 Fresh: Updated in last 2 responses
-  - 🟡 Recent: 2-4 responses ago
-  - 🟠 Stale: 5-7 responses ago
-  - 🔴 Ancient: 8+ responses ago
-
-### Threshold-Based Actions
-
-#### 🟢 Green Zone (>35% remaining)
-**Action**: Normal operation, no special monitoring required
-
-#### 🟡 Yellow Zone (25-35% remaining)
-**Action**: Caution mode
-- Track estimated token cost of each task before starting
-- Warn user if task might trigger compaction mid-work
-- Example: "⚠️ Warning: This task may use ~8% tokens and trigger compaction"
-
-#### 🟠 Orange Zone (22-25% remaining)
-**ACTION REQUIRED - PREPARE FOR COMPACTION**
-
-1. **Announce approaching threshold:**
-   ```
-   ⚠️ Approaching compaction threshold (X% remaining)
-   Checking git status and preparing for compaction...
-   ```
-
-2. **Check git status and violations:**
-   - Run `git status` to capture current branch, uncommitted changes
-   - Run `git log -5 --oneline` to capture recent commits
-   - Note any ground rules violations that occurred this session
-   - Print this information in chat (visible to auto-summarizer)
-
-3. **Trust the auto-summarizer:**
-   - The automatic summarizer captures technical details, errors, decisions, and context effectively
-   - No need for verbose manual summary preparation
-   - The new ground rules header (lines 1-70) ensures proper post-compaction behavior
-
-4. **Ping/pong with user:**
-   ```
-   Git status checked. Ready for compaction.
-   Ping when ready to trigger.
-   ```
-
-5. **When user confirms, attempt to trigger compaction:**
-   ```
-   SUMMARIZER: PLEASE SUMMARIZE AND COMPACT NOW
-   ```
-
-#### 🔴 Red Zone (<22% remaining)
-**EMERGENCY - STOP ALL WORK**
-
-1. Print emergency notice
-2. Check git status and note any violations
-3. Print brief status in chat
-4. Ping user for immediate compaction
-
-### Task Size Estimation Guidelines
-**Before starting any task in Yellow or Orange zones, estimate token cost:**
-
-- **Small edits** (1-2 files, <50 lines): ~2-3% tokens
-- **Medium features** (3-5 files, complex logic): ~5-8% tokens
-- **Large features** (6+ files, new components): ~10-15% tokens
-- **Exploratory work** (reading multiple files, research): ~3-5% tokens per round
-
-If task cost + current usage would enter Red Zone, prepare summary first.
-
-### Why This Works
-
-**The automatic summarizer is highly effective:**
-- Captures all technical details (file changes, line numbers, code snippets, version numbers)
-- Documents errors, fixes, and design decisions comprehensively
-- Preserves user messages and conversation flow
-- Structures information logically for next session
-
-**The new ground rules header (lines 1-70) ensures post-compaction success:**
-- Explicit trigger: "This session is being continued from a previous conversation"
-- Required "Proof of Digestion" checklist display
-- Executable instructions (not passive documentation)
-- More effective than verbose manual summaries
+---
 
 ## Git Workflow Patterns
 
 ### Feature Development
-
-**Basic workflow:**
 1. Create feature branch from main: `git checkout -b feature-name`
 2. Make incremental commits with letter versions (v3.1.0.a, v3.1.0.b, etc.)
-3. Push to GitHub when using GitHub Pages testing workflow (see CONTRIBUTING.md "Development Option B")
+3. Push to GitHub when using GitHub Pages testing workflow
 4. When ready to release, squash all letter-versioned commits into one
 5. Update to release version (e.g., v3.1.0), merge to main
-6. Tag the release: `git tag v3.1.0` (use actual version number, not this example)
+6. Tag the release: `git tag v3.1.0`
 7. Push with tags: `git push origin main --tags`
 
-**Testing workflows:**
-See CONTRIBUTING.md for detailed testing workflows:
-- **Option A: Local Development** - Test on localhost:8000 (no push required during iterations)
-- **Option B: GitHub Pages Testing** - Push feature branch, configure repo settings to serve that branch, test on github.io
-
-**GitHub Pages deployment note:**
-When using Option B, you must manually configure GitHub repository settings to serve your feature branch, then configure back to `main` after merging. See CONTRIBUTING.md "Development Option B" for complete instructions.
-
-### Testing Workflow (Local and Server-Based)
-
-**This project supports two testing workflows:**
-
-See CONTRIBUTING.md for complete setup instructions:
-- **Development Option A: Local Development** - Fastest iteration, test immediately on localhost
-- **Development Option B: GitHub Pages Testing** - Test deployment process, verify production behavior
-
-**Unified development pattern:**
-1. **Version BEFORE code changes** (Ground Rule #1)
-2. **Make code changes**
-3. **Commit immediately** (capture iteration history)
-4. **Test using your chosen workflow:**
-   - **Option A (Local)**: No push needed, test on localhost:8000
-   - **Option B (GitHub Pages)**: Push to origin, configure repo settings to serve feature branch, wait 1-5 min, test on github.io
-5. **If bugs found**, increment version letter and repeat from step 2
-6. **When stable**, merge to main (squash commits if desired), configure repo settings back to `main`
-
-**Key differences:**
-- **Local workflow**: Faster iterations, no push needed until ready for production
-- **GitHub Pages workflow**: Tests actual deployment, requires push + repo settings change + wait time
-
-**Files testable with either workflow:**
-- readerwrangler.html, readerwrangler.js (main organizer app)
-- amazon-library-fetcher.js, amazon-collections-fetcher.js (can paste into browser console)
-
-**Files requiring GitHub Pages workflow:**
-- bookmarklet-loader.js (loaded via bookmarklet from remote URL)
-- install-bookmarklet.html (generates bookmarklets pointing to GitHub Pages URLs)
+### Testing Workflows
+See CONTRIBUTING.md for detailed instructions:
+- **Option A: Local Development** - Test on localhost:8000 (no push required)
+- **Option B: GitHub Pages Testing** - Push feature branch, configure repo settings, test on github.io
 
 ### Documentation-Only Changes
-- Documentation files (README, CHANGELOG, TODO, NOTES, SKILL-*.md, .gitignore) can be modified directly on main branch
+- Can be modified directly on main branch
 - No feature branch required
 - No version increment or tagging
 - Commit directly to main with descriptive message
@@ -451,94 +143,31 @@ See CONTRIBUTING.md for complete setup instructions:
   ```
 
 ### Project Versioning
-- Project version tracked in README.md "Version" section (format: "Project Version: vX.Y.Z")
-- Project version increments ONLY for releases that include code/executable changes (HTML, JS, etc.)
-- **Documentation-only changes** (README, CHANGELOG, TODO, NOTES, SKILL-*.md) do NOT increment project version, do NOT create tags, and can be committed directly to main branch (see Git Workflow Patterns > Documentation-Only Changes)
-- When project version increments, it's based on the nature of the release:
+- Project version tracked in README.md "Version" section
+- Increments ONLY for releases that include code/executable changes
+- **Documentation-only changes** do NOT increment project version or create tags
+- Semantic versioning based on user impact:
   - Major (X): Breaking changes or major feature sets
   - Minor (Y): New features or significant improvements
   - Patch (Z): Bug fixes, minor improvements
 - Project version is independent of individual file versions
 - Git tags MUST match project version
-- Always use "v" prefix for consistency and findability
-- Tags mark released versions only (not letter versions)
 
-#### Project Version vs File Version Relationship
+#### Project Version vs File Version
+**Key Principle:** Project version and file versions are INDEPENDENT.
 
-**Key Principle:** Project version and file versions are INDEPENDENT and serve different purposes.
-
-**Project Version (README.md):**
-- User-facing version representing the overall project state
-- Tracks releases that change user experience
-- Follows semantic versioning based on user impact:
-  - Patch (Z): Bug fixes, minor UX improvements (e.g., v3.1.2 → v3.1.3)
-  - Minor (Y): New features, significant enhancements (e.g., v3.1.3 → v3.2.0)
-  - Major (X): Breaking changes, major rewrites (e.g., v3.2.0 → v4.0.0)
-- Does NOT increment for documentation-only changes
-- Used for git tags
-
-**File Versions (APP_VERSION, FETCHER_VERSION, etc.):**
-- Developer-facing version for tracking individual file changes
-- Each file has its own independent version
-- Can increment independently based on file modifications
-- May be higher OR lower than project version
+- **Project Version**: User-facing, tracks releases that change user experience
+- **File Versions**: Developer-facing, track individual file changes
 
 **Common Mistake:** Assuming project version should match file versions.
 
-**Examples:**
-```
-Scenario 1: Bug fix in organizer UI
-- amazon-organizer.js: v3.1.0 → v3.2.1.a → v3.2.1 (file changed significantly)
-- Project version: v3.1.2 → v3.1.3 (patch fix for users)
-- Why different: File had multiple iterations, but user impact is just a patch
-
-Scenario 2: Major UI refactor
-- amazon-organizer.js: v3.1.9 → v3.2.0 (major refactor)
-- Project version: v3.1.9 → v3.2.0 (minor release for users)
-- Why same: File and project both had minor/significant changes
-
-Scenario 3: Documentation updates
-- README.md, CHANGELOG.md updated
-- Project version: v3.1.3 → v3.1.3 (no change)
-- Why: Documentation doesn't affect user functionality
-```
-
-#### Before Proposing Project Version
-
-Before proposing a project version change, Claude MUST:
-
-1. **Check current project version** in README.md (not file versions)
-2. **Assess user impact** of the changes:
-   - Does this fix a bug users experience? → Patch
-   - Does this add new functionality users can use? → Minor
-   - Does this break existing functionality or require migration? → Major
-   - Is this documentation/meta-work only? → No increment
-3. **Calculate new version** based on impact (independent of file versions)
-4. **State reasoning explicitly** before proposing
-
-**Example Protocol:**
-```
-Checking project version for release...
-Current project version: v3.1.2 (from README.md)
-File version being released: amazon-organizer.js v3.2.1
-User impact: Bug fix - removed misleading button
-Assessment: Patch-level change (no new features, no breaking changes)
-Next project version: v3.1.3 ✓
-```
-
-### Tagging Releases
-- Tag format: `v3.1.0` (use actual current version, not this example)
-- Tag message: Include brief summary of changes
-- Only tag when project version increments (code releases, not documentation-only)
+---
 
 ## Documentation Standards
 
 ### CHANGELOG.md
 - Update before finalizing any version
-- Include Technical Notes section for:
-  - Approaches that didn't work (blind alleys)
-  - Why they failed
-  - What finally worked
+- Include Technical Notes section for approaches that didn't work
 - This prevents revisiting failed approaches in future sessions
 
 ### TODO.md
@@ -548,103 +177,39 @@ Next project version: v3.1.3 ✓
 
 ### NOTES.md
 - Meta file for session state and tabled discussion items
-- Tracked in git but does NOT trigger version increments
-- **Always commit NOTES.md** with any other commits (for backup)
-- Structure: Tabled Items, Current Work in Progress, Open Questions
-- **Update NOTES.md when**:
-  - User says "table that thought" or "hold that thought until..." (add to Tabled Items)
-  - Finalizing a version (update Current Work in Progress)
-  - Updating CHANGELOG.md (ensure work context is current)
+- **Always commit NOTES.md** with any other commits
+- **Update when**: User says "table that thought", finalizing a version, or updating CHANGELOG.md
 
 ### Claude Skills Management
 - Source files: `SKILL-Development-Ground-Rules.md`, `SKILL-Amazon-Book-Organizer.md`
-- **Required format**: SKILL-*.md files MUST start with YAML frontmatter:
-  ```yaml
-  ---
-  name: skill-name-in-lowercase-with-hyphens
-  description: Brief description of the skill
-  ---
-  ```
-- **Automatic .zip rebuilding via git pre-commit hook**:
-  - A git pre-commit hook (`.git/hooks/pre-commit`) automatically detects when SKILL-*.md files are committed
-  - The hook rebuilds the corresponding .zip files automatically using PowerShell
-  - Build process: Copy SKILL-*.md to SKILL.md → Zip as SKILL.md → Delete temp file
-  - IMPORTANT: The file inside the zip MUST be named `SKILL.md` (not the original filename)
-  - The .zip file is generated but NOT committed (it's in .gitignore)
-  - You'll see output during commit: "🔨 Pre-commit hook: Rebuilding SKILL zip files..."
-  - **No manual action required** - just commit the .md file changes normally
-- **Manual build scripts** (backup method if hook fails):
-  - `build-skill-ground-rules.bat` creates `SKILL-Development-Ground-Rules.zip`
-  - `build-skill-organizer.bat` creates `SKILL-Amazon-Book-Organizer.zip`
-  - These can be run manually if the git hook is not working
-- **Uploading to Claude Skills interface**:
-  - Drag and drop the .zip file onto the Skills page
-  - If skill name already exists, it will prompt to replace it
-  - No need to manually delete the old skill first
-- Only source `.md` files are tracked in git (zips are generated locally, not committed)
-- **Note**: The git hook is repository-local (`.git/hooks/` is not tracked by git). If cloning to a new location, the hook will need to be recreated
+- **Required format**: SKILL-*.md files MUST start with YAML frontmatter
+- **Automatic .zip rebuilding**: Git pre-commit hook detects SKILL-*.md changes and rebuilds zips
+- Only source `.md` files are tracked in git (zips are generated locally)
 
-### Review Before Proposing
-- **ALWAYS** review CHANGELOG Technical Notes before suggesting approaches
-- This prevents proposing solutions that have already been exhausted
+### Release Checklist
+Before removing version letter (finalizing release):
+1. Verify: CHANGELOG.md updated with version entry
+2. Verify: NOTES.md marked as RELEASED ✅
+3. Verify: TODO.md tasks marked complete
+4. Verify: README.md project version updated
+5. Then remove letter and tag
 
 ### Post-Release Review
-- After EVERY code release (when project version increments), conduct a brief post-mortem with user
-- Review: What mistakes were made? What lessons learned? What worked well?
-- Update ground rules if patterns emerge
-- Document lessons in NOTES.md under the release entry
-- This does not apply to documentation-only changes
+After EVERY code release (when project version increments):
+1. Ask user: "Release v[X.Y.Z] complete. Ready for post-mortem?"
+2. Review: What worked well? What mistakes? What lessons learned?
+3. Document lessons in NOTES.md
+4. If patterns emerge, propose ground rules updates
+- Does NOT apply to documentation-only changes
 
-### Session Compaction Protocol
-
-**CRITICAL**: When creating a summary for session compaction (automatic or manual), you MUST include these directives at the very beginning of the summary:
-
-1. **Ground Rules File Access** - State explicitly:
-   ```
-   IMMEDIATELY after reading this summary, BEFORE your first response:
-   1. Read SKILL-Development-Ground-Rules.md in full
-   2. Read SKILL-Amazon-Book-Organizer.md in full
-   3. Read CONTRIBUTING.md for decision frameworks
-   4. These files contain critical behavioral requirements including:
-      - Recursive rule display (MUST appear at start of EVERY response)
-      - Version management protocol
-      - Approval workflow requirements
-      - Ship Fast vs. Build Solid decision framework
-   ```
-
-2. **Recursive Rule Display Format** - Include the exact current format:
-   ```
-   At the start of EVERY response, display:
-   📋 Ground Rules Active - Full rules in SKILL-Development-Ground-Rules.md [YYYY-MM-DD HH:MM:SS Local]
-   ---
-
-   Then continue with your response.
-
-   This display is MANDATORY per Rule #0 in SKILL-Development-Ground-Rules.md
-   Exception: Only skip if user explicitly requests it be turned off
-   ```
-
-3. **Standard Summary Content**: Include current work status, completed work, and next steps as usual.
-
-**Why This Matters**:
-- The compaction summary is the ONLY way to pass behavioral requirements across session boundaries
-- Without explicit file read directives, ground rules are forgotten
-- Without the recursive display directive, the rule reminder disappears
-- Loss of these protocols causes rule violations and workflow disruption
-
-**Post-Compaction Checklist for Next Session**:
-- [ ] Read SKILL-Development-Ground-Rules.md
-- [ ] Read CONTRIBUTING.md
-- [ ] Display recursive rule reminder in first response
-- [ ] Apply Rule #1 (Version Management) before any code changes
-- [ ] Apply Rule #2 (Approval Workflow) before any operations
+---
 
 ## Communication Protocol
 
 ### When to STOP and Ask
-- User says: "should we", "thoughts?", "what do you think?", "your thoughts?", etc.
+- User says: "should we", "thoughts?", "what do you think?"
 - Before implementing any code change
-- Before any git operation (commit, revert, push, merge, etc.)
+- Before any git operation
 - Before creating or modifying files
 - When uncertain about approach
 
@@ -654,392 +219,151 @@ Next project version: v3.1.3 ✓
 - Propose alternative approaches with reasoning
 - Say "I disagree because..." when warranted
 
-### Foundation-First Principle
-
-**User's Working Style:**
-The user prioritizes fixing foundations before building features. This is a deliberate pattern, not a distraction.
-
-**When user identifies a foundational issue** (rules not working, docs unclear, structure confusing):
-1. **Don't apologize for "going off track"** - this IS the track
-2. **Embrace the detour** - it's an investment in future velocity
-3. **Ask: "Should we fix this foundation issue before continuing with [original task]?"**
-4. **Wait for explicit decision** on whether to continue with foundation or return to feature
-
-**When proposing a feature implementation, Claude should ask:**
-- "Are the current rules/docs/structure adequate for this change?"
-- "Would fixing [foundation issue] make this easier/safer?"
-- "Should we address [underlying issue] before proceeding?"
-
-**Examples of foundation-first thinking:**
-- Fix version management rules BEFORE implementing feature
-- Clarify documentation structure BEFORE adding new docs
-- Improve error handling patterns BEFORE fixing specific errors
-- Test with real data BEFORE building complex UI
-
-**This is not "analysis paralysis"** - it's deliberate investment in quality and maintainability.
-
-### Ship Fast vs. Build Solid: Decision Framework
-
-**Before starting work on ANY bug or feature**, evaluate it against this framework:
-
-**KEY QUESTION: "Does this affect data correctness or completeness?"**
-
-**Ship Fast When:**
-- UI polish issues (colors, spacing, minor UX tweaks)
-- Nice-to-have features (additional sorting, filter variations)
-- Performance optimizations (unless critical to usability)
-- Edge cases affecting <0.01% with NO data loss
-- Cosmetic improvements that don't affect core functionality
-
-**Build Solid Foundation When:**
-- ✅ **Data integrity issues** (loss, corruption, incorrect processing)
-- ✅ **Core functionality bugs** (search, filtering, display, organization)
-- ✅ **API contract changes** (endpoint deprecation, schema changes)
-- ✅ **State management bugs** (persistence, ID stability, synchronization)
-- ✅ **Error handling gaps** (silent failures, missing validation)
-
-**Why This Project Requires "Build Solid" Approach:**
-1. Library management - Users trust us with their book collection metadata
-2. Long-term use - Not a throwaway prototype, built for ongoing use
-3. Data permanence - Books represent purchased content, reading history
-4. Cross-session reliability - Must work consistently over months/years
-5. Foundation compounds - Solid patterns prevent future issues
-
-**Comparison Context:**
-- Social media prototype: 3/2000 missing posts? Ship it.
-- E-commerce recommendations: 3 products don't load? Ship it.
-- Financial transactions: 3 failed transfers? NEVER ship.
-- **Personal library manager: 3 missing books?** → Closer to financial than social media.
-
-**Time Investment is Justified When:**
-Spending a few days to achieve:
-- 100% data coverage instead of 99.85%
-- Understanding of API behavior patterns
-- Robust error handling for future edge cases
-- Comprehensive logging for rapid future diagnosis
-
-**Red Herrings Are Learning:**
-If investigation takes unexpected turns but yields:
-- Fixed bugs (even if different than expected)
-- Documented API behavior
-- Improved error handling
-- Transferable knowledge for future issues
-
-...then it was NOT wasted time - it was education and foundation building.
-
-**Application Protocol:**
-1. When user reports a bug or requests a feature
-2. Explicitly evaluate against this framework
-3. State which category it falls into and why
-4. Document the decision reasoning before proceeding
-
-**See also:** CONTRIBUTING.md "Ship Fast vs. Build Solid: Decision Framework" for detailed examples and context.
-
 ### When User Reports a Problem
-
 **STOP. Do NOT immediately try to fix it.**
 
-1. **Acknowledge the problem explicitly**: "You're right, the [thing] failed/didn't work."
+1. **Acknowledge the problem explicitly**
 2. **Ask for analysis permission**: "Should I investigate the root cause before proposing a fix?"
 3. **If yes, perform root cause analysis**:
-   - What happened? (the symptom)
-   - Why did it happen? (the direct cause)
-   - Why didn't I detect it? (the detection failure)
-   - What systemic issues allowed this? (the underlying pattern)
+   - What happened? (symptom)
+   - Why did it happen? (direct cause)
+   - Why didn't I detect it? (detection failure)
+   - What systemic issues allowed this? (underlying pattern)
 4. **Present findings BEFORE proposing solutions**
 5. **Wait for decision** on whether to fix now or continue with analysis
 
-**This prevents:**
-- Superficial fixes that don't address underlying issues
-- Missing opportunities to improve the system
-- Violating Foundation-First pattern
-- Rushing to "fix it" mode before understanding "why it broke"
-
-**Example:**
-```
-User: "The zip file wasn't updated"
-
-❌ Bad response: "Let me try running it differently..." [immediately attempts fix]
-
-✓ Good response:
-"You're right, the zip file wasn't updated. Should I investigate the root cause
-before proposing a fix? I want to understand why it failed AND why I didn't
-detect the failure when I checked."
-```
-
-#### Distinguishing Questions from Problems
-
-When user asks "why did you [action]?", assess context to determine if root cause analysis is needed:
-
-**Triggers for Root Cause Analysis** (likely a problem):
-- Action contradicts stated rules/patterns
-- Action had negative/unexpected consequences
-- User expresses confusion or surprise
-- Question follows a failure or error
-- Tone suggests concern (e.g., "why did you X when we agreed Y?")
-
-**Does NOT trigger** (likely learning/curiosity):
-- Action was successful and met requirements
-- User is exploring alternative approaches
-- Question is theoretical ("why did you choose X over Y?")
-- User explicitly says "I'm curious" or "just wondering"
-- No evidence of problems or rule violations
-
-**When uncertain:** Ask clarifying question: "Are you asking because something went wrong, or are you curious about the approach I took?"
-
-**Examples:**
-```
-User: "Why did you tie the project version to the file version?"
-Context: This contradicts stated rule that versions are independent
-Assessment: Problem - trigger root cause analysis ✓
-
-User: "Why did you use approach X instead of Y?"
-Context: Approach X was successful and met all requirements
-Assessment: Learning/curiosity - explain reasoning, no root cause analysis needed
-```
-
-#### Implicit Problem Signals
-
+### Implicit Problem Signals
 User asking you to "review", "check", or "verify" work you JUST completed is likely an implicit problem report.
 
 **Red flags:**
 - "Can you review [files you just worked with]?"
 - "I think [statement about your work] - is that right?"
 - "Please check if [something you should have done]"
-- User asks about documentation files immediately after you committed code
 
-**Response Protocol:**
-1. **STOP and assess**: "Did I complete this work correctly?"
-2. **Review what you did** vs. what should have been done (check Phase Completion Protocol)
-3. **If gap found**:
-   - Acknowledge: "You're right, I missed updating [files]"
-   - Perform root cause analysis (without being asked)
-   - Propose fix
-4. **If no gap found**: Respond to review request normally
+**Response:** STOP and assess if you completed the work correctly before responding.
+
+---
+
+## Decision Frameworks
+
+### Foundation-First Principle
+The user prioritizes fixing foundations before building features. This is deliberate, not a distraction.
+
+**When user identifies a foundational issue:**
+1. Don't apologize for "going off track" - this IS the track
+2. Ask: "Should we fix this foundation issue before continuing?"
+3. Wait for explicit decision
+
+### Ship Fast vs. Build Solid
+
+**KEY QUESTION: "Does this affect data correctness or completeness?"**
+
+**Ship Fast When:**
+- UI polish issues
+- Nice-to-have features
+- Performance optimizations (unless critical)
+- Edge cases affecting <0.01% with NO data loss
+
+**Build Solid Foundation When:**
+- Data integrity issues (loss, corruption)
+- Core functionality bugs
+- API contract changes
+- State management bugs
+- Error handling gaps
+
+**Why This Project Requires "Build Solid":**
+- Library management - Users trust us with their book collection metadata
+- Long-term use - Built for ongoing use, not a throwaway prototype
+- Data permanence - Books represent purchased content, reading history
+
+See CONTRIBUTING.md for detailed examples.
+
+---
+
+## Session Management
+
+### Token Monitoring
+
+**Token Budget:** 200,000 total, compaction triggers at ~20% remaining
+
+**Threshold-Based Actions:**
+
+| Zone | Remaining | Action |
+|------|-----------|--------|
+| 🟢 Green | >35% | Normal operation |
+| 🟡 Yellow | 25-35% | Caution - track task costs, warn before large tasks |
+| 🟠 Orange | 22-25% | Prepare for compaction - check git status, ping user |
+| 🔴 Red | <22% | EMERGENCY - stop work, ping user immediately |
+
+### Session Checklist Protocol
+
+**Purpose**: Track short-term subtasks within a conversation, separate from TODO.md.
+
+**Trigger phrases**: "add to checklist", "checklist item", "session task"
+
+**Format Rules:**
+1. Use numbered top-level steps (0, 1, 2...)
+2. Status icons:
+   - ✅ = completed
+   - ⬜ = pending (current or ready to work)
+   - ⏳ = future (blocked or not yet ready)
+3. Mark current item with `← CURRENT`
+4. Outline format: each subtask level indented ~3 spaces per level
+5. A top-level step is NOT complete until ALL its subtasks are complete
+6. Print the Session Checklist after completing each task
+7. When user gives multiple items, add to checklist and address ONE at a time
 
 **Example:**
 ```
-User: "Please review the doc files"
-Context: You just committed Phase 2 code but didn't update TODO.md or NOTES.md
-Assessment: Implicit problem signal - should trigger self-review and root cause analysis ✓
+Session Checklist:
+0   ✅ **Initial setup**
+1   ✅ **Create repo on GitHub**
+2   ⬜ **DEV bookmarklet verification**
+         ✅ Already coded in Step 0
+         ⬜ Confirm fix:
+               ⬜ Test on Local ← CURRENT
+               ⬜ Push to DEV and test
+3   ⏳ **Document workflow**
 ```
 
-### Project Context Assessment Protocol
+---
 
-**Before starting ANY new project or major feature, assess the context to choose the right approach:**
+## Debugging Protocols
 
-#### Context Questions (Ask These First):
-1. **Lifespan:** Is this a weekend hack, learning experiment, or long-term project?
-2. **Scope trajectory:** Fixed scope or likely to grow?
-3. **Team size:** Solo exploration or collaborative work?
-4. **Consequences:** What's the cost of bugs? (learning tool vs production system)
-5. **Certainty:** Are requirements clear or still being discovered?
+### API Debugging
+**Pattern:** Investigate raw responses before assuming error structures.
 
-#### Decision Matrix:
-
-**Ship Fast Pattern** (appropriate for):
-- ✅ Prototypes, POCs, throwaway code
-- ✅ Learning experiments, exploring unknowns
-- ✅ Requirements unclear, testing hypotheses
-- ✅ Solo work, short lifespan
-- ✅ Low consequence of failure
-- Example: "Let me try this API to see if it works"
-
-**Foundation First Pattern** (appropriate for):
-- ✅ Production code with users
-- ✅ Long-term maintenance expected
-- ✅ Collaborative work across sessions/developers
-- ✅ Complex domain with growing scope
-- ✅ High consequence of bugs
-- ✅ Clear requirements, known direction
-- Example: "Building a 2666-book organizer I'll use for years"
-
-**Hybrid Pattern** (appropriate for):
-- Start fast to validate approach
-- STOP and invest in foundation when you see:
-  - Repeated bugs in same area
-  - Difficulty making changes
-  - Scope starting to grow
-  - Others wanting to contribute
-  - Moving from exploration to production
-- Example: "Started as experiment, now it's useful"
-
-#### Red Flags for Technical Debt:
-Watch for these signals that foundation work is overdue:
-- 🚩 "Quick fix" creates new bugs
-- 🚩 Every change takes longer than the last
-- 🚩 Fear of touching certain code
-- 🚩 Copy-paste code because changing shared code is scary
-- 🚩 "Works but I don't know why" comments
-- 🚩 Planning a rewrite instead of improving existing code
-
-#### For This Project:
-Amazon Book Organizer is clearly **Foundation First**:
-- ✓ Long lifespan (ongoing development)
-- ✓ Growing complexity (collections, tracking, features)
-- ✓ Collaborative (user + Claude across sessions)
-- ✓ Real consequences (managing 2666 books)
-- ✓ Clear requirements, known direction
-
-**When proposing implementations, Claude should reference this assessment and confirm the approach fits the context.**
-
-### Diagnostic and Test Script Naming Convention
-
-**All temporary/throwaway scripts and outputs MUST follow this naming pattern:**
-
-**Diagnostic Scripts:** `diag-NN-description.js`
-- Example: `diag-01-isbn-asin-problem.js`, `diag-02-api-timeout.js`
-
-**Test Scripts:** `test-NN-description.js`
-- Example: `test-01-isbn-enrichment.js`, `test-02-phase1-dedup.js`
-
-**Output Files:** `output-NN-description.txt` or `.json`
-- Example: `output-01-isbn-test-results.json`, `output-02-fetch-stats.txt`
-
-**Where NN = two-digit incrementing counter:**
-- 01, 02, 03, ..., 99
-- Counter increments with each new script or output file
-- Groups related files together when sorted by name
-
-**Script Name in Console Output:**
-- EVERY diagnostic/test script MUST print its filename in the console output header
-- Format: `Script: filename.js`
-- Example:
-  ```
-  ========================================
-  ISBN vs ASIN DIAGNOSTIC TOOL
-  Script: diag-01-isbn-asin-problem.js
-  ========================================
-  ```
-- This allows quick verification that the correct script is running
-
-**Rationale:**
-- Makes it easy to identify the latest/newest script when sorted by filename
-- Groups related diagnostic/test files together
-- Prevents confusion when user runs wrong script
-- Facilitates cleanup after investigation completes
-
-### Simplicity First for Rare Operations
-
-**Pattern:** Operations used rarely (dev/testing/maintenance) don't need complex UIs.
-
-**When to Apply:**
-- Feature is used infrequently (< weekly)
-- User is developer/maintainer (not end-user)
-- Operation is non-critical or recoverable
-- Clear documentation can replace UI complexity
-
-**Complexity Triggers** (signs you're over-engineering):
-- More than 3 iterations on same feature without user testing
-- Implementation requires multiple dialog states or complex logic
-- Adding checkboxes/options "just in case" for rare scenarios
-- Every use case is an edge case
-
-**Response Protocol:**
-1. **Question complexity early**: "Is there a simpler way?"
-2. **Look at previous working versions**: Use `git show <commit>:<file>` to examine old code patterns
-3. **Propose simplest solution first**: Get user feedback before adding complexity
-4. **Example comparison**: Show simple vs complex approach with clear tradeoffs
-
-**Git History as Reference:**
-```bash
-# Find previous working version
-git log --oneline --all | grep "feature-name"
-
-# Examine specific file at that commit
-git show <commit-hash>:path/to/file.js | grep -A 30 "functionName"
-```
-
-**Real Example from v3.3.2:**
-- ❌ Complex: Dialog with checkboxes for selective clearing (organization vs library)
-- ✅ Simple: Single "Clear Library" button with confirm() dialog
-- Result: Worked perfectly first try, user confirmed satisfaction
-- Lesson: Rare operations (full reset) don't need multiple options
-
-### API Debugging Protocol
-
-**Pattern:** When debugging API issues, investigate raw responses before assuming error structures.
-
-**Initial Response to API Errors:**
-1. **Add raw response logging FIRST** - `console.log(JSON.stringify(rawResponse, null, 2))`
-2. **Examine actual data structure** - Don't assume based on error presence
-3. **Check for partial success** - API may return BOTH data AND errors (partial errors are valid)
-4. **Document findings** - Update GraphQL-API-Reference.md or similar docs
-
-**GraphQL Partial Errors Pattern:**
-```javascript
-// ❌ WRONG: Assume errors means total failure
-if (response.errors) {
-    reject(); // Lost valid data!
-}
-
-// ✅ CORRECT: Check for data presence despite errors
-if (response.errors && !response.data?.getProducts?.[0]) {
-    reject(); // Only fail if truly no data
-} else if (response.data?.getProducts?.[0]) {
-    // Use data even if errors present
-    // Log partial error for monitoring
-}
-```
-
-**Real Example from v3.3.2:**
-- Problem: 3/2666 books failed with "Customer Id or Marketplace Id is invalid"
-- Root Cause: Amazon returns BOTH valid description data AND customerReviewsTop error in same response
-- Old Behavior: Rejected entire response, discarding valid description
-- New Behavior: Accept partial data, only fail if NO data present
-- Impact: Recovered 5/5 partial errors (100% success)
-
-**Enhanced Logging Guidelines:**
-- Add comprehensive logging at error points
-- Log: error message, error path, raw response
-- Mark as TEMPORARY - remove after issue resolved
-- Include in commit message: "Added temp logging for [issue]"
-
-**Investigation Priority:**
-- Investigate raw response BEFORE changing query structure
-- Investigate raw response BEFORE changing headers
-- Investigate raw response BEFORE trying alternative endpoints
-- Pattern: "Understand THEN fix" not "Try random changes"
+1. Add raw response logging FIRST
+2. Examine actual data structure - Don't assume based on error presence
+3. Check for partial success - API may return BOTH data AND errors
+4. Document findings
 
 ### Systematic Sampling for Data Gaps
+**When >10% of expected data is missing:**
 
-**Pattern:** When large percentage of data is missing, verify if it's extraction vs. availability issue.
-
-**When to Apply:**
-- >10% of expected data is missing or empty
-- Error messages are ambiguous or absent
-- Data source is known to be reliable (e.g., Amazon library)
-
-**Investigation Protocol:**
 1. **Random Sample**: Select 10-20 items from missing data set
-2. **Manual Extraction**: Test each item individually/manually
-3. **Analysis**:
-   - If sample succeeds → Extraction logic incomplete
-   - If sample fails → Investigate API/data availability
+2. **Manual Extraction**: Test each item individually
+3. **Analysis**: If sample succeeds → extraction logic incomplete
 4. **Pattern Discovery**: Examine successful extractions for common patterns
-5. **Implementation**: Add missing extraction patterns to production code
+5. **Implementation**: Add missing extraction patterns
 
-**Real Example from Phase 2.0:**
-- Problem: 1,528/2,343 books (65%) missing descriptions
-- Random Sample: 20 books tested individually
-- Result: 100% of sample had descriptions available
-- Conclusion: Extraction logic incomplete, not API failure
-- Discovery: 3 new extraction patterns (paragraph wrappers, nested semanticContent, AI summaries)
-- Impact: Recovered 1,526/1,528 (99.91%)
+### Diagnostic Script Naming
+**All temporary scripts MUST follow this pattern:**
 
-**Red Flags for Extraction Issues:**
-- High percentage missing (>10%)
-- Known reliable source
-- No API errors reported
-- Random sampling succeeds
+- **Diagnostic Scripts:** `diag-NN-description.js`
+- **Test Scripts:** `test-NN-description.js`
+- **Output Files:** `output-NN-description.txt` or `.json`
 
-**Avoid:**
-- Assuming missing data = API unavailable
-- Giving up at first sign of bulk failures
-- Not testing individual items manually
-- Implementing fixes without understanding patterns
+Where NN = two-digit incrementing counter (01, 02, 03...)
 
-### General Feedback
+Every script MUST print its filename in console output header.
+
+---
+
+## General Principles
+
 - When proposing a change that adds code, consider whether the same goal can be achieved by REMOVING code instead
 - Always prefer simplification over adding complexity
 - Question whether new features are truly necessary
+- Rare operations (dev/testing/maintenance) don't need complex UIs
+- **ALWAYS** review CHANGELOG Technical Notes before suggesting approaches
