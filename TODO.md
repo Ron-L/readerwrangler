@@ -62,7 +62,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🔥 Priority 1: Critical Documentation & Onboarding (HIGH Priority, LOW-MEDIUM Complexity)
 
-1. **🚀 Speed Up Enrichment Fetching** #FetcherImprovements - HIGH/MEDIUM (4-6 hours)
+1. **🚀 Speed Up Enrichment Fetching** #FetcherImprovements - HIGH/MEDIUM (4-6 hours) - See [docs/design/FETCHER-IMPROVEMENTS.md](docs/design/FETCHER-IMPROVEMENTS.md)
     - Problem: Current 1-ASIN-per-call + 2-second delay = 2+ hours for 2000+ books (showstopper for adoption)
     - Solution: Fetch 30 ASINs per call like Amazon yourbooks page does
     - Investigation tasks:
@@ -165,7 +165,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
     - Problem: Columns alone may not capture all organizational needs
     - Impact: More flexible organization
 
-16. **📚 Collections Integration - UI Features** - MEDIUM/MEDIUM (4-8 hours)
+16. **📚 Collections Integration - UI Features** - MEDIUM/MEDIUM (4-8 hours) - See [docs/design/COLLECTIONS-UI.md](docs/design/COLLECTIONS-UI.md)
     - Visual indicators (badges/icons) for collections on book covers
     - Metadata display showing which collections each book belongs to
     - Filtering by collection name
