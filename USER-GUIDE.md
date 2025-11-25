@@ -344,6 +344,50 @@ This lets you maintain multiple "versions" of your organization without complex 
 
 **Pro Tip**: Name your backups descriptively (e.g., `actual-collection.json`, `demo-state.json`, `testing-layout.json`) so you always know which one to restore.
 
+### Library Updates & Refreshing
+
+**Q: How do I update my library with new purchases or changed ratings/reviews?**
+A:
+1. Re-run the library fetcher bookmarklet on amazon.com/yourbooks (gets latest data)
+2. Click "Load Library" in ReaderWrangler and select the new JSON file
+3. Your organization (columns, positions) is automatically preserved
+4. New books appear in the default "Unorganized" column, updated ratings/reviews display immediately
+
+**Q: What happens when I buy new books?**
+A: New purchases won't appear in ReaderWrangler until you re-fetch your library and load the new JSON. Your existing organization is preserved - new books just get added to the default column.
+
+**Q: What happens when I finish reading a book?**
+A: Reading progress and "read status" come from Amazon Collections data. To see updated progress:
+1. Re-run the collections fetcher bookmarklet
+2. Load the new collections JSON
+3. Updated reading status will show immediately (if you're using collections features)
+
+**Q: How often should I refresh my library?**
+A: It depends on your needs:
+- **After book shopping sprees**: Get new purchases into your organizer
+- **Monthly/quarterly**: Keep ratings and reviews current
+- **When reading progress matters**: After finishing books (requires collections re-fetch)
+
+There's no automatic sync - you control when to update by re-running the fetchers.
+
+**Q: What happens if I delete a book from my Amazon library?**
+A: The book will disappear from ReaderWrangler the next time you re-fetch and load your library. It will be removed from whatever column it was in. Your other books' organization stays intact.
+
+**Q: What happens if Amazon removes a book I own (e.g., licensing issue)?**
+A: Same as deleting - the book disappears on your next library refresh. ReaderWrangler only shows books currently in your Amazon library.
+
+**Q: Why do I need to re-fetch? Can't ReaderWrangler auto-update?**
+A: ReaderWrangler is privacy-first and runs entirely in your browser. It has no access to Amazon servers and can't automatically sync. You control when to fetch fresh data by running the bookmarklet - your data never goes through any third-party servers.
+
+**Q: Will re-fetching mess up my organization?**
+A: No! Your organization (which books are in which columns, their positions, column names) is stored separately in your browser. When you load a fresh JSON file, ReaderWrangler matches books by ASIN (Amazon's unique identifier) and preserves all your organization work. Only the book metadata (ratings, reviews, covers) gets updated.
+
+**Q: Do I need to back up my organization before refreshing my library?**
+A: No - loading fresh library data doesn't touch your organization. However, it's always good practice to use the Backup button periodically to save your organization work (in case of browser issues, accidental clearing, etc.).
+
+**Q: Can I go back to an older version of my library?**
+A: Yes! Keep old JSON files. You can load any previous library snapshot. However, your organization will apply to whatever books are in that snapshot - so books you've organized that aren't in the old JSON won't appear.
+
 ### Technical
 
 **Q: Where is my data stored?**
