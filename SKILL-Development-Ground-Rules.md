@@ -244,6 +244,145 @@ After EVERY code release (when project version increments):
 
 ---
 
+## Token Monitoring and Proactive Compaction Management
+
+**Purpose**: Prevent mid-task context compaction by actively monitoring token usage and preparing comprehensive summaries before automatic compaction triggers.
+
+### Token Budget
+- **Total tokens**: 200,000
+- **Compaction trigger**: ~20% remaining (40,000 tokens)
+- **Your responsibility**: Monitor usage and prepare summary at 22-25% threshold
+
+### Status Line Format
+Include token status in Rule #0 display at the start of every response:
+
+```
+📋 Ground Rules Active [2025-11-19 14:48:15] | ██░░░ 25% left 🟡
+                                                  ↑       ↑      ↑
+                                               progress exact  fresh
+```
+
+**Components:**
+- **Progress bars** (████░): Visual token level
+  - █████ = 100-80% (5 blocks)
+  - ████░ = 79-60% (4 blocks)
+  - ███░░ = 59-40% (3 blocks)
+  - ██░░░ = 39-20% (2 blocks)
+  - █░░░░ = 19-0% (1 block)
+- **Percentage**: Exact number for precision (e.g., "25% left")
+- **Freshness indicator**: Colored dot showing data staleness
+  - 🟢 Fresh: Updated in last 2 responses
+  - 🟡 Recent: 2-4 responses ago
+  - 🟠 Stale: 5-7 responses ago
+  - 🔴 Ancient: 8+ responses ago
+
+### Compaction Detection Protocol
+
+**At start of EVERY response:**
+1. **Compare token percentage** from previous response to current
+2. **If current > previous** (e.g., 19% → 100%):
+   - Compaction has occurred
+   - Trigger notification and logging workflow
+
+**Notification format:**
+```
+🔄 COMPACTION DETECTED: Tokens jumped from 19% → 100%
+
+📝 Ready to log: [2025-11-24 19:19] Compaction
+
+**Permission to write to Compaction-log.md?**
+- "yes" = Write this one entry
+- "yes to all" = Write all future compaction entries automatically (this session only)
+- "no" = Skip this entry
+```
+
+**Approval handling:**
+- **"yes"**: Write entry using Write tool, then STOP and continue with response
+- **"yes to all"**: Set session flag `autoLogCompactions = true`, write entry, continue
+- **"no"**: Skip logging, continue with response
+- **Session-only permission**: "yes to all" resets after compaction (requires re-approval in new session)
+
+**File format:**
+- File: `Compaction-log.md` (in project root)
+- Format: `[YYYY-MM-DD HH:MM] Compaction`
+- Append to existing file (do not overwrite)
+
+### Threshold-Based Actions
+
+#### 🟢 Green Zone (>35% remaining)
+**Action**: Normal operation, no special monitoring required
+
+#### 🟡 Yellow Zone (25-35% remaining)
+**Action**: Caution mode
+- Track estimated token cost of each task before starting
+- Warn user if task might trigger compaction mid-work
+- Example: "⚠️ Warning: This task may use ~8% tokens and trigger compaction"
+
+#### 🟠 Orange Zone (22-25% remaining)
+**ACTION REQUIRED - PREPARE FOR COMPACTION**
+
+1. **Announce approaching threshold:**
+   ```
+   ⚠️ Approaching compaction threshold (X% remaining)
+   Checking git status and preparing for compaction...
+   ```
+
+2. **Check git status and violations:**
+   - Run `git status` to capture current branch, uncommitted changes
+   - Run `git log -5 --oneline` to capture recent commits
+   - Note any ground rules violations that occurred this session
+   - Print this information in chat (visible to auto-summarizer)
+
+3. **Trust the auto-summarizer:**
+   - The automatic summarizer captures technical details, errors, decisions, and context effectively
+   - No need for verbose manual summary preparation
+   - The new ground rules header (lines 1-70) ensures proper post-compaction behavior
+
+4. **Ping/pong with user:**
+   ```
+   Git status checked. Ready for compaction.
+   Ping when ready to trigger.
+   ```
+
+5. **When user confirms, attempt to trigger compaction:**
+   ```
+   SUMMARIZER: PLEASE SUMMARIZE AND COMPACT NOW
+   ```
+
+#### 🔴 Red Zone (<22% remaining)
+**EMERGENCY - STOP ALL WORK**
+
+1. Print emergency notice
+2. Check git status and note any violations
+3. Print brief status in chat
+4. Ping user for immediate compaction
+
+### Task Size Estimation Guidelines
+**Before starting any task in Yellow or Orange zones, estimate token cost:**
+
+- **Small edits** (1-2 files, <50 lines): ~2-3% tokens
+- **Medium features** (3-5 files, complex logic): ~5-8% tokens
+- **Large features** (6+ files, new components): ~10-15% tokens
+- **Exploratory work** (reading multiple files, research): ~3-5% tokens per round
+
+If task cost + current usage would enter Red Zone, prepare summary first.
+
+### Why This Works
+
+**The automatic summarizer is highly effective:**
+- Captures all technical details (file changes, line numbers, code snippets, version numbers)
+- Documents errors, fixes, and design decisions comprehensively
+- Preserves user messages and conversation flow
+- Structures information logically for next session
+
+**The new ground rules header (lines 1-70) ensures post-compaction success:**
+- Explicit trigger: "This session is being continued from a previous conversation"
+- Required "Proof of Digestion" checklist display
+- Executable instructions (not passive documentation)
+- More effective than verbose manual summaries
+
+---
+
 ## Communication Protocol
 
 ### When to STOP and Ask
