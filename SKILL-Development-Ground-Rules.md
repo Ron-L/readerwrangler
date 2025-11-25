@@ -287,11 +287,27 @@ Include token status in Rule #0 display at the start of every response:
 
 ### Compaction Detection Protocol
 
+**Memory File Mechanism:**
+- File: `.claude-token-memory` (project root)
+- Content: Single number representing previous token percentage (e.g., "48")
+- Purpose: Persist state across compaction without user interaction
+- **DO NOT commit to git** (add to `.gitignore`)
+
 **At start of EVERY response:**
-1. **Compare token percentage** from previous response to current
-2. **If current > previous** (e.g., 19% → 100%):
-   - Compaction has occurred
-   - Trigger notification and logging workflow
+1. **Read `.claude-token-memory`** to get previous percentage
+   - File path: `c:\Users\Ron\OneDrive\Documents\Projects\ReaderWrangler\.claude-token-memory`
+   - Use Read tool with absolute path (no file picker needed)
+   - If file doesn't exist, assume previous = 0
+2. **Calculate current percentage** from system warning tokens
+   - Formula: `(tokens_remaining / total_tokens) × 100`
+   - Example: 77092 / 200000 = 38.5% remaining
+3. **Compare previous to current**:
+   - If current > previous (e.g., 19% → 100%):
+     - Compaction has occurred
+     - Trigger notification and logging workflow
+4. **Write current percentage to file** at end of response
+   - Content: Just the number (e.g., "38")
+   - Use Write tool with absolute path
 
 **Notification format:**
 ```

@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Freshness indicator (🟢🟡🟠🔴) shows data staleness
   - Threshold-based actions: Green/Yellow/Orange/Red zones with specific protocols
   - Automatic compaction detection: Triggers when token % increases (e.g., 19% → 100%)
+  - **Memory file mechanism**: `.claude-token-memory` persists previous token % across sessions
+    - Enables reliable compaction detection without parsing text history
+    - Single number file (e.g., "48") updated at end of each response
+    - Added to `.gitignore` (state file, not tracked)
   - Approval workflow: "yes" / "yes to all" / "no" for logging to Compaction-log.md
   - VS Code snippet + keybinding (Ctrl+Alt+L) for manual logging fallback
   - Purpose: Track actual token usage to validate Claude Max cost vs Pro + API

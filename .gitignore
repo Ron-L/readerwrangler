@@ -38,6 +38,9 @@ output/
 temp/
 *.tmp
 
+# Claude state files
+.claude-token-memory
+
 # Claude Skills (generated files - source .md files are tracked)
 SKILL.md
 SKILL-*.zip
