@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Token Percentage Calculation** - Added explicit calculation formula to prevent inversion errors (2025-11-24)
+  - Problem: Token percentage was intermittently calculated incorrectly (showing 35% when actually 67% remaining)
+  - Root cause: Ambiguous protocol wording allowed calculating tokens USED instead of tokens REMAINING
+  - Fix: Added explicit calculation formula with example: `(tokens_remaining / total_tokens) × 100`
+  - Added DO NOT warning against calculating wrong metric (total - remaining) / total
+  - File: SKILL-Development-Ground-Rules.md lines 274-280
 - **Session Compaction Protocol** - Restored critical protocol to ground rules (2025-11-24)
   - Root cause: Protocol was removed during ground rules reorganization on 2025-11-22
   - Impact: Post-compaction sessions failed to load ground rules, causing Rule #0 violations

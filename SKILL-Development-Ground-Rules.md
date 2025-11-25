@@ -263,18 +263,27 @@ Include token status in Rule #0 display at the start of every response:
 ```
 
 **Components:**
-- **Progress bars** (████░): Visual token level
-  - █████ = 100-80% (5 blocks)
-  - ████░ = 79-60% (4 blocks)
-  - ███░░ = 59-40% (3 blocks)
-  - ██░░░ = 39-20% (2 blocks)
-  - █░░░░ = 19-0% (1 block)
-- **Percentage**: Exact number for precision (e.g., "25% left")
-- **Freshness indicator**: Colored dot showing data staleness
-  - 🟢 Fresh: Updated in last 2 responses
-  - 🟡 Recent: 2-4 responses ago
-  - 🟠 Stale: 5-7 responses ago
-  - 🔴 Ancient: 8+ responses ago
+
+1. **Progress bars** (████░): Visual token level
+   - █████ = 100-80% remaining (5 blocks)
+   - ████░ = 79-60% remaining (4 blocks)
+   - ███░░ = 59-40% remaining (3 blocks)
+   - ██░░░ = 39-20% remaining (2 blocks)
+   - █░░░░ = 19-0% remaining (1 block)
+
+2. **Percentage**: Exact number for precision (e.g., "25% left")
+   - **CALCULATION**: `(tokens_remaining / total_tokens) × 100 = percentage_remaining`
+   - **Example**: System says "135323 remaining / 200000 total"
+     - Calculate: 135323 ÷ 200000 = 0.6766 = **67.66% remaining**
+     - Display: `████░ 67% left` (4 blocks for 79-60% range)
+   - **DO NOT** calculate tokens used (total - remaining) / total - that's the WRONG metric
+   - **ALWAYS** calculate tokens remaining / total
+
+3. **Freshness indicator**: Colored dot showing data staleness
+   - 🟢 Fresh: Updated in last 2 responses
+   - 🟡 Recent: 2-4 responses ago
+   - 🟠 Stale: 5-7 responses ago
+   - 🔴 Ancient: 8+ responses ago
 
 ### Compaction Detection Protocol
 
