@@ -524,17 +524,41 @@ User input received
 **Purpose**: Ensure ground rules persist across session compaction
 **CRITICAL**: When creating compaction summary, include these directives at the VERY BEGINNING:
 
-**1. Ground Rules File Access Directive:**
+**DEBUG LOGGING (Execute First):**
+1. Write to `SKILL-Development-Ground-Rules-Log.md`:
+   ```
+   [YYYY-MM-DD HH:MM:SS] SESSION-COMPACTION-TRIGGER fired
+   [YYYY-MM-DD HH:MM:SS] POST-COMPACTION-ACTION executed
+   Token jump: XX% → YY%
+   ```
+
+**1. Immediate Execution Directive (IMPERATIVE - NOT OPTIONAL):**
 ```
-IMMEDIATELY after reading this summary, BEFORE your first response:
-1. Read SKILL-Development-Ground-Rules.md in full
-2. Read SKILL-ReaderWrangler.md in full
-3. Read CONTRIBUTING.md for decision frameworks
-4. These files contain critical behavioral requirements:
-   - Version management protocol
-   - Approval workflow requirements
-   - Ship Fast vs. Build Solid decision framework
-   - Response start protocols (reading memory files, displaying status line)
+🚨 EXECUTE THESE STEPS IMMEDIATELY BEFORE YOUR FIRST RESPONSE 🚨
+
+STEP 1: Read ground rules file
+  → Read SKILL-Development-Ground-Rules.md in full
+
+STEP 2: Read project skills file
+  → Read SKILL-ReaderWrangler.md in full
+
+STEP 3: Read decision frameworks
+  → Read CONTRIBUTING.md for Ship Fast vs Build Solid framework
+
+STEP 4: EXECUTE RESPONSE-START-TRIGGER
+  → Read .claude-memory file (READ-MEMORY-ACTION)
+  → Calculate current token percentage
+  → Write updated .claude-memory (UPDATE-MEMORY-ACTION)
+  → Display status line at TOP of first response (DISPLAY-STATUS-LINE-ACTION)
+
+STEP 5: THEN respond to user
+
+STATUS LINE FORMAT (from DISPLAY-STATUS-LINE-ACTION):
+📋 Ground Rules Active [YYYY-MM-DD HH:MM:SS] | ████░ XX% left 🟢
+---
+
+DO NOT use old format: "📋 Ground Rules Active - Full rules in..."
+USE ONLY the format above with progress bars and percentage.
 ```
 
 **2. Standard Summary Content:**
@@ -543,6 +567,7 @@ Include current work status, completed work, and next steps as usual.
 **Why This Matters:**
 - Compaction summary is the ONLY way to pass behavioral requirements across session boundaries
 - Without explicit file read directives, ground rules are forgotten
+- Without EXECUTE command, protocols are not applied
 - Without the protocol reminder, status line display disappears
 - Loss of these protocols causes rule violations
 
