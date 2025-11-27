@@ -77,7 +77,7 @@ User input received
 - CHECK-DOCUMENTATION-UPDATED-ACTION
 
 ### FILE-CHANGES-COMPLETE-TRIGGER
-**When**: After completing file edits but before commit
+**When**: After you finish making file changes and before proposing a commit
 **Actions**:
 - LIST-MODIFIED-FILES-ACTION
 - SUMMARIZE-CHANGES-ACTION
@@ -95,6 +95,8 @@ User input received
 ### RELEASE-FINALIZATION-TRIGGER
 **When**: Before removing version letter (finalizing a release)
 **Actions**:
+- UPDATE-CHANGELOG-ACTION
+- REVIEW-TECHNICAL-NOTES-ACTION
 - REVIEW-CODE-TODOS-ACTION
 - VERIFY-RELEASE-DOCS-ACTION
 - FINALIZE-RELEASE-TAG-ACTION
@@ -127,7 +129,7 @@ User input received
 - PRINT-CHECKLIST-ACTION
 
 ### TASK-COMPLETION-TRIGGER
-**When**: Marking a TODO phase/task as complete
+**When**: After you mark any TODO.md item as complete [x]
 **Actions**:
 - UPDATE-TODO-ACTION
 - UPDATE-NOTES-ACTION
@@ -159,7 +161,7 @@ User input received
 - IMPLEMENT-FIXES-ACTION
 
 ### API-ERROR-TRIGGER
-**When**: Debugging API issues or errors
+**When**: When encountering API errors or investigating API behavior issues
 **Actions**:
 - ADD-RAW-LOGGING-ACTION
 - EXAMINE-STRUCTURE-ACTION
@@ -167,13 +169,13 @@ User input received
 - DOCUMENT-FINDINGS-ACTION
 
 ### START-NEW-FEATURE-TRIGGER
-**When**: Beginning work on a new feature
+**When**: After user approves starting a new feature and before making any code changes
 **Actions**:
 - CREATE-FEATURE-BRANCH-ACTION
 - CONFIRM-TESTING-WORKFLOW-ACTION
 
 ### READY-TO-RELEASE-TRIGGER
-**When**: Feature is complete, tested, and ready to merge to main
+**When**: After user confirms feature is ready to merge to main
 **Actions**:
 - PREPARE-RELEASE-ACTION
 
@@ -207,29 +209,23 @@ User input received
 - STATE-DISAGREEMENT-ACTION (when appropriate)
 
 ### ADDING-CODE-OR-FEATURE-TRIGGER
-**When**: About to add new code or functionality
+**When**: Before proposing or implementing new code or functionality
 **Actions**:
 - CONSIDER-REMOVAL-ALTERNATIVE-ACTION
 - QUESTION-NECESSITY-ACTION
 - ASSESS-COMPLEXITY-COST-ACTION
 
 ### BEFORE-PROPOSING-SOLUTION-TRIGGER
-**When**: About to suggest an approach or fix
+**When**: Before proposing any approach, fix, or solution to user
 **Actions**:
 - REVIEW-PAST-LEARNINGS-ACTION
 
 ### DECIDING-APPROACH-TRIGGER
-**When**: Choosing between quick implementation vs thorough solution
+**When**: When evaluating how to implement a bug fix or feature
 **Actions**:
 - ASSESS-DATA-IMPACT-ACTION
 - DETERMINE-SHIP-FAST-OR-BUILD-SOLID-ACTION
 - JUSTIFY-TIME-INVESTMENT-ACTION (if Build Solid chosen)
-
-### BEFORE-FINALIZING-VERSION-TRIGGER
-**When**: Before removing version letter (finalizing any release)
-**Actions**:
-- UPDATE-CHANGELOG-ACTION
-- REVIEW-TECHNICAL-NOTES-ACTION
 
 ### SKILL-FILE-MODIFIED-TRIGGER
 **When**: After modifying any SKILL-*.md file (ground rules, project-specific skills)
@@ -243,7 +239,7 @@ User input received
 - COMMIT-NOTES-WITH-OTHER-CHANGES-ACTION
 
 ### WHEN-TO-STOP-AND-ASK-TRIGGER
-**When**: About to implement code change, git operation, create/modify files, or uncertain about approach
+**When**: Before implementing any code change, git operation, or file creation/modification, OR when uncertain about approach
 **Actions**:
 - STOP-ACTION
 - ASK-FOR-APPROVAL-ACTION

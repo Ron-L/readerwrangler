@@ -41,6 +41,24 @@ This file tracks tabled discussion items, work in progress context, and open que
 - Rationale: Ground rules are executable code (programs Claude's behavior), needs change tracking like code
 - Commits: 83abc5e
 
+**[2025-11-26] Trigger Language Improvements - Active vs Passive**
+- Updated TASK-COMPLETION-TRIGGER: "Marking a TODO phase/task as complete" → "After you mark any TODO.md item as complete [x]"
+- Updated 8 passive triggers with explicit, active language:
+  - FILE-CHANGES-COMPLETE-TRIGGER: "After completing file edits" → "After you finish making file changes and before proposing a commit"
+  - API-ERROR-TRIGGER: "Debugging API issues" → "When encountering API errors or investigating API behavior issues"
+  - START-NEW-FEATURE-TRIGGER: "Beginning work on a new feature" → "After user approves starting a new feature and before making any code changes"
+  - READY-TO-RELEASE-TRIGGER: "Feature is complete, tested, and ready" → "After user confirms feature is ready to merge to main"
+  - ADDING-CODE-OR-FEATURE-TRIGGER: "About to add new code" → "Before proposing or implementing new code or functionality"
+  - BEFORE-PROPOSING-SOLUTION-TRIGGER: "About to suggest an approach" → "Before proposing any approach, fix, or solution to user"
+  - DECIDING-APPROACH-TRIGGER: "Choosing between quick implementation vs thorough" → "When evaluating how to implement a bug fix or feature"
+  - WHEN-TO-STOP-AND-ASK-TRIGGER: "About to implement code change" → "Before implementing any code change, git operation, or file creation/modification, OR when uncertain about approach"
+- Consolidated duplicate triggers:
+  - Merged BEFORE-FINALIZING-VERSION-TRIGGER into RELEASE-FINALIZATION-TRIGGER (both fired "before removing version letter")
+  - Combined actions: UPDATE-CHANGELOG-ACTION, REVIEW-TECHNICAL-NOTES-ACTION, REVIEW-CODE-TODOS-ACTION, VERIFY-RELEASE-DOCS-ACTION, FINALIZE-RELEASE-TAG-ACTION
+- Rationale: Passive language like "about to", "choosing", "debugging" requires manual recognition. Active language like "after you", "when encountering", "before proposing" fires automatically at clear trigger points.
+- User insight: TASK-COMPLETION-TRIGGER didn't fire because "marking a task as complete" was too passive
+- Commits: [pending]
+
 ## Tabled Items
 
 ### Column Name Filtering Feature
