@@ -122,14 +122,14 @@ description: Core development workflow rules including version management, appro
             - [PRINT-CHECKLIST-ACTION](#print-checklist-action)
             - [PRINT-SESSION-CHECKLIST-ACTION](#print-session-checklist-action)
             - [UPDATE-TODO-ACTION](#update-todo-action)
-            - [UPDATE-NOTES-ACTION](#update-notes-action)
+            - [UPDATE-LOG-ACTION](#update-log-action)
             - [VERIFY-CONSISTENCY-ACTION](#verify-consistency-action)
             - [ASSESS-PROJECT-VERSION-IMPACT-ACTION](#assess-project-version-impact-action)
             - [CALCULATE-SEMANTIC-VERSION-ACTION](#calculate-semantic-version-action)
             - [EXPLAIN-VERSION-INDEPENDENCE-ACTION](#explain-version-independence-action)
             - [DOCUMENT-GROUND-RULES-CHANGES-ACTION](#document-ground-rules-changes-action)
-            - [UPDATE-NOTES-TABLED-ITEMS-ACTION](#update-notes-tabled-items-action)
-            - [COMMIT-NOTES-WITH-OTHER-CHANGES-ACTION](#commit-notes-with-other-changes-action)
+            - [ADD-TABLED-ITEM-ACTION](#add-tabled-item-action)
+            - [COMMIT-LOG-WITH-OTHER-CHANGES-ACTION](#commit-log-with-other-changes-action)
         - [Domain-Specific Pattern Actions](#domain-specific-pattern-actions)
             - [RANDOM-SAMPLE-ACTION](#random-sample-action)
             - [MANUAL-EXTRACTION-ACTION](#manual-extraction-action)
@@ -377,7 +377,7 @@ User input received
 **When**: After you mark any TODO.md item as complete [x]
 **Actions**:
 - UPDATE-TODO-ACTION
-- UPDATE-NOTES-ACTION
+- UPDATE-LOG-ACTION
 - UPDATE-CHANGELOG-ACTION (if code release)
 - VERIFY-CONSISTENCY-ACTION
 - REQUEST-APPROVAL-ACTION
@@ -397,8 +397,8 @@ User input received
 #### USER-SAYS-TABLE-THOUGHT-TRIGGER
 **When**: User says "table that thought", "hold that thought", or similar
 **Actions**:
-- UPDATE-NOTES-TABLED-ITEMS-ACTION
-- COMMIT-NOTES-WITH-OTHER-CHANGES-ACTION
+- ADD-TABLED-ITEM-ACTION
+- COMMIT-LOG-WITH-OTHER-CHANGES-ACTION
 
 ### Domain-Specific Patterns
 
@@ -829,7 +829,7 @@ Include current work status, completed work, and next steps as usual.
 **Purpose**: Verify all completion steps were executed
 **Steps**:
 1. Check if TODO.md was updated (tasks marked complete)
-2. Check if NOTES.md was updated (phase moved from "IN PROGRESS")
+2. Check if LOG.md was updated (phase moved from "IN PROGRESS")
 3. Check if CHANGELOG.md was updated (if code release)
 4. Check documentation consistency
 
@@ -900,7 +900,7 @@ Include current work status, completed work, and next steps as usual.
 **Purpose**: Verify documentation reflects current state
 **Steps**:
 1. Check if CHANGELOG.md needs updating (for code releases only)
-2. Check if NOTES.md needs updating (if work context changed)
+2. Check if LOG.md needs updating (if work context changed)
 3. Check if TODO.md needs updating (mark completed tasks)
 
 #### FORMAT-COMMIT-MESSAGE-ACTION
@@ -983,7 +983,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 **Purpose**: Verify all required documentation is updated
 **Steps**:
 1. Check CHANGELOG.md updated with version entry (STOP if missing)
-2. Check NOTES.md marked as RELEASED ✅ (STOP if missing)
+2. Check LOG.md marked as RELEASED ✅ (STOP if missing)
 3. Check TODO.md tasks marked complete (STOP if missing)
 4. Check README.md project version updated (STOP if missing)
 5. If all verified: Continue to next action
@@ -1011,7 +1011,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 #### DOCUMENT-LESSONS-ACTION
 **Purpose**: Capture insights for future reference
 **Steps**:
-1. Add findings to NOTES.md under release entry
+1. Add findings to LOG.md under release entry
 
 #### PROPOSE-RULE-UPDATES-ACTION
 **Purpose**: Suggest ground rules improvements based on patterns
@@ -1051,8 +1051,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 2. Update phase status to "COMPLETE" or add completion date
 3. Add commit reference if applicable
 
-#### UPDATE-NOTES-ACTION
-**Purpose**: Update session state in NOTES.md
+#### UPDATE-LOG-ACTION
+**Purpose**: Update session state in LOG.md
 **Steps**:
 1. Move phase from "IN PROGRESS" to completed section
 2. Add completion date and commit reference
@@ -1061,7 +1061,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 #### VERIFY-CONSISTENCY-ACTION
 **Purpose**: Ensure documentation files are synchronized
 **Steps**:
-1. Check that TODO.md, NOTES.md, and CHANGELOG.md tell same story
+1. Check that TODO.md, LOG.md, and CHANGELOG.md tell same story
 2. Ensure no orphaned references to "in progress" work
 
 #### ASSESS-PROJECT-VERSION-IMPACT-ACTION
@@ -1096,7 +1096,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 #### DOCUMENT-GROUND-RULES-CHANGES-ACTION
 **Purpose**: Track changes to SKILL-*.md files for future reference
 **Steps**:
-1. Add entry to NOTES.md under "Ground Rules Evolution" section
+1. Add entry to LOG.md with @RULES tag
 2. Include: Date, what changed, why it changed, commit hash
 3. Skip CHANGELOG.md (not user-facing product changes)
 4. Format:
@@ -1107,17 +1107,17 @@ Co-Authored-By: Claude <noreply@anthropic.com>
    - Commits: [hash]
    ```
 
-#### UPDATE-NOTES-TABLED-ITEMS-ACTION
+#### ADD-TABLED-ITEM-ACTION
 **Purpose**: Record discussion items for future sessions
 **Steps**:
-1. Add item to NOTES.md under "Tabled Items" section
+1. Add item to TODO.md under "Tabled Items" section
 2. Include context about WHY it was tabled
 3. Include date and any relevant context
 
-#### COMMIT-NOTES-WITH-OTHER-CHANGES-ACTION
-**Purpose**: Ensure NOTES.md is backed up with commits
+#### COMMIT-LOG-WITH-OTHER-CHANGES-ACTION
+**Purpose**: Ensure LOG.md is backed up with commits
 **Steps**:
-1. Always include NOTES.md in commits (even if only other files changed)
+1. Always include LOG.md in commits (even if only other files changed)
 2. This ensures session state is preserved in git history
 
 ### Domain-Specific Pattern Actions
@@ -1214,7 +1214,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - README.md
 - CHANGELOG.md
 - TODO.md
-- NOTES.md
+- LOG.md
 - SKILL-*.md files
 - Build scripts (.bat files)
 - .gitignore

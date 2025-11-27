@@ -308,21 +308,21 @@ The installer detects its own environment using `window.location.hostname` and g
 
 **Special Note:** Must start with YAML frontmatter for Claude Skills format. References CHANGELOG Technical Notes.
 
-#### NOTES.md
-**Purpose:** Session continuity tracking for work-in-progress and tabled discussions
-**Audience:** Claude agents across sessions
+#### LOG.md
+**Purpose:** Historical record of completed work in chronological order
+**Audience:** Claude agents across sessions, developers reviewing history
 **Key Sections:**
-- Tabled Items (discussions postponed for later)
-- Current Work in Progress (detailed context for active work)
-- Open Questions
+- Dated entries for completed work (newest first)
+- @RULES tag for ground rules changes
+- Links to post-mortems and design docs
 
 **When to Update:**
-- When user says "table that thought" or "hold that thought until..."
-- When starting/completing major work (update Current Work in Progress)
-- When finalizing versions (mark as RELEASED ✅)
-- Always commit NOTES.md with any other commits (for backup)
+- When completing major work (move from TODO.md to LOG.md)
+- When finalizing versions (add entry marked as COMPLETE or RELEASED)
+- When making ground rules changes (add entry with @RULES tag)
+- Always commit LOG.md with any other commits (for backup)
 
-**Special Note:** This file tracks SESSION STATE, not rules. Rules live in SKILL files.
+**Special Note:** This file tracks COMPLETED WORK history, not rules. Rules live in SKILL files. Current work lives in TODO.md.
 
 #### CONTRIBUTING.md (this file)
 **Purpose:** Comprehensive documentation guide and development workflow overview
@@ -594,6 +594,6 @@ For detailed rules and protocols, see SKILL-Development-Ground-Rules.md (the sin
 
 For project-specific patterns and pitfalls, see SKILL-ReaderWrangler.md.
 
-For current work status, see NOTES.md.
+For current work status, see TODO.md. For completed work history, see LOG.md.
 
 For version history and technical notes, see CHANGELOG.md.

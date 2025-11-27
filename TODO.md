@@ -1,47 +1,5 @@
 # TODO
 
-## Current Priorities (Active Development)
-
-_What we're actively working on right now_
-
-### 1. Status Bar Redesign (v3.7.0) - IN PROGRESS
-
-**Goal**: Simplify status display with user-first urgency indicators based on Load state only
-
-**Design Document**: [docs/design/STATUS-BAR-REDESIGN.md](docs/design/STATUS-BAR-REDESIGN.md) - Full rationale, architecture, and 25-state matrix
-
-**Implementation Tasks**:
-
-**Phase 1: Add GUID + fetchDate to fetchers**
-- [x] Generate GUID in library-fetcher.js, add to JSON metadata (v3.4.0.a)
-- [x] Generate GUID in collections-fetcher.js, add to JSON metadata (v1.1.0)
-- [x] Add `metadata.fetchDate` to Collections JSON (v1.1.0)
-
-**Phase 2: Fetcher writes manifest to IndexedDB**
-- [x] Library fetcher: write manifest to IndexedDB after generating JSON (v3.4.0.a)
-- [x] Collections fetcher: write manifest to IndexedDB after generating JSON (v1.1.0)
-- [x] Use same IndexedDB database as organizer app (ReaderWranglerManifests)
-
-**Phase 3: App reads from IndexedDB**
-- [x] On app load: read manifests from IndexedDB (v3.6.1)
-- [x] On JSON load: match GUID to find corresponding manifest (v3.6.1)
-- [x] Calculate Fetch state from manifest, Load state from JSON metadata (v3.6.1)
-- [x] Handle missing/mismatched GUID gracefully (v3.6.1)
-
-**Phase 4: Remove old polling code**
-- [x] Delete `amazon-manifest.json` file generation (v3.6.1)
-- [x] Remove `checkManifest()` function and 60-second timer (v3.6.1)
-- [x] Remove `manifestData` React state (v3.7.0.m)
-- [x] Remove `MANIFEST_CHECK_INTERVAL` constant (v3.6.1)
-
-**Phase 5: New status bar UI**
-- [x] Remove version from status bar header (v3.7.0.o)
-- [x] Single-line: "Data Status: ✅" (or ⚠️ or 🛑 or ❓) (v3.7.0)
-- [x] Tooltip shows summary (v3.7.0)
-- [x] Click opens status dialog with full 25-state details (v3.7.0)
-
----
-
 ## Prioritized Roadmap (By Priority & Complexity)
 
 _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)_
