@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.0] - 2025-12-11
+
+### Changed
+- **Speed Optimization** - Dramatic performance improvement for library fetching
+  - Removed artificial delays (0ms) - network RTT provides natural throttling
+  - Batch enrichment: 30 ASINs per getProducts call (was 1 per call)
+  - Expected time: ~1 minute for 2000+ books (was ~2 hours)
+
+### Added
+- **Error Categorization** - Partial API errors now tracked by category in stats
+  - `amazonTimeout` - 504.1 / Backend Future timed out errors
+  - `customerMarketplace` - Customer/Marketplace ID invalid errors
+  - `other` - Unrecognized errors
+  - Category breakdown shown in final stats output
+- **Friendly Error Messages** - Amazon API errors now display human-readable messages
+  - 504.1 timeout → "Amazon server timeout (504.1) - temporary issue, data still retrieved"
+  - Customer/Marketplace ID → "Amazon internal error (Customer/Marketplace ID) - data still retrieved"
+
+### Fixed
+- **Timing Stats** - Fixed missing timestamps causing incorrect duration display
+  - Added `mergeEnd` timestamp after library file save
+  - Added `manifestStart`/`manifestEnd` timestamps around Step 6
+- **Partial Error Logging** - Fixed crash when logging batch partial errors
+  - Updated to match batch structure (`batch`, `errorMessage`, `productsReturned`, `productsRequested`)
+
+### Technical Notes
+- Batch size of 30 ASINs is Amazon's limit (discovered via diag-03-batch-enrichment.js testing)
+- GraphQL syntax requires unquoted keys: `{asin: "X"}` not `{"asin": "X"}`
+- 504.1 errors are Amazon-side timeouts, benign when data is still returned
+
+## [3.6.1] - 2025-11-19
+
 ### Fixed
 - **Token Percentage Calculation** - Added explicit calculation formula to prevent inversion errors (2025-11-24)
   - Problem: Token percentage was intermittently calculated incorrectly (showing 35% when actually 67% remaining)
