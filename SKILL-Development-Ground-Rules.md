@@ -640,6 +640,10 @@ These triggers depend on **WHAT CLAUDE IS DOING** or **SYSTEM STATE**. Evaluate 
 3. Only increment versions in files actually being modified
    - library-fetcher.js → update FETCHER_VERSION only
    - amazon-organizer.js → update APP_VERSION only
+4. **COMMIT the version increment as a checkpoint** before making functional changes
+   - This ensures version in console output matches committed code
+   - Enables rollback to any letter version if needed
+   - Squash letter commits when releasing (see PREPARE-RELEASE-ACTION)
 
 #### STATE-CHECKING-RULE-ACTION
 **Purpose**: Make rule verification visible
