@@ -45,3 +45,6 @@ temp/
 # Claude Skills (generated files - source .md files are tracked)
 SKILL.md
 SKILL-*.zip
+
+# Ground rules debug log (not committed)
+SKILL-Development-Ground-Rules-Log.md
