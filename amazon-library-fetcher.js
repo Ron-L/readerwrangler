@@ -107,6 +107,23 @@ async function fetchAmazonLibrary() {
         else return `${seconds}s`;
     };
 
+    // Helper function to format friendly error messages from Amazon API errors
+    const formatApiError = (errorMsg) => {
+        // 504.1 timeout - Amazon backend service timeout
+        if (errorMsg.includes('504.1') || errorMsg.includes('Backend Future timed out')) {
+            return 'Amazon server timeout (504.1) - temporary issue, data still retrieved';
+        }
+        // Customer/Marketplace ID error - benign internal error
+        if (errorMsg.includes('Customer Id or Marketplace Id is invalid')) {
+            return 'Amazon internal error (Customer/Marketplace ID) - data still retrieved';
+        }
+        // Return original if no match (truncate if very long)
+        if (errorMsg.length > 100) {
+            return errorMsg.substring(0, 100) + '...';
+        }
+        return errorMsg;
+    };
+
     // Generate a unique identifier for this fetch session
     // Used by the organizer to match JSON files with their IndexedDB manifests
     const generateGUID = () => {
@@ -1462,13 +1479,14 @@ async function fetchAmazonLibrary() {
 
                         if (products.length > 0) {
                             // PARTIAL ERROR: We got errors BUT also got some data
-                            console.log(`   ⚠️  Partial error: ${errorMsg}`);
+                            const friendlyError = formatApiError(errorMsg);
+                            console.log(`   ⚠️  Partial error: ${friendlyError}`);
                             console.log(`   📦 Got ${products.length}/${batchBooks.length} products - continuing...`);
 
-                            // Track partial errors
+                            // Track partial errors (store friendly version)
                             stats.partialErrorBooks.push({
                                 batch: batchNum + 1,
-                                errorMessage: errorMsg,
+                                errorMessage: friendlyError,
                                 productsReturned: products.length,
                                 productsRequested: batchBooks.length
                             });
@@ -1614,6 +1632,7 @@ async function fetchAmazonLibrary() {
         stats.timing.mergeEnd = Date.now();
 
         // Step 6: Create and save manifest
+        stats.timing.manifestStart = Date.now();
         console.log('[6/6] Creating manifest file...');
         progressUI.updatePhase('Creating Manifest', 'Generating metadata file');
 
@@ -1639,6 +1658,7 @@ async function fetchAmazonLibrary() {
         // Manifest file download removed in v3.4.0 - now written to IndexedDB only
         // The manifest is read by the app from IndexedDB, not from a file
         console.log(`✅ Manifest saved to IndexedDB (file download removed)`);
+        stats.timing.manifestEnd = Date.now();
 
         // Calculate phase durations
         const phase0Duration = stats.timing.phase0End - stats.timing.phase0Start;
