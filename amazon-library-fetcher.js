@@ -1611,6 +1611,7 @@ async function fetchAmazonLibrary() {
         URL.revokeObjectURL(url);
 
         console.log(`✅ Saved library file: ${LIBRARY_FILENAME}`);
+        stats.timing.mergeEnd = Date.now();
 
         // Step 6: Create and save manifest
         console.log('[6/6] Creating manifest file...');
