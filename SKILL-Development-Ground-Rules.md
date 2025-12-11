@@ -1060,7 +1060,11 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 #### DOCUMENT-LESSONS-ACTION
 **Purpose**: Capture insights for future reference
 **Steps**:
-1. Add findings to LOG.md under release entry
+1. Read `post-mortems/TEMPLATE-post-mortem.md` for format reference
+2. Review existing post-mortems in `post-mortems/` folder for examples
+3. Create new file: `post-mortems/vX.Y.Z-YYYY-MM-DD.md`
+4. Include sections: What Worked Well, Mistakes Made, Lessons Learned, AI Collaboration Insights (if applicable), Rule Updates, Files Changed, Recommendations
+5. Add brief summary to LOG.md under release entry
 
 #### PROPOSE-RULE-UPDATES-ACTION
 **Purpose**: Suggest ground rules improvements based on patterns
