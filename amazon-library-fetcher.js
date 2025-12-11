@@ -22,7 +22,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v3.5.0.c';
+    const FETCHER_VERSION = 'v3.5.0.d';
     const SCHEMA_VERSION = '3.1.0';
 
     console.log('========================================');
@@ -92,7 +92,12 @@ async function fetchAmazonLibrary() {
         aiSummariesUsed: [],
         apiErrorBooks: [],
         partialErrorBooks: [],  // Track books with partial errors (got data anyway)
-        duplicatesFound: []  // Track duplicate ASINs
+        duplicatesFound: [],  // Track duplicate ASINs
+        errorCategories: {
+            amazonTimeout: 0,      // 504.1 / Backend Future timed out
+            customerMarketplace: 0, // Customer Id or Marketplace Id invalid
+            other: 0               // Unrecognized errors
+        }
     };
 
     // Helper function to format time (used in multiple places)
@@ -108,20 +113,28 @@ async function fetchAmazonLibrary() {
     };
 
     // Helper function to format friendly error messages from Amazon API errors
+    // Returns { message, category } for both display and stats tracking
     const formatApiError = (errorMsg) => {
         // 504.1 timeout - Amazon backend service timeout
         if (errorMsg.includes('504.1') || errorMsg.includes('Backend Future timed out')) {
-            return 'Amazon server timeout (504.1) - temporary issue, data still retrieved';
+            return {
+                message: 'Amazon server timeout (504.1) - temporary issue, data still retrieved',
+                category: 'amazonTimeout'
+            };
         }
         // Customer/Marketplace ID error - benign internal error
         if (errorMsg.includes('Customer Id or Marketplace Id is invalid')) {
-            return 'Amazon internal error (Customer/Marketplace ID) - data still retrieved';
+            return {
+                message: 'Amazon internal error (Customer/Marketplace ID) - data still retrieved',
+                category: 'customerMarketplace'
+            };
         }
         // Return original if no match (truncate if very long)
-        if (errorMsg.length > 100) {
-            return errorMsg.substring(0, 100) + '...';
-        }
-        return errorMsg;
+        const truncatedMsg = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
+        return {
+            message: truncatedMsg,
+            category: 'other'
+        };
     };
 
     // Generate a unique identifier for this fetch session
@@ -1479,7 +1492,7 @@ async function fetchAmazonLibrary() {
 
                         if (products.length > 0) {
                             // PARTIAL ERROR: We got errors BUT also got some data
-                            const friendlyError = formatApiError(errorMsg);
+                            const { message: friendlyError, category: errorCategory } = formatApiError(errorMsg);
                             console.log(`   ⚠️  Partial error: ${friendlyError}`);
                             console.log(`   📦 Got ${products.length}/${batchBooks.length} products - continuing...`);
 
@@ -1487,9 +1500,13 @@ async function fetchAmazonLibrary() {
                             stats.partialErrorBooks.push({
                                 batch: batchNum + 1,
                                 errorMessage: friendlyError,
+                                errorCategory: errorCategory,
                                 productsReturned: products.length,
                                 productsRequested: batchBooks.length
                             });
+
+                            // Increment error category counter
+                            stats.errorCategories[errorCategory]++;
 
                             return { products, partialError: true };
                         } else {
@@ -1746,6 +1763,17 @@ async function fetchAmazonLibrary() {
         if (stats.partialErrorBooks.length > 0) {
             console.log('⚠️  PARTIAL ERRORS (Got data anyway)');
             console.log(`   Batches with partial errors:  ${stats.partialErrorBooks.length}`);
+            // Show category breakdown
+            if (stats.errorCategories.amazonTimeout > 0) {
+                console.log(`   └ Amazon timeouts (504.1):    ${stats.errorCategories.amazonTimeout}`);
+            }
+            if (stats.errorCategories.customerMarketplace > 0) {
+                console.log(`   └ Customer/Marketplace:       ${stats.errorCategories.customerMarketplace}`);
+            }
+            if (stats.errorCategories.other > 0) {
+                console.log(`   └ Other errors:               ${stats.errorCategories.other}`);
+            }
+            // Show batch details
             stats.partialErrorBooks.forEach(item => {
                 console.log(`      • Batch ${item.batch}: ${item.productsReturned}/${item.productsRequested} products returned`);
                 console.log(`        Error: ${item.errorMessage}`);
