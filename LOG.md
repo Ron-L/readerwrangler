@@ -10,6 +10,25 @@ For current work, see TODO.md. For development rules, see SKILL-Development-Grou
 
 ---
 
+## [2025-12-11] Collections Fetcher Speed Optimization (v3.7.1) - RELEASED
+
+**Goal**: Optimize collections fetcher performance using same approach as library fetcher
+
+**Changes**:
+- Batch size: 25 → 200
+- Delays: 2000ms → 0ms
+- Performance: ~25 seconds for 2,300 books (was ~3+ minutes)
+
+**Ground Rules Updates**:
+- Added READY-TO-TEST-TRIGGER and VERIFY-CODE-COMMITTED-ACTION
+- Ensures commit before external testing for traceability
+
+**Post-Mortem**: [post-mortems/v3.7.1-2025-12-11.md](post-mortems/v3.7.1-2025-12-11.md)
+
+**Commits**: `f64b153`
+
+---
+
 ## [2025-12-11] @RULES Trigger Reorganization for Better Compliance
 
 Reorganized TRIGGERS section into two categories to improve protocol compliance:
