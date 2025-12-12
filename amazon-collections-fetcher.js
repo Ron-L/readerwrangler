@@ -1,4 +1,4 @@
-// Amazon Collections Fetcher v1.1.0 (Adds GUID for status bar tracking)
+// Amazon Collections Fetcher v1.2.0.a (Speed optimization: 0ms delays, batch size 200)
 // Fetches collection membership and read status for all books in your library
 // Schema Version: 1.1 (Adds GUID for status bar tracking)
 //
@@ -14,7 +14,7 @@
 //         by pressing Up Arrow (to recall the function call) or typing: fetchAmazonCollections()
 
 async function fetchAmazonCollections() {
-    const FETCHER_VERSION = 'v1.1.0';
+    const FETCHER_VERSION = 'v1.2.0.a';
     const SCHEMA_VERSION = '1.1';
     const PAGE_TITLE = document.title;
 
@@ -26,8 +26,8 @@ async function fetchAmazonCollections() {
 
     const startTime = Date.now();
     const ENDPOINT = 'https://www.amazon.com/hz/mycd/digital-console/ajax';
-    const BATCH_SIZE = 25;
-    const FETCH_DELAY_MS = 2000; // 2 seconds between requests
+    const BATCH_SIZE = 200;  // Tested via diag-01-collections-rate-limit.js - 200 works
+    const FETCH_DELAY_MS = 0; // 0ms - network RTT (~400ms) provides natural throttling
     const FILENAME = 'amazon-collections.json';
 
     // Generate a unique identifier for this fetch session
@@ -152,7 +152,7 @@ async function fetchAmazonCollections() {
                     Initializing
                 </div>
                 <div style="font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px;">
-                    ⏱️ Large libraries take time: ~1½ minutes per 1000 books<br>
+                    ⏱️ ~5 seconds per 1000 books (batch size 200, 0ms delays)<br>
                     💡 Open Console (F12) for detailed progress
                 </div>
             `;
@@ -481,7 +481,9 @@ async function fetchAmazonCollections() {
         console.log(`   Total books in library: ${totalBooks}`);
         console.log(`   Expected pages: ${expectedPages}`);
         console.log(`   Safety limit: ${safetyLimit} pages (expected + 2 buffer)`);
-        console.log(`   Estimated time: ${Math.ceil(expectedPages * FETCH_DELAY_MS / 1000 / 60)} minutes\n`);
+        // Estimate ~500ms per request (network RTT) since FETCH_DELAY_MS is 0
+        const estimatedSeconds = Math.ceil(expectedPages * 0.5);
+        console.log(`   Estimated time: ~${estimatedSeconds} seconds (${expectedPages} pages × ~500ms/request)\n`);
 
     } catch (error) {
         console.error('❌ PHASE 0 VALIDATION FAILED - EXCEPTION');
@@ -613,9 +615,11 @@ async function fetchAmazonCollections() {
                 break;
             }
 
-            // Rate limiting - delay before next request
-            console.log(`  ⏳ Waiting ${FETCH_DELAY_MS / 1000} seconds before next request...\n`);
-            await new Promise(resolve => setTimeout(resolve, FETCH_DELAY_MS));
+            // Rate limiting - delay before next request (if configured)
+            if (FETCH_DELAY_MS > 0) {
+                console.log(`  ⏳ Waiting ${FETCH_DELAY_MS / 1000} seconds before next request...\n`);
+                await new Promise(resolve => setTimeout(resolve, FETCH_DELAY_MS));
+            }
 
         } catch (error) {
             console.error(`\n❌ Exception on page ${pageNum + 1}:`, error.message);
