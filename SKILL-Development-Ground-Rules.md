@@ -952,6 +952,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 3. Create new file: `post-mortems/vX.Y.Z-YYYY-MM-DD.md`
 4. Include sections: What Worked Well, Mistakes Made, Lessons Learned, AI Collaboration Insights (if applicable), Rule Updates, Files Changed, Recommendations
 5. Add brief summary to LOG.md under release entry
+6. Commit the post-mortem file and LOG.md updates
 
 #### PROPOSE-RULE-UPDATES-ACTION
 **Purpose**: Suggest ground rules improvements based on patterns
