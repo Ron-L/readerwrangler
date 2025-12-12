@@ -20,9 +20,6 @@ description: Core development workflow rules including version management, appro
         - [State-Dependent Triggers Evaluate When Context Applies](#state-dependent-triggers-evaluate-when-context-applies)
             - [System State Triggers](#system-state-triggers)
                 - [RESPONSE-START-TRIGGER](#response-start-trigger)
-                - [SESSION-COMPACTION-TRIGGER](#session-compaction-trigger)
-                - [STALE-TIMESTAMP-TRIGGER](#stale-timestamp-trigger)
-                - [FRESH-TIMESTAMP-TRIGGER](#fresh-timestamp-trigger)
             - [Before Code Changes](#before-code-changes)
                 - [CODE-CHANGE-TRIGGER](#code-change-trigger)
                 - [VERSION-CHANGE-PROPOSAL-TRIGGER](#version-change-proposal-trigger)
@@ -52,12 +49,7 @@ description: Core development workflow rules including version management, appro
     - [ACTIONS Protocol Implementations](#actions-protocol-implementations)
         - [Meta & System Actions](#meta--system-actions)
             - [READ-MEMORY-ACTION](#read-memory-action)
-            - [INCREMENT-TIMESTAMP-STALE-CNT-ACTION](#increment-timestamp-stale-cnt-action)
-            - [RESET-TIMESTAMP-STALE-CNT-ACTION](#reset-timestamp-stale-cnt-action)
-            - [UPDATE-MEMORY-ACTION](#update-memory-action)
             - [DISPLAY-STATUS-LINE-ACTION](#display-status-line-action)
-            - [NOTIFY-COMPACTION-ACTION](#notify-compaction-action)
-            - [POST-COMPACTION-ACTION](#post-compaction-action)
         - [Code Development Workflow Actions](#code-development-workflow-actions)
             - [CHECK-VERSION-INCREMENTED-ACTION](#check-version-incremented-action)
             - [INCREMENT-VERSION-ACTION](#increment-version-action)
@@ -158,7 +150,7 @@ description: Core development workflow rules including version management, appro
 You are a **Protocol Execution Engine** - a robotic assistant whose primary function is ensuring 100% adherence to the rules in this document.
 
 **Core behaviors:**
-1. **Read before respond**: At the start of EVERY response, read `.claude-memory` and `.claude-timestamp` files. Do not rely on memory or habit.
+1. **Read before respond**: At the start of EVERY response, read `.claude-timestamp` file. Do not rely on memory or habit.
 2. **Execute, don't approximate**: Follow triggers and actions literally. If a trigger condition matches, execute ALL its actions - don't skip steps because the outcome "seems covered."
 3. **Guide the user**: You track complex rules so the user doesn't have to. Proactively remind them of process steps (post-mortems, documentation updates, approval workflows).
 4. **Fail visibly**: If you skip a step, acknowledge it. The user needs to trust the system, which requires honesty about gaps.
@@ -187,7 +179,7 @@ WHEN user provides input:
        d. IF step references XXX-REF:
             - Look up XXX-REF in ## REFERENCE DATA section
             - Use that data to complete the step
-       e. IF executing ACTION changes state (token %, git status, file changes, etc.):
+       e. IF executing ACTION changes state (git status, file changes, etc.):
             - Re-evaluate ALL TRIGGERS with new state
             - Execute any newly-matched triggers
             - Repeat until no new triggers match
@@ -207,24 +199,23 @@ Log format:
 - Append to `SKILL-Development-Ground-Rules-Log.md`
 - If `debugLevel` is `0`, `false`, or absent: no logging
 
-**Implied consent**: Following these ground rules grants implicit permission to write to `SKILL-Development-Ground-Rules-Log.md` and `.claud-memory` without explicit user approval. No confirmation prompt is required for debug log nor memory writes.
+**Implied consent**: Following these ground rules grants implicit permission to write to `SKILL-Development-Ground-Rules-Log.md` without explicit user approval. No confirmation prompt is required for debug log writes.
 
 **Example Flow:**
 ```
 User input received
   → RESPONSE-START-TRIGGER fires (always matches)
       → Executes READ-MEMORY-ACTION
-          → Loads lastTimestamp from .claude-memory
-      → Executes UPDATE-MEMORY-ACTION
+          → Loads debugLevel from .claude-memory
       → Executes DISPLAY-STATUS-LINE-ACTION
-      → State changes: lastTokenPercent updated in memory
-  → Re-evaluate triggers with new state
-      → FRESH-TIMESTAMP-TRIGGER or STALE-TIMESTAMP-TRIGGER fires
-          → Executes RESET-TIMESTAMP-STALE-CNT-ACTION or INCREMENT-TIMESTAMP-STALE-CNT-ACTION
-      → CODE-CHANGE-TRIGGER matches (if user requests code modification)
+          → Reads timestamp from .claude-timestamp
+          → Displays status line
+  → Scan user message for Always-Evaluate Trigger keywords
+      → If "thoughts?" found → DISCUSSION-QUESTION-TRIGGER fires
+  → Evaluate State-Dependent Triggers based on context
+      → If user requests code modification → CODE-CHANGE-TRIGGER fires
           → Executes CHECK-VERSION-INCREMENTED-ACTION
               → References DOCUMENTATION-FILES-REF for exceptions
-  → Re-evaluate triggers (no new matches)
   → Continue with user request
 ```
 
@@ -313,27 +304,7 @@ These triggers depend on **WHAT CLAUDE IS DOING** or **SYSTEM STATE**. Evaluate 
 **Frequency**: Every single response without exception
 **Actions**:
 - READ-MEMORY-ACTION
-- UPDATE-MEMORY-ACTION
 - DISPLAY-STATUS-LINE-ACTION
-
-##### SESSION-COMPACTION-TRIGGER
-**When**: Current token percentage is GREATER than lastTokenPercent from .claude-memory (i.e., `currentTokenPercent > lastTokenPercent`)
-**Where**:
-- `currentTokenPercent` = (tokens_remaining / 200000) × 100 from system token budget
-- `lastTokenPercent` = value from `.claude-memory` file (see FILE-PATHS-REF)
-**Actions**:
-- NOTIFY-COMPACTION-ACTION
-- POST-COMPACTION-ACTION
-
-##### STALE-TIMESTAMP-TRIGGER
-**When**: Read the file `.claude-timestamp` (project root - see FILE-PATHS-REF for path) and it matches `lastTimestamp` from memory
-**Actions**:
-- INCREMENT-TIMESTAMP-STALE-CNT-ACTION
-
-##### FRESH-TIMESTAMP-TRIGGER
-**When**: Read the file `.claude-timestamp` (project root - see FILE-PATHS-REF for path) and it does not match `lastTimestamp` from memory
-**Actions**:
-- RESET-TIMESTAMP-STALE-CNT-ACTION
 
 #### Before Code Changes
 
@@ -493,131 +464,24 @@ These triggers depend on **WHAT CLAUDE IS DOING** or **SYSTEM STATE**. Evaluate 
 ### Meta & System Actions
 
 #### READ-MEMORY-ACTION
-**Purpose**: Load persistent state from .claude-memory file
+**Purpose**: Load debug settings from .claude-memory file
 **Steps**:
 1. Read `.claude-memory` (project root - see FILE-PATHS-REF for path)
 2. Parse JSON
-3. Extract: `lastTokenPercent`, `lastTimestamp`, `timestampStaleCount`
-
-#### INCREMENT-TIMESTAMP-STALE-CNT-ACTION
-**Purpose**: Increment the count of how long it has been since the timestamp updated
-**Steps**:
-1. Increment `timestampStaleCount`
-
-#### RESET-TIMESTAMP-STALE-CNT-ACTION
-**Purpose**: Reset the count of how long it has been since the timestamp updated
-**Steps**:
-1. Reset `timestampStaleCount` to 0
-
-#### UPDATE-MEMORY-ACTION
-**Purpose**: Persist current state to .claude-memory
-**Steps**:
-1. Write JSON to `.claude-memory`:
-   ```json
-   {
-     "lastTokenPercent": <currentPercent>,
-     "lastTimestamp": "<timestamp from reading the file .claude-timestamp>",
-     "timestampStaleCount": <calculated value>
-   }
-   ```
+3. Extract: `debugLevel`
 
 #### DISPLAY-STATUS-LINE-ACTION
 **Purpose**: Show current session status
 **Format**:
 ```
-📋 Ground Rules Active [YYYY-MM-DD HH:MM:SS] | ████░ XX% left 🟢
+📋 Ground Rules Active [YYYY-MM-DD HH:MM:SS]
 ---
 ```
 
 **Components**:
 - Timestamp: Read the file `.claude-timestamp`
-- Progress bar based on token percentage (█ = filled, ░ = empty)
-  - █████ = 100-80% remaining
-  - ████░ = 79-60% remaining
-  - ███░░ = 59-40% remaining
-  - ██░░░ = 39-20% remaining
-  - █░░░░ = 19-0% remaining
-- Exact percentage: Calculate as `(tokens_remaining ÷ total_tokens) × 100`
-  - Example: System reports "135323 remaining / 200000 total"
-  - Calculate: (135323 ÷ 200000) × 100 = 67.66% remaining
-  - Display: `████░ 67% left`
-- Freshness indicator:
-  - 🟢 Fresh (updated in last 2 responses)
-  - 🟡 Recent (2-4 responses ago)
-  - 🟠 Stale (5-7 responses ago)
-  - 🔴 Ancient (8+ responses ago)
-
-**Conditional additions**:
-- If `timestampStaleCount >= 3`: Append warning
-  ```
-  ⚠️ Timestamp service may be stopped - run: python update-timestamp.py
-  ```
 
 **Exception**: Only skip if user explicitly requests it be turned off
-
-#### NOTIFY-COMPACTION-ACTION
-**Purpose**: Inform user of detected compaction and request logging permission
-**Format**:
-```
-🔄 COMPACTION DETECTED: Tokens jumped from XX% → YY%
-
-📝 Ready to log: [YYYY-MM-DD HH:MM] Compaction
-
-🔔 **Permission to write to Compaction-log.md?**
-- "yes" = Write this one entry
-- "yes to all" = Write all future compaction entries automatically (this session only)
-- "no" = Skip this entry
-```
-
-**Approval handling**:
-- "yes": Write entry, continue
-- "yes to all": Set session flag, write entry, continue
-- "no": Skip logging, continue
-
-#### POST-COMPACTION-ACTION
-**Purpose**: Ensure ground rules persist across session compaction
-**CRITICAL**: When creating compaction summary, include these directives at the VERY BEGINNING:
-
-**Steps:**
-
-1. **Include execution directive** in compaction summary (IMPERATIVE - NOT OPTIONAL):
-   ```
-   🚨 EXECUTE THESE STEPS IMMEDIATELY BEFORE YOUR FIRST RESPONSE 🚨
-
-   STEP 1: Read and EXECUTE ground rules file
-     → Read and EXECUTE SKILL-Development-Ground-Rules.md in full
-
-   STEP 2: Read and EXECUTE project skills file
-     → Read and EXECUTE SKILL-ReaderWrangler.md in full
-
-   STEP 3: Read decision frameworks (reference, not rules)
-     → Read CONTRIBUTING.md for guidance on Ship Fast vs Build Solid decisions
-
-   STEP 4: EXECUTE RESPONSE-START-TRIGGER
-     → Read .claude-memory file (READ-MEMORY-ACTION)
-     → Calculate current token percentage
-     → Write updated .claude-memory (UPDATE-MEMORY-ACTION)
-     → Display status line at TOP of first response (DISPLAY-STATUS-LINE-ACTION)
-
-   STEP 5: THEN respond to user
-
-   STATUS LINE FORMAT (from DISPLAY-STATUS-LINE-ACTION):
-   📋 Ground Rules Active [YYYY-MM-DD HH:MM:SS] | ████░ XX% left 🟢
-   ---
-
-   DO NOT use old format: "📋 Ground Rules Active - Full rules in..."
-   USE ONLY the format above with progress bars and percentage.
-   ```
-
-2. **Include standard summary content**: current work status, completed work, and next steps.
-
-**Why This Matters:**
-- Compaction summary is the ONLY way to pass behavioral requirements across session boundaries
-- Without explicit file read directives, ground rules are forgotten
-- Without EXECUTE command, protocols are not applied
-- Without the protocol reminder, status line display disappears
-- Loss of these protocols causes rule violations
-- Debug tracing (if enabled) will automatically log this trigger/action via the Execution Protocol
 
 ### Code Development Workflow Actions
 
@@ -1258,9 +1122,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 **Purpose**: Constants and formats referenced by triggers and actions above.
 
 ### FILE-PATHS-REF
-- **Memory file**: `.claude-memory` (project root)
-- **Timestamp file**: `.claude-timestamp` (project root)
-- **Compaction log**: `Compaction-log.md` (project root)
+- **Memory file**: `.claude-memory` (project root) - contains `debugLevel` setting
+- **Timestamp file**: `.claude-timestamp` (project root) - updated by external script
 - **Ground rules debug log**: `SKILL-Development-Ground-Rules-Log.md` (project root)
 
 ### DOCUMENTATION-FILES-REF
