@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.1] - 2025-12-11
+
+### Changed
+- **Collections Fetcher Speed Optimization** - Dramatic performance improvement (amazon-collections-fetcher.js v1.2.0)
+  - Batch size increased: 200 books per request (was 25)
+  - Removed artificial delays: 0ms (was 2000ms)
+  - Performance: ~25 seconds for 2,300 books (was ~3+ minutes)
+  - Network RTT (~400ms) provides natural throttling
+
+### Technical Notes
+- Batch size 200 confirmed safe via diag-01-collections-rate-limit.js testing
+- Collections API uses REST endpoint, not GraphQL (different from library fetcher)
+- Progress UI time estimate updated to reflect new speed
+
 ## [3.7.0] - 2025-12-11
 
 ### Changed
