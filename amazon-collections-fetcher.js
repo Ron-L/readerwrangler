@@ -1,4 +1,4 @@
-// Amazon Collections Fetcher v1.2.0 (Speed optimization: 0ms delays, batch size 200)
+// Amazon Collections Fetcher v1.2.1.a (Progress UI: timer, progress bar)
 // Fetches collection membership and read status for all books in your library
 // Schema Version: 1.1 (Adds GUID for status bar tracking)
 //
@@ -14,7 +14,7 @@
 //         by pressing Up Arrow (to recall the function call) or typing: fetchAmazonCollections()
 
 async function fetchAmazonCollections() {
-    const FETCHER_VERSION = 'v1.2.0';
+    const FETCHER_VERSION = 'v1.2.1.a';
     const SCHEMA_VERSION = '1.1';
     const PAGE_TITLE = document.title;
 
@@ -105,12 +105,16 @@ async function fetchAmazonCollections() {
     };
 
     // ============================================================================
-    // Progress Overlay UI (Option C - Minimal)
+    // Progress Overlay UI (Enhanced with timer and progress bar)
     // ============================================================================
     const progressUI = (() => {
         let overlay = null;
         let phaseElement = null;
         let detailElement = null;
+        let progressBarFill = null;
+        let progressText = null;
+        let timerElement = null;
+        let phaseStartTime = null;
 
         function create() {
             overlay = document.createElement('div');
@@ -151,21 +155,58 @@ async function fetchAmazonCollections() {
                 <div id="progressDetail" style="font-size: 13px; color: #666; margin-bottom: 15px;">
                     Initializing
                 </div>
-                <div style="font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px;">
-                    ⏱️ ~5 seconds per 1000 books (batch size 200, 0ms delays)<br>
-                    💡 Open Console (F12) for detailed progress
+                <div id="progressBarContainer" style="display: none; margin-bottom: 15px;">
+                    <div style="background: #e0e0e0; border-radius: 10px; height: 20px; overflow: hidden;">
+                        <div id="progressBarFill" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 10px;"></div>
+                    </div>
+                    <div id="progressText" style="font-size: 12px; color: #666; text-align: center; margin-top: 5px;">0%</div>
+                </div>
+                <div id="timerDisplay" style="font-size: 12px; color: #999; text-align: center; padding-top: 8px; border-top: 1px solid #eee;">
+                    ⏱️ Elapsed: 0s
                 </div>
             `;
 
             phaseElement = overlay.querySelector('#progressPhase');
             detailElement = overlay.querySelector('#progressDetail');
+            progressBarFill = overlay.querySelector('#progressBarFill');
+            progressText = overlay.querySelector('#progressText');
+            timerElement = overlay.querySelector('#timerDisplay');
             document.body.appendChild(overlay);
+        }
+
+        function updateTimer() {
+            if (!overlay || !phaseStartTime) return;
+            const elapsed = Date.now() - phaseStartTime;
+            const seconds = Math.floor(elapsed / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            const timeStr = minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`;
+            if (timerElement) timerElement.textContent = `⏱️ Elapsed: ${timeStr}`;
         }
 
         function updatePhase(phase, detail = '') {
             if (!overlay) create();
             if (phaseElement) phaseElement.textContent = phase;
             if (detailElement) detailElement.textContent = detail;
+            // Reset timer when phase changes
+            phaseStartTime = Date.now();
+            updateTimer();
+        }
+
+        function updateDetail(detail) {
+            if (!overlay) create();
+            if (detailElement) detailElement.textContent = detail;
+            updateTimer();
+        }
+
+        function updateProgress(current, total) {
+            if (!overlay) create();
+            const container = overlay.querySelector('#progressBarContainer');
+            if (container) container.style.display = 'block';
+            const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+            if (progressBarFill) progressBarFill.style.width = `${pct}%`;
+            if (progressText) progressText.textContent = `${current.toLocaleString()} of ${total.toLocaleString()} books`;
+            updateTimer();
         }
 
         function remove() {
@@ -256,7 +297,7 @@ async function fetchAmazonCollections() {
             `;
         }
 
-        return { create, updatePhase, remove, showComplete, showError };
+        return { create, updatePhase, updateDetail, updateProgress, remove, showComplete, showError };
     })();
 
     // Initialize progress UI
@@ -598,6 +639,11 @@ async function fetchAmazonCollections() {
 
             allBooks = allBooks.concat(books);
             pageNum++;
+
+            // Update progress bar
+            if (totalCount > 0) {
+                progressUI.updateProgress(allBooks.length, totalCount);
+            }
 
             // Stop condition 2: Safety limit reached
             if (safetyLimit > 0 && pageNum >= safetyLimit) {
