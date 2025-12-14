@@ -1,4 +1,4 @@
-// Amazon Library Fetcher v3.5.0 (Speed optimized: 0ms delays + batch enrichment)
+// Amazon Library Fetcher v3.5.1.a (Enhanced progress UI with book counter)
 // Fetches library books and enriches them with descriptions & reviews
 // Writes manifest to IndexedDB for ReaderWrangler status bar tracking
 // Schema Version: 3.1.0 (Adds GUID for status bar tracking)
@@ -22,7 +22,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v3.5.0';
+    const FETCHER_VERSION = 'v3.5.1.a';
     const SCHEMA_VERSION = '3.1.0';
 
     console.log('========================================');
@@ -212,12 +212,14 @@ async function fetchAmazonLibrary() {
     };
 
     // ============================================================================
-    // Progress Overlay UI (Option C - Minimal)
+    // Progress Overlay UI (Option C - Minimal + Progress Bar)
     // ============================================================================
     const progressUI = (() => {
         let overlay = null;
         let phaseElement = null;
         let detailElement = null;
+        let progressBarFill = null;
+        let progressText = null;
 
         function create() {
             overlay = document.createElement('div');
@@ -255,17 +257,25 @@ async function fetchAmazonLibrary() {
                 <div id="progressPhase" style="font-size: 14px; color: #667eea; margin-bottom: 8px; font-weight: 500;">
                     Starting...
                 </div>
-                <div id="progressDetail" style="font-size: 13px; color: #666; margin-bottom: 15px;">
+                <div id="progressDetail" style="font-size: 13px; color: #666; margin-bottom: 8px;">
                     Initializing
                 </div>
+                <div id="progressBarContainer" style="display: none; margin-bottom: 8px;">
+                    <div style="background: #e0e0e0; border-radius: 4px; height: 8px; overflow: hidden;">
+                        <div id="progressBarFill" style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                    </div>
+                    <div id="progressText" style="font-size: 12px; color: #666; margin-top: 4px; text-align: center;"></div>
+                </div>
                 <div style="font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px;">
-                    ⏱️ Large libraries take time: ~1 hour per 1000 books<br>
+                    ⏱️ Speed optimized: ~25 seconds for 2000+ books<br>
                     💡 Open Console (F12) for detailed progress
                 </div>
             `;
 
             phaseElement = overlay.querySelector('#progressPhase');
             detailElement = overlay.querySelector('#progressDetail');
+            progressBarFill = overlay.querySelector('#progressBarFill');
+            progressText = overlay.querySelector('#progressText');
             document.body.appendChild(overlay);
         }
 
@@ -273,6 +283,16 @@ async function fetchAmazonLibrary() {
             if (!overlay) create();
             if (phaseElement) phaseElement.textContent = phase;
             if (detailElement) detailElement.textContent = detail;
+        }
+
+        function updateProgress(current, total) {
+            if (!overlay) create();
+            const container = overlay.querySelector('#progressBarContainer');
+            if (container) container.style.display = 'block';
+
+            const percent = Math.round((current / total) * 100);
+            if (progressBarFill) progressBarFill.style.width = `${percent}%`;
+            if (progressText) progressText.textContent = `${current.toLocaleString()} of ${total.toLocaleString()} books (${percent}%)`;
         }
 
         function remove() {
@@ -363,7 +383,7 @@ async function fetchAmazonLibrary() {
             `;
         }
 
-        return { create, updatePhase, remove, showComplete, showError };
+        return { create, updatePhase, updateProgress, remove, showComplete, showError };
     })();
 
     // Initialize progress UI
@@ -1408,6 +1428,9 @@ async function fetchAmazonLibrary() {
 
             console.log(`[Batch ${batchNum + 1}/${totalBatches}] [${progressBar}] ${percent}% - ${batchBooks.length} books...`);
 
+            // Update visual progress bar
+            progressUI.updateProgress(batchStart, newBooks.length);
+
             try {
                 // Build GraphQL-compatible input: [{asin: "X"}, {asin: "Y"}, ...]
                 const inputStr = '[' + batchBooks.map(book => `{asin: "${book.asin}"}`).join(', ') + ']';
@@ -1605,6 +1628,7 @@ async function fetchAmazonLibrary() {
         }
         
         stats.timing.pass2End = Date.now();
+        progressUI.updateProgress(newBooks.length, newBooks.length); // Show 100%
         console.log(`\n✅ Pass 2 complete: Enriched ${enrichedCount}/${newBooks.length} books`);
         if (errorCount > 0) {
             console.log(`   ⚠️  ${errorCount} errors (books will have basic info only)\n`);
