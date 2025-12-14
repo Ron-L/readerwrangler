@@ -7,6 +7,7 @@ description: Core development workflow rules including version management, appro
 
 - [Software Development Ground Rules](#software-development-ground-rules)
     - [ROLE IDENTITY](#role-identity)
+    - [PEE Protocol Cue](#pee-protocol-cue)
     - [HOW TO USE THIS FILE](#how-to-use-this-file)
     - [TRIGGERS Events That Activate Protocols](#triggers-events-that-activate-protocols)
         - [Always-Evaluate Triggers Scan User Message Every Response](#always-evaluate-triggers-scan-user-message-every-response)
@@ -40,7 +41,9 @@ description: Core development workflow rules including version management, appro
                 - [READY-TO-RELEASE-TRIGGER](#ready-to-release-trigger)
                 - [RELEASE-FINALIZATION-TRIGGER](#release-finalization-trigger)
                 - [POST-RELEASE-TRIGGER](#post-release-trigger)
+                - [POST-COMMIT-TRIGGER](#post-commit-trigger)
             - [Task and Documentation Management](#task-and-documentation-management)
+                - [SESSION-CHECKLIST-ITEM-COMPLETED-TRIGGER](#session-checklist-item-completed-trigger)
                 - [TASK-COMPLETION-TRIGGER](#task-completion-trigger)
                 - [PROJECT-VERSION-PROPOSAL-TRIGGER](#project-version-proposal-trigger)
                 - [SKILL-FILE-MODIFIED-TRIGGER](#skill-file-modified-trigger)
@@ -118,6 +121,7 @@ description: Core development workflow rules including version management, appro
             - [MARK-CURRENT-ITEM-ACTION](#mark-current-item-action)
             - [PRINT-CHECKLIST-ACTION](#print-checklist-action)
             - [PRINT-SESSION-CHECKLIST-ACTION](#print-session-checklist-action)
+            - [CHECK-TODO-CORRESPONDENCE-ACTION](#check-todo-correspondence-action)
             - [UPDATE-TODO-ACTION](#update-todo-action)
             - [UPDATE-LOG-ACTION](#update-log-action)
             - [VERIFY-CONSISTENCY-ACTION](#verify-consistency-action)
@@ -162,6 +166,20 @@ You are a **Protocol Execution Engine** - a robotic assistant whose primary func
 - A creative collaborator who improvises **when following rules** (creativity is welcome during brainstorming and problem-solving discussions)
 - An assistant who takes shortcuts for efficiency
 - A human who "gets the gist" and skips details
+
+---
+
+## PEE Protocol Cue
+
+When user message begins with "PEE:":
+
+⚠️ You are responding to this because it is high priority in your current context.
+This alone does NOT constitute protocol compliance.
+
+1. Use the **Read tool** to load ROLE IDENTITY and HOW TO USE THIS FILE sections
+2. Process them fully - do not rely on your contextual summary of them
+3. Proceed through the file as those sections dictate
+4. Then handle the user's actual request (everything after "PEE:")
 
 ---
 
@@ -418,11 +436,22 @@ These triggers depend on **WHAT CLAUDE IS DOING** or **SYSTEM STATE**. Evaluate 
 - CONDUCT-REVIEW-ACTION
 - DOCUMENT-LESSONS-ACTION
 - PROPOSE-RULE-UPDATES-ACTION (if patterns emerge)
+- CHECK-TODO-CORRESPONDENCE-ACTION
+
+##### POST-COMMIT-TRIGGER
+**When**: After successfully executing git commit
+**Actions**:
+- CHECK-TODO-CORRESPONDENCE-ACTION
 
 #### Task and Documentation Management
 
+##### SESSION-CHECKLIST-ITEM-COMPLETED-TRIGGER
+**When**: After marking a Session Checklist item as completed (✅)
+**Actions**:
+- CHECK-TODO-CORRESPONDENCE-ACTION
+
 ##### TASK-COMPLETION-TRIGGER
-**When**: After you mark any TODO.md item as complete [x]
+**When**: After completing a task that corresponds to a TODO.md item
 **Actions**:
 - UPDATE-TODO-ACTION
 - UPDATE-LOG-ACTION
@@ -882,8 +911,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 #### PREPARE-RELEASE-ACTION
 **Purpose**: Complete all steps to finalize and release a feature
 **Steps**:
-1. (Optional) Squash all letter-versioned commits into one
-2. Update to release version (remove letter, e.g., v3.1.0.c → v3.1.0)
+1. Update to release version (remove letter, e.g., v3.1.0.c → v3.1.0)
+2. (Optional) Squash all letter-versioned commits into one
 3. Merge to main: `git checkout main && git merge feature-name`
 4. Tag the release: `git tag vX.Y.Z` (use actual version)
 5. Push with tags: `git push origin main --tags`
@@ -984,6 +1013,13 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 1. Use format from SESSION-CHECKLIST-FORMAT-REF
 2. Print all tasks with status icons (✅ ⬜ ⏳)
 3. Mark current task with ← CURRENT
+
+#### CHECK-TODO-CORRESPONDENCE-ACTION
+**Purpose**: Determine if completed work corresponds to a TODO.md item
+**Steps**:
+1. Read TODO.md
+2. Compare completed work (commit, checklist item, release) to open items
+3. If match found, fire TASK-COMPLETION-TRIGGER
 
 #### UPDATE-TODO-ACTION
 **Purpose**: Mark tasks complete in TODO.md
