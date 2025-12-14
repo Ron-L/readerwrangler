@@ -1,4 +1,4 @@
-// Amazon Library Fetcher v3.5.1.b (Progress UI with elapsed timer)
+// Amazon Library Fetcher v3.5.1.c (Abort on X close)
 // Fetches library books and enriches them with descriptions & reviews
 // Writes manifest to IndexedDB for ReaderWrangler status bar tracking
 // Schema Version: 3.1.0 (Adds GUID for status bar tracking)
@@ -22,7 +22,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v3.5.1.b';
+    const FETCHER_VERSION = 'v3.5.1.c';
     const SCHEMA_VERSION = '3.1.0';
 
     console.log('========================================');
@@ -212,7 +212,7 @@ async function fetchAmazonLibrary() {
     };
 
     // ============================================================================
-    // Progress Overlay UI (Option C - Minimal + Progress Bar)
+    // Progress Overlay UI (Option C - Minimal + Progress Bar + Abort)
     // ============================================================================
     const progressUI = (() => {
         let overlay = null;
@@ -222,6 +222,7 @@ async function fetchAmazonLibrary() {
         let progressText = null;
         let timerElement = null;
         let phaseStartTime = null;
+        let abortRequested = false;
 
         function create() {
             overlay = document.createElement('div');
@@ -241,7 +242,7 @@ async function fetchAmazonLibrary() {
             `;
 
             overlay.innerHTML = `
-                <button style="
+                <button id="closeBtn" style="
                     position: absolute;
                     top: 8px;
                     right: 8px;
@@ -252,7 +253,7 @@ async function fetchAmazonLibrary() {
                     cursor: pointer;
                     padding: 4px 8px;
                     line-height: 1;
-                " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'" onclick="this.parentElement.remove()">✕</button>
+                " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'">✕</button>
                 <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 10px;">
                     📚 Library Fetcher ${FETCHER_VERSION}
                 </div>
@@ -278,7 +279,22 @@ async function fetchAmazonLibrary() {
             progressBarFill = overlay.querySelector('#progressBarFill');
             progressText = overlay.querySelector('#progressText');
             timerElement = overlay.querySelector('#timerDisplay');
+
+            // Add click handler for X button - sets abort flag and removes overlay
+            const closeBtn = overlay.querySelector('#closeBtn');
+            if (closeBtn) {
+                closeBtn.onclick = () => {
+                    abortRequested = true;
+                    console.log('⚠️ Abort requested by user - will stop after current operation');
+                    overlay.remove();
+                };
+            }
+
             document.body.appendChild(overlay);
+        }
+
+        function isAborted() {
+            return abortRequested;
         }
 
         function updatePhase(phase, detail = '') {
@@ -405,7 +421,7 @@ async function fetchAmazonLibrary() {
             `;
         }
 
-        return { create, updatePhase, updateDetail, updateProgress, remove, showComplete, showError };
+        return { create, updatePhase, updateDetail, updateProgress, remove, showComplete, showError, isAborted };
     })();
 
     // Initialize progress UI
@@ -1118,6 +1134,12 @@ async function fetchAmazonLibrary() {
         let foundOverlap = false;
         
         while (hasMore && !foundOverlap) {
+            // Check for user abort
+            if (progressUI.isAborted()) {
+                console.log('⚠️ Fetch aborted by user during Pass 1');
+                return;
+            }
+
             pageNum++;
             console.log(`📖 Fetching page ${pageNum}...`);
             
@@ -1443,6 +1465,12 @@ async function fetchAmazonLibrary() {
 
         // Process books in batches
         for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+            // Check for user abort
+            if (progressUI.isAborted()) {
+                console.log('⚠️ Fetch aborted by user during Pass 2 (enrichment)');
+                return;
+            }
+
             const batchStart = batchNum * ENRICH_BATCH_SIZE;
             const batchEnd = Math.min(batchStart + ENRICH_BATCH_SIZE, newBooks.length);
             const batchBooks = newBooks.slice(batchStart, batchEnd);
