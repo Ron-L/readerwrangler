@@ -1,4 +1,4 @@
-// Amazon Library Fetcher v3.5.1.a (Enhanced progress UI with book counter)
+// Amazon Library Fetcher v3.5.1.b (Progress UI with elapsed timer)
 // Fetches library books and enriches them with descriptions & reviews
 // Writes manifest to IndexedDB for ReaderWrangler status bar tracking
 // Schema Version: 3.1.0 (Adds GUID for status bar tracking)
@@ -22,7 +22,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v3.5.1.a';
+    const FETCHER_VERSION = 'v3.5.1.b';
     const SCHEMA_VERSION = '3.1.0';
 
     console.log('========================================');
@@ -220,6 +220,8 @@ async function fetchAmazonLibrary() {
         let detailElement = null;
         let progressBarFill = null;
         let progressText = null;
+        let timerElement = null;
+        let phaseStartTime = null;
 
         function create() {
             overlay = document.createElement('div');
@@ -266,9 +268,8 @@ async function fetchAmazonLibrary() {
                     </div>
                     <div id="progressText" style="font-size: 12px; color: #666; margin-top: 4px; text-align: center;"></div>
                 </div>
-                <div style="font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px;">
-                    ⏱️ Speed optimized: ~25 seconds for 2000+ books<br>
-                    💡 Open Console (F12) for detailed progress
+                <div id="timerDisplay" style="font-size: 12px; color: #999; text-align: center; padding-top: 8px; border-top: 1px solid #eee;">
+                    ⏱️ Elapsed: 0s
                 </div>
             `;
 
@@ -276,6 +277,7 @@ async function fetchAmazonLibrary() {
             detailElement = overlay.querySelector('#progressDetail');
             progressBarFill = overlay.querySelector('#progressBarFill');
             progressText = overlay.querySelector('#progressText');
+            timerElement = overlay.querySelector('#timerDisplay');
             document.body.appendChild(overlay);
         }
 
@@ -283,6 +285,19 @@ async function fetchAmazonLibrary() {
             if (!overlay) create();
             if (phaseElement) phaseElement.textContent = phase;
             if (detailElement) detailElement.textContent = detail;
+            // Reset timer when phase changes
+            phaseStartTime = Date.now();
+            updateTimer();
+        }
+
+        function updateTimer() {
+            if (!overlay || !phaseStartTime) return;
+            const elapsed = Date.now() - phaseStartTime;
+            const seconds = Math.floor(elapsed / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            const timeStr = minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`;
+            if (timerElement) timerElement.textContent = `⏱️ Elapsed: ${timeStr}`;
         }
 
         function updateProgress(current, total) {
@@ -293,6 +308,13 @@ async function fetchAmazonLibrary() {
             const percent = Math.round((current / total) * 100);
             if (progressBarFill) progressBarFill.style.width = `${percent}%`;
             if (progressText) progressText.textContent = `${current.toLocaleString()} of ${total.toLocaleString()} books (${percent}%)`;
+            updateTimer(); // Update elapsed time with each progress update
+        }
+
+        function updateDetail(detail) {
+            if (!overlay) create();
+            if (detailElement) detailElement.textContent = detail;
+            updateTimer(); // Update elapsed time
         }
 
         function remove() {
@@ -383,7 +405,7 @@ async function fetchAmazonLibrary() {
             `;
         }
 
-        return { create, updatePhase, updateProgress, remove, showComplete, showError };
+        return { create, updatePhase, updateDetail, updateProgress, remove, showComplete, showError };
     })();
 
     // Initialize progress UI
@@ -1310,6 +1332,7 @@ async function fetchAmazonLibrary() {
                 }
                 
                 console.log(`   ✅ Page ${pageNum}: ${books.length} books (${newBooks.length} total new)`);
+                progressUI.updateDetail(`Retrieved ${newBooks.length.toLocaleString()} titles`);
                 
                 // Check pagination
                 hasMore = library.pageInfo?.hasNextPage || false;
