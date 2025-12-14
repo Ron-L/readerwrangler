@@ -1,4 +1,4 @@
-// Amazon Collections Fetcher v1.2.1.a (Progress UI: timer, progress bar)
+// Amazon Collections Fetcher v1.2.1.b (Abort on X close)
 // Fetches collection membership and read status for all books in your library
 // Schema Version: 1.1 (Adds GUID for status bar tracking)
 //
@@ -14,7 +14,7 @@
 //         by pressing Up Arrow (to recall the function call) or typing: fetchAmazonCollections()
 
 async function fetchAmazonCollections() {
-    const FETCHER_VERSION = 'v1.2.1.a';
+    const FETCHER_VERSION = 'v1.2.1.b';
     const SCHEMA_VERSION = '1.1';
     const PAGE_TITLE = document.title;
 
@@ -115,6 +115,7 @@ async function fetchAmazonCollections() {
         let progressText = null;
         let timerElement = null;
         let phaseStartTime = null;
+        let abortRequested = false;
 
         function create() {
             overlay = document.createElement('div');
@@ -134,7 +135,7 @@ async function fetchAmazonCollections() {
             `;
 
             overlay.innerHTML = `
-                <button style="
+                <button id="closeBtn" style="
                     position: absolute;
                     top: 8px;
                     right: 8px;
@@ -145,7 +146,7 @@ async function fetchAmazonCollections() {
                     cursor: pointer;
                     padding: 4px 8px;
                     line-height: 1;
-                " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'" onclick="this.parentElement.remove()">✕</button>
+                " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'">✕</button>
                 <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 10px;">
                     📚 Collections Fetcher ${FETCHER_VERSION}
                 </div>
@@ -171,7 +172,22 @@ async function fetchAmazonCollections() {
             progressBarFill = overlay.querySelector('#progressBarFill');
             progressText = overlay.querySelector('#progressText');
             timerElement = overlay.querySelector('#timerDisplay');
+
+            // Add click handler for X button - sets abort flag and removes overlay
+            const closeBtn = overlay.querySelector('#closeBtn');
+            if (closeBtn) {
+                closeBtn.onclick = () => {
+                    abortRequested = true;
+                    console.log('⚠️ Abort requested by user - will stop after current operation');
+                    overlay.remove();
+                };
+            }
+
             document.body.appendChild(overlay);
+        }
+
+        function isAborted() {
+            return abortRequested;
         }
 
         function updateTimer() {
@@ -297,7 +313,7 @@ async function fetchAmazonCollections() {
             `;
         }
 
-        return { create, updatePhase, updateDetail, updateProgress, remove, showComplete, showError };
+        return { create, updatePhase, updateDetail, updateProgress, remove, showComplete, showError, isAborted };
     })();
 
     // Initialize progress UI
@@ -577,6 +593,12 @@ async function fetchAmazonCollections() {
     let pageNum = 0;
 
     while (true) {
+        // Check for user abort
+        if (progressUI.isAborted()) {
+            console.log('⚠️ Fetch aborted by user');
+            return;
+        }
+
         const startIndex = pageNum * BATCH_SIZE;
         activityInput.fetchCriteria.startIndex = startIndex;
 
