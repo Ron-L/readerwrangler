@@ -1,5 +1,7 @@
 # ReaderWrangler™
 
+![Version](https://img.shields.io/badge/version-v3.7.2-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+
 ## Wrangle your reader chaos - Your books, your order
 
 ## Extract and Organize Your Online Amazon Kindle Library Easily
@@ -146,14 +148,6 @@ Have a feature request? [Let us know on GitHub!](https://github.com/Ron-L/Reader
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Development guide for contributors
 - [TODO.md](TODO.md) - Planned features and known issues
 - [COMPETITIVE-ANALYSIS.md](COMPETITIVE-ANALYSIS.md) - Comparison with other ebook library management tools
-
----
-
-## Version
-
-Project Version: v3.7.0
-
-Individual components may have their own versions (see files for details).
 
 ---
 

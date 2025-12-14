@@ -6,26 +6,19 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🔥 Priority 1: Critical Documentation & Onboarding (HIGH Priority, LOW-MEDIUM Complexity)
 
-**1. 🚀 Speed Up Enrichment Fetching** #FetcherImprovements - HIGH/MEDIUM (4-6 hours) - See [docs/design/FETCHER-IMPROVEMENTS.md](docs/design/FETCHER-IMPROVEMENTS.md)
-    - Problem: Current 1-ASIN-per-call + 2-second delay = 2+ hours for 2000+ books (showstopper for adoption)
-    - Solution: Fetch 30 ASINs per call like Amazon yourbooks page does
-    - Investigation tasks:
-      - Analyze yourbooks page network traffic (verify 30 books = 1 API call)
-      - Measure safe timing between batch calls
-      - Identify Amazon's throttling patterns
-    - Implementation:
-      - Update GraphQL query to accept ASIN array
-      - Batch ASINs into groups of 30
-      - Adjust delay based on yourbooks behavior analysis
-      - Add exponential backoff for rate limit handling
-    - Expected impact: 13-33x speedup (2+ hours → 5-10 minutes)
-    - Context: Must address before creating training videos/USER-GUIDE updates
+**1. ✅ Speed Up Enrichment Fetching** #FetcherImprovements - COMPLETE (2025-12-11)
+    - Library fetcher: Batch size 200, 0ms delays → ~25 seconds for 2,300 books
+    - Collections fetcher: Batch size 200, 0ms delays → ~25 seconds for 2,300 books
+    - Achieved: ~7-8x speedup (3+ minutes → 25 seconds)
+    - Released: Library fetcher v1.1.0, Collections fetcher v1.2.0
+    - See: [post-mortems/v3.7.0-2025-12-11.md](post-mortems/v3.7.0-2025-12-11.md), [post-mortems/v3.7.1-2025-12-11.md](post-mortems/v3.7.1-2025-12-11.md)
 
-**2. ⏱️ Enhanced Progress Feedback During Extraction** - HIGH/LOW-MEDIUM (1-2 hours)
-   - Progress counter during enrichment: "847 of 2,322 books (36%)" - 30 min
-   - Visual progress bar with smooth updates - 1 hour
-   - Problem: Users get impatient/confused during lengthy initial extraction (especially enrichment phase)
-   - Impact: Reduces abandonment during first-time setup
+**2. ✅ Enhanced Progress Feedback During Extraction** #FetcherImprovements - COMPLETE (2025-12-13)
+   - Library fetcher v3.5.1: Progress bar, timer, phase indicators, abort on X close
+   - Collections fetcher v1.2.1: Progress bar, timer, phase indicators, abort on X close
+   - Visual overlay shows elapsed time, current phase, book count progress
+   - Closing dialog aborts fetch (prevents surprise save dialogs)
+   - Released: Project v3.7.2
    - Note: Pause/Resume + Recovery moved to Phase 3 Retry Logic (Priority 5, item #3)
 
 **3. 📖 Quick Start Video & Written Guide** - HIGH/LOW (2-4 hours) - See [docs/design/VIDEO-PRODUCTION-PLAN.md](docs/design/VIDEO-PRODUCTION-PLAN.md)

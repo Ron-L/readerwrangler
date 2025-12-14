@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.2] - 2025-12-13
+
+### Added
+- **Progress UI Dialog** - Visual progress overlay for both fetchers
+  - Library fetcher v3.5.1: Timer display, progress bar, phase indicators
+  - Collections fetcher v1.2.1: Timer display, progress bar, phase indicators
+  - Shows elapsed time, current phase, and book count progress
+  - Auto-dismiss after 30 seconds on completion
+- **Abort on X Close** - Closing progress dialog now stops the fetch
+  - Polls abort flag at start of each fetch iteration
+  - Logs warning to console when abort requested
+  - Prevents surprise save dialogs after user dismisses UI
+
+### Technical Notes
+- Progress UI implemented as IIFE module within fetcher functions
+- Abort uses simple flag polling (Option A) - low complexity, low risk
+- No AbortController needed since fetch loops are synchronous between iterations
+
 ## [3.7.1] - 2025-12-11
 
 ### Changed

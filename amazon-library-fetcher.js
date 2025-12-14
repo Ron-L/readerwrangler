@@ -1,4 +1,4 @@
-// Amazon Library Fetcher v3.5.1.c (Abort on X close)
+// Amazon Library Fetcher v3.5.1 (Progress UI + Abort on X close)
 // Fetches library books and enriches them with descriptions & reviews
 // Writes manifest to IndexedDB for ReaderWrangler status bar tracking
 // Schema Version: 3.1.0 (Adds GUID for status bar tracking)
@@ -22,7 +22,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v3.5.1.c';
+    const FETCHER_VERSION = 'v3.5.1';
     const SCHEMA_VERSION = '3.1.0';
 
     console.log('========================================');

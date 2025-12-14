@@ -10,6 +10,58 @@ For current work, see TODO.md. For development rules, see SKILL-Development-Grou
 
 ---
 
+## [2025-12-13] Progress UI + Abort Feature (v3.7.2) - RELEASED ✅
+
+**Goal**: Add visual progress feedback and abort capability to both fetchers (TODO item #2)
+
+**Changes**:
+- Library fetcher v3.5.1: Progress bar, timer, phase indicators, abort on X close
+- Collections fetcher v1.2.1: Progress bar, timer, phase indicators, abort on X close
+- Visual overlay shows elapsed time, current phase, book count progress
+- Closing dialog aborts fetch (prevents surprise save dialogs)
+
+**Implementation**:
+- Progress UI as IIFE module within each fetcher
+- Abort uses simple flag polling (Option A) - low complexity, check at loop start
+- No AbortController needed since loops are synchronous between iterations
+
+**Files**: amazon-library-fetcher.js, amazon-collections-fetcher.js
+
+---
+
+## [2025-12-13] @RULES TODO Correspondence Triggers
+
+Added explicit triggers to ensure TODO.md gets updated when work is completed.
+
+**Problem**: TASK-COMPLETION-TRIGGER was backwards - it fired "after marking TODO.md complete" instead of "after completing work that corresponds to a TODO item." This meant TODO.md never got updated because the trigger assumed you were already editing it.
+
+**Changes**:
+- **TASK-COMPLETION-TRIGGER**: Changed "When" to fire after completing work that corresponds to TODO.md item
+- **POST-COMMIT-TRIGGER** (new): After git commit → CHECK-TODO-CORRESPONDENCE-ACTION
+- **SESSION-CHECKLIST-ITEM-COMPLETED-TRIGGER** (new): After marking checklist ✅ → CHECK-TODO-CORRESPONDENCE-ACTION
+- **POST-RELEASE-TRIGGER**: Added CHECK-TODO-CORRESPONDENCE-ACTION to actions
+- **CHECK-TODO-CORRESPONDENCE-ACTION** (new): Read TODO.md, compare to completed work, fire TASK-COMPLETION-TRIGGER if match
+
+**Rationale**: Multiple explicit triggers that fire at completion points (commit, checklist, release) are more likely to be followed than a single trigger with notes about when to check.
+
+---
+
+## [2025-12-11] Conversation Recovery After Project Path Change
+
+When moving a project to a new path, Claude Code's conversation history is keyed by path and won't follow. Starting fresh with CLAUDE.md + COMPACTION-RECOVERY-PROMPT did NOT produce a Protocol Execution Engine - it remained Runaway Robot.
+
+**Key insight:** The compaction summary contains metadata beyond visible text. The cumulative corrections throughout a conversation appear to shape behavior in ways that can't be replicated by just re-reading rules.
+
+**Recovery steps:**
+1. Locate conversation file: `C:\Users\Ron\.claude\projects\{path-encoded-folder}\`
+2. Update all paths in the file to new location
+3. Set `isSideChain: false`
+4. Conversation reappears in Claude Code panel dropdown
+
+**Implication:** Training is immutable, but conversation context matters significantly. A "broken in" conversation with correction history behaves differently than a fresh one with identical starting instructions.
+
+---
+
 ## [2025-12-11] Collections Fetcher Speed Optimization (v3.7.1) - RELEASED
 
 **Goal**: Optimize collections fetcher performance using same approach as library fetcher
