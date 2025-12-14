@@ -27,6 +27,8 @@ For current work, see TODO.md. For development rules, see SKILL-Development-Grou
 
 **Files**: amazon-library-fetcher.js, amazon-collections-fetcher.js
 
+**Post-Mortem**: [v3.7.2-2025-12-13.md](post-mortems/v3.7.2-2025-12-13.md)
+
 ---
 
 ## [2025-12-13] @RULES TODO Correspondence Triggers
