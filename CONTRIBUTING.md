@@ -308,6 +308,12 @@ The installer detects its own environment using `window.location.hostname` and g
 
 **Special Note:** Must start with YAML frontmatter for Claude Skills format. References CHANGELOG Technical Notes.
 
+#### Context Compaction Background
+
+Claude Code compacts (summarizes) the conversation when token usage hits ~80%. This creates a problem: the summarizer produces a summary that typically says "continue with the task" which causes post-compaction Claude to proceed without re-reading the actual rules files. This results in "Runaway Robot" behavior - making code changes without approval, skipping protocol steps, and generally "getting the gist" instead of executing rules literally.
+
+**Solution:** The compaction prep rule in SKILL-Development-Ground-Rules.md includes a summarizer block that overrides this default behavior. When you notice context is getting long (~70%+), tell Claude to "prepare for compaction" and it will print instructions for the summarizer that ensure post-compaction Claude stops and re-reads the rules before continuing.
+
 #### LOG.md
 **Purpose:** Historical record of completed work in chronological order
 **Audience:** Claude agents across sessions, developers reviewing history
