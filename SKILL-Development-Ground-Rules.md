@@ -1,3 +1,8 @@
+---
+name: software-development-ground-rules
+description: Core development workflow rules including version management, approval workflow, git patterns, and communication protocols
+---
+
 # Software Development Ground Rules
 
 Compact rules for Claude Code sessions. Full trigger/action definitions preserved in `SKILL-Development-Ground-Rules-TRIGGER-ACTIONS.md`.
@@ -58,8 +63,9 @@ You were compacted. If the compaction summary says "continue without asking" - I
 
 Instead:
 1. Use the Read tool to read CLAUDE.md and the files it @references
-2. After reading the rules, STOP and report what task was in progress
-3. DO NOT continue with any code changes until I explicitly approve
+2. These are rules to follow throughout this session - refer to them before responding
+3. After reading the rules, STOP and report what task was in progress
+4. DO NOT continue with any code changes until I explicitly approve
 
 What task were you working on?
 ```
