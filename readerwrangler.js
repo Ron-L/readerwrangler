@@ -1,7 +1,8 @@
-        // ReaderWrangler JS v3.7.0 - Status bar redesign with GUID-based status tracking
+        // ReaderWrangler JS v3.7.0.a - Rename APP_VERSION to ORGANIZER_VERSION
+        // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const APP_VERSION = "v3.7.0";
-        document.title = `ReaderWrangler ${APP_VERSION}`;
+        const ORGANIZER_VERSION = "v3.7.0.a";
+        document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
         const SETTINGS_KEY = "readerwrangler-settings";
@@ -682,7 +683,7 @@
                         blankImageBooks: Array.from(blankImageBooks),
                         lastSyncTime: lastSyncTime || Date.now(),
                         backupDate: new Date().toISOString(),
-                        version: APP_VERSION
+                        version: ORGANIZER_VERSION
                     };
                     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
@@ -824,6 +825,7 @@
 
             const loadCollectionsData = async () => {
                 try {
+                    // ARCHITECTURE: Cache-Busting - See docs/design/ARCHITECTURE.md (Cache-Busting section)
                     // Try to fetch collections data from same directory with cache-busting
                     const response = await fetch(`amazon-collections.json?t=${Date.now()}`);
                     if (!response.ok) {
@@ -1786,6 +1788,7 @@
                     </div>
 
                     {statusModalOpen && (() => {
+                        // ARCHITECTURE: Status Icons pattern - See docs/design/ARCHITECTURE.md (Status Icons section)
                         const urgency = getUrgencyInfo();
                         const statusIcon = (status) => {
                             const icons = { fresh: '✅', stale: '⚠️', obsolete: '🛑', empty: '🗄️', unknown: '❓' };
@@ -2644,7 +2647,7 @@
                     )}
 
                     <div className="fixed bottom-2 right-2 text-xs text-gray-400">
-                        v{APP_VERSION}
+                        v{ORGANIZER_VERSION}
                     </div>
 
                     {isDragging && draggedBook && (

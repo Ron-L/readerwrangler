@@ -1,6 +1,8 @@
 // ReaderWrangler Bookmarklet Navigation Hub v1.1.2
 // Universal navigator and data fetcher dialog
 //
+// ARCHITECTURE: Three-Environment Testing - See docs/design/ARCHITECTURE.md (Three-Environment Testing section)
+//
 // This script creates a navigation dialog when invoked by a bookmarklet.
 // The TARGET_ENV is injected by the bookmarklet via window._READERWRANGLER_TARGET_ENV
 // before this script loads.
@@ -156,6 +158,7 @@
         console.log(`📚 ReaderWrangler: Loading ${description}...`);
         const script = document.createElement('script');
 
+        // ARCHITECTURE: Cache-Busting - See docs/design/ARCHITECTURE.md (Cache-Busting section)
         // Cache-busting in dev environments for fresh code
         const cacheBuster = IS_DEV_MODE ? '?v=' + Date.now() : '';
         script.src = finalBaseUrl + scriptName + cacheBuster;
