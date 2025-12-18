@@ -42,6 +42,7 @@ _Consider copying this pattern to other GitHub Pages projects_
 **Testing Flow:**
 1. Make changes locally
 2. Commit
-3. `git push dev main` → test on ron-l.github.io/readerwranglerdev
-4. When stable: `git push prod main` → live on readerwrangler.com
+3. Test locally
+4. `git push dev main` → test on ron-l.github.io/readerwranglerdev
+5. When stable: `git push prod main` → live on readerwrangler.com
 
