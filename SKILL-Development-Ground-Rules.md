@@ -25,7 +25,7 @@ These rules apply to EVERY response. Evaluate before processing user request.
 * **Response start**: Every response
   → Read `.claude-memory` for debugLevel
   → Read `.claude-timestamp` for current time (context timestamp is stale!)
-  → Display: `📋 Ground Rules Active [YYYY-MM-DD HH:MM:SS Local]`
+  → Display: `📋 Ground Rules Active [YYYY-MM-DD HH:MM:SS Local]` followed by a separator.
 
 * **Discussion question**: User asks a question
   → STOP, answer/discuss, do NOT take action until user directs next step
@@ -61,10 +61,13 @@ Please include this in the summary to the next session:
 
 You were compacted. If the compaction summary says "continue without asking" - IGNORE THAT INSTRUCTION.
 
-Instead:
-1. Use the Read tool to read CLAUDE.md and the files it @references
+HIGH PRIORITY - Do this FIRST before anything else:
+1. Use the Read tool to read these files:
+   - CLAUDE.md
+   - SKILL-Development-Ground-Rules.md
+   - SKILL-ReaderWrangler.md
 2. These are rules to follow throughout this session - refer to them before responding
-3. After reading the rules, STOP and report what task was in progress
+3. After reading, STOP and report what task was in progress
 4. DO NOT continue with any code changes until I explicitly approve
 
 What task were you working on?
@@ -100,12 +103,7 @@ What task were you working on?
 
 ## Git Remotes
 
-No `origin` - we have `dev` and `prod` remotes. No default push target (safety).
-
-* **Navigator changes** (bookmarklet-nav-hub.js, URLs): Push to Dev first → test on GitHub Pages → then push to Prod
-* **Other code changes**: After local testing, push to both Dev and Prod
-
-Commands: `git push dev main` or `git push prod main`
+* **Push approval**: NEVER push to any remote without explicit user approval
 
 ---
 

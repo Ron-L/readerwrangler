@@ -221,15 +221,20 @@ The installer detects its own environment using `window.location.hostname` and g
 
 **User-Facing Files:**
 - `index.html` - Landing page with project introduction
-- `install-bookmarklet.html` - Bookmarklet installer page
-- `readerwrangler.html` - Main application HTML shell
+- `install-bookmarklet.html` - Bookmarklet installer page (environment-aware)
+- `readerwrangler.html` - Main SPA (React + Tailwind CSS + IndexedDB)
 - `readerwrangler.js` - Application JavaScript
 - `readerwrangler.css` - Application styles
+- `images/` - Status icons (busy.png, empty.png, fresh.png, stale.png, question-mark.png)
 
 **Data Fetchers:**
 - `bookmarklet-nav-hub.js` - Navigation hub dialog (loaded by bookmarklet, shows menu)
 - `amazon-library-fetcher.js` - Amazon library data fetching utility
 - `amazon-collections-fetcher.js` - Amazon collections data fetching utility
+
+**Documentation:**
+- `CHANGELOG.md` - Detailed version history with Technical Notes
+- `TODO.md` - Pending tasks and improvements
 
 **Development:**
 - `readerwrangler.code-workspace` - VS Code workspace configuration
@@ -566,40 +571,20 @@ Before starting any new project or major feature, assess:
 
 ---
 
-## Architecture Notes
+## Architecture
 
-### Version Management Pattern
-- Single source: `APP_VERSION` constant in readerwrangler.js
-- Browser title updates dynamically from constant
-- Query string cache busting: `?v=3.2.0`
-- Footer version display
-- Version comments in all files
-
-### Data Flow
-- User loads library → Parse JSON → Store in IndexedDB
-- UI state (columns, positions) → localStorage
-- Manifest polling → Compare totalBooks → Update status
-
-### Status Icons (Critical Pattern)
-- Pre-load ALL 5 icons in DOM simultaneously
-- Toggle visibility with CSS `display: none/inline-block`
-- **NEVER change `src` attribute** (causes 30-60s browser lag)
-- See CHANGELOG Technical Notes for failed approaches
-
-### Common Pitfalls
-See SKILL-ReaderWrangler.md and CHANGELOG Technical Notes for:
-- Icon display lag solutions
-- Manifest caching workarounds
-- Ground rule violation patterns
+For system design details including tech stack, data flow, version management, status icons pattern, cache-busting, and three-environment testing setup, see [docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md).
 
 ---
 
 ## Questions?
 
-For detailed rules and protocols, see SKILL-Development-Ground-Rules.md (the single source of truth).
+For detailed development rules and protocols, see [SKILL-Development-Ground-Rules.md](SKILL-Development-Ground-Rules.md).
 
-For project-specific patterns and pitfalls, see SKILL-ReaderWrangler.md.
+For git workflow and push rules, see [SKILL-ReaderWrangler.md](SKILL-ReaderWrangler.md).
 
-For current work status, see TODO.md. For completed work history, see LOG.md.
+For architecture and system design, see [docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md).
 
-For version history and technical notes, see CHANGELOG.md.
+For current work status, see [TODO.md](TODO.md). For completed work history, see [LOG.md](LOG.md).
+
+For version history and technical notes, see [CHANGELOG.md](CHANGELOG.md).
