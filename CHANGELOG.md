@@ -10,11 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.7.2] - 2025-12-13
 
 ### Added
-- **Progress UI Dialog** - Visual progress overlay for both fetchers
+- **Progress UI Dialog** - Visual progress overlay for both fetchers (Priority 1, #2: Enhanced Progress Feedback)
   - Library fetcher v3.5.1: Timer display, progress bar, phase indicators
   - Collections fetcher v1.2.1: Timer display, progress bar, phase indicators
   - Shows elapsed time, current phase, and book count progress
   - Auto-dismiss after 30 seconds on completion
+  - See: [post-mortems/v3.7.2-2025-12-13.md](post-mortems/v3.7.2-2025-12-13.md)
 - **Abort on X Close** - Closing progress dialog now stops the fetch
   - Polls abort flag at start of each fetch iteration
   - Logs warning to console when abort requested
@@ -24,15 +25,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Progress UI implemented as IIFE module within fetcher functions
 - Abort uses simple flag polling (Option A) - low complexity, low risk
 - No AbortController needed since fetch loops are synchronous between iterations
+- **Note**: Pause/Resume and Recovery features moved to Phase 3 Retry Logic (Priority 5, item #3)
 
 ## [3.7.1] - 2025-12-11
 
 ### Changed
-- **Collections Fetcher Speed Optimization** - Dramatic performance improvement (amazon-collections-fetcher.js v1.2.0)
+- **Collections Fetcher Speed Optimization** - Dramatic performance improvement (Priority 1, #1: Speed Up Enrichment)
+  - Released: amazon-collections-fetcher.js v1.2.0
   - Batch size increased: 200 books per request (was 25)
   - Removed artificial delays: 0ms (was 2000ms)
   - Performance: ~25 seconds for 2,300 books (was ~3+ minutes)
   - Network RTT (~400ms) provides natural throttling
+  - Combined with v3.7.0 library fetcher improvements: **Achieved ~7-8x total speedup**
+  - See: [post-mortems/v3.7.1-2025-12-11.md](post-mortems/v3.7.1-2025-12-11.md)
 
 ### Technical Notes
 - Batch size 200 confirmed safe via diag-01-collections-rate-limit.js testing
@@ -42,10 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.7.0] - 2025-12-11
 
 ### Changed
-- **Speed Optimization** - Dramatic performance improvement for library fetching
+- **Library Fetcher Speed Optimization** - Dramatic performance improvement (Priority 1, #1: Speed Up Enrichment)
+  - Released: amazon-library-fetcher.js v1.1.0
   - Removed artificial delays (0ms) - network RTT provides natural throttling
   - Batch enrichment: 30 ASINs per getProducts call (was 1 per call)
-  - Expected time: ~1 minute for 2000+ books (was ~2 hours)
+  - Performance: ~25 seconds for 2,300 books (was ~2 hours)
+  - See: [post-mortems/v3.7.0-2025-12-11.md](post-mortems/v3.7.0-2025-12-11.md)
 
 ### Added
 - **Error Categorization** - Partial API errors now tracked by category in stats

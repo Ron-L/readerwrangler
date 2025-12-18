@@ -6,24 +6,9 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🔥 Priority 1: Critical Documentation & Onboarding (HIGH Priority, LOW-MEDIUM Complexity)
 
-**1. ✅ Speed Up Enrichment Fetching** #FetcherImprovements - COMPLETE (2025-12-11)
-    - Library fetcher: Batch size 200, 0ms delays → ~25 seconds for 2,300 books
-    - Collections fetcher: Batch size 200, 0ms delays → ~25 seconds for 2,300 books
-    - Achieved: ~7-8x speedup (3+ minutes → 25 seconds)
-    - Released: Library fetcher v1.1.0, Collections fetcher v1.2.0
-    - See: [post-mortems/v3.7.0-2025-12-11.md](post-mortems/v3.7.0-2025-12-11.md), [post-mortems/v3.7.1-2025-12-11.md](post-mortems/v3.7.1-2025-12-11.md)
+**1. 📖 Quick Start Video & Written Guide** - HIGH/LOW (2-4 hours) - See [docs/design/VIDEO-PRODUCTION-PLAN.md](docs/design/VIDEO-PRODUCTION-PLAN.md)
 
-**2. ✅ Enhanced Progress Feedback During Extraction** #FetcherImprovements - COMPLETE (2025-12-13)
-   - Library fetcher v3.5.1: Progress bar, timer, phase indicators, abort on X close
-   - Collections fetcher v1.2.1: Progress bar, timer, phase indicators, abort on X close
-   - Visual overlay shows elapsed time, current phase, book count progress
-   - Closing dialog aborts fetch (prevents surprise save dialogs)
-   - Released: Project v3.7.2
-   - Note: Pause/Resume + Recovery moved to Phase 3 Retry Logic (Priority 5, item #3)
-
-**3. 📖 Quick Start Video & Written Guide** - HIGH/LOW (2-4 hours) - See [docs/design/VIDEO-PRODUCTION-PLAN.md](docs/design/VIDEO-PRODUCTION-PLAN.md)
-
-**4. 🔎 Advanced Filtering** - MEDIUM/MEDIUM (6-8 hours)
+**2. 🔎 Advanced Filtering** - MEDIUM/MEDIUM (6-8 hours)
     - Filter by genre/category
     - Filter by rating
     - Filter by acquisition date range
@@ -32,7 +17,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
     - Problem: Hard to find specific subsets in 2,300+ book library
     - Impact: Improves discoverability for power users
 
-**5. 📚 Comprehensive Documentation Hub** - HIGH/MEDIUM (8-12 hours)
+**3. 📚 Comprehensive Documentation Hub** - HIGH/MEDIUM (8-12 hours)
    - Troubleshooting guide (What if scrape fails partway? How to recover?)
    - FAQ (Multiple Amazon accounts? Kindle Unlimited books? Mobile support?)
    - Keyboard shortcuts reference
@@ -41,24 +26,24 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Users get stuck, have questions, can't find answers
    - Impact: Reduces support burden, improves user confidence
 
-**6. 📱 Mobile Support Clarity** - HIGH/LOW (1 hour)
+**4. 📱 Mobile Support Clarity** - HIGH/LOW (1 hour)
    - Document whether app works on mobile devices
    - Add to FAQ and main page
    - Problem: Major omission for users who browse libraries on phones/tablets
    - Impact: Sets correct expectations
 
-**7. 📋 Changelog Visibility** - MEDIUM/LOW (30 minutes)
+**5. 📋 Changelog Visibility** - MEDIUM/LOW (30 minutes)
    - Link version display (e.g., "v3.6.0") to CHANGELOG.md
    - Problem: Users see version numbers but no context
    - Impact: Transparency about what changed
 
-**8. ✅ Fill in Missing Sections in USER-GUIDE.md** - MEDIUM/LOW (2-3 hours)
+**6. ✅ Fill in Missing Sections in USER-GUIDE.md** - MEDIUM/LOW (2-3 hours)
    - Complete placeholder sections
    - Add screenshots/examples
    - Problem: Partial documentation confuses users
    - Impact: Complete feature documentation
 
-**9. Enhanced Getting Started UX** #Architecture - See [docs/design/ENHANCED-GETTING-STARTED-UX.md](docs/design/ENHANCED-GETTING-STARTED-UX.md)
+**7. Enhanced Getting Started UX** #Architecture - See [docs/design/ENHANCED-GETTING-STARTED-UX.md](docs/design/ENHANCED-GETTING-STARTED-UX.md)
     - Status: Planned (post-rename enhancement)
     - Help menu links, enhanced empty library state
 
