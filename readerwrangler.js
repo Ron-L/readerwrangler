@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.8.0.c - Advanced Filtering + Collections Integration UI
+        // ReaderWrangler JS v3.8.0.d - Advanced Filtering + Collections Integration UI
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.8.0.c";
+        const ORGANIZER_VERSION = "v3.8.0.d";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1765,7 +1765,7 @@
                                 onClick={() => setFilterPanelOpen(!filterPanelOpen)}
                                 className={`px-4 py-2 border rounded-lg flex items-center gap-2 ${
                                     (searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter)
-                                    ? 'border-blue-500 text-blue-600 font-semibold'
+                                    ? `border-blue-500 text-blue-600 font-semibold ${!filterPanelOpen ? 'filter-button-active' : ''}`
                                     : 'border-gray-300 text-gray-700'
                                 }`}
                                 title="Toggle filter panel">
