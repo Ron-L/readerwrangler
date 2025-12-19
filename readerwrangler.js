@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.8.0.f - Advanced Filtering + Collections Integration UI
+        // ReaderWrangler JS v3.8.0.g - Advanced Filtering + Collections Integration UI
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.8.0.f";
+        const ORGANIZER_VERSION = "v3.8.0.g";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1175,7 +1175,22 @@
                 // Save to IndexedDB
                 await saveBooksToIndexedDB(processedBooks);
                 setBooks(processedBooks);
-                
+
+                // Reset all filters when loading new library (v3.8.0.g)
+                setSearchTerm('');
+                setReadStatusFilter('');
+                setCollectionFilter('');
+                setRatingFilter('');
+                setWishlistFilter('');
+                localStorage.setItem(FILTERS_KEY, JSON.stringify({
+                    searchTerm: '',
+                    readStatusFilter: '',
+                    collectionFilter: '',
+                    ratingFilter: '',
+                    wishlistFilter: ''
+                }));
+                console.log('🔍 Filters cleared for new library');
+
                 // Check if we have saved organization to restore
                 try {
                     const saved = localStorage.getItem(STORAGE_KEY);
