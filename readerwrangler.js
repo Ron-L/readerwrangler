@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.7.1 - Rename APP_VERSION to ORGANIZER_VERSION
+        // ReaderWrangler JS v3.8.0.a - Advanced Filtering + Collections Integration UI
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.7.1";
+        const ORGANIZER_VERSION = "v3.8.0.a";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -528,11 +528,16 @@
                 input.type = 'file';
                 input.accept = '.json';
                 input.onchange = async (e) => {
+                    console.log('🔍 DEBUG: File selected');
                     const file = e.target.files[0];
                     if (file) {
+                        console.log('🔍 DEBUG: File name:', file.name);
                         try {
+                            console.log('🔍 DEBUG: Reading file text...');
                             const text = await file.text();
+                            console.log('🔍 DEBUG: Parsing JSON...');
                             const parsedData = JSON.parse(text);
+                            console.log('🔍 DEBUG: JSON parsed successfully');
                             const syncTime = Date.now();
                             setLastSyncTime(syncTime);
 
@@ -552,13 +557,17 @@
                             }, 60000);
 
                             // Load data with callback
+                            console.log('🔍 DEBUG: Calling loadEnrichedData...');
                             await loadEnrichedData(text, (bookCount) => {
+                                console.log('🔍 DEBUG: loadEnrichedData callback fired, bookCount:', bookCount);
                                 callbackFired = true;
                                 clearTimeout(timeoutId);
                                 // checkManifest removed in v3.6.1 - status updated in loadEnrichedData
                             });
+                            console.log('🔍 DEBUG: loadEnrichedData completed successfully');
 
                         } catch (error) {
+                            console.log('🔍 DEBUG: CATCH BLOCK REACHED');
                             console.error('Failed to sync:', error);
                             if (error && error.message) {
                                 console.error('Error details:', error.message, error.stack);
@@ -568,6 +577,8 @@
                                 alert('Failed to load library file: Unknown error');
                             }
                         }
+                    } else {
+                        console.log('🔍 DEBUG: No file selected');
                     }
                 };
                 input.click();
