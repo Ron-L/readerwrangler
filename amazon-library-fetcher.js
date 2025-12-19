@@ -1,4 +1,4 @@
-// Amazon Library Fetcher v3.5.1 (Progress UI + Abort on X close)
+// Amazon Library Fetcher v3.6.0 (Type field validation)
 // Fetches library books and enriches them with descriptions & reviews
 // Writes manifest to IndexedDB for ReaderWrangler status bar tracking
 // Schema Version: 3.1.0 (Adds GUID for status bar tracking)
@@ -22,7 +22,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v3.5.2';
+    const FETCHER_VERSION = 'v3.6.0';
     const SCHEMA_VERSION = '3.1.0';
 
     console.log('========================================');
@@ -719,16 +719,32 @@ async function fetchAmazonLibrary() {
             const fileText = await file.text();
             const parsedData = JSON.parse(fileText);
 
-            // Only support schema v3.0.0+ (object with metadata)
-            if (parsedData.metadata && parsedData.books) {
-                existingBooks = parsedData.books;
-                console.log(`   📋 Loaded schema ${parsedData.metadata.schemaVersion} (${existingBooks.length} books)`);
-            } else {
-                console.error('   ❌ Unsupported JSON format');
-                console.error('   Expected: {metadata, books} (schema v3.0.0+)');
+            // Step 1: Check for type field (REQUIRED)
+            if (!parsedData.type) {
+                console.error('   ❌ Invalid file format - Missing "type" field');
                 console.error('   Received:', Object.keys(parsedData));
-                console.error('   Please use library-fetcher.js v3.3.0+ to generate a fresh library file');
-                throw new Error('Unsupported JSON format - Expected library file with {metadata, books}');
+                console.error('   Please regenerate with latest fetcher version (v3.6.0+)');
+                throw new Error('Invalid file format - Missing "type" field. Please regenerate with latest fetcher version.');
+            }
+
+            // Step 2: Validate type value
+            if (parsedData.type === "library") {
+                // Step 3: Verify library structure
+                if (!parsedData.metadata || !parsedData.books) {
+                    console.error('   ❌ Invalid library file - Missing metadata or books array');
+                    console.error('   Received:', Object.keys(parsedData));
+                    throw new Error('Invalid library file - Missing metadata or books array');
+                }
+                existingBooks = parsedData.books;
+                console.log(`   📋 Loaded ${parsedData.type} file (${existingBooks.length} books)`);
+            } else if (parsedData.type === "collections") {
+                console.error('   ❌ Wrong file type - This is a collections file');
+                console.error('   Please select a library file instead');
+                throw new Error('Wrong file type - This is a collections file. Please select a library file.');
+            } else {
+                console.error(`   ❌ Unknown file type: "${parsedData.type}"`);
+                console.error('   Expected: "library" or "collections"');
+                throw new Error(`Unknown file type: "${parsedData.type}". Expected "library" or "collections".`);
             }
 
             // Find most recent acquisition date
@@ -1445,6 +1461,9 @@ async function fetchAmazonLibrary() {
             console.log(`   ✅ Manifest updated\n`);
 
             console.log('========================================');
+
+            // Close progress UI with success message
+            progressUI.showComplete('Library up to date! No new books to fetch.');
             return;
         }
         
@@ -1696,6 +1715,7 @@ async function fetchAmazonLibrary() {
 
         // Create output with metadata (Schema v3.1.0 - adds GUID)
         const outputData = {
+            type: "library",
             metadata: {
                 guid: sessionGUID,
                 schemaVersion: SCHEMA_VERSION,
