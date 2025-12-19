@@ -22,7 +22,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v3.5.1';
+    const FETCHER_VERSION = 'v3.5.1.a';
     const SCHEMA_VERSION = '3.1.0';
 
     console.log('========================================');
@@ -728,7 +728,7 @@ async function fetchAmazonLibrary() {
                 console.error('   Expected: {metadata, books} (schema v3.0.0+)');
                 console.error('   Received:', Object.keys(parsedData));
                 console.error('   Please use library-fetcher.js v3.3.0+ to generate a fresh library file');
-                return;
+                throw new Error('Unsupported JSON format - Expected library file with {metadata, books}');
             }
 
             // Find most recent acquisition date
