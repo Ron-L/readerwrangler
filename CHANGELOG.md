@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.4] - 2025-12-19
+
+### Fixed
+- **Library Fetcher Error Handling** - Invalid file selection now shows error dialog instead of hanging (Priority 0, Bug #1)
+  - File version: amazon-library-fetcher.js v3.5.2
+  - When user selects wrong JSON file (e.g., collections JSON instead of library JSON), error dialog now appears immediately
+  - Previous behavior: Dialog hung with "Checking Library Data..." message indefinitely
+  - Root cause: Validation failure used `return;` instead of `throw new Error()`, preventing catch block from executing
+  - Fix: Changed line 731 to throw error, ensuring progressUI.showError() displays to user
+  - Impact: Better UX when file selection errors occur
+
 ## [3.7.3] - 2025-12-18
 
 ### Changed

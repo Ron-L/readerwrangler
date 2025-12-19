@@ -6,16 +6,6 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ---
 
-### 🐛 Priority 0: Critical Bugs (Fix First)
-
-**1. 🐛 Invalid File Selection Causes Status Timeout** - MEDIUM/LOW (30m-1h)
-   - When user selects wrong JSON file in Load Library dialog, status check hangs
-   - Eventually times out with "Library loaded but status check timed out" message
-   - Problem: File picker error doesn't cancel the status check operation
-   - Impact: Minor UX issue - confusing timeout instead of immediate error
-
----
-
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
 **1. 🔀 Column Sorting** - MEDIUM-HIGH/MEDIUM (4-6 hours)
