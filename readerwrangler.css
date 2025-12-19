@@ -1,4 +1,4 @@
-/* ReaderWrangler CSS v3.8.0.d */
+/* ReaderWrangler CSS v3.8.0.e */
 body { margin: 0; padding: 0; overflow: hidden; }
 .dragging { opacity: 0.3; }
 .drop-target { background-color: rgba(59, 130, 246, 0.1); }
@@ -138,5 +138,5 @@ body { margin: 0; padding: 0; overflow: hidden; }
     overflow: hidden;
 }
 .filter-button-active {
-    animation: filter-pulse 3s infinite;
+    animation: filter-pulse 5s infinite;
 }

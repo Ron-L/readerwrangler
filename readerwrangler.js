@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.8.0.d - Advanced Filtering + Collections Integration UI
+        // ReaderWrangler JS v3.8.0.e - Advanced Filtering + Collections Integration UI
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.8.0.d";
+        const ORGANIZER_VERSION = "v3.8.0.e";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
