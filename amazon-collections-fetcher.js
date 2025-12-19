@@ -1,4 +1,4 @@
-// Amazon Collections Fetcher v1.2.1 (Progress UI + Abort on X close)
+// Amazon Collections Fetcher v1.3.0 (Type field validation)
 // Fetches collection membership and read status for all books in your library
 // Schema Version: 1.1 (Adds GUID for status bar tracking)
 //
@@ -14,7 +14,7 @@
 //         by pressing Up Arrow (to recall the function call) or typing: fetchAmazonCollections()
 
 async function fetchAmazonCollections() {
-    const FETCHER_VERSION = 'v1.2.1';
+    const FETCHER_VERSION = 'v1.3.0';
     const SCHEMA_VERSION = '1.1';
     const PAGE_TITLE = document.title;
 
@@ -760,6 +760,7 @@ async function fetchAmazonCollections() {
     progressUI.updatePhase('Saving Collections', 'Generating and downloading JSON file');
 
     const outputData = {
+        type: "collections",
         guid: sessionGUID,
         schemaVersion: SCHEMA_VERSION,
         fetcherVersion: FETCHER_VERSION,
