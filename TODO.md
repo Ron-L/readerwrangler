@@ -8,12 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🐛 Priority 0: Critical Bugs (Fix First)
 
-**1. 🐛 Collections Filter Bug Fix** - HIGH/LOW (30m-1h)
-   - Collections dropdown still shows old collection names after Clear Everything
-   - Problem: UI state not fully cleared
-   - Impact: Confusing UX after reset
-
-**2. 🐛 Invalid File Selection Causes Status Timeout** - MEDIUM/LOW (30m-1h)
+**1. 🐛 Invalid File Selection Causes Status Timeout** - MEDIUM/LOW (30m-1h)
    - When user selects wrong JSON file in Load Library dialog, status check hangs
    - Eventually times out with "Library loaded but status check timed out" message
    - Problem: File picker error doesn't cancel the status check operation

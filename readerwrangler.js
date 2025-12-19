@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.7.0.a - Rename APP_VERSION to ORGANIZER_VERSION
+        // ReaderWrangler JS v3.7.1 - Rename APP_VERSION to ORGANIZER_VERSION
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.7.0.a";
+        const ORGANIZER_VERSION = "v3.7.1";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";

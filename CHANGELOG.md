@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.3] - 2025-12-18
+
+### Changed
+- **Version Constant Renamed** - Renamed APP_VERSION to ORGANIZER_VERSION for clarity
+  - File version: readerwrangler.js v3.7.1
+  - Distinguishes organizer version from fetcher versions
+- **Documentation Streamline** - Eliminated LOG.md to follow open-source standard
+  - Migrated unique development insights to CHANGELOG.md
+  - Follows "Keep a Changelog" standard (single source of truth)
+  - Reduces duplication and maintenance burden
+
+### Investigation
+- **Collections Filter False Bug** - Investigated report that collections dropdown showed old collection names after Clear Everything
+  - **Report**: Collections dropdown still shows "Uncollected" and other names after Clear Everything
+  - **Investigation**: Attempted to verify by testing Clear Everything, observed "Uncollected" collection persisting in dropdown
+  - **Root Cause of Confusion**: "Uncollected" is a hardcoded pseudo-collection in the HTML (always present by design), not a leftover from previous collections
+  - **Actual Finding**: Clear Everything correctly clears all dynamic collections. The "Uncollected" entry is intentional, representing books not in any Amazon collection
+  - **Conclusion**: No bug exists. User error during testing - mistook hardcoded "Uncollected" entry for a bug
+  - **Original Report Status**: Unknown if original bug report made same mistake, or if bug was fixed at another time
+  - **Time Impact**: Investigation consumed development time chasing false positive
+
+### Development Notes
+- **Conversation Recovery Insight** (2025-12-11) - When moving projects to new paths, Claude Code conversation history is path-keyed and won't follow automatically
+  - Recovery: Locate conversation file in `C:\Users\Ron\.claude\projects\{path-encoded-folder}\`, update paths, set `isSideChain: false`
+  - Key insight: Compaction summary metadata beyond visible text shapes behavior - cumulative corrections matter
+  - "Broken in" conversations with correction history behave differently than fresh starts with identical instructions
+- **Recurring Version Confusion** (2025-12-19) - Claude Code repeatedly confuses file versions (ORGANIZER_VERSION constant in readerwrangler.js) with APP/project versions (README.md badge, git tags)
+  - Pattern: When discussing version updates, Claude often references wrong version type (e.g., "APP version 3.7.0" when meaning "file version v3.7.0")
+  - Impact: Causes confusion during release prep, requires repeated clarification
+  - Example: During v3.7.3 release, Claude confused readerwrangler.js v3.7.0 with APP version v3.7.0 (which doesn't exist - APP was at v3.7.2)
+  - Mitigation: Always clarify which version type is being discussed, use explicit prefixes ("file version" vs "APP version")
+
 ## [3.7.2] - 2025-12-13
 
 ### Added
