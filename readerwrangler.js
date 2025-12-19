@@ -1,12 +1,13 @@
-        // ReaderWrangler JS v3.8.0.e - Advanced Filtering + Collections Integration UI
+        // ReaderWrangler JS v3.8.0.f - Advanced Filtering + Collections Integration UI
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.8.0.e";
+        const ORGANIZER_VERSION = "v3.8.0.f";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
         const SETTINGS_KEY = "readerwrangler-settings";
         const STATUS_KEY = "readerwrangler-status"; // v3.7.0.n - persist library/collections status
+        const FILTERS_KEY = "readerwrangler-filters"; // v3.8.0.f - persist filter state
         const DB_NAME = "ReaderWranglerDB";
         const DB_VERSION = 1;
         const BOOKS_STORE = "books";
@@ -281,6 +282,39 @@
             });
             const dragThreshold = 50;
             // manifestCheckTimer removed in v3.6.1 - replaced with IndexedDB manifests
+
+            // Load saved filters from localStorage on mount (v3.8.0.f)
+            React.useEffect(() => {
+                try {
+                    const savedFilters = localStorage.getItem(FILTERS_KEY);
+                    if (savedFilters) {
+                        const filters = JSON.parse(savedFilters);
+                        if (filters.searchTerm !== undefined) setSearchTerm(filters.searchTerm);
+                        if (filters.readStatusFilter !== undefined) setReadStatusFilter(filters.readStatusFilter);
+                        if (filters.collectionFilter !== undefined) setCollectionFilter(filters.collectionFilter);
+                        if (filters.ratingFilter !== undefined) setRatingFilter(filters.ratingFilter);
+                        if (filters.wishlistFilter !== undefined) setWishlistFilter(filters.wishlistFilter);
+                    }
+                } catch (e) {
+                    console.error('Failed to load filters from localStorage:', e);
+                }
+            }, []); // Empty dependency array = run once on mount
+
+            // Save filters to localStorage whenever they change (v3.8.0.f)
+            React.useEffect(() => {
+                try {
+                    const filters = {
+                        searchTerm,
+                        readStatusFilter,
+                        collectionFilter,
+                        ratingFilter,
+                        wishlistFilter
+                    };
+                    localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+                } catch (e) {
+                    console.error('Failed to save filters to localStorage:', e);
+                }
+            }, [searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter]);
 
             const formatAcquisitionDate = (timestamp) => {
                 if (!timestamp) return '';
