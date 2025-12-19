@@ -251,6 +251,9 @@
             const [activeColumnId, setActiveColumnId] = useState(null); // Track which column has focus for Ctrl+A
             const [contextMenu, setContextMenu] = useState(null); // {x, y, bookId, columnId}
             const [readStatusFilter, setReadStatusFilter] = useState(''); // Filter by READ/UNREAD/UNKNOWN
+            const [ratingFilter, setRatingFilter] = useState(''); // Filter by minimum rating (NEW v3.8.0)
+            const [wishlistFilter, setWishlistFilter] = useState(''); // Filter by wishlist status: '' | 'owned' | 'wishlist' (NEW v3.8.0)
+            const [filterPanelOpen, setFilterPanelOpen] = useState(false); // Collapsible filter panel state (NEW v3.8.0)
             const [, forceUpdate] = useState({});
 
             // Status bar redesign state (v3.6.1 - 25-state matrix)
@@ -1648,7 +1651,15 @@
                         }
                     }
 
-                    return matchesSearch && matchesReadStatus && matchesCollection;
+                    // Rating filter (NEW v3.8.0)
+                    const matchesRating = !ratingFilter || (book.rating >= parseFloat(ratingFilter));
+
+                    // Wishlist filter (NEW v3.8.0)
+                    const matchesWishlist = !wishlistFilter ||
+                        (wishlistFilter === 'wishlist' && book.isWishlist) ||
+                        (wishlistFilter === 'owned' && !book.isWishlist);
+
+                    return matchesSearch && matchesReadStatus && matchesCollection && matchesRating && matchesWishlist;
                 });
             };
 
@@ -1747,55 +1758,157 @@
                                 </button>
                             </div>
                         </div>
-                        
-                        <div className="flex gap-4 items-center">
-                            <div className="flex-1 relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                    🔍
-                                </span>
-                                <input type="text"
-                                       placeholder="Search by title or author..."
-                                       value={searchTerm}
-                                       onChange={(e) => setSearchTerm(e.target.value)}
-                                       className="w-full pl-10 pr-10 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                                {searchTerm && (
-                                    <button
-                                        onClick={() => setSearchTerm('')}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xl"
-                                        title="Clear search">
-                                        ×
-                                    </button>
-                                )}
-                            </div>
 
-                            <select
-                                value={readStatusFilter}
-                                onChange={(e) => setReadStatusFilter(e.target.value)}
-                                className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                title="Filter by read status">
-                                <option value="">All Status</option>
-                                <option value="READ">✓ Read</option>
-                                <option value="UNREAD">○ Unread</option>
-                                <option value="UNKNOWN">? Unknown</option>
-                            </select>
-
-                            <select
-                                value={collectionFilter}
-                                onChange={(e) => setCollectionFilter(e.target.value)}
-                                className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                title="Filter by collection">
-                                <option value="">🗂️ All Collections</option>
-                                <option value="UNCOLLECTED">📚 Uncollected</option>
-                                {getAllCollectionNames().map(name => (
-                                    <option key={name} value={name}>{name}</option>
-                                ))}
-                            </select>
-
+                        {/* Filter Panel (NEW v3.8.0) */}
+                        <div className="flex gap-4 items-center mb-4">
+                            <button
+                                onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+                                className={`px-4 py-2 border rounded-lg flex items-center gap-2 ${
+                                    (searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter)
+                                    ? 'border-blue-500 text-blue-600 font-semibold'
+                                    : 'border-gray-300 text-gray-700'
+                                }`}
+                                title="Toggle filter panel">
+                                🔍 Filters {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter) &&
+                                    `(${[searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter].filter(Boolean).length})`}
+                                {filterPanelOpen ? ' ▼' : ' ▶'}
+                            </button>
                             <button onClick={addColumn}
                                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2">
                                 ➕ Add Column
                             </button>
                         </div>
+
+                        {/* Active Filters Banner */}
+                        {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter) && (
+                            <div className="bg-blue-100 border border-blue-300 rounded-lg px-4 py-2 mb-4 flex items-center justify-between">
+                                <div className="flex items-center gap-2 flex-wrap text-sm">
+                                    <span className="font-semibold">🔍 Active:</span>
+                                    {searchTerm && <span>Search: "{searchTerm}"</span>}
+                                    {searchTerm && (readStatusFilter || collectionFilter || ratingFilter || wishlistFilter) && <span>|</span>}
+                                    {readStatusFilter && <span>Read: {readStatusFilter}</span>}
+                                    {readStatusFilter && (collectionFilter || ratingFilter || wishlistFilter) && <span>|</span>}
+                                    {collectionFilter && <span>Collection: {collectionFilter === 'UNCOLLECTED' ? 'Uncollected' : collectionFilter}</span>}
+                                    {collectionFilter && (ratingFilter || wishlistFilter) && <span>|</span>}
+                                    {ratingFilter && <span>Rating: {ratingFilter}+★</span>}
+                                    {ratingFilter && wishlistFilter && <span>|</span>}
+                                    {wishlistFilter && <span>Wishlist: {wishlistFilter === 'owned' ? 'Owned Only' : 'Wishlist Only'}</span>}
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setSearchTerm('');
+                                        setReadStatusFilter('');
+                                        setCollectionFilter('');
+                                        setRatingFilter('');
+                                        setWishlistFilter('');
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 font-semibold text-sm whitespace-nowrap">
+                                    Clear All ×
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Collapsible Filter Panel */}
+                        {filterPanelOpen && (
+                            <div className="bg-white border border-gray-300 rounded-lg p-4 mb-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {/* Search */}
+                                    <div className="relative">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">🔍 Search</label>
+                                        <span className="absolute left-3 top-9 text-gray-400">🔍</span>
+                                        <input type="text"
+                                               placeholder="Title or author..."
+                                               value={searchTerm}
+                                               onChange={(e) => setSearchTerm(e.target.value)}
+                                               className="w-full pl-10 pr-10 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                        {searchTerm && (
+                                            <button
+                                                onClick={() => setSearchTerm('')}
+                                                className="absolute right-3 top-9 text-gray-400 hover:text-gray-600 text-xl"
+                                                title="Clear search">
+                                                ×
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Read Status */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">📖 Read Status</label>
+                                        <select
+                                            value={readStatusFilter}
+                                            onChange={(e) => setReadStatusFilter(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                            <option value="">All Status</option>
+                                            <option value="READ">✓ Read</option>
+                                            <option value="UNREAD">○ Unread</option>
+                                            <option value="UNKNOWN">? Unknown</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Collection */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">🗂️ Collection</label>
+                                        <select
+                                            value={collectionFilter}
+                                            onChange={(e) => setCollectionFilter(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                            <option value="">All Collections</option>
+                                            <option value="UNCOLLECTED">📚 Uncollected</option>
+                                            {getAllCollectionNames().map(name => (
+                                                <option key={name} value={name}>{name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Rating */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">⭐ Rating</label>
+                                        <select
+                                            value={ratingFilter}
+                                            onChange={(e) => setRatingFilter(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                            <option value="">All Ratings</option>
+                                            <option value="5">5★</option>
+                                            <option value="4">4+★</option>
+                                            <option value="3">3+★</option>
+                                            <option value="2">2+★</option>
+                                            <option value="1">1+★</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Wishlist */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">❤️ Wishlist</label>
+                                        <select
+                                            value={wishlistFilter}
+                                            onChange={(e) => setWishlistFilter(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                            <option value="">All Books</option>
+                                            <option value="owned">Owned Books Only</option>
+                                            <option value="wishlist">Wishlist Books Only</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Result Counter */}
+                                <div className="mt-4 flex justify-between items-center text-sm text-gray-600">
+                                    <span>
+                                        Showing: {columns.reduce((sum, col) => sum + filteredBooks(col.books).length, 0)} of {books.length} books
+                                    </span>
+                                    <button
+                                        onClick={() => {
+                                            setSearchTerm('');
+                                            setReadStatusFilter('');
+                                            setCollectionFilter('');
+                                            setRatingFilter('');
+                                            setWishlistFilter('');
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800 font-semibold">
+                                        Clear All Filters
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {statusModalOpen && (() => {
