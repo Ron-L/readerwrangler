@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.8.0.h - Advanced Filtering + Collections Integration UI
+        // ReaderWrangler JS v3.8.0.i - Advanced Filtering + Collections Integration UI
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.8.0.h";
+        const ORGANIZER_VERSION = "v3.8.0.i";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -780,12 +780,10 @@
             const clearLibrary = async () => {
                 if (!confirm('This will completely reset the app to its initial unused state.\n\n' +
                              'This will:\n' +
-                             '• Unload the current library from the app\n' +
-                             '• Remove all custom columns\n' +
-                             '• Clear all book organization\n' +
-                             '• Reset all filters\n' +
-                             '• Reset to empty "Unorganized" column\n\n' +
-                             'You will need to load a library file to continue.\n\n' +
+                             '• Unload library\n' +
+                             '• Remove all columns and organization\n' +
+                             '• Reset all filters\n\n' +
+                             'You\'ll need to reload a library file after.\n\n' +
                              'Continue?')) {
                     return;
                 }
