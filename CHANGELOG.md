@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.0] - 2025-12-19
+
+### Added
+- **Type Field Validation** - Both fetchers now include type field for better file validation (Priority 1, #0: File Type Field Validation)
+  - Library fetcher v3.6.0: Added `"type": "library"` to JSON output
+  - Collections fetcher v1.3.0: Added `"type": "collections"` to JSON output
+  - Clean break validation: Requires type field, throws error if missing (no backward compatibility)
+  - Better error messages for wrong file type selection
+  - Example errors: "Wrong file type - This is a collections file. Please select a library file."
+  - Impact: Clearer validation, better user feedback when wrong file selected
+
+### Fixed
+- **Library Fetcher Progress UI** - Fixed dialog hanging when library is up-to-date (no new books scenario)
+  - File version: amazon-library-fetcher.js v3.6.0
+  - Previous behavior: Dialog remained open showing "Fetching Titles" indefinitely
+  - Root cause: Early return without updating progress UI
+  - Fix: Added progressUI.showComplete() call before return
+  - Impact: Better UX when no updates needed
+
 ## [3.7.4] - 2025-12-19
 
 ### Fixed
