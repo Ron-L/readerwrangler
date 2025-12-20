@@ -8,21 +8,20 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. 🔎 Advanced Filtering + Collections Integration UI** - MEDIUM/MEDIUM (8-12 hours)
+**1. 🔎 Advanced Filtering + Collections Integration UI** ✅ **COMPLETE v3.8.0** - MEDIUM/MEDIUM (8-12 hours)
    - **Advanced Filtering:**
      - ~~Filter by genre/category~~ ❌ (NOT AVAILABLE: Amazon API doesn't provide genre/category metadata)
      - Filter by rating ✅ (DONE v3.8.0.b)
-     - Filter by acquisition date range
+     - Filter by acquisition date range ✅ (DONE v3.8.0.k, fixed v3.8.0.m)
      - Filter by read/unread status ✅ (already existed)
-     - Filter by series
-     - Filter by wishlist status ✅ (DONE v3.8.0.b)
+     - Filter by series ✅ (DONE v3.8.0.k)
+     - Filter by wishlist status ✅ (DONE v3.8.0.b, fixed v3.8.0.n)
    - **Collections Integration UI:** See [docs/design/COLLECTIONS-UI.md](docs/design/COLLECTIONS-UI.md)
      - Visual indicators (badges/icons) for collections on book covers ✅ (DONE: tooltip already shows collection names)
-     - Metadata display showing which collections each book belongs to (add to modal)
+     - Metadata display showing which collections each book belongs to (add to modal) ✅ (DONE v3.8.0.k)
      - Filtering by collection name ✅ (already existed)
      - Filtering by read status (READ/UNREAD/UNKNOWN) ✅ (already existed)
-     - "Uncollected" pseudo-collection
-     - Status: Data merged ✅, UI incomplete
+     - "Uncollected" pseudo-collection ⏳ (Deferred - low priority)
    - **Optional Enhancements:**
      - Badge system (active filter count) ✅ (DONE v3.8.0.b)
      - Collapsible filter panel ✅ (DONE v3.8.0.b)
@@ -33,6 +32,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Hard to find specific subsets in 2,300+ book library, collections data fetched but not visible in UI
    - Impact: Improves discoverability for power users, leverages existing Amazon collections in organizer
    - Note: Combined from former #2 and #3 - both build same filtering infrastructure
+   - **Released:** 2025-12-20
 
 **2. 🔀 Column Sorting** - MEDIUM-HIGH/MEDIUM (4-6 hours)
    - Sort books within columns by: acquisitionDate, seriesPosition, rating, title, author
@@ -215,6 +215,37 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Random enrichment failures, long extractions without pause, lost progress on interruption
    - Impact: Data quality improvement (99.8%+ expected), better UX for long extractions, prevents data loss
    - Note: This consolidates former P2 "Extraction Error Recovery" feature
+
+**4. 🔧 Fix Manifest/Status System Architecture** #Architecture #BROKEN - LOW/VERY HIGH (40-60 hours)
+   - **CRITICAL CONTEXT - READ BEFORE ANY WORK**:
+     - **Problem**: Fetcher runs on `amazon.com`, app runs on `readerwrangler.com` (or `localhost`) → **different domains**
+     - **IndexedDB isolation**: Browser security prevents cross-domain IndexedDB access
+     - **Current state**: Manifest system writes to amazon.com's IndexedDB, app reads from readerwrangler.com's IndexedDB → **always 0 manifests**
+     - **Affected users**: EVERYONE (both local dev and production GitHub Pages)
+     - **Why it was missed**: Localhost testing masked the issue when testing both fetcher and app on same domain
+     - **Historical context**: Repeated same mistake twice (manifest file polling v3.6.0, IndexedDB manifests v3.6.1+)
+   - **What the system was trying to solve**:
+     - Track **Fetch state** (how fresh is the file on disk?) vs **Load state** (how fresh is data in app?)
+     - Warn user: "You loaded 30-day-old data but have a 1-day-old file on disk - reload it!"
+     - See [state-matrix.html](state-matrix.html) for full 25-state matrix explanation
+   - **Why app can't re-read files**:
+     - Browser security: file picker requires user action, can't poll files automatically
+     - No persistent file handle after initial read
+   - **Subtasks**:
+     - Move `state-matrix.html` from project root to `docs/design/`
+     - Update `STATUS-BAR-REDESIGN.md` to document cross-domain limitation
+     - Evaluate solutions:
+       - Option A: Embed complete manifest in JSON metadata (simple, loses "file on disk" detection)
+       - Option B: Hybrid approach (IndexedDB + JSON fallback)
+       - Option C: Accept limitation, simplify to Load-state only
+     - Fetcher: Auto-cull old manifests in `ReaderWranglerManifests` DB (keep only latest per type)
+     - Clean up dead code if manifest system is removed/simplified
+   - **Manual cleanup needed**:
+     - localhost: Delete `AmazonBookDB` (empty, unused)
+     - localhost: Delete `ReaderWranglerManifests` (empty, cross-domain doesn't work)
+     - amazon.com: Delete `ReaderWranglerManifests` (17 entries accumulating, never read)
+   - Problem: Manifest tracking doesn't work, status bar shows misleading info, wasted engineering effort
+   - Impact: Accurate status tracking OR accept simpler Load-state-only approach
 
 ---
 

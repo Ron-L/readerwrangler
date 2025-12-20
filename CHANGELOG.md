@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.0] - 2025-12-20
+
+### Added
+- **Advanced Filtering System** - Added comprehensive filtering for organizing large libraries (Priority 1, #1: Advanced Filtering + Collections Integration UI)
+  - File version: readerwrangler.js v3.8.0
+  - Filter by rating (minimum star rating)
+  - Filter by acquisition date range (From/To date pickers)
+  - Filter by series (dropdown with all series names + "NOT_IN_SERIES" option)
+  - Filter by wishlist status (Wishlist/Owned toggle)
+  - Active filter count badge on filter button
+  - Pulse animation on filter button when filters active
+  - Collapsible filter panel (remembers state)
+  - Filter state persistence to localStorage
+  - Filters reset on library load and Clear Library
+  - Impact: Enables quick discovery of specific book subsets in 2,300+ book libraries
+
+- **Collection Metadata in Book Modal** - Collection names now displayed in book detail modal
+  - Shows comma-separated list of all collections containing the book
+  - Leverages existing Amazon collections data fetched by collections-fetcher
+  - Impact: Better visibility of Amazon collection membership
+
+### Fixed
+- **Acquisition Date Filter Field Name** - Fixed filter checking wrong field name (v3.8.0.m)
+  - Filter was checking `book.acquisitionDate` but IndexedDB stores as `book.acquired`
+  - Changed filter logic to use correct field name
+  - Impact: Date range filter now works correctly
+
+- **Wishlist Filter Field Mapping** - Fixed isWishlist field being dropped during JSON load (v3.8.0.n)
+  - Field was not included in book object mapping at line 1086-1107
+  - Added `isWishlist: item.isWishlist || 0` to field mapping
+  - Impact: Wishlist filter now works correctly with manual test data
+
+### Notes
+- **Genre Filter Not Available** - Amazon API does not provide genre/category metadata, so genre filtering cannot be implemented
+  - Investigated during v3.8.0 development
+  - Amazon's GraphQL API returns: title, author, rating, series, binding, description, reviews
+  - No category, genre, or subject classification data available
+  - Alternative: Users can leverage Amazon Collections for categorization
+
 ## [3.8.0] - 2025-12-19
 
 ### Added
