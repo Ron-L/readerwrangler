@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.8.0.m - Advanced Filtering + Collections Integration UI
+        // ReaderWrangler JS v3.8.0.n - Advanced Filtering + Collections Integration UI
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.8.0.m";
+        const ORGANIZER_VERSION = "v3.8.0.n";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1100,6 +1100,7 @@
                             coverUrl: item.coverUrl,
                             hasEnrichedData: true,
                             store: "Amazon",
+                            isWishlist: item.isWishlist || 0,  // NEW v3.8.0.n - wishlist flag
                             // Collections data
                             readStatus: bookCollections.readStatus,
                             collections: bookCollections.collections
