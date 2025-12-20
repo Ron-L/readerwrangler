@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.8.0.k - Advanced Filtering + Collections Integration UI
+        // ReaderWrangler JS v3.8.0.l - Advanced Filtering + Collections Integration UI
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.8.0.k";
+        const ORGANIZER_VERSION = "v3.8.0.l";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1754,15 +1754,20 @@
                         }
                     }
 
-                    // Date range filter (NEW v3.8.0.k)
+                    // Date range filter (NEW v3.8.0.k, fixed v3.8.0.l for epoch milliseconds)
                     let matchesDateRange = true;
                     if (dateFrom || dateTo) {
-                        const bookDate = book.acquisitionDate ? new Date(book.acquisitionDate).toISOString().split('T')[0] : '';
-                        if (bookDate) {
-                            if (dateFrom && bookDate < dateFrom) matchesDateRange = false;
-                            if (dateTo && bookDate > dateTo) matchesDateRange = false;
+                        if (book.acquisitionDate) {
+                            // Convert epoch milliseconds to YYYY-MM-DD
+                            const bookDate = new Date(parseInt(book.acquisitionDate)).toISOString().split('T')[0];
+                            const fromDate = dateFrom || '0000-01-01'; // Default to earliest date if From is empty
+                            const toDate = dateTo || new Date().toISOString().split('T')[0]; // Default to today if To is empty
+
+                            if (bookDate < fromDate || bookDate > toDate) {
+                                matchesDateRange = false;
+                            }
                         } else {
-                            matchesDateRange = false; // Exclude books without acquisition dates
+                            matchesDateRange = false; // Exclude books without acquisition dates when filter is active
                         }
                     }
 
