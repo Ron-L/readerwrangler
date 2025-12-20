@@ -2596,10 +2596,24 @@
                                                         <span className="text-gray-600 font-mono text-xs">{modalBook.asin}</span>
                                                     </div>
                                                 )}
+                                                {/* Collections metadata (NEW v3.8.0.k) */}
+                                                {modalBook.collections && modalBook.collections.length > 0 ? (
+                                                    <div className="flex items-start gap-2">
+                                                        <span className="font-semibold text-gray-700">Collections:</span>
+                                                        <span className="text-gray-600 flex-1">
+                                                            {modalBook.collections.map(c => c.name).join(', ')}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-semibold text-gray-700">Collections:</span>
+                                                        <span className="text-gray-400 italic">No collections</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     {!modalBook.description && (
                                         <div className="mb-6 pb-6 border-b border-gray-200">
                                             <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
