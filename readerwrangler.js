@@ -1866,18 +1866,18 @@
                             </div>
                         </div>
 
-                        {/* Filter Panel (NEW v3.8.0) */}
+                        {/* Filter Panel (NEW v3.8.0, updated v3.8.0.k) */}
                         <div className="flex gap-4 items-center mb-4">
                             <button
                                 onClick={() => setFilterPanelOpen(!filterPanelOpen)}
                                 className={`px-4 py-2 border rounded-lg flex items-center gap-2 ${
-                                    (searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter)
+                                    (searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo)
                                     ? `border-blue-500 text-blue-600 font-semibold ${!filterPanelOpen ? 'filter-button-active' : ''}`
                                     : 'border-gray-300 text-gray-700'
                                 }`}
                                 title="Toggle filter panel">
-                                🔍 Filters {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter) &&
-                                    `(${[searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter].filter(Boolean).length})`}
+                                🔍 Filters {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo) &&
+                                    `(${[searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter, seriesFilter, dateFrom, dateTo].filter(Boolean).length})`}
                                 {filterPanelOpen ? ' ▼' : ' ▶'}
                             </button>
                             <button onClick={addColumn}
@@ -1886,39 +1886,7 @@
                             </button>
                         </div>
 
-                        {/* Active Filters Banner */}
-                        {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter) && (
-                            <div className="bg-blue-100 border border-blue-300 rounded-lg px-4 py-2 mb-4 flex items-center justify-between">
-                                <div className="flex items-center gap-2 flex-wrap text-sm">
-                                    <span className="font-semibold">🔍 Active:</span>
-                                    {searchTerm && <span>Search: "{searchTerm}"</span>}
-                                    {searchTerm && (readStatusFilter || collectionFilter || ratingFilter || wishlistFilter) && <span>|</span>}
-                                    {readStatusFilter && <span>Read: {readStatusFilter}</span>}
-                                    {readStatusFilter && (collectionFilter || ratingFilter || wishlistFilter) && <span>|</span>}
-                                    {collectionFilter && <span>Collection: {collectionFilter === 'UNCOLLECTED' ? 'Uncollected' : collectionFilter}</span>}
-                                    {collectionFilter && (ratingFilter || wishlistFilter) && <span>|</span>}
-                                    {ratingFilter && <span>Rating: {ratingFilter}+★</span>}
-                                    {ratingFilter && wishlistFilter && <span>|</span>}
-                                    {wishlistFilter && <span>Wishlist: {wishlistFilter === 'owned' ? 'Owned Only' : 'Wishlist Only'}</span>}
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        setSearchTerm('');
-                                        setReadStatusFilter('');
-                                        setCollectionFilter('');
-                                        setRatingFilter('');
-                                        setWishlistFilter('');
-                                        setSeriesFilter('');
-                                        setDateFrom('');
-                                        setDateTo('');
-                                    }}
-                                    className="text-blue-600 hover:text-blue-800 font-semibold text-sm whitespace-nowrap">
-                                    Clear All ×
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Collapsible Filter Panel */}
+                        {/* Collapsible Filter Panel (v3.8.0.k - moved above Active Filters banner) */}
                         {filterPanelOpen && (
                             <div className="bg-white border border-gray-300 rounded-lg p-4 mb-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1998,6 +1966,54 @@
                                             <option value="wishlist">Wishlist Books Only</option>
                                         </select>
                                     </div>
+
+                                    {/* Series (NEW v3.8.0.k) */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">📚 Series</label>
+                                        <select
+                                            value={seriesFilter}
+                                            onChange={(e) => setSeriesFilter(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                            <option value="">All Series</option>
+                                            <option value="NOT_IN_SERIES">📖 Not in Series</option>
+                                            {getAllSeriesNames().map(name => (
+                                                <option key={name} value={name}>{name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Acquisition Date Range (NEW v3.8.0.k) - Full width row */}
+                                <div className="mt-4 flex items-end gap-4">
+                                    <div className="flex-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">📅 Acquisition Date - From</label>
+                                        <input
+                                            type="date"
+                                            value={dateFrom}
+                                            onChange={(e) => setDateFrom(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">📅 Acquisition Date - To</label>
+                                        <input
+                                            type="date"
+                                            value={dateTo}
+                                            onChange={(e) => setDateTo(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                        />
+                                    </div>
+                                    {(dateFrom || dateTo) && (
+                                        <button
+                                            onClick={() => {
+                                                setDateFrom('');
+                                                setDateTo('');
+                                            }}
+                                            className="px-3 py-2 text-blue-600 hover:text-blue-800 font-semibold text-sm whitespace-nowrap"
+                                            title="Clear date range">
+                                            📅 Clear
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Result Counter */}
@@ -2020,6 +2036,42 @@
                                         Clear All Filters
                                     </button>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Active Filters Banner (v3.8.0.k - moved below Filter Panel) */}
+                        {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo) && (
+                            <div className="bg-blue-100 border border-blue-300 rounded-lg px-4 py-2 mb-4 flex items-center justify-between">
+                                <div className="flex items-center gap-2 flex-wrap text-sm">
+                                    <span className="font-semibold">🔍 Active:</span>
+                                    {searchTerm && <span>Search: "{searchTerm}"</span>}
+                                    {searchTerm && (readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo) && <span>|</span>}
+                                    {readStatusFilter && <span>Read: {readStatusFilter}</span>}
+                                    {readStatusFilter && (collectionFilter || ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo) && <span>|</span>}
+                                    {collectionFilter && <span>Collection: {collectionFilter === 'UNCOLLECTED' ? 'Uncollected' : collectionFilter}</span>}
+                                    {collectionFilter && (ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo) && <span>|</span>}
+                                    {ratingFilter && <span>Rating: {ratingFilter}+★</span>}
+                                    {ratingFilter && (wishlistFilter || seriesFilter || dateFrom || dateTo) && <span>|</span>}
+                                    {wishlistFilter && <span>Wishlist: {wishlistFilter === 'owned' ? 'Owned Only' : 'Wishlist Only'}</span>}
+                                    {wishlistFilter && (seriesFilter || dateFrom || dateTo) && <span>|</span>}
+                                    {seriesFilter && <span>Series: {seriesFilter === 'NOT_IN_SERIES' ? 'Not in Series' : seriesFilter}</span>}
+                                    {seriesFilter && (dateFrom || dateTo) && <span>|</span>}
+                                    {(dateFrom || dateTo) && <span>Date: {dateFrom || '...'} to {dateTo || '...'}</span>}
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setSearchTerm('');
+                                        setReadStatusFilter('');
+                                        setCollectionFilter('');
+                                        setRatingFilter('');
+                                        setWishlistFilter('');
+                                        setSeriesFilter('');
+                                        setDateFrom('');
+                                        setDateTo('');
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 font-semibold text-sm whitespace-nowrap">
+                                    Clear All ×
+                                </button>
                             </div>
                         )}
                     </div>
