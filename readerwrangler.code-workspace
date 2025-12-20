@@ -9,12 +9,6 @@
 		// File handling
 		"files.eol": "\n",
 		"files.insertFinalNewline": true,
-		"files.trimTrailingWhitespace": true,
-
-		// Hide large data files from explorer
-		"files.exclude": {
-			"*-library.json": true,
-			"*-manifest.json": true
-		}
+		"files.trimTrailingWhitespace": true
 	}
 }
