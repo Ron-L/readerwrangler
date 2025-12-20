@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.8.0.j - Advanced Filtering + Collections Integration UI
+        // ReaderWrangler JS v3.8.0.k - Advanced Filtering + Collections Integration UI
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.8.0.j";
+        const ORGANIZER_VERSION = "v3.8.0.k";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -254,6 +254,9 @@
             const [readStatusFilter, setReadStatusFilter] = useState(''); // Filter by READ/UNREAD/UNKNOWN
             const [ratingFilter, setRatingFilter] = useState(''); // Filter by minimum rating (NEW v3.8.0)
             const [wishlistFilter, setWishlistFilter] = useState(''); // Filter by wishlist status: '' | 'owned' | 'wishlist' (NEW v3.8.0)
+            const [seriesFilter, setSeriesFilter] = useState(''); // Filter by series name or "NOT_IN_SERIES" (NEW v3.8.0.k)
+            const [dateFrom, setDateFrom] = useState(''); // Filter by acquisition date from (YYYY-MM-DD) (NEW v3.8.0.k)
+            const [dateTo, setDateTo] = useState(''); // Filter by acquisition date to (YYYY-MM-DD) (NEW v3.8.0.k)
             const [filterPanelOpen, setFilterPanelOpen] = useState(false); // Collapsible filter panel state (NEW v3.8.0)
             const [, forceUpdate] = useState({});
 
@@ -283,7 +286,7 @@
             const dragThreshold = 50;
             // manifestCheckTimer removed in v3.6.1 - replaced with IndexedDB manifests
 
-            // Load saved filters from localStorage on mount (v3.8.0.f)
+            // Load saved filters from localStorage on mount (v3.8.0.f, updated v3.8.0.k)
             React.useEffect(() => {
                 try {
                     const savedFilters = localStorage.getItem(FILTERS_KEY);
@@ -294,13 +297,16 @@
                         if (filters.collectionFilter !== undefined) setCollectionFilter(filters.collectionFilter);
                         if (filters.ratingFilter !== undefined) setRatingFilter(filters.ratingFilter);
                         if (filters.wishlistFilter !== undefined) setWishlistFilter(filters.wishlistFilter);
+                        if (filters.seriesFilter !== undefined) setSeriesFilter(filters.seriesFilter);
+                        if (filters.dateFrom !== undefined) setDateFrom(filters.dateFrom);
+                        if (filters.dateTo !== undefined) setDateTo(filters.dateTo);
                     }
                 } catch (e) {
                     console.error('Failed to load filters from localStorage:', e);
                 }
             }, []); // Empty dependency array = run once on mount
 
-            // Save filters to localStorage whenever they change (v3.8.0.f)
+            // Save filters to localStorage whenever they change (v3.8.0.f, updated v3.8.0.k)
             React.useEffect(() => {
                 try {
                     const filters = {
@@ -308,13 +314,16 @@
                         readStatusFilter,
                         collectionFilter,
                         ratingFilter,
-                        wishlistFilter
+                        wishlistFilter,
+                        seriesFilter,
+                        dateFrom,
+                        dateTo
                     };
                     localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
                 } catch (e) {
                     console.error('Failed to save filters to localStorage:', e);
                 }
-            }, [searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter]);
+            }, [searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter, seriesFilter, dateFrom, dateTo]);
 
             const formatAcquisitionDate = (timestamp) => {
                 if (!timestamp) return '';
@@ -795,12 +804,15 @@
                     localStorage.removeItem(STATUS_KEY); // v3.7.0.n - clear saved status
                     localStorage.removeItem(FILTERS_KEY); // v3.8.0.h - clear saved filters
 
-                    // Reset all filters (v3.8.0.h)
+                    // Reset all filters (v3.8.0.h, updated v3.8.0.k)
                     setSearchTerm('');
                     setReadStatusFilter('');
                     setCollectionFilter('');
                     setRatingFilter('');
                     setWishlistFilter('');
+                    setSeriesFilter('');
+                    setDateFrom('');
+                    setDateTo('');
 
                     setBooks([]);
                     setColumns([{ id: 'unorganized', name: 'Unorganized', books: [] }]);
@@ -1184,18 +1196,24 @@
                 await saveBooksToIndexedDB(processedBooks);
                 setBooks(processedBooks);
 
-                // Reset all filters when loading new library (v3.8.0.g)
+                // Reset all filters when loading new library (v3.8.0.g, updated v3.8.0.k)
                 setSearchTerm('');
                 setReadStatusFilter('');
                 setCollectionFilter('');
                 setRatingFilter('');
                 setWishlistFilter('');
+                setSeriesFilter('');
+                setDateFrom('');
+                setDateTo('');
                 localStorage.setItem(FILTERS_KEY, JSON.stringify({
                     searchTerm: '',
                     readStatusFilter: '',
                     collectionFilter: '',
                     ratingFilter: '',
-                    wishlistFilter: ''
+                    wishlistFilter: '',
+                    seriesFilter: '',
+                    dateFrom: '',
+                    dateTo: ''
                 }));
                 console.log('🔍 Filters cleared for new library');
 
@@ -1685,6 +1703,16 @@
                 return Array.from(collectionNames).sort();
             };
 
+            const getAllSeriesNames = () => {
+                const seriesNames = new Set();
+                books.forEach(book => {
+                    if (book.series && book.series.trim() !== '') {
+                        seriesNames.add(book.series);
+                    }
+                });
+                return Array.from(seriesNames).sort();
+            };
+
             const filteredBooks = (bookIds) => {
                 return bookIds.map(id => books.find(b => b.id === id)).filter(book => {
                     if (!book) return false;
@@ -1716,7 +1744,29 @@
                         (wishlistFilter === 'wishlist' && book.isWishlist) ||
                         (wishlistFilter === 'owned' && !book.isWishlist);
 
-                    return matchesSearch && matchesReadStatus && matchesCollection && matchesRating && matchesWishlist;
+                    // Series filter (NEW v3.8.0.k)
+                    let matchesSeries = true;
+                    if (seriesFilter) {
+                        if (seriesFilter === 'NOT_IN_SERIES') {
+                            matchesSeries = !book.series || book.series.trim() === '';
+                        } else {
+                            matchesSeries = book.series && book.series === seriesFilter;
+                        }
+                    }
+
+                    // Date range filter (NEW v3.8.0.k)
+                    let matchesDateRange = true;
+                    if (dateFrom || dateTo) {
+                        const bookDate = book.acquisitionDate ? new Date(book.acquisitionDate).toISOString().split('T')[0] : '';
+                        if (bookDate) {
+                            if (dateFrom && bookDate < dateFrom) matchesDateRange = false;
+                            if (dateTo && bookDate > dateTo) matchesDateRange = false;
+                        } else {
+                            matchesDateRange = false; // Exclude books without acquisition dates
+                        }
+                    }
+
+                    return matchesSearch && matchesReadStatus && matchesCollection && matchesRating && matchesWishlist && matchesSeries && matchesDateRange;
                 });
             };
 
@@ -1858,6 +1908,9 @@
                                         setCollectionFilter('');
                                         setRatingFilter('');
                                         setWishlistFilter('');
+                                        setSeriesFilter('');
+                                        setDateFrom('');
+                                        setDateTo('');
                                     }}
                                     className="text-blue-600 hover:text-blue-800 font-semibold text-sm whitespace-nowrap">
                                     Clear All ×
@@ -1959,6 +2012,9 @@
                                             setCollectionFilter('');
                                             setRatingFilter('');
                                             setWishlistFilter('');
+                                            setSeriesFilter('');
+                                            setDateFrom('');
+                                            setDateTo('');
                                         }}
                                         className="text-blue-600 hover:text-blue-800 font-semibold">
                                         Clear All Filters
