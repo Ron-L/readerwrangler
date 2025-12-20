@@ -45,4 +45,4 @@ _Consider copying this pattern to other GitHub Pages projects_
 3. Test locally
 4. `git push dev main` → test on ron-l.github.io/readerwranglerdev
 5. When stable: `git push prod main` → live on readerwrangler.com
-
+Note: Only changes to navigator and Data Status modals need testing on Dev before deployment to Prod
