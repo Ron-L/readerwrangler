@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.8.0.l - Advanced Filtering + Collections Integration UI
+        // ReaderWrangler JS v3.8.0.m - Advanced Filtering + Collections Integration UI
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.8.0.l";
+        const ORGANIZER_VERSION = "v3.8.0.m";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1754,12 +1754,12 @@
                         }
                     }
 
-                    // Date range filter (NEW v3.8.0.k, fixed v3.8.0.l for epoch milliseconds)
+                    // Date range filter (NEW v3.8.0.k, fixed v3.8.0.l for epoch milliseconds and field name)
                     let matchesDateRange = true;
                     if (dateFrom || dateTo) {
-                        if (book.acquisitionDate) {
+                        if (book.acquired) {
                             // Convert epoch milliseconds to YYYY-MM-DD
-                            const bookDate = new Date(parseInt(book.acquisitionDate)).toISOString().split('T')[0];
+                            const bookDate = new Date(parseInt(book.acquired)).toISOString().split('T')[0];
                             const fromDate = dateFrom || '0000-01-01'; // Default to earliest date if From is empty
                             const toDate = dateTo || new Date().toISOString().split('T')[0]; // Default to today if To is empty
 
