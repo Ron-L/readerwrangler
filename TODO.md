@@ -8,33 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. 🔎 Advanced Filtering + Collections Integration UI** ✅ **COMPLETE v3.8.0** - MEDIUM/MEDIUM (8-12 hours)
-   - **Advanced Filtering:**
-     - ~~Filter by genre/category~~ ❌ (NOT AVAILABLE: Amazon API doesn't provide genre/category metadata)
-     - Filter by rating ✅ (DONE v3.8.0.b)
-     - Filter by acquisition date range ✅ (DONE v3.8.0.k, fixed v3.8.0.m)
-     - Filter by read/unread status ✅ (already existed)
-     - Filter by series ✅ (DONE v3.8.0.k)
-     - Filter by wishlist status ✅ (DONE v3.8.0.b, fixed v3.8.0.n)
-   - **Collections Integration UI:** See [docs/design/COLLECTIONS-UI.md](docs/design/COLLECTIONS-UI.md)
-     - Visual indicators (badges/icons) for collections on book covers ✅ (DONE: tooltip already shows collection names)
-     - Metadata display showing which collections each book belongs to (add to modal) ✅ (DONE v3.8.0.k)
-     - Filtering by collection name ✅ (already existed)
-     - Filtering by read status (READ/UNREAD/UNKNOWN) ✅ (already existed)
-     - "Uncollected" pseudo-collection ⏳ (Deferred - low priority)
-   - **Optional Enhancements:**
-     - Badge system (active filter count) ✅ (DONE v3.8.0.b)
-     - Collapsible filter panel ✅ (DONE v3.8.0.b)
-     - Filter button pulse animation ✅ (DONE v3.8.0.e)
-     - Filter state persistence ✅ (DONE v3.8.0.f)
-     - Filter reset on library load ✅ (DONE v3.8.0.g)
-     - Filter reset on Clear Library ✅ (DONE v3.8.0.h)
-   - Problem: Hard to find specific subsets in 2,300+ book library, collections data fetched but not visible in UI
-   - Impact: Improves discoverability for power users, leverages existing Amazon collections in organizer
-   - Note: Combined from former #2 and #3 - both build same filtering infrastructure
-   - **Released:** 2025-12-20
-
-**2. 🔀 Column Sorting** - MEDIUM-HIGH/MEDIUM (4-6 hours)
+**1. 🔀 Column Sorting** - MEDIUM-HIGH/MEDIUM (4-6 hours)
    - Sort books within columns by: acquisitionDate, seriesPosition, rating, title, author
    - Permanent re-ordering (like Excel sort, persists to IndexedDB)
    - Multi-column selection: apply same sort to each column independently
@@ -43,7 +17,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: After organizing books into columns, can't fine-tune order by meaningful criteria
    - Impact: Completes organization workflow - get books into columns, then order optimally within each
 
-**3. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
+**2. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
    - Bookmarklet on Amazon book page extracts basic metadata (ASIN, title, author, cover, rating)
    - Appends to existing `amazon-library.json` as new top-level `wishlist` array
    - User selects same library JSON file → app merges wishlist + owned books
@@ -61,7 +35,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
      - App: Gray-out styling + badge for unowned books
      - App: Click handler → open Amazon purchase page in new tab
 
-**4. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+**3. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Collect Series Books" button
    - Automatic series detection
    - Series reading order visualization
@@ -69,14 +43,14 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Series books scattered across library
    - Impact: Better management for series readers
 
-**5. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+**4. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
    - Allow same book to appear in multiple columns
    - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
    - Array-based architecture, Ctrl+Drag UI, delete operation
    - Problem: Can't organize same book multiple ways
    - Impact: More flexible organization
 
-**6. 🗂️ Nested Groups/Hierarchies** #Optional - LOW/HIGH (15-20 hours)
+**5. 🗂️ Nested Groups/Hierarchies** #Optional - LOW/HIGH (15-20 hours)
    - Multi-level organization: "Science Fiction" → "Space Opera" → "Culture Series"
    - Nested containers for related books (e.g., series/themes)
    - Significant UI rework required
