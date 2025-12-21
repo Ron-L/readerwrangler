@@ -117,70 +117,6 @@
             console.log('✅ Cleared IndexedDB');
         };
 
-        // ============================================================================
-        // Manifest IndexedDB Functions (for status bar - reads from fetcher's DB)
-        // ============================================================================
-        const MANIFEST_DB_NAME = 'ReaderWranglerManifests';
-        const MANIFEST_DB_VERSION = 1;
-        const MANIFEST_STORE = 'manifests';
-
-        // Read all manifests from IndexedDB (written by fetchers)
-        const readManifestsFromIndexedDB = async () => {
-            return new Promise((resolve) => {
-                const request = indexedDB.open(MANIFEST_DB_NAME, MANIFEST_DB_VERSION);
-
-                request.onerror = () => {
-                    console.warn('⚠️ Could not open manifest database:', request.error);
-                    resolve([]); // Return empty array, don't fail
-                };
-
-                request.onupgradeneeded = (event) => {
-                    // Create store if it doesn't exist (shouldn't happen if fetcher ran first)
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains(MANIFEST_STORE)) {
-                        db.createObjectStore(MANIFEST_STORE, { keyPath: 'guid' });
-                    }
-                };
-
-                request.onsuccess = (event) => {
-                    const db = event.target.result;
-                    try {
-                        const transaction = db.transaction([MANIFEST_STORE], 'readonly');
-                        const store = transaction.objectStore(MANIFEST_STORE);
-                        const getAllRequest = store.getAll();
-
-                        getAllRequest.onsuccess = () => {
-                            const manifests = getAllRequest.result || [];
-                            console.log(`📦 Read ${manifests.length} manifest(s) from IndexedDB`);
-                            resolve(manifests);
-                        };
-
-                        getAllRequest.onerror = () => {
-                            console.warn('⚠️ Failed to read manifests:', getAllRequest.error);
-                            resolve([]);
-                        };
-
-                        transaction.oncomplete = () => db.close();
-                    } catch (err) {
-                        console.warn('⚠️ Manifest read error:', err);
-                        resolve([]);
-                    }
-                };
-            });
-        };
-
-        // Find manifest by GUID (to match loaded JSON with fetcher manifest)
-        const findManifestByGUID = async (guid) => {
-            if (!guid) return null;
-            const manifests = await readManifestsFromIndexedDB();
-            return manifests.find(m => m.guid === guid) || null;
-        };
-
-        // Get manifests by type ('library' or 'collections')
-        const getManifestsByType = async (type) => {
-            const manifests = await readManifestsFromIndexedDB();
-            return manifests.filter(m => m.type === type);
-        };
 
         // Calculate freshness status from fetchDate
         const calculateFreshness = (fetchDate) => {
@@ -260,20 +196,14 @@
             const [filterPanelOpen, setFilterPanelOpen] = useState(false); // Collapsible filter panel state (NEW v3.8.0)
             const [, forceUpdate] = useState({});
 
-            // Status bar redesign state (v3.6.1 - 25-state matrix)
+            // Status bar state (v3.9.0 - Load-state-only, 4 states)
             const [libraryStatus, setLibraryStatus] = useState({
-                fetchStatus: 'unknown',  // unknown, empty, fresh, stale, obsolete
-                loadStatus: 'empty',     // unknown, empty, fresh, stale, obsolete
-                fetchDate: null,         // ISO date string from IndexedDB manifest
-                loadDate: null,          // ISO date string from loaded JSON metadata
-                guid: null               // GUID of currently loaded library
+                loadStatus: 'empty',     // empty, fresh, stale, obsolete
+                loadDate: null           // ISO date string from loaded JSON metadata.fetchDate
             });
             const [collectionsStatus, setCollectionsStatus] = useState({
-                fetchStatus: 'unknown',
                 loadStatus: 'empty',
-                fetchDate: null,
-                loadDate: null,
-                guid: null
+                loadDate: null
             });
 
             // Wrapper for setSyncStatus
@@ -284,7 +214,6 @@
                 cacheExpirationDays: 30
             });
             const dragThreshold = 50;
-            // manifestCheckTimer removed in v3.6.1 - replaced with IndexedDB manifests
 
             // Load saved filters from localStorage on mount (v3.8.0.f, updated v3.8.0.k)
             React.useEffect(() => {
@@ -425,48 +354,6 @@
                             }
                         }
 
-                        // checkManifest call removed in v3.6.1 - replaced with IndexedDB manifests
-
-                        // Check IndexedDB manifests for fetch status (v3.6.1 status bar)
-                        const checkIndexedDBManifests = async () => {
-                            try {
-                                const manifests = await readManifestsFromIndexedDB();
-
-                                // Check for fresh library manifest (even if we don't have a loaded GUID match)
-                                const libraryManifests = manifests.filter(m => m.type === 'library');
-                                if (libraryManifests.length > 0) {
-                                    // Find the most recent library manifest
-                                    const mostRecent = libraryManifests.reduce((latest, m) =>
-                                        new Date(m.fetchDate) > new Date(latest.fetchDate) ? m : latest
-                                    );
-                                    const fetchStatus = calculateFreshness(mostRecent.fetchDate);
-                                    setLibraryStatus(prev => ({
-                                        ...prev,
-                                        fetchStatus,
-                                        fetchDate: mostRecent.fetchDate
-                                    }));
-                                    console.log(`📦 Library fetch status from IndexedDB: ${fetchStatus} (${formatRelativeTime(mostRecent.fetchDate)})`);
-                                }
-
-                                // Check for fresh collections manifest
-                                const collectionsManifests = manifests.filter(m => m.type === 'collections');
-                                if (collectionsManifests.length > 0) {
-                                    const mostRecent = collectionsManifests.reduce((latest, m) =>
-                                        new Date(m.fetchDate) > new Date(latest.fetchDate) ? m : latest
-                                    );
-                                    const fetchStatus = calculateFreshness(mostRecent.fetchDate);
-                                    setCollectionsStatus(prev => ({
-                                        ...prev,
-                                        fetchStatus,
-                                        fetchDate: mostRecent.fetchDate
-                                    }));
-                                    console.log(`📦 Collections fetch status from IndexedDB: ${fetchStatus} (${formatRelativeTime(mostRecent.fetchDate)})`);
-                                }
-                            } catch (err) {
-                                console.warn('Could not check IndexedDB manifests:', err);
-                            }
-                        };
-                        await checkIndexedDBManifests();
 
                         // Loading complete - set syncStatus to indicate we're done loading
                         // Actual status display now comes from libraryStatus/collectionsStatus
@@ -479,9 +366,6 @@
                 
                 loadData();
             }, []);
-
-            // Periodic manifest checking removed in v3.6.1 - replaced with IndexedDB manifests
-            // Status is now based on libraryStatus/collectionsStatus state, updated on load
 
             // Auto-save organization
             useEffect(() => {
@@ -820,20 +704,14 @@
                     setBlankImageBooks(new Set());
                     setLastSyncTime(null);
                     setSyncStatus('none');
-                    // Reset v3.6.1 status bar state
+                    // Reset v3.9.0 status bar state (Load-state-only)
                     setLibraryStatus({
-                        fetchStatus: 'unknown',
                         loadStatus: 'empty',
-                        fetchDate: null,
-                        loadDate: null,
-                        guid: null
+                        loadDate: null
                     });
                     setCollectionsStatus({
-                        fetchStatus: 'unknown',
                         loadStatus: 'empty',
-                        fetchDate: null,
-                        loadDate: null,
-                        guid: null
+                        loadDate: null
                     });
                     console.log('✅ Cleared library - app reset to initial state');
                 } catch (error) {
@@ -903,8 +781,8 @@
 
                     const collectionsJson = await response.json();
 
-                    // Validate schema version (1.0 or 1.1)
-                    if (!['1.0', '1.1'].includes(collectionsJson.schemaVersion)) {
+                    // Validate schema version (1.0)
+                    if (collectionsJson.schemaVersion !== '1.0') {
                         console.warn('Collections data schema version mismatch, skipping');
                         return null;
                     }
@@ -922,31 +800,13 @@
                     console.log(`✅ Loaded collections data for ${collectionsMap.size} books`);
                     console.log(`   - ${collectionsJson.booksWithCollections} books have collections`);
                     console.log(`   - Fetcher version: ${collectionsJson.fetcherVersion}`);
-                    if (collectionsJson.guid) {
-                        console.log(`   - GUID: ${collectionsJson.guid}`);
-                    }
 
-                    // Update collections status (v3.6.1 status bar)
+                    // Update collections status (v3.9.0 - Load-state-only)
                     const loadStatus = collectionsJson.fetchDate ? calculateFreshness(collectionsJson.fetchDate) : 'unknown';
-                    let fetchStatus = 'unknown';
-                    let fetchDate = null;
-
-                    // Try to find matching manifest in IndexedDB by GUID
-                    if (collectionsJson.guid) {
-                        const manifest = await findManifestByGUID(collectionsJson.guid);
-                        if (manifest) {
-                            fetchStatus = calculateFreshness(manifest.fetchDate);
-                            fetchDate = manifest.fetchDate;
-                            console.log(`📦 Found matching collections manifest in IndexedDB`);
-                        }
-                    }
 
                     setCollectionsStatus({
-                        fetchStatus,
                         loadStatus,
-                        fetchDate,
-                        loadDate: collectionsJson.fetchDate || null,
-                        guid: collectionsJson.guid || null
+                        loadDate: collectionsJson.fetchDate || null
                     });
 
                     setCollectionsData(collectionsMap);
@@ -1015,33 +875,13 @@
                 console.log(`   Books without descriptions: ${metadata.booksWithoutDescriptions}`);
                 console.log(`   Fetched: ${new Date(metadata.fetchDate).toLocaleString()}`);
                 console.log(`   Fetcher version: ${metadata.fetcherVersion}`);
-                if (metadata.guid) {
-                    console.log(`   GUID: ${metadata.guid}`);
-                }
 
-                // Update library status from loaded JSON metadata (v3.6.1 status bar)
+                // Update library status from loaded JSON metadata (v3.9.0 - Load-state-only)
                 const loadStatus = metadata.fetchDate ? calculateFreshness(metadata.fetchDate) : 'unknown';
-                let fetchStatus = 'unknown';
-                let fetchDate = null;
-
-                // Try to find matching manifest in IndexedDB by GUID
-                if (metadata.guid) {
-                    const manifest = await findManifestByGUID(metadata.guid);
-                    if (manifest) {
-                        fetchStatus = calculateFreshness(manifest.fetchDate);
-                        fetchDate = manifest.fetchDate;
-                        console.log(`📦 Found matching manifest in IndexedDB (GUID: ${metadata.guid})`);
-                    } else {
-                        console.log(`📦 No matching manifest in IndexedDB (GUID: ${metadata.guid})`);
-                    }
-                }
 
                 setLibraryStatus({
-                    fetchStatus,
                     loadStatus,
-                    fetchDate,
-                    loadDate: metadata.fetchDate || null,
-                    guid: metadata.guid || null
+                    loadDate: metadata.fetchDate || null
                 });
 
                 // Load collections data (optional, non-blocking)
@@ -2261,24 +2101,18 @@
                                     </div>
                                 )}
 
-                                {/* Status Grid - secondary detail info at bottom */}
+                                {/* Status Grid - Load state only (v3.9.0) */}
                                 <div className="grid grid-cols-2 gap-4 mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                                     <div>
                                         <p className="text-sm font-semibold text-gray-700 mb-1">📚 Library</p>
                                         <p className="text-xs text-gray-600">
-                                            Fetch: {statusIcon(libraryStatus.fetchStatus)} {statusLabel(libraryStatus.fetchStatus, libraryStatus.fetchDate)}
-                                        </p>
-                                        <p className="text-xs text-gray-600">
-                                            Load: {statusIcon(libraryStatus.loadStatus)} {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)}
+                                            {statusIcon(libraryStatus.loadStatus)} {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)}
                                         </p>
                                     </div>
                                     <div>
                                         <p className="text-sm font-semibold text-gray-700 mb-1">📁 Collections</p>
                                         <p className="text-xs text-gray-600">
-                                            Fetch: {statusIcon(collectionsStatus.fetchStatus)} {statusLabel(collectionsStatus.fetchStatus, collectionsStatus.fetchDate)}
-                                        </p>
-                                        <p className="text-xs text-gray-600">
-                                            Load: {statusIcon(collectionsStatus.loadStatus)} {statusLabel(collectionsStatus.loadStatus, collectionsStatus.loadDate)}
+                                            {statusIcon(collectionsStatus.loadStatus)} {statusLabel(collectionsStatus.loadStatus, collectionsStatus.loadDate)}
                                         </p>
                                     </div>
                                 </div>
