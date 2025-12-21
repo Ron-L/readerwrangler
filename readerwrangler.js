@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.0.c - Load-State-Only Status System
+        // ReaderWrangler JS v3.9.0.d - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.0.c";
+        const ORGANIZER_VERSION = "v3.9.0.d";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2073,13 +2073,32 @@
                                         </p>
                                         <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
                                             <p>Your library is up to date! Collections are optional for organizing books by Amazon's categories.</p>
-                                            <p className="mt-2"><strong>To add collections:</strong></p>
-                                            <ol className="list-decimal ml-4 mt-1 space-y-1 text-xs">
-                                                <li>Go to <a href="https://www.amazon.com/hz/mycd/myx" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Collections</a></li>
-                                                <li>Click the ReaderWrangler bookmarklet</li>
-                                                <li>Choose "Fetch Collections"</li>
-                                                <li>Return here and load collections</li>
-                                            </ol>
+                                        </div>
+                                        <div className="border border-blue-200 rounded overflow-hidden text-sm text-gray-700">
+                                            <div className="bg-blue-100 px-3 py-2 border-b border-blue-200">
+                                                <p className="text-center font-medium">Do you already have a collections file?</p>
+                                            </div>
+                                            <div className="bg-blue-50 p-3">
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="text-center">
+                                                        <p className="font-medium text-green-700 mb-2">✓ Yes</p>
+                                                        <button
+                                                            onClick={syncNow}
+                                                            className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">
+                                                            Load Collections
+                                                        </button>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-gray-600 mb-2">✗ No</p>
+                                                        <ol className="list-decimal ml-4 space-y-1 text-xs">
+                                                            <li>Go to <a href="https://www.amazon.com/hz/mycd/myx" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Collections</a></li>
+                                                            <li>Click the ReaderWrangler bookmarklet</li>
+                                                            <li>Choose "Fetch Collections"</li>
+                                                            <li>Return here and click "Load Collections"</li>
+                                                        </ol>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
