@@ -8,6 +8,36 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
+**0. 🔧 FIX: Simplify to Load-State-Only Status System** #Architecture #BROKEN - HIGH/MEDIUM (8-12 hours)
+   - **DECISION: Abandon Fetch state tracking, use Load-state-only**
+     - **Why**: Fetcher runs on `amazon.com`, app runs on `readerwrangler.com` → cross-domain IndexedDB sharing is impossible
+     - **Reality**: Only user knows if they've made Amazon purchases requiring re-fetch
+     - **Simplification**: 25 states (5 Fetch × 5 Load) → 4 states (Load only)
+   - **The 4 Load States**:
+     1. **Empty** (never loaded) → 🛑 "Load your library to get started" + [Load Library/Collections] buttons
+     2. **Fresh** (< 7 days) → ✅ "Loaded 3 days ago. If you've made Amazon changes, re-fetch and reload" + [Reload Library/Collections] buttons
+     3. **Stale** (7-30 days) → ⚠️ "Loaded 15 days ago. If you've made Amazon changes, re-fetch and reload" + [Reload Library/Collections] buttons
+     4. **Obsolete** (> 30 days) → 🛑 "Loaded 60 days ago. Re-fetch and reload to get current data" + [Reload Library/Collections] buttons
+   - **Key UX Decision**: Reload buttons always visible in Fresh/Stale/Obsolete states
+     - **Why**: Solves "Fresh but just fetched new data" scenario (user buys book, fetches new library, app shows Fresh ✅, but needs way to reload fresher file)
+     - **Implementation**: Modal shows [Reload Library] [Reload Collections] buttons in all non-Empty states, triggers File Picker API
+   - **Documentation** (✅ COMPLETED 2025-12-21):
+     - ✅ `STATUS-BAR-REDESIGN.md` updated with simplified 4-state design + comprehensive history appendix
+     - ✅ `state-matrix.html` deleted (archived in git history at v3.8.0)
+     - ✅ `docs/design/archive/cross-origin-signaling.md` archived (rejected signaling backend approach)
+   - **Implementation Subtasks** (CODE CHANGES):
+     - Remove all IndexedDB manifest read/write code from fetchers and app
+     - Remove `ReaderWranglerManifests` database usage
+     - Simplify status bar to show only Load state (from loaded file timestamp)
+     - Update status modal with two states: Empty (Load buttons) vs Fresh/Stale/Obsolete (Reload buttons always visible)
+     - Wire [Reload Library] [Reload Collections] buttons to File Picker API
+   - **Manual cleanup after implementation**:
+     - localhost: Delete `ReaderWranglerManifests` IndexedDB (empty, unused)
+     - amazon.com: Delete `ReaderWranglerManifests` IndexedDB (17 entries, never read)
+     - localhost: Delete `AmazonBookDB` IndexedDB if still exists (empty, unused)
+   - Problem: Current manifest system never worked (cross-domain isolation), shows "0 manifests" for everyone
+   - Impact: Honest, simple status tracking that puts responsibility on user (who knows their Amazon activity)
+
 **1. 🔀 Column Sorting** - MEDIUM-HIGH/MEDIUM (4-6 hours)
    - Sort books within columns by: acquisitionDate, seriesPosition, rating, title, author
    - Permanent re-ordering (like Excel sort, persists to IndexedDB)
@@ -190,30 +220,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Impact: Data quality improvement (99.8%+ expected), better UX for long extractions, prevents data loss
    - Note: This consolidates former P2 "Extraction Error Recovery" feature
 
-**4. 🔧 Simplify to Load-State-Only Status System** #Architecture #BROKEN - LOW/MEDIUM (8-12 hours)
-   - **DECISION: Abandon Fetch state tracking, use Load-state-only**
-     - **Why**: Fetcher runs on `amazon.com`, app runs on `readerwrangler.com` → cross-domain IndexedDB sharing is impossible
-     - **Reality**: Only user knows if they've made Amazon purchases requiring re-fetch
-     - **Simplification**: 25 states (5 Fetch × 5 Load) → 4 states (Load only)
-   - **The 4 Load States**:
-     1. **Empty** (never loaded) → 🛑 "Load your library to get started"
-     2. **Fresh** (< 7 days) → ✅ "Loaded 3 days ago. If you've made Amazon changes, re-fetch and reload"
-     3. **Stale** (7-30 days) → ⚠️ "Loaded 15 days ago. If you've made Amazon changes, re-fetch and reload"
-     4. **Obsolete** (> 30 days) → 🛑 "Loaded 60 days ago. Re-fetch and reload to get current data"
-   - **Implementation Subtasks**:
-     - Remove all IndexedDB manifest read/write code from fetchers and app
-     - Remove `ReaderWranglerManifests` database usage
-     - Simplify status bar to show only Load state (from loaded file timestamp)
-     - Update status modal messages to honest "if you've made changes" language
-     - Move `state-matrix.html` to `docs/design/archive/` (historical reference)
-     - Update `STATUS-BAR-REDESIGN.md` to document Load-state-only decision
-   - **Manual cleanup after implementation**:
-     - localhost: Delete `ReaderWranglerManifests` IndexedDB (empty, unused)
-     - amazon.com: Delete `ReaderWranglerManifests` IndexedDB (17 entries, never read)
-     - localhost: Delete `AmazonBookDB` IndexedDB if still exists (empty, unused)
-   - **Design docs**: See [docs/design/cross-origin-signaling.md](docs/design/cross-origin-signaling.md) for rejected signaling backend approach
-   - Problem: Current manifest system never worked (cross-domain isolation), shows "0 manifests" for everyone
-   - Impact: Honest, simple status tracking that puts responsibility on user (who knows their Amazon activity)
+**4. (MOVED TO PRIORITY 1 #0)** Simplify to Load-State-Only Status System - See Priority 1 for details
 
 ---
 
