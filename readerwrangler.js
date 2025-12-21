@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.0.i - Load-State-Only Status System
+        // ReaderWrangler JS v3.9.0.j - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.0.i";
+        const ORGANIZER_VERSION = "v3.9.0.j";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -895,6 +895,27 @@
                 });
 
                 setCollectionsData(collectionsMap);
+
+                // Merge collections into existing books and re-save to IndexedDB (v3.9.0.j)
+                // Pass collectionsMap directly instead of relying on state (state update is async)
+                const mergedBooks = books.map(book => {
+                    const bookCollections = collectionsMap.get(book.asin) || { readStatus: 'UNKNOWN', collections: [] };
+                    return {
+                        ...book,
+                        readStatus: bookCollections.readStatus,
+                        collections: bookCollections.collections
+                    };
+                });
+                await saveBooksToIndexedDB(mergedBooks);
+                setBooks(mergedBooks);
+
+                // Log merge results
+                const booksWithCollections = mergedBooks.filter(b => b.collections && b.collections.length > 0).length;
+                const readBooks = mergedBooks.filter(b => b.readStatus === 'READ').length;
+                const unreadBooks = mergedBooks.filter(b => b.readStatus === 'UNREAD').length;
+                console.log(`📚 Collections data merged:`);
+                console.log(`   - ${booksWithCollections} books have collections`);
+                console.log(`   - ${readBooks} READ, ${unreadBooks} UNREAD, ${mergedBooks.length - readBooks - unreadBooks} UNKNOWN`);
 
                 // Trigger callback if provided
                 if (onComplete) {
