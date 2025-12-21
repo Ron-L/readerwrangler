@@ -190,36 +190,30 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Impact: Data quality improvement (99.8%+ expected), better UX for long extractions, prevents data loss
    - Note: This consolidates former P2 "Extraction Error Recovery" feature
 
-**4. 🔧 Fix Manifest/Status System Architecture** #Architecture #BROKEN - LOW/VERY HIGH (40-60 hours)
-   - **CRITICAL CONTEXT - READ BEFORE ANY WORK**:
-     - **Problem**: Fetcher runs on `amazon.com`, app runs on `readerwrangler.com` (or `localhost`) → **different domains**
-     - **IndexedDB isolation**: Browser security prevents cross-domain IndexedDB access
-     - **Current state**: Manifest system writes to amazon.com's IndexedDB, app reads from readerwrangler.com's IndexedDB → **always 0 manifests**
-     - **Affected users**: EVERYONE (both local dev and production GitHub Pages)
-     - **Why it was missed**: Localhost testing masked the issue when testing both fetcher and app on same domain
-     - **Historical context**: Repeated same mistake twice (manifest file polling v3.6.0, IndexedDB manifests v3.6.1+)
-   - **What the system was trying to solve**:
-     - Track **Fetch state** (how fresh is the file on disk?) vs **Load state** (how fresh is data in app?)
-     - Warn user: "You loaded 30-day-old data but have a 1-day-old file on disk - reload it!"
-     - See [state-matrix.html](state-matrix.html) for full 25-state matrix explanation
-   - **Why app can't re-read files**:
-     - Browser security: file picker requires user action, can't poll files automatically
-     - No persistent file handle after initial read
-   - **Subtasks**:
-     - Move `state-matrix.html` from project root to `docs/design/`
-     - Update `STATUS-BAR-REDESIGN.md` to document cross-domain limitation
-     - Evaluate solutions:
-       - Option A: Embed complete manifest in JSON metadata (simple, loses "file on disk" detection)
-       - Option B: Hybrid approach (IndexedDB + JSON fallback)
-       - Option C: Accept limitation, simplify to Load-state only
-     - Fetcher: Auto-cull old manifests in `ReaderWranglerManifests` DB (keep only latest per type)
-     - Clean up dead code if manifest system is removed/simplified
-   - **Manual cleanup needed**:
-     - localhost: Delete `AmazonBookDB` (empty, unused)
-     - localhost: Delete `ReaderWranglerManifests` (empty, cross-domain doesn't work)
-     - amazon.com: Delete `ReaderWranglerManifests` (17 entries accumulating, never read)
-   - Problem: Manifest tracking doesn't work, status bar shows misleading info, wasted engineering effort
-   - Impact: Accurate status tracking OR accept simpler Load-state-only approach
+**4. 🔧 Simplify to Load-State-Only Status System** #Architecture #BROKEN - LOW/MEDIUM (8-12 hours)
+   - **DECISION: Abandon Fetch state tracking, use Load-state-only**
+     - **Why**: Fetcher runs on `amazon.com`, app runs on `readerwrangler.com` → cross-domain IndexedDB sharing is impossible
+     - **Reality**: Only user knows if they've made Amazon purchases requiring re-fetch
+     - **Simplification**: 25 states (5 Fetch × 5 Load) → 4 states (Load only)
+   - **The 4 Load States**:
+     1. **Empty** (never loaded) → 🛑 "Load your library to get started"
+     2. **Fresh** (< 7 days) → ✅ "Loaded 3 days ago. If you've made Amazon changes, re-fetch and reload"
+     3. **Stale** (7-30 days) → ⚠️ "Loaded 15 days ago. If you've made Amazon changes, re-fetch and reload"
+     4. **Obsolete** (> 30 days) → 🛑 "Loaded 60 days ago. Re-fetch and reload to get current data"
+   - **Implementation Subtasks**:
+     - Remove all IndexedDB manifest read/write code from fetchers and app
+     - Remove `ReaderWranglerManifests` database usage
+     - Simplify status bar to show only Load state (from loaded file timestamp)
+     - Update status modal messages to honest "if you've made changes" language
+     - Move `state-matrix.html` to `docs/design/archive/` (historical reference)
+     - Update `STATUS-BAR-REDESIGN.md` to document Load-state-only decision
+   - **Manual cleanup after implementation**:
+     - localhost: Delete `ReaderWranglerManifests` IndexedDB (empty, unused)
+     - amazon.com: Delete `ReaderWranglerManifests` IndexedDB (17 entries, never read)
+     - localhost: Delete `AmazonBookDB` IndexedDB if still exists (empty, unused)
+   - **Design docs**: See [docs/design/cross-origin-signaling.md](docs/design/cross-origin-signaling.md) for rejected signaling backend approach
+   - Problem: Current manifest system never worked (cross-domain isolation), shows "0 manifests" for everyone
+   - Impact: Honest, simple status tracking that puts responsibility on user (who knows their Amazon activity)
 
 ---
 
