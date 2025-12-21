@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.8.0 - Advanced Filtering + Collections Integration UI
+        // ReaderWrangler JS v3.9.0.b - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.8.0";
+        const ORGANIZER_VERSION = "v3.9.0.b";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1944,7 +1944,6 @@
                         };
                         const needsLibraryAction = ['empty', 'stale', 'obsolete', 'unknown'].includes(libraryStatus.loadStatus);
                         const needsCollectionsAction = ['empty', 'stale', 'obsolete'].includes(collectionsStatus.loadStatus);
-                        const hasFreshFetch = libraryStatus.fetchStatus === 'fresh';
 
                         return (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setStatusModalOpen(false)}>
@@ -1967,67 +1966,58 @@
                                 {libraryStatus.loadStatus === 'fresh' && collectionsStatus.loadStatus === 'fresh' && (
                                     <div className="space-y-3">
                                         <p className="text-sm text-gray-700">
-                                            ✅ <strong>You're using the latest data!</strong>
+                                            ✅ <strong>Data loaded {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)}!</strong>
                                         </p>
                                         <div className="text-sm text-gray-600">
                                             <p><strong>Books:</strong> {books.length}</p>
                                         </div>
                                         <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
-                                            <p><strong>To add new books:</strong></p>
-                                            <p className="mt-1">Click the bookmarklet on your Amazon library page to fetch updated data.</p>
+                                            <p><strong>If you've made Amazon purchases/changes since loading this data:</strong></p>
+                                            <ol className="list-decimal ml-4 mt-2 space-y-1 text-xs">
+                                                <li>Go to <a href="https://www.amazon.com/yourbooks" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Library</a></li>
+                                                <li>Click the ReaderWrangler bookmarklet → "Fetch Library"</li>
+                                                <li>Return here and click "Reload Library" below</li>
+                                            </ol>
+                                            <p className="mt-2">Otherwise, continue organizing!</p>
                                         </div>
+                                        <button
+                                            onClick={syncNow}
+                                            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                                            Reload Library
+                                        </button>
                                     </div>
                                 )}
 
                                 {libraryStatus.loadStatus === 'empty' && (
                                     <div className="space-y-3">
                                         <p className="text-sm text-gray-700">
-                                            {hasFreshFetch ?
-                                                <>📥 <strong>Fresh library data is ready to load!</strong></> :
-                                                <>📚 <strong>No library loaded yet.</strong></>
-                                            }
+                                            🛑 <strong>No library loaded yet.</strong>
                                         </p>
-                                        {hasFreshFetch ? (
-                                            <>
-                                                <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
-                                                    <p>Click "Load Library" to import your fetched data.</p>
-                                                </div>
-                                                <button
-                                                    onClick={syncNow}
-                                                    className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                                                    Load Library
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <div className="border border-blue-200 rounded overflow-hidden text-sm text-gray-700">
-                                                {/* Header - question only */}
-                                                <div className="bg-blue-100 px-3 py-2 border-b border-blue-200">
-                                                    <p className="text-center font-medium">Do you already have a library file?</p>
-                                                </div>
-                                                {/* Content zone with column headers */}
-                                                <div className="bg-blue-50 p-3">
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="text-center">
-                                                            <p className="font-medium text-green-700 mb-2">✓ Yes</p>
-                                                            <button
-                                                                onClick={syncNow}
-                                                                className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">
-                                                                Load Library
-                                                            </button>
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-medium text-gray-600 mb-2">✗ No</p>
-                                                            <ol className="list-decimal ml-4 space-y-1 text-xs">
-                                                                <li>Go to <a href="https://www.amazon.com/yourbooks" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Library</a></li>
-                                                                <li>Click the bookmarklet</li>
-                                                                <li>Choose "Fetch Library"</li>
-                                                                <li>Return here to load</li>
-                                                            </ol>
-                                                        </div>
+                                        <div className="border border-blue-200 rounded overflow-hidden text-sm text-gray-700">
+                                            <div className="bg-blue-100 px-3 py-2 border-b border-blue-200">
+                                                <p className="text-center font-medium">Do you already have a library file?</p>
+                                            </div>
+                                            <div className="bg-blue-50 p-3">
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="text-center">
+                                                        <p className="font-medium text-green-700 mb-2">✓ Yes</p>
+                                                        <button
+                                                            onClick={syncNow}
+                                                            className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">
+                                                            Load Library
+                                                        </button>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-gray-600 mb-2">✗ No</p>
+                                                        <ol className="list-decimal ml-4 space-y-1 text-xs">
+                                                            <li>Go to <a href="https://www.amazon.com/yourbooks" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Library</a></li>
+                                                            <li>Click the bookmarklet → "Fetch Library"</li>
+                                                            <li>Return here and click "Load Library"</li>
+                                                        </ol>
                                                     </div>
                                                 </div>
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 )}
 
@@ -2035,29 +2025,22 @@
                                     <div className="space-y-3">
                                         <p className="text-sm text-gray-700">
                                             {libraryStatus.loadStatus === 'stale' ?
-                                                <>⚠️ <strong>Your library data is getting old.</strong></> :
-                                                <>🛑 <strong>Your library data is out of date.</strong></>
+                                                <>⚠️ <strong>Library data loaded {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)}</strong></> :
+                                                <>🛑 <strong>Library data loaded {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)}</strong></>
                                             }
                                         </p>
                                         <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
-                                            {hasFreshFetch ? (
-                                                <p>Fresh data is available! Click "Load Library" to update.</p>
-                                            ) : (
-                                                <>
-                                                    <p><strong>To refresh your library:</strong></p>
-                                                    <ol className="list-decimal ml-4 mt-2 space-y-1">
-                                                        <li>Go to <a href="https://www.amazon.com/yourbooks" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Library</a></li>
-                                                        <li>Click the ReaderWrangler bookmarklet</li>
-                                                        <li>Choose "Fetch Library"</li>
-                                                        <li>Return here and click "Load Library"</li>
-                                                    </ol>
-                                                </>
-                                            )}
+                                            <p><strong>If you've made Amazon purchases/changes, re-fetch and reload:</strong></p>
+                                            <ol className="list-decimal ml-4 mt-2 space-y-1 text-xs">
+                                                <li>Go to <a href="https://www.amazon.com/yourbooks" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Library</a></li>
+                                                <li>Click the ReaderWrangler bookmarklet → "Fetch Library"</li>
+                                                <li>Return here and click "Reload Library" below</li>
+                                            </ol>
                                         </div>
                                         <button
                                             onClick={syncNow}
                                             className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                                            Load Library
+                                            Reload Library
                                         </button>
                                     </div>
                                 )}
