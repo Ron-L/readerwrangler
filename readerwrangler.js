@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.0.f - Load-State-Only Status System
+        // ReaderWrangler JS v3.9.0.g - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.0.f";
+        const ORGANIZER_VERSION = "v3.9.0.g";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -726,10 +726,11 @@
             const clearLibrary = async () => {
                 if (!confirm('This will completely reset the app to its initial unused state.\n\n' +
                              'This will:\n' +
-                             '• Unload library\n' +
+                             '• Unload library and collections\n' +
                              '• Remove all columns and organization\n' +
                              '• Reset all filters\n\n' +
-                             'You\'ll need to reload a library file after.\n' +
+                             'Your library/collections files on disk will NOT be deleted.\n' +
+                             'You can reload them anytime.\n\n' +
                              'Continue?')) {
                     return;
                 }
@@ -1791,8 +1792,9 @@
                                     <input type="file" accept=".json" onChange={importRestore} className="hidden" />
                                 </label>
                                 <button onClick={clearLibrary}
-                                        className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium">
-                                    🗑️ Clear Library
+                                        className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
+                                        title="Reset all app data (library, collections, columns, filters). Your files on disk are NOT affected.">
+                                    🗑️ Reset App
                                 </button>
                                 <button 
                                     onClick={() => setSettingsOpen(!settingsOpen)}
@@ -2413,7 +2415,7 @@
                                             <li><strong>Auto-saves:</strong> Everything persists automatically in your browser</li>
                                             <li><strong>Backup:</strong> Download complete backup for safekeeping</li>
                                             <li><strong>Restore:</strong> Restore from a backup file</li>
-                                            <li><strong>Clear Library:</strong> Complete app reset to initial state</li>
+                                            <li><strong>Reset App:</strong> Complete app reset to initial state (files on disk not affected)</li>
                                         </ul>
                                     </div>
                                 </div>
