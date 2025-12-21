@@ -1,7 +1,6 @@
-// Amazon Library Fetcher v3.6.0 (Type field validation)
+// Amazon Library Fetcher v3.7.0.a (Remove manifest system)
 // Fetches library books and enriches them with descriptions & reviews
-// Writes manifest to IndexedDB for ReaderWrangler status bar tracking
-// Schema Version: 3.1.0 (Adds GUID for status bar tracking)
+// Schema Version: 3.0.0 (Removes GUID - no longer needed)
 //
 // v3.5.0 Changes:
 // - Removed artificial delays (network RTT provides natural throttling)
@@ -15,15 +14,15 @@
 // 4. If you have existing data, select amazon-library.json when prompted
 //    (If no existing file, just cancel the dialog - will fetch ALL books)
 // 5. Wait for completion (~1 minute for full library)
-// 6. Downloads amazon-library.json (manifest saved to browser IndexedDB)
+// 6. Downloads amazon-library.json
 // 7. Upload library file to organizer!
 //
 // Re-run: After pasting once, you can re-run with: fetchAmazonLibrary()
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v3.6.0';
-    const SCHEMA_VERSION = '3.1.0';
+    const FETCHER_VERSION = 'v3.7.0.a';
+    const SCHEMA_VERSION = '3.0.0';
 
     console.log('========================================');
     console.log(`Amazon Library Fetcher ${FETCHER_VERSION}`);
@@ -43,7 +42,6 @@ async function fetchAmazonLibrary() {
     const ENRICH_DELAY_MS = 0; // No delay - network RTT provides natural throttling
     const ENRICH_BATCH_SIZE = 30; // Max ASINs per getProducts call (Amazon limit)
     const LIBRARY_FILENAME = 'amazon-library.json';
-    // MANIFEST_FILENAME removed in v3.4.0.a - manifest now written to IndexedDB only
     const startTime = Date.now();
 
     // Retry configuration for API errors
@@ -75,9 +73,7 @@ async function fetchAmazonLibrary() {
             pass2Start: 0,
             pass2End: 0,
             mergeStart: 0,
-            mergeEnd: 0,
-            manifestStart: 0,
-            manifestEnd: 0
+            mergeEnd: 0
         },
         apiCalls: {
             total: 0,
@@ -137,79 +133,6 @@ async function fetchAmazonLibrary() {
         };
     };
 
-    // Generate a unique identifier for this fetch session
-    // Used by the organizer to match JSON files with their IndexedDB manifests
-    const generateGUID = () => {
-        // Use crypto.randomUUID() if available (modern browsers)
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-            return crypto.randomUUID();
-        }
-        // Fallback for older browsers using crypto.getRandomValues()
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = crypto.getRandomValues(new Uint8Array(1))[0] % 16;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    };
-
-    // Generate GUID once at start of fetch session
-    const sessionGUID = generateGUID();
-    console.log(`🔑 Session GUID: ${sessionGUID}`);
-
-    // ============================================================================
-    // IndexedDB Manifest Storage (for ReaderWrangler status bar)
-    // ============================================================================
-    // Writes manifest to IndexedDB so the organizer app can track fetch status
-    // without needing to poll manifest files (which doesn't work on GitHub Pages)
-    const DB_NAME = 'ReaderWranglerManifests';
-    const DB_VERSION = 1;
-    const STORE_NAME = 'manifests';
-
-    const writeManifestToIndexedDB = async (manifestData) => {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-            request.onerror = () => {
-                console.warn('⚠️ IndexedDB error (manifest will only be in JSON file):', request.error);
-                resolve(false); // Don't fail the fetch, just warn
-            };
-
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    // Use guid as the key
-                    db.createObjectStore(STORE_NAME, { keyPath: 'guid' });
-                    console.log('📦 Created IndexedDB store for manifests');
-                }
-            };
-
-            request.onsuccess = (event) => {
-                const db = event.target.result;
-                try {
-                    const transaction = db.transaction([STORE_NAME], 'readwrite');
-                    const store = transaction.objectStore(STORE_NAME);
-
-                    // Write manifest with guid as key
-                    const putRequest = store.put(manifestData);
-
-                    putRequest.onsuccess = () => {
-                        console.log(`✅ Manifest written to IndexedDB (GUID: ${manifestData.guid})`);
-                        resolve(true);
-                    };
-
-                    putRequest.onerror = () => {
-                        console.warn('⚠️ Failed to write manifest to IndexedDB:', putRequest.error);
-                        resolve(false);
-                    };
-
-                    transaction.oncomplete = () => db.close();
-                } catch (err) {
-                    console.warn('⚠️ IndexedDB transaction error:', err);
-                    resolve(false);
-                }
-            };
-        });
-    };
 
     // ============================================================================
     // Progress Overlay UI (Option C - Minimal + Progress Bar + Abort)
@@ -1390,21 +1313,6 @@ async function fetchAmazonLibrary() {
             console.log('✅ No new books to fetch!');
             console.log('   Your library is up to date.\n');
 
-            // Still create a manifest showing current state
-            const manifest = {
-                type: 'library',
-                guid: sessionGUID,
-                schemaVersion: SCHEMA_VERSION,
-                fetcherVersion: FETCHER_VERSION,
-                fetchDate: new Date().toISOString(),
-                totalBooks: existingBooks.length,
-                newBooksAdded: 0,
-                enrichmentComplete: true
-            };
-
-            // Write manifest to IndexedDB for ReaderWrangler status bar
-            await writeManifestToIndexedDB(manifest);
-            console.log(`✅ Manifest saved to IndexedDB (no new books)\n`);
 
             // Calculate phase durations
             stats.timing.pass1End = Date.now();
@@ -1713,11 +1621,10 @@ async function fetchAmazonLibrary() {
         // Prepend new books (most recent first)
         const finalBooks = [...newBooks, ...existingBooks];
 
-        // Create output with metadata (Schema v3.1.0 - adds GUID)
+        // Create output with metadata (Schema v3.0.0 - removes GUID)
         const outputData = {
             type: "library",
             metadata: {
-                guid: sessionGUID,
                 schemaVersion: SCHEMA_VERSION,
                 fetcherVersion: FETCHER_VERSION,
                 fetchDate: new Date().toISOString(),
@@ -1741,43 +1648,12 @@ async function fetchAmazonLibrary() {
         URL.revokeObjectURL(url);
 
         console.log(`✅ Saved library file: ${LIBRARY_FILENAME}`);
-        stats.timing.mergeEnd = Date.now();
-
-        // Step 6: Create and save manifest
-        stats.timing.manifestStart = Date.now();
-        console.log('[6/6] Creating manifest file...');
-        progressUI.updatePhase('Creating Manifest', 'Generating metadata file');
-
-        const manifest = {
-            type: 'library',  // Identifies this as library manifest (vs collections)
-            guid: sessionGUID,
-            schemaVersion: SCHEMA_VERSION,
-            fetcherVersion: FETCHER_VERSION,
-            fetchDate: new Date().toISOString(),  // Renamed from lastFetched for consistency
-            totalBooks: finalBooks.length,
-            newBooksAdded: newBooks.length,
-            enrichmentComplete: errorCount === 0,
-            enrichmentStats: {
-                enriched: enrichedCount,
-                failed: errorCount,
-                total: newBooks.length
-            }
-        };
-
-        // Write manifest to IndexedDB for ReaderWrangler status bar
-        await writeManifestToIndexedDB(manifest);
-
-        // Manifest file download removed in v3.4.0 - now written to IndexedDB only
-        // The manifest is read by the app from IndexedDB, not from a file
-        console.log(`✅ Manifest saved to IndexedDB (file download removed)`);
-        stats.timing.manifestEnd = Date.now();
 
         // Calculate phase durations
         const phase0Duration = stats.timing.phase0End - stats.timing.phase0Start;
         const pass1Duration = stats.timing.pass1End - stats.timing.pass1Start;
         const pass2Duration = stats.timing.pass2End - stats.timing.pass2Start;
         const mergeDuration = stats.timing.mergeEnd - stats.timing.mergeStart;
-        const manifestDuration = stats.timing.manifestEnd - stats.timing.manifestStart;
         const totalDuration = Date.now() - startTime;
 
         console.log('\n========================================');
@@ -1789,7 +1665,6 @@ async function fetchAmazonLibrary() {
         console.log(`   Pass 1 (Fetch titles):        ${formatTime(pass1Duration)}`);
         console.log(`   Pass 2 (Enrich):              ${formatTime(pass2Duration)}`);
         console.log(`   Pass 3 (Merge & save):        ${formatTime(mergeDuration)}`);
-        console.log(`   Pass 4 (Manifest):            ${formatTime(manifestDuration)}`);
         console.log(`   ${'─'.repeat(37)}`);
         console.log(`   Total time:                   ${formatTime(totalDuration)}\n`);
 
