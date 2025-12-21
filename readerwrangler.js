@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.0.d - Load-State-Only Status System
+        // ReaderWrangler JS v3.9.0.e - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.0.d";
+        const ORGANIZER_VERSION = "v3.9.0.e";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -514,6 +514,59 @@
                 input.click();
             };
 
+            const loadCollectionsNow = async () => {
+                // Close the dialog immediately when file picker opens
+                setStatusModalOpen(false);
+
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        try {
+                            const text = await file.text();
+                            const parsedData = JSON.parse(text);
+                            const syncTime = Date.now();
+                            setLastSyncTime(syncTime);
+
+                            // Show loading status while waiting
+                            setSyncStatus('loading');
+
+                            let timeoutId;
+                            let callbackFired = false;
+
+                            // Setup timeout (60 seconds)
+                            timeoutId = setTimeout(() => {
+                                if (!callbackFired) {
+                                    console.error('⚠️ Status check timed out after 60 seconds');
+                                    setSyncStatus('unknown');
+                                    alert('Collections loaded but status check timed out. Please refresh the page.');
+                                }
+                            }, 60000);
+
+                            // Load collections data with callback
+                            await loadCollectionsFromFile(text, (collectionsCount) => {
+                                callbackFired = true;
+                                clearTimeout(timeoutId);
+                                setSyncStatus('none');
+                            });
+
+                        } catch (error) {
+                            console.error('Failed to load collections:', error);
+                            if (error && error.message) {
+                                console.error('Error details:', error.message, error.stack);
+                                alert(`Failed to load collections file: ${error.message}`);
+                            } else {
+                                console.error('Error details: Unknown error (null or no message)');
+                                alert('Failed to load collections file: Unknown error');
+                            }
+                        }
+                    }
+                };
+                input.click();
+            };
+
             const openCollectSeriesDialog = () => {
                 if (!modalBook || !modalBook.series || !modalColumnId) return;
                 
@@ -815,6 +868,50 @@
                     console.log('Could not load collections data (this is optional):', error.message);
                     return null;
                 }
+            };
+
+            const loadCollectionsFromFile = async (content, onComplete = null) => {
+                const collectionsJson = JSON.parse(content);
+
+                // Validate schema version (1.0)
+                if (collectionsJson.schemaVersion !== '1.0') {
+                    console.error('❌ Invalid collections JSON format');
+                    console.error('   Expected schema v1.0');
+                    console.error('   Received schema:', collectionsJson.schemaVersion);
+                    throw new Error('Invalid collections JSON format - please re-fetch your collections using the latest fetcher');
+                }
+
+                // Create a Map indexed by ASIN for O(1) lookup
+                const collectionsMap = new Map();
+
+                collectionsJson.books.forEach(book => {
+                    collectionsMap.set(book.asin, {
+                        readStatus: book.readStatus,
+                        collections: book.collections || []
+                    });
+                });
+
+                console.log(`✅ Loaded collections data for ${collectionsMap.size} books`);
+                console.log(`   - ${collectionsJson.booksWithCollections} books have collections`);
+                console.log(`   - Fetcher version: ${collectionsJson.fetcherVersion}`);
+                console.log(`   - Fetched: ${new Date(collectionsJson.fetchDate).toLocaleString()}`);
+
+                // Update collections status (v3.9.0 - Load-state-only)
+                const loadStatus = collectionsJson.fetchDate ? calculateFreshness(collectionsJson.fetchDate) : 'unknown';
+
+                setCollectionsStatus({
+                    loadStatus,
+                    loadDate: collectionsJson.fetchDate || null
+                });
+
+                setCollectionsData(collectionsMap);
+
+                // Trigger callback if provided
+                if (onComplete) {
+                    onComplete(collectionsMap.size);
+                }
+
+                return collectionsMap;
             };
 
             const mergeCollectionsIntoBooks = async (booksToMerge) => {
@@ -2083,7 +2180,7 @@
                                                     <div className="text-center">
                                                         <p className="font-medium text-green-700 mb-2">✓ Yes</p>
                                                         <button
-                                                            onClick={syncNow}
+                                                            onClick={loadCollectionsNow}
                                                             className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">
                                                             Load Collections
                                                         </button>
