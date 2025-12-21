@@ -1,8 +1,9 @@
 # Collections UI Design Document
 
 **Feature**: Collections Integration - UI Features
-**Status**: Pending (data merge complete, UI incomplete)
+**Status**: ✅ Complete (v3.8.0)
 **Created**: 2025-11-24
+**Updated**: 2025-12-21
 
 ---
 
@@ -12,23 +13,28 @@ Display Amazon collection membership and read status in the organizer UI.
 
 ---
 
-## Current State
+## Implementation (Complete)
 
-**Data Merge Complete:**
+**Data Merge (Complete):**
 - Collections fetcher successfully extracts collection data
 - Data merged into organizer on load
 - Console shows: "📚 Collections data merged: 1163 books have collections"
 - Read status tracked: 642 READ, 1 UNREAD, 1700 UNKNOWN
 
+**Completed UI Features:**
+- ✅ **Visual indicators (badges/icons)** - Collection badges displayed on book covers (updated v3.8.0)
+- ✅ **Metadata display** - Collection names shown in book detail modal (comma-separated list)
+- ✅ **Wishlist filtering** - Filter by wishlist status (Wishlist/Owned toggle) via Advanced Filtering System (v3.8.0)
+
 ---
 
-## Pending UI Features
+## Future Enhancements (Not Part of Collections Feature)
 
-1. **Visual indicators (badges/icons)** for collections on book covers
-2. **Metadata display** showing which collections each book belongs to
-3. **Filtering by collection name**
-4. **Filtering by read status** (READ/UNREAD/UNKNOWN)
-5. **"Uncollected" pseudo-collection** (books with no collections)
+These features are related to read status tracking, not collections integration:
+
+1. **Filtering by read status** - Filter by READ/UNREAD/UNKNOWN (separate feature, not part of collections)
+2. **Filtering by collection name** - Dropdown to filter by specific collection (lower priority enhancement)
+3. **"Uncollected" pseudo-collection** - Filter for books with no collections (lower priority enhancement)
 
 ---
 
