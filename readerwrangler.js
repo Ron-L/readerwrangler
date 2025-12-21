@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.0.h - Load-State-Only Status System
+        // ReaderWrangler JS v3.9.0.i - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.0.h";
+        const ORGANIZER_VERSION = "v3.9.0.i";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -905,8 +905,8 @@
             };
 
             const mergeCollectionsIntoBooks = async (booksToMerge) => {
-                // Load collections data if not already loaded
-                const collections = collectionsData || await loadCollectionsData();
+                // Only use collections data if user has loaded it via File Picker (v3.9.0)
+                const collections = collectionsData;
                 if (!collections) {
                     console.log('No collections data available to merge');
                     return booksToMerge;
@@ -971,8 +971,9 @@
                     loadDate: metadata.fetchDate || null
                 });
 
-                // Load collections data (optional, non-blocking)
-                const collections = await loadCollectionsData();
+                // Collections must be loaded via File Picker (v3.9.0 - Load-State-Only)
+                // Auto-fetch removed to ensure user controls which files are loaded
+                const collections = collectionsData || null;
 
                 const extractDescription = (descData) => {
                     if (!descData?.sections?.[0]?.content) return '';
