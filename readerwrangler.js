@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.10.1.a - Fix Series Position Sort (group by series)
+        // ReaderWrangler JS v3.10.1 - Fix Series Position Sort (group by series)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.10.1.a";
+        const ORGANIZER_VERSION = "v3.10.1";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";

@@ -8,16 +8,10 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**0. 🐛 Fix Series Position Sort** #BUG - LOW/LOW (30 minutes)
-   - Series position sort currently groups ALL books by position number, ignoring series name
-   - Example: "Jack Ryan Jr. #12" and "Different Series #1" incorrectly sort together
-   - Expected: Series position should only sort books within the SAME series
-   - Books with null series or null seriesPosition should remain in original position (unsortable)
-   - File: readerwrangler.js sortColumn function (lines 1264-1267)
-   - Fix: Group by series name first, then sort by position within each series group
-   - Problem: Users sorting by series position get mixed results across different series
-   - Impact: Makes series position sort actually useful for organizing multi-series collections
-   - Related: v3.10.0 introduced series position sort but didn't account for multi-series scenario
+**0. 🐛 Fix Series Position Sort** #BUG - COMPLETED ✅ (v3.10.1 - 2025-12-22)
+   - Multi-level sort now groups books by series name first, then sorts by position within each series
+   - Books without both series AND seriesPosition remain in original position
+   - File: readerwrangler.js sortColumn function (lines 1264-1293)
 
 **1. 📑 Series Dividers Within Columns** - MEDIUM/LOW (5-7 hours)
    - Visual section headers within columns to group books (series, read/unread, rating tiers, etc.)

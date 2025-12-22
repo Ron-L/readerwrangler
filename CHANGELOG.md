@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.10.1] - 2025-12-22
+
+### Fixed
+- **Series Position Sort Bug** - Multi-level sorting now groups books by series before sorting by position
+  - File version: readerwrangler.js v3.10.1
+  - Bug: v3.10.0 sorted ALL books by position number, ignoring series membership
+  - Fix: Multi-level sort - group by series name (alphabetically), then sort by position within each series
+  - Example: "Jack Ryan Jr. #12" and "Different Series #1" no longer sort together
+  - Edge cases: Books without both series AND seriesPosition remain in original position (unsortable)
+  - Impact: Series position sort now actually useful for organizing multi-series collections
+  - Users can now use one author column (e.g., "Larry Bond") and sort by series to group all series together
+  - Related: TODO.md Priority 1 Task 0 (COMPLETED)
+
 ## [3.10.0] - 2025-12-22
 
 ### Added
