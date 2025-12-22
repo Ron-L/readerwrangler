@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.11.0.c - Series Dividers Within Columns (UX fixes)
+        // ReaderWrangler JS v3.11.0.d - Series Dividers Within Columns (menu close UX)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.11.0.c";
+        const ORGANIZER_VERSION = "v3.11.0.d";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -202,6 +202,9 @@
             const [dateTo, setDateTo] = useState(''); // Filter by acquisition date to (YYYY-MM-DD) (NEW v3.8.0.k)
             const [filterPanelOpen, setFilterPanelOpen] = useState(false); // Collapsible filter panel state (NEW v3.8.0)
             const [, forceUpdate] = useState({});
+
+            // v3.11.0.d - Ref for column menu click-outside detection
+            const columnMenuRef = useRef(null);
 
             // Status bar state (v3.9.0 - Load-state-only, 4 states)
             const [libraryStatus, setLibraryStatus] = useState({
@@ -451,6 +454,35 @@
                     return () => window.removeEventListener('click', handleClick);
                 }
             }, [contextMenu]);
+
+            // v3.11.0.d - Close column menu and sort submenu on ESC key
+            useEffect(() => {
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') {
+                        if (sortMenuOpen !== null) {
+                            setSortMenuOpen(null);
+                        } else if (columnMenuOpen !== null) {
+                            setColumnMenuOpen(null);
+                        }
+                    }
+                };
+                window.addEventListener('keydown', handleEsc);
+                return () => window.removeEventListener('keydown', handleEsc);
+            }, [columnMenuOpen, sortMenuOpen]);
+
+            // v3.11.0.d - Close column menu on click outside
+            useEffect(() => {
+                const handleClickOutside = (e) => {
+                    if (columnMenuOpen !== null && columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
+                        setColumnMenuOpen(null);
+                        setSortMenuOpen(null);
+                    }
+                };
+                if (columnMenuOpen !== null) {
+                    document.addEventListener('mousedown', handleClickOutside);
+                    return () => document.removeEventListener('mousedown', handleClickOutside);
+                }
+            }, [columnMenuOpen]);
 
             const saveSettings = (newSettings) => {
                 setSettings(newSettings);
@@ -3175,7 +3207,7 @@
                                             <span className="text-sm text-gray-500">({filteredBooks(column.books).length})</span>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <div className="relative">
+                                            <div className="relative" ref={columnMenuOpen === column.id ? columnMenuRef : null}>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setColumnMenuOpen(columnMenuOpen === column.id ? null : column.id); }}
                                                     className="p-1 hover:bg-gray-100 rounded text-lg"
