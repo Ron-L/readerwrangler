@@ -422,6 +422,8 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 
 ## File Type Routing Logic
 
+**Status**: ✅ Implemented in v3.9.0.l
+
 **Challenge**: Single file picker must handle both Library and Collections files with different JSON structures.
 
 **Solution**: Detect file type and route to appropriate loader function.
@@ -485,16 +487,11 @@ const loadDataFile = async (fileText) => {
 
 ## Implementation Checklist
 
-- [ ] Create routing function to detect Library vs Collections files
-- [ ] Move Reload buttons to contextual position (next to status lines)
-- [ ] Implement two-column layout for dual-destination instructions
-- [ ] Add symmetric Collections-first modal state
-- [ ] Rename "Clear Library" to "Reset App"
-- [ ] Add tooltip to Reset App button
-- [ ] Update Reset App confirmation dialog
-- [ ] Test all 4 freshness states (Empty, Fresh, Stale, Obsolete)
-- [ ] Test all file type combinations (Library only, Collections only, both, neither)
-- [ ] Test wrong-file-selected error handling
+- [x] Create file type detection (v3.9.0.l - loadEnrichedData, loadCollectionsFromFile)
+- [ ] Move Load buttons to contextual position in Empty state (next to status lines)
+- [ ] Implement two-column fetch instructions layout in Empty state
+- [ ] Test Empty state modal displays correctly
+- [ ] Test all file loading scenarios (see Testing Scenarios below)
 
 ---
 
