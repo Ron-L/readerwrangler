@@ -8,6 +8,14 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
+**0. 🐛 Read Status Tooltip Bug** #Bug - LOW/LOW (15 minutes)
+   - SE corner green checkmark shows collections tooltip instead of read status
+   - Root cause: Book cover container has `title` attribute for collections that applies to entire area including SE corner checkmark
+   - Fix: Add `title="Read"` to SE corner checkmark div to override parent tooltip when hovering on checkmark
+   - File: readerwrangler.js line 2950-2956
+   - Problem: Confusing UX - hovering on read status indicator shows unrelated collections information
+   - Impact: Clear, correct tooltips for all visual indicators
+
 **1. 🔀 Column Sorting** - MEDIUM-HIGH/MEDIUM (4-6 hours)
    - Sort books within columns by: acquisitionDate, seriesPosition, rating, title, author
    - Permanent re-ordering (like Excel sort, persists to IndexedDB)

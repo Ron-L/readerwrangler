@@ -1,7 +1,7 @@
         // ReaderWrangler JS v3.9.0 - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.0";
+        const ORGANIZER_VERSION = "v3.9.1.a";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2948,7 +2948,7 @@
                                                                 )}
                                                                 {/* Bottom-right: Read status checkmark */}
                                                                 {book.readStatus === 'READ' && (
-                                                                    <div className="absolute bottom-1 right-1 bg-green-600 rounded-full w-6 h-6 flex items-center justify-center">
+                                                                    <div className="absolute bottom-1 right-1 bg-green-600 rounded-full w-6 h-6 flex items-center justify-center" title="Read">
                                                                         <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
                                                                         </svg>
