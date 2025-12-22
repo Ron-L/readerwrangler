@@ -1,4 +1,4 @@
-        // ReaderWrangler JS v3.10.0 - Column Sorting: Series Position
+        // ReaderWrangler JS v3.10.1.a - Fix Series Position Sort (group by series)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
         const ORGANIZER_VERSION = "v3.10.0";
@@ -1262,8 +1262,34 @@
                             case 'acquired-asc':
                                 return (a.acquired || '').localeCompare(b.acquired || '');
                             case 'series-pos-asc':
+                                // Books without series or position stay in original order
+                                const aHasSeriesAsc = a.series && a.seriesPosition;
+                                const bHasSeriesAsc = b.series && b.seriesPosition;
+
+                                if (!aHasSeriesAsc && !bHasSeriesAsc) return 0; // Both unsortable, keep original order
+                                if (!aHasSeriesAsc) return 1; // a goes after b
+                                if (!bHasSeriesAsc) return -1; // b goes after a
+
+                                // Primary sort: group by series name (alphabetical)
+                                const seriesCompareAsc = a.series.localeCompare(b.series);
+                                if (seriesCompareAsc !== 0) return seriesCompareAsc;
+
+                                // Secondary sort: position within same series
                                 return (parseInt(a.seriesPosition) || 999) - (parseInt(b.seriesPosition) || 999);
                             case 'series-pos-desc':
+                                // Books without series or position stay in original order
+                                const aHasSeriesDesc = a.series && a.seriesPosition;
+                                const bHasSeriesDesc = b.series && b.seriesPosition;
+
+                                if (!aHasSeriesDesc && !bHasSeriesDesc) return 0; // Both unsortable, keep original order
+                                if (!aHasSeriesDesc) return 1; // a goes after b
+                                if (!bHasSeriesDesc) return -1; // b goes after a
+
+                                // Primary sort: group by series name (alphabetical)
+                                const seriesCompareDesc = a.series.localeCompare(b.series);
+                                if (seriesCompareDesc !== 0) return seriesCompareDesc;
+
+                                // Secondary sort: position within same series (REVERSED)
                                 return (parseInt(b.seriesPosition) || 999) - (parseInt(a.seriesPosition) || 999);
                             default:
                                 return 0;
