@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.0.m - Load-State-Only Status System
+        // ReaderWrangler JS v3.9.0.n - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.0.m";
+        const ORGANIZER_VERSION = "v3.9.0.n";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2145,31 +2145,62 @@
                                     </div>
                                 )}
 
-                                {libraryStatus.loadStatus === 'empty' && (
+                                {libraryStatus.loadStatus === 'empty' && collectionsStatus.loadStatus === 'empty' && (
                                     <div className="space-y-3">
-                                        <p className="text-sm text-gray-700">
-                                            🛑 <strong>No library loaded yet.</strong>
-                                        </p>
+                                        {/* Status lines with Load buttons (v3.9.0.n - contextual proximity) */}
+                                        <div className="space-y-2">
+                                            <div>
+                                                <p className="text-sm text-gray-700">
+                                                    <strong>Library:</strong> Not loaded 🛑
+                                                </p>
+                                                <button
+                                                    onClick={syncNow}
+                                                    className="ml-16 mt-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">
+                                                    Load Library
+                                                </button>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-700">
+                                                    <strong>Collections:</strong> Not loaded 🛑
+                                                </p>
+                                                <button
+                                                    onClick={loadCollectionsNow}
+                                                    className="ml-16 mt-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">
+                                                    Load Collections
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Help text for users with files */}
+                                        <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
+                                            <p className="text-center">Load your library to get started!</p>
+                                        </div>
+
+                                        {/* Fetch instructions for users without files */}
                                         <div className="border border-blue-200 rounded overflow-hidden text-sm text-gray-700">
                                             <div className="bg-blue-100 px-3 py-2 border-b border-blue-200">
-                                                <p className="text-center font-medium">Do you already have a library file?</p>
+                                                <p className="font-medium">Don't have files yet? Fetch them from Amazon:</p>
                                             </div>
                                             <div className="bg-blue-50 p-3">
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <div className="text-center">
-                                                        <p className="font-medium text-green-700 mb-2">✓ Yes</p>
-                                                        <button
-                                                            onClick={syncNow}
-                                                            className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">
-                                                            Load Library
-                                                        </button>
-                                                    </div>
+                                                    {/* Library fetch instructions */}
                                                     <div>
-                                                        <p className="font-medium text-gray-600 mb-2">✗ No</p>
+                                                        <p className="font-medium mb-2">Library</p>
                                                         <ol className="list-decimal ml-4 space-y-1 text-xs">
                                                             <li>Go to <a href="https://www.amazon.com/yourbooks" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Library</a></li>
-                                                            <li>Click the bookmarklet → "Fetch Library"</li>
-                                                            <li>Return here and click "Load Library"</li>
+                                                            <li>Click bookmarklet</li>
+                                                            <li>Choose "Fetch Library"</li>
+                                                            <li>Return & click Load button above</li>
+                                                        </ol>
+                                                    </div>
+                                                    {/* Collections fetch instructions */}
+                                                    <div>
+                                                        <p className="font-medium mb-2">Collections</p>
+                                                        <ol className="list-decimal ml-4 space-y-1 text-xs">
+                                                            <li>Go to <a href="https://www.amazon.com/hz/mycd/myx" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Collections</a></li>
+                                                            <li>Click bookmarklet</li>
+                                                            <li>Choose "Fetch Collections"</li>
+                                                            <li>Return & click Load button above</li>
                                                         </ol>
                                                     </div>
                                                 </div>
