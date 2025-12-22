@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.2 - Reset App Backup Reminder + Custom Modal
+        // ReaderWrangler JS v3.10.0.a - Column Sorting: Series Position
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.2";
+        const ORGANIZER_VERSION = "v3.10.0.a";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1261,6 +1261,10 @@
                                 return (b.acquired || '').localeCompare(a.acquired || '');
                             case 'acquired-asc':
                                 return (a.acquired || '').localeCompare(b.acquired || '');
+                            case 'series-pos-asc':
+                                return (parseInt(a.seriesPosition) || 999) - (parseInt(b.seriesPosition) || 999);
+                            case 'series-pos-desc':
+                                return (parseInt(b.seriesPosition) || 999) - (parseInt(a.seriesPosition) || 999);
                             default:
                                 return 0;
                         }
@@ -2878,6 +2882,8 @@
                                                             )}
                                                             <button onClick={() => sortColumn(column.id, 'acquired-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Date (Newest)</button>
                                                             <button onClick={() => sortColumn(column.id, 'acquired-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Date (Oldest)</button>
+                                                            <button onClick={() => sortColumn(column.id, 'series-pos-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Series (1→99)</button>
+                                                            <button onClick={() => sortColumn(column.id, 'series-pos-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Series (99→1)</button>
                                                         </div>
                                                     </div>
                                                 )}
