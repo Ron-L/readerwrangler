@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.9.0] - 2025-12-21
 
 ### Changed
+- **Architecture: Simplified to Load-State-Only Status System** - Removed broken cross-domain manifest tracking
+  - File versions: readerwrangler.js v3.9.0, amazon-library-fetcher.js v3.6.0, amazon-collections-fetcher.js v1.3.0
+  - **Removed manifest tracking**: Deleted all IndexedDB manifest read/write code from fetchers and organizer app
+  - **Removed ReaderWranglerManifests database**: Cross-domain isolation made manifest sharing impossible between amazon.com (fetcher) and readerwrangler.com (app)
+  - **Simplified status bar**: Now shows only Load state based on loaded file timestamp (removed broken fetch state tracking)
+  - **Honest messaging**: App displays age of loaded data and trusts user to know their Amazon activity
+  - **Architectural simplification**: 25 theoretical states (5 Fetch × 5 Load) → 6 practical states (Load-only: Empty, Fresh Both, Fresh Library, Fresh Collections, Stale Both, Obsolete Both)
+  - Impact: Status system now works correctly, shows accurate information, puts responsibility on user who knows their Amazon purchase history
+
 - **Data Status Modal UX Redesign** - Complete redesign of Data Status modal for better consistency and usability
   - File version: readerwrangler.js v3.9.0
   - **Button positioning**: Moved all Load/Reload buttons to same line as status (right-aligned) for universal left-to-right scan pattern
@@ -21,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - States 5-6: Consistent two-column layout with urgency-appropriate messaging
   - **Simplified messaging**: Replaced Yes/No branching with direct "Don't have files yet? Fetch them from Amazon:" approach
   - **Pattern consistency**: All 6 states now follow same design principles (status line + inline button + fetch instructions)
+  - **Wired to File Picker API**: All Load/Reload buttons trigger browser file picker for manual file selection
   - Impact: Faster user comprehension, reduced cognitive load, consistent experience across all modal states
 
 ### Fixed
