@@ -175,6 +175,7 @@
             const [editingDividerLabel, setEditingDividerLabel] = useState(''); // v3.11.0
             const [insertDividerOpen, setInsertDividerOpen] = useState(null); // v3.11.0 - columnId for Insert Divider modal
             const [newDividerLabel, setNewDividerLabel] = useState(''); // v3.11.0
+            const [hoveringDivider, setHoveringDivider] = useState(null); // v3.11.0 - {columnId, dividerId}
             const [helpOpen, setHelpOpen] = useState(false);
             const [settingsOpen, setSettingsOpen] = useState(false);
             const [deleteDialogOpen, setDeleteDialogOpen] = useState(null);
@@ -3190,15 +3191,15 @@
                                             {filteredBooks(column.books).map((item) => {
                                                 // v3.11.0 - Handle dividers
                                                 if (typeof item === 'object' && item.type === 'divider') {
-                                                    const [isHovering, setIsHovering] = useState(false);
+                                                    const isHovering = hoveringDivider && hoveringDivider.columnId === column.id && hoveringDivider.dividerId === item.id;
                                                     const isEditing = editingDivider && editingDivider.columnId === column.id && editingDivider.dividerId === item.id;
 
                                                     return (
                                                         <div key={item.id}
                                                              className="col-span-3 flex items-center gap-2 py-2 px-3 my-1 rounded"
                                                              style={{ backgroundColor: '#f3f4f6' }}
-                                                             onMouseEnter={() => setIsHovering(true)}
-                                                             onMouseLeave={() => setIsHovering(false)}>
+                                                             onMouseEnter={() => setHoveringDivider({ columnId: column.id, dividerId: item.id })}
+                                                             onMouseLeave={() => setHoveringDivider(null)}>
                                                             {isHovering && (
                                                                 <span className="text-gray-400 cursor-grab text-lg">⋮</span>
                                                             )}
