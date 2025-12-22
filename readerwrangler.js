@@ -3529,8 +3529,10 @@
                                                 );
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
+                                                        {/* v3.14.0.c - Don't show drop indicator on books when dragging divider */}
                                                         {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
-                                                         draggedBook?.id !== book.id && !selectedBooks.has(book.id) && (
+                                                         draggedBook?.id !== book.id && !selectedBooks.has(book.id) &&
+                                                         !(typeof draggedBook === 'object' && draggedBook.type === 'divider') && (
                                                             <div className="drop-indicator" style={{ top: '-6px' }} />
                                                         )}
                                                         <div className={`book-clickable ${selectedBooks.has(book.id) ? 'selected' : ''} ${draggedBook?.id === book.id && isDragging ? 'dragging' : ''}`}
