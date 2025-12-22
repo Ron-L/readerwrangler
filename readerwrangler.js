@@ -3456,7 +3456,8 @@
                                                     return (
                                                         <div key={item.id} className="col-span-3 relative">
                                                             {/* v3.14.0 - Drop indicator for dividers */}
-                                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex && (
+                                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
+                                                             draggedBook?.id !== item.id && (
                                                                 <div className="drop-indicator" style={{ top: '-6px' }} />
                                                             )}
                                                             <div className={`flex items-center gap-2 py-2 px-3 my-1 rounded cursor-pointer divider-item ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
