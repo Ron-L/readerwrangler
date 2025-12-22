@@ -66,30 +66,31 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 ├──────────────────────────────────────────────┤
 │                                              │
 │  Library: Not loaded 🛑                      │
+│           [Load Library]                     │
+│                                              │
 │  Collections: Not loaded 🛑                  │
+│               [Load Collections]             │
 │                                              │
 │  ┌─────────────────────────────────────────┐│
 │  │ Load your library to get started!       ││
 │  └─────────────────────────────────────────┘│
 │                                              │
 │  ┌─────────────────────────────────────────┐│
-│  │ Do you already have library/collections ││
-│  │ files?                                  ││
+│  │ Don't have files yet? Fetch them from   ││
+│  │ Amazon:                                 ││
 │  ├─────────────────────────────────────────┤│
 │  │                                         ││
-│  │  ✓ Yes                                  ││
-│  │  ─────────────                          ││
-│  │  [Load Library] [Load Collections]     ││
-│  │                                         ││
-│  │  ✗ No                                   ││
-│  │  ─────────────                          ││
-│  │  1. Go to Amazon Library               ││
-│  │  2. Click the ReaderWrangler           ││
-│  │     bookmarklet                        ││
-│  │  3. Choose "Fetch Library" or          ││
-│  │     "Fetch Collections"                ││
-│  │  4. Return here and click Load buttons ││
-│  │     above                               ││
+│  │  Library             Collections        ││
+│  │  ────────────────    ─────────────────  ││
+│  │  1. Go to Amazon    1. Go to Amazon    ││
+│  │     Library            Collections      ││
+│  │  2. Click           2. Click           ││
+│  │     bookmarklet        bookmarklet     ││
+│  │  3. Choose "Fetch   3. Choose "Fetch   ││
+│  │     Library"           Collections"    ││
+│  │  4. Return & click  4. Return & click  ││
+│  │     Load button        Load button     ││
+│  │     above              above           ││
 │  │                                         ││
 │  └─────────────────────────────────────────┘│
 │                                              │
@@ -99,6 +100,14 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 **Button behavior:**
 - `Load Library` → Opens file picker → Routes to `loadEnrichedData()`
 - `Load Collections` → Opens file picker → Routes to `loadCollectionsData()`
+
+**Design notes:**
+- **Buttons next to status lines** - matches States 2-6 pattern for consistency
+- **Contextual proximity** - action buttons appear exactly where the problem is shown
+- **Faster for users with files** - no question to parse, buttons immediately visible
+- **Two-column fetch instructions** - Library and Collections side-by-side
+- **Simple messaging** - "Don't have files yet?" instead of Yes/No branching
+- **Pattern consistency** - State 1 now follows same layout as all other states
 
 ---
 
