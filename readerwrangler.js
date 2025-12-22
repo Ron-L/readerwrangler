@@ -2622,6 +2622,47 @@
                         </div>
                     )}
 
+                    {insertDividerOpen && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setInsertDividerOpen(null)}>
+                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
+                                    <h2 className="text-xl font-bold text-gray-900">Insert Divider</h2>
+                                    <button onClick={() => setInsertDividerOpen(null)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold">×</button>
+                                </div>
+                                <div className="p-6 space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Divider Label</label>
+                                        <input
+                                            type="text"
+                                            value={newDividerLabel}
+                                            onChange={(e) => setNewDividerLabel(e.target.value)}
+                                            onKeyPress={(e) => { if (e.key === 'Enter') insertDivider(insertDividerOpen); }}
+                                            placeholder="e.g., Jerry Mitchell, Read Books, 5 Stars"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
+                                        <p>The divider will appear at the bottom of the column. You can drag it to any position.</p>
+                                    </div>
+                                    <div className="flex gap-3 justify-end pt-2">
+                                        <button
+                                            onClick={() => setInsertDividerOpen(null)}
+                                            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium">
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => insertDivider(insertDividerOpen)}
+                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                                            disabled={!newDividerLabel.trim()}>
+                                            Insert
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {settingsOpen && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setSettingsOpen(false)}>
                             <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
@@ -3078,42 +3119,70 @@
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <div className="relative">
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); setSortMenuOpen(sortMenuOpen === column.id ? null : column.id); }}
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setColumnMenuOpen(columnMenuOpen === column.id ? null : column.id); }}
                                                     className="p-1 hover:bg-gray-100 rounded text-lg"
-                                                    title="Sort books">
-                                                    ⬆
+                                                    title="Column options">
+                                                    ⋮
                                                 </button>
-                                                {sortMenuOpen === column.id && (
-                                                    <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 w-48"
+                                                {columnMenuOpen === column.id && (
+                                                    <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 w-56"
                                                          onClick={(e) => e.stopPropagation()}>
                                                         <div className="p-2">
-                                                            <div className="text-xs font-semibold text-gray-600 mb-2 px-2">Sort by:</div>
-                                                            <button onClick={() => sortColumn(column.id, 'title-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Title (A→Z)</button>
-                                                            <button onClick={() => sortColumn(column.id, 'title-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Title (Z→A)</button>
-                                                            <button onClick={() => sortColumn(column.id, 'author-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Author (A→Z)</button>
-                                                            <button onClick={() => sortColumn(column.id, 'author-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Author (Z→A)</button>
+                                                            {/* Sort submenu */}
+                                                            <div className="relative">
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); setSortMenuOpen(sortMenuOpen === column.id ? null : column.id); }}
+                                                                    className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm flex items-center justify-between">
+                                                                    Sort Column
+                                                                    <span>▸</span>
+                                                                </button>
+                                                                {sortMenuOpen === column.id && (
+                                                                    <div className="absolute left-full top-0 ml-1 bg-white border border-gray-300 rounded-lg shadow-lg w-48 z-50">
+                                                                        <div className="p-2">
+                                                                            <button onClick={() => sortColumn(column.id, 'title-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Title (A→Z)</button>
+                                                                            <button onClick={() => sortColumn(column.id, 'title-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Title (Z→A)</button>
+                                                                            <button onClick={() => sortColumn(column.id, 'author-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Author (A→Z)</button>
+                                                                            <button onClick={() => sortColumn(column.id, 'author-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Author (Z→A)</button>
+                                                                            {dataSource === 'enriched' && (
+                                                                                <>
+                                                                                    <button onClick={() => sortColumn(column.id, 'rating-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Rating (High→Low)</button>
+                                                                                    <button onClick={() => sortColumn(column.id, 'rating-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Rating (Low→High)</button>
+                                                                                </>
+                                                                            )}
+                                                                            <button onClick={() => sortColumn(column.id, 'acquired-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Date (Newest)</button>
+                                                                            <button onClick={() => sortColumn(column.id, 'acquired-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Date (Oldest)</button>
+                                                                            <button onClick={() => sortColumn(column.id, 'series-pos-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Series (1→99)</button>
+                                                                            <button onClick={() => sortColumn(column.id, 'series-pos-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Series (99→1)</button>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="border-t border-gray-200 my-1"></div>
+
+                                                            {/* Auto-divide options */}
+                                                            <button onClick={() => autoDivideBySeries(column.id)} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Auto-Divide by Series</button>
                                                             {dataSource === 'enriched' && (
-                                                                <>
-                                                                    <button onClick={() => sortColumn(column.id, 'rating-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Rating (High→Low)</button>
-                                                                    <button onClick={() => sortColumn(column.id, 'rating-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Rating (Low→High)</button>
-                                                                </>
+                                                                <button onClick={() => autoDivideByRating(column.id)} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Auto-Divide by Rating</button>
                                                             )}
-                                                            <button onClick={() => sortColumn(column.id, 'acquired-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Date (Newest)</button>
-                                                            <button onClick={() => sortColumn(column.id, 'acquired-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Date (Oldest)</button>
-                                                            <button onClick={() => sortColumn(column.id, 'series-pos-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Series (1→99)</button>
-                                                            <button onClick={() => sortColumn(column.id, 'series-pos-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Series (99→1)</button>
+
+                                                            <div className="border-t border-gray-200 my-1"></div>
+
+                                                            {/* Insert Divider */}
+                                                            <button onClick={() => { setInsertDividerOpen(column.id); setNewDividerLabel(''); }} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Insert Divider</button>
+
+                                                            <div className="border-t border-gray-200 my-1"></div>
+
+                                                            {/* Rename and Delete */}
+                                                            <button onClick={() => { startEditingColumn(column.id, column.name); setColumnMenuOpen(null); }} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Rename Column</button>
+                                                            {columns.length > 1 && (
+                                                                <button onClick={() => { openDeleteDialog(column.id); setColumnMenuOpen(null); }} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm text-red-600">Delete Column</button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
                                             </div>
-                                            {columns.length > 1 && (
-                                                <button onClick={(e) => { e.stopPropagation(); openDeleteDialog(column.id); }} 
-                                                        className="p-1 hover:bg-gray-100 rounded text-xl"
-                                                        title="Delete column">
-                                                    ⌫
-                                                </button>
-                                            )}
                                         </div>
                                     </div>
                                     <div className="flex-1 overflow-y-auto p-4">
