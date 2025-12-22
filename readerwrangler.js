@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.0.k - Load-State-Only Status System
+        // ReaderWrangler JS v3.9.0.m - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.0.k";
+        const ORGANIZER_VERSION = "v3.9.0.m";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -490,6 +490,7 @@
 
                         } catch (error) {
                             console.error('Failed to sync:', error);
+                            setSyncStatus('none'); // Clear loading spinner (v3.9.0.l)
                             if (error && error.message) {
                                 console.error('Error details:', error.message, error.stack);
                                 alert(`Failed to load library file: ${error.message}`);
@@ -543,6 +544,7 @@
 
                         } catch (error) {
                             console.error('Failed to load collections:', error);
+                            setSyncStatus('none'); // Clear loading spinner (v3.9.0.l)
                             if (error && error.message) {
                                 console.error('Error details:', error.message, error.stack);
                                 alert(`Failed to load collections file: ${error.message}`);
@@ -863,6 +865,14 @@
             const loadCollectionsFromFile = async (content, onComplete = null) => {
                 const collectionsJson = JSON.parse(content);
 
+                // Check if user selected library file instead of collections file (v3.9.0.k)
+                if (collectionsJson.type === 'library') {
+                    console.error('❌ Wrong file type selected');
+                    console.error('   You selected a Library file');
+                    console.error('   Please select your Collections file instead');
+                    throw new Error('You selected a Library file. Please select your Collections file instead.');
+                }
+
                 // Validate schema version (1.0)
                 if (collectionsJson.schemaVersion !== '1.0') {
                     console.error('❌ Invalid collections JSON format');
@@ -966,6 +976,14 @@
 
             const loadEnrichedData = async (content, onComplete = null) => {
                 const parsedData = JSON.parse(content);
+
+                // Check if user selected collections file instead of library file (v3.9.0.k)
+                if (parsedData.type === 'collections') {
+                    console.error('❌ Wrong file type selected');
+                    console.error('   You selected a Collections file');
+                    console.error('   Please select your Library file instead');
+                    throw new Error('You selected a Collections file. Please select your Library file instead.');
+                }
 
                 // Schema v3.0.0 - object with metadata and books array
                 if (!parsedData.metadata || !parsedData.books) {
