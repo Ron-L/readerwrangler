@@ -170,6 +170,11 @@
             const [editingColumn, setEditingColumn] = useState(null);
             const [editingName, setEditingName] = useState('');
             const [sortMenuOpen, setSortMenuOpen] = useState(null);
+            const [columnMenuOpen, setColumnMenuOpen] = useState(null); // v3.11.0 - Unified column dropdown menu
+            const [editingDivider, setEditingDivider] = useState(null); // v3.11.0 - {columnId, dividerId}
+            const [editingDividerLabel, setEditingDividerLabel] = useState(''); // v3.11.0
+            const [insertDividerOpen, setInsertDividerOpen] = useState(null); // v3.11.0 - columnId for Insert Divider modal
+            const [newDividerLabel, setNewDividerLabel] = useState(''); // v3.11.0
             const [helpOpen, setHelpOpen] = useState(false);
             const [settingsOpen, setSettingsOpen] = useState(false);
             const [deleteDialogOpen, setDeleteDialogOpen] = useState(null);
@@ -1325,15 +1330,193 @@
             const confirmDeleteColumn = () => {
                 const columnToDelete = columns.find(c => c.id === deleteDialogOpen);
                 const destinationColumn = columns.find(c => c.id === deleteDestination);
-                
+
                 if (!columnToDelete || !destinationColumn) return;
-                
-                setColumns(columns.filter(c => c.id !== deleteDialogOpen).map(c => 
+
+                setColumns(columns.filter(c => c.id !== deleteDialogOpen).map(c =>
                     c.id === deleteDestination ? { ...c, books: [...c.books, ...columnToDelete.books] } : c
                 ));
-                
+
                 setDeleteDialogOpen(null);
                 setDeleteDestination('');
+            };
+
+            // v3.11.0 - Divider Functions
+            const insertDivider = (columnId) => {
+                if (!newDividerLabel.trim()) return;
+
+                const dividerId = `divider-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                const divider = {
+                    type: 'divider',
+                    id: dividerId,
+                    label: newDividerLabel.trim()
+                };
+
+                setColumns(columns.map(col =>
+                    col.id === columnId
+                        ? { ...col, books: [...col.books, divider] }
+                        : col
+                ));
+
+                setInsertDividerOpen(null);
+                setNewDividerLabel('');
+                setColumnMenuOpen(null);
+            };
+
+            const startEditingDivider = (columnId, dividerId, currentLabel) => {
+                setEditingDivider({ columnId, dividerId });
+                setEditingDividerLabel(currentLabel);
+            };
+
+            const finishEditingDivider = () => {
+                if (!editingDivider) return;
+
+                const { columnId, dividerId } = editingDivider;
+                const newLabel = editingDividerLabel.trim();
+
+                if (!newLabel) {
+                    setEditingDivider(null);
+                    setEditingDividerLabel('');
+                    return;
+                }
+
+                setColumns(columns.map(col =>
+                    col.id === columnId
+                        ? {
+                            ...col,
+                            books: col.books.map(item =>
+                                (typeof item === 'object' && item.type === 'divider' && item.id === dividerId)
+                                    ? { ...item, label: newLabel }
+                                    : item
+                            )
+                        }
+                        : col
+                ));
+
+                setEditingDivider(null);
+                setEditingDividerLabel('');
+            };
+
+            const deleteDivider = (columnId, dividerId) => {
+                setColumns(columns.map(col =>
+                    col.id === columnId
+                        ? {
+                            ...col,
+                            books: col.books.filter(item =>
+                                !(typeof item === 'object' && item.type === 'divider' && item.id === dividerId)
+                            )
+                        }
+                        : col
+                ));
+            };
+
+            const autoDivideBySeries = (columnId) => {
+                const column = columns.find(c => c.id === columnId);
+                if (!column) return;
+
+                // Get actual book objects (not dividers)
+                const bookItems = column.books.filter(item => typeof item === 'string');
+                const bookObjects = bookItems.map(id => books.find(b => b.id === id)).filter(Boolean);
+
+                if (bookObjects.length === 0) return;
+
+                // Group books by series (books without series stay at end)
+                const seriesGroups = {};
+                const noSeriesBooks = [];
+
+                bookObjects.forEach(book => {
+                    if (book.series) {
+                        if (!seriesGroups[book.series]) {
+                            seriesGroups[book.series] = [];
+                        }
+                        seriesGroups[book.series].push(book.id);
+                    } else {
+                        noSeriesBooks.push(book.id);
+                    }
+                });
+
+                // Sort series names alphabetically
+                const sortedSeriesNames = Object.keys(seriesGroups).sort((a, b) => a.localeCompare(b));
+
+                // Build new books array with dividers
+                const newBooks = [];
+                sortedSeriesNames.forEach(seriesName => {
+                    const dividerId = `divider-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    newBooks.push({
+                        type: 'divider',
+                        id: dividerId,
+                        label: seriesName
+                    });
+                    newBooks.push(...seriesGroups[seriesName]);
+                });
+
+                // Add books without series at the end (no divider)
+                newBooks.push(...noSeriesBooks);
+
+                setColumns(columns.map(col =>
+                    col.id === columnId ? { ...col, books: newBooks } : col
+                ));
+
+                setColumnMenuOpen(null);
+            };
+
+            const autoDivideByRating = (columnId) => {
+                const column = columns.find(c => c.id === columnId);
+                if (!column) return;
+
+                // Get actual book objects (not dividers)
+                const bookItems = column.books.filter(item => typeof item === 'string');
+                const bookObjects = bookItems.map(id => books.find(b => b.id === id)).filter(Boolean);
+
+                if (bookObjects.length === 0) return;
+
+                // Group books by rating tier
+                const ratingTiers = {
+                    '5 Stars': [],
+                    '4 Stars': [],
+                    '3 Stars': [],
+                    '2 Stars': [],
+                    '1 Star': [],
+                    'No Rating': []
+                };
+
+                bookObjects.forEach(book => {
+                    if (!book.rating || book.rating === 0) {
+                        ratingTiers['No Rating'].push(book.id);
+                    } else if (book.rating >= 4.5) {
+                        ratingTiers['5 Stars'].push(book.id);
+                    } else if (book.rating >= 3.5) {
+                        ratingTiers['4 Stars'].push(book.id);
+                    } else if (book.rating >= 2.5) {
+                        ratingTiers['3 Stars'].push(book.id);
+                    } else if (book.rating >= 1.5) {
+                        ratingTiers['2 Stars'].push(book.id);
+                    } else {
+                        ratingTiers['1 Star'].push(book.id);
+                    }
+                });
+
+                // Build new books array with dividers (only for non-empty tiers)
+                const tierOrder = ['5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star', 'No Rating'];
+                const newBooks = [];
+
+                tierOrder.forEach(tier => {
+                    if (ratingTiers[tier].length > 0) {
+                        const dividerId = `divider-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                        newBooks.push({
+                            type: 'divider',
+                            id: dividerId,
+                            label: tier
+                        });
+                        newBooks.push(...ratingTiers[tier]);
+                    }
+                });
+
+                setColumns(columns.map(col =>
+                    col.id === columnId ? { ...col, books: newBooks } : col
+                ));
+
+                setColumnMenuOpen(null);
             };
 
             const openBookModal = (book, columnId) => {
@@ -1707,7 +1890,17 @@
             };
 
             const filteredBooks = (bookIds) => {
-                return bookIds.map(id => books.find(b => b.id === id)).filter(book => {
+                return bookIds.map(item => {
+                    // v3.11.0 - Handle dividers (pass through as-is)
+                    if (typeof item === 'object' && item.type === 'divider') {
+                        return item;
+                    }
+                    // Regular book ID - look up book object
+                    return books.find(b => b.id === item);
+                }).filter(book => {
+                    // v3.11.0 - Dividers always pass through filters
+                    if (typeof book === 'object' && book.type === 'divider') return true;
+
                     if (!book) return false;
 
                     // Text search filter
@@ -2925,8 +3118,68 @@
                                     </div>
                                     <div className="flex-1 overflow-y-auto p-4">
                                         <div className="grid grid-cols-3 gap-3 relative book-grid">
-                                            {filteredBooks(column.books).map((book) => {
-                                                const actualIndex = column.books.indexOf(book.id);
+                                            {filteredBooks(column.books).map((item) => {
+                                                // v3.11.0 - Handle dividers
+                                                if (typeof item === 'object' && item.type === 'divider') {
+                                                    const [isHovering, setIsHovering] = useState(false);
+                                                    const isEditing = editingDivider && editingDivider.columnId === column.id && editingDivider.dividerId === item.id;
+
+                                                    return (
+                                                        <div key={item.id}
+                                                             className="col-span-3 flex items-center gap-2 py-2 px-3 my-1 rounded"
+                                                             style={{ backgroundColor: '#f3f4f6' }}
+                                                             onMouseEnter={() => setIsHovering(true)}
+                                                             onMouseLeave={() => setIsHovering(false)}>
+                                                            {isHovering && (
+                                                                <span className="text-gray-400 cursor-grab text-lg">⋮</span>
+                                                            )}
+                                                            <div className="flex-1 text-center">
+                                                                {isEditing ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={editingDividerLabel}
+                                                                        onChange={(e) => setEditingDividerLabel(e.target.value)}
+                                                                        onBlur={finishEditingDivider}
+                                                                        onKeyPress={(e) => {
+                                                                            if (e.key === 'Enter') finishEditingDivider();
+                                                                        }}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Escape') {
+                                                                                setEditingDivider(null);
+                                                                                setEditingDividerLabel('');
+                                                                            }
+                                                                        }}
+                                                                        className="text-sm font-semibold text-gray-700 border-2 border-blue-500 rounded px-2 py-1 text-center"
+                                                                        autoFocus
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    />
+                                                                ) : (
+                                                                    <span
+                                                                        className="text-sm font-semibold text-gray-700 cursor-pointer select-none"
+                                                                        onDoubleClick={() => startEditingDivider(column.id, item.id, item.label)}
+                                                                        title="Double-click to rename">
+                                                                        ═══ {item.label} ═══
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {isHovering && (
+                                                                <button
+                                                                    onClick={() => deleteDivider(column.id, item.id)}
+                                                                    className="text-gray-400 hover:text-red-600 font-bold text-lg"
+                                                                    title="Delete divider">
+                                                                    ✕
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                }
+
+                                                // Regular book rendering
+                                                const book = item;
+                                                const actualIndex = column.books.findIndex(b =>
+                                                    (typeof b === 'object' && b.type === 'divider' && b.id === item.id) ||
+                                                    (typeof b === 'string' && b === book.id)
+                                                );
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
                                                         {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex && draggedBook?.id !== book.id && (
