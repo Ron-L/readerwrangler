@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.11.0 - Series Dividers Within Columns
+        // ReaderWrangler JS v3.12.0 - Auto-Scroll During Drag
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.11.0";
+        const ORGANIZER_VERSION = "v3.12.0";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -205,6 +205,9 @@
 
             // v3.11.0.d - Ref for column menu click-outside detection
             const columnMenuRef = useRef(null);
+
+            // v3.12.0 - Auto-scroll during drag
+            const [autoScrollInterval, setAutoScrollInterval] = useState(null);
 
             // Status bar state (v3.9.0 - Load-state-only, 4 states)
             const [libraryStatus, setLibraryStatus] = useState({
@@ -1813,11 +1816,11 @@
             const handleMouseMove = (e) => {
                 if (draggedColumn) {
                     setDragCurrentPos({ x: e.clientX, y: e.clientY });
-                    
+
                     const deltaX = e.clientX - dragStartPos.x;
                     const deltaY = e.clientY - dragStartPos.y;
                     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                    
+
                     if (distance > dragThreshold) {
                         if (!isDraggingColumn) {
                             setIsDraggingColumn(true);
@@ -1829,13 +1832,13 @@
                 }
 
                 if (!draggedBook) return;
-                
+
                 setDragCurrentPos({ x: e.clientX, y: e.clientY });
-                
+
                 const deltaX = e.clientX - dragStartPos.x;
                 const deltaY = e.clientY - dragStartPos.y;
                 const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                
+
                 if (distance > dragThreshold) {
                     if (!isDragging) {
                         setIsDragging(true);
@@ -1846,13 +1849,76 @@
                         const columnId = target.dataset.columnId;
                         const dropPos = calculateDropPosition(e, columnId);
                         setDropTarget(dropPos);
+
+                        // v3.12.0.c - Auto-scroll when dragging near column edges
+                        // Use dragged book position (center of ghost) instead of cursor position
+                        // Scroll speed proportional to proximity (closer = faster)
+                        const columnElement = target.querySelector('.overflow-y-auto');
+                        if (columnElement) {
+                            const rect = columnElement.getBoundingClientRect();
+                            const edgeThreshold = 100; // pixels from top/bottom to trigger scroll
+                            const minScrollSpeed = 2; // pixels per interval at threshold edge
+                            const maxScrollSpeed = 20; // pixels per interval at column edge
+                            const scrollInterval = 50; // milliseconds
+
+                            // Calculate dragged book's center position (ghost is at dragCurrentPos.y - 75, with height ~150px)
+                            const draggedBookCenterY = dragCurrentPos.y;
+
+                            const distanceFromTop = draggedBookCenterY - rect.top;
+                            const distanceFromBottom = rect.bottom - draggedBookCenterY;
+
+                            // Clear existing auto-scroll interval
+                            if (autoScrollInterval) {
+                                clearInterval(autoScrollInterval);
+                                setAutoScrollInterval(null);
+                            }
+
+                            // Start scrolling up if book center near top edge
+                            if (distanceFromTop < edgeThreshold && distanceFromTop > 0) {
+                                // Calculate proportional speed: closer to edge = faster
+                                // distanceFromTop: 0px (at edge) → 100px (threshold edge)
+                                // speed: maxScrollSpeed (at edge) → minScrollSpeed (threshold edge)
+                                const proximity = 1 - (distanceFromTop / edgeThreshold); // 1.0 at edge, 0.0 at threshold
+                                const scrollSpeed = minScrollSpeed + (proximity * (maxScrollSpeed - minScrollSpeed));
+
+                                const interval = setInterval(() => {
+                                    columnElement.scrollTop = Math.max(0, columnElement.scrollTop - scrollSpeed);
+                                }, scrollInterval);
+                                setAutoScrollInterval(interval);
+                            }
+                            // Start scrolling down if book center near bottom edge
+                            else if (distanceFromBottom < edgeThreshold && distanceFromBottom > 0) {
+                                // Calculate proportional speed: closer to edge = faster
+                                const proximity = 1 - (distanceFromBottom / edgeThreshold);
+                                const scrollSpeed = minScrollSpeed + (proximity * (maxScrollSpeed - minScrollSpeed));
+
+                                const interval = setInterval(() => {
+                                    columnElement.scrollTop = Math.min(
+                                        columnElement.scrollHeight - columnElement.clientHeight,
+                                        columnElement.scrollTop + scrollSpeed
+                                    );
+                                }, scrollInterval);
+                                setAutoScrollInterval(interval);
+                            }
+                        }
                     } else {
                         setDropTarget(null);
+                        // Clear auto-scroll if mouse leaves column
+                        if (autoScrollInterval) {
+                            clearInterval(autoScrollInterval);
+                            setAutoScrollInterval(null);
+                        }
                     }
                 }
             };
 
             const handleMouseUp = (e) => {
+                // v3.12.0 - Clear auto-scroll interval when drag ends
+                if (autoScrollInterval) {
+                    clearInterval(autoScrollInterval);
+                    setAutoScrollInterval(null);
+                }
+
                 if (isDraggingColumn && draggedColumn && columnDropTarget !== null) {
                     const currentIndex = columns.findIndex(c => c.id === draggedColumn);
                     if (currentIndex !== -1 && currentIndex !== columnDropTarget) {
@@ -1862,7 +1928,7 @@
                         newColumns.splice(adjustedIndex, 0, movedColumn);
                         setColumns(newColumns);
                     }
-                    
+
                     setDraggedColumn(null);
                     setIsDraggingColumn(false);
                     setColumnDropTarget(null);
