@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.0.j - Load-State-Only Status System
+        // ReaderWrangler JS v3.9.0.k - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.0.j";
+        const ORGANIZER_VERSION = "v3.9.0.k";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1804,7 +1804,7 @@
                                 </label>
                                 <button onClick={clearLibrary}
                                         className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
-                                        title="Reset all app data (library, collections, columns, filters). Your files on disk are NOT affected.">
+                                        title="Click for details about what will be reset">
                                     🗑️ Reset App
                                 </button>
                                 <button 
