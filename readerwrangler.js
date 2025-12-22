@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.11.0.e - Series Dividers Within Columns (series sort/auto-divide bug fixes)
+        // ReaderWrangler JS v3.11.0.f - Series Dividers Within Columns (auto-divide sorts within series)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.11.0.e";
+        const ORGANIZER_VERSION = "v3.11.0.f";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1485,6 +1485,20 @@
 
                 // Sort series names alphabetically
                 const sortedSeriesNames = Object.keys(seriesGroups).sort((a, b) => a.localeCompare(b));
+
+                // v3.11.0.f - Sort books within each series by position
+                sortedSeriesNames.forEach(seriesName => {
+                    const bookIds = seriesGroups[seriesName];
+                    const seriesBookObjects = bookIds.map(id => books.find(b => b.id === id)).filter(Boolean);
+
+                    // Sort by seriesPosition (books without position go last)
+                    seriesBookObjects.sort((a, b) => {
+                        return (parseInt(a.seriesPosition) || 999) - (parseInt(b.seriesPosition) || 999);
+                    });
+
+                    // Update the group with sorted IDs
+                    seriesGroups[seriesName] = seriesBookObjects.map(book => book.id);
+                });
 
                 // Build new books array with dividers
                 const newBooks = [];
