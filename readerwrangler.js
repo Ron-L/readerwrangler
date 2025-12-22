@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.12.0.c - Auto-Scroll During Drag (Proportional Speed)
+        // ReaderWrangler JS v3.12.0 - Auto-Scroll During Drag
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.12.0.c";
+        const ORGANIZER_VERSION = "v3.12.0";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
