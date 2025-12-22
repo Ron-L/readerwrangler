@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.0 - Load-State-Only Status System
+        // ReaderWrangler JS v3.9.2.a - Reset App Backup Reminder
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.1";
+        const ORGANIZER_VERSION = "v3.9.2.a";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -722,6 +722,7 @@
                              '• Reset all filters\n\n' +
                              'Your library/collections files on disk will NOT be deleted.\n' +
                              'You can reload them anytime.\n\n' +
+                             '💡 Tip: Use the Backup button first to save your organization before resetting.\n\n' +
                              'Continue?')) {
                     return;
                 }
