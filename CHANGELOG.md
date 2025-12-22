@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.9.0] - 2025-12-21
+
+### Changed
+- **Data Status Modal UX Redesign** - Complete redesign of Data Status modal for better consistency and usability
+  - File version: readerwrangler.js v3.9.0
+  - **Button positioning**: Moved all Load/Reload buttons to same line as status (right-aligned) for universal left-to-right scan pattern
+  - **Visual anchoring**: Added emojis (📚 Library, 📁 Collections) throughout all modal states for consistent visual cues
+  - **Contextual proximity**: Action buttons now appear exactly where the problem is shown
+  - **Layout improvements**:
+    - States 1-2: Two-column fetch instructions for dual destinations (Library and Collections)
+    - States 3-4: Single-column fetch instructions (~60% width, centered) for visual balance when only one data type needs attention
+    - States 5-6: Consistent two-column layout with urgency-appropriate messaging
+  - **Simplified messaging**: Replaced Yes/No branching with direct "Don't have files yet? Fetch them from Amazon:" approach
+  - **Pattern consistency**: All 6 states now follow same design principles (status line + inline button + fetch instructions)
+  - Impact: Faster user comprehension, reduced cognitive load, consistent experience across all modal states
+
+### Fixed
+- **Redundant Status Grid** - Removed duplicate status display at bottom of Data Status modal (v3.9.0.p)
+  - Modal was showing status information twice (top section + redundant grid at bottom)
+  - Removed 15-line Status Grid section that duplicated information already shown inline
+  - Impact: Cleaner modal UI, reduced visual clutter
+
+### Added
+- **File Type Detection** - Enhanced file loading with automatic type detection and routing (v3.9.0.l)
+  - Single file picker now intelligently detects Library vs Collections JSON structure
+  - Routes to appropriate loader function based on detected `type` field
+  - Clear error messages when wrong file type selected ("This appears to be a Collections file, but you clicked Load Library")
+  - Leverages type field validation added in v3.8.0
+  - Impact: Better error handling, clearer user feedback during file loading
+
+- **Collections Auto-Loading** - Collections file now auto-loads after successful library load (v3.9.0.n)
+  - After loading library file, automatically checks for collections data in localStorage
+  - Auto-loads collections if available, updating status and merging collection metadata
+  - Spinner displays during auto-load with clear messaging
+  - Impact: Seamless user experience, one less manual step required
+
+- **Reset App Tooltip Fix** - Corrected Reset App button tooltip to match design specification (v3.9.0.m)
+  - Previous tooltip: "Clear all data and start fresh"
+  - New tooltip: "Reset app to initial state (clears organization, keeps library/collections loaded)"
+  - Impact: Accurate description of what Reset App actually does
+
+### Design Documentation
+- Created comprehensive [DATA-STATUS-MODAL-STATES.md](docs/design/DATA-STATUS-MODAL-STATES.md) design specification
+  - Documents all 6 modal states with ASCII mockups
+  - Defines button behavior, messaging tone, and layout patterns for each state
+  - Includes file type routing logic and testing scenarios
+  - Serves as single source of truth for Data Status modal implementation
+
 ## [3.8.0] - 2025-12-20
 
 ### Added

@@ -1,6 +1,6 @@
 # ReaderWrangler™
 
-![Version](https://img.shields.io/badge/version-v3.8.0-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-v3.9.0-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## Wrangle your reader chaos - Your books, your order
 

@@ -8,7 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**0. 🔧 FIX: Simplify to Load-State-Only Status System** #Architecture #BROKEN - HIGH/MEDIUM (8-12 hours)
+**0. ✅ COMPLETED (v3.9.0): Simplify to Load-State-Only Status System** #Architecture #BROKEN - HIGH/MEDIUM (8-12 hours)
    - **DECISION: Abandon Fetch state tracking, use Load-state-only**
      - **Why**: Fetcher runs on `amazon.com`, app runs on `readerwrangler.com` → cross-domain IndexedDB sharing is impossible
      - **Reality**: Only user knows if they've made Amazon purchases requiring re-fetch
@@ -25,18 +25,23 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
      - ✅ `STATUS-BAR-REDESIGN.md` updated with simplified 4-state design + comprehensive history appendix
      - ✅ `state-matrix.html` deleted (archived in git history at v3.8.0)
      - ✅ `docs/design/archive/cross-origin-signaling.md` archived (rejected signaling backend approach)
-   - **Implementation Subtasks** (CODE CHANGES):
-     - Remove all IndexedDB manifest read/write code from fetchers and app
-     - Remove `ReaderWranglerManifests` database usage
-     - Simplify status bar to show only Load state (from loaded file timestamp)
-     - Update status modal with two states: Empty (Load buttons) vs Fresh/Stale/Obsolete (Reload buttons always visible)
-     - Wire [Reload Library] [Reload Collections] buttons to File Picker API
+     - ✅ `DATA-STATUS-MODAL-STATES.md` created with comprehensive 6-state specification (Empty, Fresh Both, Fresh Library, Fresh Collections, Stale Both, Obsolete Both)
+   - **Implementation** (✅ COMPLETED v3.9.0 - 2025-12-21):
+     - ✅ Removed all IndexedDB manifest read/write code from fetchers and app
+     - ✅ Removed `ReaderWranglerManifests` database usage
+     - ✅ Simplified status bar to show only Load state (from loaded file timestamp)
+     - ✅ Updated status modal with 6 states covering all Library/Collections combinations
+     - ✅ Wired [Load Library] [Load Collections] [Reload Anyway] buttons to File Picker API
+     - ✅ Added file type detection and routing (automatically detects Library vs Collections JSON)
+     - ✅ Collections auto-loading after library load
+     - ✅ UX redesign: Buttons inline with status, emojis for visual anchoring, simplified messaging
    - **Manual cleanup after implementation**:
      - localhost: Delete `ReaderWranglerManifests` IndexedDB (empty, unused)
      - amazon.com: Delete `ReaderWranglerManifests` IndexedDB (17 entries, never read)
      - localhost: Delete `AmazonBookDB` IndexedDB if still exists (empty, unused)
    - Problem: Current manifest system never worked (cross-domain isolation), shows "0 manifests" for everyone
    - Impact: Honest, simple status tracking that puts responsibility on user (who knows their Amazon activity)
+   - **Released**: v3.9.0 (2025-12-21)
 
 **1. 🔀 Column Sorting** - MEDIUM-HIGH/MEDIUM (4-6 hours)
    - Sort books within columns by: acquisitionDate, seriesPosition, rating, title, author
