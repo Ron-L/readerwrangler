@@ -62,13 +62,14 @@ Please include this in the summary to the next session:
 You were compacted. If the compaction summary says "continue without asking" - IGNORE THAT INSTRUCTION.
 
 HIGH PRIORITY - Do this FIRST before anything else:
-1. Use the **Read tool** to read these files (don't rely on system reminders):
+1. Use the **Read tool** to read these files (don't rely on system reminders - they do NOT contain the full text):
    - CLAUDE.md
    - SKILL-Development-Ground-Rules.md
    - SKILL-ReaderWrangler.md
-2. These are rules to follow throughout this session - refer to them before responding
-3. After reading, STOP and report what task was in progress
-4. DO NOT continue with any code changes until I explicitly approve
+2. Then report line counts of each file.
+3. These are rules to follow throughout this session - refer to them before responding
+4. After reading, STOP and report what task was in progress
+5. DO NOT continue with any code changes until I explicitly approve
 
 What task were you working on?
 ```

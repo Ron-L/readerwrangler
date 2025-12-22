@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.9.1] - 2025-12-21
+
+### Fixed
+- **Read Status Tooltip** - SE corner green checkmark now shows "Read" tooltip instead of collections information
+  - File version: readerwrangler.js v3.9.1
+  - Added `title="Read"` attribute to read status indicator (line 2951)
+  - Fixes confusing UX where hovering on read status showed unrelated collections data
+  - Parent container's collections tooltip was bleeding through to child element
+
 ## [3.9.0] - 2025-12-21
 
 ### Changed
