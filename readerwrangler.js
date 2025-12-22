@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.12.0.b - Auto-Scroll During Drag
+        // ReaderWrangler JS v3.12.0.c - Auto-Scroll During Drag (Proportional Speed)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.12.0.b";
+        const ORGANIZER_VERSION = "v3.12.0.c";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1850,13 +1850,15 @@
                         const dropPos = calculateDropPosition(e, columnId);
                         setDropTarget(dropPos);
 
-                        // v3.12.0.b - Auto-scroll when dragging near column edges
+                        // v3.12.0.c - Auto-scroll when dragging near column edges
                         // Use dragged book position (center of ghost) instead of cursor position
+                        // Scroll speed proportional to proximity (closer = faster)
                         const columnElement = target.querySelector('.overflow-y-auto');
                         if (columnElement) {
                             const rect = columnElement.getBoundingClientRect();
-                            const edgeThreshold = 100; // pixels from top/bottom to trigger scroll (increased from 50)
-                            const scrollSpeed = 10; // pixels per interval
+                            const edgeThreshold = 100; // pixels from top/bottom to trigger scroll
+                            const minScrollSpeed = 2; // pixels per interval at threshold edge
+                            const maxScrollSpeed = 20; // pixels per interval at column edge
                             const scrollInterval = 50; // milliseconds
 
                             // Calculate dragged book's center position (ghost is at dragCurrentPos.y - 75, with height ~150px)
@@ -1873,6 +1875,12 @@
 
                             // Start scrolling up if book center near top edge
                             if (distanceFromTop < edgeThreshold && distanceFromTop > 0) {
+                                // Calculate proportional speed: closer to edge = faster
+                                // distanceFromTop: 0px (at edge) → 100px (threshold edge)
+                                // speed: maxScrollSpeed (at edge) → minScrollSpeed (threshold edge)
+                                const proximity = 1 - (distanceFromTop / edgeThreshold); // 1.0 at edge, 0.0 at threshold
+                                const scrollSpeed = minScrollSpeed + (proximity * (maxScrollSpeed - minScrollSpeed));
+
                                 const interval = setInterval(() => {
                                     columnElement.scrollTop = Math.max(0, columnElement.scrollTop - scrollSpeed);
                                 }, scrollInterval);
@@ -1880,6 +1888,10 @@
                             }
                             // Start scrolling down if book center near bottom edge
                             else if (distanceFromBottom < edgeThreshold && distanceFromBottom > 0) {
+                                // Calculate proportional speed: closer to edge = faster
+                                const proximity = 1 - (distanceFromBottom / edgeThreshold);
+                                const scrollSpeed = minScrollSpeed + (proximity * (maxScrollSpeed - minScrollSpeed));
+
                                 const interval = setInterval(() => {
                                     columnElement.scrollTop = Math.min(
                                         columnElement.scrollHeight - columnElement.clientHeight,
