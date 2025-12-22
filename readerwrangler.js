@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.12.0 - Auto-Scroll During Drag
+        // ReaderWrangler JS v3.13.0 - Selectable Dividers
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.12.0";
+        const ORGANIZER_VERSION = "v3.13.0";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -192,6 +192,7 @@
             const [collectionFilter, setCollectionFilter] = useState(''); // Filter by collection name or special values
             const [selectedBooks, setSelectedBooks] = useState(new Set()); // Multi-select state
             const [lastClickedBook, setLastClickedBook] = useState(null); // For shift+click range selection
+            const [selectedDivider, setSelectedDivider] = useState(null); // v3.13.0 - Selected divider {columnId, dividerId}
             const [activeColumnId, setActiveColumnId] = useState(null); // Track which column has focus for Ctrl+A
             const [contextMenu, setContextMenu] = useState(null); // {x, y, bookId, columnId}
             const [readStatusFilter, setReadStatusFilter] = useState(''); // Filter by READ/UNREAD/UNKNOWN
@@ -1656,6 +1657,34 @@
             const clearSelection = () => {
                 setSelectedBooks(new Set());
                 setLastClickedBook(null);
+                setSelectedDivider(null); // v3.13.0 - Clear divider selection too
+            };
+
+            // v3.13.0 - Select divider and all books in its group
+            const selectDividerGroup = (columnId, dividerId) => {
+                const column = columns.find(col => col.id === columnId);
+                if (!column) return;
+
+                // Find divider index
+                const dividerIndex = column.books.findIndex(item =>
+                    typeof item === 'object' && item.type === 'divider' && item.id === dividerId
+                );
+                if (dividerIndex === -1) return;
+
+                // Find all books from this divider until next divider (or end of column)
+                const booksInGroup = [];
+                for (let i = dividerIndex + 1; i < column.books.length; i++) {
+                    const item = column.books[i];
+                    // Stop at next divider
+                    if (typeof item === 'object' && item.type === 'divider') break;
+                    // Add book ID to group
+                    if (typeof item === 'string') booksInGroup.push(item);
+                }
+
+                // Select the books in this group
+                setSelectedBooks(new Set(booksInGroup));
+                setSelectedDivider({ columnId, dividerId });
+                setActiveColumnId(columnId);
             };
 
             const navigateBook = (direction) => {
@@ -1959,15 +1988,26 @@
                     return;
                 }
 
-                // v3.11.0 - Handle dividers (dividers are always moved individually, not with selection)
+                // v3.13.0 - Handle dividers (can move with their book group if selected)
                 const isDivider = typeof draggedBook === 'object' && draggedBook.type === 'divider';
 
                 // Determine which items to move
-                const itemsToMove = isDivider
-                    ? [draggedBook] // Dividers move alone
-                    : (selectedBooks.size > 0 && selectedBooks.has(draggedBook.id)
+                let itemsToMove;
+                if (isDivider) {
+                    // v3.13.0 - If divider is selected, move divider + all books in its group
+                    if (selectedDivider && selectedDivider.dividerId === draggedBook.id) {
+                        // Build array: [divider, ...bookIds]
+                        itemsToMove = [draggedBook, ...Array.from(selectedBooks)];
+                    } else {
+                        // Divider not selected: move alone
+                        itemsToMove = [draggedBook];
+                    }
+                } else {
+                    // Regular book: move selection or just this book
+                    itemsToMove = (selectedBooks.size > 0 && selectedBooks.has(draggedBook.id)
                         ? Array.from(selectedBooks) // Move all selected books
                         : [draggedBook.id]); // Move just the dragged book
+                }
 
                 if (draggedFromColumn === dropTarget.columnId) {
                     // Same column: reorder
@@ -1975,25 +2015,37 @@
                         if (col.id === draggedFromColumn) {
                             const newBooks = [...col.books];
 
-                            // v3.11.0 - Filter items to move (handle both book IDs and divider objects)
-                            const itemsToMoveFiltered = isDivider
-                                ? [draggedBook] // Move just the divider
-                                : itemsToMove.filter(id => newBooks.includes(id)); // Move selected books
+                            // v3.13.0 - Filter items to move (handle divider objects and book IDs)
+                            const itemsToMoveFiltered = itemsToMove.filter(item => {
+                                if (typeof item === 'object' && item.type === 'divider') {
+                                    // Divider: check if exists in column
+                                    return newBooks.some(b => typeof b === 'object' && b.type === 'divider' && b.id === item.id);
+                                } else {
+                                    // Book ID: check if exists in column
+                                    return newBooks.includes(item);
+                                }
+                            });
 
                             // Remove all items to move
                             itemsToMoveFiltered.forEach(item => {
-                                const idx = isDivider
-                                    ? newBooks.findIndex(b => typeof b === 'object' && b.type === 'divider' && b.id === item.id)
-                                    : newBooks.indexOf(item);
-                                if (idx !== -1) newBooks.splice(idx, 1);
+                                if (typeof item === 'object' && item.type === 'divider') {
+                                    const idx = newBooks.findIndex(b => typeof b === 'object' && b.type === 'divider' && b.id === item.id);
+                                    if (idx !== -1) newBooks.splice(idx, 1);
+                                } else {
+                                    const idx = newBooks.indexOf(item);
+                                    if (idx !== -1) newBooks.splice(idx, 1);
+                                }
                             });
 
                             // Calculate adjusted insert index
                             let adjustedIndex = dropTarget.index;
                             itemsToMoveFiltered.forEach(item => {
-                                const originalIndex = isDivider
-                                    ? col.books.findIndex(b => typeof b === 'object' && b.type === 'divider' && b.id === item.id)
-                                    : col.books.indexOf(item);
+                                let originalIndex;
+                                if (typeof item === 'object' && item.type === 'divider') {
+                                    originalIndex = col.books.findIndex(b => typeof b === 'object' && b.type === 'divider' && b.id === item.id);
+                                } else {
+                                    originalIndex = col.books.indexOf(item);
+                                }
                                 if (originalIndex !== -1 && originalIndex < dropTarget.index) {
                                     adjustedIndex--;
                                 }
@@ -3369,11 +3421,18 @@
                                                 if (typeof item === 'object' && item.type === 'divider') {
                                                     const isHovering = hoveringDivider && hoveringDivider.columnId === column.id && hoveringDivider.dividerId === item.id;
                                                     const isEditing = editingDivider && editingDivider.columnId === column.id && editingDivider.dividerId === item.id;
+                                                    const isSelected = selectedDivider && selectedDivider.columnId === column.id && selectedDivider.dividerId === item.id; // v3.13.0
 
                                                     return (
                                                         <div key={item.id}
-                                                             className="col-span-3 flex items-center gap-2 py-2 px-3 my-1 rounded"
-                                                             style={{ backgroundColor: '#f3f4f6' }}
+                                                             className={`col-span-3 flex items-center gap-2 py-2 px-3 my-1 rounded cursor-pointer ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
+                                                             style={{ backgroundColor: isSelected ? '#dbeafe' : '#f3f4f6' }}
+                                                             onClick={(e) => {
+                                                                 if (!isEditing) {
+                                                                     e.stopPropagation();
+                                                                     selectDividerGroup(column.id, item.id);
+                                                                 }
+                                                             }}
                                                              onMouseEnter={() => setHoveringDivider({ columnId: column.id, dividerId: item.id })}
                                                              onMouseLeave={() => setHoveringDivider(null)}>
                                                             {isHovering && (
@@ -3433,7 +3492,8 @@
                                                 );
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
-                                                        {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex && draggedBook?.id !== book.id && (
+                                                        {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
+                                                         draggedBook?.id !== book.id && !selectedBooks.has(book.id) && (
                                                             <div className="drop-indicator" style={{ top: '-6px' }} />
                                                         )}
                                                         <div className={`book-clickable ${selectedBooks.has(book.id) ? 'selected' : ''} ${draggedBook?.id === book.id && isDragging ? 'dragging' : ''}`}
