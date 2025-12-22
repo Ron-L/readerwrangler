@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.11.0.f - Series Dividers Within Columns (auto-divide sorts within series)
+        // ReaderWrangler JS v3.11.0 - Series Dividers Within Columns
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.11.0.f";
+        const ORGANIZER_VERSION = "v3.11.0";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
