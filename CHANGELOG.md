@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.11.0] - 2025-12-22
+
+### Added
+- **Series Dividers Within Columns** - Visual section headers to organize books within columns
+  - File version: readerwrangler.js v3.11.0
+  - **Core Features:**
+    - Manual dividers: Insert custom dividers via column dropdown menu → "Insert Divider"
+    - Rename: Double-click divider text for inline editing (Enter to save, ESC to cancel)
+    - Delete: Hover divider → click ✕ button (no confirmation)
+    - Reposition: Hover divider → drag via ⋮ handle to any position in column
+    - Dividers mix freely with books in drag-and-drop (treated as items in book array)
+  - **Auto-Generate Helpers:**
+    - "Auto-Divide by Series" - Groups books by series name (alphabetically), adds divider per series, sorts books by position within each series
+    - "Auto-Divide by Rating" - Groups books by rating tiers (5★, 4★, 3★, 2★, 1★, Unrated)
+    - Books without series metadata grouped under "Miscellaneous" divider
+    - After generation, dividers are normal manual dividers (rename/delete/reposition freely)
+  - **Unified Column Menu:**
+    - Replaced separate sort/delete buttons with single ⋮ dropdown menu
+    - Menu structure: Sort Column (submenu) → Auto-Divide options → Insert Divider → Rename/Delete Column
+    - ESC key closes menus (submenu first, then main menu)
+    - Click outside menus closes them
+  - **Data Structure:**
+    - Dividers stored as objects in column.books array: `{ type: 'divider', id: 'divider-...', label: 'Series Name' }`
+    - Mixed array contains both book IDs (strings) and divider objects
+    - Dividers persist to IndexedDB with organizational state
+    - Dividers always pass through filters (always visible)
+  - **Visual Design:**
+    - Horizontal bar with centered text: `═══ Series Name ═══`
+    - Gray background (#f3f4f6) differentiates from book covers
+    - Hover state reveals drag handle (⋮ left) and delete button (✕ right)
+    - Inline editing with blue border focus state
+  - **Use Cases:**
+    - Series grouping: "Jerry Mitchell" (books 1-6), "First Team" (books 3-4), "Miscellaneous"
+    - Reading status: "Read", "Currently Reading", "To Read"
+    - Rating tiers: "5 Stars", "4 Stars", "3 Stars or Below"
+    - Any custom categorization user wants
+  - **Impact:**
+    - Solves horizontal space problem: One "Author Name" column can contain multiple series with clear visual separation
+    - Efficient screen space usage for large libraries (2000+ books)
+    - Series readers can visually group books without creating many columns
+    - Alternative to complex nested hierarchies (simpler implementation, same organizational power)
+
+### Fixed
+- **Series Sort Logic** - Books with series but no position now sort correctly
+  - Previous bug: Required both `series` AND `seriesPosition` to be truthy, treating books with series but no position as "unsortable"
+  - Fix: Only check for `series` field, books without position go last in their series group (999 fallback)
+  - Example: "The Javan War" (series: "The Cruel Stars Trilogy", position: null) now sorts with its series instead of ending up in wrong group
+  - Impact: All books with series metadata sort with their series, regardless of position data quality
+
 ## [3.10.1] - 2025-12-22
 
 ### Fixed

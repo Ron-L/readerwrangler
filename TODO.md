@@ -8,51 +8,34 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. 📑 Series Dividers Within Columns** - MEDIUM/LOW (5-7 hours)
-   - Visual section headers within columns to group books (series, read/unread, rating tiers, etc.)
-   - Solves horizontal space problem: One "Larry Bond" column can contain multiple series with clear visual separation
-   - **Core Feature: Manual Dividers**
-     - Data structure: Special divider type in books array: `{ type: 'divider', label: 'Jerry Mitchell' }`
-     - Add: Column dropdown menu → "Insert Divider" → prompt for label → appears at bottom, drag to position
-     - Rename: Double-click divider text → inline editing → Enter/click outside to save, ESC to cancel
-     - Delete: Hover divider → "✕" button appears on right → click to delete (no confirmation)
-     - Reposition: Hover divider → drag handle "⋮" appears on left → drag to new position
-     - Dividers mixed freely with books in column (treated as items in drag-and-drop)
-   - **Helper Feature: Auto-Generate Dividers**
-     - Column dropdown menu: "Auto-Divide by Series", "Auto-Divide by Rating", etc.
-     - Workflow: Sort column by series → Click "Auto-Divide by Series" → analyzes books → inserts dividers between series groups
-     - After generation, dividers are just normal dividers (rename/delete/add more manually)
-     - Handles missing series data: Books without series stay where they are, user adds dividers manually
-   - **Visual Design**
-     - Horizontal bar with centered text: `═══ Jerry Mitchell ═══`
-     - Subtle background color differentiation from books
-     - Hover state shows drag handle (left) and delete button (right)
-     - Not draggable by default (prevents conflict with double-click edit)
-   - **UI Location**
-     - Column dropdown menu structure:
-       ```
-       ├─ Rename Column
-       ├─ Delete Column
-       ├─ Sort Column ▸
-       ├─ ─────────────────
-       ├─ Auto-Divide by Series
-       ├─ Auto-Divide by Rating
-       ├─ ─────────────────
-       └─ Insert Divider
-       ```
-   - **Use Cases**
-     - Series grouping: "Jerry Mitchell" (books 1-6), "First Team" (books 3-4), "Misc Books"
-     - Reading status: "Read", "Currently Reading", "To Read"
-     - Rating tiers: "5 Stars", "4 Stars", "3 Stars or Below"
-     - Any custom categorization user wants
-   - **Future Expansion**
-     - Easy to add more auto-divide helpers (by author, by acquisition date, by page count, etc.)
-     - All use same divider infrastructure
-   - Problem: Columns limited to single category, creating many columns wastes horizontal space
-   - Impact: Efficient use of screen space, better organization for large libraries (2000+ books), series readers can group books visually
-   - Related: Alternative to P1 #5 "Nested Groups/Hierarchies" (15-20 hours) - this is much simpler approach
+**0. ✅ Series Dividers Within Columns** - COMPLETED v3.11.0 (2025-12-22)
+   - See CHANGELOG.md [3.11.0] for full implementation details
+   - **Future UX Enhancements** (v3.12.0 candidates):
+     1. **Selectable Dividers** - MEDIUM/MEDIUM (3-4 hours)
+        - Click divider to select all books in that series group
+        - Allows dragging entire series together (divider + all books move as unit)
+        - Enables reordering popular series to top, obscure series to bottom
+        - Problem: Currently must drag divider and books separately (laborious for large series)
+     2. **Auto-Scroll During Drag** - HIGH/MEDIUM (2-3 hours)
+        - When dragging near top/bottom edge of column, auto-scroll container
+        - Critical for columns with many books (currently requires drag→drop→scroll→repeat)
+        - Problem: Can't drag items to bottom of long columns in one operation
+     3. **Dividers as Drop Targets** - MEDIUM/MEDIUM (3-4 hours)
+        - Dropping book/divider on divider inserts before/after it
+        - Makes reordering much easier (less precise targeting needed)
+        - Problem: Currently requires finding gaps between books, gymnastics for desired order
+     4. **Drag Divider by Title Area** - LOW/LOW (1 hour)
+        - Click-drag on title text (not just ⋮ handle) to reposition divider
+        - The ═══ bars make title feel like a handle (natural affordance)
+        - Must not conflict with double-click to rename
+        - Possible solution: Single-click = drag, double-click = rename
+     5. **More Auto-Divide Helpers** - LOW/LOW (1 hour each)
+        - Auto-Divide by Author (if column contains multiple authors)
+        - Auto-Divide by Acquisition Date (Year groups: 2025, 2024, 2023...)
+        - Auto-Divide by Page Count (Short < 200, Medium 200-400, Long 400+)
+        - All use same divider infrastructure
 
-**2. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
+**1. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
    - Bookmarklet on Amazon book page extracts basic metadata (ASIN, title, author, cover, rating)
    - Appends to existing `amazon-library.json` as new top-level `wishlist` array
    - User selects same library JSON file → app merges wishlist + owned books
