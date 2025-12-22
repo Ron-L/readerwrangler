@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.13.0.a - Selectable Dividers
+        // ReaderWrangler JS v3.13.0.b - Selectable Dividers (Fix double drop indicator)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.13.0.a";
+        const ORGANIZER_VERSION = "v3.13.0.b";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3492,7 +3492,8 @@
                                                 );
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
-                                                        {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex && draggedBook?.id !== book.id && (
+                                                        {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
+                                                         draggedBook?.id !== book.id && !selectedBooks.has(book.id) && (
                                                             <div className="drop-indicator" style={{ top: '-6px' }} />
                                                         )}
                                                         <div className={`book-clickable ${selectedBooks.has(book.id) ? 'selected' : ''} ${draggedBook?.id === book.id && isDragging ? 'dragging' : ''}`}
