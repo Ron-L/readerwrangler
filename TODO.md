@@ -19,7 +19,51 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Impact: Makes series position sort actually useful for organizing multi-series collections
    - Related: v3.10.0 introduced series position sort but didn't account for multi-series scenario
 
-**1. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
+**1. 📑 Series Dividers Within Columns** - MEDIUM/LOW (5-7 hours)
+   - Visual section headers within columns to group books (series, read/unread, rating tiers, etc.)
+   - Solves horizontal space problem: One "Larry Bond" column can contain multiple series with clear visual separation
+   - **Core Feature: Manual Dividers**
+     - Data structure: Special divider type in books array: `{ type: 'divider', label: 'Jerry Mitchell' }`
+     - Add: Column dropdown menu → "Insert Divider" → prompt for label → appears at bottom, drag to position
+     - Rename: Double-click divider text → inline editing → Enter/click outside to save, ESC to cancel
+     - Delete: Hover divider → "✕" button appears on right → click to delete (no confirmation)
+     - Reposition: Hover divider → drag handle "⋮" appears on left → drag to new position
+     - Dividers mixed freely with books in column (treated as items in drag-and-drop)
+   - **Helper Feature: Auto-Generate Dividers**
+     - Column dropdown menu: "Auto-Divide by Series", "Auto-Divide by Rating", etc.
+     - Workflow: Sort column by series → Click "Auto-Divide by Series" → analyzes books → inserts dividers between series groups
+     - After generation, dividers are just normal dividers (rename/delete/add more manually)
+     - Handles missing series data: Books without series stay where they are, user adds dividers manually
+   - **Visual Design**
+     - Horizontal bar with centered text: `═══ Jerry Mitchell ═══`
+     - Subtle background color differentiation from books
+     - Hover state shows drag handle (left) and delete button (right)
+     - Not draggable by default (prevents conflict with double-click edit)
+   - **UI Location**
+     - Column dropdown menu structure:
+       ```
+       ├─ Rename Column
+       ├─ Delete Column
+       ├─ Sort Column ▸
+       ├─ ─────────────────
+       ├─ Auto-Divide by Series
+       ├─ Auto-Divide by Rating
+       ├─ ─────────────────
+       └─ Insert Divider
+       ```
+   - **Use Cases**
+     - Series grouping: "Jerry Mitchell" (books 1-6), "First Team" (books 3-4), "Misc Books"
+     - Reading status: "Read", "Currently Reading", "To Read"
+     - Rating tiers: "5 Stars", "4 Stars", "3 Stars or Below"
+     - Any custom categorization user wants
+   - **Future Expansion**
+     - Easy to add more auto-divide helpers (by author, by acquisition date, by page count, etc.)
+     - All use same divider infrastructure
+   - Problem: Columns limited to single category, creating many columns wastes horizontal space
+   - Impact: Efficient use of screen space, better organization for large libraries (2000+ books), series readers can group books visually
+   - Related: Alternative to P1 #5 "Nested Groups/Hierarchies" (15-20 hours) - this is much simpler approach
+
+**2. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
    - Bookmarklet on Amazon book page extracts basic metadata (ASIN, title, author, cover, rating)
    - Appends to existing `amazon-library.json` as new top-level `wishlist` array
    - User selects same library JSON file → app merges wishlist + owned books
@@ -53,6 +97,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Impact: More flexible organization
 
 **5. 🗂️ Nested Groups/Hierarchies** #Optional - LOW/HIGH (15-20 hours)
+   - NOTE: P1 #1 "Series Dividers Within Columns" may solve this need with much simpler approach
    - Multi-level organization: "Science Fiction" → "Space Opera" → "Culture Series"
    - Nested containers for related books (e.g., series/themes)
    - Significant UI rework required
