@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.11.0.a - Series Dividers Within Columns
+        // ReaderWrangler JS v3.11.0.b - Series Dividers Within Columns (drag-and-drop integrated)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.11.0.a";
+        const ORGANIZER_VERSION = "v3.11.0.b";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
