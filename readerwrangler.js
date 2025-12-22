@@ -1305,6 +1305,7 @@
                     return { ...col, books: sortedBookIds };
                 }));
                 setSortMenuOpen(null);
+                setColumnMenuOpen(null); // v3.11.0 - Also close parent menu
             };
 
             const checkIfBlankImage = (img, bookId) => {
@@ -1353,11 +1354,25 @@
                     label: newDividerLabel.trim()
                 };
 
-                setColumns(columns.map(col =>
-                    col.id === columnId
-                        ? { ...col, books: [...col.books, divider] }
-                        : col
-                ));
+                setColumns(columns.map(col => {
+                    if (col.id !== columnId) return col;
+
+                    // Find insertion position: before first selected book, or at top if no selection
+                    let insertIndex = 0; // Default to top
+                    if (selectedBooks.size > 0) {
+                        // Find first selected book in this column
+                        const firstSelectedIndex = col.books.findIndex(item =>
+                            typeof item === 'string' && selectedBooks.has(item)
+                        );
+                        if (firstSelectedIndex !== -1) {
+                            insertIndex = firstSelectedIndex;
+                        }
+                    }
+
+                    const newBooks = [...col.books];
+                    newBooks.splice(insertIndex, 0, divider);
+                    return { ...col, books: newBooks };
+                }));
 
                 setInsertDividerOpen(null);
                 setNewDividerLabel('');
@@ -3136,6 +3151,12 @@
                                                     onChange={(e) => setEditingName(e.target.value)}
                                                     onBlur={() => finishEditingColumn(column.id)}
                                                     onKeyPress={(e) => e.key === 'Enter' && finishEditingColumn(column.id)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Escape') {
+                                                            setEditingColumn(null);
+                                                            setEditingName('');
+                                                        }
+                                                    }}
                                                     className="text-lg font-semibold text-gray-900 border-2 border-blue-500 rounded px-2 py-1"
                                                     autoFocus
                                                 />
