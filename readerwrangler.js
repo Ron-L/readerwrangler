@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.11.0.d - Series Dividers Within Columns (menu close UX)
+        // ReaderWrangler JS v3.11.0.e - Series Dividers Within Columns (series sort/auto-divide bug fixes)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.11.0.d";
+        const ORGANIZER_VERSION = "v3.11.0.e";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1300,34 +1300,34 @@
                             case 'acquired-asc':
                                 return (a.acquired || '').localeCompare(b.acquired || '');
                             case 'series-pos-asc':
-                                // Books without series or position stay in original order
-                                const aHasSeriesAsc = a.series && a.seriesPosition;
-                                const bHasSeriesAsc = b.series && b.seriesPosition;
+                                // v3.11.0.e - Books without series go to end, books with series but no position go last in their series
+                                const aHasSeriesAsc = a.series;
+                                const bHasSeriesAsc = b.series;
 
-                                if (!aHasSeriesAsc && !bHasSeriesAsc) return 0; // Both unsortable, keep original order
-                                if (!aHasSeriesAsc) return 1; // a goes after b
-                                if (!bHasSeriesAsc) return -1; // b goes after a
+                                if (!aHasSeriesAsc && !bHasSeriesAsc) return 0; // Both have no series, keep original order
+                                if (!aHasSeriesAsc) return 1; // a has no series, goes after b
+                                if (!bHasSeriesAsc) return -1; // b has no series, goes after a
 
                                 // Primary sort: group by series name (alphabetical)
                                 const seriesCompareAsc = a.series.localeCompare(b.series);
                                 if (seriesCompareAsc !== 0) return seriesCompareAsc;
 
-                                // Secondary sort: position within same series
+                                // Secondary sort: position within same series (books without position go last)
                                 return (parseInt(a.seriesPosition) || 999) - (parseInt(b.seriesPosition) || 999);
                             case 'series-pos-desc':
-                                // Books without series or position stay in original order
-                                const aHasSeriesDesc = a.series && a.seriesPosition;
-                                const bHasSeriesDesc = b.series && b.seriesPosition;
+                                // v3.11.0.e - Books without series go to end, books with series but no position go last in their series
+                                const aHasSeriesDesc = a.series;
+                                const bHasSeriesDesc = b.series;
 
-                                if (!aHasSeriesDesc && !bHasSeriesDesc) return 0; // Both unsortable, keep original order
-                                if (!aHasSeriesDesc) return 1; // a goes after b
-                                if (!bHasSeriesDesc) return -1; // b goes after a
+                                if (!aHasSeriesDesc && !bHasSeriesDesc) return 0; // Both have no series, keep original order
+                                if (!aHasSeriesDesc) return 1; // a has no series, goes after b
+                                if (!bHasSeriesDesc) return -1; // b has no series, goes after a
 
                                 // Primary sort: group by series name (alphabetical)
                                 const seriesCompareDesc = a.series.localeCompare(b.series);
                                 if (seriesCompareDesc !== 0) return seriesCompareDesc;
 
-                                // Secondary sort: position within same series (REVERSED)
+                                // Secondary sort: position within same series (REVERSED, books without position go last)
                                 return (parseInt(b.seriesPosition) || 999) - (parseInt(a.seriesPosition) || 999);
                             default:
                                 return 0;
@@ -1498,8 +1498,16 @@
                     newBooks.push(...seriesGroups[seriesName]);
                 });
 
-                // Add books without series at the end (no divider)
-                newBooks.push(...noSeriesBooks);
+                // v3.11.0.e - Add "Miscellaneous" divider for books without series
+                if (noSeriesBooks.length > 0) {
+                    const dividerId = `divider-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    newBooks.push({
+                        type: 'divider',
+                        id: dividerId,
+                        label: 'Miscellaneous'
+                    });
+                    newBooks.push(...noSeriesBooks);
+                }
 
                 setColumns(columns.map(col =>
                     col.id === columnId ? { ...col, books: newBooks } : col
