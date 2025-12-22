@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.2.a - Reset App Backup Reminder
+        // ReaderWrangler JS v3.9.2.b - Reset App Custom Modal
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.2.a";
+        const ORGANIZER_VERSION = "v3.9.2.b";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -181,6 +181,7 @@
             const [lastSyncTime, setLastSyncTime] = useState(null);
             // manifestData state removed in v3.7.0.m - replaced by libraryStatus/collectionsStatus
             const [statusModalOpen, setStatusModalOpen] = useState(false);
+            const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
             const [collectionsData, setCollectionsData] = useState(null); // Map of ASIN -> {readStatus, collections[]}
             const [collectionFilter, setCollectionFilter] = useState(''); // Filter by collection name or special values
             const [selectedBooks, setSelectedBooks] = useState(new Set()); // Multi-select state
@@ -714,19 +715,12 @@
                 }
             };
 
-            const clearLibrary = async () => {
-                if (!confirm('This will completely reset the app to its initial unused state.\n\n' +
-                             'This will:\n' +
-                             '• Unload library and collections\n' +
-                             '• Remove all columns and organization\n' +
-                             '• Reset all filters\n\n' +
-                             'Your library/collections files on disk will NOT be deleted.\n' +
-                             'You can reload them anytime.\n\n' +
-                             '💡 Tip: Use the Backup button first to save your organization before resetting.\n\n' +
-                             'Continue?')) {
-                    return;
-                }
+            const clearLibrary = () => {
+                setResetConfirmOpen(true);
+            };
 
+            const confirmReset = async () => {
+                setResetConfirmOpen(false);
                 try {
                     await clearIndexedDB();
                     localStorage.removeItem(STORAGE_KEY);
@@ -2364,6 +2358,46 @@
                         </div>
                         );
                     })()}
+
+                    {resetConfirmOpen && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setResetConfirmOpen(false)}>
+                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
+                                    <h2 className="text-xl font-bold text-gray-900">Reset App Confirmation</h2>
+                                    <button onClick={() => setResetConfirmOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold">×</button>
+                                </div>
+                                <div className="p-6 space-y-4">
+                                    <p className="text-gray-800 font-semibold">This will completely reset the app to its initial unused state.</p>
+                                    <div className="text-gray-700">
+                                        <p className="font-semibold mb-2">This will:</p>
+                                        <ul className="list-disc list-inside space-y-1 ml-2">
+                                            <li>Unload library and collections</li>
+                                            <li>Remove all columns and organization</li>
+                                            <li>Reset all filters</li>
+                                        </ul>
+                                    </div>
+                                    <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
+                                        <p className="mb-2">Your library/collections files on disk will NOT be deleted. You can reload them anytime.</p>
+                                    </div>
+                                    <div className="bg-yellow-50 border border-yellow-300 rounded p-3 text-sm">
+                                        <p className="font-semibold text-gray-800">💡 Tip: Use the Backup button first to save your organization before resetting.</p>
+                                    </div>
+                                    <div className="flex gap-3 justify-end pt-2">
+                                        <button
+                                            onClick={() => setResetConfirmOpen(false)}
+                                            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium">
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={confirmReset}
+                                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">
+                                            Reset App
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {settingsOpen && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setSettingsOpen(false)}>
