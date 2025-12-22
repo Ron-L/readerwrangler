@@ -8,13 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**0. 💡 Reset App Backup Reminder** #UX - LOW/LOW (30 minutes)
-   - Reset App confirmation dialog should remind user to backup first
-   - Current dialog warns about data loss but doesn't mention Backup button
-   - Suggested text: "💡 Tip: Use the Backup button first to save your organization before resetting"
-   - File: readerwrangler.js Reset App confirmation modal
-   - Problem: Users might forget to backup before resetting, losing their organization
-   - Impact: Prevents accidental data loss, guides users to proper workflow
+**0. ✅ COMPLETED (v3.9.2): Reset App Backup Reminder** - Custom modal with backup reminder and Chrome scrolling fix
 
 **1. 🔀 Column Sorting** - MEDIUM-HIGH/MEDIUM (4-6 hours)
    - Sort books within columns by: acquisitionDate, seriesPosition, rating, title, author

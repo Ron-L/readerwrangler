@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.9.2] - 2025-12-22
+
+### Added
+- **Reset App Backup Reminder** - Custom confirmation modal now reminds users to backup before resetting
+  - File version: readerwrangler.js v3.9.2
+  - Replaced native `confirm()` dialog with custom modal to fix Chrome scrolling bug
+  - Added backup reminder: "💡 Tip: Use the Backup button first to save your organization before resetting"
+  - Custom modal displays all content without scrolling (fixes Chrome extension bug where confirm() scroll interfered with tab scrolling)
+  - Backup reminder highlighted in yellow box for visibility
+  - Modal styled consistently with other app modals (Data Status, Settings)
+  - Prevents accidental data loss by guiding users to proper workflow
+  - Related: TODO.md Priority 1 Task 0 (COMPLETED)
+
 ## [3.9.1] - 2025-12-21
 
 ### Fixed
