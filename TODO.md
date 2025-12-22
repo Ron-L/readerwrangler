@@ -8,11 +8,6 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**0. 🐛 Fix Series Position Sort** #BUG - COMPLETED ✅ (v3.10.1 - 2025-12-22)
-   - Multi-level sort now groups books by series name first, then sorts by position within each series
-   - Books without both series AND seriesPosition remain in original position
-   - File: readerwrangler.js sortColumn function (lines 1264-1293)
-
 **1. 📑 Series Dividers Within Columns** - MEDIUM/LOW (5-7 hours)
    - Visual section headers within columns to group books (series, read/unread, rating tiers, etc.)
    - Solves horizontal space problem: One "Larry Bond" column can contain multiple series with clear visual separation
