@@ -1674,6 +1674,19 @@
                 setDropTarget(null);
             };
 
+            // v3.11.0 - Handle divider dragging
+            const handleDividerMouseDown = (e, divider, columnId) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                setDragStartPos({ x: e.clientX, y: e.clientY });
+                setDragCurrentPos({ x: e.clientX, y: e.clientY });
+                setDraggedBook(divider); // Reuse draggedBook state for dividers
+                setDraggedFromColumn(columnId);
+                setIsDragging(false);
+                setDropTarget(null);
+            };
+
             const calculateDropPosition = (e, columnId) => {
                 const column = columns.find(c => c.id === columnId);
                 if (!column) return null;
@@ -1811,10 +1824,15 @@
                     return;
                 }
 
-                // Determine which books to move
-                const booksToMove = selectedBooks.size > 0 && selectedBooks.has(draggedBook.id)
-                    ? Array.from(selectedBooks) // Move all selected books
-                    : [draggedBook.id]; // Move just the dragged book
+                // v3.11.0 - Handle dividers (dividers are always moved individually, not with selection)
+                const isDivider = typeof draggedBook === 'object' && draggedBook.type === 'divider';
+
+                // Determine which items to move
+                const itemsToMove = isDivider
+                    ? [draggedBook] // Dividers move alone
+                    : (selectedBooks.size > 0 && selectedBooks.has(draggedBook.id)
+                        ? Array.from(selectedBooks) // Move all selected books
+                        : [draggedBook.id]); // Move just the dragged book
 
                 if (draggedFromColumn === dropTarget.columnId) {
                     // Same column: reorder
@@ -1822,41 +1840,58 @@
                         if (col.id === draggedFromColumn) {
                             const newBooks = [...col.books];
 
-                            // Remove all books to move
-                            const booksToMoveFiltered = booksToMove.filter(id => newBooks.includes(id));
-                            booksToMoveFiltered.forEach(id => {
-                                const idx = newBooks.indexOf(id);
+                            // v3.11.0 - Filter items to move (handle both book IDs and divider objects)
+                            const itemsToMoveFiltered = isDivider
+                                ? [draggedBook] // Move just the divider
+                                : itemsToMove.filter(id => newBooks.includes(id)); // Move selected books
+
+                            // Remove all items to move
+                            itemsToMoveFiltered.forEach(item => {
+                                const idx = isDivider
+                                    ? newBooks.findIndex(b => typeof b === 'object' && b.type === 'divider' && b.id === item.id)
+                                    : newBooks.indexOf(item);
                                 if (idx !== -1) newBooks.splice(idx, 1);
                             });
 
                             // Calculate adjusted insert index
                             let adjustedIndex = dropTarget.index;
-                            booksToMoveFiltered.forEach(id => {
-                                const originalIndex = col.books.indexOf(id);
+                            itemsToMoveFiltered.forEach(item => {
+                                const originalIndex = isDivider
+                                    ? col.books.findIndex(b => typeof b === 'object' && b.type === 'divider' && b.id === item.id)
+                                    : col.books.indexOf(item);
                                 if (originalIndex !== -1 && originalIndex < dropTarget.index) {
                                     adjustedIndex--;
                                 }
                             });
 
-                            // Insert all books at the target position
-                            newBooks.splice(adjustedIndex, 0, ...booksToMoveFiltered);
+                            // Insert all items at the target position
+                            newBooks.splice(adjustedIndex, 0, ...itemsToMoveFiltered);
 
                             return { ...col, books: newBooks };
                         }
                         return col;
                     }));
                 } else {
-                    // Cross-column: move books
+                    // Cross-column: move items (dividers can only move within same column)
+                    if (isDivider) {
+                        console.log('Dividers cannot be moved between columns');
+                        setDraggedBook(null);
+                        setDraggedFromColumn(null);
+                        setIsDragging(false);
+                        setDropTarget(null);
+                        return;
+                    }
+
                     setColumns(columns.map(col => {
                         if (col.id === draggedFromColumn) {
                             // Remove books from source column
-                            return { ...col, books: col.books.filter(id => !booksToMove.includes(id)) };
+                            return { ...col, books: col.books.filter(id => !itemsToMove.includes(id)) };
                         }
                         if (col.id === dropTarget.columnId) {
                             // Add books to target column
                             const newBooks = [...col.books];
                             const insertIndex = Math.min(dropTarget.index, newBooks.length);
-                            newBooks.splice(insertIndex, 0, ...booksToMove);
+                            newBooks.splice(insertIndex, 0, ...itemsToMove);
                             return { ...col, books: newBooks };
                         }
                         return col;
@@ -3201,7 +3236,12 @@
                                                              onMouseEnter={() => setHoveringDivider({ columnId: column.id, dividerId: item.id })}
                                                              onMouseLeave={() => setHoveringDivider(null)}>
                                                             {isHovering && (
-                                                                <span className="text-gray-400 cursor-grab text-lg">⋮</span>
+                                                                <span
+                                                                    className="text-gray-400 cursor-grab text-lg"
+                                                                    onMouseDown={(e) => handleDividerMouseDown(e, item, column.id)}
+                                                                    style={{ cursor: 'grab' }}>
+                                                                    ⋮
+                                                                </span>
                                                             )}
                                                             <div className="flex-1 text-center">
                                                                 {isEditing ? (
