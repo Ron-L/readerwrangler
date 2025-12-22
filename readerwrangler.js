@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.12.0.a - Auto-Scroll During Drag
+        // ReaderWrangler JS v3.12.0.b - Auto-Scroll During Drag
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.12.0.a";
+        const ORGANIZER_VERSION = "v3.12.0.b";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1850,16 +1850,20 @@
                         const dropPos = calculateDropPosition(e, columnId);
                         setDropTarget(dropPos);
 
-                        // v3.12.0 - Auto-scroll when dragging near column edges
+                        // v3.12.0.b - Auto-scroll when dragging near column edges
+                        // Use dragged book position (center of ghost) instead of cursor position
                         const columnElement = target.querySelector('.overflow-y-auto');
                         if (columnElement) {
                             const rect = columnElement.getBoundingClientRect();
-                            const edgeThreshold = 50; // pixels from top/bottom to trigger scroll
+                            const edgeThreshold = 100; // pixels from top/bottom to trigger scroll (increased from 50)
                             const scrollSpeed = 10; // pixels per interval
                             const scrollInterval = 50; // milliseconds
 
-                            const distanceFromTop = e.clientY - rect.top;
-                            const distanceFromBottom = rect.bottom - e.clientY;
+                            // Calculate dragged book's center position (ghost is at dragCurrentPos.y - 75, with height ~150px)
+                            const draggedBookCenterY = dragCurrentPos.y;
+
+                            const distanceFromTop = draggedBookCenterY - rect.top;
+                            const distanceFromBottom = rect.bottom - draggedBookCenterY;
 
                             // Clear existing auto-scroll interval
                             if (autoScrollInterval) {
@@ -1867,14 +1871,14 @@
                                 setAutoScrollInterval(null);
                             }
 
-                            // Start scrolling up if near top edge
+                            // Start scrolling up if book center near top edge
                             if (distanceFromTop < edgeThreshold && distanceFromTop > 0) {
                                 const interval = setInterval(() => {
                                     columnElement.scrollTop = Math.max(0, columnElement.scrollTop - scrollSpeed);
                                 }, scrollInterval);
                                 setAutoScrollInterval(interval);
                             }
-                            // Start scrolling down if near bottom edge
+                            // Start scrolling down if book center near bottom edge
                             else if (distanceFromBottom < edgeThreshold && distanceFromBottom > 0) {
                                 const interval = setInterval(() => {
                                     columnElement.scrollTop = Math.min(
