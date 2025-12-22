@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.9.0.o - Load-State-Only Status System
+        // ReaderWrangler JS v3.9.0.p - Load-State-Only Status System
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.9.0.o";
+        const ORGANIZER_VERSION = "v3.9.0.p";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2358,22 +2358,6 @@
                                         </div>
                                     </div>
                                 )}
-
-                                {/* Status Grid - Load state only (v3.9.0) */}
-                                <div className="grid grid-cols-2 gap-4 mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-700 mb-1">📚 Library</p>
-                                        <p className="text-xs text-gray-600">
-                                            {statusIcon(libraryStatus.loadStatus)} {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-700 mb-1">📁 Collections</p>
-                                        <p className="text-xs text-gray-600">
-                                            {statusIcon(collectionsStatus.loadStatus)} {statusLabel(collectionsStatus.loadStatus, collectionsStatus.loadDate)}
-                                        </p>
-                                    </div>
-                                </div>
                                 </div>
                             </div>
                         </div>
