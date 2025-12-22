@@ -1,4 +1,4 @@
-        // ReaderWrangler JS v3.13.0 - Selectable Dividers
+        // ReaderWrangler JS v3.14.0.a - Dividers as Drop Targets
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
         const ORGANIZER_VERSION = "v3.13.0";
@@ -1795,9 +1795,12 @@
                 const columnElement = document.querySelector(`[data-column-id="${columnId}"] .book-grid`);
                 if (!columnElement) return null;
 
+                // v3.14.0 - Include both books and dividers as drop targets
                 const bookElements = Array.from(columnElement.querySelectorAll('.book-item'));
-                
-                if (bookElements.length === 0) {
+                const dividerElements = Array.from(columnElement.querySelectorAll('.divider-item'));
+                const allElements = [...bookElements, ...dividerElements];
+
+                if (allElements.length === 0) {
                     return { columnId, index: 0 };
                 }
 
@@ -1805,40 +1808,62 @@
                 const mouseY = e.clientY;
                 let closestIndex = 0;
                 let closestDistance = Infinity;
+                let closestElement = null;
 
-                bookElements.forEach((el, idx) => {
+                allElements.forEach((el, idx) => {
                     const rect = el.getBoundingClientRect();
                     const centerX = rect.left + rect.width / 2;
                     const centerY = rect.top + rect.height / 2;
-                    
+
                     const distance = Math.sqrt(
-                        Math.pow(mouseX - centerX, 2) + 
+                        Math.pow(mouseX - centerX, 2) +
                         Math.pow(mouseY - centerY, 2)
                     );
 
                     if (distance < closestDistance) {
                         closestDistance = distance;
                         closestIndex = idx;
+                        closestElement = el;
                     }
                 });
 
-                const closestRect = bookElements[closestIndex].getBoundingClientRect();
+                const closestRect = closestElement.getBoundingClientRect();
                 const closestCenterX = closestRect.left + closestRect.width / 2;
                 const closestCenterY = closestRect.top + closestRect.height / 2;
-                
-                const closestBookId = bookElements[closestIndex].dataset.bookId;
-                const actualIndexInColumn = column.books.indexOf(closestBookId);
-                
+
+                // v3.14.0 - Check if closest element is a divider or book
+                const closestDividerId = closestElement.dataset.dividerId;
+                const closestBookId = closestElement.dataset.bookId;
+
+                let actualIndexInColumn;
+                if (closestDividerId) {
+                    // Divider: find index in column.books array
+                    actualIndexInColumn = column.books.findIndex(item =>
+                        typeof item === 'object' && item.type === 'divider' && item.id === closestDividerId
+                    );
+                } else {
+                    // Book: find index in column.books array
+                    actualIndexInColumn = column.books.indexOf(closestBookId);
+                }
+
                 if (actualIndexInColumn === -1) {
                     return { columnId, index: column.books.length };
                 }
-                
+
+                // v3.14.0 - For dividers, use top/bottom half instead of quadrant logic
+                if (closestDividerId) {
+                    const isBelowDivider = mouseY > closestCenterY;
+                    const insertIndex = isBelowDivider ? actualIndexInColumn + 1 : actualIndexInColumn;
+                    return { columnId, index: insertIndex };
+                }
+
+                // For books, use original quadrant logic
                 const isRightOfBook = mouseX > closestCenterX;
                 const isBelowBook = mouseY > closestCenterY;
-                
+
                 const insertAfter = isRightOfBook || (!isRightOfBook && isBelowBook);
                 const insertIndex = insertAfter ? actualIndexInColumn + 1 : actualIndexInColumn;
-                
+
                 return { columnId, index: insertIndex };
             };
 
@@ -3423,19 +3448,29 @@
                                                     const isEditing = editingDivider && editingDivider.columnId === column.id && editingDivider.dividerId === item.id;
                                                     const isSelected = selectedDivider && selectedDivider.columnId === column.id && selectedDivider.dividerId === item.id; // v3.13.0
 
+                                                    // v3.14.0 - Find actual index for drop indicator
+                                                    const actualIndex = column.books.findIndex(b =>
+                                                        typeof b === 'object' && b.type === 'divider' && b.id === item.id
+                                                    );
+
                                                     return (
-                                                        <div key={item.id}
-                                                             className={`col-span-3 flex items-center gap-2 py-2 px-3 my-1 rounded cursor-pointer ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
-                                                             style={{ backgroundColor: isSelected ? '#dbeafe' : '#f3f4f6' }}
-                                                             onClick={(e) => {
-                                                                 if (!isEditing) {
-                                                                     e.stopPropagation();
-                                                                     selectDividerGroup(column.id, item.id);
-                                                                 }
-                                                             }}
-                                                             onMouseEnter={() => setHoveringDivider({ columnId: column.id, dividerId: item.id })}
-                                                             onMouseLeave={() => setHoveringDivider(null)}>
-                                                            {isHovering && (
+                                                        <div key={item.id} className="col-span-3 relative">
+                                                            {/* v3.14.0 - Drop indicator for dividers */}
+                                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex && (
+                                                                <div className="drop-indicator" style={{ top: '-6px' }} />
+                                                            )}
+                                                            <div className={`flex items-center gap-2 py-2 px-3 my-1 rounded cursor-pointer divider-item ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
+                                                                 data-divider-id={item.id}
+                                                                 style={{ backgroundColor: isSelected ? '#dbeafe' : '#f3f4f6' }}
+                                                                 onClick={(e) => {
+                                                                     if (!isEditing) {
+                                                                         e.stopPropagation();
+                                                                         selectDividerGroup(column.id, item.id);
+                                                                     }
+                                                                 }}
+                                                                 onMouseEnter={() => setHoveringDivider({ columnId: column.id, dividerId: item.id })}
+                                                                 onMouseLeave={() => setHoveringDivider(null)}>
+                                                                {isHovering && (
                                                                 <span
                                                                     className="text-gray-400 cursor-grab text-lg"
                                                                     onMouseDown={(e) => handleDividerMouseDown(e, item, column.id)}
@@ -3480,6 +3515,7 @@
                                                                     ✕
                                                                 </button>
                                                             )}
+                                                            </div>
                                                         </div>
                                                     );
                                                 }
