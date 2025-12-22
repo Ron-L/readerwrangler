@@ -8,6 +8,17 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
+**0. 🐛 Fix Series Position Sort** #BUG - LOW/LOW (30 minutes)
+   - Series position sort currently groups ALL books by position number, ignoring series name
+   - Example: "Jack Ryan Jr. #12" and "Different Series #1" incorrectly sort together
+   - Expected: Series position should only sort books within the SAME series
+   - Books with null series or null seriesPosition should remain in original position (unsortable)
+   - File: readerwrangler.js sortColumn function (lines 1264-1267)
+   - Fix: Group by series name first, then sort by position within each series group
+   - Problem: Users sorting by series position get mixed results across different series
+   - Impact: Makes series position sort actually useful for organizing multi-series collections
+   - Related: v3.10.0 introduced series position sort but didn't account for multi-series scenario
+
 **1. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
    - Bookmarklet on Amazon book page extracts basic metadata (ASIN, title, author, cover, rating)
    - Appends to existing `amazon-library.json` as new top-level `wishlist` array
