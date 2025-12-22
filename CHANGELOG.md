@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.10.0] - 2025-12-22
+
+### Added
+- **Column Sorting: Series Position** - Complete column sorting functionality
+  - File version: readerwrangler.js v3.10.0
+  - Added "Series (1→99)" and "Series (99→1)" sort options to column sort menu
+  - Sort books within columns by: acquisitionDate, seriesPosition, rating, title, author
+  - Books without seriesPosition default to position 999 (sorted last)
+  - Permanent re-ordering: Sorted order persists to IndexedDB automatically
+  - Multi-column independent sorting: Each column tracks its own book order
+  - Manual adjustment after sorting: Drag-and-drop still works (not locked)
+  - Completes organization workflow: Get books into columns, then order optimally within each
+  - Related: TODO.md Priority 1 Task 1 (COMPLETED)
+
 ## [3.9.2] - 2025-12-22
 
 ### Added

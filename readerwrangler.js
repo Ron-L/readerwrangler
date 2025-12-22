@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.10.0.a - Column Sorting: Series Position
+        // ReaderWrangler JS v3.10.0 - Column Sorting: Series Position
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.10.0.a";
+        const ORGANIZER_VERSION = "v3.10.0";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";

@@ -8,18 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**0. ✅ COMPLETED (v3.9.2): Reset App Backup Reminder** - Custom modal with backup reminder and Chrome scrolling fix
-
-**1. 🔀 Column Sorting** - MEDIUM-HIGH/MEDIUM (4-6 hours)
-   - Sort books within columns by: acquisitionDate, seriesPosition, rating, title, author
-   - Permanent re-ordering (like Excel sort, persists to IndexedDB)
-   - Multi-column selection: apply same sort to each column independently
-   - Users can manually adjust positions after sorting (not locked)
-   - Wishlist column sorts like all others (by title, author, rating, etc.)
-   - Problem: After organizing books into columns, can't fine-tune order by meaningful criteria
-   - Impact: Completes organization workflow - get books into columns, then order optimally within each
-
-**2. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
+**1. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
    - Bookmarklet on Amazon book page extracts basic metadata (ASIN, title, author, cover, rating)
    - Appends to existing `amazon-library.json` as new top-level `wishlist` array
    - User selects same library JSON file → app merges wishlist + owned books
