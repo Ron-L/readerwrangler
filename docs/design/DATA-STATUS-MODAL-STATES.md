@@ -65,11 +65,10 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 │  Data Status                                 │
 ├──────────────────────────────────────────────┤
 │                                              │
-│  Library: Not loaded 🛑                      │
-│           [Load Library]                     │
+│  📚 Library: Not loaded 🛑    [Load Library] │
 │                                              │
-│  Collections: Not loaded 🛑                  │
-│               [Load Collections]             │
+│  📁 Collections: Not loaded 🛑               │
+│                            [Load Collections]│
 │                                              │
 │  ┌─────────────────────────────────────────┐│
 │  │ Load your library to get started!       ││
@@ -80,8 +79,8 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 │  │ Amazon:                                 ││
 │  ├─────────────────────────────────────────┤│
 │  │                                         ││
-│  │  Library             Collections        ││
-│  │  ────────────────    ─────────────────  ││
+│  │  📚 Library          📁 Collections     ││
+│  │  ──────────────      ─────────────────  ││
 │  │  1. Go to Amazon    1. Go to Amazon    ││
 │  │     Library            Collections      ││
 │  │  2. Click           2. Click           ││
@@ -102,7 +101,8 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 - `Load Collections` → Opens file picker → Routes to `loadCollectionsData()`
 
 **Design notes:**
-- **Buttons next to status lines** - matches States 2-6 pattern for consistency
+- **Buttons on same line as status** (right-aligned) - universal left-to-right scan pattern
+- **Emojis for visual anchoring** - 📚 Library and 📁 Collections provide consistent visual cues
 - **Contextual proximity** - action buttons appear exactly where the problem is shown
 - **Faster for users with files** - no question to parse, buttons immediately visible
 - **Two-column fetch instructions** - Library and Collections side-by-side
@@ -123,27 +123,27 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 │  Data Status                                 │
 ├──────────────────────────────────────────────┤
 │                                              │
-│  Library: Loaded 3 days ago ✅               │
-│           [Reload Library Anyway]            │
+│  📚 Library: Loaded 3 days ago ✅            │
+│                          [Reload Anyway]     │
 │                                              │
-│  Collections: Loaded 3 days ago ✅           │
-│               [Reload Collections Anyway]    │
+│  📁 Collections: Loaded 3 days ago ✅        │
+│                          [Reload Anyway]     │
 │                                              │
 │  ┌─────────────────────────────────────────┐│
 │  │ If you've made Amazon purchases or      ││
 │  │ collection changes since loading:       ││
 │  │                                         ││
-│  │  Library             Collections        ││
-│  │  ────────────────    ─────────────────  ││
-│  │  1. Go to Amazon     1. Go to Amazon    ││
-│  │     Library             Collections     ││
-│  │  2. Click            2. Click           ││
-│  │     bookmarklet         bookmarklet     ││
-│  │  3. Choose "Fetch    3. Choose "Fetch   ││
-│  │     Library"            Collections"    ││
-│  │  4. Return & click   4. Return & click  ││
-│  │     Reload button       Reload button   ││
-│  │     above               above           ││
+│  │  📚 Library          📁 Collections     ││
+│  │  ──────────────      ─────────────────  ││
+│  │  1. Go to Amazon    1. Go to Amazon    ││
+│  │     Library            Collections      ││
+│  │  2. Click           2. Click           ││
+│  │     bookmarklet        bookmarklet     ││
+│  │  3. Choose "Fetch   3. Choose "Fetch   ││
+│  │     Library"           Collections"    ││
+│  │  4. Return & click  4. Return & click  ││
+│  │     Reload button      Reload button   ││
+│  │     above              above           ││
 │  │                                         ││
 │  │ Otherwise, continue organizing!         ││
 │  └─────────────────────────────────────────┘│
@@ -152,12 +152,14 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 ```
 
 **Button behavior:**
-- `Reload Library Anyway` → Opens file picker → Routes to `loadEnrichedData()`
-- `Reload Collections Anyway` → Opens file picker → Routes to `loadCollectionsData()`
+- `Reload Anyway` (Library) → Opens file picker → Routes to `loadEnrichedData()`
+- `Reload Anyway` (Collections) → Opens file picker → Routes to `loadCollectionsData()`
 
 **Design notes:**
+- **Buttons on same line as status** (right-aligned) - consistent with all states
+- **Emojis for visual anchoring** - 📚 Library and 📁 Collections
 - Two-column layout prevents "step 1 OR step 1" branching confusion
-- Buttons at top use "Anyway" to signal override intent
+- Buttons use "Anyway" to signal override intent (data is fresh)
 - Both buttons always visible (solves "Fresh but just fetched new data" scenario)
 
 ---
@@ -174,10 +176,11 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 │  Data Status                                 │
 ├──────────────────────────────────────────────┤
 │                                              │
-│  Library: Loaded 3 days ago ✅               │
-│           [Reload Library Anyway]            │
+│  📚 Library: Loaded 3 days ago ✅            │
+│                          [Reload Anyway]     │
 │                                              │
-│  Collections: Not loaded 🛑                  │
+│  📁 Collections: Not loaded 🛑               │
+│                            [Load Collections]│
 │  (or: Collections: Loaded 25 days ago ⚠️)    │
 │                                              │
 │  ┌─────────────────────────────────────────┐│
@@ -186,33 +189,36 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 │  │ Amazon's categories.                    ││
 │  └─────────────────────────────────────────┘│
 │                                              │
-│  ┌─────────────────────────────────────────┐│
-│  │ Do you already have a collections file? ││
-│  ├─────────────────────────────────────────┤│
-│  │                                         ││
-│  │  ✓ Yes           ✗ No                  ││
-│  │  ─────────────   ─────────────────────  ││
-│  │  [Load          1. Go to Amazon        ││
-│  │   Collections]     Collections         ││
-│  │                 2. Click bookmarklet   ││
-│  │                 3. Choose "Fetch       ││
-│  │                    Collections"        ││
-│  │                 4. Return & click      ││
-│  │                    Load Collections    ││
-│  │                                         ││
-│  └─────────────────────────────────────────┘│
+│      ┌───────────────────────────────┐      │
+│      │ Don't have your Collections   │      │
+│      │ file yet? Fetch it from       │      │
+│      │ Amazon:                       │      │
+│      ├───────────────────────────────┤      │
+│      │                               │      │
+│      │ 📁 Collections                │      │
+│      │ ─────────────────────         │      │
+│      │ 1. Go to Amazon Collections   │      │
+│      │ 2. Click bookmarklet          │      │
+│      │ 3. Choose "Fetch Collections" │      │
+│      │ 4. Return & click Load button │      │
+│      │    above                      │      │
+│      │                               │      │
+│      └───────────────────────────────┘      │
 │                                              │
 └──────────────────────────────────────────────┘
 ```
 
 **Button behavior:**
-- `Reload Library Anyway` → Opens file picker → Routes to `loadEnrichedData()`
+- `Reload Anyway` (Library) → Opens file picker → Routes to `loadEnrichedData()`
 - `Load Collections` → Opens file picker → Routes to `loadCollectionsData()`
 
 **Design notes:**
+- **Buttons on same line as status** (right-aligned) - consistent with all states
+- **Emojis for visual anchoring** - 📚 Library and 📁 Collections
+- **Single-column fetch instructions** (~60% width, centered) - visual balance, pattern consistency
+- **Simplified messaging** - "Don't have your Collections file yet?" instead of Yes/No branching
 - Reassuring tone: "Collections are optional" (Library is essential, user is fine)
 - Reload Library button still available (user might have just fetched new Library)
-- Yes/No branching pattern for Collections
 
 ---
 
@@ -228,41 +234,44 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 │  Data Status                                 │
 ├──────────────────────────────────────────────┤
 │                                              │
-│  Library: Not loaded 🛑                      │
+│  📚 Library: Not loaded 🛑    [Load Library] │
 │  (or: Library: Loaded 25 days ago ⚠️)        │
 │                                              │
-│  Collections: Loaded 3 days ago ✅           │
-│               [Reload Collections Anyway]    │
+│  📁 Collections: Loaded 3 days ago ✅        │
+│                          [Reload Anyway]     │
 │                                              │
 │  ┌─────────────────────────────────────────┐│
 │  │ Load your library to see your books!    ││
 │  └─────────────────────────────────────────┘│
 │                                              │
-│  ┌─────────────────────────────────────────┐│
-│  │ Do you already have a library file?     ││
-│  ├─────────────────────────────────────────┤│
-│  │                                         ││
-│  │  ✓ Yes           ✗ No                  ││
-│  │  ─────────────   ─────────────────────  ││
-│  │  [Load Library] 1. Go to Amazon        ││
-│  │                    Library              ││
-│  │                 2. Click bookmarklet   ││
-│  │                 3. Choose "Fetch       ││
-│  │                    Library"            ││
-│  │                 4. Return & click      ││
-│  │                    Load Library        ││
-│  │                                         ││
-│  └─────────────────────────────────────────┘│
+│      ┌───────────────────────────────┐      │
+│      │ Don't have your Library file  │      │
+│      │ yet? Fetch it from Amazon:    │      │
+│      ├───────────────────────────────┤      │
+│      │                               │      │
+│      │ 📚 Library                    │      │
+│      │ ──────────────────            │      │
+│      │ 1. Go to Amazon Library       │      │
+│      │ 2. Click bookmarklet          │      │
+│      │ 3. Choose "Fetch Library"     │      │
+│      │ 4. Return & click Load button │      │
+│      │    above                      │      │
+│      │                               │      │
+│      └───────────────────────────────┘      │
 │                                              │
 └──────────────────────────────────────────────┘
 ```
 
 **Button behavior:**
 - `Load Library` → Opens file picker → Routes to `loadEnrichedData()`
-- `Reload Collections Anyway` → Opens file picker → Routes to `loadCollectionsData()`
+- `Reload Anyway` (Collections) → Opens file picker → Routes to `loadCollectionsData()`
 
 **Design notes:**
 - **Symmetric to State 3** - same structure, swapped data types
+- **Buttons on same line as status** (right-aligned) - consistent with all states
+- **Emojis for visual anchoring** - 📚 Library and 📁 Collections
+- **Single-column fetch instructions** (~60% width, centered) - visual balance, pattern consistency
+- **Simplified messaging** - "Don't have your Library file yet?" instead of Yes/No branching
 - Urgent tone: "Load your library to see your books!" (Library is essential)
 - Different messaging reflects different criticality (Library essential, Collections optional)
 
@@ -280,28 +289,28 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 │  Data Status                                 │
 ├──────────────────────────────────────────────┤
 │                                              │
-│  Library: Loaded 15 days ago ⚠️              │
-│           [Reload Library Anyway]            │
+│  📚 Library: Loaded 15 days ago ⚠️           │
+│                          [Reload Anyway]     │
 │                                              │
-│  Collections: Loaded 15 days ago ⚠️          │
-│               [Reload Collections Anyway]    │
+│  📁 Collections: Loaded 15 days ago ⚠️       │
+│                          [Reload Anyway]     │
 │                                              │
 │  ┌─────────────────────────────────────────┐│
 │  │ Your data is getting old. If you've     ││
 │  │ made Amazon purchases or collection     ││
 │  │ changes since loading:                  ││
 │  │                                         ││
-│  │  Library             Collections        ││
-│  │  ────────────────    ─────────────────  ││
-│  │  1. Go to Amazon     1. Go to Amazon    ││
-│  │     Library             Collections     ││
-│  │  2. Click            2. Click           ││
-│  │     bookmarklet         bookmarklet     ││
-│  │  3. Choose "Fetch    3. Choose "Fetch   ││
-│  │     Library"            Collections"    ││
-│  │  4. Return & click   4. Return & click  ││
-│  │     Reload button       Reload button   ││
-│  │     above               above           ││
+│  │  📚 Library          📁 Collections     ││
+│  │  ──────────────      ─────────────────  ││
+│  │  1. Go to Amazon    1. Go to Amazon    ││
+│  │     Library            Collections      ││
+│  │  2. Click           2. Click           ││
+│  │     bookmarklet        bookmarklet     ││
+│  │  3. Choose "Fetch   3. Choose "Fetch   ││
+│  │     Library"           Collections"    ││
+│  │  4. Return & click  4. Return & click  ││
+│  │     Reload button      Reload button   ││
+│  │     above              above           ││
 │  │                                         ││
 │  │ Otherwise, continue organizing!         ││
 │  └─────────────────────────────────────────┘│
@@ -310,6 +319,8 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 ```
 
 **Design notes:**
+- **Buttons on same line as status** (right-aligned) - consistent with all states
+- **Emojis for visual anchoring** - 📚 Library and 📁 Collections
 - Same structure as Fresh Both, different messaging tone
 - Two-column layout for dual destinations
 
@@ -327,28 +338,28 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 │  Data Status                                 │
 ├──────────────────────────────────────────────┤
 │                                              │
-│  Library: Loaded 45 days ago ⚠️              │
-│           [Reload Library Anyway]            │
+│  📚 Library: Loaded 45 days ago ⚠️           │
+│                          [Reload Anyway]     │
 │                                              │
-│  Collections: Loaded 45 days ago ⚠️          │
-│               [Reload Collections Anyway]    │
+│  📁 Collections: Loaded 45 days ago ⚠️       │
+│                          [Reload Anyway]     │
 │                                              │
 │  ┌─────────────────────────────────────────┐│
 │  │ Your data is quite old. If you've made  ││
 │  │ Amazon purchases or collection changes  ││
 │  │ since loading:                          ││
 │  │                                         ││
-│  │  Library             Collections        ││
-│  │  ────────────────    ─────────────────  ││
-│  │  1. Go to Amazon     1. Go to Amazon    ││
-│  │     Library             Collections     ││
-│  │  2. Click            2. Click           ││
-│  │     bookmarklet         bookmarklet     ││
-│  │  3. Choose "Fetch    3. Choose "Fetch   ││
-│  │     Library"            Collections"    ││
-│  │  4. Return & click   4. Return & click  ││
-│  │     Reload button       Reload button   ││
-│  │     above               above           ││
+│  │  📚 Library          📁 Collections     ││
+│  │  ──────────────      ─────────────────  ││
+│  │  1. Go to Amazon    1. Go to Amazon    ││
+│  │     Library            Collections      ││
+│  │  2. Click           2. Click           ││
+│  │     bookmarklet        bookmarklet     ││
+│  │  3. Choose "Fetch   3. Choose "Fetch   ││
+│  │     Library"           Collections"    ││
+│  │  4. Return & click  4. Return & click  ││
+│  │     Reload button      Reload button   ││
+│  │     above              above           ││
 │  │                                         ││
 │  │ Otherwise, continue organizing!         ││
 │  └─────────────────────────────────────────┘│
@@ -357,6 +368,8 @@ Use specific labels ("Load Library", "Reload Collections Anyway") instead of gen
 ```
 
 **Design notes:**
+- **Buttons on same line as status** (right-aligned) - consistent with all states
+- **Emojis for visual anchoring** - 📚 Library and 📁 Collections
 - Same structure as Fresh Both and Stale Both, different messaging tone
 - More urgent messaging for very old data
 

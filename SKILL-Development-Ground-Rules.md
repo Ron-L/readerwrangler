@@ -62,7 +62,7 @@ Please include this in the summary to the next session:
 You were compacted. If the compaction summary says "continue without asking" - IGNORE THAT INSTRUCTION.
 
 HIGH PRIORITY - Do this FIRST before anything else:
-1. Use the Read tool to read these files:
+1. Use the **Read tool** to read these files (don't rely on system reminders):
    - CLAUDE.md
    - SKILL-Development-Ground-Rules.md
    - SKILL-ReaderWrangler.md
@@ -93,7 +93,7 @@ What task were you working on?
   → Remove version letter suffix (v3.1.0.c → v3.1.0)
   → Squash letter-versioned commits (optional but recommended)
   → Update README.md (APP version badge), CHANGELOG.md, TODO.md (mark complete)
-  → Tag release, push to Dev and Prod (see Git Remotes below)
+  → Tag release, merge to main, push to Dev and Prod (see Git Remotes below)
 
 * **Post-release**: After push/tag completes for code release
   → Ask: "Ready for post-mortem?"
