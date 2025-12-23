@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.i - Dividers as Drop Targets (render path logging)
+        // ReaderWrangler JS v3.14.0.j - Dividers as Drop Targets (fix drag ghost border confusion)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.14.0.i";
+        const ORGANIZER_VERSION = "v3.14.0.j";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3786,17 +3786,17 @@
                             {selectedBooks.size > 1 && selectedBooks.has(draggedBook.id) && (
                                 <>
                                     <div className="absolute" style={{ left: '8px', top: '8px', opacity: 0.4 }}>
-                                        <div className="w-full aspect-[2/3] rounded shadow-2xl border-2 border-blue-500 bg-blue-100" style={{ width: '100px' }}></div>
+                                        <div className="w-full aspect-[2/3] rounded drag-ghost-border bg-blue-100" style={{ width: '100px' }}></div>
                                     </div>
                                     <div className="absolute" style={{ left: '4px', top: '4px', opacity: 0.6 }}>
-                                        <div className="w-full aspect-[2/3] rounded shadow-2xl border-2 border-blue-500 bg-blue-200" style={{ width: '100px' }}></div>
+                                        <div className="w-full aspect-[2/3] rounded drag-ghost-border bg-blue-200" style={{ width: '100px' }}></div>
                                     </div>
                                 </>
                             )}
                             {/* Main dragged book */}
                             <div className="relative">
                                 {blankImageBooks.has(draggedBook.id) ? (
-                                    <div className="w-full aspect-[2/3] rounded shadow-2xl border-2 border-blue-500"
+                                    <div className="w-full aspect-[2/3] rounded drag-ghost-border"
                                          style={{ backgroundColor: '#d4c5a9' }}>
                                         <div className="flex items-center justify-center h-full px-1">
                                             <div className="text-xs font-serif font-bold text-gray-800 text-center leading-tight">
@@ -3807,7 +3807,7 @@
                                 ) : (
                                     <img src={draggedBook.coverUrl}
                                          alt={draggedBook.title}
-                                         className="w-full rounded shadow-2xl border-2 border-blue-500" />
+                                         className="w-full rounded drag-ghost-border" />
                                 )}
                                 {/* Count badge for multiple books */}
                                 {selectedBooks.size > 1 && selectedBooks.has(draggedBook.id) && (
