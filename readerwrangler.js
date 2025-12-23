@@ -3457,7 +3457,7 @@
 
                                                     return (
                                                         <div key={item.id} className="col-span-3 relative">
-                                                            {/* v3.14.0 - Drop indicator for dividers */}
+                                                            {/* v3.14.0.f - Drop indicator for dividers (top edge - insert before) */}
                                                             {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
                                                              draggedBook?.id !== item.id && (
                                                                 <div className="drop-indicator" style={{ top: '-6px' }} />
@@ -3519,6 +3519,11 @@
                                                                 </button>
                                                             )}
                                                             </div>
+                                                            {/* v3.14.0.f - Drop indicator for dividers (bottom edge - insert after) */}
+                                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex + 1 &&
+                                                             draggedBook?.id !== item.id && (
+                                                                <div className="drop-indicator" style={{ bottom: '-6px' }} />
+                                                            )}
                                                         </div>
                                                     );
                                                 }
