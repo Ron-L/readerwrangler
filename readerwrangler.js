@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.k - Dividers as Drop Targets (color-coded debug indicators)
+        // ReaderWrangler JS v3.14.0.l - Dividers as Drop Targets (remove drag ghost top glow)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.14.0.k";
+        const ORGANIZER_VERSION = "v3.14.0.l";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
