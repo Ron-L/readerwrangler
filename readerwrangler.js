@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.x - Use ref for ghost position to eliminate all React re-renders during drag
+        // ReaderWrangler JS v3.14.0.y - Fix click-to-clear-selection on empty areas
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "3.14.0.x";
+        const ORGANIZER_VERSION = "3.14.0.y";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3821,8 +3821,18 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex-1 overflow-y-auto p-4">
-                                        <div className="grid grid-cols-3 gap-3 relative book-grid">
+                                    <div className="flex-1 overflow-y-auto p-4" onClick={(e) => {
+                                        // v3.14.0.y - Clear selection when clicking empty space in scrollable area
+                                        if (e.target === e.currentTarget) {
+                                            clearSelection();
+                                        }
+                                    }}>
+                                        <div className="grid grid-cols-3 gap-3 relative book-grid" onClick={(e) => {
+                                            // v3.14.0.y - Clear selection when clicking empty grid cells
+                                            if (e.target === e.currentTarget) {
+                                                clearSelection();
+                                            }
+                                        }}>
                                             {/* v3.14.0.v - Old start-of-column indicator removed; overlay handles it */}
                                             {filteredBooks(column.books).map((item) => {
                                                 // v3.11.0 - Handle dividers
