@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.w - Use ref for dropTarget to avoid React re-renders
+        // ReaderWrangler JS v3.14.0.x - Use ref for ghost position to eliminate all React re-renders during drag
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "3.14.0.w";
+        const ORGANIZER_VERSION = "3.14.0.x";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -213,6 +213,10 @@
             // v3.14.0.w - Use refs instead of state for dropTarget to avoid React re-renders
             const dropTargetRef = useRef(null);
             const indicatorRef = useRef(null);
+
+            // v3.14.0.x - Use refs for ghost position to eliminate ALL React re-renders during drag
+            const dragGhostRef = useRef(null);
+            const dragPosRef = useRef({ x: 0, y: 0 });
 
             // v3.14.0.r - Row-based grid index for O(log R) drop position lookup
             // Structure: { columnId: { rowBoundaries: [y1, y2, ...], rows: [{type, startIndex, items, top, bottom}, ...], columnRect } }
@@ -1782,7 +1786,8 @@
                 }
 
                 setDragStartPos({ x: e.clientX, y: e.clientY });
-                setDragCurrentPos({ x: e.clientX, y: e.clientY });
+                // v3.14.0.x - Initialize position ref for ghost
+                dragPosRef.current = { x: e.clientX, y: e.clientY };
                 setDraggedBook(book);
                 setDraggedFromColumn(columnId);
                 setIsDragging(false);
@@ -1796,7 +1801,8 @@
                 e.stopPropagation();
 
                 setDragStartPos({ x: e.clientX, y: e.clientY });
-                setDragCurrentPos({ x: e.clientX, y: e.clientY });
+                // v3.14.0.x - Initialize position ref for ghost
+                dragPosRef.current = { x: e.clientX, y: e.clientY };
                 setDraggedBook(divider); // Reuse draggedBook state for dividers
                 setDraggedFromColumn(columnId);
                 setIsDragging(false);
@@ -2192,9 +2198,19 @@
                 indicator.style.width = width + 'px';
             };
 
+            // v3.14.0.x - Update ghost position via DOM (no React re-render)
+            const updateGhostPosition = (x, y) => {
+                dragPosRef.current = { x, y };
+                const ghost = dragGhostRef.current;
+                if (ghost) {
+                    ghost.style.left = (x - 50) + 'px';
+                    ghost.style.top = (y - 75) + 'px';
+                }
+            };
+
             const handleMouseMove = (e) => {
                 if (draggedColumn) {
-                    setDragCurrentPos({ x: e.clientX, y: e.clientY });
+                    setDragCurrentPos({ x: e.clientX, y: e.clientY }); // Column drag still uses state (low volume)
 
                     const deltaX = e.clientX - dragStartPos.x;
                     const deltaY = e.clientY - dragStartPos.y;
@@ -2212,7 +2228,8 @@
 
                 if (!draggedBook) return;
 
-                setDragCurrentPos({ x: e.clientX, y: e.clientY });
+                // v3.14.0.x - Update ghost position via DOM (no React re-render)
+                updateGhostPosition(e.clientX, e.clientY);
 
                 const deltaX = e.clientX - dragStartPos.x;
                 const deltaY = e.clientY - dragStartPos.y;
@@ -2258,8 +2275,9 @@
                             const maxScrollSpeed = 20; // pixels per interval at column edge
                             const scrollInterval = 50; // milliseconds
 
-                            // Calculate dragged book's center position (ghost is at dragCurrentPos.y - 75, with height ~150px)
-                            const draggedBookCenterY = dragCurrentPos.y;
+                            // Calculate dragged book's center position (ghost is at dragPosRef.current.y - 75, with height ~150px)
+                            // v3.14.0.x - Use ref instead of state
+                            const draggedBookCenterY = dragPosRef.current.y;
 
                             const distanceFromTop = draggedBookCenterY - rect.top;
                             const distanceFromBottom = rect.bottom - draggedBookCenterY;
@@ -4066,11 +4084,13 @@
                         v{ORGANIZER_VERSION}
                     </div>
 
+                    {/* v3.14.0.x - Ghost position controlled via ref in updateGhostPosition */}
                     {isDragging && draggedBook && (
                         <div className="drag-ghost"
+                             ref={dragGhostRef}
                              style={{
-                                 left: dragCurrentPos.x - 50,
-                                 top: dragCurrentPos.y - 75,
+                                 left: dragPosRef.current.x - 50,
+                                 top: dragPosRef.current.y - 75,
                                  width: '100px'
                              }}>
                             {/* Show stacked effect if dragging multiple books */}
