@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.q - Fix missing indicators (empty cells, between contiguous dividers)
+        // ReaderWrangler JS v3.14.0.r - Row-based grid index for drag performance
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "3.14.0.q";
+        const ORGANIZER_VERSION = "3.14.0.r";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -209,6 +209,10 @@
 
             // v3.14.0.h - Track previous dropTarget for debug logging
             const prevDropTargetRef = useRef(null);
+
+            // v3.14.0.r - Row-based grid index for O(log R) drop position lookup
+            // Structure: { columnId: { rowBoundaries: [y1, y2, ...], rows: [{type, startIndex, items, top, bottom}, ...], columnRect } }
+            const columnIndexRef = useRef({});
 
             // v3.12.0 - Auto-scroll during drag
             const [autoScrollInterval, setAutoScrollInterval] = useState(null);
@@ -1791,84 +1795,241 @@
                 setDropTarget(null);
             };
 
-            const calculateDropPosition = (e, columnId) => {
+            // v3.14.0.r - Build row-based index for a column (called at drag start and on scroll)
+            // Groups elements into rows based on Y position, enabling O(log R) lookup instead of O(N)
+            const buildColumnIndex = (columnId) => {
                 const column = columns.find(c => c.id === columnId);
                 if (!column) return null;
 
                 const columnElement = document.querySelector(`[data-column-id="${columnId}"] .book-grid`);
                 if (!columnElement) return null;
 
-                // v3.14.0 - Include both books and dividers as drop targets
+                const columnRect = columnElement.getBoundingClientRect();
+
+                // Get all book and divider elements with their positions
                 const bookElements = Array.from(columnElement.querySelectorAll('.book-item'));
                 const dividerElements = Array.from(columnElement.querySelectorAll('.divider-item'));
-                const allElements = [...bookElements, ...dividerElements];
 
-                if (allElements.length === 0) {
-                    return { columnId, index: 0 };
-                }
+                // Build array of all elements with their rect and metadata
+                const allItems = [];
 
-                // v3.14.0.g - Always use cursor position directly (no state lag)
-                const mouseX = e.clientX;
-                const mouseY = e.clientY;
-                let closestIndex = 0;
-                let closestDistance = Infinity;
-                let closestElement = null;
-
-                allElements.forEach((el, idx) => {
+                bookElements.forEach(el => {
                     const rect = el.getBoundingClientRect();
-                    const centerX = rect.left + rect.width / 2;
-                    const centerY = rect.top + rect.height / 2;
-
-                    const distance = Math.sqrt(
-                        Math.pow(mouseX - centerX, 2) +
-                        Math.pow(mouseY - centerY, 2)
-                    );
-
-                    if (distance < closestDistance) {
-                        closestDistance = distance;
-                        closestIndex = idx;
-                        closestElement = el;
+                    const bookId = el.dataset.bookId;
+                    const actualIndex = column.books.indexOf(bookId);
+                    if (actualIndex !== -1) {
+                        allItems.push({
+                            type: 'book',
+                            id: bookId,
+                            index: actualIndex,
+                            rect,
+                            top: rect.top,
+                            bottom: rect.bottom,
+                            left: rect.left,
+                            right: rect.right,
+                            centerY: rect.top + rect.height / 2
+                        });
                     }
                 });
 
-                const closestRect = closestElement.getBoundingClientRect();
-                const closestCenterX = closestRect.left + closestRect.width / 2;
-                const closestCenterY = closestRect.top + closestRect.height / 2;
-
-                // v3.14.0 - Check if closest element is a divider or book
-                const closestDividerId = closestElement.dataset.dividerId;
-                const closestBookId = closestElement.dataset.bookId;
-
-                let actualIndexInColumn;
-                if (closestDividerId) {
-                    // Divider: find index in column.books array
-                    actualIndexInColumn = column.books.findIndex(item =>
-                        typeof item === 'object' && item.type === 'divider' && item.id === closestDividerId
+                dividerElements.forEach(el => {
+                    const rect = el.getBoundingClientRect();
+                    const dividerId = el.dataset.dividerId;
+                    const actualIndex = column.books.findIndex(item =>
+                        typeof item === 'object' && item.type === 'divider' && item.id === dividerId
                     );
-                } else {
-                    // Book: find index in column.books array
-                    actualIndexInColumn = column.books.indexOf(closestBookId);
+                    if (actualIndex !== -1) {
+                        allItems.push({
+                            type: 'divider',
+                            id: dividerId,
+                            index: actualIndex,
+                            rect,
+                            top: rect.top,
+                            bottom: rect.bottom,
+                            left: rect.left,
+                            right: rect.right,
+                            centerY: rect.top + rect.height / 2
+                        });
+                    }
+                });
+
+                // Sort by index to ensure correct order
+                allItems.sort((a, b) => a.index - b.index);
+
+                // Group into rows based on Y position (items with same top are in same row)
+                const rows = [];
+                let currentRow = null;
+                const ROW_TOLERANCE = 5; // pixels - items within this Y distance are same row
+
+                allItems.forEach(item => {
+                    if (!currentRow || Math.abs(item.top - currentRow.top) > ROW_TOLERANCE) {
+                        // Start a new row
+                        currentRow = {
+                            type: item.type === 'divider' ? 'divider' : 'books',
+                            top: item.top,
+                            bottom: item.bottom,
+                            startIndex: item.index,
+                            items: [item]
+                        };
+                        rows.push(currentRow);
+                    } else {
+                        // Add to current row
+                        currentRow.items.push(item);
+                        currentRow.bottom = Math.max(currentRow.bottom, item.bottom);
+                        // If any item in row is divider, row type is divider
+                        if (item.type === 'divider') {
+                            currentRow.type = 'divider';
+                        }
+                    }
+                });
+
+                // Sort items within each row by X position (left to right)
+                rows.forEach(row => {
+                    row.items.sort((a, b) => a.left - b.left);
+                });
+
+                // Build row boundaries array for binary search
+                const rowBoundaries = rows.map(row => row.top);
+
+                const index = {
+                    columnId,
+                    columnRect,
+                    rows,
+                    rowBoundaries,
+                    totalItems: column.books.length
+                };
+
+                columnIndexRef.current[columnId] = index;
+                return index;
+            };
+
+            // v3.14.0.r - Build index for all visible columns
+            const buildAllColumnIndexes = () => {
+                columns.forEach(column => {
+                    buildColumnIndex(column.id);
+                });
+            };
+
+            // v3.14.0.r - Binary search to find row containing Y coordinate
+            const findRowByY = (rows, rowBoundaries, mouseY) => {
+                if (rows.length === 0) return null;
+
+                // Binary search for the row containing mouseY
+                let low = 0;
+                let high = rows.length - 1;
+
+                // If mouse is above first row, return first row
+                if (mouseY < rowBoundaries[0]) {
+                    return { row: rows[0], rowIndex: 0, position: 'above' };
                 }
 
-                if (actualIndexInColumn === -1) {
-                    return { columnId, index: column.books.length };
+                // If mouse is below last row, return last row
+                if (mouseY > rows[rows.length - 1].bottom) {
+                    return { row: rows[rows.length - 1], rowIndex: rows.length - 1, position: 'below' };
                 }
 
-                // v3.14.0 - For dividers, use top/bottom half instead of quadrant logic
-                if (closestDividerId) {
-                    const isBelowDivider = mouseY > closestCenterY;
-                    const insertIndex = isBelowDivider ? actualIndexInColumn + 1 : actualIndexInColumn;
-                    return { columnId, index: insertIndex };
+                while (low <= high) {
+                    const mid = Math.floor((low + high) / 2);
+                    const row = rows[mid];
+
+                    if (mouseY >= row.top && mouseY <= row.bottom) {
+                        // Found the row containing mouseY
+                        return { row, rowIndex: mid, position: 'within' };
+                    } else if (mouseY < row.top) {
+                        high = mid - 1;
+                    } else {
+                        low = mid + 1;
+                    }
                 }
 
-                // For books, use original quadrant logic
-                const isRightOfBook = mouseX > closestCenterX;
-                const isBelowBook = mouseY > closestCenterY;
+                // Mouse is in gap between rows - find closest row
+                // low now points to the row after the gap
+                if (low < rows.length && low > 0) {
+                    const prevRow = rows[low - 1];
+                    const nextRow = rows[low];
+                    const distToPrev = mouseY - prevRow.bottom;
+                    const distToNext = nextRow.top - mouseY;
+                    if (distToPrev <= distToNext) {
+                        return { row: prevRow, rowIndex: low - 1, position: 'below' };
+                    } else {
+                        return { row: nextRow, rowIndex: low, position: 'above' };
+                    }
+                }
+
+                // Fallback
+                return { row: rows[0], rowIndex: 0, position: 'within' };
+            };
+
+            const calculateDropPosition = (e, columnId) => {
+                const column = columns.find(c => c.id === columnId);
+                if (!column) return null;
+
+                // v3.14.0.r - Use cached column index for O(log R) lookup
+                let colIndex = columnIndexRef.current[columnId];
+
+                // If no index exists (shouldn't happen, but fallback), build it now
+                if (!colIndex) {
+                    colIndex = buildColumnIndex(columnId);
+                }
+
+                if (!colIndex || colIndex.rows.length === 0) {
+                    // Empty column
+                    return { columnId, index: 0 };
+                }
+
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+
+                // Binary search to find the row
+                const result = findRowByY(colIndex.rows, colIndex.rowBoundaries, mouseY);
+                if (!result) {
+                    return { columnId, index: 0 };
+                }
+
+                const { row, position } = result;
+
+                // Handle position above/below row
+                if (position === 'above') {
+                    // Insert before the first item in this row
+                    return { columnId, index: row.startIndex };
+                }
+                if (position === 'below') {
+                    // Insert after the last item in this row
+                    const lastItem = row.items[row.items.length - 1];
+                    return { columnId, index: lastItem.index + 1 };
+                }
+
+                // Position is 'within' the row - determine exact position
+                if (row.type === 'divider') {
+                    // Divider row: use top/bottom half
+                    const dividerItem = row.items[0];
+                    const centerY = dividerItem.centerY;
+                    const isBelowCenter = mouseY > centerY;
+                    return { columnId, index: isBelowCenter ? dividerItem.index + 1 : dividerItem.index };
+                }
+
+                // Books row: use X position to find which book, then top/bottom half
+                // Find which book the mouse is over (or closest to)
+                let targetItem = row.items[0];
+                for (const item of row.items) {
+                    if (mouseX >= item.left && mouseX <= item.right) {
+                        targetItem = item;
+                        break;
+                    }
+                    // If mouse is to the right of this item but left of next, use this item
+                    if (mouseX > item.right) {
+                        targetItem = item;
+                    }
+                }
+
+                // Use quadrant logic for books: right-of OR below-center = insert after
+                const centerX = targetItem.left + (targetItem.right - targetItem.left) / 2;
+                const centerY = targetItem.centerY;
+                const isRightOfBook = mouseX > centerX;
+                const isBelowBook = mouseY > centerY;
 
                 const insertAfter = isRightOfBook || (!isRightOfBook && isBelowBook);
-                const insertIndex = insertAfter ? actualIndexInColumn + 1 : actualIndexInColumn;
-
-                return { columnId, index: insertIndex };
+                return { columnId, index: insertAfter ? targetItem.index + 1 : targetItem.index };
             };
 
             const handleMouseMove = (e) => {
@@ -1900,6 +2061,8 @@
                 if (distance > dragThreshold) {
                     if (!isDragging) {
                         setIsDragging(true);
+                        // v3.14.0.r - Build column indexes once at drag start for O(log R) lookup
+                        buildAllColumnIndexes();
                     }
 
                     const target = e.target.closest('[data-column-id]');
@@ -1952,6 +2115,8 @@
 
                                 const interval = setInterval(() => {
                                     columnElement.scrollTop = Math.max(0, columnElement.scrollTop - scrollSpeed);
+                                    // v3.14.0.r - Rebuild index when scrolling (positions change)
+                                    buildColumnIndex(columnId);
                                 }, scrollInterval);
                                 setAutoScrollInterval(interval);
                             }
@@ -1966,6 +2131,8 @@
                                         columnElement.scrollHeight - columnElement.clientHeight,
                                         columnElement.scrollTop + scrollSpeed
                                     );
+                                    // v3.14.0.r - Rebuild index when scrolling (positions change)
+                                    buildColumnIndex(columnId);
                                 }, scrollInterval);
                                 setAutoScrollInterval(interval);
                             }
