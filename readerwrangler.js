@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.v - Remove old indicator code from books
+        // ReaderWrangler JS v3.14.0.w - Use ref for dropTarget to avoid React re-renders
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "3.14.0.v";
+        const ORGANIZER_VERSION = "3.14.0.w";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -164,7 +164,7 @@
             const [dragCurrentPos, setDragCurrentPos] = useState({ x: 0, y: 0 });
             const [isDragging, setIsDragging] = useState(false);
             const [isDraggingColumn, setIsDraggingColumn] = useState(false);
-            const [dropTarget, setDropTarget] = useState(null);
+            // v3.14.0.w - dropTarget moved to ref (dropTargetRef) to avoid React re-renders
             const [dataSource, setDataSource] = useState('none');
             const [blankImageBooks, setBlankImageBooks] = useState(new Set());
             const [editingColumn, setEditingColumn] = useState(null);
@@ -209,6 +209,10 @@
 
             // v3.14.0.h - Track previous dropTarget for debug logging
             const prevDropTargetRef = useRef(null);
+
+            // v3.14.0.w - Use refs instead of state for dropTarget to avoid React re-renders
+            const dropTargetRef = useRef(null);
+            const indicatorRef = useRef(null);
 
             // v3.14.0.r - Row-based grid index for O(log R) drop position lookup
             // Structure: { columnId: { rowBoundaries: [y1, y2, ...], rows: [{type, startIndex, items, top, bottom}, ...], columnRect } }
@@ -1782,7 +1786,8 @@
                 setDraggedBook(book);
                 setDraggedFromColumn(columnId);
                 setIsDragging(false);
-                setDropTarget(null);
+                // v3.14.0.w - Use ref instead of state
+                dropTargetRef.current = null;
             };
 
             // v3.11.0 - Handle divider dragging
@@ -1795,7 +1800,8 @@
                 setDraggedBook(divider); // Reuse draggedBook state for dividers
                 setDraggedFromColumn(columnId);
                 setIsDragging(false);
-                setDropTarget(null);
+                // v3.14.0.w - Use ref instead of state
+                dropTargetRef.current = null;
             };
 
             // v3.14.0.r - Build row-based index for a column (called at drag start only)
@@ -2060,16 +2066,26 @@
                 return recordTiming({ columnId, index: insertAfter ? targetItem.index + 1 : targetItem.index });
             };
 
-            // v3.14.0.t - Calculate pixel position for the overlay drop indicator
-            // Returns { top, left, width } in viewport coordinates, or null if no valid position
-            const calculateIndicatorPosition = () => {
-                if (!dropTarget || !isDragging) return null;
+            // v3.14.0.w - Update indicator position directly via DOM (no React re-render)
+            const updateIndicatorPosition = () => {
+                const target = dropTargetRef.current;
+                const indicator = indicatorRef.current;
 
-                const colIndex = columnIndexRef.current[dropTarget.columnId];
-                if (!colIndex) return null;
+                if (!indicator) return;
+
+                if (!target || !isDragging) {
+                    indicator.style.display = 'none';
+                    return;
+                }
+
+                const colIndex = columnIndexRef.current[target.columnId];
+                if (!colIndex) {
+                    indicator.style.display = 'none';
+                    return;
+                }
 
                 const { rows, columnRect, totalItems } = colIndex;
-                const targetIndex = dropTarget.index;
+                const targetIndex = target.index;
 
                 // v3.14.0.u - Calculate scroll delta to transform stored coordinates back to viewport
                 let scrollDelta = 0;
@@ -2085,7 +2101,12 @@
 
                 // Empty column case
                 if (rows.length === 0 || totalItems === 0) {
-                    return { top: columnRect.top - scrollDelta, left, width };
+                    // Apply styles directly
+                    indicator.style.display = 'block';
+                    indicator.style.top = (columnRect.top - scrollDelta - 3) + 'px';
+                    indicator.style.left = left + 'px';
+                    indicator.style.width = width + 'px';
+                    return;
                 }
 
                 // Find the row and item at/before the target index
@@ -2121,7 +2142,11 @@
                         left = firstItem.left;
                         width = firstItem.right - firstItem.left;
                     }
-                    return { top, left, width };
+                    indicator.style.display = 'block';
+                    indicator.style.top = (top - 3) + 'px';
+                    indicator.style.left = left + 'px';
+                    indicator.style.width = width + 'px';
+                    return;
                 }
 
                 // End of column (after last item)
@@ -2133,7 +2158,11 @@
                         left = lastItem.left;
                         width = lastItem.right - lastItem.left;
                     }
-                    return { top, left, width };
+                    indicator.style.display = 'block';
+                    indicator.style.top = (top - 3) + 'px';
+                    indicator.style.left = left + 'px';
+                    indicator.style.width = width + 'px';
+                    return;
                 }
 
                 // Normal case: between items
@@ -2149,11 +2178,18 @@
                         left = targetItem.left;
                         width = targetItem.right - targetItem.left;
                     }
-                    return { top, left, width };
+                    indicator.style.display = 'block';
+                    indicator.style.top = (top - 3) + 'px';
+                    indicator.style.left = left + 'px';
+                    indicator.style.width = width + 'px';
+                    return;
                 }
 
                 // Fallback: position at column top
-                return { top: columnRect.top - scrollDelta, left, width };
+                indicator.style.display = 'block';
+                indicator.style.top = (columnRect.top - scrollDelta - 3) + 'px';
+                indicator.style.left = left + 'px';
+                indicator.style.width = width + 'px';
             };
 
             const handleMouseMove = (e) => {
@@ -2196,7 +2232,10 @@
                         const columnId = target.dataset.columnId;
                         // v3.14.0.g - Use cursor position for drop detection (matches ghost center)
                         const dropPos = calculateDropPosition(e, columnId);
-                        setDropTarget(dropPos);
+
+                        // v3.14.0.w - Update ref instead of state to avoid React re-renders
+                        dropTargetRef.current = dropPos;
+                        updateIndicatorPosition();
 
                         // v3.14.0.h - Debug logging when drop target changes
                         const prevDropTarget = prevDropTargetRef.current;
@@ -2262,7 +2301,9 @@
                             }
                         }
                     } else {
-                        setDropTarget(null);
+                        // v3.14.0.w - Clear ref and hide indicator
+                        dropTargetRef.current = null;
+                        updateIndicatorPosition();
                         // Clear auto-scroll if mouse leaves column
                         if (autoScrollInterval) {
                             clearInterval(autoScrollInterval);
@@ -2305,11 +2346,15 @@
                     return;
                 }
 
+                // v3.14.0.w - Read from ref instead of state
+                const dropTarget = dropTargetRef.current;
+
                 if (!isDragging || !draggedBook || !dropTarget) {
                     setDraggedBook(null);
                     setDraggedFromColumn(null);
                     setIsDragging(false);
-                    setDropTarget(null);
+                    dropTargetRef.current = null;
+                    updateIndicatorPosition();
                     setDraggedColumn(null);
                     setIsDraggingColumn(false);
                     setColumnDropTarget(null);
@@ -2324,7 +2369,8 @@
                     setDraggedBook(null);
                     setDraggedFromColumn(null);
                     setIsDragging(false);
-                    setDropTarget(null);
+                    dropTargetRef.current = null;
+                    updateIndicatorPosition();
                     clearSelection();
                     return;
                 }
@@ -2406,7 +2452,8 @@
                         setDraggedBook(null);
                         setDraggedFromColumn(null);
                         setIsDragging(false);
-                        setDropTarget(null);
+                        dropTargetRef.current = null;
+                        updateIndicatorPosition();
                         return;
                     }
 
@@ -2429,7 +2476,8 @@
                 setDraggedBook(null);
                 setDraggedFromColumn(null);
                 setIsDragging(false);
-                setDropTarget(null);
+                dropTargetRef.current = null;
+                updateIndicatorPosition();
                 clearSelection();
             };
 
@@ -3644,7 +3692,7 @@
                                 <div key={column.id}
                                      data-column-id={column.id}
                                      onClick={() => setActiveColumnId(column.id)}
-                                     className={`flex-shrink-0 w-96 bg-white rounded-lg flex flex-col relative ${isDragging && dropTarget?.columnId === column.id ? 'drop-target' : ''} ${draggedColumn === column.id && isDraggingColumn ? 'column-dragging' : ''}`}
+                                     className={`flex-shrink-0 w-96 bg-white rounded-lg flex flex-col relative ${draggedColumn === column.id && isDraggingColumn ? 'column-dragging' : ''}`}
                                      style={activeColumnId === column.id ? {
                                          boxShadow: 'inset 0 2px 4px rgba(64, 64, 64, 0.4), inset 0 -2px 4px rgba(64, 64, 64, 0.4), inset 2px 0 4px rgba(64, 64, 64, 0.4), inset -2px 0 4px rgba(64, 64, 64, 0.4), 0 1px 3px rgba(0, 0, 0, 0.12)',
                                          border: '2px solid rgb(96, 96, 96)'
@@ -4062,44 +4110,37 @@
                         </div>
                     )}
 
-                    {/* v3.14.0.t - Overlay drop indicator positioned absolutely */}
-                    {isDragging && dropTarget && (() => {
-                        const pos = calculateIndicatorPosition();
-                        if (!pos) return null;
-                        return (
-                            <div
-                                className="drop-indicator-overlay"
-                                style={{
-                                    position: 'fixed',
-                                    top: pos.top - 3,
-                                    left: pos.left,
-                                    width: pos.width,
-                                    height: '6px',
-                                    pointerEvents: 'none',
-                                    zIndex: 9998
-                                }}
-                            >
-                                <div className="drop-indicator-line" style={{
-                                    position: 'absolute',
-                                    top: '2px',
-                                    left: 0,
-                                    right: 0,
-                                    height: '2px',
-                                    backgroundColor: '#3b82f6',
-                                    borderRadius: '1px'
-                                }} />
-                                <div className="drop-indicator-dot" style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: '-3px',
-                                    width: '6px',
-                                    height: '6px',
-                                    backgroundColor: '#3b82f6',
-                                    borderRadius: '50%'
-                                }} />
-                            </div>
-                        );
-                    })()}
+                    {/* v3.14.0.w - Overlay drop indicator using ref for direct DOM updates */}
+                    <div
+                        ref={indicatorRef}
+                        className="drop-indicator-overlay"
+                        style={{
+                            display: 'none',
+                            position: 'fixed',
+                            height: '6px',
+                            pointerEvents: 'none',
+                            zIndex: 9998
+                        }}
+                    >
+                        <div className="drop-indicator-line" style={{
+                            position: 'absolute',
+                            top: '2px',
+                            left: 0,
+                            right: 0,
+                            height: '2px',
+                            backgroundColor: '#3b82f6',
+                            borderRadius: '1px'
+                        }} />
+                        <div className="drop-indicator-dot" style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: '-3px',
+                            width: '6px',
+                            height: '6px',
+                            backgroundColor: '#3b82f6',
+                            borderRadius: '50%'
+                        }} />
+                    </div>
                 </div>
             );
         }
