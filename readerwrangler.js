@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.s - Add timing logs to quantify drag performance
+        // ReaderWrangler JS v3.14.0.t - Overlay indicator for drop targets
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "3.14.0.s";
+        const ORGANIZER_VERSION = "3.14.0.t";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2043,6 +2043,95 @@
                 return recordTiming({ columnId, index: insertAfter ? targetItem.index + 1 : targetItem.index });
             };
 
+            // v3.14.0.t - Calculate pixel position for the overlay drop indicator
+            // Returns { top, left, width } in viewport coordinates, or null if no valid position
+            const calculateIndicatorPosition = () => {
+                if (!dropTarget || !isDragging) return null;
+
+                const colIndex = columnIndexRef.current[dropTarget.columnId];
+                if (!colIndex) return null;
+
+                const { rows, columnRect, totalItems } = colIndex;
+                const targetIndex = dropTarget.index;
+
+                // Default to full column width for divider-style indicators
+                let left = columnRect.left;
+                let width = columnRect.width;
+                let top = columnRect.top;
+
+                // Empty column case
+                if (rows.length === 0 || totalItems === 0) {
+                    return { top: columnRect.top, left, width };
+                }
+
+                // Find the row and item at/before the target index
+                let targetRow = null;
+                let targetItem = null;
+                let insertBefore = true; // Are we inserting before or after this item?
+
+                for (const row of rows) {
+                    for (const item of row.items) {
+                        if (item.index === targetIndex) {
+                            // Insert before this item
+                            targetRow = row;
+                            targetItem = item;
+                            insertBefore = true;
+                            break;
+                        } else if (item.index === targetIndex - 1) {
+                            // Insert after this item
+                            targetRow = row;
+                            targetItem = item;
+                            insertBefore = false;
+                        }
+                    }
+                    if (targetItem && insertBefore) break; // Found exact match
+                }
+
+                // Start of column (index 0, before first item)
+                if (targetIndex === 0 && rows.length > 0) {
+                    const firstRow = rows[0];
+                    top = firstRow.top;
+                    if (firstRow.type === 'books' && firstRow.items.length > 0) {
+                        // Use first book's width
+                        const firstItem = firstRow.items[0];
+                        left = firstItem.left;
+                        width = firstItem.right - firstItem.left;
+                    }
+                    return { top, left, width };
+                }
+
+                // End of column (after last item)
+                if (targetIndex >= totalItems) {
+                    const lastRow = rows[rows.length - 1];
+                    top = lastRow.bottom;
+                    if (lastRow.type === 'books' && lastRow.items.length > 0) {
+                        const lastItem = lastRow.items[lastRow.items.length - 1];
+                        left = lastItem.left;
+                        width = lastItem.right - lastItem.left;
+                    }
+                    return { top, left, width };
+                }
+
+                // Normal case: between items
+                if (targetRow && targetItem) {
+                    if (insertBefore) {
+                        top = targetItem.top;
+                    } else {
+                        top = targetItem.bottom;
+                    }
+
+                    // For books, use the item's width; for dividers, use full width
+                    if (targetRow.type === 'books') {
+                        left = targetItem.left;
+                        width = targetItem.right - targetItem.left;
+                    }
+                    return { top, left, width };
+                }
+
+                // Fallback: position at column top
+                return { top: columnRect.top, left, width };
+            };
+
             const handleMouseMove = (e) => {
                 if (draggedColumn) {
                     setDragCurrentPos({ x: e.clientX, y: e.clientY });
@@ -4003,6 +4092,45 @@
                             </div>
                         </div>
                     )}
+
+                    {/* v3.14.0.t - Overlay drop indicator positioned absolutely */}
+                    {isDragging && dropTarget && (() => {
+                        const pos = calculateIndicatorPosition();
+                        if (!pos) return null;
+                        return (
+                            <div
+                                className="drop-indicator-overlay"
+                                style={{
+                                    position: 'fixed',
+                                    top: pos.top - 3,
+                                    left: pos.left,
+                                    width: pos.width,
+                                    height: '6px',
+                                    pointerEvents: 'none',
+                                    zIndex: 9998
+                                }}
+                            >
+                                <div className="drop-indicator-line" style={{
+                                    position: 'absolute',
+                                    top: '2px',
+                                    left: 0,
+                                    right: 0,
+                                    height: '2px',
+                                    backgroundColor: '#3b82f6',
+                                    borderRadius: '1px'
+                                }} />
+                                <div className="drop-indicator-dot" style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: '-3px',
+                                    width: '6px',
+                                    height: '6px',
+                                    backgroundColor: '#3b82f6',
+                                    borderRadius: '50%'
+                                }} />
+                            </div>
+                        );
+                    })()}
                 </div>
             );
         }
