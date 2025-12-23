@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.p - Dividers as Drop Targets (remove debug logging, add start-of-column indicator)
+        // ReaderWrangler JS v3.14.0.q - Fix missing indicators (empty cells, between contiguous dividers)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.14.0.p";
+        const ORGANIZER_VERSION = "3.14.0.q";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3537,11 +3537,17 @@
                                                                 </button>
                                                             )}
                                                             </div>
-                                                            {/* v3.14.0.p - Drop indicator for dividers (bottom edge) - only when dragging dividers */}
+                                                            {/* v3.14.0.q - Drop indicator for dividers (bottom edge) - show for both book and divider drags */}
                                                             {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex + 1 &&
-                                                             draggedBook?.id !== item.id &&
-                                                             (typeof draggedBook === 'object' && draggedBook.type === 'divider') && (
-                                                                <div className="drop-indicator drop-indicator-divider" style={{ bottom: '-6px' }} />
+                                                             draggedBook?.id !== item.id && (() => {
+                                                                // Check if next item is also a divider (contiguous dividers case) or no next item
+                                                                const nextItem = column.books[actualIndex + 1];
+                                                                const nextIsDividerOrEmpty = !nextItem || (typeof nextItem === 'object' && nextItem.type === 'divider');
+                                                                // Show indicator if: dragging divider OR next is divider/empty (so books can drop between dividers)
+                                                                const isDraggingDivider = typeof draggedBook === 'object' && draggedBook.type === 'divider';
+                                                                return isDraggingDivider || nextIsDividerOrEmpty;
+                                                            })() && (
+                                                                <div className={`drop-indicator ${typeof draggedBook === 'object' && draggedBook.type === 'divider' ? 'drop-indicator-divider' : 'drop-indicator-book'}`} style={{ bottom: '-6px' }} />
                                                             )}
                                                         </div>
                                                     );
@@ -3685,9 +3691,23 @@
                                                     </div>
                                                 );
                                             })}
-                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index >= column.books.length && (
-                                                <div className="drop-indicator" style={{ bottom: '-6px' }} />
-                                            )}
+                                            {/* v3.14.0.q - Fallback indicator when drop target has no element to host indicator */}
+                                            {isDragging && dropTarget?.columnId === column.id && (() => {
+                                                const targetIndex = dropTarget.index;
+                                                // End of column case
+                                                if (targetIndex >= column.books.length) {
+                                                    return <div className="drop-indicator col-span-3" style={{ bottom: '-6px' }} />;
+                                                }
+                                                // Check if item at target index is a divider (books handle their own indicators)
+                                                const itemAtTarget = column.books[targetIndex];
+                                                if (itemAtTarget && typeof itemAtTarget === 'object' && itemAtTarget.type === 'divider') {
+                                                    // Divider at target - check if previous item was also a divider (contiguous case)
+                                                    // This case is now handled by divider bottom indicator, so no fallback needed
+                                                    return null;
+                                                }
+                                                // If item at target is a book, it handles its own indicator
+                                                return null;
+                                            })()}
                                         </div>
                                     </div>
                                     {isDraggingColumn && columnDropTarget === colIndex + 1 && draggedColumn !== column.id && (
