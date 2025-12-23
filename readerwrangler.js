@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.l - Dividers as Drop Targets (remove drag ghost top glow)
+        // ReaderWrangler JS v3.14.0.m - Dividers as Drop Targets (show drop indicators when dragging dividers)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.14.0.l";
+        const ORGANIZER_VERSION = "v3.14.0.m";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3582,15 +3582,15 @@
 
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
-                                                        {/* v3.14.0.k - Don't show drop indicator on books when dragging divider OR when hovering over divider - GREEN for debug */}
+                                                        {/* v3.14.0.m - Show drop indicator on books for all drag types - RED for debug (divider drag), GREEN for book drag */}
                                                         {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
                                                          draggedBook?.id !== book.id && !selectedBooks.has(book.id) &&
-                                                         !(typeof draggedBook === 'object' && draggedBook.type === 'divider') &&
                                                          !targetIsDivider && (() => {
-                                                            console.log('BOOK INDICATOR RENDERING for book:', book.id, 'at index', actualIndex, 'targetIsDivider:', targetIsDivider);
+                                                            const isDraggingDivider = typeof draggedBook === 'object' && draggedBook.type === 'divider';
+                                                            console.log('BOOK INDICATOR RENDERING for book:', book.id, 'at index', actualIndex, 'isDraggingDivider:', isDraggingDivider);
                                                             return true;
                                                          })() && (
-                                                            <div className="drop-indicator drop-indicator-book" style={{ top: '-6px' }} />
+                                                            <div className={`drop-indicator ${typeof draggedBook === 'object' && draggedBook.type === 'divider' ? 'drop-indicator-divider' : 'drop-indicator-book'}`} style={{ top: '-6px' }} />
                                                         )}
                                                         <div className={`book-clickable ${selectedBooks.has(book.id) ? 'selected' : ''} ${draggedBook?.id === book.id && isDragging ? 'dragging' : ''}`}
                                                              onMouseDown={(e) => handleMouseDown(e, book, column.id)}
