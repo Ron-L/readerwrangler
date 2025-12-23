@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.j - Dividers as Drop Targets (fix drag ghost border confusion)
+        // ReaderWrangler JS v3.14.0.k - Dividers as Drop Targets (color-coded debug indicators)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.14.0.j";
+        const ORGANIZER_VERSION = "v3.14.0.k";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3491,13 +3491,13 @@
 
                                                     return (
                                                         <div key={item.id} className="col-span-3 relative">
-                                                            {/* v3.14.0.h - Drop indicator for dividers (top edge - insert before) */}
+                                                            {/* v3.14.0.k - Drop indicator for dividers (top edge - insert before) - RED for debug */}
                                                             {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
                                                              draggedBook?.id !== item.id && (() => {
                                                                 console.log('DIVIDER TOP INDICATOR RENDERING:', item.label, 'at index', actualIndex);
                                                                 return true;
                                                              })() && (
-                                                                <div className="drop-indicator" style={{ top: '-6px' }} />
+                                                                <div className="drop-indicator drop-indicator-divider" style={{ top: '-6px' }} />
                                                             )}
                                                             <div className={`flex items-center gap-2 py-2 px-3 my-1 rounded cursor-pointer divider-item ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
                                                                  data-divider-id={item.id}
@@ -3556,13 +3556,13 @@
                                                                 </button>
                                                             )}
                                                             </div>
-                                                            {/* v3.14.0.h - Drop indicator for dividers (bottom edge - insert after) */}
+                                                            {/* v3.14.0.k - Drop indicator for dividers (bottom edge - insert after) - RED for debug */}
                                                             {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex + 1 &&
                                                              draggedBook?.id !== item.id && (() => {
                                                                 console.log('DIVIDER BOTTOM INDICATOR RENDERING:', item.label, 'at index', actualIndex + 1);
                                                                 return true;
                                                              })() && (
-                                                                <div className="drop-indicator" style={{ bottom: '-6px' }} />
+                                                                <div className="drop-indicator drop-indicator-divider" style={{ bottom: '-6px' }} />
                                                             )}
                                                         </div>
                                                     );
@@ -3582,7 +3582,7 @@
 
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
-                                                        {/* v3.14.0.h - Don't show drop indicator on books when dragging divider OR when hovering over divider */}
+                                                        {/* v3.14.0.k - Don't show drop indicator on books when dragging divider OR when hovering over divider - GREEN for debug */}
                                                         {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
                                                          draggedBook?.id !== book.id && !selectedBooks.has(book.id) &&
                                                          !(typeof draggedBook === 'object' && draggedBook.type === 'divider') &&
@@ -3590,7 +3590,7 @@
                                                             console.log('BOOK INDICATOR RENDERING for book:', book.id, 'at index', actualIndex, 'targetIsDivider:', targetIsDivider);
                                                             return true;
                                                          })() && (
-                                                            <div className="drop-indicator" style={{ top: '-6px' }} />
+                                                            <div className="drop-indicator drop-indicator-book" style={{ top: '-6px' }} />
                                                         )}
                                                         <div className={`book-clickable ${selectedBooks.has(book.id) ? 'selected' : ''} ${draggedBook?.id === book.id && isDragging ? 'dragging' : ''}`}
                                                              onMouseDown={(e) => handleMouseDown(e, book, column.id)}
@@ -3710,7 +3710,10 @@
                                                     </div>
                                                 );
                                             })}
-                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index >= column.books.length && (
+                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index >= column.books.length && (() => {
+                                                console.log('END-OF-COLUMN INDICATOR RENDERING at index', dropTarget.index);
+                                                return true;
+                                            })() && (
                                                 <div className="drop-indicator" style={{ bottom: '-6px' }} />
                                             )}
                                         </div>

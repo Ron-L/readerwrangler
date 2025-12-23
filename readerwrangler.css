@@ -32,6 +32,19 @@ body { margin: 0; padding: 0; overflow: hidden; }
     background-color: #3b82f6;
     border-radius: 50%;
 }
+/* v3.14.0.k - Debug colors for drop indicators */
+.drop-indicator-divider {
+    background-color: #dc2626; /* Red for dividers */
+}
+.drop-indicator-divider::before {
+    background-color: #dc2626;
+}
+.drop-indicator-book {
+    background-color: #16a34a; /* Green for books */
+}
+.drop-indicator-book::before {
+    background-color: #16a34a;
+}
 .column-drop-indicator {
     position: absolute;
     top: 0;
