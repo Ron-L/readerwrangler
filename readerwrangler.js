@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.o - Dividers as Drop Targets (fix book drag showing divider indicators)
+        // ReaderWrangler JS v3.14.0.p - Dividers as Drop Targets (remove debug logging, add start-of-column indicator)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.14.0.o";
+        const ORGANIZER_VERSION = "v3.14.0.p";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1916,27 +1916,6 @@
                             prevDropTarget.index !== dropPos.index;
 
                         if (dropTargetChanged) {
-                            console.log('=== Drop Target Changed ===');
-                            console.log('dropTarget.index:', dropPos.index);
-                            console.log('dropTarget.columnId:', dropPos.columnId);
-                            console.log('draggedBook type:', typeof draggedBook === 'object' && draggedBook.type === 'divider' ? 'divider' : 'book');
-                            console.log('draggedBook:', draggedBook);
-                            console.log('cursor Y:', e.clientY);
-                            console.log('dragCurrentPos Y:', dragCurrentPos.y);
-
-                            // Find what elements match this index
-                            const column = columns.find(c => c.id === dropPos.columnId);
-                            if (column) {
-                                const itemAtIndex = column.books[dropPos.index];
-                                const itemBeforeIndex = dropPos.index > 0 ? column.books[dropPos.index - 1] : null;
-                                console.log('Item at drop index:', typeof itemAtIndex === 'object' && itemAtIndex?.type === 'divider'
-                                    ? `divider: "${itemAtIndex.label}"`
-                                    : itemAtIndex ? `book ID: ${itemAtIndex}` : 'END OF COLUMN');
-                                console.log('Item before drop index:', typeof itemBeforeIndex === 'object' && itemBeforeIndex?.type === 'divider'
-                                    ? `divider: "${itemBeforeIndex.label}"`
-                                    : itemBeforeIndex ? `book ID: ${itemBeforeIndex}` : 'START OF COLUMN');
-                            }
-
                             prevDropTargetRef.current = dropPos;
                         }
 
@@ -3477,6 +3456,10 @@
                                     </div>
                                     <div className="flex-1 overflow-y-auto p-4">
                                         <div className="grid grid-cols-3 gap-3 relative book-grid">
+                                            {/* v3.14.0.p - Drop indicator at start of column (index 0) */}
+                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === 0 && (
+                                                <div className="drop-indicator col-span-3" style={{ top: '-6px' }} />
+                                            )}
                                             {filteredBooks(column.books).map((item) => {
                                                 // v3.11.0 - Handle dividers
                                                 if (typeof item === 'object' && item.type === 'divider') {
@@ -3491,13 +3474,10 @@
 
                                                     return (
                                                         <div key={item.id} className="col-span-3 relative">
-                                                            {/* v3.14.0.o - Drop indicator for dividers (top edge) - only when dragging dividers */}
+                                                            {/* v3.14.0.p - Drop indicator for dividers (top edge) - only when dragging dividers */}
                                                             {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
                                                              draggedBook?.id !== item.id &&
-                                                             (typeof draggedBook === 'object' && draggedBook.type === 'divider') && (() => {
-                                                                console.log('DIVIDER TOP INDICATOR RENDERING:', item.label, 'at index', actualIndex);
-                                                                return true;
-                                                             })() && (
+                                                             (typeof draggedBook === 'object' && draggedBook.type === 'divider') && (
                                                                 <div className="drop-indicator drop-indicator-divider" style={{ top: '-6px' }} />
                                                             )}
                                                             <div className={`flex items-center gap-2 py-2 px-3 my-1 rounded cursor-pointer divider-item ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
@@ -3557,13 +3537,10 @@
                                                                 </button>
                                                             )}
                                                             </div>
-                                                            {/* v3.14.0.o - Drop indicator for dividers (bottom edge) - only when dragging dividers */}
+                                                            {/* v3.14.0.p - Drop indicator for dividers (bottom edge) - only when dragging dividers */}
                                                             {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex + 1 &&
                                                              draggedBook?.id !== item.id &&
-                                                             (typeof draggedBook === 'object' && draggedBook.type === 'divider') && (() => {
-                                                                console.log('DIVIDER BOTTOM INDICATOR RENDERING:', item.label, 'at index', actualIndex + 1);
-                                                                return true;
-                                                             })() && (
+                                                             (typeof draggedBook === 'object' && draggedBook.type === 'divider') && (
                                                                 <div className="drop-indicator drop-indicator-divider" style={{ bottom: '-6px' }} />
                                                             )}
                                                         </div>
@@ -3584,14 +3561,10 @@
 
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
-                                                        {/* v3.14.0.o - Show book indicator unless target IS a divider */}
+                                                        {/* v3.14.0.p - Show book indicator unless target IS a divider */}
                                                         {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
                                                          draggedBook?.id !== book.id && !selectedBooks.has(book.id) &&
-                                                         !targetIsDivider && (() => {
-                                                            const isDraggingDivider = typeof draggedBook === 'object' && draggedBook.type === 'divider';
-                                                            console.log('BOOK INDICATOR RENDERING for book:', book.id, 'at index', actualIndex, 'isDraggingDivider:', isDraggingDivider);
-                                                            return true;
-                                                         })() && (
+                                                         !targetIsDivider && (
                                                             <div className={`drop-indicator ${typeof draggedBook === 'object' && draggedBook.type === 'divider' ? 'drop-indicator-divider' : 'drop-indicator-book'}`} style={{ top: '-6px' }} />
                                                         )}
                                                         <div className={`book-clickable ${selectedBooks.has(book.id) ? 'selected' : ''} ${draggedBook?.id === book.id && isDragging ? 'dragging' : ''}`}
@@ -3712,10 +3685,7 @@
                                                     </div>
                                                 );
                                             })}
-                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index >= column.books.length && (() => {
-                                                console.log('END-OF-COLUMN INDICATOR RENDERING at index', dropTarget.index);
-                                                return true;
-                                            })() && (
+                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index >= column.books.length && (
                                                 <div className="drop-indicator" style={{ bottom: '-6px' }} />
                                             )}
                                         </div>
