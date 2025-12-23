@@ -1788,7 +1788,7 @@
                 setDropTarget(null);
             };
 
-            const calculateDropPosition = (e, columnId) => {
+            const calculateDropPosition = (e, columnId, useBookCenter = false) => {
                 const column = columns.find(c => c.id === columnId);
                 if (!column) return null;
 
@@ -1804,8 +1804,9 @@
                     return { columnId, index: 0 };
                 }
 
-                const mouseX = e.clientX;
-                const mouseY = e.clientY;
+                // v3.14.0.d - Use dragged book center position for consistency
+                const mouseX = useBookCenter ? dragCurrentPos.x : e.clientX;
+                const mouseY = useBookCenter ? dragCurrentPos.y : e.clientY;
                 let closestIndex = 0;
                 let closestDistance = Infinity;
                 let closestElement = null;
@@ -1901,7 +1902,8 @@
                     const target = e.target.closest('[data-column-id]');
                     if (target) {
                         const columnId = target.dataset.columnId;
-                        const dropPos = calculateDropPosition(e, columnId);
+                        // v3.14.0.d - Use dragged book center position for consistent drop detection
+                        const dropPos = calculateDropPosition(e, columnId, true);
                         setDropTarget(dropPos);
 
                         // v3.12.0.c - Auto-scroll when dragging near column edges
