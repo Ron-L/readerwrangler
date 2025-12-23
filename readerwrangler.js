@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.e - Dividers as Drop Targets (extra divider check)
+        // ReaderWrangler JS v3.14.0.f - Dividers as Drop Targets (both edges)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.14.0.e";
+        const ORGANIZER_VERSION = "v3.14.0.f";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
