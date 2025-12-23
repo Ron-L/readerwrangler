@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.n - Dividers as Drop Targets (prevent double indicators)
+        // ReaderWrangler JS v3.14.0.o - Dividers as Drop Targets (fix book drag showing divider indicators)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.14.0.n";
+        const ORGANIZER_VERSION = "v3.14.0.o";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3491,9 +3491,10 @@
 
                                                     return (
                                                         <div key={item.id} className="col-span-3 relative">
-                                                            {/* v3.14.0.k - Drop indicator for dividers (top edge - insert before) - RED for debug */}
+                                                            {/* v3.14.0.o - Drop indicator for dividers (top edge) - only when dragging dividers */}
                                                             {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
-                                                             draggedBook?.id !== item.id && (() => {
+                                                             draggedBook?.id !== item.id &&
+                                                             (typeof draggedBook === 'object' && draggedBook.type === 'divider') && (() => {
                                                                 console.log('DIVIDER TOP INDICATOR RENDERING:', item.label, 'at index', actualIndex);
                                                                 return true;
                                                              })() && (
@@ -3556,9 +3557,10 @@
                                                                 </button>
                                                             )}
                                                             </div>
-                                                            {/* v3.14.0.k - Drop indicator for dividers (bottom edge - insert after) - RED for debug */}
+                                                            {/* v3.14.0.o - Drop indicator for dividers (bottom edge) - only when dragging dividers */}
                                                             {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex + 1 &&
-                                                             draggedBook?.id !== item.id && (() => {
+                                                             draggedBook?.id !== item.id &&
+                                                             (typeof draggedBook === 'object' && draggedBook.type === 'divider') && (() => {
                                                                 console.log('DIVIDER BOTTOM INDICATOR RENDERING:', item.label, 'at index', actualIndex + 1);
                                                                 return true;
                                                              })() && (
@@ -3575,22 +3577,17 @@
                                                     (typeof b === 'string' && b === book.id)
                                                 );
 
-                                                // v3.14.0.n - Check if drop target position is a divider or right after a divider
+                                                // v3.14.0.o - Check if drop target position is a divider
                                                 const targetIsDivider = dropTarget && column.books[dropTarget.index] &&
                                                     typeof column.books[dropTarget.index] === 'object' &&
                                                     column.books[dropTarget.index].type === 'divider';
 
-                                                const targetIsAfterDivider = dropTarget && dropTarget.index > 0 &&
-                                                    column.books[dropTarget.index - 1] &&
-                                                    typeof column.books[dropTarget.index - 1] === 'object' &&
-                                                    column.books[dropTarget.index - 1].type === 'divider';
-
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
-                                                        {/* v3.14.0.n - Don't show book indicator if divider is already showing (at target or before target) */}
+                                                        {/* v3.14.0.o - Show book indicator unless target IS a divider */}
                                                         {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
                                                          draggedBook?.id !== book.id && !selectedBooks.has(book.id) &&
-                                                         !targetIsDivider && !targetIsAfterDivider && (() => {
+                                                         !targetIsDivider && (() => {
                                                             const isDraggingDivider = typeof draggedBook === 'object' && draggedBook.type === 'divider';
                                                             console.log('BOOK INDICATOR RENDERING for book:', book.id, 'at index', actualIndex, 'isDraggingDivider:', isDraggingDivider);
                                                             return true;
