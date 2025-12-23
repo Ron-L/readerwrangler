@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.g - Dividers as Drop Targets (fix state lag)
+        // ReaderWrangler JS v3.14.0.h - Dividers as Drop Targets (debug logging)
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "v3.14.0.g";
+        const ORGANIZER_VERSION = "v3.14.0.h";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -206,6 +206,9 @@
 
             // v3.11.0.d - Ref for column menu click-outside detection
             const columnMenuRef = useRef(null);
+
+            // v3.14.0.h - Track previous dropTarget for debug logging
+            const prevDropTargetRef = useRef(null);
 
             // v3.12.0 - Auto-scroll during drag
             const [autoScrollInterval, setAutoScrollInterval] = useState(null);
@@ -1905,6 +1908,37 @@
                         // v3.14.0.g - Use cursor position for drop detection (matches ghost center)
                         const dropPos = calculateDropPosition(e, columnId);
                         setDropTarget(dropPos);
+
+                        // v3.14.0.h - Debug logging when drop target changes
+                        const prevDropTarget = prevDropTargetRef.current;
+                        const dropTargetChanged = !prevDropTarget ||
+                            prevDropTarget.columnId !== dropPos.columnId ||
+                            prevDropTarget.index !== dropPos.index;
+
+                        if (dropTargetChanged) {
+                            console.log('=== Drop Target Changed ===');
+                            console.log('dropTarget.index:', dropPos.index);
+                            console.log('dropTarget.columnId:', dropPos.columnId);
+                            console.log('draggedBook type:', typeof draggedBook === 'object' && draggedBook.type === 'divider' ? 'divider' : 'book');
+                            console.log('draggedBook:', draggedBook);
+                            console.log('cursor Y:', e.clientY);
+                            console.log('dragCurrentPos Y:', dragCurrentPos.y);
+
+                            // Find what elements match this index
+                            const column = columns.find(c => c.id === dropPos.columnId);
+                            if (column) {
+                                const itemAtIndex = column.books[dropPos.index];
+                                const itemBeforeIndex = dropPos.index > 0 ? column.books[dropPos.index - 1] : null;
+                                console.log('Item at drop index:', typeof itemAtIndex === 'object' && itemAtIndex?.type === 'divider'
+                                    ? `divider: "${itemAtIndex.label}"`
+                                    : itemAtIndex ? `book ID: ${itemAtIndex}` : 'END OF COLUMN');
+                                console.log('Item before drop index:', typeof itemBeforeIndex === 'object' && itemBeforeIndex?.type === 'divider'
+                                    ? `divider: "${itemBeforeIndex.label}"`
+                                    : itemBeforeIndex ? `book ID: ${itemBeforeIndex}` : 'START OF COLUMN');
+                            }
+
+                            prevDropTargetRef.current = dropPos;
+                        }
 
                         // v3.12.0.c - Auto-scroll when dragging near column edges
                         // Use dragged book position (center of ghost) instead of cursor position
