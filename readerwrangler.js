@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.t - Overlay indicator for drop targets
+        // ReaderWrangler JS v3.14.0.u - Scroll offset instead of index rebuild
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "3.14.0.t";
+        const ORGANIZER_VERSION = "3.14.0.u";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1798,7 +1798,8 @@
                 setDropTarget(null);
             };
 
-            // v3.14.0.r - Build row-based index for a column (called at drag start and on scroll)
+            // v3.14.0.r - Build row-based index for a column (called at drag start only)
+            // v3.14.0.u - Store scrollTop to calculate offset instead of rebuilding on scroll
             // Groups elements into rows based on Y position, enabling O(log R) lookup instead of O(N)
             const buildColumnIndex = (columnId) => {
                 const startTime = performance.now(); // v3.14.0.s timing
@@ -1807,6 +1808,10 @@
 
                 const columnElement = document.querySelector(`[data-column-id="${columnId}"] .book-grid`);
                 if (!columnElement) return null;
+
+                // v3.14.0.u - Get scrollable container and store its scrollTop
+                const scrollContainer = columnElement.closest('.overflow-y-auto');
+                const initialScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
 
                 const columnRect = columnElement.getBoundingClientRect();
 
@@ -1900,7 +1905,9 @@
                     columnRect,
                     rows,
                     rowBoundaries,
-                    totalItems: column.books.length
+                    totalItems: column.books.length,
+                    initialScrollTop,  // v3.14.0.u - for scroll offset calculation
+                    scrollContainer    // v3.14.0.u - reference to get current scrollTop
                 };
 
                 columnIndexRef.current[columnId] = index;
@@ -1989,7 +1996,17 @@
                 }
 
                 const mouseX = e.clientX;
-                const mouseY = e.clientY;
+                let mouseY = e.clientY;
+
+                // v3.14.0.u - Adjust mouseY for scroll offset
+                // The index was built with positions relative to the viewport at initialScrollTop.
+                // If the column has scrolled since then, we need to transform mouseY to match
+                // the original coordinate space by adding the scroll delta.
+                if (colIndex.scrollContainer && colIndex.initialScrollTop !== undefined) {
+                    const currentScrollTop = colIndex.scrollContainer.scrollTop;
+                    const scrollDelta = currentScrollTop - colIndex.initialScrollTop;
+                    mouseY += scrollDelta; // Adjust mouse position to original coordinate space
+                }
 
                 // Binary search to find the row
                 const result = findRowByY(colIndex.rows, colIndex.rowBoundaries, mouseY);
@@ -2054,14 +2071,21 @@
                 const { rows, columnRect, totalItems } = colIndex;
                 const targetIndex = dropTarget.index;
 
+                // v3.14.0.u - Calculate scroll delta to transform stored coordinates back to viewport
+                let scrollDelta = 0;
+                if (colIndex.scrollContainer && colIndex.initialScrollTop !== undefined) {
+                    const currentScrollTop = colIndex.scrollContainer.scrollTop;
+                    scrollDelta = currentScrollTop - colIndex.initialScrollTop;
+                }
+
                 // Default to full column width for divider-style indicators
                 let left = columnRect.left;
                 let width = columnRect.width;
-                let top = columnRect.top;
+                let top = columnRect.top - scrollDelta; // Adjust for scroll
 
                 // Empty column case
                 if (rows.length === 0 || totalItems === 0) {
-                    return { top: columnRect.top, left, width };
+                    return { top: columnRect.top - scrollDelta, left, width };
                 }
 
                 // Find the row and item at/before the target index
@@ -2090,7 +2114,7 @@
                 // Start of column (index 0, before first item)
                 if (targetIndex === 0 && rows.length > 0) {
                     const firstRow = rows[0];
-                    top = firstRow.top;
+                    top = firstRow.top - scrollDelta; // Adjust for scroll
                     if (firstRow.type === 'books' && firstRow.items.length > 0) {
                         // Use first book's width
                         const firstItem = firstRow.items[0];
@@ -2103,7 +2127,7 @@
                 // End of column (after last item)
                 if (targetIndex >= totalItems) {
                     const lastRow = rows[rows.length - 1];
-                    top = lastRow.bottom;
+                    top = lastRow.bottom - scrollDelta; // Adjust for scroll
                     if (lastRow.type === 'books' && lastRow.items.length > 0) {
                         const lastItem = lastRow.items[lastRow.items.length - 1];
                         left = lastItem.left;
@@ -2115,9 +2139,9 @@
                 // Normal case: between items
                 if (targetRow && targetItem) {
                     if (insertBefore) {
-                        top = targetItem.top;
+                        top = targetItem.top - scrollDelta; // Adjust for scroll
                     } else {
-                        top = targetItem.bottom;
+                        top = targetItem.bottom - scrollDelta; // Adjust for scroll
                     }
 
                     // For books, use the item's width; for dividers, use full width
@@ -2129,7 +2153,7 @@
                 }
 
                 // Fallback: position at column top
-                return { top: columnRect.top, left, width };
+                return { top: columnRect.top - scrollDelta, left, width };
             };
 
             const handleMouseMove = (e) => {
@@ -2217,8 +2241,7 @@
 
                                 const interval = setInterval(() => {
                                     columnElement.scrollTop = Math.max(0, columnElement.scrollTop - scrollSpeed);
-                                    // v3.14.0.r - Rebuild index when scrolling (positions change)
-                                    buildColumnIndex(columnId);
+                                    // v3.14.0.u - No longer rebuild index; scroll offset calculated dynamically
                                 }, scrollInterval);
                                 setAutoScrollInterval(interval);
                             }
@@ -2233,8 +2256,7 @@
                                         columnElement.scrollHeight - columnElement.clientHeight,
                                         columnElement.scrollTop + scrollSpeed
                                     );
-                                    // v3.14.0.r - Rebuild index when scrolling (positions change)
-                                    buildColumnIndex(columnId);
+                                    // v3.14.0.u - No longer rebuild index; scroll offset calculated dynamically
                                 }, scrollInterval);
                                 setAutoScrollInterval(interval);
                             }
