@@ -3529,12 +3529,19 @@
                                                     (typeof b === 'object' && b.type === 'divider' && b.id === item.id) ||
                                                     (typeof b === 'string' && b === book.id)
                                                 );
+
+                                                // v3.14.0.e - Check if drop target is a divider position
+                                                const targetIsDivider = dropTarget && column.books[dropTarget.index] &&
+                                                    typeof column.books[dropTarget.index] === 'object' &&
+                                                    column.books[dropTarget.index].type === 'divider';
+
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
-                                                        {/* v3.14.0.c - Don't show drop indicator on books when dragging divider */}
+                                                        {/* v3.14.0.e - Don't show drop indicator on books when dragging divider OR when hovering over divider */}
                                                         {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
                                                          draggedBook?.id !== book.id && !selectedBooks.has(book.id) &&
-                                                         !(typeof draggedBook === 'object' && draggedBook.type === 'divider') && (
+                                                         !(typeof draggedBook === 'object' && draggedBook.type === 'divider') &&
+                                                         !targetIsDivider && (
                                                             <div className="drop-indicator" style={{ top: '-6px' }} />
                                                         )}
                                                         <div className={`book-clickable ${selectedBooks.has(book.id) ? 'selected' : ''} ${draggedBook?.id === book.id && isDragging ? 'dragging' : ''}`}
