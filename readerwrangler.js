@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.u - Scroll offset instead of index rebuild
+        // ReaderWrangler JS v3.14.0.v - Remove old indicator code from books
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "3.14.0.u";
+        const ORGANIZER_VERSION = "3.14.0.v";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3757,10 +3757,7 @@
                                     </div>
                                     <div className="flex-1 overflow-y-auto p-4">
                                         <div className="grid grid-cols-3 gap-3 relative book-grid">
-                                            {/* v3.14.0.p - Drop indicator at start of column (index 0) */}
-                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === 0 && (
-                                                <div className="drop-indicator col-span-3" style={{ top: '-6px' }} />
-                                            )}
+                                            {/* v3.14.0.v - Old start-of-column indicator removed; overlay handles it */}
                                             {filteredBooks(column.books).map((item) => {
                                                 // v3.11.0 - Handle dividers
                                                 if (typeof item === 'object' && item.type === 'divider') {
@@ -3768,19 +3765,10 @@
                                                     const isEditing = editingDivider && editingDivider.columnId === column.id && editingDivider.dividerId === item.id;
                                                     const isSelected = selectedDivider && selectedDivider.columnId === column.id && selectedDivider.dividerId === item.id; // v3.13.0
 
-                                                    // v3.14.0 - Find actual index for drop indicator
-                                                    const actualIndex = column.books.findIndex(b =>
-                                                        typeof b === 'object' && b.type === 'divider' && b.id === item.id
-                                                    );
+                                                    // v3.14.0.v - Old divider indicator code removed; overlay handles it
 
                                                     return (
                                                         <div key={item.id} className="col-span-3 relative">
-                                                            {/* v3.14.0.p - Drop indicator for dividers (top edge) - only when dragging dividers */}
-                                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
-                                                             draggedBook?.id !== item.id &&
-                                                             (typeof draggedBook === 'object' && draggedBook.type === 'divider') && (
-                                                                <div className="drop-indicator drop-indicator-divider" style={{ top: '-6px' }} />
-                                                            )}
                                                             <div className={`flex items-center gap-2 py-2 px-3 my-1 rounded cursor-pointer divider-item ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
                                                                  data-divider-id={item.id}
                                                                  style={{ backgroundColor: isSelected ? '#dbeafe' : '#f3f4f6' }}
@@ -3838,42 +3826,17 @@
                                                                 </button>
                                                             )}
                                                             </div>
-                                                            {/* v3.14.0.q - Drop indicator for dividers (bottom edge) - show for both book and divider drags */}
-                                                            {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex + 1 &&
-                                                             draggedBook?.id !== item.id && (() => {
-                                                                // Check if next item is also a divider (contiguous dividers case) or no next item
-                                                                const nextItem = column.books[actualIndex + 1];
-                                                                const nextIsDividerOrEmpty = !nextItem || (typeof nextItem === 'object' && nextItem.type === 'divider');
-                                                                // Show indicator if: dragging divider OR next is divider/empty (so books can drop between dividers)
-                                                                const isDraggingDivider = typeof draggedBook === 'object' && draggedBook.type === 'divider';
-                                                                return isDraggingDivider || nextIsDividerOrEmpty;
-                                                            })() && (
-                                                                <div className={`drop-indicator ${typeof draggedBook === 'object' && draggedBook.type === 'divider' ? 'drop-indicator-divider' : 'drop-indicator-book'}`} style={{ bottom: '-6px' }} />
-                                                            )}
+                                                            {/* v3.14.0.v - Old divider bottom indicator removed; overlay handles it */}
                                                         </div>
                                                     );
                                                 }
 
                                                 // Regular book rendering
                                                 const book = item;
-                                                const actualIndex = column.books.findIndex(b =>
-                                                    (typeof b === 'object' && b.type === 'divider' && b.id === item.id) ||
-                                                    (typeof b === 'string' && b === book.id)
-                                                );
-
-                                                // v3.14.0.o - Check if drop target position is a divider
-                                                const targetIsDivider = dropTarget && column.books[dropTarget.index] &&
-                                                    typeof column.books[dropTarget.index] === 'object' &&
-                                                    column.books[dropTarget.index].type === 'divider';
+                                                // v3.14.0.v - actualIndex removed; overlay handles indicators now
 
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
-                                                        {/* v3.14.0.p - Show book indicator unless target IS a divider */}
-                                                        {isDragging && dropTarget?.columnId === column.id && dropTarget?.index === actualIndex &&
-                                                         draggedBook?.id !== book.id && !selectedBooks.has(book.id) &&
-                                                         !targetIsDivider && (
-                                                            <div className={`drop-indicator ${typeof draggedBook === 'object' && draggedBook.type === 'divider' ? 'drop-indicator-divider' : 'drop-indicator-book'}`} style={{ top: '-6px' }} />
-                                                        )}
                                                         <div className={`book-clickable ${selectedBooks.has(book.id) ? 'selected' : ''} ${draggedBook?.id === book.id && isDragging ? 'dragging' : ''}`}
                                                              onMouseDown={(e) => handleMouseDown(e, book, column.id)}
                                                              onClick={(e) => {
@@ -3992,23 +3955,7 @@
                                                     </div>
                                                 );
                                             })}
-                                            {/* v3.14.0.q - Fallback indicator when drop target has no element to host indicator */}
-                                            {isDragging && dropTarget?.columnId === column.id && (() => {
-                                                const targetIndex = dropTarget.index;
-                                                // End of column case
-                                                if (targetIndex >= column.books.length) {
-                                                    return <div className="drop-indicator col-span-3" style={{ bottom: '-6px' }} />;
-                                                }
-                                                // Check if item at target index is a divider (books handle their own indicators)
-                                                const itemAtTarget = column.books[targetIndex];
-                                                if (itemAtTarget && typeof itemAtTarget === 'object' && itemAtTarget.type === 'divider') {
-                                                    // Divider at target - check if previous item was also a divider (contiguous case)
-                                                    // This case is now handled by divider bottom indicator, so no fallback needed
-                                                    return null;
-                                                }
-                                                // If item at target is a book, it handles its own indicator
-                                                return null;
-                                            })()}
+                                            {/* v3.14.0.v - Old fallback indicator removed; overlay handles all cases */}
                                         </div>
                                     </div>
                                     {isDraggingColumn && columnDropTarget === colIndex + 1 && draggedColumn !== column.id && (
