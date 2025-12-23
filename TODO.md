@@ -16,14 +16,14 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
         - Allows dragging entire series together (divider + all books move as unit)
         - Enables reordering popular series to top, obscure series to bottom
         - Problem: Currently must drag divider and books separately (laborious for large series)
-     2. **Auto-Scroll During Drag** - HIGH/MEDIUM (2-3 hours)
+     2. ~~**Auto-Scroll During Drag**~~ - COMPLETED v3.12.0 (2025-12-22)
         - When dragging near top/bottom edge of column, auto-scroll container
         - Critical for columns with many books (currently requires drag→drop→scroll→repeat)
-        - Problem: Can't drag items to bottom of long columns in one operation
-     3. **Dividers as Drop Targets** - MEDIUM/MEDIUM (3-4 hours)
+     3. ~~**Dividers as Drop Targets**~~ - COMPLETED v3.14.0 (2025-12-23)
         - Dropping book/divider on divider inserts before/after it
-        - Makes reordering much easier (less precise targeting needed)
-        - Problem: Currently requires finding gaps between books, gymnastics for desired order
+        - Row-based grid index for O(log R) hit detection (vs O(N) polling)
+        - Overlay indicator system eliminates React re-renders (single DOM element)
+        - Direct DOM manipulation via refs for smooth drag performance with 2338+ books
      4. **Drag Divider by Title Area** - LOW/LOW (1 hour)
         - Click-drag on title text (not just ⋮ handle) to reposition divider
         - The ═══ bars make title feel like a handle (natural affordance)

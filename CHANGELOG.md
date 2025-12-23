@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.14.0] - 2025-12-23
+
+### Added
+- **Dividers as Drop Targets** - Complete drag-drop system overhaul
+  - File version: readerwrangler.js v3.14.0
+  - **Core Features:**
+    - Drop books/dividers onto dividers (inserts before or after based on cursor position)
+    - Visual drop indicator shows exact insertion point during drag
+    - Works for all drag scenarios: books, multi-selected books, dividers
+    - Click empty grid area to clear selection (standard UX pattern)
+  - **Performance Optimizations:**
+    - Row-Based Grid Index: O(log R) binary search instead of O(N) per-element polling
+    - Built once at drag start, uses scroll offset calculation (no rebuild during scroll)
+    - Overlay Indicator: Single DOM element positioned via direct manipulation
+    - Refs instead of React state: Eliminates 2338 component re-renders during drag
+    - Result: Smooth drag performance even with 2000+ books
+  - **Technical Implementation:**
+    - `buildColumnIndex()`: Creates row-based index with Y-boundaries for binary search
+    - `calculateDropPosition()`: O(log R) lookup using cached index + scroll delta
+    - `updateIndicatorPosition()`: Direct DOM manipulation (no React re-render)
+    - `updateGhostPosition()`: Ref-based ghost positioning (no state updates)
+  - **Impact:**
+    - Completes the divider drag-drop experience (v3.11.0 added dividers, now fully interactive)
+    - Makes reorganizing large libraries practical (was laggy/unusable before)
+    - Professional-grade drag performance comparable to native desktop apps
+
+## [3.13.0] - 2025-12-22
+
+### Added
+- **Selectable Dividers** - Click divider to select/deselect all books in that section
+  - File version: readerwrangler.js v3.13.0
+  - Click divider once to select all books between it and the next divider
+  - Click again to deselect (toggle behavior)
+  - Ctrl+click to add section to existing selection
+  - Enables moving entire series/sections as a unit
+  - Fix: Prevent double drop indicators when dragging selected groups
+
+## [3.12.0] - 2025-12-22
+
+### Added
+- **Auto-Scroll During Drag** - Automatic scrolling when dragging near column edges
+  - File version: readerwrangler.js v3.12.0
+  - When dragging item near top/bottom of column, container auto-scrolls
+  - Scroll speed proportional to cursor proximity to edge (faster near edge)
+  - Critical for columns with many books (can now drag to any position in one operation)
+  - 100px trigger zone, max 15px/frame scroll speed
+
 ## [3.11.0] - 2025-12-22
 
 ### Added

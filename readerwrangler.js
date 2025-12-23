@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.z - Remove timing/debug code from drag system
+        // ReaderWrangler JS v3.14.0 - Dividers as Drop Targets + Performance Optimizations
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "3.14.0.z";
+        const ORGANIZER_VERSION = "3.14.0";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
