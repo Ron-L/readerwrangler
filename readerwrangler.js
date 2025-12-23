@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0.r - Row-based grid index for drag performance
+        // ReaderWrangler JS v3.14.0.s - Add timing logs to quantify drag performance
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "3.14.0.r";
+        const ORGANIZER_VERSION = "3.14.0.s";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -213,6 +213,9 @@
             // v3.14.0.r - Row-based grid index for O(log R) drop position lookup
             // Structure: { columnId: { rowBoundaries: [y1, y2, ...], rows: [{type, startIndex, items, top, bottom}, ...], columnRect } }
             const columnIndexRef = useRef({});
+
+            // v3.14.0.s - Timing statistics for drag performance profiling
+            const dragTimingRef = useRef({ buildIndex: [], calcDrop: [], mouseMove: [] });
 
             // v3.12.0 - Auto-scroll during drag
             const [autoScrollInterval, setAutoScrollInterval] = useState(null);
@@ -1798,6 +1801,7 @@
             // v3.14.0.r - Build row-based index for a column (called at drag start and on scroll)
             // Groups elements into rows based on Y position, enabling O(log R) lookup instead of O(N)
             const buildColumnIndex = (columnId) => {
+                const startTime = performance.now(); // v3.14.0.s timing
                 const column = columns.find(c => c.id === columnId);
                 if (!column) return null;
 
@@ -1900,6 +1904,7 @@
                 };
 
                 columnIndexRef.current[columnId] = index;
+                dragTimingRef.current.buildIndex.push(performance.now() - startTime); // v3.14.0.s timing
                 return index;
             };
 
@@ -1961,8 +1966,14 @@
             };
 
             const calculateDropPosition = (e, columnId) => {
+                const startTime = performance.now(); // v3.14.0.s timing
+                const recordTiming = (result) => {
+                    dragTimingRef.current.calcDrop.push(performance.now() - startTime);
+                    return result;
+                };
+
                 const column = columns.find(c => c.id === columnId);
-                if (!column) return null;
+                if (!column) return recordTiming(null);
 
                 // v3.14.0.r - Use cached column index for O(log R) lookup
                 let colIndex = columnIndexRef.current[columnId];
@@ -1974,7 +1985,7 @@
 
                 if (!colIndex || colIndex.rows.length === 0) {
                     // Empty column
-                    return { columnId, index: 0 };
+                    return recordTiming({ columnId, index: 0 });
                 }
 
                 const mouseX = e.clientX;
@@ -1983,7 +1994,7 @@
                 // Binary search to find the row
                 const result = findRowByY(colIndex.rows, colIndex.rowBoundaries, mouseY);
                 if (!result) {
-                    return { columnId, index: 0 };
+                    return recordTiming({ columnId, index: 0 });
                 }
 
                 const { row, position } = result;
@@ -1991,12 +2002,12 @@
                 // Handle position above/below row
                 if (position === 'above') {
                     // Insert before the first item in this row
-                    return { columnId, index: row.startIndex };
+                    return recordTiming({ columnId, index: row.startIndex });
                 }
                 if (position === 'below') {
                     // Insert after the last item in this row
                     const lastItem = row.items[row.items.length - 1];
-                    return { columnId, index: lastItem.index + 1 };
+                    return recordTiming({ columnId, index: lastItem.index + 1 });
                 }
 
                 // Position is 'within' the row - determine exact position
@@ -2005,7 +2016,7 @@
                     const dividerItem = row.items[0];
                     const centerY = dividerItem.centerY;
                     const isBelowCenter = mouseY > centerY;
-                    return { columnId, index: isBelowCenter ? dividerItem.index + 1 : dividerItem.index };
+                    return recordTiming({ columnId, index: isBelowCenter ? dividerItem.index + 1 : dividerItem.index });
                 }
 
                 // Books row: use X position to find which book, then top/bottom half
@@ -2029,7 +2040,7 @@
                 const isBelowBook = mouseY > centerY;
 
                 const insertAfter = isRightOfBook || (!isRightOfBook && isBelowBook);
-                return { columnId, index: insertAfter ? targetItem.index + 1 : targetItem.index };
+                return recordTiming({ columnId, index: insertAfter ? targetItem.index + 1 : targetItem.index });
             };
 
             const handleMouseMove = (e) => {
@@ -2062,6 +2073,8 @@
                     if (!isDragging) {
                         setIsDragging(true);
                         // v3.14.0.r - Build column indexes once at drag start for O(log R) lookup
+                        // v3.14.0.s - Reset timing stats for new drag session
+                        dragTimingRef.current = { buildIndex: [], calcDrop: [], mouseMove: [] };
                         buildAllColumnIndexes();
                     }
 
@@ -2149,6 +2162,16 @@
             };
 
             const handleMouseUp = (e) => {
+                // v3.14.0.s - Log timing stats when drag ends
+                if (isDragging && dragTimingRef.current.calcDrop.length > 0) {
+                    const stats = dragTimingRef.current;
+                    const avg = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : 0;
+                    const sum = arr => arr.reduce((a, b) => a + b, 0).toFixed(1);
+                    console.log(`📊 Drag Performance Stats:
+  buildColumnIndex: ${stats.buildIndex.length} calls, avg ${avg(stats.buildIndex)}ms, total ${sum(stats.buildIndex)}ms
+  calculateDropPosition: ${stats.calcDrop.length} calls, avg ${avg(stats.calcDrop)}ms, total ${sum(stats.calcDrop)}ms`);
+                }
+
                 // v3.12.0 - Clear auto-scroll interval when drag ends
                 if (autoScrollInterval) {
                     clearInterval(autoScrollInterval);
