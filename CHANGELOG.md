@@ -41,7 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Click divider once to select all books between it and the next divider
   - Click again to deselect (toggle behavior)
   - Ctrl+click to add section to existing selection
-  - Enables moving entire series/sections as a unit
+  - Enables moving entire series/sections as a unit (divider + all books move together)
+  - Solves: Previously had to drag divider and books separately (laborious for large series)
   - Fix: Prevent double drop indicators when dragging selected groups
 
 ## [3.12.0] - 2025-12-22

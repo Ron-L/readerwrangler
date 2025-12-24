@@ -8,33 +8,6 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**0. ✅ Series Dividers Within Columns** - COMPLETED v3.11.0 (2025-12-22)
-   - See CHANGELOG.md [3.11.0] for full implementation details
-   - **Future UX Enhancements** (v3.12.0 candidates):
-     1. **Selectable Dividers** - MEDIUM/MEDIUM (3-4 hours)
-        - Click divider to select all books in that series group
-        - Allows dragging entire series together (divider + all books move as unit)
-        - Enables reordering popular series to top, obscure series to bottom
-        - Problem: Currently must drag divider and books separately (laborious for large series)
-     2. ~~**Auto-Scroll During Drag**~~ - COMPLETED v3.12.0 (2025-12-22)
-        - When dragging near top/bottom edge of column, auto-scroll container
-        - Critical for columns with many books (currently requires drag→drop→scroll→repeat)
-     3. ~~**Dividers as Drop Targets**~~ - COMPLETED v3.14.0 (2025-12-23)
-        - Dropping book/divider on divider inserts before/after it
-        - Row-based grid index for O(log R) hit detection (vs O(N) polling)
-        - Overlay indicator system eliminates React re-renders (single DOM element)
-        - Direct DOM manipulation via refs for smooth drag performance with 2338+ books
-     4. **Drag Divider by Title Area** - LOW/LOW (1 hour)
-        - Click-drag on title text (not just ⋮ handle) to reposition divider
-        - The ═══ bars make title feel like a handle (natural affordance)
-        - Must not conflict with double-click to rename
-        - Possible solution: Single-click = drag, double-click = rename
-     5. **More Auto-Divide Helpers** - LOW/LOW (1 hour each)
-        - Auto-Divide by Author (if column contains multiple authors)
-        - Auto-Divide by Acquisition Date (Year groups: 2025, 2024, 2023...)
-        - Auto-Divide by Page Count (Short < 200, Medium 200-400, Long 400+)
-        - All use same divider infrastructure
-
 **1. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
    - Bookmarklet on Amazon book page extracts basic metadata (ASIN, title, author, cover, rating)
    - Appends to existing `amazon-library.json` as new top-level `wishlist` array
@@ -128,6 +101,8 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - First-run Welcome dialog explaining what ReaderWrangler is
    - Column name filtering (search by column name)
    - Make status dialog draggable/movable (modal → draggable)
+   - **Drag Divider by Title Area** - Click-drag on divider title text (not just ⋮ handle) to reposition. Must not conflict with double-click to rename.
+   - **More Auto-Divide Helpers** - Auto-Divide by Author, by Acquisition Date (Year groups), by Page Count (Short/Medium/Long). All use same divider infrastructure.
 
 ---
 
