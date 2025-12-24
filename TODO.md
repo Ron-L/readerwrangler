@@ -8,23 +8,23 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
+**0. 📦 Unified File Format (Schema v2.0)** - LOW/LOW (2-3 hours)
+   - Merge library + collections into single file
+   - See [docs/design/SCHEMA-V2-UNIFIED-FILE.md](docs/design/SCHEMA-V2-UNIFIED-FILE.md) for full spec
+   - Prerequisite for Wishlist Integration
+   - Breaking change - do before user base grows
+
 **1. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
-   - Bookmarklet on Amazon book page extracts basic metadata (ASIN, title, author, cover, rating)
-   - Appends to existing `amazon-library.json` as new top-level `wishlist` array
-   - User selects same library JSON file → app merges wishlist + owned books
-   - Wishlist books displayed in special "Wishlist" column with visual distinction:
+   - See [docs/design/SCHEMA-V2-UNIFIED-FILE.md](docs/design/SCHEMA-V2-UNIFIED-FILE.md) for full spec
+   - Schema v2.0: Single unified file replaces separate library + collections files
+   - Wishlist items stored in `books.items` with `isOwned: false` flag (not separate array)
+   - Wishlist books appear in Unorganized column with visual distinction:
      - Gray-out effect on cover/title
      - "Wishlist" badge overlay
      - Click opens Amazon purchase page
+   - When wishlist book is purchased and re-fetched: "ungrays" in place (stays in current column)
    - Problem: Users browse Amazon, find interesting books, no easy way to track for later purchase
    - Impact: Bridges gap between browsing and buying, integrates with existing organization workflow
-   - **Subtasks:**
-     - Bookmarklet: Extract book metadata from Amazon product page DOM
-     - Bookmarklet: Append to `amazon-library.json` under `wishlist` array (or create file if user doesn't have library yet)
-     - App: Parse wishlist array on JSON load
-     - App: Create "Wishlist" column (auto-created, can't be deleted while wishlist books exist)
-     - App: Gray-out styling + badge for unowned books
-     - App: Click handler → open Amazon purchase page in new tab
 
 **3. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Collect Series Books" button
