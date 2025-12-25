@@ -8,11 +8,6 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**~~0. 📦 Unified File Format (Schema v2.0)~~** ✅ COMPLETE (v4.0.0 - 2025-12-25)
-   - ~~Merge library + collections into single file~~
-   - See [docs/design/SCHEMA-V2-UNIFIED-FILE.md](docs/design/SCHEMA-V2-UNIFIED-FILE.md) for full spec
-   - Prerequisite for Wishlist Integration - DONE
-
 **1. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
    - See [docs/design/SCHEMA-V2-UNIFIED-FILE.md](docs/design/SCHEMA-V2-UNIFIED-FILE.md) for full spec
    - Schema v2.0: Single unified file replaces separate library + collections files
