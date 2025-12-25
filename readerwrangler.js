@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v4.0.0.f - Schema v2.0 Unified File Format
+        // ReaderWrangler JS v4.0.0.g - Schema v2.0 Unified File Format
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.0.0.f";
+        const ORGANIZER_VERSION = "4.0.0.g";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2834,28 +2834,9 @@
 
                     {statusModalOpen && (() => {
                         // Schema v2.0: Simplified informational modal (no action buttons)
-                        // Count dividers in columns
-                        // DEBUG: Diagnostic for id.startsWith crash - find corrupted data
-                        let dividerCount = 0;
-                        try {
-                            dividerCount = columns.reduce((count, col) =>
-                                count + col.books.filter(id => {
-                                    if (typeof id !== 'string') {
-                                        console.error('DEBUG: Non-string id in col.books:', {
-                                            columnName: col.name,
-                                            columnId: col.id,
-                                            badId: id,
-                                            badIdType: typeof id,
-                                            badIdJSON: JSON.stringify(id)
-                                        });
-                                        return false;
-                                    }
-                                    return id.startsWith('div-');
-                                }).length, 0);
-                        } catch (e) {
-                            console.error('DEBUG: dividerCount calculation failed:', e);
-                            console.error('DEBUG: columns state:', JSON.stringify(columns, null, 2));
-                        }
+                        // Count dividers in columns - dividers are stored as objects {type: 'divider', id, label}
+                        const dividerCount = columns.reduce((count, col) =>
+                            count + col.books.filter(item => typeof item === 'object' && item.type === 'divider').length, 0);
                         const booksWithCollections = books.filter(b => b.collections && b.collections.length > 0).length;
 
                         return (
