@@ -21,7 +21,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v4.0.0.b';
+    const FETCHER_VERSION = 'v4.0.0.c';
     const SCHEMA_VERSION = '2.0';
 
     console.log('========================================');
@@ -1644,6 +1644,20 @@ async function fetchAmazonLibrary() {
         console.log('[5/6] Merging with existing data and saving library...');
         progressUI.updatePhase('Saving Library', 'Merging and downloading library file');
 
+        // Check if there are new books to save
+        if (newBooks.length === 0) {
+            console.log('\n========================================');
+            console.log('✅ LIBRARY IS UP TO DATE!');
+            console.log('========================================');
+            console.log('   No new books found since last fetch.');
+            console.log('   Your library file is already current.\n');
+            progressUI.showComplete('Library is up to date - no new books found');
+            stats.timing.mergeEnd = Date.now();
+            return;
+        }
+
+        console.log(`   📚 Found ${newBooks.length} new book${newBooks.length === 1 ? '' : 's'} to add`);
+
         // Prepend new books (most recent first)
         const finalBooks = [...newBooks, ...existingBooks];
 
@@ -1673,6 +1687,9 @@ async function fetchAmazonLibrary() {
         const a = document.createElement('a');
         a.href = url;
         a.download = LIBRARY_FILENAME;
+
+        console.log(`   ℹ️  Note: Your browser may ask "Replace existing file?" - click Yes/Replace`);
+
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1830,8 +1847,8 @@ async function fetchAmazonLibrary() {
         console.log('   - Status bar will reflect the new fetch');
         console.log('========================================\n');
 
-        // Show completion UI
-        progressUI.showComplete(`Downloaded ${finalBooks.length} books to ${LIBRARY_FILENAME}`);
+        // Show completion UI with delta info
+        progressUI.showComplete(`Added ${newBooks.length} new book${newBooks.length === 1 ? '' : 's'} (${finalBooks.length} total)`);
 
     } catch (error) {
         console.error('\n========================================');

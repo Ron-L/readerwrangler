@@ -15,7 +15,7 @@
 //         by pressing Up Arrow (to recall the function call) or typing: fetchAmazonCollections()
 
 async function fetchAmazonCollections() {
-    const FETCHER_VERSION = 'v2.0.0.b';
+    const FETCHER_VERSION = 'v2.0.0.c';
     const SCHEMA_VERSION = '2.0';
     const PAGE_TITLE = document.title;
 
@@ -803,6 +803,8 @@ async function fetchAmazonCollections() {
     const jsonString = JSON.stringify(outputData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
+
+    console.log(`   ℹ️  Note: Your browser may ask "Replace existing file?" - click Yes/Replace`);
 
     const downloadLink = document.createElement('a');
     downloadLink.href = url;

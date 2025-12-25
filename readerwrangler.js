@@ -1188,7 +1188,7 @@
                     const restoredColumns = orgToRestore.columns.map(col => ({
                         id: col.id,
                         name: col.name,
-                        books: col.bookIds || col.books
+                        books: col.bookIds || col.books || col.items || []  // v4.0.0.c: support items from backup export
                     }));
                     setColumns(restoredColumns);
                     setBlankImageBooks(new Set(orgToRestore.blankImageBooks || []));
