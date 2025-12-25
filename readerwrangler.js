@@ -1190,6 +1190,25 @@
                         name: col.name,
                         books: col.bookIds || col.books || col.items || []  // v4.0.0.c: support items from backup export
                     }));
+
+                    // v4.0.0.d: Find new books not in any column and add to Unorganized
+                    const allColumnBookIds = new Set(restoredColumns.flatMap(col => col.books));
+                    const allLibraryBookIds = processedBooks.map(b => b.id);
+                    const orphanedBooks = allLibraryBookIds.filter(id => !allColumnBookIds.has(id));
+
+                    if (orphanedBooks.length > 0) {
+                        // Find or create Unorganized column
+                        let unorganizedCol = restoredColumns.find(col => col.id === 'unorganized');
+                        if (unorganizedCol) {
+                            // Prepend new books to Unorganized (newest first)
+                            unorganizedCol.books = [...orphanedBooks, ...unorganizedCol.books];
+                        } else {
+                            // Create Unorganized column with orphaned books
+                            restoredColumns.unshift({ id: 'unorganized', name: 'Unorganized', books: orphanedBooks });
+                        }
+                        console.log(`📚 Added ${orphanedBooks.length} new book${orphanedBooks.length === 1 ? '' : 's'} to Unorganized`);
+                    }
+
                     setColumns(restoredColumns);
                     setBlankImageBooks(new Set(orgToRestore.blankImageBooks || []));
                     console.log(`✅ Restored organization from ${orgSource}`);

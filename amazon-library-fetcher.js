@@ -1,6 +1,10 @@
-// Amazon Library Fetcher v4.0.0.a (Schema v2.0 - Unified File Format)
+// Amazon Library Fetcher v4.0.0.e (Schema v2.0 - Unified File Format)
 // Fetches library books and enriches them with descriptions & reviews
 // Schema Version: 2.0 (Unified file format - books + collections in single file)
+//
+// v4.0.0.e Changes:
+// - Uses File System Access API to write back to same file (Chrome/Edge)
+// - Fallback to download for Firefox/Safari (with warning about file naming)
 //
 // v3.5.0 Changes:
 // - Removed artificial delays (network RTT provides natural throttling)
@@ -21,7 +25,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v4.0.0.c';
+    const FETCHER_VERSION = 'v4.0.0.e';
     const SCHEMA_VERSION = '2.0';
 
     console.log('========================================');
@@ -626,18 +630,45 @@ async function fetchAmazonLibrary() {
         let existingBooks = [];
         let existingCollections = null; // Preserve collections section if present
         let mostRecentDate = null;
+        let fileHandle = null; // File System Access API handle for writing back to same file
 
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.json';
+        // Check if File System Access API is available (Chrome/Edge)
+        const hasFileSystemAccess = 'showOpenFilePicker' in window;
 
-        const file = await new Promise((resolve) => {
-            fileInput.onchange = (e) => {
-                resolve(e.target.files[0]);
-            };
-            fileInput.oncancel = () => resolve(null);
-            fileInput.click();
-        });
+        let file = null;
+        if (hasFileSystemAccess) {
+            // Use File System Access API - allows writing back to same file
+            try {
+                const [handle] = await window.showOpenFilePicker({
+                    types: [{ description: 'JSON files', accept: { 'application/json': ['.json'] } }]
+                });
+                fileHandle = handle;
+                file = await handle.getFile();
+            } catch (e) {
+                if (e.name === 'AbortError') {
+                    // User cancelled - first run, no existing file
+                    file = null;
+                } else {
+                    throw e;
+                }
+            }
+        } else {
+            // Fallback for Firefox/Safari - uses traditional file input
+            console.log('   ⚠️  Note: Your browser doesn\'t support File System Access API');
+            console.log('   File will be downloaded separately - you must manually replace the old file\n');
+
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.json';
+
+            file = await new Promise((resolve) => {
+                fileInput.onchange = (e) => {
+                    resolve(e.target.files[0]);
+                };
+                fileInput.oncancel = () => resolve(null);
+                fileInput.click();
+            });
+        }
 
         if (file) {
             const fileText = await file.text();
@@ -1682,20 +1713,51 @@ async function fetchAmazonLibrary() {
 
         const jsonData = JSON.stringify(outputData, null, 2);
 
-        const blob = new Blob([jsonData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = LIBRARY_FILENAME;
+        // Save using File System Access API if we have a file handle, otherwise download
+        if (fileHandle) {
+            // Write back to the same file - browser will confirm overwrite
+            console.log(`   💾 Saving to original file location...`);
+            const writable = await fileHandle.createWritable();
+            await writable.write(jsonData);
+            await writable.close();
+            console.log(`✅ Updated library file in place`);
+        } else if (hasFileSystemAccess) {
+            // First run with File System Access API - let user choose save location
+            console.log(`   💾 Choose where to save your library file...`);
+            try {
+                const saveHandle = await window.showSaveFilePicker({
+                    suggestedName: LIBRARY_FILENAME,
+                    types: [{ description: 'JSON files', accept: { 'application/json': ['.json'] } }]
+                });
+                const writable = await saveHandle.createWritable();
+                await writable.write(jsonData);
+                await writable.close();
+                console.log(`✅ Saved library file: ${LIBRARY_FILENAME}`);
+            } catch (e) {
+                if (e.name === 'AbortError') {
+                    console.error('   ❌ Save cancelled by user');
+                    progressUI.showError('Save cancelled - your data was not saved!');
+                    return;
+                }
+                throw e;
+            }
+        } else {
+            // Fallback for Firefox/Safari - traditional download
+            console.log(`   ⚠️  IMPORTANT: Save this file as "${LIBRARY_FILENAME}", replacing your existing file!`);
+            console.log(`   (Your browser may save it as "${LIBRARY_FILENAME.replace('.json', '')}(1).json" - rename it manually)\n`);
 
-        console.log(`   ℹ️  Note: Your browser may ask "Replace existing file?" - click Yes/Replace`);
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = LIBRARY_FILENAME;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
 
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        console.log(`✅ Saved library file: ${LIBRARY_FILENAME}`);
+            console.log(`✅ Downloaded library file: ${LIBRARY_FILENAME}`);
+        }
 
         // Calculate phase durations
         const phase0Duration = stats.timing.phase0End - stats.timing.phase0Start;

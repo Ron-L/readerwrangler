@@ -1,6 +1,10 @@
-// Amazon Collections Fetcher v2.0.0.a (Schema v2.0 - Unified File Format)
+// Amazon Collections Fetcher v2.0.0.d (Schema v2.0 - Unified File Format)
 // Fetches collection membership and read status for all books in your library
 // Schema Version: 2.0 (Unified file format - books + collections in single file)
+//
+// v2.0.0.d Changes:
+// - Uses File System Access API to write back to same file (Chrome/Edge)
+// - Fallback to download for Firefox/Safari (with warning about file naming)
 //
 // Instructions:
 // 1. Go to https://www.amazon.com/hz/mycd/digital-console/contentlist/booksAll/dateDsc/
@@ -15,7 +19,7 @@
 //         by pressing Up Arrow (to recall the function call) or typing: fetchAmazonCollections()
 
 async function fetchAmazonCollections() {
-    const FETCHER_VERSION = 'v2.0.0.c';
+    const FETCHER_VERSION = 'v2.0.0.d';
     const SCHEMA_VERSION = '2.0';
     const PAGE_TITLE = document.title;
 
@@ -497,16 +501,46 @@ async function fetchAmazonCollections() {
 
     let existingBooks = null; // Preserve books section from input file
     let existingOrganization = null; // Preserve organization section if present
+    let fileHandle = null; // File System Access API handle for writing back to same file
 
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.json';
+    // Check if File System Access API is available (Chrome/Edge)
+    const hasFileSystemAccess = 'showOpenFilePicker' in window;
 
-    const file = await new Promise((resolve) => {
-        fileInput.onchange = (e) => resolve(e.target.files[0]);
-        fileInput.oncancel = () => resolve(null);
-        fileInput.click();
-    });
+    let file = null;
+    if (hasFileSystemAccess) {
+        // Use File System Access API - allows writing back to same file
+        try {
+            const [handle] = await window.showOpenFilePicker({
+                types: [{ description: 'JSON files', accept: { 'application/json': ['.json'] } }]
+            });
+            fileHandle = handle;
+            file = await handle.getFile();
+        } catch (e) {
+            if (e.name === 'AbortError') {
+                // User cancelled
+                console.error('   ❌ No file selected');
+                console.error('   Collections Fetcher requires an existing amazon-library.json file');
+                console.error('   Run Library Fetcher first to create the file');
+                progressUI.showError('No file selected. Run Library Fetcher first to create amazon-library.json');
+                return;
+            }
+            throw e;
+        }
+    } else {
+        // Fallback for Firefox/Safari - uses traditional file input
+        console.log('   ⚠️  Note: Your browser doesn\'t support File System Access API');
+        console.log('   File will be downloaded separately - you must manually replace the old file\n');
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.json';
+
+        file = await new Promise((resolve) => {
+            fileInput.onchange = (e) => resolve(e.target.files[0]);
+            fileInput.oncancel = () => resolve(null);
+            fileInput.click();
+        });
+    }
 
     if (!file) {
         console.error('   ❌ No file selected');
@@ -801,24 +835,37 @@ async function fetchAmazonCollections() {
     }
 
     const jsonString = JSON.stringify(outputData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
 
-    console.log(`   ℹ️  Note: Your browser may ask "Replace existing file?" - click Yes/Replace`);
+    // Save using File System Access API if we have a file handle, otherwise download
+    if (fileHandle) {
+        // Write back to the same file - browser will confirm overwrite
+        console.log(`   💾 Saving to original file location...`);
+        const writable = await fileHandle.createWritable();
+        await writable.write(jsonString);
+        await writable.close();
+        console.log(`✅ Updated library file in place`);
+    } else {
+        // Fallback for Firefox/Safari - traditional download
+        console.log(`   ⚠️  IMPORTANT: Save this file as "${FILENAME}", replacing your existing file!`);
+        console.log(`   (Your browser may save it as "${FILENAME.replace('.json', '')}(1).json" - rename it manually)\n`);
 
-    const downloadLink = document.createElement('a');
-    downloadLink.href = url;
-    downloadLink.download = FILENAME;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    URL.revokeObjectURL(url);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = FILENAME;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(url);
+
+        console.log(`✅ Downloaded library file: ${FILENAME}`);
+    }
 
     const elapsedMs = Date.now() - startTime;
     const elapsedMin = Math.floor(elapsedMs / 60000);
     const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
 
-    console.log(`✅ File downloaded: ${FILENAME}`);
     console.log(`   File size: ${(jsonString.length / 1024).toFixed(2)} KB`);
     console.log(`   Time elapsed: ${elapsedMin}m ${elapsedSec}s\n`);
 
@@ -826,9 +873,8 @@ async function fetchAmazonCollections() {
     console.log('✅ COLLECTIONS FETCH COMPLETE!');
     console.log('========================================');
     console.log('Next steps:');
-    console.log('1. Find the file in your browser\'s save location (usually Downloads folder)');
-    console.log('2. Upload amazon-library.json to ReaderWrangler');
-    console.log('3. The unified file contains both books and collections data\n');
+    console.log('1. Upload amazon-library.json to ReaderWrangler');
+    console.log('2. The unified file contains both books and collections data\n');
 
     // Show completion in progress UI
     progressUI.showComplete(`Updated ${FILENAME} with ${processedBooks.length} books' collections`);
