@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v4.0.0.i - Schema v2.0 Unified File Format
+        // ReaderWrangler JS v4.0.0 - Schema v2.0 Unified File Format
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.0.0.i";
+        const ORGANIZER_VERSION = "4.0.0";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";

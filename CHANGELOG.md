@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2025-12-25
+
+### Changed
+- **BREAKING: Schema v2.0 Unified File Format** - Single file replaces separate library + collections files
+  - File versions: readerwrangler.js v4.0.0, amazon-library-fetcher.js v4.0.0, amazon-collections-fetcher.js v2.0.0
+  - **Unified File Structure:**
+    - Single `amazon-library.json` contains books, collections, and organization data
+    - Format: `{ schemaVersion: "2.0", books: {...}, collections: {...}, organization: {...} }`
+    - `amazon-collections.json` is now obsolete
+  - **Library Fetcher v4.0.0:**
+    - Outputs Schema v2.0 format with `books.items` array
+    - Preserves existing collections section when updating
+    - Delta reporting: Shows count of new books found
+    - Skips save if library is already up-to-date (0 new books)
+    - Rejects backup files (`isBackup === true`)
+    - File System Access API for same-file overwrite (Chrome/Edge)
+    - Fallback download for Firefox/Safari with warning
+  - **Collections Fetcher v2.0.0:**
+    - Reads/writes unified file format
+    - Merges into existing file, preserves books + organization sections
+    - Rejects backup files
+    - File System Access API for same-file overwrite (Chrome/Edge)
+  - **App v4.0.0:**
+    - Reads Schema v2.0 format (`books.items`, `collections.items`)
+    - Backup/library file distinction via `isBackup` flag
+    - Export creates backup with `isBackup: true` and filename `readerwrangler-backup-{date}.json`
+    - Import behavior: Backup = full replace with confirmation; Library = merge books, keep organization
+    - New books automatically added to Unorganized column after library import
+    - Buttons renamed: Backup→Export, Restore→Import
+    - Tooltips added to Import, Export, Add Column buttons
+  - **Bug Fixes:**
+    - Data Status modal crash fixed (dividers stored as objects, not string IDs)
+    - Orphaned books after library import now correctly added to Unorganized
+  - **Design Document:** See [docs/design/SCHEMA-V2-UNIFIED-FILE.md](docs/design/SCHEMA-V2-UNIFIED-FILE.md)
+
 ## [3.14.0] - 2025-12-23
 
 ### Added

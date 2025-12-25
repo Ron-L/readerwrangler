@@ -1,8 +1,8 @@
-// Amazon Collections Fetcher v2.0.0.d (Schema v2.0 - Unified File Format)
+// Amazon Collections Fetcher v2.0.0 (Schema v2.0 - Unified File Format)
 // Fetches collection membership and read status for all books in your library
 // Schema Version: 2.0 (Unified file format - books + collections in single file)
 //
-// v2.0.0.d Changes:
+// v2.0.0 Changes:
 // - Uses File System Access API to write back to same file (Chrome/Edge)
 // - Fallback to download for Firefox/Safari (with warning about file naming)
 //
@@ -19,7 +19,7 @@
 //         by pressing Up Arrow (to recall the function call) or typing: fetchAmazonCollections()
 
 async function fetchAmazonCollections() {
-    const FETCHER_VERSION = 'v2.0.0.d';
+    const FETCHER_VERSION = 'v2.0.0';
     const SCHEMA_VERSION = '2.0';
     const PAGE_TITLE = document.title;
 
