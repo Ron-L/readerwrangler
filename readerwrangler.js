@@ -521,6 +521,30 @@
                         try {
                             const text = await file.text();
                             const parsedData = JSON.parse(text);
+
+                            // v4.0.0.b: Detect backup vs library file
+                            let organizationFromFile = null;
+                            if (parsedData.isBackup === true) {
+                                // Backup file - prompt user before restoring
+                                const confirmed = window.confirm(
+                                    'Restore backup?\n\nThis will replace your current organization with the organization from the backup file.'
+                                );
+                                if (!confirmed) {
+                                    console.log('📋 Backup restore cancelled by user');
+                                    return;
+                                }
+                                // Extract organization from backup file
+                                if (parsedData.organization) {
+                                    organizationFromFile = parsedData.organization;
+                                    console.log('📋 Restoring organization from backup file');
+                                } else {
+                                    console.log('⚠️ Backup file has no organization section - will start fresh');
+                                }
+                            } else {
+                                // Library file - keep current organization, ignore any org in file
+                                console.log('📋 Loading library file - keeping current organization');
+                            }
+
                             const syncTime = Date.now();
                             setLastSyncTime(syncTime);
 
@@ -539,12 +563,12 @@
                                 }
                             }, 60000);
 
-                            // Load data with callback
+                            // Load data with callback (pass organization for backup restore)
                             await loadLibrary(text, () => {
                                 callbackFired = true;
                                 clearTimeout(timeoutId);
                                 // checkManifest removed in v3.6.1 - status updated in loadLibrary
-                            });
+                            }, organizationFromFile);
 
                         } catch (error) {
                             console.error('Failed to sync:', error);
@@ -693,9 +717,10 @@
                             collections: book.collections || []
                         }));
 
-                    // Build v2.0 unified format
+                    // v4.0.0.b: Build v2.0 backup format with isBackup flag
                     const exportData = {
                         schemaVersion: "2.0",
+                        isBackup: true,
                         books: {
                             fetchDate: libraryStatus.loadDate || new Date().toISOString(),
                             fetcherVersion: "app-export",
@@ -726,10 +751,12 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'amazon-library.json';
+                    // v4.0.0.b: Backup filename with date
+                    const dateStr = new Date().toISOString().split('T')[0];
+                    a.download = `readerwrangler-backup-${dateStr}.json`;
                     a.click();
                     URL.revokeObjectURL(url);
-                    console.log('✅ Library exported (v2.0 format)');
+                    console.log('✅ Backup exported (v2.0 format with organization)');
                 } catch (error) {
                     console.error('Failed to export library:', error);
                     alert('Failed to export library');
@@ -869,7 +896,7 @@
                 return mergedBooks;
             };
 
-            const loadLibrary = async (content, onComplete = null) => {
+            const loadLibrary = async (content, onComplete = null, organizationFromFile = null) => {
                 const parsedData = JSON.parse(content);
 
                 // Check if user selected legacy collections file (v3.9.0.k)
@@ -1133,32 +1160,47 @@
                 }));
                 console.log('🔍 Filters cleared for new library');
 
-                // Check if we have saved organization to restore
-                try {
-                    const saved = localStorage.getItem(STORAGE_KEY);
-                    if (saved) {
-                        const state = JSON.parse(saved);
-                        if (state.organization?.columns) {
-                            const restoredColumns = state.organization.columns.map(col => ({
-                                id: col.id,
-                                name: col.name,
-                                books: col.bookIds || col.books
-                            }));
-                            setColumns(restoredColumns);
-                            setBlankImageBooks(new Set(state.organization.blankImageBooks || []));
-                            console.log('✅ Restored saved organization');
-                            setDataSource('enriched');
-                            setLastSyncTime(Date.now());
-                            setSyncStatus('fresh');
-                            if (onComplete) setTimeout(() => onComplete(metadata.totalBooks), 0);
-                            return;
+                // v4.0.0.b: Check organization source - backup file takes priority, then localStorage
+                let orgToRestore = null;
+                let orgSource = null;
+
+                if (organizationFromFile) {
+                    // Backup restore - use organization from file
+                    orgToRestore = organizationFromFile;
+                    orgSource = 'backup file';
+                } else {
+                    // Library file - try to restore from localStorage
+                    try {
+                        const saved = localStorage.getItem(STORAGE_KEY);
+                        if (saved) {
+                            const state = JSON.parse(saved);
+                            if (state.organization?.columns) {
+                                orgToRestore = state.organization;
+                                orgSource = 'localStorage';
+                            }
                         }
+                    } catch (e) {
+                        console.log('Note: Could not read localStorage organization');
                     }
-                } catch (e) {
-                    console.log('Note: Could not restore organization, starting fresh');
                 }
-                
-                // No saved organization, start fresh
+
+                if (orgToRestore?.columns) {
+                    const restoredColumns = orgToRestore.columns.map(col => ({
+                        id: col.id,
+                        name: col.name,
+                        books: col.bookIds || col.books
+                    }));
+                    setColumns(restoredColumns);
+                    setBlankImageBooks(new Set(orgToRestore.blankImageBooks || []));
+                    console.log(`✅ Restored organization from ${orgSource}`);
+                    setDataSource('enriched');
+                    setLastSyncTime(Date.now());
+                    setSyncStatus('fresh');
+                    if (onComplete) setTimeout(() => onComplete(metadata.totalBooks), 0);
+                    return;
+                }
+
+                // No organization found, start fresh
                 setColumns([{ id: 'unorganized', name: 'Unorganized', books: processedBooks.map(b => b.id) }]);
                 setDataSource('enriched');
                 setLastSyncTime(Date.now());
@@ -2853,7 +2895,7 @@
                                         <p className="mb-2">Your library/collections files on disk will NOT be deleted. You can reload them anytime.</p>
                                     </div>
                                     <div className="bg-yellow-50 border border-yellow-300 rounded p-3 text-sm">
-                                        <p className="font-semibold text-gray-800">💡 Tip: Use the Backup button first to save your organization before resetting.</p>
+                                        <p className="font-semibold text-gray-800">💡 Tip: Use the Export button first to save your organization before resetting.</p>
                                     </div>
                                     <div className="flex gap-3 justify-end pt-2">
                                         <button
@@ -3006,8 +3048,8 @@
                                         <h3 className="font-semibold text-gray-900 mb-1">💾 Data Management</h3>
                                         <ul className="list-disc list-inside space-y-1 ml-2">
                                             <li><strong>Auto-saves:</strong> Everything persists automatically in your browser</li>
-                                            <li><strong>Backup:</strong> Download complete backup for safekeeping</li>
-                                            <li><strong>Restore:</strong> Restore from a backup file</li>
+                                            <li><strong>Export:</strong> Download complete backup for safekeeping</li>
+                                            <li><strong>Import:</strong> Load library file or restore from backup</li>
                                             <li><strong>Reset App:</strong> Complete app reset to initial state (files on disk not affected)</li>
                                         </ul>
                                     </div>

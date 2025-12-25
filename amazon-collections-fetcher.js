@@ -15,7 +15,7 @@
 //         by pressing Up Arrow (to recall the function call) or typing: fetchAmazonCollections()
 
 async function fetchAmazonCollections() {
-    const FETCHER_VERSION = 'v2.0.0.a';
+    const FETCHER_VERSION = 'v2.0.0.b';
     const SCHEMA_VERSION = '2.0';
     const PAGE_TITLE = document.title;
 
@@ -519,6 +519,15 @@ async function fetchAmazonCollections() {
     try {
         const fileText = await file.text();
         const parsedData = JSON.parse(fileText);
+
+        // Reject backup files - fetchers should only work with library files
+        if (parsedData.isBackup === true) {
+            console.error('   ❌ This is a backup file');
+            console.error('   Fetchers cannot update backup files');
+            console.error('   Please select a library file instead');
+            progressUI.showError('This is a backup file. Please select a library file instead.');
+            return;
+        }
 
         // Schema v2.0 format: { schemaVersion: "2.0", books: { items: [...] }, ... }
         if (parsedData.schemaVersion === "2.0") {

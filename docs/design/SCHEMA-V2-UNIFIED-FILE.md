@@ -225,9 +225,39 @@ Work is never lost - IndexedDB auto-saves. Export/Import are for moving data in/
 | Scenario | Filename |
 |----------|----------|
 | Fetcher output | `amazon-library.json` |
-| App export | `amazon-library.json` |
+| App export | `readerwrangler-backup-{date}.json` |
 
 Note: `amazon-collections.json` becomes obsolete. Collections data is now embedded in the unified file.
+
+---
+
+## File Types: Library vs Backup
+
+Two distinct file types serve different purposes:
+
+| File | Created by | Filename | Contains | Purpose |
+|------|------------|----------|----------|---------|
+| Library | Fetcher | `amazon-library.json` | books, collections | Transport data into app |
+| Backup | App Export | `readerwrangler-backup-{date}.json` | books, collections, organization, `isBackup: true` | Save/restore app state |
+
+### Detection Logic
+
+- `isBackup: true` at root level → Backup file
+- No `isBackup` field (or `false`) → Library file
+
+### Fetcher Behavior
+
+Fetchers **reject** backup files:
+- Check for `isBackup === true` before processing
+- Display error: "This is a backup file. Please select amazon-library.json instead."
+- Rationale: Fetchers should update library data, not overwrite backup state
+
+### App Import Behavior
+
+| File Type | Behavior |
+|-----------|----------|
+| Backup (`isBackup: true`) | Prompt: "Restore backup? This will replace your current organization." → Full replace |
+| Library (no `isBackup`) | Merge books into existing library, keep current organization, ignore any `organization` in file |
 
 ---
 

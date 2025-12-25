@@ -21,7 +21,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v4.0.0.a';
+    const FETCHER_VERSION = 'v4.0.0.b';
     const SCHEMA_VERSION = '2.0';
 
     console.log('========================================');
@@ -642,6 +642,15 @@ async function fetchAmazonLibrary() {
         if (file) {
             const fileText = await file.text();
             const parsedData = JSON.parse(fileText);
+
+            // Reject backup files - fetchers should only work with library files
+            if (parsedData.isBackup === true) {
+                console.error('   ❌ This is a backup file');
+                console.error('   Fetchers cannot update backup files');
+                console.error('   Please select a library file instead');
+                progressUI.showError('This is a backup file. Please select a library file instead.');
+                throw new Error('Backup file selected - fetchers require a library file');
+            }
 
             // Schema v2.0 format: { schemaVersion: "2.0", books: { items: [...] }, ... }
             if (parsedData.schemaVersion === "2.0") {
