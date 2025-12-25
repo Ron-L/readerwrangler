@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v4.0.0.g - Schema v2.0 Unified File Format
+        // ReaderWrangler JS v4.0.0.h - Schema v2.0 Unified File Format
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.0.0.g";
+        const ORGANIZER_VERSION = "4.0.0.h";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2594,12 +2594,14 @@
                             </div>
                             <div className="flex gap-2 items-center">
                                 <button onClick={importLibrary}
-                                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+                                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+                                        title="Load library file or restore from backup">
                                     📥 Import
                                 </button>
                                 <button onClick={exportLibrary}
                                         className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"
-                                        disabled={books.length === 0}>
+                                        disabled={books.length === 0}
+                                        title="Download library with organization">
                                     💾 Export
                                 </button>
                                 <button onClick={clearLibrary}
@@ -2637,7 +2639,8 @@
                                 {filterPanelOpen ? ' ▼' : ' ▶'}
                             </button>
                             <button onClick={addColumn}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2">
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
+                                    title="Create a new column">
                                 ➕ Add Column
                             </button>
                         </div>
