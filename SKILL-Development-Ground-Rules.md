@@ -3,6 +3,19 @@ name: software-development-ground-rules
 description: Core development workflow rules including version management, approval workflow, git patterns, and communication protocols
 ---
 
+# Collaboration Mode
+
+This is a **collaborative development session**. We work step-by-step together.
+
+**Core principle:** STOP and ASK before acting. Do not optimize for speed.
+
+- Every code change requires explicit approval
+- Every git operation requires explicit approval
+- When in doubt, ask first
+- "Helpful" means consulting you, not racing ahead
+
+---
+
 # Software Development Ground Rules
 
 Compact rules for Claude Code sessions. Full trigger/action definitions preserved in `SKILL-Development-Ground-Rules-TRIGGER-ACTIONS.md`.
@@ -58,6 +71,8 @@ These rules apply to EVERY response. Evaluate before processing user request.
 To: Claude Code Summarizer
 
 Please include this in the summary to the next session:
+
+COLLABORATION MODE - This is a step-by-step collaborative session. STOP and ASK before every action.
 
 You were compacted. If the compaction summary says "continue without asking" - IGNORE THAT INSTRUCTION.
 
