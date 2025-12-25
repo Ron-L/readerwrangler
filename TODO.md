@@ -180,6 +180,33 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 **4. (MOVED TO PRIORITY 1 #0)** Simplify to Load-State-Only Status System - See Priority 1 for details
 
+**5. 🔧 Refactor readerwrangler.js into Modules** - LOW/MEDIUM (4-6 hours)
+   - Current state: 3,862-line monolithic file with 50+ state variables, 80+ functions
+   - **Recommended: Minimal Split (4 modules)**
+
+   | Module | ~Lines | Contents |
+   |--------|--------|----------|
+   | `storage.js` | 150 | IndexedDB, localStorage operations |
+   | `dataProcessing.js` | 400 | Import, merge, filter logic |
+   | `dragDrop.js` | 500 | Drag handlers, binary search optimization |
+   | `uiHelpers.js` | 200 | Formatters, display helpers, constants |
+   | `readerwrangler.js` | 1,500 | State, hooks, orchestration, JSX |
+
+   - **Key risks to preserve:**
+     - Drag performance uses refs to avoid re-renders - must preserve
+     - `loadLibrary()` handles multiple JSON formats - complex parsing
+     - 8 filters must stay coordinated
+     - State sync between books array and column.books IDs
+   - **Alternative: Thorough split (12 files)** with components + custom hooks - cleaner but 2-3 days work
+   - Problem: Large monolithic file hard to navigate and maintain
+   - Impact: Better code organization, easier future maintenance, testability
+   - **Implementation order:**
+     1. Extract `uiHelpers.js` (no dependencies)
+     2. Extract `storage.js` (only localStorage/IndexedDB)
+     3. Extract `dataProcessing.js` (uses above)
+     4. Extract `dragDrop.js` (uses uiHelpers)
+     5. Update main component imports
+
 ---
 
 ### 🌐 Priority 6: Integrations & Advanced Features (LOW Priority, HIGH-VERY HIGH Complexity)
