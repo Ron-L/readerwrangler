@@ -1,6 +1,6 @@
-// Amazon Library Fetcher v3.7.0.a (Remove manifest system)
+// Amazon Library Fetcher v4.0.0.a (Schema v2.0 - Unified File Format)
 // Fetches library books and enriches them with descriptions & reviews
-// Schema Version: 3.0.0 (Removes GUID - no longer needed)
+// Schema Version: 2.0 (Unified file format - books + collections in single file)
 //
 // v3.5.0 Changes:
 // - Removed artificial delays (network RTT provides natural throttling)
@@ -21,8 +21,8 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v3.7.0.a';
-    const SCHEMA_VERSION = '3.0.0';
+    const FETCHER_VERSION = 'v4.0.0.a';
+    const SCHEMA_VERSION = '2.0';
 
     console.log('========================================');
     console.log(`Amazon Library Fetcher ${FETCHER_VERSION}`);
@@ -624,6 +624,7 @@ async function fetchAmazonLibrary() {
         console.log('   (Dialog may be hidden behind other windows - check taskbar!)\n');
 
         let existingBooks = [];
+        let existingCollections = null; // Preserve collections section if present
         let mostRecentDate = null;
 
         const fileInput = document.createElement('input');
@@ -642,32 +643,47 @@ async function fetchAmazonLibrary() {
             const fileText = await file.text();
             const parsedData = JSON.parse(fileText);
 
-            // Step 1: Check for type field (REQUIRED)
-            if (!parsedData.type) {
-                console.error('   ❌ Invalid file format - Missing "type" field');
-                console.error('   Received:', Object.keys(parsedData));
-                console.error('   Please regenerate with latest fetcher version (v3.6.0+)');
-                throw new Error('Invalid file format - Missing "type" field. Please regenerate with latest fetcher version.');
-            }
-
-            // Step 2: Validate type value
-            if (parsedData.type === "library") {
-                // Step 3: Verify library structure
-                if (!parsedData.metadata || !parsedData.books) {
-                    console.error('   ❌ Invalid library file - Missing metadata or books array');
+            // Schema v2.0 format: { schemaVersion: "2.0", books: { items: [...] }, ... }
+            if (parsedData.schemaVersion === "2.0") {
+                if (!parsedData.books || !parsedData.books.items) {
+                    console.error('   ❌ Invalid v2.0 file - Missing books.items');
                     console.error('   Received:', Object.keys(parsedData));
-                    throw new Error('Invalid library file - Missing metadata or books array');
+                    throw new Error('Invalid v2.0 file - Missing books.items');
                 }
-                existingBooks = parsedData.books;
-                console.log(`   📋 Loaded ${parsedData.type} file (${existingBooks.length} books)`);
-            } else if (parsedData.type === "collections") {
-                console.error('   ❌ Wrong file type - This is a collections file');
-                console.error('   Please select a library file instead');
-                throw new Error('Wrong file type - This is a collections file. Please select a library file.');
+                existingBooks = parsedData.books.items;
+                console.log(`   📋 Loaded v2.0 unified file (${existingBooks.length} books)`);
+                // Preserve collections section if present
+                if (parsedData.collections) {
+                    existingCollections = parsedData.collections;
+                    console.log(`   📋 Preserving existing collections data`);
+                }
+            }
+            // Legacy v1.x format: { type: "library", metadata: {...}, books: [...] }
+            else if (parsedData.type) {
+                // Validate type value
+                if (parsedData.type === "library") {
+                    // Verify library structure
+                    if (!parsedData.metadata || !parsedData.books) {
+                        console.error('   ❌ Invalid library file - Missing metadata or books array');
+                        console.error('   Received:', Object.keys(parsedData));
+                        throw new Error('Invalid library file - Missing metadata or books array');
+                    }
+                    existingBooks = parsedData.books;
+                    console.log(`   📋 Loaded legacy ${parsedData.type} file (${existingBooks.length} books)`);
+                    console.log(`   ⚠️  Note: Will upgrade to v2.0 format on save`);
+                } else if (parsedData.type === "collections") {
+                    console.error('   ❌ Wrong file type - This is a collections file');
+                    console.error('   Please select a library file instead');
+                    throw new Error('Wrong file type - This is a collections file. Please select a library file.');
+                } else {
+                    console.error(`   ❌ Unknown file type: "${parsedData.type}"`);
+                    console.error('   Expected: "library" or v2.0 unified format');
+                    throw new Error(`Unknown file type: "${parsedData.type}". Expected "library" or v2.0 unified format.`);
+                }
             } else {
-                console.error(`   ❌ Unknown file type: "${parsedData.type}"`);
-                console.error('   Expected: "library" or "collections"');
-                throw new Error(`Unknown file type: "${parsedData.type}". Expected "library" or "collections".`);
+                console.error('   ❌ Invalid file format - Missing schemaVersion or type field');
+                console.error('   Received:', Object.keys(parsedData));
+                throw new Error('Invalid file format - Missing schemaVersion or type field');
             }
 
             // Find most recent acquisition date
@@ -1273,6 +1289,7 @@ async function fetchAmazonLibrary() {
                     seenASINs.set(product.asin, newBooks.length);
                     newBooks.push({
                         asin: product.asin,
+                        isOwned: true, // Schema v2.0: distinguishes owned books from wishlist
                         title,
                         authors,
                         coverUrl,
@@ -1621,19 +1638,24 @@ async function fetchAmazonLibrary() {
         // Prepend new books (most recent first)
         const finalBooks = [...newBooks, ...existingBooks];
 
-        // Create output with metadata (Schema v3.0.0 - removes GUID)
+        // Create output in Schema v2.0 unified format
+        // Library Fetcher owns: schemaVersion, books
+        // Preserves any existing collections section from input file
         const outputData = {
-            type: "library",
-            metadata: {
-                schemaVersion: SCHEMA_VERSION,
-                fetcherVersion: FETCHER_VERSION,
+            schemaVersion: SCHEMA_VERSION,
+            books: {
                 fetchDate: new Date().toISOString(),
+                fetcherVersion: FETCHER_VERSION,
                 totalBooks: finalBooks.length,
                 booksWithoutDescriptions: booksWithoutDescriptions.length,
-                booksWithoutDescriptionsDetails: booksWithoutDescriptions
-            },
-            books: finalBooks
+                booksWithoutDescriptionsDetails: booksWithoutDescriptions,
+                items: finalBooks
+            }
         };
+        // Preserve existing collections section if present
+        if (existingCollections) {
+            outputData.collections = existingCollections;
+        }
 
         const jsonData = JSON.stringify(outputData, null, 2);
 

@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v3.14.0 - Dividers as Drop Targets + Performance Optimizations
+        // ReaderWrangler JS v4.0.0.a - Schema v2.0 Unified File Format
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "3.14.0";
+        const ORGANIZER_VERSION = "4.0.0.a";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -508,7 +508,7 @@
                 setSettingsOpen(false);
             };
 
-            const syncNow = async () => {
+            const importLibrary = async () => {
                 // Close the dialog immediately when file picker opens
                 setStatusModalOpen(false);
 
@@ -540,10 +540,10 @@
                             }, 60000);
 
                             // Load data with callback
-                            await loadEnrichedData(text, () => {
+                            await loadLibrary(text, () => {
                                 callbackFired = true;
                                 clearTimeout(timeoutId);
-                                // checkManifest removed in v3.6.1 - status updated in loadEnrichedData
+                                // checkManifest removed in v3.6.1 - status updated in loadLibrary
                             });
 
                         } catch (error) {
@@ -555,60 +555,6 @@
                             } else {
                                 console.error('Error details: Unknown error (null or no message)');
                                 alert('Failed to load library file: Unknown error');
-                            }
-                        }
-                    }
-                };
-                input.click();
-            };
-
-            const loadCollectionsNow = async () => {
-                // Close the dialog immediately when file picker opens
-                setStatusModalOpen(false);
-
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.json';
-                input.onchange = async (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        try {
-                            const text = await file.text();
-                            const parsedData = JSON.parse(text);
-                            const syncTime = Date.now();
-                            setLastSyncTime(syncTime);
-
-                            // Show loading status while waiting
-                            setSyncStatus('loading');
-
-                            let timeoutId;
-                            let callbackFired = false;
-
-                            // Setup timeout (60 seconds)
-                            timeoutId = setTimeout(() => {
-                                if (!callbackFired) {
-                                    console.error('⚠️ Status check timed out after 60 seconds');
-                                    setSyncStatus('unknown');
-                                    alert('Collections loaded but status check timed out. Please refresh the page.');
-                                }
-                            }, 60000);
-
-                            // Load collections data with callback
-                            await loadCollectionsFromFile(text, (collectionsCount) => {
-                                callbackFired = true;
-                                clearTimeout(timeoutId);
-                                setSyncStatus('none');
-                            });
-
-                        } catch (error) {
-                            console.error('Failed to load collections:', error);
-                            setSyncStatus('none'); // Clear loading spinner (v3.9.0.l)
-                            if (error && error.message) {
-                                console.error('Error details:', error.message, error.stack);
-                                alert(`Failed to load collections file: ${error.message}`);
-                            } else {
-                                console.error('Error details: Unknown error (null or no message)');
-                                alert('Failed to load collections file: Unknown error');
                             }
                         }
                     }
@@ -716,59 +662,77 @@
                 );
             };
 
-            const exportBackup = async () => {
+            // Schema v2.0: Export unified file with organization
+            const exportLibrary = async () => {
                 try {
                     const allBooks = await loadBooksFromIndexedDB();
-                    const state = {
-                        books: allBooks,
-                        columns,
-                        dataSource,
-                        blankImageBooks: Array.from(blankImageBooks),
-                        lastSyncTime: lastSyncTime || Date.now(),
-                        backupDate: new Date().toISOString(),
-                        version: ORGANIZER_VERSION
+
+                    // Convert app book format back to fetcher format for books.items
+                    const bookItems = allBooks.map(book => ({
+                        asin: book.asin,
+                        isOwned: book.isWishlist ? false : true,
+                        title: book.title,
+                        authors: book.author,
+                        coverUrl: book.coverUrl,
+                        rating: book.rating,
+                        reviewCount: book.ratingCount,
+                        series: book.series,
+                        seriesPosition: book.seriesPosition,
+                        acquisitionDate: book.acquired,
+                        description: book.description,
+                        topReviews: book.topReviews,
+                        binding: book.binding
+                    }));
+
+                    // Build collections.items from books that have collection data
+                    const collectionItems = allBooks
+                        .filter(book => book.collections || book.readStatus)
+                        .map(book => ({
+                            asin: book.asin,
+                            readStatus: book.readStatus || 'UNKNOWN',
+                            collections: book.collections || []
+                        }));
+
+                    // Build v2.0 unified format
+                    const exportData = {
+                        schemaVersion: "2.0",
+                        books: {
+                            fetchDate: libraryStatus.loadDate || new Date().toISOString(),
+                            fetcherVersion: "app-export",
+                            totalBooks: bookItems.length,
+                            items: bookItems
+                        },
+                        collections: {
+                            fetchDate: collectionsStatus.loadDate || new Date().toISOString(),
+                            fetcherVersion: "app-export",
+                            totalBooksScanned: collectionItems.length,
+                            booksWithCollections: collectionItems.filter(b => b.collections.length > 0).length,
+                            items: collectionItems
+                        },
+                        organization: {
+                            columns: columns.map(col => ({
+                                id: col.id,
+                                name: col.name,
+                                items: col.books  // Array of book IDs and divider IDs
+                            })),
+                            columnOrder: columns.map(col => col.id),
+                            blankImageBooks: Array.from(blankImageBooks),
+                            exportDate: new Date().toISOString(),
+                            appVersion: ORGANIZER_VERSION
+                        }
                     };
-                    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+
+                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `readerwrangler-backup-${new Date().toISOString().split('T')[0]}.json`;
+                    a.download = 'amazon-library.json';
                     a.click();
                     URL.revokeObjectURL(url);
-                    console.log('✅ Backup created');
+                    console.log('✅ Library exported (v2.0 format)');
                 } catch (error) {
-                    console.error('Failed to create backup:', error);
-                    alert('Failed to create backup');
-                }
-            };
-
-            const importRestore = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                try {
-                    const text = await file.text();
-                    const state = JSON.parse(text);
-                    
-                    if (state.books && state.columns) {
-                        // Save books to IndexedDB
-                        await saveBooksToIndexedDB(state.books);
-                        setBooks(state.books);
-                        
-                        // Restore organization
-                        setColumns(state.columns);
-                        setDataSource(state.dataSource || 'enriched');
-                        setBlankImageBooks(new Set(state.blankImageBooks || []));
-                        setLastSyncTime(state.lastSyncTime || Date.now());
-                        
-                        console.log('✅ Restored from backup');
-                        alert('✅ Successfully restored from backup!');
-                    } else {
-                        alert('Invalid backup file');
-                    }
-                } catch (e) {
-                    console.error('Failed to restore:', e);
-                    alert('Failed to restore from backup');
+                    console.error('Failed to export library:', error);
+                    alert('Failed to export library');
                 }
             };
 
@@ -824,7 +788,7 @@
                 const text = await file.text();
                 
                 if (file.name.endsWith('.json')) {
-                    await loadEnrichedData(text);
+                    await loadLibrary(text);
                 } else if (file.name.endsWith('.csv')) {
                     loadBooksFromCSV(text);
                 }
@@ -866,127 +830,6 @@
                 setDataSource('csv');
             };
 
-            const loadCollectionsData = async () => {
-                try {
-                    // ARCHITECTURE: Cache-Busting - See docs/design/ARCHITECTURE.md (Cache-Busting section)
-                    // Try to fetch collections data from same directory with cache-busting
-                    const response = await fetch(`amazon-collections.json?t=${Date.now()}`);
-                    if (!response.ok) {
-                        console.log('No collections data file found (this is optional)');
-                        return null;
-                    }
-
-                    const collectionsJson = await response.json();
-
-                    // Validate schema version (1.0)
-                    if (collectionsJson.schemaVersion !== '1.0') {
-                        console.warn('Collections data schema version mismatch, skipping');
-                        return null;
-                    }
-
-                    // Create a Map indexed by ASIN for O(1) lookup
-                    const collectionsMap = new Map();
-
-                    collectionsJson.books.forEach(book => {
-                        collectionsMap.set(book.asin, {
-                            readStatus: book.readStatus,
-                            collections: book.collections || []
-                        });
-                    });
-
-                    console.log(`✅ Loaded collections data for ${collectionsMap.size} books`);
-                    console.log(`   - ${collectionsJson.booksWithCollections} books have collections`);
-                    console.log(`   - Fetcher version: ${collectionsJson.fetcherVersion}`);
-
-                    // Update collections status (v3.9.0 - Load-state-only)
-                    const loadStatus = collectionsJson.fetchDate ? calculateFreshness(collectionsJson.fetchDate) : 'unknown';
-
-                    setCollectionsStatus({
-                        loadStatus,
-                        loadDate: collectionsJson.fetchDate || null
-                    });
-
-                    setCollectionsData(collectionsMap);
-                    return collectionsMap;
-                } catch (error) {
-                    console.log('Could not load collections data (this is optional):', error.message);
-                    return null;
-                }
-            };
-
-            const loadCollectionsFromFile = async (content, onComplete = null) => {
-                const collectionsJson = JSON.parse(content);
-
-                // Check if user selected library file instead of collections file (v3.9.0.k)
-                if (collectionsJson.type === 'library') {
-                    console.error('❌ Wrong file type selected');
-                    console.error('   You selected a Library file');
-                    console.error('   Please select your Collections file instead');
-                    throw new Error('You selected a Library file. Please select your Collections file instead.');
-                }
-
-                // Validate schema version (1.0)
-                if (collectionsJson.schemaVersion !== '1.0') {
-                    console.error('❌ Invalid collections JSON format');
-                    console.error('   Expected schema v1.0');
-                    console.error('   Received schema:', collectionsJson.schemaVersion);
-                    throw new Error('Invalid collections JSON format - please re-fetch your collections using the latest fetcher');
-                }
-
-                // Create a Map indexed by ASIN for O(1) lookup
-                const collectionsMap = new Map();
-
-                collectionsJson.books.forEach(book => {
-                    collectionsMap.set(book.asin, {
-                        readStatus: book.readStatus,
-                        collections: book.collections || []
-                    });
-                });
-
-                console.log(`✅ Loaded collections data for ${collectionsMap.size} books`);
-                console.log(`   - ${collectionsJson.booksWithCollections} books have collections`);
-                console.log(`   - Fetcher version: ${collectionsJson.fetcherVersion}`);
-                console.log(`   - Fetched: ${new Date(collectionsJson.fetchDate).toLocaleString()}`);
-
-                // Update collections status (v3.9.0 - Load-state-only)
-                const loadStatus = collectionsJson.fetchDate ? calculateFreshness(collectionsJson.fetchDate) : 'unknown';
-
-                setCollectionsStatus({
-                    loadStatus,
-                    loadDate: collectionsJson.fetchDate || null
-                });
-
-                setCollectionsData(collectionsMap);
-
-                // Merge collections into existing books and re-save to IndexedDB (v3.9.0.j)
-                // Pass collectionsMap directly instead of relying on state (state update is async)
-                const mergedBooks = books.map(book => {
-                    const bookCollections = collectionsMap.get(book.asin) || { readStatus: 'UNKNOWN', collections: [] };
-                    return {
-                        ...book,
-                        readStatus: bookCollections.readStatus,
-                        collections: bookCollections.collections
-                    };
-                });
-                await saveBooksToIndexedDB(mergedBooks);
-                setBooks(mergedBooks);
-
-                // Log merge results
-                const booksWithCollections = mergedBooks.filter(b => b.collections && b.collections.length > 0).length;
-                const readBooks = mergedBooks.filter(b => b.readStatus === 'READ').length;
-                const unreadBooks = mergedBooks.filter(b => b.readStatus === 'UNREAD').length;
-                console.log(`📚 Collections data merged:`);
-                console.log(`   - ${booksWithCollections} books have collections`);
-                console.log(`   - ${readBooks} READ, ${unreadBooks} UNREAD, ${mergedBooks.length - readBooks - unreadBooks} UNKNOWN`);
-
-                // Trigger callback if provided
-                if (onComplete) {
-                    onComplete(collectionsMap.size);
-                }
-
-                return collectionsMap;
-            };
-
             const mergeCollectionsIntoBooks = async (booksToMerge) => {
                 // Only use collections data if user has loaded it via File Picker (v3.9.0)
                 const collections = collectionsData;
@@ -1026,45 +869,98 @@
                 return mergedBooks;
             };
 
-            const loadEnrichedData = async (content, onComplete = null) => {
+            const loadLibrary = async (content, onComplete = null) => {
                 const parsedData = JSON.parse(content);
 
-                // Check if user selected collections file instead of library file (v3.9.0.k)
+                // Check if user selected legacy collections file (v3.9.0.k)
                 if (parsedData.type === 'collections') {
                     console.error('❌ Wrong file type selected');
-                    console.error('   You selected a Collections file');
-                    console.error('   Please select your Library file instead');
-                    throw new Error('You selected a Collections file. Please select your Library file instead.');
+                    console.error('   You selected an old Collections file');
+                    console.error('   Please select amazon-library.json instead');
+                    throw new Error('You selected an old Collections file. Please select amazon-library.json instead.');
                 }
 
-                // Schema v3.0.0 - object with metadata and books array
-                if (!parsedData.metadata || !parsedData.books) {
+                let data;           // Array of book items
+                let metadata;       // Books metadata (fetchDate, fetcherVersion, etc.)
+                let collections;    // Collections map (ASIN -> {readStatus, collections})
+
+                // Schema v2.0 - unified format with books.items and collections.items
+                if (parsedData.schemaVersion === "2.0") {
+                    if (!parsedData.books || !parsedData.books.items) {
+                        console.error('❌ Invalid v2.0 library format');
+                        console.error('   Expected: {schemaVersion: "2.0", books: {items: [...]}}');
+                        console.error('   Received:', Object.keys(parsedData));
+                        throw new Error('Invalid v2.0 library format - please re-fetch your library using the latest fetcher');
+                    }
+
+                    data = parsedData.books.items;
+                    metadata = {
+                        schemaVersion: parsedData.schemaVersion,
+                        fetchDate: parsedData.books.fetchDate,
+                        fetcherVersion: parsedData.books.fetcherVersion,
+                        totalBooks: parsedData.books.totalBooks || data.length,
+                        booksWithoutDescriptions: parsedData.books.booksWithoutDescriptions || 0
+                    };
+
+                    console.log(`📋 Loaded schema v2.0 unified file`);
+                    console.log(`   Total books: ${metadata.totalBooks}`);
+                    console.log(`   Books without descriptions: ${metadata.booksWithoutDescriptions}`);
+                    console.log(`   Fetched: ${new Date(metadata.fetchDate).toLocaleString()}`);
+                    console.log(`   Fetcher version: ${metadata.fetcherVersion}`);
+
+                    // Extract embedded collections from v2.0 file
+                    if (parsedData.collections && parsedData.collections.items) {
+                        collections = new Map();
+                        parsedData.collections.items.forEach(book => {
+                            collections.set(book.asin, {
+                                readStatus: book.readStatus,
+                                collections: book.collections || []
+                            });
+                        });
+                        console.log(`📚 Loaded embedded collections for ${collections.size} books`);
+                        console.log(`   Collections fetched: ${new Date(parsedData.collections.fetchDate).toLocaleString()}`);
+
+                        // Update collections status
+                        const collectionsLoadStatus = parsedData.collections.fetchDate ? calculateFreshness(parsedData.collections.fetchDate) : 'unknown';
+                        setCollectionsStatus({
+                            loadStatus: collectionsLoadStatus,
+                            loadDate: parsedData.collections.fetchDate || null
+                        });
+                        setCollectionsData(collections);
+                    } else {
+                        console.log('📚 No collections data in file (run Collections Fetcher to add)');
+                        collections = null;
+                    }
+                }
+                // Legacy v1.x format - object with metadata and books array
+                else if (parsedData.metadata && parsedData.books) {
+                    data = parsedData.books;
+                    metadata = parsedData.metadata;
+
+                    console.log(`📋 Loaded legacy schema ${metadata.schemaVersion}`);
+                    console.log(`   Total books: ${metadata.totalBooks}`);
+                    console.log(`   Books without descriptions: ${metadata.booksWithoutDescriptions}`);
+                    console.log(`   Fetched: ${new Date(metadata.fetchDate).toLocaleString()}`);
+                    console.log(`   Fetcher version: ${metadata.fetcherVersion}`);
+                    console.log(`   ⚠️  Note: Re-run fetchers to upgrade to v2.0 format`);
+
+                    // Legacy format - collections loaded separately (use existing collectionsData state)
+                    collections = collectionsData || null;
+                }
+                else {
                     console.error('❌ Invalid library JSON format');
-                    console.error('   Expected schema v3.0.0: {metadata, books}');
+                    console.error('   Expected: v2.0 unified or legacy {metadata, books}');
                     console.error('   Received:', Object.keys(parsedData));
                     throw new Error('Invalid library JSON format - please re-fetch your library using the latest fetcher');
                 }
 
-                const data = parsedData.books;
-                const metadata = parsedData.metadata;
-
-                console.log(`📋 Loaded schema ${metadata.schemaVersion}`);
-                console.log(`   Total books: ${metadata.totalBooks}`);
-                console.log(`   Books without descriptions: ${metadata.booksWithoutDescriptions}`);
-                console.log(`   Fetched: ${new Date(metadata.fetchDate).toLocaleString()}`);
-                console.log(`   Fetcher version: ${metadata.fetcherVersion}`);
-
-                // Update library status from loaded JSON metadata (v3.9.0 - Load-state-only)
+                // Update library status from loaded JSON metadata
                 const loadStatus = metadata.fetchDate ? calculateFreshness(metadata.fetchDate) : 'unknown';
 
                 setLibraryStatus({
                     loadStatus,
                     loadDate: metadata.fetchDate || null
                 });
-
-                // Collections must be loaded via File Picker (v3.9.0 - Load-State-Only)
-                // Auto-fetch removed to ensure user controls which files are loaded
-                const collections = collectionsData || null;
 
                 const extractDescription = (descData) => {
                     if (!descData?.sections?.[0]?.content) return '';
@@ -2636,15 +2532,15 @@
                                 </div>
                             </div>
                             <div className="flex gap-2 items-center">
-                                <button onClick={exportBackup} 
+                                <button onClick={importLibrary}
+                                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+                                    📥 Import
+                                </button>
+                                <button onClick={exportLibrary}
                                         className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"
                                         disabled={books.length === 0}>
-                                    💾 Backup
+                                    💾 Export
                                 </button>
-                                <label className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg cursor-pointer text-sm font-medium">
-                                    📥 Restore
-                                    <input type="file" accept=".json" onChange={importRestore} className="hidden" />
-                                </label>
                                 <button onClick={clearLibrary}
                                         className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
                                         title="Click for details about what will be reset">
@@ -2876,313 +2772,60 @@
                     </div>
 
                     {statusModalOpen && (() => {
-                        // ARCHITECTURE: Status Icons pattern - See docs/design/ARCHITECTURE.md (Status Icons section)
-                        const urgency = getUrgencyInfo();
-                        const statusIcon = (status) => {
-                            const icons = { fresh: '✅', stale: '⚠️', obsolete: '🛑', empty: '🗄️', unknown: '❓' };
-                            return icons[status] || '❓';
-                        };
-                        const statusLabel = (status, date) => {
-                            if (status === 'empty') return 'Missing';
-                            if (status === 'unknown') return 'Unknown';
-                            const label = status.charAt(0).toUpperCase() + status.slice(1);
-                            if (date) {
-                                const d = new Date(date);
-                                const days = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
-                                if (days < 1) return `${label} (today)`;
-                                if (days === 1) return `${label} (1d ago)`;
-                                return `${label} (${days}d ago)`;
-                            }
-                            return label;
-                        };
-                        const needsLibraryAction = ['empty', 'stale', 'obsolete', 'unknown'].includes(libraryStatus.loadStatus);
-                        const needsCollectionsAction = ['empty', 'stale', 'obsolete'].includes(collectionsStatus.loadStatus);
+                        // Schema v2.0: Simplified informational modal (no action buttons)
+                        // Count dividers in columns
+                        const dividerCount = columns.reduce((count, col) =>
+                            count + col.books.filter(id => id.startsWith('div-')).length, 0);
+                        const booksWithCollections = books.filter(b => b.collections && b.collections.length > 0).length;
 
                         return (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setStatusModalOpen(false)}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
-                                {/* Header with darker background */}
+                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+                                {/* Header */}
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                        <span>{urgency.icon}</span>
-                                        {urgency.text === 'Fresh' ? 'All Good!' :
-                                         urgency.text === 'Must act' ? 'Action Required' :
-                                         urgency.text === 'Stale' ? 'Update Recommended' :
-                                         urgency.text === 'Obsolete' ? 'Action Required' : 'Status Info'}
-                                    </h2>
+                                    <h2 className="text-xl font-bold text-gray-900">Data Status</h2>
                                     <button onClick={() => setStatusModalOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none">×</button>
                                 </div>
 
-                                {/* Main content area */}
-                                <div className="p-6">
-                                {/* Contextual guidance based on state - ACTION FIRST */}
-                                {/* State 2: Fresh Both (v3.9.0.o) */}
-                                {libraryStatus.loadStatus === 'fresh' && collectionsStatus.loadStatus === 'fresh' && (
-                                    <div className="space-y-3">
-                                        {/* Status lines with inline Reload buttons */}
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-sm text-gray-700">
-                                                    📚 <strong>Library:</strong> Loaded {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)} ✅
-                                                </p>
-                                                <button
-                                                    onClick={syncNow}
-                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs whitespace-nowrap">
-                                                    Reload Anyway
-                                                </button>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-sm text-gray-700">
-                                                    📁 <strong>Collections:</strong> Loaded {statusLabel(collectionsStatus.loadStatus, collectionsStatus.loadDate)} ✅
-                                                </p>
-                                                <button
-                                                    onClick={loadCollectionsNow}
-                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs whitespace-nowrap">
-                                                    Reload Anyway
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Two-column instructions for dual destinations */}
-                                        <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
-                                            <p className="mb-2"><strong>If you've made Amazon purchases or collection changes since loading:</strong></p>
-                                            <div className="grid grid-cols-2 gap-4 text-xs">
-                                                <div>
-                                                    <p className="font-semibold mb-1">📚 Library</p>
-                                                    <ol className="list-decimal ml-4 space-y-1">
-                                                        <li>Go to <a href="https://www.amazon.com/yourbooks" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Library</a></li>
-                                                        <li>Click bookmarklet</li>
-                                                        <li>Choose "Fetch Library"</li>
-                                                        <li>Return & click Reload button above</li>
-                                                    </ol>
-                                                </div>
-                                                <div>
-                                                    <p className="font-semibold mb-1">📁 Collections</p>
-                                                    <ol className="list-decimal ml-4 space-y-1">
-                                                        <li>Go to <a href="https://www.amazon.com/hz/mycd/myx" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Collections</a></li>
-                                                        <li>Click bookmarklet</li>
-                                                        <li>Choose "Fetch Collections"</li>
-                                                        <li>Return & click Reload button above</li>
-                                                    </ol>
-                                                </div>
-                                            </div>
-                                            <p className="mt-2 text-center">Otherwise, continue organizing!</p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {libraryStatus.loadStatus === 'empty' && collectionsStatus.loadStatus === 'empty' && (
-                                    <div className="space-y-3">
-                                        {/* Status lines with inline Load buttons (v3.9.0.o - right-aligned UX pattern) */}
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-sm text-gray-700">
-                                                    📚 <strong>Library:</strong> Not loaded 🛑
-                                                </p>
-                                                <button
-                                                    onClick={syncNow}
-                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">
-                                                    Load Library
-                                                </button>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-sm text-gray-700">
-                                                    📁 <strong>Collections:</strong> Not loaded 🛑
-                                                </p>
-                                                <button
-                                                    onClick={loadCollectionsNow}
-                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">
-                                                    Load Collections
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Help text for users with files */}
-                                        <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
-                                            <p className="text-center">Load your library to get started!</p>
-                                        </div>
-
-                                        {/* Fetch instructions for users without files */}
-                                        <div className="border border-blue-200 rounded overflow-hidden text-sm text-gray-700">
-                                            <div className="bg-blue-100 px-3 py-2 border-b border-blue-200">
-                                                <p className="font-medium">Don't have files yet? Fetch them from Amazon:</p>
-                                            </div>
-                                            <div className="bg-blue-50 p-3">
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    {/* Library fetch instructions */}
-                                                    <div>
-                                                        <p className="font-medium mb-2">📚 Library</p>
-                                                        <ol className="list-decimal ml-4 space-y-1 text-xs">
-                                                            <li>Go to <a href="https://www.amazon.com/yourbooks" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Library</a></li>
-                                                            <li>Click bookmarklet</li>
-                                                            <li>Choose "Fetch Library"</li>
-                                                            <li>Return & click Load button above</li>
-                                                        </ol>
-                                                    </div>
-                                                    {/* Collections fetch instructions */}
-                                                    <div>
-                                                        <p className="font-medium mb-2">📁 Collections</p>
-                                                        <ol className="list-decimal ml-4 space-y-1 text-xs">
-                                                            <li>Go to <a href="https://www.amazon.com/hz/mycd/myx" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Collections</a></li>
-                                                            <li>Click bookmarklet</li>
-                                                            <li>Choose "Fetch Collections"</li>
-                                                            <li>Return & click Load button above</li>
-                                                        </ol>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {(libraryStatus.loadStatus === 'stale' || libraryStatus.loadStatus === 'obsolete') && (
-                                    <div className="space-y-3">
+                                {/* Content - informational only */}
+                                <div className="p-6 space-y-4">
+                                    {/* Library info */}
+                                    <div className="border-b border-gray-200 pb-3">
                                         <p className="text-sm text-gray-700">
-                                            {libraryStatus.loadStatus === 'stale' ?
-                                                <>⚠️ <strong>Library data loaded {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)}</strong></> :
-                                                <>🛑 <strong>Library data loaded {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)}</strong></>
-                                            }
+                                            📚 <strong>Library:</strong> {books.length > 0 ? `${books.length} books` : 'Not loaded'}
                                         </p>
-                                        <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
-                                            <p><strong>If you've made Amazon purchases/changes, re-fetch and reload:</strong></p>
-                                            <ol className="list-decimal ml-4 mt-2 space-y-1 text-xs">
-                                                <li>Go to <a href="https://www.amazon.com/yourbooks" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Library</a></li>
-                                                <li>Click the ReaderWrangler bookmarklet → "Fetch Library"</li>
-                                                <li>Return here and click "Reload Library" below</li>
-                                            </ol>
-                                        </div>
-                                        <button
-                                            onClick={syncNow}
-                                            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                                            Reload Library
-                                        </button>
+                                        {libraryStatus.loadDate && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Fetched: {new Date(libraryStatus.loadDate).toLocaleString()}
+                                            </p>
+                                        )}
                                     </div>
-                                )}
 
-                                {libraryStatus.loadStatus === 'unknown' && libraryStatus.loadStatus !== 'empty' && (
-                                    <div className="space-y-3">
+                                    {/* Collections info */}
+                                    <div className="border-b border-gray-200 pb-3">
                                         <p className="text-sm text-gray-700">
-                                            ❓ <strong>Status unknown</strong>
+                                            📁 <strong>Collections:</strong> {booksWithCollections > 0 ? `${booksWithCollections} books with collection data` : 'Not loaded'}
                                         </p>
-                                        <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-gray-700">
-                                            <p>Your library file doesn't have date tracking metadata.</p>
-                                            <p className="mt-1">Re-fetch to enable full status tracking.</p>
-                                        </div>
-                                        <button
-                                            onClick={syncNow}
-                                            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                                            Load Library
-                                        </button>
+                                        {collectionsStatus.loadDate && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Fetched: {new Date(collectionsStatus.loadDate).toLocaleString()}
+                                            </p>
+                                        )}
                                     </div>
-                                )}
 
-                                {/* State 3: Library Fresh, Collections needs action (v3.9.0.o) */}
-                                {libraryStatus.loadStatus === 'fresh' && collectionsStatus.loadStatus !== 'fresh' && (
-                                    <div className="space-y-3">
-                                        {/* Status lines with inline buttons */}
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-sm text-gray-700">
-                                                    📚 <strong>Library:</strong> Loaded {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)} ✅
-                                                </p>
-                                                <button
-                                                    onClick={syncNow}
-                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs whitespace-nowrap">
-                                                    Reload Anyway
-                                                </button>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-sm text-gray-700">
-                                                    📁 <strong>Collections:</strong> {collectionsStatus.loadStatus === 'empty' || collectionsStatus.loadStatus === 'unknown' ?
-                                                        <>Not loaded 🛑</> :
-                                                        <>Loaded {statusLabel(collectionsStatus.loadStatus, collectionsStatus.loadDate)} {statusIcon(collectionsStatus.loadStatus)}</>
-                                                    }
-                                                </p>
-                                                <button
-                                                    onClick={loadCollectionsNow}
-                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">
-                                                    Load Collections
-                                                </button>
-                                            </div>
-                                        </div>
+                                    {/* Organization stats */}
+                                    <div>
+                                        <p className="text-sm text-gray-700">
+                                            📊 <strong>Organization:</strong> {columns.length} column{columns.length !== 1 ? 's' : ''}, {dividerCount} divider{dividerCount !== 1 ? 's' : ''}
+                                        </p>
+                                    </div>
 
+                                    {/* Help text */}
+                                    {books.length === 0 && (
                                         <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
-                                            <p>Your library is up to date! Collections are optional for organizing books by Amazon's categories.</p>
+                                            <p>Use the <strong>Import</strong> button to load your library file.</p>
                                         </div>
-
-                                        {/* Single-column fetch instructions (~60% width, centered) */}
-                                        <div className="flex justify-center">
-                                            <div className="w-3/5 border border-blue-200 rounded overflow-hidden text-sm text-gray-700">
-                                                <div className="bg-blue-100 px-3 py-2 border-b border-blue-200">
-                                                    <p className="font-medium">Don't have your Collections file yet? Fetch it from Amazon:</p>
-                                                </div>
-                                                <div className="bg-blue-50 p-3">
-                                                    <p className="font-medium mb-2">📁 Collections</p>
-                                                    <ol className="list-decimal ml-4 space-y-1 text-xs">
-                                                        <li>Go to <a href="https://www.amazon.com/hz/mycd/myx" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Collections</a></li>
-                                                        <li>Click bookmarklet</li>
-                                                        <li>Choose "Fetch Collections"</li>
-                                                        <li>Return & click Load button above</li>
-                                                    </ol>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* State 4: Collections Fresh, Library needs action - symmetric to State 3 (v3.9.0.o) */}
-                                {collectionsStatus.loadStatus === 'fresh' && libraryStatus.loadStatus !== 'fresh' && (
-                                    <div className="space-y-3">
-                                        {/* Status lines with inline buttons */}
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-sm text-gray-700">
-                                                    📚 <strong>Library:</strong> {libraryStatus.loadStatus === 'empty' || libraryStatus.loadStatus === 'unknown' ?
-                                                        <>Not loaded 🛑</> :
-                                                        <>Loaded {statusLabel(libraryStatus.loadStatus, libraryStatus.loadDate)} {statusIcon(libraryStatus.loadStatus)}</>
-                                                    }
-                                                </p>
-                                                <button
-                                                    onClick={syncNow}
-                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">
-                                                    Load Library
-                                                </button>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-sm text-gray-700">
-                                                    📁 <strong>Collections:</strong> Loaded {statusLabel(collectionsStatus.loadStatus, collectionsStatus.loadDate)} ✅
-                                                </p>
-                                                <button
-                                                    onClick={loadCollectionsNow}
-                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs whitespace-nowrap">
-                                                    Reload Anyway
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
-                                            <p>Load your library to see your books!</p>
-                                        </div>
-
-                                        {/* Single-column fetch instructions (~60% width, centered) */}
-                                        <div className="flex justify-center">
-                                            <div className="w-3/5 border border-blue-200 rounded overflow-hidden text-sm text-gray-700">
-                                                <div className="bg-blue-100 px-3 py-2 border-b border-blue-200">
-                                                    <p className="font-medium">Don't have your Library file yet? Fetch it from Amazon:</p>
-                                                </div>
-                                                <div className="bg-blue-50 p-3">
-                                                    <p className="font-medium mb-2">📚 Library</p>
-                                                    <ol className="list-decimal ml-4 space-y-1 text-xs">
-                                                        <li>Go to <a href="https://www.amazon.com/yourbooks" target="_blank" rel="noopener" className="text-blue-600 underline">Amazon Library</a></li>
-                                                        <li>Click bookmarklet</li>
-                                                        <li>Choose "Fetch Library"</li>
-                                                        <li>Return & click Load button above</li>
-                                                    </ol>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                                    )}
                                 </div>
                             </div>
                         </div>

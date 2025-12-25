@@ -173,24 +173,35 @@ When user purchases a wishlist book and re-fetches library:
 
 ## App Behavior
 
-### File Loading
+### Storage Model
 
-1. User clicks "Load Library" (single button, not two)
+- **IndexedDB** - Auto-saves working state (invisible to user)
+- **File Export** - User-triggered download of unified file
+
+Work is never lost - IndexedDB auto-saves. Export/Import are for moving data in/out.
+
+### UI Changes
+
+**Button bar:** `[📥 Import] [💾 Export] [🗑️ Reset App]`
+
+| Button | Action | Tooltip |
+|--------|--------|---------|
+| Import | File picker → load unified file | "Load library file" |
+| Export | Download unified file (with organization) | "Download library with organization" |
+| Reset App | Confirmation dialog → clear IndexedDB | (existing behavior) |
+
+**Data Status dialog:** Purely informational (no action buttons)
+- Shows books count + fetchDate
+- Shows collections count + fetchDate
+- Shows organization stats (columns, dividers)
+
+### File Loading (Import)
+
+1. User clicks "Import" button
 2. File picker opens
 3. App reads file, checks `schemaVersion`
-4. If v1.x: Show migration dialog, convert to v2.0
-5. If v2.0: Load directly
-
-### Fresh Fetch Option
-
-When user wants to start completely fresh:
-
-1. App shows warning dialog:
-   - "This will replace your current library with a fresh fetch"
-   - "Existing organization and wishlist items will be lost"
-   - "Are you sure?" [Cancel] [Proceed]
-2. If proceed: Clear current state, run Library Fetcher
-3. User is **not** asked to navigate file system or delete files manually
+4. If v2.0: Load directly into IndexedDB
+5. Freshness dates display in Data Status (old file shows old dates)
 
 ### Wishlist Display
 
@@ -205,25 +216,7 @@ When user wants to start completely fresh:
 
 ## Migration Path
 
-### v1.x → v2.0 Conversion
-
-When app detects old file format:
-
-1. Detect by: absence of `schemaVersion` field, or presence of top-level `books` array (not object)
-2. Show migration dialog explaining the change
-3. Convert in memory:
-   - Wrap `books` array in `books.items`
-   - Add `books.fetchDate`, `books.fetcherVersion` (from file metadata or "unknown")
-   - Add `schemaVersion: "2.0"`
-   - Create empty `collections` section if not present
-   - Preserve `organization` section as-is
-4. Save as new file (don't overwrite old file automatically)
-
-### Backwards Compatibility
-
-- App can read v1.x files and auto-migrate
-- App always saves in v2.0 format
-- No backwards-writing to v1.x format
+**Note:** With N=1 user, v1.x migration is not implemented. User will re-run fetchers to generate v2.0 files.
 
 ---
 
@@ -231,9 +224,8 @@ When app detects old file format:
 
 | Scenario | Filename |
 |----------|----------|
-| Default export | `amazon-library.json` |
-| Backup | `amazon-library-backup-YYYY-MM-DD.json` |
-| Old v1.x files | Still loadable, migrated on load |
+| Fetcher output | `amazon-library.json` |
+| App export | `amazon-library.json` |
 
 Note: `amazon-collections.json` becomes obsolete. Collections data is now embedded in the unified file.
 
@@ -241,23 +233,23 @@ Note: `amazon-collections.json` becomes obsolete. Collections data is now embedd
 
 ## Implementation Phases
 
-### Phase 1: Schema v2.0 Core
-- [ ] Update file save to v2.0 format
-- [ ] Update file load to parse v2.0 format
-- [ ] Add v1.x migration on load
-- [ ] Remove separate collections file loading
+### Phase 1: Fetchers (v2.0 output)
+- [ ] Update Library Fetcher → output v2.0 format
+- [ ] Update Collections Fetcher → merge into existing unified file
 
-### Phase 2: Wishlist Feature
+### Phase 2: App (v2.0 support)
+- [ ] Update app to read v2.0 format (`books.items`, `collections.items`)
+- [ ] Update app to export v2.0 format (with `organization` section)
+- [ ] Update Data Status to read from `books.fetchDate`, `collections.fetchDate`
+- [ ] Rename buttons: Backup→Export, Restore→Import
+- [ ] Remove Load buttons from Data Status dialog
+
+### Phase 3: Wishlist Feature (T1, separate work)
 - [ ] Create Wish Fetcher bookmarklet
 - [ ] Add `isOwned` field handling
 - [ ] Add wishlist visual styling (gray-out, badge)
 - [ ] Add Amazon purchase link behavior
-
-### Phase 3: Fetcher Updates
-- [ ] Update Library Fetcher for unified file
-- [ ] Update Collections Fetcher for unified file
-- [ ] Implement ASIN-merge logic
-- [ ] Handle wishlist→owned transitions
+- [ ] Implement ASIN-merge logic for wishlist→owned transitions
 
 ---
 

@@ -1,21 +1,22 @@
-// Amazon Collections Fetcher v1.4.0.a (Remove manifest system)
+// Amazon Collections Fetcher v2.0.0.a (Schema v2.0 - Unified File Format)
 // Fetches collection membership and read status for all books in your library
-// Schema Version: 1.0 (Removes GUID - no longer needed)
+// Schema Version: 2.0 (Unified file format - books + collections in single file)
 //
 // Instructions:
 // 1. Go to https://www.amazon.com/hz/mycd/digital-console/contentlist/booksAll/dateDsc/
 // 2. Open DevTools Console (F12 → Console tab)
 // 3. Paste this ENTIRE script and press Enter
-// 4. Wait for completion (will take several minutes for large libraries)
-// 5. Downloads amazon-collections.json when complete
-// 6. Upload to organizer along with amazon-library.json
+// 4. When prompted, select your amazon-library.json file
+// 5. Wait for completion (will take several minutes for large libraries)
+// 6. Downloads updated amazon-library.json with collections data
+// 7. Upload to organizer!
 //
 // Re-run: After pasting once, you can re-run anytime in the same console session
 //         by pressing Up Arrow (to recall the function call) or typing: fetchAmazonCollections()
 
 async function fetchAmazonCollections() {
-    const FETCHER_VERSION = 'v1.4.0.a';
-    const SCHEMA_VERSION = '1.0';
+    const FETCHER_VERSION = 'v2.0.0.a';
+    const SCHEMA_VERSION = '2.0';
     const PAGE_TITLE = document.title;
 
     console.log('========================================');
@@ -28,7 +29,7 @@ async function fetchAmazonCollections() {
     const ENDPOINT = 'https://www.amazon.com/hz/mycd/digital-console/ajax';
     const BATCH_SIZE = 200;  // Tested via diag-01-collections-rate-limit.js - 200 works
     const FETCH_DELAY_MS = 0; // 0ms - network RTT (~400ms) provides natural throttling
-    const FILENAME = 'amazon-collections.json';
+    const FILENAME = 'amazon-library.json';
 
 
     // ============================================================================
@@ -482,6 +483,91 @@ async function fetchAmazonCollections() {
     }
 
     // ==========================================
+    // Phase 0.5: Load Existing Unified File
+    // ==========================================
+    console.log('[Phase 0.5] Loading existing library file...\n');
+    progressUI.updatePhase('Load Library File', 'Select your amazon-library.json file');
+
+    console.log('   📂 A file picker dialog will open...');
+    console.log('');
+    console.log('   • Select your amazon-library.json file');
+    console.log('   • If this is your first run: Run Library Fetcher first!');
+    console.log('');
+    console.log('   (Dialog may be hidden behind other windows - check taskbar!)\n');
+
+    let existingBooks = null; // Preserve books section from input file
+    let existingOrganization = null; // Preserve organization section if present
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+
+    const file = await new Promise((resolve) => {
+        fileInput.onchange = (e) => resolve(e.target.files[0]);
+        fileInput.oncancel = () => resolve(null);
+        fileInput.click();
+    });
+
+    if (!file) {
+        console.error('   ❌ No file selected');
+        console.error('   Collections Fetcher requires an existing amazon-library.json file');
+        console.error('   Run Library Fetcher first to create the file');
+        progressUI.showError('No file selected. Run Library Fetcher first to create amazon-library.json');
+        return;
+    }
+
+    try {
+        const fileText = await file.text();
+        const parsedData = JSON.parse(fileText);
+
+        // Schema v2.0 format: { schemaVersion: "2.0", books: { items: [...] }, ... }
+        if (parsedData.schemaVersion === "2.0") {
+            if (!parsedData.books) {
+                console.error('   ❌ Invalid v2.0 file - Missing books section');
+                console.error('   Received:', Object.keys(parsedData));
+                throw new Error('Invalid v2.0 file - Missing books section');
+            }
+            existingBooks = parsedData.books;
+            console.log(`   📋 Loaded v2.0 unified file (${existingBooks.items?.length || 0} books)`);
+            // Preserve organization section if present
+            if (parsedData.organization) {
+                existingOrganization = parsedData.organization;
+                console.log(`   📋 Preserving existing organization data`);
+            }
+        }
+        // Legacy v1.x format: { type: "library", metadata: {...}, books: [...] }
+        else if (parsedData.type === "library") {
+            console.log(`   📋 Loaded legacy library file - will upgrade to v2.0 format`);
+            // Convert legacy format to v2.0 books section structure
+            existingBooks = {
+                fetchDate: parsedData.metadata?.fetchDate || new Date().toISOString(),
+                fetcherVersion: parsedData.metadata?.fetcherVersion || 'legacy',
+                totalBooks: parsedData.books?.length || 0,
+                items: parsedData.books || []
+            };
+            console.log(`   ⚠️  Note: Will output in v2.0 format`);
+        }
+        // Legacy collections file - reject
+        else if (parsedData.type === "collections") {
+            console.error('   ❌ Wrong file type - This is the old collections file');
+            console.error('   Please select amazon-library.json instead');
+            progressUI.showError('Wrong file type. Select amazon-library.json (not amazon-collections.json)');
+            return;
+        }
+        else {
+            console.error('   ❌ Invalid file format - Missing schemaVersion or type field');
+            console.error('   Received:', Object.keys(parsedData));
+            throw new Error('Invalid file format - run Library Fetcher first to create a valid file');
+        }
+    } catch (error) {
+        console.error('   ❌ Failed to parse file:', error.message);
+        progressUI.showError(`Failed to load file: ${error.message}`);
+        return;
+    }
+
+    console.log('✅ Phase 0.5 complete - Library file loaded\n');
+
+    // ==========================================
     // Phase 1: Fetch All Books
     // ==========================================
     console.log('[Phase 1] Fetching all books with collections and read status...\n');
@@ -683,19 +769,27 @@ async function fetchAmazonCollections() {
     // ==========================================
     // Phase 3: Generate JSON and Download
     // ==========================================
-    console.log('[Phase 3] Generating JSON file...\n');
-    progressUI.updatePhase('Saving Collections', 'Generating and downloading JSON file');
+    console.log('[Phase 3] Generating unified JSON file...\n');
+    progressUI.updatePhase('Saving Library', 'Generating and downloading unified file');
 
+    // Create output in Schema v2.0 unified format
+    // Collections Fetcher owns: collections
+    // Preserves: schemaVersion, books, organization (from input file)
     const outputData = {
-        type: "collections",
         schemaVersion: SCHEMA_VERSION,
-        fetcherVersion: FETCHER_VERSION,
-        fetchDate: new Date().toISOString(),
-        generatedAt: Date.now(),  // Kept for backward compatibility
-        totalBooksScanned: processedBooks.length,
-        booksWithCollections: booksWithCollections,
-        books: processedBooks
+        books: existingBooks,
+        collections: {
+            fetchDate: new Date().toISOString(),
+            fetcherVersion: FETCHER_VERSION,
+            totalBooksScanned: processedBooks.length,
+            booksWithCollections: booksWithCollections,
+            items: processedBooks
+        }
     };
+    // Preserve existing organization section if present
+    if (existingOrganization) {
+        outputData.organization = existingOrganization;
+    }
 
     const jsonString = JSON.stringify(outputData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -722,12 +816,11 @@ async function fetchAmazonCollections() {
     console.log('========================================');
     console.log('Next steps:');
     console.log('1. Find the file in your browser\'s save location (usually Downloads folder)');
-    console.log('2. Keep it with your library file (Desktop, Documents, etc.)');
-    console.log('3. Load both amazon-library.json AND amazon-collections.json into ReaderWrangler');
-    console.log('4. The organizer will merge the data and enable collection filtering\n');
+    console.log('2. Upload amazon-library.json to ReaderWrangler');
+    console.log('3. The unified file contains both books and collections data\n');
 
     // Show completion in progress UI
-    progressUI.showComplete(`Downloaded ${allBooks.length} books to ${FILENAME}`);
+    progressUI.showComplete(`Updated ${FILENAME} with ${processedBooks.length} books' collections`);
 
 }
 
