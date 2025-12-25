@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v4.0.0.h - Schema v2.0 Unified File Format
+        // ReaderWrangler JS v4.0.0.i - Schema v2.0 Unified File Format
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.0.0.h";
+        const ORGANIZER_VERSION = "4.0.0.i";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2601,7 +2601,7 @@
                                 <button onClick={exportLibrary}
                                         className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"
                                         disabled={books.length === 0}
-                                        title="Download library with organization">
+                                        title="Save backup with your organization">
                                     💾 Export
                                 </button>
                                 <button onClick={clearLibrary}
