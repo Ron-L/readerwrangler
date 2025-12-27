@@ -8,6 +8,11 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
+**0. 🐛 Bug: Ctrl+A ignores active filter** - HIGH/LOW (1-2 hours)
+   - Ctrl+A selects ALL books in column, not just filtered/visible ones
+   - Inconsistent with Shift+Click which correctly respects filter
+   - Expected: Ctrl+A should only select currently visible (filtered) books
+
 **1. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
    - See [docs/design/SCHEMA-V2-UNIFIED-FILE.md](docs/design/SCHEMA-V2-UNIFIED-FILE.md) for full spec
    - Schema v2.0: Single unified file replaces separate library + collections files
@@ -19,6 +24,15 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - When wishlist book is purchased and re-fetched: "ungrays" in place (stays in current column)
    - Problem: Users browse Amazon, find interesting books, no easy way to track for later purchase
    - Impact: Bridges gap between browsing and buying, integrates with existing organization workflow
+
+**2. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
+   - Command Pattern approach: Record each action as reversible command
+   - Undoable actions: Book moves, divider create/delete/rename/reposition, column create/delete/rename/reorder
+   - Maintain history stack (configurable depth, e.g., 50 actions)
+   - Redo support via second stack
+   - Key risk: Must integrate carefully with useRef-based drag performance optimization
+   - Problem: No way to recover from accidental moves/deletes; expected UX capability
+   - Impact: Standard user expectation, especially important for drag-and-drop interfaces
 
 **3. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Collect Series Books" button
@@ -34,15 +48,6 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Array-based architecture, Ctrl+Drag UI, delete operation
    - Problem: Can't organize same book multiple ways
    - Impact: More flexible organization
-
-**5. 🗂️ Nested Groups/Hierarchies** #Optional - LOW/HIGH (15-20 hours)
-   - NOTE: P1 #1 "Series Dividers Within Columns" may solve this need with much simpler approach
-   - Multi-level organization: "Science Fiction" → "Space Opera" → "Culture Series"
-   - Nested containers for related books (e.g., series/themes)
-   - Significant UI rework required
-   - Problem: Flat column structure limits deep organization, related books scattered
-   - Impact: Better for very large libraries (1000+ books), better grouping for series/themes
-   - Note: "Groups/series containers" is a specific implementation of this generic feature
 
 ---
 

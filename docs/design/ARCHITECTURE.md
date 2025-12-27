@@ -3,7 +3,7 @@
 ## Tech Stack
 
 - **Frontend:** React 18 (via CDN), Tailwind CSS (via CDN), Babel (via CDN)
-- **Storage:** IndexedDB for book data, localStorage for UI state/settings
+- **Storage:** JSON files for book data, IndexedDB for organization state (see Storage Architecture below)
 - **File Format:** Single HTML file (no build process)
 
 ## Data Flow
@@ -11,6 +11,49 @@
 - User loads library → Parse JSON → Store in IndexedDB
 - UI state (columns, book positions) → localStorage
 - Collections data fetched from `amazon-collections.json` with cache-busting
+
+## Storage Architecture Rationale
+
+### Why Two Storage Mechanisms?
+
+ReaderWrangler uses **IndexedDB** for organization data and **JSON files** for book data. This isn't accidental complexity—each serves a distinct purpose.
+
+### The Cross-Domain Problem
+
+Fetcher scripts run on Amazon.com pages, while the App runs on readerwrangler.com. Each origin has its own isolated IndexedDB instance (browser security model). Data cannot be shared directly between them.
+
+**Initial approach (abandoned):** Store everything in IndexedDB
+**Problem:** Fetchers on amazon.com couldn't share data with App on readerwrangler.com
+
+### The Size Problem
+
+Enriched book data (descriptions, reviews) can be massive for large libraries. IndexedDB has practical size limits that were exceeded during testing.
+
+### Current Solution
+
+| Data Type | Storage | Why |
+|-----------|---------|-----|
+| Book data (from fetchers) | JSON file | Cross-domain transfer, large size support |
+| Organization (columns, positions, dividers) | IndexedDB | Seamless persistence, auto-save on every action |
+
+### Why Not JSON-Only for Everything?
+
+The File System Access API requires user interaction (file picker) to access files. File handles don't persist across page reloads.
+
+**If org data were in JSON only:**
+- User would need to pick the file on every app load
+- Or keep the browser tab open forever
+
+**With IndexedDB:**
+- App loads → reads org data instantly → no user interaction needed
+- Every drag/drop auto-saves immediately
+
+### Backup/Restore: The Best of Both
+
+- **IndexedDB**: Runtime persistence (automatic, seamless)
+- **JSON Backup/Restore**: Explicit export/import for portability, backup, sharing
+
+This hybrid approach provides "just works" UX for daily use while maintaining data portability.
 
 ## Version Management
 
