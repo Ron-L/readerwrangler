@@ -41,6 +41,7 @@ Add ability to track books user wants to purchase (wishlist) and hide books user
 | Hide scope | All books (owned and wishlist) | Users may want to hide owned "trash" books too |
 | Data fetch method | Extract ASIN(s) from page, call Amazon API | Complete data, stable, same as library fetcher |
 | File merge | Wishlist Fetcher merges into existing `amazon-library.json` | Single file, immediate result |
+| Field defaults | App Loader defaults missing fields | Backward compatible, simpler fetchers, single source of truth |
 
 ---
 
@@ -281,7 +282,14 @@ The "duplicates in file" downside is minimal - file size grows slightly, but the
 function deduplicateBooks(booksArray) {
   const seen = new Map(); // ASIN → book object
 
-  for (const book of booksArray) {
+  for (const rawBook of booksArray) {
+    // Apply defaults for missing fields (backward compatibility)
+    const book = {
+      ...rawBook,
+      isOwned: rawBook.isOwned ?? true,      // Default: owned (from library fetch)
+      isHidden: rawBook.isHidden ?? false,   // Default: visible
+    };
+
     const existing = seen.get(book.asin);
     if (existing) {
       // Duplicate - owned always wins over wishlist
@@ -298,14 +306,19 @@ function deduplicateBooks(booksArray) {
 }
 ```
 
+**Field Defaults:**
+- `isOwned ?? true` - Books from Library Fetcher don't need to set this explicitly
+- `isHidden ?? false` - Only set when user explicitly hides a book
+- Wishlist Fetcher explicitly sets `isOwned: false` (the non-default case)
+
 ### Wishlist → Owned Transition
 
 When library fetcher runs and finds a book that exists as wishlist:
 
-1. Library Fetcher adds book with `isOwned: true`
+1. Library Fetcher adds book (no `isOwned` field - defaults to `true`)
 2. App Loader detects duplicate (same ASIN)
 3. Owned overrides wishlist: `isOwned: false` → `isOwned: true`
-4. `acquiredDate` is added
+4. `acquiredDate` is added from the library fetch
 5. `addedToWishlist` can be preserved (nice to know when you first wanted it)
 6. Book **stays in current column** (organization preserved)
 7. Visual: Book "ungrays" - no longer shows wishlist styling
@@ -314,41 +327,46 @@ When library fetcher runs and finds a book that exists as wishlist:
 
 ## Implementation Phases
 
-### Phase 1: Hide Feature (App-only)
-- [ ] Add `isHidden` field support to book schema
-- [ ] Add "Hide Book" / "Unhide Book" to right-click context menu
-- [ ] Add "Show Hidden" filter checkbox
-- [ ] Add hidden book visual styling
-- [ ] Update App Loader to preserve `isHidden` on reload
+_Ordered by data flow: Fetcher → Loader → App_
 
-**Rationale:** Hide can be implemented and tested independently. Sets foundation for wishlist cleanup.
+### Phase 1: Wishlist Fetcher - Single Book
+- [ ] Create `amazon-wishlist-fetcher.js`
+- [ ] Implement ASIN extraction from URL
+- [ ] Implement single-book API fetch (same as library fetcher)
+- [ ] Build book object with `isOwned: false`, `addedToWishlist: today`
+- [ ] Implement file read/merge/write flow
+- [ ] Add progress UI (simple toast for single book)
+- [ ] Handle duplicate detection (skip if ASIN exists)
 
-### Phase 2: Navigator Updates
+### Phase 2: Wishlist Fetcher - Series
+- [ ] Implement series grid ASIN extraction
+- [ ] Implement batch API fetch (30 ASINs per call)
+- [ ] Add progress UI with progress bar
+- [ ] Handle partial failures gracefully
+
+### Phase 3: Navigator Updates
 - [ ] Add product page detection (`/dp/`, `/gp/product/`)
 - [ ] Add series page detection (URL + DOM check)
 - [ ] Add "Add to Wishlist" button (product pages)
 - [ ] Add "Add Series to Wishlist" button (series pages)
 - [ ] Update NAV_HUB_VERSION
 
-### Phase 3: Wishlist Fetcher - Single Book
-- [ ] Create `amazon-wishlist-fetcher.js`
-- [ ] Implement ASIN extraction from URL
-- [ ] Implement single-book API fetch
-- [ ] Implement file read/merge/write flow
-- [ ] Add progress UI (simple toast for single book)
-- [ ] Handle duplicate detection
+### Phase 4: App Loader
+- [ ] Add field defaults (`isOwned ?? true`, `isHidden ?? false`)
+- [ ] Add deduplication logic (owned overrides wishlist)
+- [ ] Preserve `isHidden` and `addedToWishlist` on merge
+- [ ] Test wishlist → owned transition
 
-### Phase 4: Wishlist Fetcher - Series
-- [ ] Implement series grid ASIN extraction
-- [ ] Implement batch API fetch
-- [ ] Add progress UI with progress bar
-- [ ] Handle partial failures gracefully
-
-### Phase 5: App Wishlist Display
+### Phase 5: App Display - Wishlist
 - [ ] Add wishlist visual styling (gray-out, badge)
 - [ ] Change click behavior for wishlist books (→ Amazon)
-- [ ] Update App Loader duplicate handling (owned overrides wishlist)
-- [ ] Test wishlist → owned transition
+- [ ] Add "Wishlist" badge overlay on book cards
+
+### Phase 6: App Display - Hide
+- [ ] Add "Hide Book" / "Unhide Book" to right-click context menu
+- [ ] Add "Show Hidden" filter checkbox
+- [ ] Add hidden book visual styling (strikethrough, faded)
+- [ ] Persist `isHidden` changes to IndexedDB
 
 ---
 
