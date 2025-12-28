@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v4.0.0 - Schema v2.0 Unified File Format
+        // ReaderWrangler JS v4.0.1.a - Fix Ctrl+A to respect active filters
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.0.0";
+        const ORGANIZER_VERSION = "4.0.1.a";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -221,6 +221,9 @@
             // v3.14.0.r - Row-based grid index for O(log R) drop position lookup
             // Structure: { columnId: { rowBoundaries: [y1, y2, ...], rows: [{type, startIndex, items, top, bottom}, ...], columnRect } }
             const columnIndexRef = useRef({});
+
+            // v4.0.1 - Ref to hold current filteredBooks function for Ctrl+A handler
+            const filteredBooksRef = useRef(null);
 
             // v3.12.0 - Auto-scroll during drag
             const [autoScrollInterval, setAutoScrollInterval] = useState(null);
@@ -443,20 +446,24 @@
                         setContextMenu(null);
                     }
 
-                    // Ctrl+A: Select all books in active column
+                    // Ctrl+A: Select all books in active column (v4.0.1 - use ref to get current filtered view)
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a' && activeColumnId) {
                         e.preventDefault(); // Prevent browser's select-all
                         const column = columns.find(col => col.id === activeColumnId);
-                        if (column) {
-                            const visibleBooks = filteredBooks(column.books);
-                            setSelectedBooks(new Set(visibleBooks.map(book => book.id)));
+                        if (column && filteredBooksRef.current) {
+                            const visibleBooks = filteredBooksRef.current(column.books);
+                            // Filter out dividers - only select actual books
+                            const bookIds = visibleBooks
+                                .filter(item => item && !(typeof item === 'object' && item.type === 'divider'))
+                                .map(book => book.id);
+                            setSelectedBooks(new Set(bookIds));
                         }
                     }
                 };
 
                 window.addEventListener('keydown', handleKeyDown);
                 return () => window.removeEventListener('keydown', handleKeyDown);
-            }, [activeColumnId, columns, filteredBooks]);
+            }, [activeColumnId, columns]);
 
             // Initialize activeColumnId to first column when columns are loaded
             useEffect(() => {
@@ -2524,6 +2531,9 @@
                     return matchesSearch && matchesReadStatus && matchesCollection && matchesRating && matchesWishlist && matchesSeries && matchesDateRange;
                 });
             };
+
+            // v4.0.1 - Keep filteredBooksRef updated for Ctrl+A handler
+            filteredBooksRef.current = filteredBooks;
 
             // Calculate combined urgency from Library and Collections status
             // Urgency is based ONLY on Load status (what's in the app right now)
