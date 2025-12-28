@@ -8,11 +8,6 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**0. 🐛 Bug: Ctrl+A ignores active filter** - HIGH/LOW (1-2 hours)
-   - Ctrl+A selects ALL books in column, not just filtered/visible ones
-   - Inconsistent with Shift+Click which correctly respects filter
-   - Expected: Ctrl+A should only select currently visible (filtered) books
-
 **1. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
    - See [docs/design/SCHEMA-V2-UNIFIED-FILE.md](docs/design/SCHEMA-V2-UNIFIED-FILE.md) for full spec
    - Schema v2.0: Single unified file replaces separate library + collections files

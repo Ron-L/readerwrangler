@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v4.0.1.a - Fix Ctrl+A to respect active filters
+        // ReaderWrangler JS v4.0.1 - Fix Ctrl+A to respect active filters
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.0.1.a";
+        const ORGANIZER_VERSION = "4.0.1";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";

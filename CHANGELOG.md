@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1] - 2025-12-28
+
+### Fixed
+- **Ctrl+A now respects active filters** - Previously selected ALL books in column, now correctly selects only visible/filtered books
+  - File version: readerwrangler.js v4.0.1
+  - Used ref pattern to ensure Ctrl+A handler always uses current filter state
+  - Also excludes dividers from selection (only selects actual books)
+  - Consistent with Shift+Click range selection behavior
+
 ## [4.0.0] - 2025-12-25
 
 ### Changed
