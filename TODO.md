@@ -8,15 +8,21 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. 🎯 Wishlist Integration - Basic** - MEDIUM/MEDIUM (8-10 hours)
-   - See [docs/design/SCHEMA-V2-UNIFIED-FILE.md](docs/design/SCHEMA-V2-UNIFIED-FILE.md) for full spec
-   - Schema v2.0: Single unified file replaces separate library + collections files
-   - Wishlist items stored in `books.items` with `isOwned: false` flag (not separate array)
-   - Wishlist books appear in Unorganized column with visual distinction:
-     - Gray-out effect on cover/title
-     - "Wishlist" badge overlay
+**1. 🎯 Wishlist Integration + Hide Feature** - MEDIUM/MEDIUM (10-13 hours)
+   - See [docs/design/WISHLIST-FEATURE.md](docs/design/WISHLIST-FEATURE.md) for full spec
+   - **Wishlist:**
+     - Add books from Amazon product pages (single) or series pages (batch)
+     - Navigator detects page type, shows context-aware "Add to Wishlist" button
+     - Wishlist Fetcher extracts ASIN(s), calls Amazon API, merges into `amazon-library.json`
+     - Wishlist items stored with `isOwned: false` flag
+     - Wishlist books appear with visual distinction (gray-out, badge)
      - Click opens Amazon purchase page
-   - When wishlist book is purchased and re-fetched: "ungrays" in place (stays in current column)
+     - When purchased and re-fetched: "ungrays" in place (stays in current column)
+   - **Hide Feature** (bundled - motivated by wishlist series add):
+     - Soft-delete books with `isHidden: true` (recoverable)
+     - Right-click menu: "Hide Book" / "Unhide Book"
+     - Filter: "Show Hidden" checkbox
+     - Applies to both owned and wishlist books
    - Problem: Users browse Amazon, find interesting books, no easy way to track for later purchase
    - Impact: Bridges gap between browsing and buying, integrates with existing organization workflow
 
