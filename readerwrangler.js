@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v4.0.1 - Fix Ctrl+A to respect active filters
+        // ReaderWrangler JS v4.1.0 - Wishlist & Hide Feature
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.0.1";
+        const ORGANIZER_VERSION = "4.1.0";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -34,23 +34,43 @@
             try {
                 console.log(`🔄 Saving ${books.length} books to IndexedDB...`);
 
-                // Deduplicate by ASIN (keep last occurrence)
-                const seenAsins = new Set();
+                // Deduplicate by ASIN (owned books take priority over wishlist)
+                const booksByAsin = new Map();
                 const duplicates = [];
-                const uniqueBooks = [];
 
-                for (let i = books.length - 1; i >= 0; i--) {
-                    const book = books[i];
-                    if (seenAsins.has(book.asin)) {
+                for (const book of books) {
+                    const existing = booksByAsin.get(book.asin);
+                    if (existing) {
                         duplicates.push(book.asin);
+                        // Owned books (isWishlist falsy) take priority over wishlist
+                        if (existing.isWishlist && !book.isWishlist) {
+                            // New book is owned, replace wishlist entry
+                            // Preserve addedToWishlist from the wishlist entry
+                            booksByAsin.set(book.asin, {
+                                ...book,
+                                addedToWishlist: existing.addedToWishlist
+                            });
+                        } else if (!existing.isWishlist && book.isWishlist) {
+                            // Existing is owned, new is wishlist - keep existing
+                            // but preserve addedToWishlist if new book has it
+                            if (book.addedToWishlist && !existing.addedToWishlist) {
+                                booksByAsin.set(book.asin, {
+                                    ...existing,
+                                    addedToWishlist: book.addedToWishlist
+                                });
+                            }
+                            // else keep existing as-is
+                        }
+                        // If both same ownership status, keep first occurrence (existing)
                     } else {
-                        seenAsins.add(book.asin);
-                        uniqueBooks.unshift(book);
+                        booksByAsin.set(book.asin, book);
                     }
                 }
 
+                const uniqueBooks = Array.from(booksByAsin.values());
+
                 if (duplicates.length > 0) {
-                    console.warn(`⚠️  Found ${duplicates.length} duplicate ASINs, keeping unique books only`);
+                    console.warn(`⚠️  Found ${duplicates.length} duplicate ASINs, owned books take priority`);
                     console.warn(`   Sample duplicates:`, duplicates.slice(0, 5));
                 }
 
@@ -202,6 +222,7 @@
             const [dateFrom, setDateFrom] = useState(''); // Filter by acquisition date from (YYYY-MM-DD) (NEW v3.8.0.k)
             const [dateTo, setDateTo] = useState(''); // Filter by acquisition date to (YYYY-MM-DD) (NEW v3.8.0.k)
             const [filterPanelOpen, setFilterPanelOpen] = useState(false); // Collapsible filter panel state (NEW v3.8.0)
+            const [showHidden, setShowHidden] = useState(false); // Show hidden books toggle (NEW v4.1.0.d)
             const [, forceUpdate] = useState({});
 
             // v3.11.0.d - Ref for column menu click-outside detection
@@ -261,13 +282,14 @@
                         if (filters.seriesFilter !== undefined) setSeriesFilter(filters.seriesFilter);
                         if (filters.dateFrom !== undefined) setDateFrom(filters.dateFrom);
                         if (filters.dateTo !== undefined) setDateTo(filters.dateTo);
+                        if (filters.showHidden !== undefined) setShowHidden(filters.showHidden);
                     }
                 } catch (e) {
                     console.error('Failed to load filters from localStorage:', e);
                 }
             }, []); // Empty dependency array = run once on mount
 
-            // Save filters to localStorage whenever they change (v3.8.0.f, updated v3.8.0.k)
+            // Save filters to localStorage whenever they change (v3.8.0.f, updated v3.8.0.k, v4.1.0.d)
             React.useEffect(() => {
                 try {
                     const filters = {
@@ -278,13 +300,14 @@
                         wishlistFilter,
                         seriesFilter,
                         dateFrom,
-                        dateTo
+                        dateTo,
+                        showHidden
                     };
                     localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
                 } catch (e) {
                     console.error('Failed to save filters to localStorage:', e);
                 }
-            }, [searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter, seriesFilter, dateFrom, dateTo]);
+            }, [searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter, seriesFilter, dateFrom, dateTo, showHidden]);
 
             const formatAcquisitionDate = (timestamp) => {
                 if (!timestamp) return '';
@@ -702,6 +725,8 @@
                     const bookItems = allBooks.map(book => ({
                         asin: book.asin,
                         isOwned: book.isWishlist ? false : true,
+                        isHidden: book.isHidden || false,
+                        addedToWishlist: book.addedToWishlist || '',
                         title: book.title,
                         authors: book.author,
                         coverUrl: book.coverUrl,
@@ -783,7 +808,7 @@
                     localStorage.removeItem(STATUS_KEY); // v3.7.0.n - clear saved status
                     localStorage.removeItem(FILTERS_KEY); // v3.8.0.h - clear saved filters
 
-                    // Reset all filters (v3.8.0.h, updated v3.8.0.k)
+                    // Reset all filters (v3.8.0.h, updated v3.8.0.k, v4.1.0.d)
                     setSearchTerm('');
                     setReadStatusFilter('');
                     setCollectionFilter('');
@@ -792,6 +817,7 @@
                     setSeriesFilter('');
                     setDateFrom('');
                     setDateTo('');
+                    setShowHidden(false);
 
                     setBooks([]);
                     setColumns([{ id: 'unorganized', name: 'Unorganized', books: [] }]);
@@ -1049,7 +1075,10 @@
                             coverUrl: item.coverUrl,
                             hasEnrichedData: true,
                             store: "Amazon",
-                            isWishlist: item.isWishlist || 0,  // NEW v3.8.0.n - wishlist flag
+                            // Wishlist: isOwned=false means wishlist, default to owned (isWishlist=0)
+                            isWishlist: item.isOwned === false ? 1 : 0,
+                            isHidden: item.isHidden || false,
+                            addedToWishlist: item.addedToWishlist || '',
                             // Collections data
                             readStatus: bookCollections.readStatus,
                             collections: bookCollections.collections
@@ -1085,6 +1114,10 @@
                             coverUrl: coverUrl,
                             hasEnrichedData: true,
                             store: "Amazon",
+                            // Wishlist: isOwned=false means wishlist, default to owned (isWishlist=0)
+                            isWishlist: item.isOwned === false ? 1 : 0,
+                            isHidden: item.isHidden || false,
+                            addedToWishlist: item.addedToWishlist || '',
                             // Collections data
                             readStatus: bookCollections.readStatus,
                             collections: bookCollections.collections
@@ -1155,6 +1188,7 @@
                 setSeriesFilter('');
                 setDateFrom('');
                 setDateTo('');
+                setShowHidden(false);
                 localStorage.setItem(FILTERS_KEY, JSON.stringify({
                     searchTerm: '',
                     readStatusFilter: '',
@@ -1163,7 +1197,8 @@
                     wishlistFilter: '',
                     seriesFilter: '',
                     dateFrom: '',
-                    dateTo: ''
+                    dateTo: '',
+                    showHidden: false
                 }));
                 console.log('🔍 Filters cleared for new library');
 
@@ -2501,6 +2536,9 @@
                         (wishlistFilter === 'wishlist' && book.isWishlist) ||
                         (wishlistFilter === 'owned' && !book.isWishlist);
 
+                    // Hidden filter (NEW v4.1.0.d) - hide hidden books unless showHidden is checked
+                    const matchesHidden = showHidden || !book.isHidden;
+
                     // Series filter (NEW v3.8.0.k)
                     let matchesSeries = true;
                     if (seriesFilter) {
@@ -2528,7 +2566,7 @@
                         }
                     }
 
-                    return matchesSearch && matchesReadStatus && matchesCollection && matchesRating && matchesWishlist && matchesSeries && matchesDateRange;
+                    return matchesSearch && matchesReadStatus && matchesCollection && matchesRating && matchesWishlist && matchesHidden && matchesSeries && matchesDateRange;
                 });
             };
 
@@ -2605,7 +2643,7 @@
                             <div className="flex gap-2 items-center">
                                 <button onClick={importLibrary}
                                         className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
-                                        title="Load library file or restore from backup">
+                                        title="Import library file - merges with existing books, preserving your organization. Also restores from backup files.">
                                     📥 Import
                                 </button>
                                 <button onClick={exportLibrary}
@@ -2785,11 +2823,23 @@
                                     )}
                                 </div>
 
-                                {/* Result Counter */}
+                                {/* Result Counter (v4.1.0.f - Show Hidden moved here, count order fixed) */}
                                 <div className="mt-4 flex justify-between items-center text-sm text-gray-600">
-                                    <span>
-                                        Showing: {columns.reduce((sum, col) => sum + filteredBooks(col.books).length, 0)} of {books.length} books
-                                    </span>
+                                    <div className="flex items-center gap-4">
+                                        <span>
+                                            Showing: {columns.reduce((sum, col) => sum + filteredBooks(col.books).filter(item => !(item && item.type === 'divider')).length, 0)} of {books.length} books
+                                        </span>
+                                        {/* Show Hidden toggle - next to count since it affects what's shown (v4.1.0.f) */}
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={showHidden}
+                                                onChange={(e) => setShowHidden(e.target.checked)}
+                                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span className="text-gray-600">Show Hidden</span>
+                                        </label>
+                                    </div>
                                     <button
                                         onClick={() => {
                                             setSearchTerm('');
@@ -2800,6 +2850,7 @@
                                             setSeriesFilter('');
                                             setDateFrom('');
                                             setDateTo('');
+                                            // v4.1.0.f - Show Hidden NOT reset by Clear Filters (it's a view mode, not a filter)
                                         }}
                                         className="text-blue-600 hover:text-blue-800 font-semibold">
                                         Clear All Filters
@@ -3081,7 +3132,7 @@
                                         <ul className="list-disc list-inside space-y-1 ml-2">
                                             <li><strong>Auto-saves:</strong> Everything persists automatically in your browser</li>
                                             <li><strong>Export:</strong> Download complete backup for safekeeping</li>
-                                            <li><strong>Import:</strong> Load library file or restore from backup</li>
+                                            <li><strong>Import:</strong> Merges library file with existing books, preserving organization. Also restores backups.</li>
                                             <li><strong>Reset App:</strong> Complete app reset to initial state (files on disk not affected)</li>
                                         </ul>
                                     </div>
@@ -3252,6 +3303,18 @@
                                         )}
                                         <div className="flex-1">
                                             <h2 className="text-3xl font-bold text-gray-900 mb-3">{modalBook.title}</h2>
+                                            {modalBook.isWishlist && (
+                                                <div className="mb-3 flex items-center gap-3">
+                                                    <span className="inline-flex items-center bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-medium">
+                                                        ⭐ Wishlist Item
+                                                    </span>
+                                                    <button
+                                                        onClick={() => window.open(`https://www.amazon.com/dp/${modalBook.asin}`, '_blank')}
+                                                        className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-sm font-medium">
+                                                        View on Amazon →
+                                                    </button>
+                                                </div>
+                                            )}
                                             <p className="text-xl text-gray-700 mb-4">by {modalBook.author}</p>
                                             
                                             {modalBook.rating > 0 && (
@@ -3607,7 +3670,7 @@
 
                                                 return (
                                                     <div key={book.id} className="relative book-item" data-book-id={book.id}>
-                                                        <div className={`book-clickable ${selectedBooks.has(book.id) ? 'selected' : ''} ${draggedBook?.id === book.id && isDragging ? 'dragging' : ''}`}
+                                                        <div className={`book-clickable ${selectedBooks.has(book.id) ? 'selected' : ''} ${draggedBook?.id === book.id && isDragging ? 'dragging' : ''} ${book.isWishlist || book.isHidden ? 'opacity-40' : ''}`}
                                                              onMouseDown={(e) => handleMouseDown(e, book, column.id)}
                                                              onClick={(e) => {
                                                                  e.stopPropagation();
@@ -3641,7 +3704,7 @@
                                                              }}
                                                              onDoubleClick={(e) => {
                                                                  e.stopPropagation();
-                                                                 // Double-click: Open modal
+                                                                 // Double-click: Open modal for all books
                                                                  openBookModal(book, column.id);
                                                              }}
                                                              onContextMenu={(e) => {
@@ -3696,20 +3759,22 @@
                                                                         </svg>
                                                                     </div>
                                                                 )}
-                                                                {/* Top-left: Selection, Wishlist, or Collections badge (priority order) */}
+                                                                {/* Top-left: Selection or Collections badge */}
                                                                 {selectedBooks.has(book.id) ? (
                                                                     <div className="absolute top-1 left-1 bg-blue-600 rounded-full w-6 h-6 flex items-center justify-center z-10">
                                                                         <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
                                                                         </svg>
                                                                     </div>
-                                                                ) : book.isWishlist ? (
-                                                                    <div className="absolute top-1 left-1 bg-red-500 bg-opacity-80 rounded px-1.5 py-0.5 text-xs font-bold text-white">
-                                                                        ❤+
-                                                                    </div>
                                                                 ) : book.collections && book.collections.length > 0 && (
                                                                     <div className="absolute top-1 left-1 bg-gray-700 bg-opacity-75 rounded px-1.5 py-0.5 text-xs font-bold text-white">
                                                                         📁 {book.collections.length}
+                                                                    </div>
+                                                                )}
+                                                                {/* Hidden book overlay (v4.1.0.d, v4.1.0.e larger) - full cover red 🚫 */}
+                                                                {book.isHidden && showHidden && (
+                                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                                        <span style={{ fontSize: '90px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>🚫</span>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -3747,11 +3812,28 @@
                         </div>
                     )}
 
-                    {contextMenu && (
+                    {contextMenu && (() => {
+                        // v4.1.0.e - Calculate menu position to avoid going off-screen
+                        // Estimate menu height: header(28) + columns(40 each) + separator(9) + 3 items(40 each) + separator(9) + hide(40) + padding(8) ≈ 300px max
+                        const menuHeight = 300;
+                        const menuWidth = 200;
+                        const viewportHeight = window.innerHeight;
+                        const viewportWidth = window.innerWidth;
+
+                        // Flip up if menu would go below viewport
+                        const top = contextMenu.y + menuHeight > viewportHeight
+                            ? Math.max(10, contextMenu.y - menuHeight)
+                            : contextMenu.y;
+                        // Flip left if menu would go past right edge
+                        const left = contextMenu.x + menuWidth > viewportWidth
+                            ? Math.max(10, contextMenu.x - menuWidth)
+                            : contextMenu.x;
+
+                        return (
                         <div className="fixed bg-white border border-gray-300 rounded-lg shadow-xl z-[60] py-1 min-w-[180px]"
                              style={{
-                                 left: `${contextMenu.x}px`,
-                                 top: `${contextMenu.y}px`
+                                 left: `${left}px`,
+                                 top: `${top}px`
                              }}
                              onClick={(e) => e.stopPropagation()}>
                             <div className="px-2 py-1 text-xs font-semibold text-gray-500 border-b border-gray-200">
@@ -3781,8 +3863,71 @@
                                     📁 Move to "{col.name}"
                                 </button>
                             ))}
+                            {/* Separator (v4.1.0.d) */}
+                            <div className="border-t border-gray-200 my-1"></div>
+                            {/* Open in Amazon (v4.1.0.d) */}
+                            <button
+                                className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 flex items-center gap-2"
+                                onClick={() => {
+                                    const selectedBooksList = Array.from(selectedBooks).map(id => books.find(b => b.id === id)).filter(Boolean);
+                                    const count = selectedBooksList.length;
+                                    if (count > 10) {
+                                        alert('Too many books selected. Please select 10 or fewer to open in Amazon.');
+                                    } else if (count > 3) {
+                                        if (window.confirm(`Open ${count} tabs in Amazon?`)) {
+                                            selectedBooksList.forEach(book => {
+                                                window.open(`https://www.amazon.com/dp/${book.asin}`, '_blank');
+                                            });
+                                        }
+                                    } else {
+                                        selectedBooksList.forEach(book => {
+                                            window.open(`https://www.amazon.com/dp/${book.asin}`, '_blank');
+                                        });
+                                    }
+                                    setContextMenu(null);
+                                }}>
+                                🔗 Open in Amazon
+                            </button>
+                            {/* Copy Title(s) (v4.1.0.d) */}
+                            <button
+                                className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 flex items-center gap-2"
+                                onClick={() => {
+                                    const selectedBooksList = Array.from(selectedBooks).map(id => books.find(b => b.id === id)).filter(Boolean);
+                                    const titles = selectedBooksList.map(book => book.title).join('\n');
+                                    navigator.clipboard.writeText(titles);
+                                    setContextMenu(null);
+                                }}>
+                                📋 Copy Title{selectedBooks.size !== 1 ? 's' : ''}
+                            </button>
+                            {/* Separator (v4.1.0.d) */}
+                            <div className="border-t border-gray-200 my-1"></div>
+                            {/* Hide/Unhide Book(s) (v4.1.0.d) */}
+                            {(() => {
+                                const selectedBooksList = Array.from(selectedBooks).map(id => books.find(b => b.id === id)).filter(Boolean);
+                                const allHidden = selectedBooksList.every(book => book.isHidden);
+                                return (
+                                    <button
+                                        className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 flex items-center gap-2"
+                                        onClick={async () => {
+                                            const newHiddenState = !allHidden;
+                                            const updatedBooks = books.map(book => {
+                                                if (selectedBooks.has(book.id)) {
+                                                    return { ...book, isHidden: newHiddenState };
+                                                }
+                                                return book;
+                                            });
+                                            setBooks(updatedBooks);
+                                            await saveBooksToIndexedDB(updatedBooks);
+                                            clearSelection();
+                                            setContextMenu(null);
+                                        }}>
+                                        {allHidden ? '👁️' : '🚫'} {allHidden ? 'Unhide' : 'Hide'} Book{selectedBooks.size !== 1 ? 's' : ''}
+                                    </button>
+                                );
+                            })()}
                         </div>
-                    )}
+                        );
+                    })()}
 
                     <div className="fixed bottom-2 right-2 text-xs text-gray-400">
                         v{ORGANIZER_VERSION}

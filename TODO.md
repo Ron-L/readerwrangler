@@ -8,25 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. 🎯 Wishlist Integration + Hide Feature** - MEDIUM/MEDIUM (10-13 hours)
-   - See [docs/design/WISHLIST-FEATURE.md](docs/design/WISHLIST-FEATURE.md) for full spec
-   - **Wishlist:**
-     - Add books from Amazon product pages (single) or series pages (batch)
-     - Navigator detects page type, shows context-aware "Add to Wishlist" button
-     - Wishlist Fetcher extracts ASIN(s), calls Amazon API, merges into `amazon-library.json`
-     - Wishlist items stored with `isOwned: false` flag
-     - Wishlist books appear with visual distinction (gray-out, badge)
-     - Click opens Amazon purchase page
-     - When purchased and re-fetched: "ungrays" in place (stays in current column)
-   - **Hide Feature** (bundled - motivated by wishlist series add):
-     - Soft-delete books with `isHidden: true` (recoverable)
-     - Right-click menu: "Hide Book" / "Unhide Book"
-     - Filter: "Show Hidden" checkbox
-     - Applies to both owned and wishlist books
-   - Problem: Users browse Amazon, find interesting books, no easy way to track for later purchase
-   - Impact: Bridges gap between browsing and buying, integrates with existing organization workflow
-
-**2. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
+**1. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
    - Command Pattern approach: Record each action as reversible command
    - Undoable actions: Book moves, divider create/delete/rename/reposition, column create/delete/rename/reorder
    - Maintain history stack (configurable depth, e.g., 50 actions)
@@ -35,7 +17,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No way to recover from accidental moves/deletes; expected UX capability
    - Impact: Standard user expectation, especially important for drag-and-drop interfaces
 
-**3. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+**2. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Collect Series Books" button
    - Automatic series detection
    - Series reading order visualization
@@ -43,7 +25,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Series books scattered across library
    - Impact: Better management for series readers
 
-**4. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+**3. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
    - Allow same book to appear in multiple columns
    - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
    - Array-based architecture, Ctrl+Drag UI, delete operation
@@ -180,6 +162,9 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Pause/Resume capability with global flag + button UI
    - Recovery: Save extraction state to localStorage, resume from interruption
    - State persistence: Track progress, allow resumption after browser close/refresh
+   - **Enriches wishlist items**: Wishlist Fetcher only has access to basic fields (title,
+     author, cover, rating, series) from product pages; Pass 3 adds descriptions and reviews
+     when user runs Library Fetcher
    - Problem: Random enrichment failures, long extractions without pause, lost progress on interruption
    - Impact: Data quality improvement (99.8%+ expected), better UX for long extractions, prevents data loss
    - Note: This consolidates former P2 "Extraction Error Recovery" feature
