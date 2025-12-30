@@ -39,9 +39,28 @@ Add ability to track books user wants to purchase (wishlist) and hide books user
 | Duplicate handling | App Loader handles (owned overrides wishlist) | Single location for all duplicate logic |
 | Deletion approach | Soft delete with `isHidden: true` | Recoverable, survives re-fetch |
 | Hide scope | All books (owned and wishlist) | Users may want to hide owned "trash" books too |
-| Data fetch method | Extract ASIN(s) from page, call Amazon API | Complete data, stable, same as library fetcher |
+| Data fetch method | DOM scraping (API returns 403 on product pages) | Fallback after API investigation; reliable for basic fields |
 | File merge | Wishlist Fetcher merges into existing `amazon-library.json` | Single file, immediate result |
 | Field defaults | App Loader defaults missing fields | Backward compatible, simpler fetchers, single source of truth |
+
+---
+
+## DOM Scraping Selectors (Phase 1 - Single Book)
+
+Amazon's `kindle-reader-api` returns 403 Forbidden on product pages (only works on `/yourbooks`). DOM scraping is used instead.
+
+| Field | Selector | Notes |
+|-------|----------|-------|
+| ASIN | `#averageCustomerReviews[data-asin]` | Fallback: extract from URL pattern |
+| Title | `#productTitle` | Keep as-is including series info in parentheses |
+| Author | `#bylineInfo .author a` | First match; text content |
+| Cover | `#landingImage[src]` | Low-res sufficient for thumbnails |
+| Rating | `#acrPopover[title]` | Parse "4.6 out of 5 stars" → `4.6` |
+| Review Count | `#acrCustomerReviewText` | Parse "(5,230)" → `5230` |
+| Series Name | `#seriesBulletWidget_feature_div a` | Parse "Book 5 of 27: Jack Ryan" → `"Jack Ryan"` |
+| Series Position | `#seriesBulletWidget_feature_div a` | Parse "Book 5 of 27: Jack Ryan" → `5` |
+
+**Note:** Description and reviews are NOT available via DOM scraping. These fields can be enriched later via Library Fetcher Pass 3 (see TODO.md Priority 5 item #3).
 
 ---
 
@@ -329,44 +348,48 @@ When library fetcher runs and finds a book that exists as wishlist:
 
 _Ordered by data flow: Fetcher → Loader → App_
 
-### Phase 1: Wishlist Fetcher - Single Book
-- [ ] Create `amazon-wishlist-fetcher.js`
-- [ ] Implement ASIN extraction from URL
-- [ ] Implement single-book API fetch (same as library fetcher)
-- [ ] Build book object with `isOwned: false`, `addedToWishlist: today`
-- [ ] Implement file read/merge/write flow
-- [ ] Add progress UI (simple toast for single book)
-- [ ] Handle duplicate detection (skip if ASIN exists)
+### Phase 1: Wishlist Fetcher - Single Book ✅ COMPLETE
+- [x] Create `amazon-wishlist-fetcher.js`
+- [x] Implement ASIN extraction from DOM (fallback: URL)
+- [x] Implement DOM scraping for book metadata (see selectors table above)
+- [x] Build book object with `isOwned: false`, `addedToWishlist: today`
+- [x] Implement file read/prepend/write flow (no duplicate check - App Loader handles)
+- [x] Add progress UI (simple toast for single book)
 
-### Phase 2: Wishlist Fetcher - Series
-- [ ] Implement series grid ASIN extraction
-- [ ] Implement batch API fetch (30 ASINs per call)
-- [ ] Add progress UI with progress bar
-- [ ] Handle partial failures gracefully
+### Phase 2: Wishlist Fetcher - Series ✅ COMPLETE
+- [x] Implement series grid ASIN extraction (DOM scraping - API returns 403)
+- [x] Click "Show All" to load full series, skip owned books (hasOwnership class)
+- [x] Add progress UI with progress bar
+- [x] Handle partial failures gracefully
+- [x] Combine single/series into unified fetcher (v1.1.0.a)
 
-### Phase 3: Navigator Updates
-- [ ] Add product page detection (`/dp/`, `/gp/product/`)
-- [ ] Add series page detection (URL + DOM check)
-- [ ] Add "Add to Wishlist" button (product pages)
-- [ ] Add "Add Series to Wishlist" button (series pages)
-- [ ] Update NAV_HUB_VERSION
+### Phase 3: Navigator Updates ✅ COMPLETE
+- [x] Add product page detection (`/dp/`, `/gp/product/`)
+- [x] Add series page detection (DOM check for `.series-childAsin-item`)
+- [x] Add wishlist button with dynamic text (Book/Series/Book+Series)
+- [x] Add tooltips to all Navigator buttons
+- [x] Update NAV_HUB_VERSION to v1.2.0.a
 
-### Phase 4: App Loader
-- [ ] Add field defaults (`isOwned ?? true`, `isHidden ?? false`)
-- [ ] Add deduplication logic (owned overrides wishlist)
-- [ ] Preserve `isHidden` and `addedToWishlist` on merge
-- [ ] Test wishlist → owned transition
+### Phase 4: App Loader ✅ COMPLETE
+- [x] Fix import: convert `isOwned` to app's `isWishlist` field
+- [x] Add `isHidden` and `addedToWishlist` field support (import/export)
+- [x] Modify deduplication: owned books take priority over wishlist
+- [x] Preserve `addedToWishlist` when owned overrides wishlist
+- [x] App v4.1.0.a
 
-### Phase 5: App Display - Wishlist
-- [ ] Add wishlist visual styling (gray-out, badge)
-- [ ] Change click behavior for wishlist books (→ Amazon)
-- [ ] Add "Wishlist" badge overlay on book cards
+### Phase 5: App Display - Wishlist ✅ COMPLETE
+- [x] Add wishlist visual styling (40% opacity gray-out)
+- [x] Double-click opens modal, modal has "View on Amazon" button
+- [x] Show "⭐ Wishlist Item" indicator in detail modal
+- [x] App v4.1.0.c
 
-### Phase 6: App Display - Hide
-- [ ] Add "Hide Book" / "Unhide Book" to right-click context menu
-- [ ] Add "Show Hidden" filter checkbox
-- [ ] Add hidden book visual styling (strikethrough, faded)
-- [ ] Persist `isHidden` changes to IndexedDB
+### Phase 6: App Display - Hide ✅ COMPLETE
+- [x] Add "Hide Book" / "Unhide Book" to right-click context menu
+- [x] Add "Show Hidden" filter checkbox
+- [x] Add hidden book visual styling (40% opacity + full-size 🚫 overlay)
+- [x] Add context menu items: Open in Amazon, Copy Title(s)
+- [x] Persist `isHidden` changes to IndexedDB
+- [x] App v4.1.0.d
 
 ---
 

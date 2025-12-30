@@ -1,4 +1,4 @@
-// ReaderWrangler Bookmarklet Navigation Hub v1.1.2
+// ReaderWrangler Bookmarklet Navigation Hub v1.2.0
 // Universal navigator and data fetcher dialog
 //
 // ARCHITECTURE: Three-Environment Testing - See docs/design/ARCHITECTURE.md (Three-Environment Testing section)
@@ -15,7 +15,7 @@
 (function() {
     'use strict';
 
-    const NAV_HUB_VERSION = 'v1.1.2';
+    const NAV_HUB_VERSION = 'v1.2.0';
 
     // Read TARGET_ENV from window (injected by bookmarklet)
     // Default to 'PROD' for backwards compatibility with old bookmarklets
@@ -48,6 +48,9 @@
     const onLibraryPage = currentUrl.includes('amazon.com/yourbooks') ||
                           currentUrl.includes('amazon.com/kindle/library');
     const onCollectionsPage = currentUrl.includes('amazon.com/hz/mycd/digital-console');
+    const onProductPage = /\/dp\/|\/gp\/product\//.test(currentUrl);
+    const onSeriesPage = document.querySelectorAll('.series-childAsin-item').length > 0;
+    const onWishlistPage = onProductPage || onSeriesPage;
 
     // Create intro dialog
     const dialog = document.createElement('div');
@@ -89,6 +92,13 @@
         border: 1px solid #ddd;
     `;
 
+    const disabledButtonStyle = buttonStyle + `
+        background: #e9ecef;
+        color: #999;
+        border: 1px solid #ddd;
+        cursor: not-allowed;
+    `;
+
     // Build universal navigator dialog
     let dialogContent = `
         <button style="
@@ -113,13 +123,15 @@
     // Add context-specific fetcher buttons
     if (onLibraryPage) {
         dialogContent += `
-            <button id="runLibrary" style="${primaryButtonStyle} width: 100%; margin-bottom: 10px;">
+            <button id="runLibrary" style="${primaryButtonStyle} width: 100%; margin-bottom: 10px;"
+                title="Fetch your Kindle library titles and metadata">
                 📖 Fetch Library Data
             </button>
         `;
     } else {
         dialogContent += `
-            <button id="goLibrary" style="${primaryButtonStyle} width: 100%; margin-bottom: 10px;">
+            <button id="goLibrary" style="${primaryButtonStyle} width: 100%; margin-bottom: 10px;"
+                title="Navigate to your Amazon library to fetch book data">
                 📖 Go to Library Fetcher Amazon Page
             </button>
         `;
@@ -127,24 +139,50 @@
 
     if (onCollectionsPage) {
         dialogContent += `
-            <button id="runCollections" style="${primaryButtonStyle} width: 100%; margin-bottom: 10px;">
+            <button id="runCollections" style="${primaryButtonStyle} width: 100%; margin-bottom: 10px;"
+                title="Fetch your collection assignments and read status">
                 📚 Fetch Collections Data
             </button>
         `;
     } else {
         dialogContent += `
-            <button id="goCollections" style="${primaryButtonStyle} width: 100%; margin-bottom: 10px;">
+            <button id="goCollections" style="${primaryButtonStyle} width: 100%; margin-bottom: 10px;"
+                title="Navigate to the 'Manage Your Content' page to fetch collections">
                 📚 Go to Collections Fetcher Amazon Page
             </button>
         `;
     }
 
+    // Add wishlist button - always visible, enabled only on product/series pages
+    const wishlistButtonText = onSeriesPage
+        ? '⭐ Add Series to Wishlist'
+        : onProductPage
+            ? '⭐ Add Book to Wishlist'
+            : '⭐ Add Book/Series to Wishlist';
+
+    const wishlistTooltip = onSeriesPage
+        ? 'Add all unowned books from this series to your wishlist'
+        : onProductPage
+            ? 'Add this book to your wishlist'
+            : 'Navigate to an Amazon book page to add a single book, or a series page to add all unowned books in the series';
+
+    const wishlistButtonStyle = onWishlistPage ? primaryButtonStyle : disabledButtonStyle;
+
+    dialogContent += `
+        <button id="runWishlist" style="${wishlistButtonStyle} width: 100%; margin-bottom: 10px;"
+            title="${wishlistTooltip}" ${onWishlistPage ? '' : 'disabled'}>
+            ${wishlistButtonText}
+        </button>
+    `;
+
     // Add universal navigation buttons
     dialogContent += `
-        <button id="launchApp" style="${primaryButtonStyle} width: 100%; margin-bottom: 10px;">
+        <button id="launchApp" style="${primaryButtonStyle} width: 100%; margin-bottom: 10px;"
+            title="Open ReaderWrangler to organize your books">
             🎯 Launch App
         </button>
-        <button id="launchIntro" style="${primaryButtonStyle} width: 100%;">
+        <button id="launchIntro" style="${primaryButtonStyle} width: 100%;"
+            title="View the getting started guide">
             ℹ️ Launch Intro for Help
         </button>
     `;
@@ -181,6 +219,11 @@
     const runCollectionsBtn = dialog.querySelector('#runCollections');
     if (runCollectionsBtn) {
         runCollectionsBtn.onclick = () => loadScript('amazon-collections-fetcher.js', 'collections fetcher');
+    }
+
+    const runWishlistBtn = dialog.querySelector('#runWishlist');
+    if (runWishlistBtn && onWishlistPage) {
+        runWishlistBtn.onclick = () => loadScript('amazon-wishlist-fetcher.js', 'wishlist fetcher');
     }
 
     const goLibraryBtn = dialog.querySelector('#goLibrary');

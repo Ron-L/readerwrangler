@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2025-12-30
+
+### Added
+- **Wishlist Feature** - Track books you want to purchase
+  - File versions: amazon-wishlist-fetcher.js v1.1.0, bookmarklet-nav-hub.js v1.2.0, readerwrangler.js v4.1.0
+  - **Wishlist Fetcher v1.1.0:**
+    - Add books from Amazon product pages (single book) or series pages (batch)
+    - DOM scraping for book metadata (ASIN, title, author, cover, rating, series)
+    - Series mode: Click "Show All" to load full series, skips books you already own
+    - Merges into existing `amazon-library.json` file
+    - Progress UI with abort capability
+  - **Navigator v1.2.0:**
+    - Context-aware "Add to Wishlist" button (detects product vs series pages)
+    - Dynamic button text: "Add Book" / "Add Series" / "Add Book/Series"
+    - Tooltips on all Navigator buttons
+  - **App v4.1.0:**
+    - Wishlist books display with 40% opacity gray-out effect
+    - "Wishlist Item" indicator in detail modal
+    - App Loader handles `isOwned` field (owned books override wishlist on re-fetch)
+    - Import/Export preserves wishlist fields (`isOwned`, `addedToWishlist`)
+
+- **Hide Feature** - Soft-delete books you don't want to see
+  - Right-click context menu: "Hide Book" / "Unhide Book"
+  - "Show Hidden" checkbox next to result count (not affected by Clear Filters)
+  - Hidden books display with 40% opacity + large 🚫 overlay
+  - Persists `isHidden` to IndexedDB
+  - Applies to both owned and wishlist books
+
+- **Context Menu Enhancements** - New right-click options
+  - "Open in Amazon" - Opens selected books' Amazon pages (confirm if >3, error if >10)
+  - "Copy Title(s)" - Copies all selected book titles to clipboard
+
+### Fixed
+- **Context Menu Positioning** - Menu now flips up/left when near viewport edges
+- **Book Count Display** - Fixed count to exclude dividers (was showing filtered > total)
+
+### Design Documentation
+- Created comprehensive [docs/design/WISHLIST-FEATURE.md](docs/design/WISHLIST-FEATURE.md) design specification
+  - Documents all 6 implementation phases
+  - Schema changes, Navigator changes, App Loader logic
+  - DOM scraping selectors for Amazon product/series pages
+
 ## [4.0.1] - 2025-12-28
 
 ### Fixed
