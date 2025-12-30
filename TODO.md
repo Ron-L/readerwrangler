@@ -197,6 +197,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
      3. Extract `dataProcessing.js` (uses above)
      4. Extract `dragDrop.js` (uses uiHelpers)
      5. Update main component imports
+   - **Context Menu IIFE** - The context menu positioning (v4.1.0.e) uses an IIFE in JSX to calculate viewport bounds before rendering. Consider extracting to a custom hook or component for cleaner code.
 
 ---
 
