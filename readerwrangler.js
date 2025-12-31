@@ -1,8 +1,8 @@
         // ReaderWrangler JS v4.1.0.g - Branding & Security
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.1.0";
-        document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
+        const ORGANIZER_VERSION = "4.1.0.g";
+        document.title = `ReaderWrangler™ ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
         const SETTINGS_KEY = "readerwrangler-settings";
