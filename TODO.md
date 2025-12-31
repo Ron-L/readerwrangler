@@ -6,6 +6,15 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ---
 
+icons\og-image.png"
+Commission a proper logo — Keep the lasso arc concept but execute it cleanly:
+
+Single-color or two-tone (purple/gold?)
+Modern linework, not 3D WordArt
+Works at small sizes (favicon, app icon)
+Could be as simple as a stylized "RW" with a subtle lasso curve
+
+
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
 **1. 🎨 Title Bar UX Redesign** - MEDIUM/MEDIUM (4-6 hours)
