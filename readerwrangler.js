@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v4.1.0.h - Branding & Security
+        // ReaderWrangler JS v4.1.0.i - Branding & Security
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.1.0.h";
+        const ORGANIZER_VERSION = "4.1.0.i";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2638,11 +2638,13 @@
                                     <p className="text-sm text-gray-600 mt-1">
                                         {dataSource === 'enriched' ? '✨ With ratings & reviews' :
                                          dataSource === 'csv' ? '📄 Basic CSV data' :
-                                         '📂 No library loaded'} • {renderStatusIndicator()}
+                                         '📂 No library loaded'}
                                     </p>
                                 </div>
                             </div>
                             <div className="flex gap-2 items-center">
+                                {renderStatusIndicator()}
+                                <span className="text-gray-300 mx-1">|</span>
                                 <button onClick={importLibrary}
                                         className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
                                         title="Import library file - merges with existing books, preserving your organization. Also restores from backup files.">
