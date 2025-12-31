@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v4.1.0.i - Branding & Security
+        // ReaderWrangler JS v4.1.0.j - Branding & Security
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.1.0.i";
+        const ORGANIZER_VERSION = "4.1.0.j";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2628,14 +2628,13 @@
                             <div className="flex items-center gap-3">
                                 <div>
                                     <h1 className="app-title">
-                                        <a href="index.html" style={{ color: 'inherit', textDecoration: 'none' }}>
+                                        <a href="index.html" style={{ color: 'inherit', textDecoration: 'none' }} title="Wrangle your reader chaos">
                                             ReaderWrangler™
                                         </a>
                                         {books.length > 0 && <span className="text-lg text-gray-500 ml-2">({books.length} books)</span>}
                                     </h1>
-                                    <p className="tagline">Wrangle your reader chaos</p>
                                     <p className="attribution">A product of Alloid Labs™</p>
-                                    <p className="text-sm text-gray-600 mt-1">
+                                    <p className="tagline">
                                         {dataSource === 'enriched' ? '✨ With ratings & reviews' :
                                          dataSource === 'csv' ? '📄 Basic CSV data' :
                                          '📂 No library loaded'}
