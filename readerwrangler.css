@@ -9,12 +9,15 @@ body { margin: 0; padding: 0; overflow: hidden; }
   color: #1a1a1a;
 }
 
-.app-subtitle {
-  font-family: 'Libre Baskerville', Georgia, serif;
-  font-style: italic;
+.tagline {
   font-size: 0.95rem;
-  font-weight: 400;
-  color: #4a4a4a;
+  color: #333;
+}
+
+.attribution {
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
 }
 .dragging { opacity: 0.3; }
 .drop-target { background-color: rgba(59, 130, 246, 0.1); }
