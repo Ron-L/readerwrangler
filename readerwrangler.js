@@ -1,4 +1,4 @@
-        // ReaderWrangler JS v4.1.0 - Wishlist & Hide Feature
+        // ReaderWrangler JS v4.1.0.g - Branding & Security
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
         const ORGANIZER_VERSION = "4.1.0";
@@ -2627,12 +2627,13 @@
                         <div className="flex justify-between items-start mb-4">
                             <div className="flex items-center gap-3">
                                 <div>
-                                    <h1 className="text-2xl font-bold text-gray-900">
+                                    <h1 className="app-title">
                                         <a href="index.html" style={{ color: 'inherit', textDecoration: 'none' }}>
                                             ReaderWrangler
                                         </a>
                                         {books.length > 0 && <span className="text-lg text-gray-500 ml-2">({books.length} books)</span>}
                                     </h1>
+                                    <p className="app-subtitle">A product of Alloid Labs™</p>
                                     <p className="text-sm text-gray-600 mt-1">
                                         {dataSource === 'enriched' ? '✨ With ratings & reviews' :
                                          dataSource === 'csv' ? '📄 Basic CSV data' :
@@ -3929,8 +3930,12 @@
                         );
                     })()}
 
-                    <div className="fixed bottom-2 right-2 text-xs text-gray-400">
-                        v{ORGANIZER_VERSION}
+                    <div className="fixed bottom-2 right-2 text-xs text-gray-400 flex items-center gap-3">
+                        <a href="https://github.com/Ron-L/ReaderWrangler/issues" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600" title="Report issues or request features">Feedback</a>
+                        <span>|</span>
+                        <a href="security.html" className="hover:text-gray-600" title="Security & Privacy information">Security</a>
+                        <span>|</span>
+                        <span>v{ORGANIZER_VERSION}</span>
                     </div>
 
                     {/* v3.14.0.x - Ghost position controlled via ref in updateGhostPosition */}

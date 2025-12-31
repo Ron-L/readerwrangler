@@ -8,7 +8,17 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
+**1. 🎨 Title Bar UX Redesign** - MEDIUM/MEDIUM (4-6 hours)
+   - **Target Layout:**
+     ```
+     ReaderWrangler (2352 Books)  ✨ With ratings   |   ✅Data Status: Fresh  📥Import 💾Export 🗑️Reset  ⚙️ ?
+                                                   |
+     🔍 Filters ▶                                               ➕ Add Column (floats with columns)
+     ```
+   - Problem: Data Status separated from related Import/Export/Reset actions; Add Column positioned illogically
+   - Impact: Better visual grouping, more intuitive layout
+
+**2. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
    - Command Pattern approach: Record each action as reversible command
    - Undoable actions: Book moves, divider create/delete/rename/reposition, column create/delete/rename/reorder
    - Maintain history stack (configurable depth, e.g., 50 actions)
@@ -17,7 +27,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No way to recover from accidental moves/deletes; expected UX capability
    - Impact: Standard user expectation, especially important for drag-and-drop interfaces
 
-**2. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+**3. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Collect Series Books" button
    - Automatic series detection
    - Series reading order visualization
@@ -25,7 +35,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Series books scattered across library
    - Impact: Better management for series readers
 
-**3. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+**4. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
    - Allow same book to appear in multiple columns
    - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
    - Array-based architecture, Ctrl+Drag UI, delete operation

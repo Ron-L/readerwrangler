@@ -1,5 +1,21 @@
 /* ReaderWrangler CSS v3.8.0.e */
 body { margin: 0; padding: 0; overflow: hidden; }
+
+/* App title styling - Alloid Labs branding */
+.app-title {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.app-subtitle {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #4a4a4a;
+}
 .dragging { opacity: 0.3; }
 .drop-target { background-color: rgba(59, 130, 246, 0.1); }
 .drag-ghost {
