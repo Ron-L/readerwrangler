@@ -6,15 +6,6 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ---
 
-icons\og-image.png"
-Commission a proper logo — Keep the lasso arc concept but execute it cleanly:
-
-Single-color or two-tone (purple/gold?)
-Modern linework, not 3D WordArt
-Works at small sizes (favicon, app icon)
-Could be as simple as a stylized "RW" with a subtle lasso curve
-
-
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
 **1. 🎨 Title Bar UX Redesign** - MEDIUM/MEDIUM (4-6 hours)
@@ -27,7 +18,55 @@ Could be as simple as a stylized "RW" with a subtle lasso curve
    - Problem: Data Status separated from related Import/Export/Reset actions; Add Column positioned illogically
    - Impact: Better visual grouping, more intuitive layout
 
-**2. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
+**2. 🎨 Logo Redesign** - MEDIUM/LOW (2-4 hours)
+   - Commission proper logo replacing current `icons/og-image.png`
+   - Keep the lasso arc concept but execute cleanly
+   - Single-color or two-tone (purple/gold per style guide)
+   - Modern linework, not 3D WordArt
+   - Works at small sizes (favicon, app icon)
+   - Could be as simple as a stylized "RW" with a subtle lasso curve
+   - Problem: Current logo doesn't match professional brand identity
+   - Impact: Consistent branding across all touchpoints
+
+**3. 🎨 Apply Style Guide** - MEDIUM/MEDIUM (6-8 hours)
+   - Apply consistent styling to landing page (index.html) and app (readerwrangler.html)
+   - **Style Guide Reference:**
+     - **Typography:** Headings: Libre Baskerville 700; Body: Lato 400 (300 light); Monospace: system-ui
+     - **Colors (CSS variables):**
+       - `--color-primary`: #6366f1 (indigo/purple)
+       - `--color-primary-light`: #818cf8
+       - `--color-primary-lighter`: #a5b4fc
+       - `--color-accent`: #c9a227 (gold, use sparingly)
+       - `--color-text`: #1a1a2e (near-black navy)
+       - `--color-text-muted`: #64748b
+       - `--color-success`: #16a34a
+       - `--color-danger`: #dc2626
+       - `--color-background`: #f8fafc
+     - **Buttons:** Border radius 8px (rounded-lg); Primary: bg #6366f1, text white, hover #4f46e5; Secondary: bg white, border #e2e8f0; Padding: 8px 16px
+     - **Gradients:** Hero: `linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)`
+     - **Shadows:** Cards: `0 4px 6px -1px rgba(0,0,0,0.1)`; Elevated: `0 10px 15px -3px rgba(0,0,0,0.1)`; Modals: `0 25px 50px -12px rgba(0,0,0,0.25)`
+     - **Spacing:** 4px base unit (Tailwind scale); Section padding: 24-32px; Card padding: 16-24px; Element gaps: 8-16px
+   - Problem: Inconsistent styling between pages and components
+   - Impact: Professional, cohesive visual identity
+
+**4. 💰 Amazon Affiliate Links** - MEDIUM/MEDIUM (4-6 hours)
+   - Add Amazon Associates affiliate tracking to wishlist book links
+   - **Prerequisites:**
+     - Sign up at https://affiliate-program.amazon.com/
+     - Get approved and obtain Associate ID (tag)
+     - Note: 180 days to make 3 qualifying sales or account closes
+   - **Implementation:**
+     - Modify wishlist click handler: `https://www.amazon.com/dp/{ASIN}?tag={ASSOCIATE-ID}`
+     - Only apply to wishlist books (not owned library books)
+   - **Required Disclosures (FTC + Amazon Compliance):**
+     - App footer: "As an Amazon Associate, I earn from qualifying purchases."
+     - Help modal section explaining affiliate links
+     - Landing page footer: Full Amazon Associates Program disclosure
+   - **Optional:** Subtle indicator on wishlist items, tooltip "View on Amazon (affiliate link)"
+   - Problem: No monetization for wishlist feature
+   - Impact: Revenue stream to support development
+
+**5. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
    - Command Pattern approach: Record each action as reversible command
    - Undoable actions: Book moves, divider create/delete/rename/reposition, column create/delete/rename/reorder
    - Maintain history stack (configurable depth, e.g., 50 actions)
@@ -36,7 +75,7 @@ Could be as simple as a stylized "RW" with a subtle lasso curve
    - Problem: No way to recover from accidental moves/deletes; expected UX capability
    - Impact: Standard user expectation, especially important for drag-and-drop interfaces
 
-**3. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+**6. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Collect Series Books" button
    - Automatic series detection
    - Series reading order visualization
@@ -44,7 +83,7 @@ Could be as simple as a stylized "RW" with a subtle lasso curve
    - Problem: Series books scattered across library
    - Impact: Better management for series readers
 
-**4. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+**7. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
    - Allow same book to appear in multiple columns
    - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
    - Array-based architecture, Ctrl+Drag UI, delete operation
