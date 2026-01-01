@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **License** - Updated from MIT to MIT License with Commons Clause
+  - Free for personal use, source available for learning
+  - No commercial forks or competing products
+  - Updated LICENSE and README.md with new terms and trademark notice
+
+### Added
+- **Analytics** - Added GoatCounter privacy-focused analytics to index.html and readerwrangler.html
+  - No cookies, no personal data, no cross-site tracking
+  - Basic traffic statistics only (page views, referrers)
+
 ## [4.1.0] - 2025-12-30
 
 ### Added

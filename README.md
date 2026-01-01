@@ -178,6 +178,37 @@ Watch this 10-minute walkthrough to see all the features in action
 
 ---
 
+## License
+
+ReaderWrangler is licensed under the **MIT License with Commons Clause**.
+
+**What does this mean?**
+
+You're free to use ReaderWrangler for personal use, explore the code, learn from it, and even modify it for your own needs. However, you cannot use this code to create a competing commercial product or service.
+
+This license protects the project while keeping the source code transparent and accessible. If you're interested in contributing improvements, pull requests are welcome!
+
+See [LICENSE.md](LICENSE.md) for full details.
+
+**Trademarks**
+
+ReaderWrangler™ and Alloid Labs™ are trademarks of Ron Lewis. Access to the source code does not grant rights to use these names for derivative works.
+
+---
+
+## Alternative: Shorter Version
+
+If you prefer something more minimal:
+
+---
+
+## License
+
+MIT License with Commons Clause — free for personal use, source available for learning, but no commercial forks or competing products. See [LICENSE.md](LICENSE.md).
+
+ReaderWrangler™ is a trademark of Alloid Labs™.
+---
+
 ## Notice
 
 Amazon, Kindle, and Amazon Kindle are trademarks of Amazon.com, Inc.
