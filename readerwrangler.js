@@ -1,7 +1,7 @@
-        // ReaderWrangler JS v4.1.0.k - Branding & Security
+        // ReaderWrangler JS v4.2.0 - Title Bar UX Redesign
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.1.0.k";
+        const ORGANIZER_VERSION = "4.2.0";
         document.title = `ReaderWrangler ${ORGANIZER_VERSION}`;
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2671,7 +2671,7 @@
                             </div>
                         </div>
 
-                        {/* Filter Panel (NEW v3.8.0, updated v3.8.0.k) */}
+                        {/* Filter Panel (NEW v3.8.0, updated v3.8.0.k, v4.1.0.l removed Add Column - now floats with columns) */}
                         <div className="flex gap-4 items-center mb-4">
                             <button
                                 onClick={() => setFilterPanelOpen(!filterPanelOpen)}
@@ -2684,11 +2684,6 @@
                                 🔍 Filters {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo) &&
                                     `(${[searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter, seriesFilter, dateFrom, dateTo].filter(Boolean).length})`}
                                 {filterPanelOpen ? ' ▼' : ' ▶'}
-                            </button>
-                            <button onClick={addColumn}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
-                                    title="Create a new column">
-                                ➕ Add Column
                             </button>
                         </div>
 
@@ -3797,6 +3792,14 @@
                                     )}
                                 </div>
                             ))}
+                            {/* v4.1.0.l - Add Column button floats with columns */}
+                            <div className="flex-shrink-0 flex items-start pt-4">
+                                <button onClick={addColumn}
+                                        className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 shadow-md"
+                                        title="Create a new column">
+                                    ➕ Add Column
+                                </button>
+                            </div>
                         </div>
                     </div>
 

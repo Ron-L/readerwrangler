@@ -108,7 +108,7 @@ What task were you working on?
   → Check for TODO comments in code: `grep -rn "TODO" *.js *.html`
   → Remove version letter suffix (v3.1.0.c → v3.1.0)
   → Squash letter-versioned commits (optional but recommended)
-  → Update README.md (APP version badge, Coming Soon, Recent Features), CHANGELOG.md, TODO.md (mark complete)
+  → Update README.md (APP version badge, Coming Soon, Recent Features), CHANGELOG.md, TODO.md (remove completed)
   → Tag release, merge to main, push to Dev and Prod (see Git Remotes below)
 
 * **Post-release**: After push/tag completes for code release

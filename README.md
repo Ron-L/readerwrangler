@@ -1,6 +1,6 @@
 # ReaderWrangler™
 
-![Version](https://img.shields.io/badge/version-v4.1.0-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-v4.2.0-blue) ![License](https://img.shields.io/badge/license-MIT%20with%20Commons%20Clause-green)
 
 ## Wrangle your reader chaos - Your books, your order
 
@@ -127,13 +127,35 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 
 ---
 
+## Recent Features
+
+**v4.2.0 - Title Bar UX Redesign** (January 2026)
+- Redesigned title bar with better visual grouping
+- Data Status indicator moved next to Import/Export/Reset for logical grouping
+- Add Column button now floats with columns for intuitive positioning
+- New branding with Libre Baskerville font and "Your books, your order" tagline
+
+**v4.1.0 - Wishlist & Hide Features** (December 2025)
+- **Wishlist** - Add books from Amazon product/series pages to track what you want to buy
+- **Hide books** - Soft-delete books you don't want to see (right-click context menu)
+- **Context menu enhancements** - "Open in Amazon" and "Copy Title(s)" options
+- Progress bars during fetch showing exactly where you are in the extraction
+
+**v4.0.0 - Schema v2.0** (December 2025)
+- Unified file format combining library and collections data
+- Improved import/export with backward compatibility
+- Better data management and organization persistence
+
+See [CHANGELOG.md](CHANGELOG.md) for complete version history.
+
+---
+
 ## Coming Soon!
 
 We're constantly improving ReaderWrangler based on user feedback. Here's what's on the horizon:
 
 - **Duplicate books in multiple columns** - Put the same book in "Next to Read" AND "Sci-Fi" simultaneously
 - **Reading progress tracking** - See how far you've read in each book
-- **Enhanced collection filters** - Better integration with your Kindle collections and reading status
 - **Multi-store support** - Organize books from Barnes & Noble, Kobo, and other ebook stores
 
 Have a feature request? [Let us know on GitHub!](https://github.com/Ron-L/ReaderWrangler/issues)

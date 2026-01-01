@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-01-01
+
 ### Changed
+- **Title Bar UX Redesign** - Better visual grouping and intuitive layout
+  - File version: readerwrangler.js v4.2.0
+  - Data Status indicator moved next to Import/Export/Reset buttons
+  - Add Column button now floats with columns (scrolls horizontally with them)
+  - New branding: Libre Baskerville font for title, "Your books, your order" tagline
+  - Added "A product of Alloid Labs™" attribution
+  - Title tooltip shows "Wrangle your reader chaos"
 - **License** - Updated from MIT to MIT License with Commons Clause
   - Free for personal use, source available for learning
   - No commercial forks or competing products
@@ -17,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Analytics** - Added GoatCounter privacy-focused analytics to index.html and readerwrangler.html
   - No cookies, no personal data, no cross-site tracking
   - Basic traffic statistics only (page views, referrers)
+- **Security** - Added security.html and .well-known/security.txt for responsible disclosure
 
 ## [4.1.0] - 2025-12-30
 

@@ -8,17 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. 🎨 Title Bar UX Redesign** - MEDIUM/MEDIUM (4-6 hours)
-   - **Target Layout:**
-     ```
-     ReaderWrangler (2352 Books)  ✨ With ratings   |   ✅Data Status: Fresh  📥Import 💾Export 🗑️Reset  ⚙️ ?
-                                                   |
-     🔍 Filters ▶                                               ➕ Add Column (floats with columns)
-     ```
-   - Problem: Data Status separated from related Import/Export/Reset actions; Add Column positioned illogically
-   - Impact: Better visual grouping, more intuitive layout
-
-**2. 🎨 Logo Redesign** - MEDIUM/LOW (2-4 hours)
+**1. 🎨 Logo Redesign** - MEDIUM/LOW (2-4 hours)
    - Commission proper logo replacing current `icons/og-image.png`
    - Keep the lasso arc concept but execute cleanly
    - Single-color or two-tone (purple/gold per style guide)
@@ -27,8 +17,15 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Could be as simple as a stylized "RW" with a subtle lasso curve
    - Problem: Current logo doesn't match professional brand identity
    - Impact: Consistent branding across all touchpoints
+   - **Free/Low-Cost Logo Options:**
+     - Canva (free tier) — Logo maker with customizable templates
+     - Looka — AI-generated logos, free to preview, ~$20 to download
+     - Hatchful by Shopify — Completely free logo maker
+     - LogoMakr — Free, simple drag-and-drop
+     - Midjourney/DALL-E — Generate concepts (~$10-20/month), trace best one in Figma (free)
+     - Fiverr — $15-50 range for human designer
 
-**3. 🎨 Apply Style Guide** - MEDIUM/MEDIUM (6-8 hours)
+**2. 🎨 Apply Style Guide** - MEDIUM/MEDIUM (6-8 hours)
    - Apply consistent styling to landing page (index.html) and app (readerwrangler.html)
    - **Style Guide Reference:**
      - **Typography:** Headings: Libre Baskerville 700; Body: Lato 400 (300 light); Monospace: system-ui
@@ -49,7 +46,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Inconsistent styling between pages and components
    - Impact: Professional, cohesive visual identity
 
-**4. 💰 Amazon Affiliate Links** - MEDIUM/MEDIUM (4-6 hours)
+**3. 💰 Amazon Affiliate Links** - MEDIUM/MEDIUM (4-6 hours)
    - Add Amazon Associates affiliate tracking to wishlist book links
    - **Prerequisites:**
      - Sign up at https://affiliate-program.amazon.com/
@@ -66,7 +63,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No monetization for wishlist feature
    - Impact: Revenue stream to support development
 
-**5. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
+**4. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
    - Command Pattern approach: Record each action as reversible command
    - Undoable actions: Book moves, divider create/delete/rename/reposition, column create/delete/rename/reorder
    - Maintain history stack (configurable depth, e.g., 50 actions)
@@ -75,7 +72,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No way to recover from accidental moves/deletes; expected UX capability
    - Impact: Standard user expectation, especially important for drag-and-drop interfaces
 
-**6. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+**5. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Collect Series Books" button
    - Automatic series detection
    - Series reading order visualization
@@ -83,7 +80,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Series books scattered across library
    - Impact: Better management for series readers
 
-**7. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+**6. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
    - Allow same book to appear in multiple columns
    - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
    - Array-based architecture, Ctrl+Drag UI, delete operation
