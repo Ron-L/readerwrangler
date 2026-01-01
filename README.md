@@ -132,7 +132,6 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 We're constantly improving ReaderWrangler based on user feedback. Here's what's on the horizon:
 
 - **Duplicate books in multiple columns** - Put the same book in "Next to Read" AND "Sci-Fi" simultaneously
-- **Progress bars during fetch** - Visual feedback showing exactly where you are in the extraction process
 - **Reading progress tracking** - See how far you've read in each book
 - **Enhanced collection filters** - Better integration with your Kindle collections and reading status
 - **Multi-store support** - Organize books from Barnes & Noble, Kobo, and other ebook stores
@@ -151,18 +150,6 @@ Have a feature request? [Let us know on GitHub!](https://github.com/Ron-L/Reader
 
 ---
 
-## License
-
-MIT License - see LICENSE file for details
-
----
-
-## Author
-
-Ron-L
-
----
-
 Questions or issues? Check the [documentation](CONTRIBUTING.md) or [open an issue on GitHub](https://github.com/Ron-L/ReaderWrangler/issues).
 
 ---
@@ -175,6 +162,12 @@ Watch this 10-minute walkthrough to see all the features in action
   <img src="images/walkthrough-preview.png" alt="ReaderWrangler 10-minute walkthrough" width="100%">
   <p align="center">▶️ Click to watch full 10-minute walkthrough (opens video in new tab)</p>
 </a>
+
+---
+
+## Author
+
+Ron-L
 
 ---
 
@@ -194,19 +187,6 @@ See [LICENSE.md](LICENSE.md) for full details.
 
 ReaderWrangler™ and Alloid Labs™ are trademarks of Ron Lewis. Access to the source code does not grant rights to use these names for derivative works.
 
----
-
-## Alternative: Shorter Version
-
-If you prefer something more minimal:
-
----
-
-## License
-
-MIT License with Commons Clause — free for personal use, source available for learning, but no commercial forks or competing products. See [LICENSE.md](LICENSE.md).
-
-ReaderWrangler™ is a trademark of Alloid Labs™.
 ---
 
 ## Notice
