@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-01-02
+
+### Changed
+- **Style Guide Applied** - Consistent indigo/purple color scheme across app and landing page
+  - File versions: readerwrangler.js v4.3.0, readerwrangler.css v3.9.0, index.html v1.1.0
+  - Replaced blue-* Tailwind classes with indigo-* throughout app
+  - CSS variables added for theming (--color-primary, --gradient-hero, etc.)
+  - Landing page hero gradient matches app styling
+
+### Added
+- **Header UX Improvements**
+  - Version number displayed in header next to title (muted styling)
+  - Book count moved from header to filters row for better information hierarchy
+  - Browser tab title simplified (removed version number)
+  - Landing page tab title shortened for better visibility in narrow tabs
+
 ## [4.2.0] - 2026-01-01
 
 ### Changed

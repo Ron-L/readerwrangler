@@ -25,28 +25,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
      - Midjourney/DALL-E — Generate concepts (~$10-20/month), trace best one in Figma (free)
      - Fiverr — $15-50 range for human designer
 
-**2. 🎨 Apply Style Guide** - MEDIUM/MEDIUM (6-8 hours)
-   - Apply consistent styling to landing page (index.html) and app (readerwrangler.html)
-   - **Style Guide Reference:**
-     - **Typography:** Headings: Libre Baskerville 700; Body: Lato 400 (300 light); Monospace: system-ui
-     - **Colors (CSS variables):**
-       - `--color-primary`: #6366f1 (indigo/purple)
-       - `--color-primary-light`: #818cf8
-       - `--color-primary-lighter`: #a5b4fc
-       - `--color-accent`: #c9a227 (gold, use sparingly)
-       - `--color-text`: #1a1a2e (near-black navy)
-       - `--color-text-muted`: #64748b
-       - `--color-success`: #16a34a
-       - `--color-danger`: #dc2626
-       - `--color-background`: #f8fafc
-     - **Buttons:** Border radius 8px (rounded-lg); Primary: bg #6366f1, text white, hover #4f46e5; Secondary: bg white, border #e2e8f0; Padding: 8px 16px
-     - **Gradients:** Hero: `linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)`
-     - **Shadows:** Cards: `0 4px 6px -1px rgba(0,0,0,0.1)`; Elevated: `0 10px 15px -3px rgba(0,0,0,0.1)`; Modals: `0 25px 50px -12px rgba(0,0,0,0.25)`
-     - **Spacing:** 4px base unit (Tailwind scale); Section padding: 24-32px; Card padding: 16-24px; Element gaps: 8-16px
-   - Problem: Inconsistent styling between pages and components
-   - Impact: Professional, cohesive visual identity
-
-**3. 💰 Amazon Affiliate Links** - MEDIUM/MEDIUM (4-6 hours)
+**2. 💰 Amazon Affiliate Links** - MEDIUM/MEDIUM (4-6 hours)
    - Add Amazon Associates affiliate tracking to wishlist book links
    - **Prerequisites:**
      - Sign up at https://affiliate-program.amazon.com/
@@ -63,7 +42,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No monetization for wishlist feature
    - Impact: Revenue stream to support development
 
-**4. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
+**3. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
    - Command Pattern approach: Record each action as reversible command
    - Undoable actions: Book moves, divider create/delete/rename/reposition, column create/delete/rename/reorder
    - Maintain history stack (configurable depth, e.g., 50 actions)
@@ -72,7 +51,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No way to recover from accidental moves/deletes; expected UX capability
    - Impact: Standard user expectation, especially important for drag-and-drop interfaces
 
-**5. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+**4. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Collect Series Books" button
    - Automatic series detection
    - Series reading order visualization
@@ -80,7 +59,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Series books scattered across library
    - Impact: Better management for series readers
 
-**6. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+**5. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
    - Allow same book to appear in multiple columns
    - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
    - Array-based architecture, Ctrl+Drag UI, delete operation

@@ -1,4 +1,42 @@
-/* ReaderWrangler CSS v3.8.0.e */
+/* Style Guide CSS Variables */
+:root {
+    /* Primary colors */
+    --color-primary: #6366f1;
+    --color-primary-light: #818cf8;
+    --color-primary-lighter: #a5b4fc;
+    --color-primary-dark: #4f46e5;
+
+    /* Accent */
+    --color-accent: #c9a227;
+
+    /* Text */
+    --color-text: #1a1a2e;
+    --color-text-muted: #64748b;
+
+    /* Status */
+    --color-success: #16a34a;
+    --color-danger: #dc2626;
+
+    /* Background */
+    --color-background: #f8fafc;
+
+    /* Borders */
+    --color-border: #e2e8f0;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+
+    /* Shadows */
+    --shadow-card: 0 4px 6px -1px rgba(0,0,0,0.1);
+    --shadow-elevated: 0 10px 15px -3px rgba(0,0,0,0.1);
+    --shadow-modal: 0 25px 50px -12px rgba(0,0,0,0.25);
+
+    /* Typography */
+    --font-heading: 'Libre Baskerville', Georgia, serif;
+    --font-body: 'Lato', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: system-ui, monospace;
+}
+
 body { margin: 0; padding: 0; overflow: hidden; }
 
 /* App title styling - Alloid Labs branding */

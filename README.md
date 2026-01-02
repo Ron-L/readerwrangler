@@ -1,6 +1,6 @@
 # ReaderWrangler™
 
-![Version](https://img.shields.io/badge/version-v4.2.0-blue) ![License](https://img.shields.io/badge/license-MIT%20with%20Commons%20Clause-green)
+![Version](https://img.shields.io/badge/version-v4.3.0-blue) ![License](https://img.shields.io/badge/license-MIT%20with%20Commons%20Clause-green)
 
 ## Wrangle your reader chaos - Your books, your order
 
@@ -129,6 +129,13 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 
 ## Recent Features
 
+**v4.3.0 - Style Guide & Header UX** (January 2026)
+- Applied consistent indigo/purple color scheme across app and landing page
+- Version number now displayed in header (next to title)
+- Book count moved to filters row for better information hierarchy
+- Shortened landing page tab title for better browser tab visibility
+- CSS variables added for consistent theming
+
 **v4.2.0 - Title Bar UX Redesign** (January 2026)
 - Redesigned title bar with better visual grouping
 - Data Status indicator moved next to Import/Export/Reset for logical grouping
@@ -140,11 +147,6 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 - **Hide books** - Soft-delete books you don't want to see (right-click context menu)
 - **Context menu enhancements** - "Open in Amazon" and "Copy Title(s)" options
 - Progress bars during fetch showing exactly where you are in the extraction
-
-**v4.0.0 - Schema v2.0** (December 2025)
-- Unified file format combining library and collections data
-- Improved import/export with backward compatibility
-- Better data management and organization persistence
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
