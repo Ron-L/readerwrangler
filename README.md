@@ -1,6 +1,6 @@
 # ReaderWrangler™
 
-![Version](https://img.shields.io/badge/version-v4.3.0-blue) ![License](https://img.shields.io/badge/license-MIT%20with%20Commons%20Clause-green)
+![Version](https://img.shields.io/badge/version-v4.3.1-blue) ![License](https://img.shields.io/badge/license-MIT%20with%20Commons%20Clause-green)
 
 ## Wrangle your reader chaos - Your books, your order
 
@@ -74,9 +74,9 @@ From chaos to control - slide to compare Amazon's view vs. ReaderWrangler's orga
 | | |
 |---|---|
 | **Amazon Kindle Extraction** | **Library Management** |
-| • Easy extraction from your online Amazon Kindle library with bookmarklet<br>• Scrapes covers, ratings, reviews, and descriptions directly from Amazon<br>• No manual CSV exports or local ebook files required<br>• Works entirely in your browser when you click the bookmarklet | • Import your entire ebook library with titles, authors, covers, descriptions, and ratings<br>• Advanced filtering by author, series, genre, and reading status<br>• Smart search across titles and authors<br>• Sort books by various criteria (title, author, purchase date, etc.) |
+| • Easy extraction from your online Amazon Kindle library with bookmarklet<br>• Scrapes covers, ratings, reviews, and descriptions directly from Amazon<br>• No manual CSV exports or local ebook files required<br>• Works entirely in your browser when you click the bookmarklet | • Import your entire ebook library with titles, authors, covers, descriptions, and ratings<br>• Advanced filtering by author, series, genre, and reading status<br>• Smart search across titles and authors<br>• **Wishlist** - Add books from Amazon to track what you want to buy |
 | **Organization** | **Data & Privacy** |
-| • Drag-and-drop interface for organizing books into custom collections<br>• Multi-select with Ctrl/Shift for bulk operations<br>• Custom columns for creating your own organization system<br>• Reading status tracking from your reader (e.g. Kindle) | • Client-side processing - all data stays in your browser<br>• IndexedDB storage for persistent local storage<br>• Export your organization to JSON for backup<br>• No server uploads - complete privacy |
+| • Drag-and-drop interface for organizing books into custom collections<br>• Multi-select with Ctrl/Shift for bulk operations<br>• Custom columns for creating your own organization system<br>• **Hide books** - Soft-delete books you don't want to see<br>• **Context menu** - Right-click for quick actions (Open in Amazon, Copy Title) | • Client-side processing - all data stays in your browser<br>• IndexedDB storage for persistent local storage<br>• Export your organization to JSON for backup<br>• No server uploads - complete privacy |
 
 **Your books, your order. Finally!**
 
@@ -128,19 +128,6 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 ---
 
 ## Recent Features
-
-**v4.3.0 - Style Guide & Header UX** (January 2026)
-- Applied consistent indigo/purple color scheme across app and landing page
-- Version number now displayed in header (next to title)
-- Book count moved to filters row for better information hierarchy
-- Shortened landing page tab title for better browser tab visibility
-- CSS variables added for consistent theming
-
-**v4.2.0 - Title Bar UX Redesign** (January 2026)
-- Redesigned title bar with better visual grouping
-- Data Status indicator moved next to Import/Export/Reset for logical grouping
-- Add Column button now floats with columns for intuitive positioning
-- New branding with Libre Baskerville font and "Your books, your order" tagline
 
 **v4.1.0 - Wishlist & Hide Features** (December 2025)
 - **Wishlist** - Add books from Amazon product/series pages to track what you want to buy
