@@ -25,24 +25,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
      - Midjourney/DALL-E — Generate concepts (~$10-20/month), trace best one in Figma (free)
      - Fiverr — $15-50 range for human designer
 
-**2. 💰 Amazon Affiliate Links** - MEDIUM/MEDIUM (4-6 hours)
-   - Add Amazon Associates affiliate tracking to wishlist book links
-   - **Prerequisites:**
-     - Sign up at https://affiliate-program.amazon.com/
-     - Get approved and obtain Associate ID (tag)
-     - Note: 180 days to make 3 qualifying sales or account closes
-   - **Implementation:**
-     - Modify wishlist click handler: `https://www.amazon.com/dp/{ASIN}?tag={ASSOCIATE-ID}`
-     - Only apply to wishlist books (not owned library books)
-   - **Required Disclosures (FTC + Amazon Compliance):**
-     - App footer: "As an Amazon Associate, I earn from qualifying purchases."
-     - Help modal section explaining affiliate links
-     - Landing page footer: Full Amazon Associates Program disclosure
-   - **Optional:** Subtle indicator on wishlist items, tooltip "View on Amazon (affiliate link)"
-   - Problem: No monetization for wishlist feature
-   - Impact: Revenue stream to support development
-
-**3. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
+**2. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
    - Command Pattern approach: Record each action as reversible command
    - Undoable actions: Book moves, divider create/delete/rename/reposition, column create/delete/rename/reorder
    - Maintain history stack (configurable depth, e.g., 50 actions)
@@ -51,15 +34,15 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No way to recover from accidental moves/deletes; expected UX capability
    - Impact: Standard user expectation, especially important for drag-and-drop interfaces
 
-**4. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
-   - Expand current "Collect Series Books" button
+**3. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+   - Expand current "Group Series Books" button
    - Automatic series detection
    - Series reading order visualization
    - Missing book detection ("You have books 1, 2, and 4 of this series")
    - Problem: Series books scattered across library
    - Impact: Better management for series readers
 
-**5. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+**4. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
    - Allow same book to appear in multiple columns
    - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
    - Array-based architecture, Ctrl+Drag UI, delete operation

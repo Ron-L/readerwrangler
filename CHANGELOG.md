@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.4.0] - 2026-01-02
+
+### Added
+- **Amazon Affiliate Links** - All "Open in Amazon" links now include affiliate tracking
+  - File versions: readerwrangler.js v4.4.0, index.html v1.1.0
+  - Supports ReaderWrangler development at no cost to users
+  - FTC/Amazon-compliant disclosures added to app footer, Help modal, and landing page
+  - Tooltip on wishlist "View on Amazon" button indicates affiliate link
+
+### Changed
+- **"Group Series Books" button** - Renamed from "Collect Series Books" to avoid confusion with wishlist/purchase actions and Amazon Collections terminology
+
 ## [4.3.0] - 2026-01-02
 
 ### Changed
