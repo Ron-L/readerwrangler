@@ -1,5 +1,36 @@
 # ReaderWrangler Video Production Plan
 
+## Content Update Tracker
+
+**Last Updated**: 2026-01-02
+
+Before producing/updating videos, review this list of changes since the plan was written:
+
+### Images Out of Date (v4.2.0+ styling changes)
+- [ ] `images/bookmarklet-install.gif` - Shows old blue styling, now indigo/purple gradient
+- [ ] `images/before.png` / `images/after.png` - "See the Difference" screenshots show old header design
+- [ ] `images/walkthrough-preview.png` - Video thumbnail shows old styling
+
+### 10-Minute Walkthrough Video Missing Features
+- [ ] Book description view (double-click detail modal) - noted but never shown
+- [ ] **Wishlist** (v4.1.0) - Add books from Amazon product/series pages
+- [ ] **Hide books** (v4.1.0) - Right-click context menu to soft-delete
+- [ ] **Context menu** (v4.1.0) - "Open in Amazon", "Copy Title(s)" options
+- [ ] Progress bars during fetch (v4.1.0)
+
+### Quick Start Script Updates Needed
+When re-recording, add mentions of:
+- [ ] Wishlist feature (for tracking books you want to buy)
+- [ ] Hide books feature (for removing unwanted items)
+- [ ] Context menu (right-click for quick actions)
+
+### Visual Changes to Reflect
+- Header: New Libre Baskerville font, version display, "Your books, your order" tagline
+- Colors: Indigo/purple gradient (#6366f1 → #8b5cf6 → #a855f7) instead of blue
+- Layout: Book count moved to filters row, Data Status next to Import/Export/Reset
+
+---
+
 ## Text-to-Speech Service Selection
 
 ### Services Evaluated
