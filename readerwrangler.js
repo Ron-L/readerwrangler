@@ -1,6 +1,6 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.3.0";
+        const ORGANIZER_VERSION = "4.4.0.a";
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3130,6 +3130,14 @@
                                             <li><strong>Reset App:</strong> Complete app reset to initial state (files on disk not affected)</li>
                                         </ul>
                                     </div>
+                                    <div>
+                                        <h3 className="font-semibold text-gray-900 mb-1">💰 Affiliate Links</h3>
+                                        <ul className="list-disc list-inside space-y-1 ml-2">
+                                            <li><strong>Wishlist items:</strong> "View on Amazon" uses affiliate links to support development</li>
+                                            <li><strong>Owned books:</strong> Open without affiliate tracking</li>
+                                            <li><strong>No cost to you:</strong> Same price, helps keep ReaderWrangler free</li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3304,7 +3312,8 @@
                                                     </span>
                                                     <button
                                                         onClick={() => window.open(`https://www.amazon.com/dp/${modalBook.asin}`, '_blank')}
-                                                        className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-sm font-medium">
+                                                        className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-sm font-medium"
+                                                        title="Opens Amazon with affiliate link">
                                                         View on Amazon →
                                                     </button>
                                                 </div>
@@ -4015,6 +4024,11 @@
                             backgroundColor: '#3b82f6',
                             borderRadius: '50%'
                         }} />
+                    </div>
+
+                    {/* Affiliate Disclosure Footer (v4.4.0) */}
+                    <div className="fixed bottom-0 left-0 right-0 bg-gray-100 border-t border-gray-200 py-1 px-4 text-center text-xs text-gray-500 z-40">
+                        As an Amazon Associate, I earn from qualifying purchases.
                     </div>
                 </div>
             );
