@@ -1,6 +1,6 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.4.0.a";
+        const ORGANIZER_VERSION = "4.4.0.b";
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3108,7 +3108,7 @@
                                             <li><strong>View Details:</strong> Click a book cover to see full details</li>
                                             <li><strong>Move/Reorder:</strong> Drag a book to move it to another column or reorder within same column</li>
                                             <li><strong>Navigate:</strong> Use ← → arrows in book details to browse prev/next books</li>
-                                            <li><strong>Collect Series:</strong> Click "📚 Collect Series Books" in book details</li>
+                                            <li><strong>Group Series:</strong> Click "📚 Group Series Books" in book details</li>
                                         </ul>
                                     </div>
                                     <div>
@@ -3178,7 +3178,7 @@
                     {collectSeriesOpen && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => setCollectSeriesOpen(false)}>
                             <div className="bg-white rounded-lg shadow-2xl p-6 max-w-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                                <h2 className="text-xl font-bold text-gray-900 mb-4">Collect Series Books</h2>
+                                <h2 className="text-xl font-bold text-gray-900 mb-4">Group Series Books</h2>
                                 
                                 {modalBook && (
                                     <p className="text-sm text-gray-700 mb-4">
@@ -3343,7 +3343,7 @@
                                                     <button
                                                         onClick={openCollectSeriesDialog}
                                                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium flex items-center gap-2">
-                                                        📚 Collect Series Books
+                                                        📚 Group Series Books
                                                     </button>
                                                 </div>
                                             )}
