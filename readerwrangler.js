@@ -1,6 +1,6 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.4.0.b";
+        const ORGANIZER_VERSION = "4.4.0.c";
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -11,7 +11,13 @@
         const DB_VERSION = 1;
         const BOOKS_STORE = "books";
         // MANIFEST_CHECK_INTERVAL removed in v3.6.1 - replaced with IndexedDB manifests
-        
+
+        // Amazon Associates affiliate tag (v4.4.0)
+        const AMAZON_AFFILIATE_TAG = 'rclewent-20';
+
+        // Build Amazon URL with affiliate tag (v4.4.0)
+        const getAmazonUrl = (asin) => `https://www.amazon.com/dp/${asin}?tag=${AMAZON_AFFILIATE_TAG}`;
+
         // IndexedDB Helper Functions
         const openDB = () => {
             return new Promise((resolve, reject) => {
@@ -3133,9 +3139,9 @@
                                     <div>
                                         <h3 className="font-semibold text-gray-900 mb-1">💰 Affiliate Links</h3>
                                         <ul className="list-disc list-inside space-y-1 ml-2">
-                                            <li><strong>Wishlist items:</strong> "View on Amazon" uses affiliate links to support development</li>
-                                            <li><strong>Owned books:</strong> Open without affiliate tracking</li>
-                                            <li><strong>No cost to you:</strong> Same price, helps keep ReaderWrangler free</li>
+                                            <li><strong>Amazon links:</strong> All "Open in Amazon" links use affiliate tracking</li>
+                                            <li><strong>Supports development:</strong> If you purchase anything within 24 hours, it helps fund ReaderWrangler</li>
+                                            <li><strong>No cost to you:</strong> Same prices, just helps keep the app free</li>
                                         </ul>
                                     </div>
                                 </div>
@@ -3311,7 +3317,7 @@
                                                         ⭐ Wishlist Item
                                                     </span>
                                                     <button
-                                                        onClick={() => window.open(`https://www.amazon.com/dp/${modalBook.asin}`, '_blank')}
+                                                        onClick={() => window.open(getAmazonUrl(modalBook.asin), '_blank')}
                                                         className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-sm font-medium"
                                                         title="Opens Amazon with affiliate link">
                                                         View on Amazon →
@@ -3887,12 +3893,12 @@
                                     } else if (count > 3) {
                                         if (window.confirm(`Open ${count} tabs in Amazon?`)) {
                                             selectedBooksList.forEach(book => {
-                                                window.open(`https://www.amazon.com/dp/${book.asin}`, '_blank');
+                                                window.open(getAmazonUrl(book.asin), '_blank');
                                             });
                                         }
                                     } else {
                                         selectedBooksList.forEach(book => {
-                                            window.open(`https://www.amazon.com/dp/${book.asin}`, '_blank');
+                                            window.open(getAmazonUrl(book.asin), '_blank');
                                         });
                                     }
                                     setContextMenu(null);
