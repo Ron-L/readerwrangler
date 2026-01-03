@@ -8,24 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. 🎨 Logo Redesign** - MEDIUM/LOW (2-4 hours)
-   - Commission proper logo replacing current `icons/og-image.png`
-   - Keep the lasso arc concept but execute cleanly
-   - Single-color or two-tone (purple/gold per style guide)
-   - Modern linework, not 3D WordArt
-   - Works at small sizes (favicon, app icon)
-   - Could be as simple as a stylized "RW" with a subtle lasso curve
-   - Problem: Current logo doesn't match professional brand identity
-   - Impact: Consistent branding across all touchpoints
-   - **Free/Low-Cost Logo Options:**
-     - Canva (free tier) — Logo maker with customizable templates
-     - Looka — AI-generated logos, free to preview, ~$20 to download
-     - Hatchful by Shopify — Completely free logo maker
-     - LogoMakr — Free, simple drag-and-drop
-     - Midjourney/DALL-E — Generate concepts (~$10-20/month), trace best one in Figma (free)
-     - Fiverr — $15-50 range for human designer
-
-**2. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
+**1. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
    - Command Pattern approach: Record each action as reversible command
    - Undoable actions: Book moves, divider create/delete/rename/reposition, column create/delete/rename/reorder
    - Maintain history stack (configurable depth, e.g., 50 actions)
