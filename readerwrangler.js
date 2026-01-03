@@ -1,6 +1,6 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.4.0";
+        const ORGANIZER_VERSION = "4.5.0";
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -2625,12 +2625,13 @@
             };
 
             return (
-                <div className="h-screen flex flex-col bg-gradient-to-br from-indigo-50 to-indigo-100 text-gray-900" 
+                <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50 to-blue-100 text-gray-900" 
                      onMouseMove={handleMouseMove} 
                      onMouseUp={handleMouseUp}>
                     <div className="bg-white border-b border-gray-300 p-4 shadow-sm">
                         <div className="flex justify-between items-start mb-4">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-start gap-3">
+                                <img src="icons/ReaderWranglerWordlessXparent.png" alt="" style={{ width: '84px', height: 'auto', marginTop: '2px' }} />
                                 <div>
                                     <h1 className="app-title">
                                         <a href="index.html" style={{ color: 'inherit', textDecoration: 'none' }} title="Wrangle your reader chaos">
@@ -2646,7 +2647,7 @@
                                 {renderStatusIndicator()}
                                 <span className="text-gray-300 mx-1">|</span>
                                 <button onClick={importLibrary}
-                                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium"
+                                        className="px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-medium"
                                         title="Import library file - merges with existing books, preserving your organization. Also restores from backup files.">
                                     📥 Import
                                 </button>
@@ -2669,7 +2670,7 @@
                                 </button>
                                 <button 
                                     onClick={() => setHelpOpen(!helpOpen)}
-                                    className="text-indigo-600 hover:text-indigo-700 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100 hover:bg-indigo-200"
+                                    className="text-blue-700 hover:text-blue-800 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-200"
                                     title="Help & Instructions">
                                     ?
                                 </button>
@@ -2682,7 +2683,7 @@
                                 onClick={() => setFilterPanelOpen(!filterPanelOpen)}
                                 className={`px-4 py-2 border rounded-lg flex items-center gap-2 ${
                                     (searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo)
-                                    ? `border-indigo-500 text-indigo-600 font-semibold ${!filterPanelOpen ? 'filter-button-active' : ''}`
+                                    ? `border-blue-500 text-blue-700 font-semibold ${!filterPanelOpen ? 'filter-button-active' : ''}`
                                     : 'border-gray-300 text-gray-700'
                                 }`}
                                 title="Toggle filter panel">
@@ -2705,7 +2706,7 @@
                                                placeholder="Title or author..."
                                                value={searchTerm}
                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                               className="w-full pl-10 pr-10 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                               className="w-full pl-10 pr-10 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                         {searchTerm && (
                                             <button
                                                 onClick={() => setSearchTerm('')}
@@ -2722,7 +2723,7 @@
                                         <select
                                             value={readStatusFilter}
                                             onChange={(e) => setReadStatusFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                                             <option value="">All Status</option>
                                             <option value="READ">✓ Read</option>
                                             <option value="UNREAD">○ Unread</option>
@@ -2736,7 +2737,7 @@
                                         <select
                                             value={collectionFilter}
                                             onChange={(e) => setCollectionFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                                             <option value="">All Collections</option>
                                             <option value="UNCOLLECTED">📚 Uncollected</option>
                                             {getAllCollectionNames().map(name => (
@@ -2751,7 +2752,7 @@
                                         <select
                                             value={ratingFilter}
                                             onChange={(e) => setRatingFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                                             <option value="">All Ratings</option>
                                             <option value="5">5★</option>
                                             <option value="4">4+★</option>
@@ -2767,7 +2768,7 @@
                                         <select
                                             value={wishlistFilter}
                                             onChange={(e) => setWishlistFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                                             <option value="">All Books</option>
                                             <option value="owned">Owned Books Only</option>
                                             <option value="wishlist">Wishlist Books Only</option>
@@ -2780,7 +2781,7 @@
                                         <select
                                             value={seriesFilter}
                                             onChange={(e) => setSeriesFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                                             <option value="">All Series</option>
                                             <option value="NOT_IN_SERIES">📖 Not in Series</option>
                                             {getAllSeriesNames().map(name => (
@@ -2798,7 +2799,7 @@
                                             type="date"
                                             value={dateFrom}
                                             onChange={(e) => setDateFrom(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                                         />
                                     </div>
                                     <div className="flex-1">
@@ -2807,7 +2808,7 @@
                                             type="date"
                                             value={dateTo}
                                             onChange={(e) => setDateTo(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                                         />
                                     </div>
                                     {(dateFrom || dateTo) && (
@@ -2816,7 +2817,7 @@
                                                 setDateFrom('');
                                                 setDateTo('');
                                             }}
-                                            className="px-3 py-2 text-indigo-600 hover:text-indigo-800 font-semibold text-sm whitespace-nowrap"
+                                            className="px-3 py-2 text-blue-700 hover:text-blue-900 font-semibold text-sm whitespace-nowrap"
                                             title="Clear date range">
                                             📅 Clear
                                         </button>
@@ -2835,7 +2836,7 @@
                                                 type="checkbox"
                                                 checked={showHidden}
                                                 onChange={(e) => setShowHidden(e.target.checked)}
-                                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                className="w-4 h-4 rounded border-gray-300 text-blue-700 focus:ring-blue-500"
                                             />
                                             <span className="text-gray-600">Show Hidden</span>
                                         </label>
@@ -2852,7 +2853,7 @@
                                             setDateTo('');
                                             // v4.1.0.f - Show Hidden NOT reset by Clear Filters (it's a view mode, not a filter)
                                         }}
-                                        className="text-indigo-600 hover:text-indigo-800 font-semibold">
+                                        className="text-blue-700 hover:text-blue-900 font-semibold">
                                         Clear All Filters
                                     </button>
                                 </div>
@@ -2861,7 +2862,7 @@
 
                         {/* Active Filters Banner (v3.8.0.k - moved below Filter Panel) */}
                         {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo) && (
-                            <div className="bg-indigo-100 border border-indigo-300 rounded-lg px-4 py-2 mb-4 flex items-center justify-between">
+                            <div className="bg-blue-100 border border-blue-300 rounded-lg px-4 py-2 mb-4 flex items-center justify-between">
                                 <div className="flex items-center gap-2 flex-wrap text-sm">
                                     <span className="font-semibold">🔍 Active:</span>
                                     {searchTerm && <span>Search: "{searchTerm}"</span>}
@@ -2889,7 +2890,7 @@
                                         setDateFrom('');
                                         setDateTo('');
                                     }}
-                                    className="text-indigo-600 hover:text-indigo-800 font-semibold text-sm whitespace-nowrap">
+                                    className="text-blue-700 hover:text-blue-900 font-semibold text-sm whitespace-nowrap">
                                     Clear All ×
                                 </button>
                             </div>
@@ -2947,7 +2948,7 @@
 
                                     {/* Help text */}
                                     {books.length === 0 && (
-                                        <div className="bg-indigo-50 border border-indigo-200 rounded p-3 text-sm text-gray-700">
+                                        <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
                                             <p>Use the <strong>Import</strong> button to load your library file.</p>
                                         </div>
                                     )}
@@ -2974,7 +2975,7 @@
                                             <li>Reset all filters</li>
                                         </ul>
                                     </div>
-                                    <div className="bg-indigo-50 border border-indigo-200 rounded p-3 text-sm text-gray-700">
+                                    <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
                                         <p className="mb-2">Your library/collections files on disk will NOT be deleted. You can reload them anytime.</p>
                                     </div>
                                     <div className="bg-yellow-50 border border-yellow-300 rounded p-3 text-sm">
@@ -3013,11 +3014,11 @@
                                             onChange={(e) => setNewDividerLabel(e.target.value)}
                                             onKeyPress={(e) => { if (e.key === 'Enter') insertDivider(insertDividerOpen); }}
                                             placeholder="e.g., Jerry Mitchell, Read Books, 5 Stars"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             autoFocus
                                         />
                                     </div>
-                                    <div className="bg-indigo-50 border border-indigo-200 rounded p-3 text-sm text-gray-700">
+                                    <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-700">
                                         <p>The divider will appear at the bottom of the column. You can drag it to any position.</p>
                                     </div>
                                     <div className="flex gap-3 justify-end pt-2">
@@ -3028,7 +3029,7 @@
                                         </button>
                                         <button
                                             onClick={() => insertDivider(insertDividerOpen)}
-                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium"
+                                            className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-medium"
                                             disabled={!newDividerLabel.trim()}>
                                             Insert
                                         </button>
@@ -3059,7 +3060,7 @@
                                             max="365"
                                             value={settings.cacheExpirationDays}
                                             onChange={(e) => setSettings({...settings, cacheExpirationDays: parseInt(e.target.value) || 30})}
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
                                             Current: {settings.cacheExpirationDays} days
@@ -3074,7 +3075,7 @@
                                     </button>
                                     <button 
                                         onClick={() => saveSettings(settings)}
-                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+                                        className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg">
                                         Save
                                     </button>
                                 </div>
@@ -3160,7 +3161,7 @@
                                 <select 
                                     value={deleteDestination}
                                     onChange={(e) => setDeleteDestination(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     {columns.filter(c => c.id !== deleteDialogOpen).map(col => (
                                         <option key={col.id} value={col.id}>{col.name}</option>
                                     ))}
@@ -3244,7 +3245,7 @@
                                                 e.stopPropagation();
                                                 collectSeriesBooks(false);
                                             }}
-                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+                                            className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg">
                                             This Column Only
                                         </button>
                                     )}
@@ -3254,7 +3255,7 @@
                                                 e.stopPropagation();
                                                 collectSeriesBooks(true);
                                             }}
-                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+                                            className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg">
                                             All Columns
                                         </button>
                                     )}
@@ -3348,7 +3349,7 @@
                                                     </p>
                                                     <button
                                                         onClick={openCollectSeriesDialog}
-                                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium flex items-center gap-2">
+                                                        className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-medium flex items-center gap-2">
                                                         📚 Group Series Books
                                                     </button>
                                                 </div>
@@ -3449,7 +3450,7 @@
                                             {!showAllReviews && modalBook.topReviews.length > 3 && (
                                                 <button 
                                                     onClick={() => setShowAllReviews(true)}
-                                                    className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm">
+                                                    className="mt-4 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm">
                                                     Show More Reviews ({modalBook.topReviews.length - 3} more)
                                                 </button>
                                             )}
@@ -3502,7 +3503,7 @@
                                                             setEditingName('');
                                                         }
                                                     }}
-                                                    className="text-lg font-semibold text-gray-900 border-2 border-indigo-500 rounded px-2 py-1"
+                                                    className="text-lg font-semibold text-gray-900 border-2 border-blue-500 rounded px-2 py-1"
                                                     autoFocus
                                                 />
                                             ) : (
@@ -3611,7 +3612,7 @@
 
                                                     return (
                                                         <div key={item.id} className="col-span-3 relative">
-                                                            <div className={`flex items-center gap-2 py-2 px-3 my-1 rounded cursor-pointer divider-item ${isSelected ? 'ring-2 ring-indigo-500' : ''}`}
+                                                            <div className={`flex items-center gap-2 py-2 px-3 my-1 rounded cursor-pointer divider-item ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
                                                                  data-divider-id={item.id}
                                                                  style={{ backgroundColor: isSelected ? '#dbeafe' : '#f3f4f6' }}
                                                                  onClick={(e) => {
@@ -3646,7 +3647,7 @@
                                                                                 setEditingDividerLabel('');
                                                                             }
                                                                         }}
-                                                                        className="text-sm font-semibold text-gray-700 border-2 border-indigo-500 rounded px-2 py-1 text-center"
+                                                                        className="text-sm font-semibold text-gray-700 border-2 border-blue-500 rounded px-2 py-1 text-center"
                                                                         autoFocus
                                                                         onClick={(e) => e.stopPropagation()}
                                                                     />
@@ -3770,7 +3771,7 @@
                                                                 )}
                                                                 {/* Top-left: Selection or Collections badge */}
                                                                 {selectedBooks.has(book.id) ? (
-                                                                    <div className="absolute top-1 left-1 bg-indigo-600 rounded-full w-6 h-6 flex items-center justify-center z-10">
+                                                                    <div className="absolute top-1 left-1 bg-blue-700 rounded-full w-6 h-6 flex items-center justify-center z-10">
                                                                         <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
                                                                         </svg>
@@ -3810,7 +3811,7 @@
                             {/* v4.1.0.l - Add Column button floats with columns */}
                             <div className="flex-shrink-0 flex items-start pt-4">
                                 <button onClick={addColumn}
-                                        className="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-2 shadow-md"
+                                        className="px-4 py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-lg flex items-center gap-2 shadow-md"
                                         title="Create a new column">
                                     ➕ Add Column
                                 </button>
@@ -3819,11 +3820,11 @@
                     </div>
 
                     {selectedBooks.size > 0 && (
-                        <div className="fixed bottom-20 right-4 bg-indigo-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50">
+                        <div className="fixed bottom-20 right-4 bg-blue-700 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50">
                             <span className="font-medium">{selectedBooks.size} book{selectedBooks.size !== 1 ? 's' : ''} selected</span>
                             <button
                                 onClick={clearSelection}
-                                className="hover:bg-indigo-700 px-3 py-1 rounded bg-indigo-500 transition-colors">
+                                className="hover:bg-blue-800 px-3 py-1 rounded bg-blue-500 transition-colors">
                                 Clear
                             </button>
                         </div>
@@ -3859,7 +3860,7 @@
                             {columns.filter(col => col.id !== contextMenu.columnId).map(col => (
                                 <button
                                     key={col.id}
-                                    className="w-full text-left px-4 py-2 hover:bg-indigo-50 text-sm text-gray-700 flex items-center gap-2"
+                                    className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 flex items-center gap-2"
                                     onClick={() => {
                                         // Move selected books to this column
                                         const booksToMove = Array.from(selectedBooks);
@@ -3884,7 +3885,7 @@
                             <div className="border-t border-gray-200 my-1"></div>
                             {/* Open in Amazon (v4.1.0.d) */}
                             <button
-                                className="w-full text-left px-4 py-2 hover:bg-indigo-50 text-sm text-gray-700 flex items-center gap-2"
+                                className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 flex items-center gap-2"
                                 onClick={() => {
                                     const selectedBooksList = Array.from(selectedBooks).map(id => books.find(b => b.id === id)).filter(Boolean);
                                     const count = selectedBooksList.length;
@@ -3907,7 +3908,7 @@
                             </button>
                             {/* Copy Title(s) (v4.1.0.d) */}
                             <button
-                                className="w-full text-left px-4 py-2 hover:bg-indigo-50 text-sm text-gray-700 flex items-center gap-2"
+                                className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 flex items-center gap-2"
                                 onClick={() => {
                                     const selectedBooksList = Array.from(selectedBooks).map(id => books.find(b => b.id === id)).filter(Boolean);
                                     const titles = selectedBooksList.map(book => book.title).join('\n');
@@ -3924,7 +3925,7 @@
                                 const allHidden = selectedBooksList.every(book => book.isHidden);
                                 return (
                                     <button
-                                        className="w-full text-left px-4 py-2 hover:bg-indigo-50 text-sm text-gray-700 flex items-center gap-2"
+                                        className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 flex items-center gap-2"
                                         onClick={async () => {
                                             const newHiddenState = !allHidden;
                                             const updatedBooks = books.map(book => {
@@ -3967,10 +3968,10 @@
                             {selectedBooks.size > 1 && selectedBooks.has(draggedBook.id) && (
                                 <>
                                     <div className="absolute" style={{ left: '8px', top: '8px', opacity: 0.4 }}>
-                                        <div className="w-full aspect-[2/3] rounded drag-ghost-border bg-indigo-100" style={{ width: '100px' }}></div>
+                                        <div className="w-full aspect-[2/3] rounded drag-ghost-border bg-blue-100" style={{ width: '100px' }}></div>
                                     </div>
                                     <div className="absolute" style={{ left: '4px', top: '4px', opacity: 0.6 }}>
-                                        <div className="w-full aspect-[2/3] rounded drag-ghost-border bg-indigo-200" style={{ width: '100px' }}></div>
+                                        <div className="w-full aspect-[2/3] rounded drag-ghost-border bg-blue-200" style={{ width: '100px' }}></div>
                                     </div>
                                 </>
                             )}

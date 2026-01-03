@@ -1,10 +1,10 @@
-/* Style Guide CSS Variables */
+/* Style Guide CSS Variables (v4.5.0 - Blue palette) */
 :root {
-    /* Primary colors */
-    --color-primary: #6366f1;
-    --color-primary-light: #818cf8;
-    --color-primary-lighter: #a5b4fc;
-    --color-primary-dark: #4f46e5;
+    /* Primary colors - Blue palette */
+    --color-primary: #2563eb;
+    --color-primary-light: #3b82f6;
+    --color-primary-lighter: #60a5fa;
+    --color-primary-dark: #1d4ed8;
 
     /* Accent */
     --color-accent: #c9a227;
@@ -23,8 +23,8 @@
     /* Borders */
     --color-border: #e2e8f0;
 
-    /* Gradients */
-    --gradient-hero: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+    /* Gradients - Blue */
+    --gradient-hero: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
 
     /* Shadows */
     --shadow-card: 0 4px 6px -1px rgba(0,0,0,0.1);

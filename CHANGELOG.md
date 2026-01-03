@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.5.0] - 2026-01-02
+
+### Added
+- **New Logo** - ReaderWrangler brand icon added to app header and landing page hero
+  - File versions: readerwrangler.js v4.5.0, index.html v1.2.0, readerwrangler.html v4.5.0
+  - Transparent icon file for flexible placement
+  - Icon positioned on left of landing page hero, sticky note on right
+
+### Changed
+- **Blue Color Palette** - Replaced indigo/purple scheme with fresh blue theme
+  - File versions: readerwrangler.js v4.5.0, readerwrangler.css v4.5.0, index.html v1.2.0
+  - Updated CSS variables (--color-primary, --gradient-hero, etc.)
+  - All Tailwind indigo-* classes replaced with blue-* equivalents
+- **Favicon Updates** - New logo files for browser tabs and bookmarks
+  - favicon.ico, ReaderWranglerWordless16.png, ReaderWranglerWordless32.png, ReaderWrangler180.png
+
 ## [4.4.0] - 2026-01-02
 
 ### Added

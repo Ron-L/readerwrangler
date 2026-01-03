@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script>const LANDING_VERSION = 'v1.1.0'; console.log('ReaderWrangler Landing Page ' + LANDING_VERSION);</script>
+    <script>const LANDING_VERSION = 'v1.2.0'; console.log('ReaderWrangler Landing Page ' + LANDING_VERSION);</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Free tool to scrape your Amazon Kindle library and organize books visually. Easy extraction of covers, ratings, reviews with a simple bookmarklet. Drag-and-drop organization. 100% private - works in your browser.">
     <meta name="keywords" content="scrape amazon kindle library, organize kindle books visually, amazon kindle organizer, extract kindle books, visual book organizer, kindle book manager, amazon book list extractor, kindle collection organizer, organize ebooks">
@@ -25,10 +25,11 @@
     <meta property="twitter:description" content="Free tool to scrape your Amazon Kindle library and organize books visually. Easy extraction of covers, ratings, reviews with a simple bookmarklet. Drag-and-drop organization. 100% private - works in your browser.">
     <meta property="twitter:image" content="https://readerwrangler.com/icons/og-image.png">
 
-    <!-- Favicons -->
+    <!-- Favicons (v1.2.0.a) -->
     <link rel="icon" type="image/x-icon" href="icons/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/ReaderWranglerWordless32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/ReaderWranglerWordless16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/ReaderWrangler180.png">
 
     <!-- Google Fonts - Libre Baskerville for headings, Lato for body, Gloria Hallelujah for sticky note -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -83,7 +84,7 @@
             position: sticky;
             top: 0;
             z-index: 1000;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
             color: white;
             padding: 64px 20px;
             text-align: center;
@@ -93,7 +94,8 @@
         /* Sticky note callout */
         .sticky-note {
             position: absolute;
-            top: 20px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-5deg);
             left: 50%;
             margin-left: 380px;
             background: linear-gradient(135deg, #fff9c4 0%, #fffde7 100%);
@@ -105,7 +107,6 @@
                 6px 6px 0px rgba(0,0,0,0.08),
                 9px 9px 0px rgba(0,0,0,0.06),
                 0 4px 8px rgba(0,0,0,0.15);
-            transform: rotate(-5deg);
             font-size: 1em;
             font-weight: 600;
             width: 220px;
@@ -153,6 +154,16 @@
             height: 100%;
         }
 
+        .hero-icon {
+            position: absolute;
+            left: 50%;
+            margin-left: -500px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 160px;
+            height: auto;
+        }
+
         .hero h1 {
             font-family: 'Libre Baskerville', Georgia, serif;
             font-size: 3em;
@@ -186,7 +197,7 @@
 
         .btn-primary {
             background: white;
-            color: #6366f1;
+            color: #2563eb;
         }
 
         .btn-primary:hover {
@@ -229,7 +240,7 @@
             font-size: 2.2em;
             margin-top: 0;
             margin-bottom: 20px;
-            color: #6366f1;
+            color: #2563eb;
         }
 
         .section {
@@ -239,7 +250,7 @@
         .section h2 {
             font-size: 2.2em;
             margin-bottom: 20px;
-            color: #6366f1;
+            color: #2563eb;
         }
 
         .section p {
@@ -256,7 +267,7 @@
         .problem-solution h2 {
             font-size: 2.2em;
             margin-bottom: 20px;
-            color: #6366f1;
+            color: #2563eb;
         }
 
         .problem-solution h3 {
@@ -294,7 +305,7 @@
         }
 
         .feature h3 {
-            color: #6366f1;
+            color: #2563eb;
             font-size: 1.5em;
             margin-bottom: 15px;
         }
@@ -314,12 +325,12 @@
             content: "✓";
             position: absolute;
             left: 0;
-            color: #6366f1;
+            color: #2563eb;
             font-weight: bold;
         }
 
         .privacy-highlight {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
             color: white;
             padding: 40px;
             border-radius: 8px;
@@ -340,7 +351,7 @@
         }
 
         .how-it-works h2 {
-            color: #6366f1;
+            color: #2563eb;
             font-size: 2.2em;
             margin-bottom: 25px;
         }
@@ -355,11 +366,11 @@
             background: white;
             padding: 25px;
             border-radius: 8px;
-            border-left: 4px solid #6366f1;
+            border-left: 4px solid #2563eb;
         }
 
         .workflow-step h4 {
-            color: #6366f1;
+            color: #2563eb;
             font-size: 1.3em;
             margin-bottom: 12px;
         }
@@ -395,11 +406,11 @@
             background: white;
             padding: 25px;
             border-radius: 8px;
-            border-left: 4px solid #6366f1;
+            border-left: 4px solid #2563eb;
         }
 
         .quick-start-step h4 {
-            color: #6366f1;
+            color: #2563eb;
             font-size: 1.3em;
             margin-bottom: 15px;
         }
@@ -430,7 +441,7 @@
         }
 
         footer a {
-            color: #6366f1;
+            color: #2563eb;
             text-decoration: none;
         }
 
@@ -490,7 +501,7 @@
             border-radius: 8px;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
             --divider-width: 4px;
-            --divider-color: #6366f1;
+            --divider-color: #2563eb;
             --default-handle-opacity: 1;
         }
 
@@ -568,7 +579,8 @@
 </head>
 <body>
     <div class="hero">
-        <h1>📚 ReaderWrangler™</h1>
+        <img src="icons/ReaderWranglerWordlessXparent.png" alt="" class="hero-icon">
+        <h1>ReaderWrangler™</h1>
         <p class="tagline">Wrangle your reader chaos - Your books, your order</p>
         <div class="sticky-note">
             <div class="sticky-note-text">
@@ -608,14 +620,14 @@
                 <!-- Bookmarklet will be injected here by JavaScript -->
             </div>
 
-            <p style="text-align: center; margin-bottom: 10px; font-size: 1.1em; color: #6366f1; font-weight: 600;">Here's how:</p>
+            <p style="text-align: center; margin-bottom: 10px; font-size: 1.1em; color: #2563eb; font-weight: 600;">Here's how:</p>
 
             <p style="text-align: center; margin: 20px 0;">
                 <img src="images/bookmarklet-install.gif" alt="Drag bookmarklet to bookmarks bar" style="max-width: 50%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
             </p>
 
             <p style="text-align: center; font-size: 0.95em; color: #777; margin: 20px 0 10px 0;">
-                Still need <a href="install-bookmarklet.html" style="color: #6366f1; text-decoration: none; font-weight: 500;">help</a>?
+                Still need <a href="install-bookmarklet.html" style="color: #2563eb; text-decoration: none; font-weight: 500;">help</a>?
             </p>
 
             <div class="quick-start">
@@ -868,7 +880,7 @@
         const bookmarkletStyle = `
             display: inline-block;
             padding: 12px 24px;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
             color: white;
             text-decoration: none;
             border-radius: 8px;

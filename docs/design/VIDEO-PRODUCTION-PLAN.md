@@ -6,8 +6,8 @@
 
 Before producing/updating videos, review this list of changes since the plan was written:
 
-### Images Out of Date (v4.2.0+ styling changes)
-- [ ] `images/bookmarklet-install.gif` - Shows old blue styling, now indigo/purple gradient
+### Images Out of Date (v4.5.0+ styling changes)
+- [ ] `images/bookmarklet-install.gif` - Shows old styling, now blue gradient with new logo
 - [ ] `images/before.png` / `images/after.png` - "See the Difference" screenshots show old header design
 - [ ] `images/walkthrough-preview.png` - Video thumbnail shows old styling
 
@@ -26,8 +26,9 @@ When re-recording, add mentions of:
 
 ### Visual Changes to Reflect
 - Header: New Libre Baskerville font, version display, "Your books, your order" tagline
-- Colors: Indigo/purple gradient (#6366f1 → #8b5cf6 → #a855f7) instead of blue
+- Colors: Blue gradient (#3b82f6 → #2563eb → #1d4ed8) with new logo branding
 - Layout: Book count moved to filters row, Data Status next to Import/Export/Reset
+- Logo: New ReaderWrangler icon in app header (84px) and landing page hero (160px)
 
 ---
 
