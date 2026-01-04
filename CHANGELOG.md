@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.6.0] - 2026-01-04
+
+### Added
+- **Analytics Instrumentation** - Privacy-friendly usage tracking via GoatCounter events
+  - File versions: readerwrangler.js v4.6.0, amazon-library-fetcher.js v4.1.0, amazon-wishlist-fetcher.js v1.2.0
+  - Tracks 10 events: fetcher completions, file import/export, app reset, book drag, column/divider creation
+  - GoatCounter deduplicates by session/day (1 count per user per day)
+  - No personal data collected; enables data-driven feature prioritization
+
+### Fixed
+- Stale "Manifest updated" log message in library fetcher (manifest was removed in previous version)
+
 ## [4.5.0] - 2026-01-02
 
 ### Added

@@ -1,6 +1,6 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.5.0";
+        const ORGANIZER_VERSION = "4.6.0";
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -605,6 +605,7 @@
                                 // checkManifest removed in v3.6.1 - status updated in loadLibrary
                             }, organizationFromFile);
 
+                            new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/file-imported';
                         } catch (error) {
                             console.error('Failed to sync:', error);
                             setSyncStatus('none'); // Clear loading spinner (v3.9.0.l)
@@ -794,6 +795,7 @@
                     a.click();
                     URL.revokeObjectURL(url);
                     console.log('✅ Backup exported (v2.0 format with organization)');
+                    new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/file-exported';
                 } catch (error) {
                     console.error('Failed to export library:', error);
                     alert('Failed to export library');
@@ -840,6 +842,7 @@
                         loadDate: null
                     });
                     console.log('✅ Cleared library - app reset to initial state');
+                    new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/app-reset';
                 } catch (error) {
                     console.error('Failed to clear library:', error);
                     alert('Failed to clear library data');
@@ -857,6 +860,7 @@
                 } else if (file.name.endsWith('.csv')) {
                     loadBooksFromCSV(text);
                 }
+                new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/file-imported';
             };
 
             const loadBooksFromCSV = (csvContent) => {
@@ -1279,6 +1283,7 @@
                 setColumns([...columns, { id: newId, name: 'New Column', books: [] }]);
                 // Set this column to edit mode immediately
                 setTimeout(() => setEditingColumn(newId), 0);
+                new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/column-created';
             };
 
             const startEditingColumn = (columnId, currentName) => {
@@ -1432,6 +1437,7 @@
                 setInsertDividerOpen(null);
                 setNewDividerLabel('');
                 setColumnMenuOpen(null);
+                new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/divider-created';
             };
 
             const startEditingDivider = (columnId, dividerId, currentLabel) => {
@@ -1551,6 +1557,7 @@
                 ));
 
                 setColumnMenuOpen(null);
+                new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/auto-divide-by-series';
             };
 
             const autoDivideByRating = (columnId) => {
@@ -2472,6 +2479,7 @@
                     }));
                 }
 
+                new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/book-dragged';
                 setDraggedBook(null);
                 setDraggedFromColumn(null);
                 setIsDragging(false);

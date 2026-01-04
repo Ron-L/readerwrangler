@@ -1,4 +1,4 @@
-// Amazon Wishlist Fetcher v1.1.0 (Schema v2.0)
+// Amazon Wishlist Fetcher v1.2.0 (Schema v2.0)
 // Adds books to wishlist from Amazon product pages or series pages via DOM scraping
 //
 // Auto-detects page type:
@@ -646,6 +646,7 @@ async function addToWishlist() {
                     `No new books to add.<br>You already own all ${skippedOwned} books in <strong>${seriesName}</strong>!`,
                     15000
                 );
+                new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/wishlist-fetcher-completed';
                 console.log('========================================');
                 console.log('✅ NO BOOKS TO ADD');
                 console.log(`   You already own all ${skippedOwned} books in "${seriesName}"`);
@@ -663,6 +664,7 @@ async function addToWishlist() {
 
             for (const book of books) {
                 existingData.books.items.unshift(book);
+                new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/wishlist-item-added';
             }
             console.log(`   ✅ Added ${books.length} books\n`);
 
@@ -686,6 +688,7 @@ async function addToWishlist() {
                 `<span style="color: #888; font-size: 12px;">Skipped ${skippedOwned} owned books</span>`,
                 15000
             );
+            new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/wishlist-fetcher-completed';
 
         } else if (isProduct) {
             console.log('   ✅ Detected: Product page\n');
@@ -708,6 +711,7 @@ async function addToWishlist() {
             console.log('[4] Adding book to library...');
 
             existingData.books.items.unshift(book);
+            new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/wishlist-item-added';
             console.log(`   ✅ Added "${book.title}"\n`);
 
             // Save library file
@@ -724,6 +728,7 @@ async function addToWishlist() {
             console.log('========================================\n');
 
             progressUI.showComplete(`<strong>${book.title}</strong><br>by ${book.authors}`);
+            new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/wishlist-fetcher-completed';
 
         } else {
             throw new Error('Could not detect page type. Please navigate to a book product page or series page.');

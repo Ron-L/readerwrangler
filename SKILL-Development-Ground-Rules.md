@@ -95,6 +95,7 @@ What task were you working on?
 
 * **New feature**: When starting a new feature
   → Create feature branch: `git checkout -b feature-name`
+  → When you first modify a file, increment the major, minor or fix number and append ".a"
 
 * **Code change**: Before modifying any code file (not docs)
   → Each file has its own version that increments major.minor.fix(.testIterationLetter).

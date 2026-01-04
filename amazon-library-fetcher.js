@@ -1,4 +1,4 @@
-// Amazon Library Fetcher v4.0.0 (Schema v2.0 - Unified File Format)
+// Amazon Library Fetcher v4.1.0 (Schema v2.0 - Unified File Format)
 // Fetches library books and enriches them with descriptions & reviews
 // Schema Version: 2.0 (Unified file format - books + collections in single file)
 //
@@ -1422,13 +1422,13 @@ async function fetchAmazonLibrary() {
             }
 
             console.log('💾 LIBRARY STATUS');
-            console.log(`   ✅ Total books in library:    ${existingBooks.length}`);
-            console.log(`   ✅ Manifest updated\n`);
+            console.log(`   ✅ Total books in library:    ${existingBooks.length}\n`);
 
             console.log('========================================');
 
             // Close progress UI with success message
             progressUI.showComplete('Library up to date! No new books to fetch.');
+            new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/library-fetcher-completed';
             return;
         }
         
@@ -1683,6 +1683,7 @@ async function fetchAmazonLibrary() {
             console.log('   No new books found since last fetch.');
             console.log('   Your library file is already current.\n');
             progressUI.showComplete('Library is up to date - no new books found');
+            new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/library-fetcher-completed';
             stats.timing.mergeEnd = Date.now();
             return;
         }
@@ -1911,6 +1912,7 @@ async function fetchAmazonLibrary() {
 
         // Show completion UI with delta info
         progressUI.showComplete(`Added ${newBooks.length} new book${newBooks.length === 1 ? '' : 's'} (${finalBooks.length} total)`);
+        new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/library-fetcher-completed';
 
     } catch (error) {
         console.error('\n========================================');
