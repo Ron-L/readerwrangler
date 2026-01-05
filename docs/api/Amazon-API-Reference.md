@@ -194,6 +194,19 @@ query enrichBook {
                 stars
             }
         }
+        overview {
+            sectionGroups {
+                name { id }
+                sections {
+                    attributes {
+                        label { id }
+                        granularizedValue {
+                            displayContent
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 ```
@@ -209,6 +222,8 @@ query enrichBook {
 | `customerReviewsTop.reviews[].stars` | int | Review star rating (1-5) |
 | `customerReviewsTop.reviews[].title` | string | Review title |
 | `customerReviewsTop.reviews[].contentAbstract.textAbstract` | string | Review text |
+| `overview.sectionGroups[]` | array | Product detail sections (TechSpec, DetailBullets, RichProductInfo) |
+| `overview.sectionGroups[].sections[].attributes[]` | array | Key-value attributes including publication date |
 
 **Description Content Extraction:**
 
@@ -221,6 +236,19 @@ The `description.sections[0].content` field has multiple possible structures:
 5. **Nested fragments:** `{paragraph: {fragments: [{semanticContent: {content: {text: "..."}}}]}}`
 
 Our fetcher uses a recursive `extractTextFromFragments()` function to handle all cases.
+
+**Publication Date Extraction:**
+
+The publication date is found in the `overview.sectionGroups` field:
+
+- **Label ID:** `book_details-publication_date`
+- **Path:** `overview.sectionGroups[*].sections[*].attributes[*]` where `label.id === "book_details-publication_date"`
+- **Value:** `granularizedValue.displayContent` (raw Object type)
+- **Format:** Human-readable (e.g., "August 26, 2014") - parsed to ISO format ("2014-08-26")
+
+The date appears in 3 section groups (TechSpec, DetailBullets, RichProductInfo) - we use the first match.
+
+Note: `displayContent` is a GraphQL leaf type (Object!) and cannot have subselections. The raw object is returned and parsed client-side.
 
 **Batching Potential:**
 
@@ -413,4 +441,5 @@ On failure after all retries: Try once more with fresh CSRF token.
 
 | Date | Change |
 |------|--------|
+| 2026-01-04 | Added `overview` field for publication date extraction |
 | 2024-12-11 | Initial documentation from code analysis |

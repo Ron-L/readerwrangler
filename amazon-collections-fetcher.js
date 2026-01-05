@@ -1,4 +1,4 @@
-// Amazon Collections Fetcher v2.0.0 (Schema v2.0 - Unified File Format)
+// Amazon Collections Fetcher (Schema v2.0 - Unified File Format)
 // Fetches collection membership and read status for all books in your library
 // Schema Version: 2.0 (Unified file format - books + collections in single file)
 //

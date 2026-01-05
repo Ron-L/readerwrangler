@@ -8,25 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. 📅 Publication Date Feature** - MEDIUM/LOW (2-3 hours)
-   - Extract publication date from enrichment API (`book_details-publication_date` label)
-   - API returns date in 3 section groups (TechSpec, DetailBullets, RichProductInfo) - use first match
-   - **Subtasks:**
-     1. Fetch in enrichment Phase 2 of Library Fetcher
-     2. Translate during load into IndexedDB
-     3. Show in book details dialog
-     4. Add "Sort by Publication Date" to column sort dropdown
-     5. Rename current "Sort by Date" to "Sort by Acquisition Date" for clarity
-   - **Backwards compatibility:**
-     - New field in JSON is ignored by old code (benign)
-     - New code with old data: If 0 books in column have `publicationDate`, show dialog:
-       "No publication dates found. Have you fetched since vX.Y.Z? Re-fetch and import to add pub dates without losing organization."
-     - Re-fetch + import preserves organization (merge matches by ASIN, updates metadata, keeps column assignments)
-     - Wishlist-only books won't have pub dates until Library Fetcher runs (same as descriptions/reviews)
-   - Problem: Can't sort author collections (e.g., Heinlein) by publication order
-   - Impact: Better organization for non-series author collections
-
-**2. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
+**1. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
    - Command Pattern approach: Record each action as reversible command
    - Undoable actions: Book moves, divider create/delete/rename/reposition, column create/delete/rename/reorder
    - Maintain history stack (configurable depth, e.g., 50 actions)

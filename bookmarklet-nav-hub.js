@@ -1,4 +1,4 @@
-// ReaderWrangler Bookmarklet Navigation Hub v1.2.0
+// ReaderWrangler Bookmarklet Navigation Hub
 // Universal navigator and data fetcher dialog
 //
 // ARCHITECTURE: Three-Environment Testing - See docs/design/ARCHITECTURE.md (Three-Environment Testing section)

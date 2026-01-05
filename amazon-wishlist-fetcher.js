@@ -1,4 +1,4 @@
-// Amazon Wishlist Fetcher v1.2.0 (Schema v2.0)
+// Amazon Wishlist Fetcher (Schema v2.0)
 // Adds books to wishlist from Amazon product pages or series pages via DOM scraping
 //
 // Auto-detects page type:
@@ -24,7 +24,7 @@
 async function addToWishlist() {
     'use strict';
 
-    const FETCHER_VERSION = 'v1.1.0';
+    const FETCHER_VERSION = 'v1.2.0';
     const SCHEMA_VERSION = '2.0';
     const LIBRARY_FILENAME = 'amazon-library.json';
 
