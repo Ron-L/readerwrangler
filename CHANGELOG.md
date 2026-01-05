@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.7.0] - 2026-01-04
+
+### Added
+- **Publication Date Support** - Books now include publication dates for better organization
+  - File versions: amazon-library-fetcher.js v4.3.0, readerwrangler.js v4.7.0
+  - Extracted from Amazon's `overview.sectionGroups` API field
+  - Displayed in book details modal alongside acquisition date
+  - New "Sort by Published" option in column sort dropdown (oldest/newest)
+  - "Sort by Date" renamed to "Sort by Acquired" for clarity
+  - Backwards-compatible: warns if sorting by publication date with old data
+
+### Changed
+- **Fetcher Save UX Redesign** - Improved file save experience after long fetches
+  - File versions: amazon-library-fetcher.js v4.3.0
+  - "Save Library File" button appears after fetch (required for browser security)
+  - Cancel button with tooltip allows discarding fetched data
+  - Timing summary now prints before save dialog (visible even if cancelled)
+  - Debug logging removed from production output
+
+### Fixed
+- Pass 3 (Merge) timing was showing incorrect/negative values
+- Save dialog "X" button incorrectly showed "FILE SAVED" message
+
 ## [4.6.0] - 2026-01-04
 
 ### Added

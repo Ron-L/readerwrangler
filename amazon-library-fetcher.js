@@ -1,4 +1,4 @@
-// Amazon Library Fetcher v4.1.0 (Schema v2.0 - Unified File Format)
+// Amazon Library Fetcher (Schema v2.0 - Unified File Format)
 // Fetches library books and enriches them with descriptions & reviews
 // Schema Version: 2.0 (Unified file format - books + collections in single file)
 //
@@ -25,13 +25,13 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v4.0.0';
+    const FETCHER_VERSION = 'v4.3.0';
     const SCHEMA_VERSION = '2.0';
 
     console.log('========================================');
     console.log(`Amazon Library Fetcher ${FETCHER_VERSION}`);
     console.log(`📄 Page: ${PAGE_TITLE}`);
-    console.log('Combined Pass 1 (titles) + Pass 2 (enrichment) + Manifest');
+    console.log('Pass 1 (titles) + Pass 2 (enrichment)');
     console.log('========================================\n');
 
     // Verify we're on the right page
@@ -348,7 +348,68 @@ async function fetchAmazonLibrary() {
             `;
         }
 
-        return { create, updatePhase, updateDetail, updateProgress, remove, showComplete, showError, isAborted };
+        // Show save button and return Promise that resolves with 'save' or 'cancel'.
+        // WHY THIS EXISTS: showSaveFilePicker() requires an active "user gesture" (click/keypress).
+        // After a 3+ minute fetch, the original gesture from pasting the script has expired.
+        // This button provides a fresh user gesture immediately before calling showSaveFilePicker.
+        // Without this, Chrome throws: "SecurityError: Must be handling a user gesture to show a file picker"
+        // See: https://developer.mozilla.org/en-US/docs/Web/API/Window/showSaveFilePicker
+        function showSaveButton(bookCount) {
+            return new Promise((resolve) => {
+                if (!overlay) create();
+                overlay.innerHTML = `
+                    <div style="font-size: 18px; font-weight: bold; color: #2e7d32; margin-bottom: 10px;">
+                        ✅ Fetch Complete!
+                    </div>
+                    <div style="font-size: 14px; color: #666; margin-bottom: 15px;">
+                        ${bookCount.toLocaleString()} books ready to save
+                    </div>
+                    <button id="saveLibraryBtn" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border: none;
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        width: 100%;
+                        transition: transform 0.1s;
+                    ">
+                        💾 Save Library File
+                    </button>
+                    <div style="font-size: 12px; color: #999; margin-top: 10px; text-align: center;">
+                        Click to choose save location
+                    </div>
+                    <button id="cancelSaveBtn" title="Discard fetched data" style="
+                        background: transparent;
+                        color: #999;
+                        border: 1px solid #ccc;
+                        padding: 6px 16px;
+                        border-radius: 4px;
+                        font-size: 12px;
+                        cursor: pointer;
+                        margin-top: 15px;
+                    ">
+                        Cancel
+                    </button>
+                `;
+                const saveBtn = overlay.querySelector('#saveLibraryBtn');
+                saveBtn.onmouseover = () => saveBtn.style.transform = 'scale(1.02)';
+                saveBtn.onmouseout = () => saveBtn.style.transform = 'scale(1)';
+                saveBtn.onclick = () => {
+                    resolve('save');
+                };
+                const cancelBtn = overlay.querySelector('#cancelSaveBtn');
+                cancelBtn.onmouseover = () => { cancelBtn.style.borderColor = '#999'; cancelBtn.style.color = '#666'; };
+                cancelBtn.onmouseout = () => { cancelBtn.style.borderColor = '#ccc'; cancelBtn.style.color = '#999'; };
+                cancelBtn.onclick = () => {
+                    resolve('cancel');
+                };
+            });
+        }
+
+        return { create, updatePhase, updateDetail, updateProgress, remove, showComplete, showError, isAborted, showSaveButton };
     })();
 
     // Initialize progress UI
@@ -486,6 +547,53 @@ async function fetchAmazonLibrary() {
             text: review.contentAbstract?.textAbstract || '',
             reviewer: review.contributor?.publicProfile?.publicProfile?.publicName?.displayString || 'Anonymous'
         })) || [];
+    };
+
+    const extractPublicationDate = (product) => {
+        // Search overview.sectionGroups for book_details-publication_date
+        // Date appears in 3 section groups (TechSpec, DetailBullets, RichProductInfo) - use first match
+        const sectionGroups = product.overview?.sectionGroups || [];
+
+        for (const group of sectionGroups) {
+            for (const section of (group.sections || [])) {
+                for (const attr of (section.attributes || [])) {
+                    if (attr.label?.id === 'book_details-publication_date') {
+                        const displayContent = attr.granularizedValue?.displayContent;
+                        if (!displayContent) continue;
+
+                        // displayContent is now a raw Object - could be structured or simple
+                        let dateText = null;
+
+                        // Try fragments[0].text first (original structure)
+                        if (displayContent.fragments?.[0]?.text) {
+                            dateText = displayContent.fragments[0].text;
+                        }
+                        // Try direct string if displayContent is just text
+                        else if (typeof displayContent === 'string') {
+                            dateText = displayContent;
+                        }
+                        // Try text property directly
+                        else if (displayContent.text) {
+                            dateText = displayContent.text;
+                        }
+
+                        if (dateText) {
+                            // Parse human-readable date (e.g., "August 26, 2014") to ISO format
+                            try {
+                                const parsed = new Date(dateText);
+                                if (!isNaN(parsed.getTime())) {
+                                    return parsed.toISOString().split('T')[0]; // "2014-08-26"
+                                }
+                            } catch (e) {
+                                // Fall back to raw text if parsing fails
+                            }
+                            return dateText; // Return raw text if parsing failed
+                        }
+                    }
+                }
+            }
+        }
+        return '';
     };
 
     // ============================================================================
@@ -1518,6 +1626,19 @@ async function fetchAmazonLibrary() {
                                     stars
                                 }
                             }
+                            overview {
+                                sectionGroups {
+                                    name { id }
+                                    sections {
+                                        attributes {
+                                            label { id }
+                                            granularizedValue {
+                                                displayContent
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }`;
 
@@ -1621,6 +1742,7 @@ async function fetchAmazonLibrary() {
                     }
 
                     const topReviews = extractReviews(product);
+                    const publicationDate = extractPublicationDate(product);
 
                     // Track books without descriptions
                     if (!description) {
@@ -1634,6 +1756,7 @@ async function fetchAmazonLibrary() {
                     // Update book
                     newBooks[bookIndex].description = description;
                     newBooks[bookIndex].topReviews = topReviews;
+                    newBooks[bookIndex].publicationDate = publicationDate;
 
                     // Update rating if fresher
                     if (product.customerReviewsSummary?.rating?.value) {
@@ -1714,17 +1837,48 @@ async function fetchAmazonLibrary() {
 
         const jsonData = JSON.stringify(outputData, null, 2);
 
-        // Save using File System Access API if we have a file handle, otherwise download
+        // Mark merge phase complete (before save - merge/prep is done)
+        stats.timing.mergeEnd = Date.now();
+
+        // Calculate and print timing summary BEFORE save (so devs can see it even if they cancel)
+        const phase0Duration = stats.timing.phase0End - stats.timing.phase0Start;
+        const pass1Duration = stats.timing.pass1End - stats.timing.pass1Start;
+        const pass2Duration = stats.timing.pass2End - stats.timing.pass2Start;
+        const mergeDuration = stats.timing.mergeEnd - stats.timing.mergeStart;
+        const totalDuration = Date.now() - startTime;
+
+        console.log('\n========================================');
+        console.log('✅ FETCH COMPLETE - READY TO SAVE');
+        console.log('========================================\n');
+
+        console.log('⏱️  TIMING');
+        console.log(`   Phase 0 (Validation):        ${formatTime(phase0Duration)}`);
+        console.log(`   Pass 1 (Fetch titles):        ${formatTime(pass1Duration)}`);
+        console.log(`   Pass 2 (Enrich):              ${formatTime(pass2Duration)}`);
+        console.log(`   Pass 3 (Merge):               ${formatTime(mergeDuration)}`);
+        console.log(`   ${'─'.repeat(37)}`);
+        console.log(`   Total time:                   ${formatTime(totalDuration)}\n`);
+
+        // Save using File System Access API if we have a file handle, otherwise prompt user
+        let saveSucceeded = false;
         if (fileHandle) {
-            // Write back to the same file - browser will confirm overwrite
+            // Re-run case: Write back to the same file location
             console.log(`   💾 Saving to original file location...`);
             const writable = await fileHandle.createWritable();
             await writable.write(jsonData);
             await writable.close();
             console.log(`✅ Updated library file in place`);
+            saveSucceeded = true;
         } else if (hasFileSystemAccess) {
-            // First run with File System Access API - let user choose save location
-            console.log(`   💾 Choose where to save your library file...`);
+            // Full fetch case: Need user click for fresh gesture before showSaveFilePicker
+            // Show save button and wait for user choice (provides fresh user gesture)
+            const userChoice = await progressUI.showSaveButton(finalBooks.length);
+            if (userChoice === 'cancel') {
+                console.error('   ❌ Save cancelled by user - data discarded');
+                progressUI.showError('Cancelled - your fetched data was discarded');
+                return;
+            }
+
             try {
                 const saveHandle = await window.showSaveFilePicker({
                     suggestedName: LIBRARY_FILENAME,
@@ -1734,6 +1888,7 @@ async function fetchAmazonLibrary() {
                 await writable.write(jsonData);
                 await writable.close();
                 console.log(`✅ Saved library file: ${LIBRARY_FILENAME}`);
+                saveSucceeded = true;
             } catch (e) {
                 if (e.name === 'AbortError') {
                     console.error('   ❌ Save cancelled by user');
@@ -1758,26 +1913,15 @@ async function fetchAmazonLibrary() {
             URL.revokeObjectURL(url);
 
             console.log(`✅ Downloaded library file: ${LIBRARY_FILENAME}`);
+            saveSucceeded = true;
         }
 
-        // Calculate phase durations
-        const phase0Duration = stats.timing.phase0End - stats.timing.phase0Start;
-        const pass1Duration = stats.timing.pass1End - stats.timing.pass1Start;
-        const pass2Duration = stats.timing.pass2End - stats.timing.pass2Start;
-        const mergeDuration = stats.timing.mergeEnd - stats.timing.mergeStart;
-        const totalDuration = Date.now() - startTime;
-
-        console.log('\n========================================');
-        console.log('✅ LIBRARY FETCH COMPLETE!');
-        console.log('========================================\n');
-
-        console.log('⏱️  TIMING');
-        console.log(`   Phase 0 (Validation):        ${formatTime(phase0Duration)}`);
-        console.log(`   Pass 1 (Fetch titles):        ${formatTime(pass1Duration)}`);
-        console.log(`   Pass 2 (Enrich):              ${formatTime(pass2Duration)}`);
-        console.log(`   Pass 3 (Merge & save):        ${formatTime(mergeDuration)}`);
-        console.log(`   ${'─'.repeat(37)}`);
-        console.log(`   Total time:                   ${formatTime(totalDuration)}\n`);
+        // Only show completion summary if file was actually saved
+        if (!saveSucceeded) {
+            console.error('   ❌ File was not saved');
+            progressUI.showError('File was not saved - please try again');
+            return;
+        }
 
         const totalFetched = newBooks.length + stats.nonBooksFiltered.length;
         console.log('📊 FETCH RESULTS');
@@ -1894,9 +2038,8 @@ async function fetchAmazonLibrary() {
             console.log('');
         }
 
-        console.log('💾 FILES SAVED');
+        console.log('💾 FILE SAVED');
         console.log(`   ✅ ${LIBRARY_FILENAME} (${finalBooks.length} books)`);
-        console.log(`   ✅ Manifest saved to IndexedDB`);
         console.log('========================================\n');
         console.log('👉 Next steps:');
         console.log('   1. Find the library file in your Downloads folder');

@@ -1,6 +1,6 @@
 # ReaderWrangler™
 
-![Version](https://img.shields.io/badge/version-v4.6.0-blue) ![License](https://img.shields.io/badge/license-MIT%20with%20Commons%20Clause-green)
+![Version](https://img.shields.io/badge/version-v4.7.0-blue) ![License](https://img.shields.io/badge/license-MIT%20with%20Commons%20Clause-green)
 
 ## Wrangle your reader chaos - Your books, your order
 
@@ -128,6 +128,9 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 ---
 
 ## Recent Features
+
+**v4.7.0 - Sort by Published** (January 2026)
+- **Sort by Published** - Sort columns by publication date (oldest or newest first)
 
 **v4.1.0 - Wishlist & Hide Features** (December 2025)
 - **Wishlist** - Add books from Amazon product/series pages to track what you want to buy

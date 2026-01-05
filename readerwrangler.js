@@ -1,6 +1,6 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.6.0";
+        const ORGANIZER_VERSION = "4.7.0";
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1082,6 +1082,7 @@
                             topReviews: item.topReviews || [],
                             binding: item.binding || 'Kindle eBook',
                             coverUrl: item.coverUrl,
+                            publicationDate: item.publicationDate || '',
                             hasEnrichedData: true,
                             store: "Amazon",
                             // Wishlist: isOwned=false means wishlist, default to owned (isWishlist=0)
@@ -1121,6 +1122,7 @@
                             topReviews: amazonData?.customerReviewsTop?.reviews || [],
                             binding: amazonData?.bindingInformation?.binding?.displayString || 'Kindle eBook',
                             coverUrl: coverUrl,
+                            publicationDate: '', // Legacy format doesn't have publication date
                             hasEnrichedData: true,
                             store: "Amazon",
                             // Wishlist: isOwned=false means wishlist, default to owned (isWishlist=0)
@@ -1302,9 +1304,22 @@
             };
 
             const sortColumn = (columnId, sortType) => {
+                // Check for publication date availability when sorting by published
+                if (sortType === 'published-desc' || sortType === 'published-asc') {
+                    const column = columns.find(c => c.id === columnId);
+                    if (column) {
+                        const columnBooks = column.books.map(id => books.find(b => b.id === id)).filter(Boolean);
+                        const booksWithPubDate = columnBooks.filter(b => b.publicationDate);
+                        if (booksWithPubDate.length === 0) {
+                            alert('No publication dates found in this column.\n\nTo add publication dates:\n1. Re-run the Library Fetcher on Amazon\n2. Import the updated library file\n\nYour organization will be preserved - only metadata is updated.');
+                            return;
+                        }
+                    }
+                }
+
                 setColumns(columns.map(col => {
                     if (col.id !== columnId) return col;
-                    
+
                     const sortedBookIds = [...col.books].sort((aId, bId) => {
                         const a = books.find(b => b.id === aId);
                         const b = books.find(b => b.id === bId);
@@ -1327,6 +1342,18 @@
                                 return (b.acquired || '').localeCompare(a.acquired || '');
                             case 'acquired-asc':
                                 return (a.acquired || '').localeCompare(b.acquired || '');
+                            case 'published-desc':
+                                // Books without publication date go to end
+                                if (!a.publicationDate && !b.publicationDate) return 0;
+                                if (!a.publicationDate) return 1;
+                                if (!b.publicationDate) return -1;
+                                return b.publicationDate.localeCompare(a.publicationDate);
+                            case 'published-asc':
+                                // Books without publication date go to end
+                                if (!a.publicationDate && !b.publicationDate) return 0;
+                                if (!a.publicationDate) return 1;
+                                if (!b.publicationDate) return -1;
+                                return a.publicationDate.localeCompare(b.publicationDate);
                             case 'series-pos-asc':
                                 // v3.11.0.e - Books without series go to end, books with series but no position go last in their series
                                 const aHasSeriesAsc = a.series;
@@ -3376,6 +3403,12 @@
                                                         <span className="text-gray-600">{formatAcquisitionDate(modalBook.acquired)}</span>
                                                     </div>
                                                 )}
+                                                {modalBook.publicationDate && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-semibold text-gray-700">Published:</span>
+                                                        <span className="text-gray-600">{new Date(modalBook.publicationDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                                                    </div>
+                                                )}
                                                 {modalBook.asin && (
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-semibold text-gray-700">ASIN:</span>
@@ -3561,8 +3594,10 @@
                                                                                     <button onClick={() => sortColumn(column.id, 'rating-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Rating (Low→High)</button>
                                                                                 </>
                                                                             )}
-                                                                            <button onClick={() => sortColumn(column.id, 'acquired-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Date (Newest)</button>
-                                                                            <button onClick={() => sortColumn(column.id, 'acquired-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Date (Oldest)</button>
+                                                                            <button onClick={() => sortColumn(column.id, 'acquired-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Acquired (Newest)</button>
+                                                                            <button onClick={() => sortColumn(column.id, 'acquired-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Acquired (Oldest)</button>
+                                                                            <button onClick={() => sortColumn(column.id, 'published-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Published (Newest)</button>
+                                                                            <button onClick={() => sortColumn(column.id, 'published-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Published (Oldest)</button>
                                                                             <button onClick={() => sortColumn(column.id, 'series-pos-asc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Series (1→99)</button>
                                                                             <button onClick={() => sortColumn(column.id, 'series-pos-desc')} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Series (99→1)</button>
                                                                         </div>

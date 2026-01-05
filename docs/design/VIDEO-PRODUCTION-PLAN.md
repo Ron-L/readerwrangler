@@ -17,6 +17,7 @@ Before producing/updating videos, review this list of changes since the plan was
 - [ ] **Hide books** (v4.1.0) - Right-click context menu to soft-delete
 - [ ] **Context menu** (v4.1.0) - "Open in Amazon", "Copy Title(s)" options
 - [ ] Progress bars during fetch (v4.1.0)
+- [ ] **Sort by Published** (v4.7.0) - Sort columns by publication date
 
 ### Quick Start Script Updates Needed
 When re-recording, add mentions of:
