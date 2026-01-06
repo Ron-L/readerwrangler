@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.8.0] - 2026-01-06
+
+### Added
+- **Undo/Redo Support** - Ctrl+Z to undo, Ctrl+Y or Ctrl+Shift+Z to redo
+  - File versions: readerwrangler.js v4.8.0
+  - Undoable actions: book moves, reordering, hide/unhide toggle, column delete/reorder, divider delete/reorder
+  - 50-action undo history stack with full redo support
+  - Uses Command Pattern with useRef to avoid React stale closure issues in keyboard handlers
+
+### Changed
+- **Show Hidden Default** - "Show Hidden" filter now defaults to enabled on Reset App and library load
+  - Ensures users see all books after reset/load operations
+
 ## [4.7.0] - 2026-01-04
 
 ### Added

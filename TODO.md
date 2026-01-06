@@ -8,16 +8,13 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. ↩️ Undo/Redo Support (Ctrl+Z / Ctrl+Y)** - MEDIUM/HIGH (10-15 hours)
-   - Command Pattern approach: Record each action as reversible command
-   - Undoable actions: Book moves, divider create/delete/rename/reposition, column create/delete/rename/reorder
-   - Maintain history stack (configurable depth, e.g., 50 actions)
-   - Redo support via second stack
-   - Key risk: Must integrate carefully with useRef-based drag performance optimization
-   - Problem: No way to recover from accidental moves/deletes; expected UX capability
-   - Impact: Standard user expectation, especially important for drag-and-drop interfaces
+**1. 📜 Horizontal & Vertical Scroll for Main View** - LOW/LOW (1-2 hours)
+   - Add horizontal scrollbar when columns exceed viewport width
+   - Add vertical scrollbar for main content area (columns already have per-column scroll)
+   - Problem: With many columns or narrow viewport, users can't access off-screen columns
+   - Impact: Basic usability for users with many columns or smaller screens
 
-**3. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+**2. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Group Series Books" button
    - Automatic series detection
    - Series reading order visualization
@@ -25,12 +22,23 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Series books scattered across library
    - Impact: Better management for series readers
 
-**4. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+**3. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
    - Allow same book to appear in multiple columns
    - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
    - Array-based architecture, Ctrl+Drag UI, delete operation
    - Problem: Can't organize same book multiple ways
    - Impact: More flexible organization
+
+**4. 🖼️ Cover Image Caching** - MEDIUM/MEDIUM (6-10 hours)
+   - Cache book cover images locally to reduce Amazon requests and speed up load times
+   - Options to investigate:
+     - Service Worker caching (browser-managed, respects cache headers)
+     - IndexedDB blob storage (more control, but more code)
+     - File System Access API (user-chosen folder, requires interaction)
+   - Note: Amazon may return cache-unfriendly headers; check DevTools Network tab
+   - Consider Amazon ToS implications for storing their images
+   - Problem: Covers refetch on every page load, slow experience, hammers Amazon servers
+   - Impact: Faster load times, works offline, reduced bandwidth
 
 ---
 

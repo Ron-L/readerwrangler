@@ -1,6 +1,6 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.7.0";
+        const ORGANIZER_VERSION = "4.8.0.k";
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -217,6 +217,11 @@
             const [collectionFilter, setCollectionFilter] = useState(''); // Filter by collection name or special values
             const [selectedBooks, setSelectedBooks] = useState(new Set()); // Multi-select state
             const [lastClickedBook, setLastClickedBook] = useState(null); // For shift+click range selection
+            // v4.8.0 - Undo/Redo state
+            const [undoStack, setUndoStack] = useState([]); // Array of action records
+            const [redoStack, setRedoStack] = useState([]); // Array of action records
+            const undoStackRef = useRef(undoStack); // Ref to avoid stale closure in keyboard handler
+            const redoStackRef = useRef(redoStack);
             const [selectedDivider, setSelectedDivider] = useState(null); // v3.13.0 - Selected divider {columnId, dividerId}
             const [activeColumnId, setActiveColumnId] = useState(null); // Track which column has focus for Ctrl+A
             const [contextMenu, setContextMenu] = useState(null); // {x, y, bookId, columnId}
@@ -472,6 +477,17 @@
                     if (e.key === 'Escape') {
                         clearSelection();
                         setContextMenu(null);
+                    }
+
+                    // v4.8.0 - Ctrl+Z: Undo
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                        e.preventDefault();
+                        undo();
+                    }
+                    // v4.8.0 - Ctrl+Y or Ctrl+Shift+Z: Redo
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                        e.preventDefault();
+                        redo();
                     }
 
                     // Ctrl+A: Select all books in active column (v4.0.1 - use ref to get current filtered view)
@@ -824,7 +840,7 @@
                     setSeriesFilter('');
                     setDateFrom('');
                     setDateTo('');
-                    setShowHidden(false);
+                    setShowHidden(true); // v4.8.0 - Default to showing all books on reset
 
                     setBooks([]);
                     setColumns([{ id: 'unorganized', name: 'Unorganized', books: [] }]);
@@ -1199,7 +1215,7 @@
                 setSeriesFilter('');
                 setDateFrom('');
                 setDateTo('');
-                setShowHidden(false);
+                setShowHidden(true); // v4.8.0 - Default to showing all books on load
                 localStorage.setItem(FILTERS_KEY, JSON.stringify({
                     searchTerm: '',
                     readStatusFilter: '',
@@ -1209,7 +1225,7 @@
                     seriesFilter: '',
                     dateFrom: '',
                     dateTo: '',
-                    showHidden: false
+                    showHidden: true // v4.8.0 - Default to showing all books
                 }));
                 console.log('🔍 Filters cleared for new library');
 
@@ -1403,12 +1419,22 @@
 
             const openDeleteDialog = (columnId) => {
                 const col = columns.find(c => c.id === columnId);
-                
+
                 if (col && col.books.length === 0) {
+                    // v4.8.0 - Record action for undo (empty column)
+                    const columnIndex = columns.findIndex(c => c.id === columnId);
+                    recordAction({
+                        type: 'DELETE_COLUMN',
+                        columnId: col.id,
+                        columnName: col.name,
+                        columnIndex: columnIndex,
+                        books: [],
+                        destinationColId: null
+                    });
                     setColumns(columns.filter(c => c.id !== columnId));
                     return;
                 }
-                
+
                 const otherColumns = columns.filter(c => c.id !== columnId);
                 if (otherColumns.length > 0) {
                     setDeleteDialogOpen(columnId);
@@ -1421,6 +1447,17 @@
                 const destinationColumn = columns.find(c => c.id === deleteDestination);
 
                 if (!columnToDelete || !destinationColumn) return;
+
+                // v4.8.0 - Record action for undo (column with books)
+                const columnIndex = columns.findIndex(c => c.id === deleteDialogOpen);
+                recordAction({
+                    type: 'DELETE_COLUMN',
+                    columnId: columnToDelete.id,
+                    columnName: columnToDelete.name,
+                    columnIndex: columnIndex,
+                    books: [...columnToDelete.books],
+                    destinationColId: deleteDestination
+                });
 
                 setColumns(columns.filter(c => c.id !== deleteDialogOpen).map(c =>
                     c.id === deleteDestination ? { ...c, books: [...c.books, ...columnToDelete.books] } : c
@@ -1502,16 +1539,33 @@
             };
 
             const deleteDivider = (columnId, dividerId) => {
-                setColumns(columns.map(col =>
-                    col.id === columnId
+                // v4.8.0 - Capture divider info for undo before deleting
+                const col = columns.find(c => c.id === columnId);
+                const dividerIndex = col.books.findIndex(item =>
+                    typeof item === 'object' && item.type === 'divider' && item.id === dividerId
+                );
+                const dividerObj = col.books[dividerIndex];
+
+                setColumns(columns.map(c =>
+                    c.id === columnId
                         ? {
-                            ...col,
-                            books: col.books.filter(item =>
+                            ...c,
+                            books: c.books.filter(item =>
                                 !(typeof item === 'object' && item.type === 'divider' && item.id === dividerId)
                             )
                         }
-                        : col
+                        : c
                 ));
+
+                // v4.8.0 - Record action for undo
+                if (dividerObj) {
+                    recordAction({
+                        type: 'DELETE_DIVIDER',
+                        columnId: columnId,
+                        divider: { ...dividerObj },
+                        dividerIndex: dividerIndex
+                    });
+                }
             };
 
             const autoDivideBySeries = (columnId) => {
@@ -1711,6 +1765,335 @@
                 setSelectedBooks(new Set());
                 setLastClickedBook(null);
                 setSelectedDivider(null); // v3.13.0 - Clear divider selection too
+            };
+
+            // v4.8.0 - Undo/Redo core functions
+            const MAX_UNDO = 50;
+
+            // Keep refs in sync with state (fixes stale closure in keyboard handler)
+            useEffect(() => {
+                undoStackRef.current = undoStack;
+            }, [undoStack]);
+            useEffect(() => {
+                redoStackRef.current = redoStack;
+            }, [redoStack]);
+
+            const recordAction = (action) => {
+                setUndoStack(prev => {
+                    const newStack = [...prev, { ...action, timestamp: Date.now() }];
+                    if (newStack.length > MAX_UNDO) newStack.shift();
+                    return newStack;
+                });
+                setRedoStack([]); // Clear redo on new action
+            };
+
+            const executeUndo = (action) => {
+                switch (action.type) {
+                    case 'MOVE_BOOKS':
+                        // Move books back to source column at original positions
+                        console.log('[UNDO MOVE_BOOKS] Action:', JSON.stringify(action, null, 2));
+                        setColumns(cols => {
+                            console.log('[UNDO MOVE_BOOKS] Processing columns...');
+                            return cols.map(col => {
+                                if (col.id === action.toColId) {
+                                    // Remove books from target column
+                                    const beforeCount = col.books.length;
+                                    const filtered = col.books.filter(id => !action.bookIds.includes(id));
+                                    console.log(`[UNDO MOVE_BOOKS] Target col "${col.name}": ${beforeCount} -> ${filtered.length} books (removed ${beforeCount - filtered.length})`);
+                                    return { ...col, books: filtered };
+                                }
+                                if (col.id === action.fromColId) {
+                                    // Re-insert books at original positions
+                                    const newBooks = [...col.books];
+                                    console.log(`[UNDO MOVE_BOOKS] Source col "${col.name}" before insert: ${newBooks.length} books`);
+                                    console.log(`[UNDO MOVE_BOOKS] Books to insert: ${action.bookIds.length}, at indices: ${action.fromIndices}`);
+                                    // Sort by fromIndices ascending so insertions maintain correct positions
+                                    const sortedPairs = action.bookIds
+                                        .map((bookId, i) => ({ bookId, index: action.fromIndices[i] }))
+                                        .sort((a, b) => a.index - b.index);
+                                    console.log('[UNDO MOVE_BOOKS] Sorted pairs:', JSON.stringify(sortedPairs));
+                                    sortedPairs.forEach(({ bookId, index }) => {
+                                        console.log(`[UNDO MOVE_BOOKS] Splicing "${bookId}" at index ${index}, array length: ${newBooks.length}`);
+                                        newBooks.splice(index, 0, bookId);
+                                    });
+                                    console.log(`[UNDO MOVE_BOOKS] Source col "${col.name}" after insert: ${newBooks.length} books`);
+                                    return { ...col, books: newBooks };
+                                }
+                                return col;
+                            });
+                        });
+                        break;
+                    case 'REORDER_BOOKS':
+                        // Move books back to original positions within same column
+                        console.log('[UNDO REORDER_BOOKS] Action:', JSON.stringify(action, null, 2));
+                        setColumns(cols => {
+                            console.log('[UNDO REORDER_BOOKS] Processing columns...');
+                            return cols.map(col => {
+                                if (col.id === action.colId) {
+                                    const newBooks = [...col.books];
+                                    console.log(`[UNDO REORDER_BOOKS] Col "${col.name}" before: ${newBooks.length} books`);
+                                    // First remove the books from their current positions
+                                    action.bookIds.forEach(bookId => {
+                                        const idx = newBooks.indexOf(bookId);
+                                        if (idx !== -1) newBooks.splice(idx, 1);
+                                    });
+                                    console.log(`[UNDO REORDER_BOOKS] After removal: ${newBooks.length} books`);
+                                    // Then insert them back at their original positions (sorted ascending)
+                                    const sortedPairs = action.bookIds
+                                        .map((bookId, i) => ({ bookId, index: action.fromIndices[i] }))
+                                        .sort((a, b) => a.index - b.index);
+                                    console.log('[UNDO REORDER_BOOKS] Sorted pairs:', JSON.stringify(sortedPairs));
+                                    sortedPairs.forEach(({ bookId, index }) => {
+                                        console.log(`[UNDO REORDER_BOOKS] Splicing "${bookId}" at index ${index}, array length: ${newBooks.length}`);
+                                        newBooks.splice(index, 0, bookId);
+                                    });
+                                    console.log(`[UNDO REORDER_BOOKS] After insert: ${newBooks.length} books`);
+                                    return { ...col, books: newBooks };
+                                }
+                                return col;
+                            });
+                        });
+                        break;
+                    case 'TOGGLE_HIDE':
+                        // v4.8.0 - Restore each book's previous hidden state
+                        console.log('[UNDO TOGGLE_HIDE] Action:', JSON.stringify(action, null, 2));
+                        setBooks(prevBooks => {
+                            const updatedBooks = prevBooks.map(book => {
+                                if (action.bookIds.includes(book.id)) {
+                                    const prevState = action.previousStates[book.id];
+                                    console.log(`[UNDO TOGGLE_HIDE] Restoring "${book.title}" isHidden: ${book.isHidden} -> ${prevState}`);
+                                    return { ...book, isHidden: prevState };
+                                }
+                                return book;
+                            });
+                            saveBooksToIndexedDB(updatedBooks);
+                            return updatedBooks;
+                        });
+                        break;
+                    case 'DELETE_COLUMN':
+                        // v4.8.0 - Restore deleted column with its books
+                        console.log('[UNDO DELETE_COLUMN] Action:', JSON.stringify(action, null, 2));
+                        setColumns(cols => {
+                            // Remove books from destination column (if any were moved)
+                            let updatedCols = cols;
+                            if (action.books.length > 0 && action.destinationColId) {
+                                updatedCols = cols.map(col => {
+                                    if (col.id === action.destinationColId) {
+                                        return { ...col, books: col.books.filter(id => !action.books.includes(id)) };
+                                    }
+                                    return col;
+                                });
+                            }
+                            // Re-insert the column at its original position
+                            const restoredColumn = {
+                                id: action.columnId,
+                                name: action.columnName,
+                                books: [...action.books]
+                            };
+                            const newCols = [...updatedCols];
+                            newCols.splice(action.columnIndex, 0, restoredColumn);
+                            console.log(`[UNDO DELETE_COLUMN] Restored column "${action.columnName}" at index ${action.columnIndex} with ${action.books.length} books`);
+                            return newCols;
+                        });
+                        break;
+                    case 'REORDER_COLUMNS':
+                        // v4.8.0 - Move column back to original position
+                        console.log('[UNDO REORDER_COLUMNS] Action:', JSON.stringify(action, null, 2));
+                        setColumns(cols => {
+                            const currentIndex = cols.findIndex(c => c.id === action.columnId);
+                            if (currentIndex === -1) return cols;
+                            const newCols = [...cols];
+                            const [movedColumn] = newCols.splice(currentIndex, 1);
+                            newCols.splice(action.fromIndex, 0, movedColumn);
+                            console.log(`[UNDO REORDER_COLUMNS] Moved column from index ${currentIndex} back to ${action.fromIndex}`);
+                            return newCols;
+                        });
+                        break;
+                    case 'DELETE_DIVIDER':
+                        // v4.8.0 - Restore deleted divider at original position
+                        console.log('[UNDO DELETE_DIVIDER] Action:', JSON.stringify(action, null, 2));
+                        setColumns(cols => cols.map(col => {
+                            if (col.id === action.columnId) {
+                                const newBooks = [...col.books];
+                                newBooks.splice(action.dividerIndex, 0, { ...action.divider });
+                                console.log(`[UNDO DELETE_DIVIDER] Restored divider "${action.divider.label}" at index ${action.dividerIndex}`);
+                                return { ...col, books: newBooks };
+                            }
+                            return col;
+                        }));
+                        break;
+                    case 'REORDER_DIVIDER':
+                        // v4.8.0 - Move divider back to original position
+                        console.log('[UNDO REORDER_DIVIDER] Action:', JSON.stringify(action, null, 2));
+                        setColumns(cols => cols.map(col => {
+                            if (col.id === action.colId) {
+                                const newBooks = [...col.books];
+                                // Find and remove divider from current position
+                                const currentIdx = newBooks.findIndex(b =>
+                                    typeof b === 'object' && b.type === 'divider' && b.id === action.dividerId
+                                );
+                                if (currentIdx === -1) return col;
+                                const [divider] = newBooks.splice(currentIdx, 1);
+                                // Insert at original position
+                                newBooks.splice(action.fromIndex, 0, divider);
+                                console.log(`[UNDO REORDER_DIVIDER] Moved divider "${action.dividerLabel}" from index ${currentIdx} back to ${action.fromIndex}`);
+                                return { ...col, books: newBooks };
+                            }
+                            return col;
+                        }));
+                        break;
+                    default:
+                        console.warn('Unknown action type for undo:', action.type);
+                }
+            };
+
+            const executeRedo = (action) => {
+                switch (action.type) {
+                    case 'MOVE_BOOKS':
+                        // Move books to target column
+                        setColumns(cols => cols.map(col => {
+                            if (col.id === action.fromColId) {
+                                return { ...col, books: col.books.filter(id => !action.bookIds.includes(id)) };
+                            }
+                            if (col.id === action.toColId) {
+                                const newBooks = [...col.books];
+                                newBooks.splice(action.toIndex, 0, ...action.bookIds);
+                                return { ...col, books: newBooks };
+                            }
+                            return col;
+                        }));
+                        break;
+                    case 'REORDER_BOOKS':
+                        // Re-apply the reorder (move books to target position)
+                        setColumns(cols => cols.map(col => {
+                            if (col.id === action.colId) {
+                                const newBooks = [...col.books];
+                                // Remove books from current positions
+                                action.bookIds.forEach(bookId => {
+                                    const idx = newBooks.indexOf(bookId);
+                                    if (idx !== -1) newBooks.splice(idx, 1);
+                                });
+                                // Calculate adjusted insert index (same logic as original reorder)
+                                let adjustedIndex = action.toIndex;
+                                action.fromIndices.forEach(origIdx => {
+                                    if (origIdx < action.toIndex) adjustedIndex--;
+                                });
+                                // Insert at target position
+                                newBooks.splice(adjustedIndex, 0, ...action.bookIds);
+                                return { ...col, books: newBooks };
+                            }
+                            return col;
+                        }));
+                        break;
+                    case 'TOGGLE_HIDE':
+                        // v4.8.0 - Re-apply the hide/unhide action
+                        console.log('[REDO TOGGLE_HIDE] Action:', JSON.stringify(action, null, 2));
+                        setBooks(prevBooks => {
+                            const updatedBooks = prevBooks.map(book => {
+                                if (action.bookIds.includes(book.id)) {
+                                    console.log(`[REDO TOGGLE_HIDE] Setting "${book.title}" isHidden: ${book.isHidden} -> ${action.newState}`);
+                                    return { ...book, isHidden: action.newState };
+                                }
+                                return book;
+                            });
+                            saveBooksToIndexedDB(updatedBooks);
+                            return updatedBooks;
+                        });
+                        break;
+                    case 'DELETE_COLUMN':
+                        // v4.8.0 - Re-delete the column
+                        console.log('[REDO DELETE_COLUMN] Action:', JSON.stringify(action, null, 2));
+                        setColumns(cols => {
+                            // Move books to destination column (if any)
+                            let updatedCols = cols;
+                            if (action.books.length > 0 && action.destinationColId) {
+                                updatedCols = cols.map(col => {
+                                    if (col.id === action.destinationColId) {
+                                        return { ...col, books: [...col.books, ...action.books] };
+                                    }
+                                    return col;
+                                });
+                            }
+                            // Remove the column
+                            console.log(`[REDO DELETE_COLUMN] Deleting column "${action.columnName}"`);
+                            return updatedCols.filter(col => col.id !== action.columnId);
+                        });
+                        break;
+                    case 'REORDER_COLUMNS':
+                        // v4.8.0 - Move column back to target position
+                        console.log('[REDO REORDER_COLUMNS] Action:', JSON.stringify(action, null, 2));
+                        setColumns(cols => {
+                            const currentIndex = cols.findIndex(c => c.id === action.columnId);
+                            if (currentIndex === -1) return cols;
+                            const newCols = [...cols];
+                            const [movedColumn] = newCols.splice(currentIndex, 1);
+                            newCols.splice(action.toIndex, 0, movedColumn);
+                            console.log(`[REDO REORDER_COLUMNS] Moved column from index ${currentIndex} to ${action.toIndex}`);
+                            return newCols;
+                        });
+                        break;
+                    case 'DELETE_DIVIDER':
+                        // v4.8.0 - Re-delete the divider
+                        console.log('[REDO DELETE_DIVIDER] Action:', JSON.stringify(action, null, 2));
+                        setColumns(cols => cols.map(col => {
+                            if (col.id === action.columnId) {
+                                console.log(`[REDO DELETE_DIVIDER] Deleting divider "${action.divider.label}"`);
+                                return {
+                                    ...col,
+                                    books: col.books.filter(item =>
+                                        !(typeof item === 'object' && item.type === 'divider' && item.id === action.divider.id)
+                                    )
+                                };
+                            }
+                            return col;
+                        }));
+                        break;
+                    case 'REORDER_DIVIDER':
+                        // v4.8.0 - Move divider to target position
+                        console.log('[REDO REORDER_DIVIDER] Action:', JSON.stringify(action, null, 2));
+                        setColumns(cols => cols.map(col => {
+                            if (col.id === action.colId) {
+                                const newBooks = [...col.books];
+                                // Find and remove divider from current position
+                                const currentIdx = newBooks.findIndex(b =>
+                                    typeof b === 'object' && b.type === 'divider' && b.id === action.dividerId
+                                );
+                                if (currentIdx === -1) return col;
+                                const [divider] = newBooks.splice(currentIdx, 1);
+                                // Calculate adjusted target index (same logic as original reorder)
+                                let adjustedIndex = action.toIndex;
+                                if (action.fromIndex < action.toIndex) adjustedIndex--;
+                                // Insert at target position
+                                newBooks.splice(adjustedIndex, 0, divider);
+                                console.log(`[REDO REORDER_DIVIDER] Moved divider "${action.dividerLabel}" from index ${currentIdx} to ${adjustedIndex}`);
+                                return { ...col, books: newBooks };
+                            }
+                            return col;
+                        }));
+                        break;
+                    default:
+                        console.warn('Unknown action type for redo:', action.type);
+                }
+            };
+
+            const undo = () => {
+                // Use ref to get current stack (avoids stale closure from keyboard handler)
+                const currentStack = undoStackRef.current;
+                if (currentStack.length === 0) return;
+                const action = currentStack[currentStack.length - 1];
+                executeUndo(action);
+                setUndoStack(prev => prev.slice(0, -1));
+                setRedoStack(prev => [...prev, action]);
+            };
+
+            const redo = () => {
+                // Use ref to get current stack (avoids stale closure from keyboard handler)
+                const currentStack = redoStackRef.current;
+                if (currentStack.length === 0) return;
+                const action = currentStack[currentStack.length - 1];
+                executeRedo(action);
+                setRedoStack(prev => prev.slice(0, -1));
+                setUndoStack(prev => [...prev, action]);
             };
 
             // v3.13.0 - Select divider and all books in its group
@@ -2371,6 +2754,13 @@
                         const adjustedIndex = currentIndex < columnDropTarget ? columnDropTarget - 1 : columnDropTarget;
                         newColumns.splice(adjustedIndex, 0, movedColumn);
                         setColumns(newColumns);
+                        // v4.8.0 - Record action for undo
+                        recordAction({
+                            type: 'REORDER_COLUMNS',
+                            columnId: draggedColumn,
+                            fromIndex: currentIndex,
+                            toIndex: adjustedIndex
+                        });
                     }
 
                     setDraggedColumn(null);
@@ -2431,6 +2821,15 @@
 
                 if (draggedFromColumn === dropTarget.columnId) {
                     // Same column: reorder
+                    // v4.8.0 - Capture original positions for undo (books only, not dividers)
+                    const currentCol = columns.find(c => c.id === draggedFromColumn);
+                    const bookIdsToMove = itemsToMove.filter(item => typeof item !== 'object' || item.type !== 'divider');
+                    const fromIndicesReorder = bookIdsToMove.map(bookId => currentCol.books.indexOf(bookId));
+                    // v4.8.0 - Capture divider's original index for undo
+                    const dividerFromIndex = isDivider ? currentCol.books.findIndex(b =>
+                        typeof b === 'object' && b.type === 'divider' && b.id === draggedBook.id
+                    ) : -1;
+
                     setColumns(columns.map(col => {
                         if (col.id === draggedFromColumn) {
                             const newBooks = [...col.books];
@@ -2478,6 +2877,28 @@
                         }
                         return col;
                     }));
+
+                    // v4.8.0 - Record REORDER_BOOKS action (only for books, not dividers)
+                    if (bookIdsToMove.length > 0 && !isDivider) {
+                        recordAction({
+                            type: 'REORDER_BOOKS',
+                            bookIds: [...bookIdsToMove],
+                            colId: draggedFromColumn,
+                            fromIndices: fromIndicesReorder,
+                            toIndex: dropTarget.index
+                        });
+                    }
+                    // v4.8.0 - Record REORDER_DIVIDER action
+                    if (isDivider && dividerFromIndex !== -1) {
+                        recordAction({
+                            type: 'REORDER_DIVIDER',
+                            dividerId: draggedBook.id,
+                            dividerLabel: draggedBook.label,
+                            colId: draggedFromColumn,
+                            fromIndex: dividerFromIndex,
+                            toIndex: dropTarget.index
+                        });
+                    }
                 } else {
                     // Cross-column: move items (dividers can only move within same column)
                     if (isDivider) {
@@ -2489,6 +2910,12 @@
                         updateIndicatorPosition();
                         return;
                     }
+
+                    // v4.8.0 - Capture original positions for undo
+                    const sourceCol = columns.find(c => c.id === draggedFromColumn);
+                    const targetCol = columns.find(c => c.id === dropTarget.columnId);
+                    const fromIndices = itemsToMove.map(bookId => sourceCol.books.indexOf(bookId));
+                    const actualToIndex = Math.min(dropTarget.index, targetCol.books.length);
 
                     setColumns(columns.map(col => {
                         if (col.id === draggedFromColumn) {
@@ -2504,6 +2931,16 @@
                         }
                         return col;
                     }));
+
+                    // v4.8.0 - Record action for undo
+                    recordAction({
+                        type: 'MOVE_BOOKS',
+                        bookIds: [...itemsToMove],
+                        fromColId: draggedFromColumn,
+                        toColId: dropTarget.columnId,
+                        fromIndices,
+                        toIndex: actualToIndex
+                    });
                 }
 
                 new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/book-dragged';
@@ -3907,6 +4344,12 @@
                                     onClick={() => {
                                         // Move selected books to this column
                                         const booksToMove = Array.from(selectedBooks);
+                                        // v4.8.0 - Capture original positions for undo
+                                        const sourceCol = columns.find(c => c.id === contextMenu.columnId);
+                                        const fromIndices = booksToMove.map(bookId => sourceCol.books.indexOf(bookId));
+                                        const targetCol = columns.find(c => c.id === col.id);
+                                        const toIndex = targetCol.books.length; // Adding at end
+
                                         setColumns(columns.map(column => {
                                             if (column.id === contextMenu.columnId) {
                                                 // Remove from source column
@@ -3918,6 +4361,15 @@
                                             }
                                             return column;
                                         }));
+                                        // v4.8.0 - Record action for undo
+                                        recordAction({
+                                            type: 'MOVE_BOOKS',
+                                            bookIds: booksToMove,
+                                            fromColId: contextMenu.columnId,
+                                            toColId: col.id,
+                                            fromIndices: fromIndices,
+                                            toIndex: toIndex
+                                        });
                                         clearSelection();
                                         setContextMenu(null);
                                     }}>
@@ -3971,6 +4423,11 @@
                                         className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 flex items-center gap-2"
                                         onClick={async () => {
                                             const newHiddenState = !allHidden;
+                                            // v4.8.0 - Capture previous states for undo
+                                            const previousStates = {};
+                                            selectedBooksList.forEach(book => {
+                                                previousStates[book.id] = book.isHidden || false;
+                                            });
                                             const updatedBooks = books.map(book => {
                                                 if (selectedBooks.has(book.id)) {
                                                     return { ...book, isHidden: newHiddenState };
@@ -3979,6 +4436,13 @@
                                             });
                                             setBooks(updatedBooks);
                                             await saveBooksToIndexedDB(updatedBooks);
+                                            // v4.8.0 - Record action for undo
+                                            recordAction({
+                                                type: 'TOGGLE_HIDE',
+                                                bookIds: Array.from(selectedBooks),
+                                                previousStates: previousStates,
+                                                newState: newHiddenState
+                                            });
                                             clearSelection();
                                             setContextMenu(null);
                                         }}>
