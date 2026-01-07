@@ -2,7 +2,7 @@
 
 ## Content Update Tracker
 
-**Last Updated**: 2026-01-02
+**Last Updated**: 2026-01-07
 
 Before producing/updating videos, review this list of changes since the plan was written:
 
@@ -18,6 +18,9 @@ Before producing/updating videos, review this list of changes since the plan was
 - [ ] **Context menu** (v4.1.0) - "Open in Amazon", "Copy Title(s)" options
 - [ ] Progress bars during fetch (v4.1.0)
 - [ ] **Sort by Published** (v4.7.0) - Sort columns by publication date
+- [ ] **Undo/Redo** (v4.8.0) - Ctrl+Z to undo, Ctrl+Y to redo
+- [ ] **Ownership Badges** (v4.9.0) - Visual badges on book covers (Sample, Borrowed, Prime/KU/KOLL/Comixology)
+- [ ] **Ownership Filter** (v4.9.0) - Filter by ownership type in filter panel
 
 ### Quick Start Script Updates Needed
 When re-recording, add mentions of:

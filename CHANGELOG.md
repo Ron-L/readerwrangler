@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.9.0] - 2026-01-07
+
+### Added
+- **Ownership Type Badges** - Visual badges on book covers for non-purchased books
+  - File versions: amazon-library-fetcher.js v4.4.0, readerwrangler.js v4.9.0
+  - Badge types: Sample (amber), Borrowed (teal), Prime/KU/KOLL/Comixology (purple)
+  - Positioned in bottom-left corner of book covers
+  - Only displayed for non-purchased books (purchased books show no badge)
+  - See [docs/design/BADGES.md](docs/design/BADGES.md) for full specification
+
+- **Ownership Type Filter** - Filter library by how books were acquired
+  - New dropdown in filter panel with options: All, Purchased, Sample, Borrowed, Prime, Kindle Unlimited, KOLL, Comixology
+  - Integrates with Active Filters banner and Clear All functionality
+  - Filter state persists to localStorage
+
+- **Fetcher Ownership Extraction** - Library fetcher now extracts ownership type from Amazon API
+  - Extracts `relationshipSubType` field from Amazon's API response
+  - Maps to internal types: purchased, sample, borrowed, prime, kindleUnlimited, koll, comixology, unknown
+  - Shows ownership type summary at end of fetch with counts per type
+  - Includes bug report template for unknown ownership types
+
+### Changed
+- **Filter Panel Reorganization** - Filters now grouped by mental model for better UX
+  - Row 1 (Discovery): Search, Read Status, Rating - "What book am I looking for?"
+  - Row 2 (Organization): Collection, Series, Wishlist - "How is it organized?"
+  - Row 3 (Acquisition): Ownership - "How did I get it?"
+  - Rating moved from row 2 to row 1 for logical grouping
+
+### Design Documentation
+- Updated [docs/design/BADGES.md](docs/design/BADGES.md) with ownership badge specification
+- Created [docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md](docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md) design doc for future feature
+
 ## [4.8.0] - 2026-01-06
 
 ### Added
