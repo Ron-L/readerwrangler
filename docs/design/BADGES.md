@@ -45,7 +45,32 @@ Book covers display up to 3 badges showing key metadata at a glance:
 - Text: `★ ${rating.toFixed(1)}` (e.g., "★ 4.5")
 - **Status**: Already implemented
 
-### 3. Bottom-Right Corner
+### 3. Bottom-Left Corner
+
+**Ownership Badge** (when `book.ownershipType !== 'purchased'`)
+- Shows ownership status for non-purchased books
+- Position mirrors Amazon's sample badge placement
+
+**Sample Badge** (when `ownershipType === 'sample'`)
+- Orange/amber background
+- `className`: `absolute bottom-1 left-1 bg-amber-500 bg-opacity-90 rounded px-1.5 py-0.5 text-xs font-bold text-white`
+- Text: `SAMPLE`
+
+**Borrowed Badge** (when `ownershipType === 'borrowed'`)
+- Blue/teal background
+- `className`: `absolute bottom-1 left-1 bg-teal-500 bg-opacity-90 rounded px-1.5 py-0.5 text-xs font-bold text-white`
+- Text: `BORROWED`
+
+**Subscription Badges** (Prime, KU, KOLL, Comixology)
+- Purple background (indicates subscription/temporary access)
+- `className`: `absolute bottom-1 left-1 bg-purple-500 bg-opacity-90 rounded px-1.5 py-0.5 text-xs font-bold text-white`
+- Text varies by type:
+  - `ownershipType === 'prime'` → `PRIME`
+  - `ownershipType === 'kindleUnlimited'` → `KU`
+  - `ownershipType === 'koll'` → `KOLL`
+  - `ownershipType === 'comixology'` → `COMIX`
+
+### 4. Bottom-Right Corner
 
 **Read Status Checkmark** (when `book.readStatus === 'READ'`)
 - Green circle with white checkmark
@@ -59,11 +84,11 @@ Book covers display up to 3 badges showing key metadata at a glance:
 
 ```
 ┌─────────────────┐
-│ 📁3       ⭐4.5 │  ← Collections (owned) OR ❤+ (wishlist) OR ✓ (selected) | Rating
+│ 📁3       ⭐4.5 │  ← Top-left (Collections/Wishlist/Selection) | Top-right (Rating)
 │                 │
 │   Book Cover    │
 │                 │
-│              ✓  │  ← Read checkmark (green circle, white checkmark)
+│ SAMPLE       ✓  │  ← Bottom-left (Ownership) | Bottom-right (Read checkmark)
 └─────────────────┘
 ```
 
@@ -71,13 +96,19 @@ Book covers display up to 3 badges showing key metadata at a glance:
 
 ## Badge States by Book Type
 
-| Book Type | Top-Left | Top-Right | Bottom-Right |
-|-----------|----------|-----------|--------------|
-| Owned, unread, no collections | (none) | Rating (if >0) | (none) |
-| Owned, read, no collections | (none) | Rating (if >0) | ✓ green |
-| Owned, in collections | 📁 3 | Rating (if >0) | ✓ (if read) |
-| Wishlist | ❤+ | Rating (if >0) | (none) |
-| Selected (any type) | ✓ blue | Rating (if >0) | ✓ green (if read) |
+| Book Type | Top-Left | Top-Right | Bottom-Left | Bottom-Right |
+|-----------|----------|-----------|-------------|--------------|
+| Purchased, unread, no collections | (none) | Rating (if >0) | (none) | (none) |
+| Purchased, read, no collections | (none) | Rating (if >0) | (none) | ✓ green |
+| Purchased, in collections | 📁 3 | Rating (if >0) | (none) | ✓ (if read) |
+| Sample | (none) | Rating (if >0) | SAMPLE (orange) | (none) |
+| Borrowed (Family) | (none) | Rating (if >0) | BORROWED (teal) | ✓ (if read) |
+| Prime Reading | (none) | Rating (if >0) | PRIME (purple) | ✓ (if read) |
+| Kindle Unlimited | (none) | Rating (if >0) | KU (purple) | ✓ (if read) |
+| KOLL | (none) | Rating (if >0) | KOLL (purple) | ✓ (if read) |
+| Comixology | (none) | Rating (if >0) | COMIX (purple) | ✓ (if read) |
+| Wishlist | ❤+ | Rating (if >0) | (none) | (none) |
+| Selected (any type) | ✓ blue | Rating (if >0) | (ownership) | ✓ green (if read) |
 
 ---
 

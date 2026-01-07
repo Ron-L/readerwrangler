@@ -25,7 +25,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v4.3.0';
+    const FETCHER_VERSION = 'v4.4.0';
     const SCHEMA_VERSION = '2.0';
 
     console.log('========================================');
@@ -97,6 +97,16 @@ async function fetchAmazonLibrary() {
             amazonTimeout: 0,      // 504.1 / Backend Future timed out
             customerMarketplace: 0, // Customer Id or Marketplace Id invalid
             other: 0               // Unrecognized errors
+        },
+        ownershipTypes: {
+            purchased: 0,    // count only (most common)
+            sample: 0,
+            borrowed: 0,     // Family Library sharing
+            prime: 0,        // Prime Reading
+            kindleUnlimited: 0, // Kindle Unlimited (KU)
+            koll: 0,         // Kindle Owners' Lending Library
+            comixology: 0,   // Comixology Unlimited
+            unknown: []      // { asin, title, rawType } - for investigation
         }
     };
 
@@ -1433,11 +1443,52 @@ async function fetchAmazonLibrary() {
                         continue;  // Skip this duplicate
                     }
 
+                    // Extract ownership type from relationshipSubType
+                    // Known values: Purchase, Sample, Sharing, Prime, KindleUnlimited, KOLL, Comixology
+                    const rawOwnershipType = node.relationshipSubType?.[0] || 'Purchase';
+                    let ownershipType = 'purchased'; // default
+
+                    switch (rawOwnershipType) {
+                        case 'Purchase':
+                            ownershipType = 'purchased';
+                            stats.ownershipTypes.purchased++;
+                            break;
+                        case 'Sample':
+                            ownershipType = 'sample';
+                            stats.ownershipTypes.sample++;
+                            break;
+                        case 'Sharing':
+                            ownershipType = 'borrowed';
+                            stats.ownershipTypes.borrowed++;
+                            break;
+                        case 'Prime':
+                            ownershipType = 'prime';
+                            stats.ownershipTypes.prime++;
+                            break;
+                        case 'KindleUnlimited':
+                            ownershipType = 'kindleUnlimited';
+                            stats.ownershipTypes.kindleUnlimited++;
+                            break;
+                        case 'KOLL':
+                            ownershipType = 'koll';
+                            stats.ownershipTypes.koll++;
+                            break;
+                        case 'Comixology':
+                            ownershipType = 'comixology';
+                            stats.ownershipTypes.comixology++;
+                            break;
+                        default:
+                            // Unknown type - track for bug report
+                            ownershipType = 'unknown';
+                            stats.ownershipTypes.unknown.push({ asin: product.asin, title, rawType: rawOwnershipType });
+                    }
+
                     // Add book and track ASIN
                     seenASINs.set(product.asin, newBooks.length);
                     newBooks.push({
                         asin: product.asin,
                         isOwned: true, // Schema v2.0: distinguishes owned books from wishlist
+                        ownershipType, // 'purchased', 'sample', 'borrowed', or 'unknown'
                         title,
                         authors,
                         coverUrl,
@@ -1858,6 +1909,49 @@ async function fetchAmazonLibrary() {
         console.log(`   Pass 3 (Merge):               ${formatTime(mergeDuration)}`);
         console.log(`   ${'─'.repeat(37)}`);
         console.log(`   Total time:                   ${formatTime(totalDuration)}\n`);
+
+        // Ownership type summary (for new books only) - shown before save so user sees it even if cancelled
+        console.log('🏷️  OWNERSHIP TYPES (new books)');
+        console.log(`   Purchased:                    ${stats.ownershipTypes.purchased}`);
+        if (stats.ownershipTypes.sample > 0) {
+            console.log(`   Sample:                       ${stats.ownershipTypes.sample}`);
+        }
+        if (stats.ownershipTypes.borrowed > 0) {
+            console.log(`   Borrowed (Family):            ${stats.ownershipTypes.borrowed}`);
+        }
+        if (stats.ownershipTypes.prime > 0) {
+            console.log(`   Prime Reading:                ${stats.ownershipTypes.prime}`);
+        }
+        if (stats.ownershipTypes.kindleUnlimited > 0) {
+            console.log(`   Kindle Unlimited:             ${stats.ownershipTypes.kindleUnlimited}`);
+        }
+        if (stats.ownershipTypes.koll > 0) {
+            console.log(`   KOLL:                         ${stats.ownershipTypes.koll}`);
+        }
+        if (stats.ownershipTypes.comixology > 0) {
+            console.log(`   Comixology:                   ${stats.ownershipTypes.comixology}`);
+        }
+        if (stats.ownershipTypes.unknown.length > 0) {
+            console.log(`   Unknown:                      ${stats.ownershipTypes.unknown.length}`);
+            console.log('');
+            console.log('⚠️  UNKNOWN OWNERSHIP TYPES FOUND');
+            console.log('   (Note: Unknown types still import normally - this info helps improve future versions)');
+            console.log('   Please report these at: https://github.com/Ron-L/readerwrangler/issues/new');
+            console.log('');
+            console.log('   Copy everything below this line and paste into a new issue:');
+            console.log('   ─────────────────────────────────────────────────────────');
+            console.log('   **Bug Report: Unknown Ownership Types**');
+            console.log('');
+            console.log(`   Fetcher Version: ${FETCHER_VERSION}`);
+            console.log(`   Date: ${new Date().toISOString().split('T')[0]}`);
+            console.log('');
+            console.log('   Unknown types found:');
+            stats.ownershipTypes.unknown.forEach(item => {
+                console.log(`   - \`${item.rawType}\` | ${item.asin} | ${item.title}`);
+            });
+            console.log('   ─────────────────────────────────────────────────────────');
+        }
+        console.log('');
 
         // Save using File System Access API if we have a file handle, otherwise prompt user
         let saveSucceeded = false;

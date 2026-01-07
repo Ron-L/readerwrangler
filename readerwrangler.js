@@ -1,6 +1,6 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.8.0.k";
+        const ORGANIZER_VERSION = "4.9.0";
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -228,6 +228,7 @@
             const [readStatusFilter, setReadStatusFilter] = useState(''); // Filter by READ/UNREAD/UNKNOWN
             const [ratingFilter, setRatingFilter] = useState(''); // Filter by minimum rating (NEW v3.8.0)
             const [wishlistFilter, setWishlistFilter] = useState(''); // Filter by wishlist status: '' | 'owned' | 'wishlist' (NEW v3.8.0)
+            const [ownershipFilter, setOwnershipFilter] = useState(''); // Filter by ownership type (NEW v4.9.0)
             const [seriesFilter, setSeriesFilter] = useState(''); // Filter by series name or "NOT_IN_SERIES" (NEW v3.8.0.k)
             const [dateFrom, setDateFrom] = useState(''); // Filter by acquisition date from (YYYY-MM-DD) (NEW v3.8.0.k)
             const [dateTo, setDateTo] = useState(''); // Filter by acquisition date to (YYYY-MM-DD) (NEW v3.8.0.k)
@@ -289,6 +290,7 @@
                         if (filters.collectionFilter !== undefined) setCollectionFilter(filters.collectionFilter);
                         if (filters.ratingFilter !== undefined) setRatingFilter(filters.ratingFilter);
                         if (filters.wishlistFilter !== undefined) setWishlistFilter(filters.wishlistFilter);
+                        if (filters.ownershipFilter !== undefined) setOwnershipFilter(filters.ownershipFilter);
                         if (filters.seriesFilter !== undefined) setSeriesFilter(filters.seriesFilter);
                         if (filters.dateFrom !== undefined) setDateFrom(filters.dateFrom);
                         if (filters.dateTo !== undefined) setDateTo(filters.dateTo);
@@ -308,6 +310,7 @@
                         collectionFilter,
                         ratingFilter,
                         wishlistFilter,
+                        ownershipFilter,
                         seriesFilter,
                         dateFrom,
                         dateTo,
@@ -317,7 +320,7 @@
                 } catch (e) {
                     console.error('Failed to save filters to localStorage:', e);
                 }
-            }, [searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter, seriesFilter, dateFrom, dateTo, showHidden]);
+            }, [searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter, ownershipFilter, seriesFilter, dateFrom, dateTo, showHidden]);
 
             const formatAcquisitionDate = (timestamp) => {
                 if (!timestamp) return '';
@@ -1105,6 +1108,8 @@
                             isWishlist: item.isOwned === false ? 1 : 0,
                             isHidden: item.isHidden || false,
                             addedToWishlist: item.addedToWishlist || '',
+                            // Ownership type (v4.9.0)
+                            ownershipType: item.ownershipType || 'purchased',
                             // Collections data
                             readStatus: bookCollections.readStatus,
                             collections: bookCollections.collections
@@ -1145,6 +1150,8 @@
                             isWishlist: item.isOwned === false ? 1 : 0,
                             isHidden: item.isHidden || false,
                             addedToWishlist: item.addedToWishlist || '',
+                            // Ownership type (v4.9.0)
+                            ownershipType: item.ownershipType || 'purchased',
                             // Collections data
                             readStatus: bookCollections.readStatus,
                             collections: bookCollections.collections
@@ -1212,6 +1219,7 @@
                 setCollectionFilter('');
                 setRatingFilter('');
                 setWishlistFilter('');
+                setOwnershipFilter('');
                 setSeriesFilter('');
                 setDateFrom('');
                 setDateTo('');
@@ -1222,6 +1230,7 @@
                     collectionFilter: '',
                     ratingFilter: '',
                     wishlistFilter: '',
+                    ownershipFilter: '',
                     seriesFilter: '',
                     dateFrom: '',
                     dateTo: '',
@@ -3013,6 +3022,10 @@
                         (wishlistFilter === 'wishlist' && book.isWishlist) ||
                         (wishlistFilter === 'owned' && !book.isWishlist);
 
+                    // Ownership type filter (NEW v4.9.0)
+                    const matchesOwnership = !ownershipFilter ||
+                        (book.ownershipType || 'purchased') === ownershipFilter;
+
                     // Hidden filter (NEW v4.1.0.d) - hide hidden books unless showHidden is checked
                     const matchesHidden = showHidden || !book.isHidden;
 
@@ -3043,7 +3056,7 @@
                         }
                     }
 
-                    return matchesSearch && matchesReadStatus && matchesCollection && matchesRating && matchesWishlist && matchesHidden && matchesSeries && matchesDateRange;
+                    return matchesSearch && matchesReadStatus && matchesCollection && matchesRating && matchesWishlist && matchesOwnership && matchesHidden && matchesSeries && matchesDateRange;
                 });
             };
 
@@ -3189,6 +3202,7 @@
                                         )}
                                     </div>
 
+                                    {/* ROW 1: Discovery - "What book am I looking for?" */}
                                     {/* Read Status */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">📖 Read Status</label>
@@ -3203,6 +3217,23 @@
                                         </select>
                                     </div>
 
+                                    {/* Rating (moved from row 2 for v4.9.0.d) */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">⭐ Rating</label>
+                                        <select
+                                            value={ratingFilter}
+                                            onChange={(e) => setRatingFilter(e.target.value)}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                            <option value="">All Ratings</option>
+                                            <option value="5">5★</option>
+                                            <option value="4">4+★</option>
+                                            <option value="3">3+★</option>
+                                            <option value="2">2+★</option>
+                                            <option value="1">1+★</option>
+                                        </select>
+                                    </div>
+
+                                    {/* ROW 2: Organization - "How is it organized?" */}
                                     {/* Collection */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">🗂️ Collection</label>
@@ -3218,19 +3249,18 @@
                                         </select>
                                     </div>
 
-                                    {/* Rating */}
+                                    {/* Series */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">⭐ Rating</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">📚 Series</label>
                                         <select
-                                            value={ratingFilter}
-                                            onChange={(e) => setRatingFilter(e.target.value)}
+                                            value={seriesFilter}
+                                            onChange={(e) => setSeriesFilter(e.target.value)}
                                             className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                            <option value="">All Ratings</option>
-                                            <option value="5">5★</option>
-                                            <option value="4">4+★</option>
-                                            <option value="3">3+★</option>
-                                            <option value="2">2+★</option>
-                                            <option value="1">1+★</option>
+                                            <option value="">All Series</option>
+                                            <option value="NOT_IN_SERIES">📖 Not in Series</option>
+                                            {getAllSeriesNames().map(name => (
+                                                <option key={name} value={name}>{name}</option>
+                                            ))}
                                         </select>
                                     </div>
 
@@ -3247,18 +3277,22 @@
                                         </select>
                                     </div>
 
-                                    {/* Series (NEW v3.8.0.k) */}
+                                    {/* ROW 3: Acquisition - "How did I get it?" */}
+                                    {/* Ownership Type (NEW v4.9.0) */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">📚 Series</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">🏷️ Ownership</label>
                                         <select
-                                            value={seriesFilter}
-                                            onChange={(e) => setSeriesFilter(e.target.value)}
+                                            value={ownershipFilter}
+                                            onChange={(e) => setOwnershipFilter(e.target.value)}
                                             className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                            <option value="">All Series</option>
-                                            <option value="NOT_IN_SERIES">📖 Not in Series</option>
-                                            {getAllSeriesNames().map(name => (
-                                                <option key={name} value={name}>{name}</option>
-                                            ))}
+                                            <option value="">All Types</option>
+                                            <option value="purchased">Purchased</option>
+                                            <option value="sample">Sample</option>
+                                            <option value="borrowed">Borrowed</option>
+                                            <option value="prime">Prime</option>
+                                            <option value="kindleUnlimited">Kindle Unlimited</option>
+                                            <option value="koll">KOLL</option>
+                                            <option value="comixology">Comixology</option>
                                         </select>
                                     </div>
                                 </div>
@@ -3333,7 +3367,7 @@
                         )}
 
                         {/* Active Filters Banner (v3.8.0.k - moved below Filter Panel) */}
-                        {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo) && (
+                        {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || ownershipFilter || seriesFilter || dateFrom || dateTo) && (
                             <div className="bg-blue-100 border border-blue-300 rounded-lg px-4 py-2 mb-4 flex items-center justify-between">
                                 <div className="flex items-center gap-2 flex-wrap text-sm">
                                     <span className="font-semibold">🔍 Active:</span>
@@ -3346,7 +3380,9 @@
                                     {ratingFilter && <span>Rating: {ratingFilter}+★</span>}
                                     {ratingFilter && (wishlistFilter || seriesFilter || dateFrom || dateTo) && <span>|</span>}
                                     {wishlistFilter && <span>Wishlist: {wishlistFilter === 'owned' ? 'Owned Only' : 'Wishlist Only'}</span>}
-                                    {wishlistFilter && (seriesFilter || dateFrom || dateTo) && <span>|</span>}
+                                    {wishlistFilter && (ownershipFilter || seriesFilter || dateFrom || dateTo) && <span>|</span>}
+                                    {ownershipFilter && <span>Ownership: {ownershipFilter === 'kindleUnlimited' ? 'Kindle Unlimited' : ownershipFilter.charAt(0).toUpperCase() + ownershipFilter.slice(1)}</span>}
+                                    {ownershipFilter && (seriesFilter || dateFrom || dateTo) && <span>|</span>}
                                     {seriesFilter && <span>Series: {seriesFilter === 'NOT_IN_SERIES' ? 'Not in Series' : seriesFilter}</span>}
                                     {seriesFilter && (dateFrom || dateTo) && <span>|</span>}
                                     {(dateFrom || dateTo) && <span>Date: {dateFrom || '...'} to {dateTo || '...'}</span>}
@@ -3358,6 +3394,7 @@
                                         setCollectionFilter('');
                                         setRatingFilter('');
                                         setWishlistFilter('');
+                                        setOwnershipFilter('');
                                         setSeriesFilter('');
                                         setDateFrom('');
                                         setDateTo('');
@@ -4249,6 +4286,24 @@
                                                                         </svg>
                                                                     </div>
                                                                 )}
+                                                                {/* Bottom-left: Ownership badge (non-purchased only) */}
+                                                                {book.ownershipType && book.ownershipType !== 'purchased' && (() => {
+                                                                    const badgeConfig = {
+                                                                        sample: { bg: 'bg-amber-500', text: 'SAMPLE' },
+                                                                        borrowed: { bg: 'bg-teal-500', text: 'BORROWED' },
+                                                                        prime: { bg: 'bg-purple-500', text: 'PRIME' },
+                                                                        kindleUnlimited: { bg: 'bg-purple-500', text: 'KU' },
+                                                                        koll: { bg: 'bg-purple-500', text: 'KOLL' },
+                                                                        comixology: { bg: 'bg-purple-500', text: 'COMIX' },
+                                                                        unknown: { bg: 'bg-gray-500', text: '?' }
+                                                                    };
+                                                                    const config = badgeConfig[book.ownershipType];
+                                                                    return config ? (
+                                                                        <div className={`absolute bottom-1 left-1 ${config.bg} bg-opacity-90 rounded px-1.5 py-0.5 text-xs font-bold text-white`}>
+                                                                            {config.text}
+                                                                        </div>
+                                                                    ) : null;
+                                                                })()}
                                                                 {/* Top-left: Selection or Collections badge */}
                                                                 {selectedBooks.has(book.id) ? (
                                                                     <div className="absolute top-1 left-1 bg-blue-700 rounded-full w-6 h-6 flex items-center justify-center z-10">
