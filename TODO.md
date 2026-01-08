@@ -41,6 +41,15 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Orphaned books (samples replaced by purchase, returns, expired subscriptions) clutter library
    - Impact: Clean library management, safe deletion with restore capability
 
+**5. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
+   - See [docs/design/FAMILY-SHARING.md](docs/design/FAMILY-SHARING.md) for full spec
+   - Fetch which books user has shared with family members
+   - Display "Shared with: Name" in book detail modal
+   - API tested: supports batch of 1000+ ASINs in single call (~200ms)
+   - Implementation: Add to collections fetcher, display in organizer
+   - Problem: No visibility into which books are shared with family
+   - Impact: Better awareness of Family Library sharing status
+
 ---
 
 ### ✨ Priority 2: High Priority Features
