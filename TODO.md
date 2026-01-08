@@ -6,22 +6,15 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ---
 
-### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
+### 🎯 Priority 1: Top Personal Priorities
 
-**1. 🗑️ Orphan Detection & Recycle Bin** - MEDIUM/MEDIUM (9-13 hours)
-   - Detect books no longer in Amazon library after re-import
-   - Recycle Bin virtual column for soft-deleted books
-   - See [docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md](docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md) for full spec
-   - Problem: Orphaned books (samples replaced by purchase, returns, expired subscriptions) clutter library
-   - Impact: Clean library management, safe deletion with restore capability
-
-**2. 📜 Horizontal & Vertical Scroll for Main View** - LOW/LOW (1-2 hours)
+**1. 📜 Horizontal & Vertical Scroll for Main View** - LOW/LOW (1-2 hours)
    - Add horizontal scrollbar when columns exceed viewport width
    - Add vertical scrollbar for main content area (columns already have per-column scroll)
    - Problem: With many columns or narrow viewport, users can't access off-screen columns
    - Impact: Basic usability for users with many columns or smaller screens
 
-**3. 📝 Book Notes** - LOW/LOW (2-3 hours)
+**2. 📝 Book Notes** - LOW/LOW (2-3 hours)
    - Personal notes on individual books ("Why did I buy this?", "Who recommended it?")
    - See [docs/design/BOOK-NOTES.md](docs/design/BOOK-NOTES.md) for full spec
    - Sticky note styling in detail modal (matches landing page brand element)
@@ -30,22 +23,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Book descriptions don't always capture why you bought or want to read a book
    - Impact: Personal context preserved with each book
 
-**4. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
-   - Expand current "Group Series Books" button
-   - Automatic series detection
-   - Series reading order visualization
-   - Missing book detection ("You have books 1, 2, and 4 of this series")
-   - Problem: Series books scattered across library
-   - Impact: Better management for series readers
-
-**5. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
-   - Allow same book to appear in multiple columns
-   - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
-   - Array-based architecture, Ctrl+Drag UI, delete operation
-   - Problem: Can't organize same book multiple ways
-   - Impact: More flexible organization
-
-**6. 🖼️ Cover Image Caching** - MEDIUM/MEDIUM (6-10 hours)
+**3. 🖼️ Cover Image Caching** - MEDIUM/MEDIUM (6-10 hours)
    - Cache book cover images locally to reduce Amazon requests and speed up load times
    - Options to investigate:
      - Service Worker caching (browser-managed, respects cache headers)
@@ -56,9 +34,16 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Covers refetch on every page load, slow experience, hammers Amazon servers
    - Impact: Faster load times, works offline, reduced bandwidth
 
+**4. 🗑️ Orphan Detection & Recycle Bin** - MEDIUM/MEDIUM (9-13 hours)
+   - Detect books no longer in Amazon library after re-import
+   - Recycle Bin virtual column for soft-deleted books
+   - See [docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md](docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md) for full spec
+   - Problem: Orphaned books (samples replaced by purchase, returns, expired subscriptions) clutter library
+   - Impact: Clean library management, safe deletion with restore capability
+
 ---
 
-### ✨ Priority 2: Nice-to-Have Features
+### ✨ Priority 2: High Priority Features
 
 **1. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
    - Show reading progress percentage/position for each book
@@ -67,19 +52,93 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Users can't see reading progress in organizer
    - Impact: Better tracking of currently-reading books
 
-**2. 🏷️ Color-Coding/Tagging System** - MEDIUM/MEDIUM (8-10 hours)
+**2. 🔄 Phase 3 Retry Logic + Recovery + Pause/Resume** - MEDIUM/HIGH (12-16 hours, optional)
+   - See [docs/design/PHASE-3-RETRY-LOGIC.md](docs/design/PHASE-3-RETRY-LOGIC.md) for full spec
+   - Retry logic for failed enrichments (~1.3% failure rate)
+   - Pause/Resume capability with global flag + button UI
+   - Recovery: Save extraction state to localStorage, resume from interruption
+   - State persistence: Track progress, allow resumption after browser close/refresh
+   - **Enriches wishlist items**: Wishlist Fetcher only has access to basic fields (title,
+     author, cover, rating, series) from product pages; Pass 3 adds descriptions and reviews
+     when user runs Library Fetcher
+   - Problem: Random enrichment failures, long extractions without pause, lost progress on interruption
+   - Impact: Data quality improvement (99.8%+ expected), better UX for long extractions, prevents data loss
+   - Note: This consolidates former P2 "Extraction Error Recovery" feature
+
+**3. 🔧 Refactor readerwrangler.js into Modules** - LOW/MEDIUM (4-6 hours)
+   - Current state: 3,862-line monolithic file with 50+ state variables, 80+ functions
+   - **Recommended: Minimal Split (4 modules)**
+
+   | Module | ~Lines | Contents |
+   |--------|--------|----------|
+   | `storage.js` | 150 | IndexedDB, localStorage operations |
+   | `dataProcessing.js` | 400 | Import, merge, filter logic |
+   | `dragDrop.js` | 500 | Drag handlers, binary search optimization |
+   | `uiHelpers.js` | 200 | Formatters, display helpers, constants |
+   | `readerwrangler.js` | 1,500 | State, hooks, orchestration, JSX |
+
+   - **Key risks to preserve:**
+     - Drag performance uses refs to avoid re-renders - must preserve
+     - `loadLibrary()` handles multiple JSON formats - complex parsing
+     - 8 filters must stay coordinated
+     - State sync between books array and column.books IDs
+   - **Alternative: Thorough split (12 files)** with components + custom hooks - cleaner but 2-3 days work
+   - Problem: Large monolithic file hard to navigate and maintain
+   - Impact: Better code organization, easier future maintenance, testability
+   - **Implementation order:**
+     1. Extract `uiHelpers.js` (no dependencies)
+     2. Extract `storage.js` (only localStorage/IndexedDB)
+     3. Extract `dataProcessing.js` (uses above)
+     4. Extract `dragDrop.js` (uses uiHelpers)
+     5. Update main component imports
+   - **Context Menu IIFE** - The context menu positioning (v4.1.0.e) uses an IIFE in JSX to calculate viewport bounds before rendering. Consider extracting to a custom hook or component for cleaner code.
+
+**4. ☁️ Multi-Device Sync** #Architecture - LOW/VERY HIGH (40-60 hours)
+   - Cloud storage option (self-hosted or encrypted)
+   - Sync organization across devices
+   - **TODO**: Test Dropbox integration as potential solution
+   - Problem: Major architectural change, privacy implications
+   - Impact: Convenience for multi-device users
+
+**5. Multi-Store Architecture** #Architecture - LOW/VERY HIGH (60-80 hours)
+   - See [docs/design/MULTI-STORE-ARCHITECTURE.md](docs/design/MULTI-STORE-ARCHITECTURE.md) for full spec
+   - Status: Future enhancement (Amazon first, other stores later)
+   - Covers: File naming, bookmarklet detection, data structure, migration path
+   - Problem: Only works with Amazon
+   - Impact: Support for other ebook platforms
+
+---
+
+### 📚 Priority 3: Nice-to-Have Features
+
+**1. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+   - Expand current "Group Series Books" button
+   - Automatic series detection
+   - Series reading order visualization
+   - Missing book detection ("You have books 1, 2, and 4 of this series")
+   - Problem: Series books scattered across library
+   - Impact: Better management for series readers
+
+**2. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+   - Allow same book to appear in multiple columns
+   - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
+   - Array-based architecture, Ctrl+Drag UI, delete operation
+   - Problem: Can't organize same book multiple ways
+   - Impact: More flexible organization
+
+**3. 🏷️ Color-Coding/Tagging System** - MEDIUM/MEDIUM (8-10 hours)
    - Visual distinction beyond columns
    - Tag-based organization
    - Problem: Columns alone may not capture all organizational needs
    - Impact: More flexible organization
 
-**3. 🤖 Smart Collections (Rule-Based)** #Optional - LOW/HIGH (12-16 hours)
+**4. 🤖 Smart Collections (Rule-Based)** #Optional - LOW/HIGH (12-16 hours)
    - "All unread books rated 4.5+"
    - Requires complex rule engine
    - Problem: Manual organization is tedious
    - Impact: Automation for power users
 
-**4. 🎯 Wishlist Integration - Series Gap Detection** #Optional - MEDIUM/VERY HIGH (20-30 hours)
+**5. 🎯 Wishlist Integration - Series Gap Detection** #Optional - MEDIUM/VERY HIGH (20-30 hours)
    - Automatic series detection for owned books (requires series metadata)
    - Identify missing books in series (e.g., own books 1, 2, 4 but not 3)
    - Fetch metadata for missing books via Amazon API or series page scraping
@@ -102,7 +161,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
      - Wishlist auto-population workflow
      - Series column UI for gap visualization
 
-**5. ✨ UX Quick Wins** - MEDIUM/LOW (1-3 hours each)
+**6. ✨ UX Quick Wins** - MEDIUM/LOW (1-3 hours each)
    - Tooltips for control buttons (Backup, Restore, Reset, Clear)
    - First-run Welcome dialog explaining what ReaderWrangler is
    - Column name filtering (search by column name)
@@ -112,7 +171,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ---
 
-### 📖 Priority 3: Polish & Documentation (Before Public Launch)
+### 📖 Priority 4: Polish & Documentation (Before Public Launch)
 
 **1. 📖 Quick Start Video & Written Guide** - HIGH/LOW (2-4 hours) - See [docs/design/VIDEO-PRODUCTION-PLAN.md](docs/design/VIDEO-PRODUCTION-PLAN.md)
 
@@ -148,7 +207,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ---
 
-### 📊 Priority 4: Analytics & Export (MEDIUM Priority, LOW-MEDIUM Complexity)
+### 📊 Priority 5: Analytics & Export (MEDIUM Priority, LOW-MEDIUM Complexity)
 
 **1. 📈 Reading Stats Dashboard** - MEDIUM/MEDIUM (8-12 hours)
    - Books acquired by month/year
@@ -167,7 +226,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ---
 
-### 🔧 Priority 5: Technical Improvements (MEDIUM-LOW Priority, MEDIUM-HIGH Complexity)
+### 🔧 Priority 6: Technical Improvements (MEDIUM-LOW Priority, MEDIUM-HIGH Complexity)
 
 **1. Phase 3: UI Error Handling** #FetcherImprovements - MEDIUM/LOW (2-3 hours)
    - Warning banners for missing descriptions
@@ -175,57 +234,9 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Users unaware of missing enrichment data
    - Impact: Transparency about data quality
 
-**2. Minor Fetcher Improvements** #FetcherImprovements - LOW/LOW (1-2 hours)
-   - Timeout removal, messaging improvements, terminology consistency
-   - Problem: Minor UX issues in fetcher scripts
-   - Impact: Polish and consistency
-
-**3. 🔄 Phase 3 Retry Logic + Recovery + Pause/Resume** - MEDIUM/HIGH (12-16 hours, optional)
-   - See [docs/design/PHASE-3-RETRY-LOGIC.md](docs/design/PHASE-3-RETRY-LOGIC.md) for full spec
-   - Retry logic for failed enrichments (~1.3% failure rate)
-   - Pause/Resume capability with global flag + button UI
-   - Recovery: Save extraction state to localStorage, resume from interruption
-   - State persistence: Track progress, allow resumption after browser close/refresh
-   - **Enriches wishlist items**: Wishlist Fetcher only has access to basic fields (title,
-     author, cover, rating, series) from product pages; Pass 3 adds descriptions and reviews
-     when user runs Library Fetcher
-   - Problem: Random enrichment failures, long extractions without pause, lost progress on interruption
-   - Impact: Data quality improvement (99.8%+ expected), better UX for long extractions, prevents data loss
-   - Note: This consolidates former P2 "Extraction Error Recovery" feature
-
-**4. (MOVED TO PRIORITY 1 #0)** Simplify to Load-State-Only Status System - See Priority 1 for details
-
-**5. 🔧 Refactor readerwrangler.js into Modules** - LOW/MEDIUM (4-6 hours)
-   - Current state: 3,862-line monolithic file with 50+ state variables, 80+ functions
-   - **Recommended: Minimal Split (4 modules)**
-
-   | Module | ~Lines | Contents |
-   |--------|--------|----------|
-   | `storage.js` | 150 | IndexedDB, localStorage operations |
-   | `dataProcessing.js` | 400 | Import, merge, filter logic |
-   | `dragDrop.js` | 500 | Drag handlers, binary search optimization |
-   | `uiHelpers.js` | 200 | Formatters, display helpers, constants |
-   | `readerwrangler.js` | 1,500 | State, hooks, orchestration, JSX |
-
-   - **Key risks to preserve:**
-     - Drag performance uses refs to avoid re-renders - must preserve
-     - `loadLibrary()` handles multiple JSON formats - complex parsing
-     - 8 filters must stay coordinated
-     - State sync between books array and column.books IDs
-   - **Alternative: Thorough split (12 files)** with components + custom hooks - cleaner but 2-3 days work
-   - Problem: Large monolithic file hard to navigate and maintain
-   - Impact: Better code organization, easier future maintenance, testability
-   - **Implementation order:**
-     1. Extract `uiHelpers.js` (no dependencies)
-     2. Extract `storage.js` (only localStorage/IndexedDB)
-     3. Extract `dataProcessing.js` (uses above)
-     4. Extract `dragDrop.js` (uses uiHelpers)
-     5. Update main component imports
-   - **Context Menu IIFE** - The context menu positioning (v4.1.0.e) uses an IIFE in JSX to calculate viewport bounds before rendering. Consider extracting to a custom hook or component for cleaner code.
-
 ---
 
-### 🌐 Priority 6: Integrations & Advanced Features (LOW Priority, HIGH-VERY HIGH Complexity)
+### 🌐 Priority 7: Integrations & Advanced Features (LOW Priority, HIGH-VERY HIGH Complexity)
 
 **1. 🔗 Third-Party Integrations** - LOW/HIGH (20-30 hours)
    - Goodreads sync (import ratings, mark as read)
@@ -234,40 +245,22 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Complex API work, authentication, rate limits
    - Impact: Niche feature for users of these services
 
-**2. ☁️ Multi-Device Sync** #Architecture - LOW/VERY HIGH (40-60 hours)
-   - Cloud storage option (self-hosted or encrypted)
-   - Sync organization across devices
-   - Problem: Major architectural change, privacy implications
-   - Impact: Convenience for multi-device users
-
-**3. 🧠 Smart Recommendations** - LOW/HIGH (30-40 hours)
+**2. 🧠 Smart Recommendations** - LOW/HIGH (30-40 hours)
    - "You own these similar books you haven't read yet"
    - "Others who loved [this book] also read [these books] from your library"
    - Highlight forgotten purchases based on high ratings
    - Problem: Requires recommendation engine, ML/AI complexity
    - Impact: Book discovery from existing library
 
-**4. Live reflow drag-and-drop animation** #Optional - LOW/MEDIUM (4-6 hours)
+**3. Live reflow drag-and-drop animation** #Optional - LOW/MEDIUM (4-6 hours)
    - Smooth visual feedback during drag operations
    - Problem: Current drag-and-drop feels abrupt
    - Impact: Polish and visual appeal
 
-**5. 2D matrix layout** #Optional - LOW/VERY HIGH (50-80 hours)
-   - Major refactor to grid-based layout
-   - Problem: Current column-only layout limiting
-   - Impact: Alternative organization paradigm
-
-**6. Multi-User Support** #Architecture - LOW/VERY HIGH (40-60 hours)
+**4. Multi-User Support** #Architecture - LOW/VERY HIGH (40-60 hours)
    - See [docs/design/MULTI-USER-DESIGN.md](docs/design/MULTI-USER-DESIGN.md) for full spec
-   - Status: Future enhancement (single-user first, multi-user later)
+   - Status: Low priority - workaround sufficient for most users
    - Covers: AccountId identification, storage architecture, mismatch handling
    - Problem: Multiple Amazon accounts on same device
    - Impact: Household/family sharing
    - **Workaround Available**: See [USER-GUIDE.md FAQ](USER-GUIDE.md#faq) "Can I maintain separate organizational states?" for Backup/Restore method to swap between different organizational states (demo vs. actual collection, testing vs. production, etc.)
-
-**7. Multi-Store Architecture** #Architecture - LOW/VERY HIGH (60-80 hours)
-   - See [docs/design/MULTI-STORE-ARCHITECTURE.md](docs/design/MULTI-STORE-ARCHITECTURE.md) for full spec
-   - Status: Future enhancement (Amazon first, other stores later)
-   - Covers: File naming, bookmarklet detection, data structure, migration path
-   - Problem: Only works with Amazon
-   - Impact: Support for other ebook platforms
