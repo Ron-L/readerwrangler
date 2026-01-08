@@ -1,6 +1,6 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.9.0";
+        const ORGANIZER_VERSION = "4.9.1";
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3354,6 +3354,7 @@
                                             setCollectionFilter('');
                                             setRatingFilter('');
                                             setWishlistFilter('');
+                                            setOwnershipFilter(''); // v4.9.1 - was missing from Clear All Filters
                                             setSeriesFilter('');
                                             setDateFrom('');
                                             setDateTo('');
