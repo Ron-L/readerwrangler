@@ -164,6 +164,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 **6. ✨ UX Quick Wins** - MEDIUM/LOW (1-3 hours each)
    - Tooltips for control buttons (Backup, Restore, Reset, Clear)
    - First-run Welcome dialog explaining what ReaderWrangler is
+   - **Keyboard shortcuts help** - "?" icon or Ctrl+? to show shortcuts dialog (Undo/Redo, multi-select, etc.)
    - Column name filtering (search by column name)
    - Make status dialog draggable/movable (modal → draggable)
    - **Drag Divider by Title Area** - Click-drag on divider title text (not just ⋮ handle) to reposition. Must not conflict with double-click to rename.
