@@ -8,12 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Core Organization Features (User Personal Blockers)
 
-**1. ✅ ~~Ownership Type Badges~~ COMPLETED v4.9.0**
-   - Displays badge on book cards for non-purchased books
-   - Types: Sample (amber), Borrowed (teal), Prime/KU/KOLL/Comixology (purple)
-   - See [docs/design/BADGES.md](docs/design/BADGES.md) for full spec
-
-**1b. 🗑️ Orphan Detection & Recycle Bin** - MEDIUM/MEDIUM (9-13 hours)
+**1. 🗑️ Orphan Detection & Recycle Bin** - MEDIUM/MEDIUM (9-13 hours)
    - Detect books no longer in Amazon library after re-import
    - Recycle Bin virtual column for soft-deleted books
    - See [docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md](docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md) for full spec
@@ -26,7 +21,16 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: With many columns or narrow viewport, users can't access off-screen columns
    - Impact: Basic usability for users with many columns or smaller screens
 
-**3. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+**3. 📝 Book Notes** - LOW/LOW (2-3 hours)
+   - Personal notes on individual books ("Why did I buy this?", "Who recommended it?")
+   - See [docs/design/BOOK-NOTES.md](docs/design/BOOK-NOTES.md) for full spec
+   - Sticky note styling in detail modal (matches landing page brand element)
+   - Entry points: "Add Note" button in modal, right-click context menu
+   - Auto-save on blur/escape, no explicit save button
+   - Problem: Book descriptions don't always capture why you bought or want to read a book
+   - Impact: Personal context preserved with each book
+
+**4. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Group Series Books" button
    - Automatic series detection
    - Series reading order visualization
@@ -34,14 +38,14 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Series books scattered across library
    - Impact: Better management for series readers
 
-**4. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+**5. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
    - Allow same book to appear in multiple columns
    - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
    - Array-based architecture, Ctrl+Drag UI, delete operation
    - Problem: Can't organize same book multiple ways
    - Impact: More flexible organization
 
-**5. 🖼️ Cover Image Caching** - MEDIUM/MEDIUM (6-10 hours)
+**6. 🖼️ Cover Image Caching** - MEDIUM/MEDIUM (6-10 hours)
    - Cache book cover images locally to reduce Amazon requests and speed up load times
    - Options to investigate:
      - Service Worker caching (browser-managed, respects cache headers)
