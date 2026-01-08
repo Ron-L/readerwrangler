@@ -8,20 +8,18 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Top Personal Priorities
 
-**1. 📜 Horizontal & Vertical Scroll for Main View** - LOW/LOW (1-2 hours)
+**1. ☁️ Multi-Device Sync** #Architecture - LOW/VERY HIGH (40-60 hours)
+   - Cloud storage option (self-hosted or encrypted)
+   - Sync organization across devices
+   - **TODO**: Test Dropbox integration as potential solution
+   - Problem: Major architectural change, privacy implications
+   - Impact: Convenience for multi-device users
+
+**2. 📜 Horizontal & Vertical Scroll for Main View** - LOW/LOW (1-2 hours)
    - Add horizontal scrollbar when columns exceed viewport width
    - Add vertical scrollbar for main content area (columns already have per-column scroll)
    - Problem: With many columns or narrow viewport, users can't access off-screen columns
    - Impact: Basic usability for users with many columns or smaller screens
-
-**2. 📝 Book Notes** - LOW/LOW (2-3 hours)
-   - Personal notes on individual books ("Why did I buy this?", "Who recommended it?")
-   - See [docs/design/BOOK-NOTES.md](docs/design/BOOK-NOTES.md) for full spec
-   - Sticky note styling in detail modal (matches landing page brand element)
-   - Entry points: "Add Note" button in modal, right-click context menu
-   - Auto-save on blur/escape, no explicit save button
-   - Problem: Book descriptions don't always capture why you bought or want to read a book
-   - Impact: Personal context preserved with each book
 
 **3. 🖼️ Cover Image Caching** - MEDIUM/MEDIUM (6-10 hours)
    - Cache book cover images locally to reduce Amazon requests and speed up load times
@@ -34,12 +32,14 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Covers refetch on every page load, slow experience, hammers Amazon servers
    - Impact: Faster load times, works offline, reduced bandwidth
 
-**4. 🗑️ Orphan Detection & Recycle Bin** - MEDIUM/MEDIUM (9-13 hours)
-   - Detect books no longer in Amazon library after re-import
-   - Recycle Bin virtual column for soft-deleted books
-   - See [docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md](docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md) for full spec
-   - Problem: Orphaned books (samples replaced by purchase, returns, expired subscriptions) clutter library
-   - Impact: Clean library management, safe deletion with restore capability
+**4. 📝 Book Notes** - LOW/LOW (2-3 hours)
+   - Personal notes on individual books ("Why did I buy this?", "Who recommended it?")
+   - See [docs/design/BOOK-NOTES.md](docs/design/BOOK-NOTES.md) for full spec
+   - Sticky note styling in detail modal (matches landing page brand element)
+   - Entry points: "Add Note" button in modal, right-click context menu
+   - Auto-save on blur/escape, no explicit save button
+   - Problem: Book descriptions don't always capture why you bought or want to read a book
+   - Impact: Personal context preserved with each book
 
 **5. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
    - See [docs/design/FAMILY-SHARING.md](docs/design/FAMILY-SHARING.md) for full spec
@@ -50,16 +50,23 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No visibility into which books are shared with family
    - Impact: Better awareness of Family Library sharing status
 
----
-
-### ✨ Priority 2: High Priority Features
-
-**1. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
+**6. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
    - Show reading progress percentage/position for each book
    - Implementation guidance: [Amazon Organizer Reading Progress conversation](https://claude.ai/chat/6e6f23c8-b84e-4900-8c64-fecb6a6e0bd1)
    - Note: Collections data already merged (line 452 LOG.md), this adds progress visualization
    - Problem: Users can't see reading progress in organizer
    - Impact: Better tracking of currently-reading books
+
+---
+
+### ✨ Priority 2: High Priority Features
+
+**1. 🗑️ Orphan Detection & Recycle Bin** - MEDIUM/MEDIUM (9-13 hours)
+   - Detect books no longer in Amazon library after re-import
+   - Recycle Bin virtual column for soft-deleted books
+   - See [docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md](docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md) for full spec
+   - Problem: Orphaned books (samples replaced by purchase, returns, expired subscriptions) clutter library
+   - Impact: Clean library management, safe deletion with restore capability
 
 **2. 🔄 Phase 3 Retry Logic + Recovery + Pause/Resume** - MEDIUM/HIGH (12-16 hours, optional)
    - See [docs/design/PHASE-3-RETRY-LOGIC.md](docs/design/PHASE-3-RETRY-LOGIC.md) for full spec
@@ -102,14 +109,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
      5. Update main component imports
    - **Context Menu IIFE** - The context menu positioning (v4.1.0.e) uses an IIFE in JSX to calculate viewport bounds before rendering. Consider extracting to a custom hook or component for cleaner code.
 
-**4. ☁️ Multi-Device Sync** #Architecture - LOW/VERY HIGH (40-60 hours)
-   - Cloud storage option (self-hosted or encrypted)
-   - Sync organization across devices
-   - **TODO**: Test Dropbox integration as potential solution
-   - Problem: Major architectural change, privacy implications
-   - Impact: Convenience for multi-device users
-
-**5. Multi-Store Architecture** #Architecture - LOW/VERY HIGH (60-80 hours)
+**4. Multi-Store Architecture** #Architecture - LOW/VERY HIGH (60-80 hours)
    - See [docs/design/MULTI-STORE-ARCHITECTURE.md](docs/design/MULTI-STORE-ARCHITECTURE.md) for full spec
    - Status: Future enhancement (Amazon first, other stores later)
    - Covers: File naming, bookmarklet detection, data structure, migration path
