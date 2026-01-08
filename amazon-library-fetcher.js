@@ -25,7 +25,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v4.4.0';
+    const FETCHER_VERSION = 'v4.5.0';
     const SCHEMA_VERSION = '2.0';
 
     console.log('========================================');
@@ -1935,6 +1935,12 @@ async function fetchAmazonLibrary() {
             console.log(`   Unknown:                      ${stats.ownershipTypes.unknown.length}`);
             console.log('');
             console.log('⚠️  UNKNOWN OWNERSHIP TYPES FOUND');
+
+            // Send telemetry for each unique unknown type (helps discover new ownership types)
+            const uniqueUnknownTypes = [...new Set(stats.ownershipTypes.unknown.map(item => item.rawType))];
+            uniqueUnknownTypes.forEach(rawType => {
+                new Image().src = `https://readerwrangler.goatcounter.com/count?p=/event/newOwnershipType=${encodeURIComponent(rawType)}`;
+            });
             console.log('   (Note: Unknown types still import normally - this info helps improve future versions)');
             console.log('   Please report these at: https://github.com/Ron-L/readerwrangler/issues/new');
             console.log('');

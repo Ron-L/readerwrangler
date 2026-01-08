@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.10.0] - 2026-01-07
+
+### Added
+- **Unknown Ownership Type Telemetry** - Automatic discovery of new ownership types
+  - File version: amazon-library-fetcher.js v4.5.0
+  - Sends GoatCounter event for each unique unknown ownership type encountered
+  - Helps identify new Amazon ownership types (Rentals, Loans, etc.) without manual bug reports
+  - Only fires for truly unknown types - known types (purchased, sample, borrowed, prime, kindleUnlimited, koll, comixology) are not tracked
+
 ## [4.9.0] - 2026-01-07
 
 ### Added
