@@ -104,6 +104,19 @@ Your library organization is stored locally in your browser, but you can easily 
 - **Restore** loads the organization from the synced file on your other device
 - The library data itself (books, covers, ratings) is already in the JSON files from your initial extraction
 
+### Mobile Sync Tips
+
+**Android File Picker Limitation**:
+Android Chrome's file picker cannot select files directly from cloud storage folders (Dropbox, Google Drive, OneDrive). When you tap "Load Library" or "Restore", the picker shows these folders but selecting files from them may fail silently or not work at all.
+
+**Workaround**:
+1. Open your cloud storage app (Dropbox, Google Drive, etc.)
+2. Navigate to your backup/library JSON file
+3. Download it to your local Downloads folder
+4. In ReaderWrangler, use Load Library or Restore and select the file from Downloads
+
+This is a known Android browser limitation, not a ReaderWrangler issue. The workaround adds a few taps but works reliably.
+
 ---
 
 ## Power User Tips
@@ -422,4 +435,4 @@ A: Yes! Check out the [GitHub repository](https://github.com/Ron-L/ReaderWrangle
 
 ---
 
-**Version**: Guide last updated 2025-11-18
+**Version**: Guide last updated 2026-01-08
