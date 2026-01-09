@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.11.0] - 2026-01-09
+
+### Added
+- **Always-visible horizontal scrollbar** for columns container
+  - File versions: readerwrangler.js v4.10.0, readerwrangler.css v4.6.0, readerwrangler.html v4.6.0
+  - Styled scrollbar using standard CSS properties (Chrome 121+, Firefox, Safari)
+  - Scrollbar visible when columns exceed viewport width
+
 ## [4.10.1] - 2026-01-08
 
 ### Fixed

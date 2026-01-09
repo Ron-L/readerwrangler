@@ -8,13 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Top Personal Priorities
 
-**1. 📜 Horizontal & Vertical Scroll for Main View** - LOW/LOW (1-2 hours)
-   - Add horizontal scrollbar when columns exceed viewport width
-   - Add vertical scrollbar for main content area (columns already have per-column scroll)
-   - Problem: With many columns or narrow viewport, users can't access off-screen columns
-   - Impact: Basic usability for users with many columns or smaller screens
-
-**2. 🖼️ Cover Image Caching** - MEDIUM/MEDIUM (6-10 hours)
+**1. 🖼️ Cover Image Caching** - MEDIUM/MEDIUM (6-10 hours)
    - Cache book cover images locally to reduce Amazon requests and speed up load times
    - Options to investigate:
      - Service Worker caching (browser-managed, respects cache headers)
@@ -25,7 +19,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Covers refetch on every page load, slow experience, hammers Amazon servers
    - Impact: Faster load times, works offline, reduced bandwidth
 
-**3. 📝 Book Notes** - LOW/LOW (2-3 hours)
+**2. 📝 Book Notes** - LOW/LOW (2-3 hours)
    - Personal notes on individual books ("Why did I buy this?", "Who recommended it?")
    - See [docs/design/BOOK-NOTES.md](docs/design/BOOK-NOTES.md) for full spec
    - Sticky note styling in detail modal (matches landing page brand element)
@@ -34,7 +28,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Book descriptions don't always capture why you bought or want to read a book
    - Impact: Personal context preserved with each book
 
-**4. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
+**3. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
    - See [docs/design/FAMILY-SHARING.md](docs/design/FAMILY-SHARING.md) for full spec
    - Fetch which books user has shared with family members
    - Display "Shared with: Name" in book detail modal
@@ -43,7 +37,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No visibility into which books are shared with family
    - Impact: Better awareness of Family Library sharing status
 
-**5. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
+**4. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
    - Show reading progress percentage/position for each book
    - Implementation guidance: [Amazon Organizer Reading Progress conversation](https://claude.ai/chat/6e6f23c8-b84e-4900-8c64-fecb6a6e0bd1)
    - Note: Collections data already merged (line 452 LOG.md), this adds progress visualization
@@ -192,6 +186,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Add to FAQ and main page
    - Problem: Major omission for users who browse libraries on phones/tablets
    - Impact: Sets correct expectations
+   - Note: Mobile page view of index.html - hero takes 50% of screen.
 
 **4. 📋 Changelog Visibility** - MEDIUM/LOW (30 minutes)
    - Link version display (e.g., "v3.6.0") to CHANGELOG.md
