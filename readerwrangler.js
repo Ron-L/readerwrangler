@@ -1,6 +1,7 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.10.0";
+        const APP_VERSION = "4.12.0";  // Release version shown to users (update in README.md too)
+        const ORGANIZER_VERSION = "4.11.0";  // Build version for this file
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3122,7 +3123,7 @@
                                         <a href="index.html" style={{ color: 'inherit', textDecoration: 'none' }} title="Wrangle your reader chaos">
                                             ReaderWrangler™
                                         </a>
-                                        <span style={{ fontFamily: "'Lato', sans-serif", fontWeight: 300, color: '#64748b', fontSize: '0.875rem', marginLeft: '0.75rem' }}>v{ORGANIZER_VERSION}</span>
+                                        <span style={{ fontFamily: "'Lato', sans-serif", fontWeight: 300, color: '#64748b', fontSize: '0.875rem', marginLeft: '0.75rem' }}>v{APP_VERSION}</span>
                                     </h1>
                                     <p className="attribution">A product of Alloid Labs™</p>
                                     <p className="tagline">Your books, your order</p>
@@ -4510,14 +4511,6 @@
                         );
                     })()}
 
-                    <div className="fixed bottom-2 right-2 text-xs text-gray-400 flex items-center gap-3">
-                        <a href="https://github.com/Ron-L/ReaderWrangler/issues" target="_blank" rel="noopener noreferrer" className="hover:text-gray-600" title="Report issues or request features">Feedback</a>
-                        <span>|</span>
-                        <a href="security.html" className="hover:text-gray-600" title="Security & Privacy information">Security</a>
-                        <span>|</span>
-                        <span>v{ORGANIZER_VERSION}</span>
-                    </div>
-
                     {/* v3.14.0.x - Ghost position controlled via ref in updateGhostPosition */}
                     {isDragging && draggedBook && (
                         <div className="drag-ghost"
@@ -4598,7 +4591,7 @@
 
                     {/* Affiliate Disclosure Footer (v4.4.0) */}
                     <div className="fixed bottom-0 left-0 right-0 bg-gray-100 border-t border-gray-200 py-1 px-4 text-center text-xs text-gray-500 z-40">
-                        As an Amazon Associate, I earn from qualifying purchases.
+                        As an Amazon Associate, I earn from qualifying purchases. | <a href="https://github.com/Ron-L/ReaderWrangler/issues" target="_blank" rel="noopener noreferrer" className="hover:text-gray-700" title="Report issues or request features">Feedback</a> | <a href="security.html" className="hover:text-gray-700" title="Security & Privacy information">Security</a> | Build v{ORGANIZER_VERSION}
                     </div>
                 </div>
             );

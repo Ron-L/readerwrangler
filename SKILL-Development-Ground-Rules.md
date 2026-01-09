@@ -112,6 +112,7 @@ What task were you working on?
   → Remove version letter suffix (v3.1.0.c → v3.1.0)
   → Squash letter-versioned commits (optional but recommended)
   → Update README.md (APP version badge, Coming Soon, Recent Features), CHANGELOG.md, TODO.md (remove completed)
+  → Update APP_VERSION in readerwrangler.js to match README.md APP version
   → Note that index.html mirrors README.md but must manually be kept in sync.
   → Update docs/design/VIDEO-PRODUCTION-PLAN.md Content Update Tracker with user impactful features
   → Tag release, merge to main, delete branch, push to Dev and Prod (see Git Remotes below)
