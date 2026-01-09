@@ -108,6 +108,7 @@ What task were you working on?
 ## Before Release
 
 * **Release preparation**: When ready to release
+  → **NEVER use `git add -A` or `git add .`** - Always explicitly add only the files you modified
   → Check for TODO comments in code: `grep -rn "TODO" *.js *.html`
   → Remove version letter suffix (v3.1.0.c → v3.1.0)
   → Squash letter-versioned commits (optional but recommended)
