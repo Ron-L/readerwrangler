@@ -1,6 +1,8 @@
 # Data files (user-specific)
 *-library.json
 *-collections.json
+*-backup-*.json
+style.html
 
 # OS files
 .DS_Store

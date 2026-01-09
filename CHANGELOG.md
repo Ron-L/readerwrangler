@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.12.1] - 2026-01-09
+
+### Fixed
+- **Column drag no longer selects text** - Added preventDefault() to column drag handler
+  - File version: readerwrangler.js v4.11.1
+
 ## [4.11.0] - 2026-01-09
 
 ### Added
