@@ -1,6 +1,6 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const ORGANIZER_VERSION = "4.9.1";
+        const ORGANIZER_VERSION = "4.10.0";
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3977,7 +3977,7 @@
                         </div>
                     )}
 
-                    <div className="flex-1 overflow-x-auto overflow-y-hidden" onClick={(e) => {
+                    <div className="flex-1 min-h-0 overflow-x-scroll overflow-y-hidden mb-6 columns-scroll-container" onClick={(e) => {
                         // Clear selection if clicking on empty space (not on books or columns)
                         if (e.target === e.currentTarget || e.target.classList.contains('columns-container')) {
                             clearSelection();

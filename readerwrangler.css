@@ -1,4 +1,4 @@
-/* Style Guide CSS Variables (v4.5.0 - Blue palette) */
+/* Style Guide CSS Variables (v4.6.0 - Blue palette) */
 :root {
     /* Primary colors - Blue palette */
     --color-primary: #2563eb;
@@ -218,4 +218,12 @@ body { margin: 0; padding: 0; overflow: hidden; }
 }
 .filter-button-active {
     animation: filter-pulse 5s infinite;
+}
+
+/* v4.6.0 - Always-visible scrollbar for columns container */
+/* Uses standard CSS scrollbar properties (Chrome 121+, Firefox, Safari) */
+.columns-scroll-container {
+    scrollbar-width: thin;              /* Standard: thin scrollbar */
+    scrollbar-color: #94a3b8 #e2e8f0;   /* Standard: thumb and track colors */
+    scrollbar-gutter: stable;           /* Reserve space for scrollbar */
 }
