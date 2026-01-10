@@ -28,7 +28,17 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Book descriptions don't always capture why you bought or want to read a book
    - Impact: Personal context preserved with each book
 
-**3. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
+**3. 🎠 Column Carousel** - MEDIUM/MEDIUM (8-12 hours)
+   - Infinite horizontal carousel for columns (excludes pinned columns)
+   - See [docs/design/COLUMN-CAROUSEL.md](docs/design/COLUMN-CAROUSEL.md) for full spec
+   - Click-to-pin columns to left side; pinned columns exit carousel
+   - Momentum-based spinning with mouse wheel, edge hover zones, keyboard arrows
+   - 3D perspective: edge columns at 85% scale/opacity, center at 100%
+   - Mobile: swipe to spin, carousel locks during book drag
+   - Problem: 7+ columns becomes unwieldy with linear horizontal scroll
+   - Impact: Scalable navigation for large column counts (20+)
+
+**4. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
    - See [docs/design/FAMILY-SHARING.md](docs/design/FAMILY-SHARING.md) for full spec
    - Fetch which books user has shared with family members
    - Display "Shared with: Name" in book detail modal
@@ -37,7 +47,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No visibility into which books are shared with family
    - Impact: Better awareness of Family Library sharing status
 
-**4. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
+**5. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
    - Show reading progress percentage/position for each book
    - Implementation guidance: [Amazon Organizer Reading Progress conversation](https://claude.ai/chat/6e6f23c8-b84e-4900-8c64-fecb6a6e0bd1)
    - Note: Collections data already merged (line 452 LOG.md), this adds progress visualization
