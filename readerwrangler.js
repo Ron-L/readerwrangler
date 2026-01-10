@@ -1,7 +1,7 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
         const APP_VERSION = "4.12.1";  // Release version shown to users (update in README.md too)
-        const ORGANIZER_VERSION = "4.12.0.a";  // Build version for this file
+        const ORGANIZER_VERSION = "4.12.0.b";  // Build version for this file
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -4369,14 +4369,7 @@
                                     )}
                                 </div>
                             ))}
-                            {/* v4.1.0.l - Add Column button floats with columns */}
-                            <div className="flex-shrink-0 flex items-start pt-4">
-                                <button onClick={addColumn}
-                                        className="px-4 py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-lg flex items-center gap-2 shadow-md"
-                                        title="Create a new column">
-                                    ➕ Add Column
-                                </button>
-                            </div>
+                            {/* v4.12.0.b - Floating Add Column button removed; use column dropdown menu instead */}
                         </div>
                     </div>
 
