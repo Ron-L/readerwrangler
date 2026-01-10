@@ -37,7 +37,16 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Book descriptions don't always capture why you bought or want to read a book
    - Impact: Personal context preserved with each book
 
-**4. 🎠 Column Carousel** - MEDIUM/MEDIUM (8-12 hours)
+**4. 🏷️ Tags** - MEDIUM/MEDIUM (8-12 hours)
+   - Tags for books (explicit) and divs (positional inheritance)
+   - See [docs/design/TAGS.md](docs/design/TAGS.md) for full spec
+   - Books inherit div tags while under that div; lost when moved out
+   - Tag filter with autocomplete; hide empty columns/divs when filtering
+   - Display: explicit tags (bold) first, inherited (faded) second, alphabetical
+   - Problem: Can't find thematically related books (Time Travel, Military SF) across 100+ columns
+   - Impact: Cross-library thematic organization, reduced scrolling through empty columns
+
+**5. 🎠 Column Carousel** - MEDIUM/MEDIUM (8-12 hours)
    - Infinite horizontal carousel for columns (excludes pinned columns)
    - See [docs/design/COLUMN-CAROUSEL.md](docs/design/COLUMN-CAROUSEL.md) for full spec
    - Click-to-pin columns to left side; pinned columns exit carousel
@@ -47,7 +56,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: 7+ columns becomes unwieldy with linear horizontal scroll
    - Impact: Scalable navigation for large column counts (20+)
 
-**5. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
+**6. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
    - See [docs/design/FAMILY-SHARING.md](docs/design/FAMILY-SHARING.md) for full spec
    - Fetch which books user has shared with family members
    - Display "Shared with: Name" in book detail modal
@@ -56,7 +65,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No visibility into which books are shared with family
    - Impact: Better awareness of Family Library sharing status
 
-**6. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
+**7. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
    - Show reading progress percentage/position for each book
    - Implementation guidance: [Amazon Organizer Reading Progress conversation](https://claude.ai/chat/6e6f23c8-b84e-4900-8c64-fecb6a6e0bd1)
    - Note: Collections data already merged (line 452 LOG.md), this adds progress visualization
@@ -126,20 +135,22 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 📚 Priority 3: Nice-to-Have Features
 
-**1. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
+**1. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
+   - Allow same book to appear in multiple columns
+   - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
+   - Array-based architecture, Ctrl+Drag UI, delete operation
+   - Status: Deferred - Tags feature covers most use cases (cross-categorization)
+   - Remaining use case: Anthologies with stories from multiple series/authors
+   - Problem: Can't organize same book multiple ways
+   - Impact: Power-user feature for edge cases
+
+**2. 📖 Enhanced Series Management** - MEDIUM/MEDIUM (6-10 hours)
    - Expand current "Group Series Books" button
    - Automatic series detection
    - Series reading order visualization
    - Missing book detection ("You have books 1, 2, and 4 of this series")
    - Problem: Series books scattered across library
    - Impact: Better management for series readers
-
-**2. Book Copy Feature** #Optional - MEDIUM/MEDIUM (8-10 hours)
-   - Allow same book to appear in multiple columns
-   - See [docs/design/BOOK-COPY.md](docs/design/BOOK-COPY.md) for full spec
-   - Array-based architecture, Ctrl+Drag UI, delete operation
-   - Problem: Can't organize same book multiple ways
-   - Impact: More flexible organization
 
 **3. 🏷️ Color-Coding/Tagging System** - MEDIUM/MEDIUM (8-10 hours)
    - Visual distinction beyond columns

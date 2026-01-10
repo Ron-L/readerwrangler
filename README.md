@@ -154,7 +154,11 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
 We're constantly improving ReaderWrangler based on user feedback. Here's what's on the horizon:
 
-- **Duplicate books in multiple columns** - Put the same book in "Next to Read" AND "Sci-Fi" simultaneously
+- **Improved book cover fetching performance** - Faster load times with local caching
+- **Book notes** - Personal notes on individual books ("Why did I buy this?")
+- **Tags** - Tag books and dividers for cross-library thematic organization
+- **Column carousel** - Infinite horizontal carousel for navigating many columns
+- **Family sharing info** - See which books you've shared with family members
 - **Reading progress tracking** - See how far you've read in each book
 - **Multi-store support** - Organize books from Barnes & Noble, Kobo, and other ebook stores
 
