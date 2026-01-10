@@ -19,7 +19,16 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Covers refetch on every page load, slow experience, hammers Amazon servers
    - Impact: Faster load times, works offline, reduced bandwidth
 
-**2. 📝 Book Notes** - LOW/LOW (2-3 hours)
+**2. 📐 Responsive Filter Panel** - LOW/LOW (2-4 hours)
+   - Responsive grid layout with inline labels to reduce vertical footprint
+   - See [docs/design/RESPONSIVE-FILTER-PANEL.md](docs/design/RESPONSIVE-FILTER-PANEL.md) for full spec
+   - CSS Grid with `auto-fit` and `minmax()` for responsive flow
+   - Icon + field inline (no separate label rows)
+   - Wide screens: 5-6 filters per row (~80px height vs current ~200px)
+   - Problem: Filter panel consumes ~200px vertical space (20% of 1080p viewport)
+   - Impact: 60% space savings on wide screens, more visible books
+
+**3. 📝 Book Notes** - LOW/LOW (2-3 hours)
    - Personal notes on individual books ("Why did I buy this?", "Who recommended it?")
    - See [docs/design/BOOK-NOTES.md](docs/design/BOOK-NOTES.md) for full spec
    - Sticky note styling in detail modal (matches landing page brand element)
@@ -28,7 +37,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Book descriptions don't always capture why you bought or want to read a book
    - Impact: Personal context preserved with each book
 
-**3. 🎠 Column Carousel** - MEDIUM/MEDIUM (8-12 hours)
+**4. 🎠 Column Carousel** - MEDIUM/MEDIUM (8-12 hours)
    - Infinite horizontal carousel for columns (excludes pinned columns)
    - See [docs/design/COLUMN-CAROUSEL.md](docs/design/COLUMN-CAROUSEL.md) for full spec
    - Click-to-pin columns to left side; pinned columns exit carousel
@@ -38,7 +47,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: 7+ columns becomes unwieldy with linear horizontal scroll
    - Impact: Scalable navigation for large column counts (20+)
 
-**4. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
+**5. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
    - See [docs/design/FAMILY-SHARING.md](docs/design/FAMILY-SHARING.md) for full spec
    - Fetch which books user has shared with family members
    - Display "Shared with: Name" in book detail modal
@@ -47,7 +56,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No visibility into which books are shared with family
    - Impact: Better awareness of Family Library sharing status
 
-**5. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
+**6. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
    - Show reading progress percentage/position for each book
    - Implementation guidance: [Amazon Organizer Reading Progress conversation](https://claude.ai/chat/6e6f23c8-b84e-4900-8c64-fecb6a6e0bd1)
    - Note: Collections data already merged (line 452 LOG.md), this adds progress visualization
