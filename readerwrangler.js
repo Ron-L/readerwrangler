@@ -1,7 +1,7 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
         const APP_VERSION = "4.12.1";  // Release version shown to users (update in README.md too)
-        const ORGANIZER_VERSION = "4.11.1";  // Build version for this file
+        const ORGANIZER_VERSION = "4.12.0.a";  // Build version for this file
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -1309,6 +1309,23 @@
             const addColumn = () => {
                 const newId = `col-${Date.now()}`;
                 setColumns([...columns, { id: newId, name: 'New Column', books: [] }]);
+                // Set this column to edit mode immediately
+                setTimeout(() => setEditingColumn(newId), 0);
+                new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/column-created';
+            };
+
+            // v4.12.0 - Insert column before or after a reference column
+            const insertColumn = (referenceColumnId, position) => {
+                const newId = `col-${Date.now()}`;
+                const newColumn = { id: newId, name: 'New Column', books: [] };
+                const refIndex = columns.findIndex(c => c.id === referenceColumnId);
+                if (refIndex === -1) return;
+
+                const insertIndex = position === 'before' ? refIndex : refIndex + 1;
+                const newColumns = [...columns];
+                newColumns.splice(insertIndex, 0, newColumn);
+                setColumns(newColumns);
+
                 // Set this column to edit mode immediately
                 setTimeout(() => setEditingColumn(newId), 0);
                 new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/column-created';
@@ -4094,6 +4111,12 @@
 
                                                             {/* Insert Divider */}
                                                             <button onClick={() => { setInsertDividerOpen(column.id); setNewDividerLabel(''); }} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Insert Divider</button>
+
+                                                            <div className="border-t border-gray-200 my-1"></div>
+
+                                                            {/* v4.12.0 - Insert Column Before/After */}
+                                                            <button onClick={() => { insertColumn(column.id, 'before'); setColumnMenuOpen(null); }} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Insert Column Before</button>
+                                                            <button onClick={() => { insertColumn(column.id, 'after'); setColumnMenuOpen(null); }} className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-sm">Insert Column After</button>
 
                                                             <div className="border-t border-gray-200 my-1"></div>
 
