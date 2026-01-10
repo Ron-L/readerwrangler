@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.13.0] - 2026-01-10
+
+### Added
+- **Insert Column Before/After** - New options in column dropdown menu
+  - File version: readerwrangler.js v4.12.0
+  - Create new columns adjacent to any existing column
+  - New column enters edit mode immediately for naming
+
+### Removed
+- **Floating Add Column button** - Replaced by Insert Column menu options
+  - Better UX: new column appears where you need it, not at far right
+- **Version badge from README** - Single source of truth now in app
+
 ## [4.12.1] - 2026-01-09
 
 ### Fixed
