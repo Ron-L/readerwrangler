@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.15.0] - 2026-01-11
+
+### Changed
+- **Responsive Filter Panel** - Redesigned filter panel for better space efficiency
+  - File version: readerwrangler.js v4.15.0
+  - Primary/Advanced filter split: Search, Read Status, Collection always visible
+  - Advanced filters (Rating, Series, Wishlist, Ownership, Date) collapsed by default
+  - "More Filters" toggle with active filter count indicator
+  - Inline icons (left of fields) instead of labels above
+  - Max-width constraints prevent field stretching on ultrawide monitors
+  - ~50% vertical space savings when collapsed vs previous design
+
 ## [4.14.0] - 2026-01-11
 
 ### Added
