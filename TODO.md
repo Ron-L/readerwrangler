@@ -8,16 +8,26 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Top Personal Priorities
 
-**1. 📐 Responsive Filter Panel** - LOW/LOW (2-4 hours)
-   - Responsive grid layout with inline labels to reduce vertical footprint
-   - See [docs/design/RESPONSIVE-FILTER-PANEL.md](docs/design/RESPONSIVE-FILTER-PANEL.md) for full spec
-   - CSS Grid with `auto-fit` and `minmax()` for responsive flow
-   - Icon + field inline (no separate label rows)
-   - Wide screens: 5-6 filters per row (~80px height vs current ~200px)
-   - Problem: Filter panel consumes ~200px vertical space (20% of 1080p viewport)
-   - Impact: 60% space savings on wide screens, more visible books
+**0-A. 🐛 Data Status shows green checkmark when Collections empty** - LOW/LOW (1 hour)
+   - Status bar shows green checkmark overall even when Collections shows "Not loaded"
+   - Data Status modal shows "Collections: Not loaded" with old date but no actual data
+   - Should show warning/stale indicator when Collections data is missing
+   - Problem: Misleading status indicator suggests all is well when data is incomplete
 
-**2. 📝 Book Notes** - LOW/LOW (2-3 hours)
+**0-B. 🐛 Collections Fetcher fails with SecurityError on file save** - LOW/LOW (1-2 hours)
+   - Error: `SecurityError: Failed to execute 'createWritable' on 'FileSystemFileHandle': User activation is required to request permissions`
+   - Same issue fixed in Library Fetcher - Chrome requires user interaction to refresh file write permission
+   - UI shows "Saving Library (Elapsed 0)" but freezes - no error message shown
+   - Collections Fetcher runs faster, so didn't hit timing issue before; Chrome may have tightened
+   - Fix: Add same permission refresh button/interaction as Library Fetcher
+
+**0-C. 🐛 Column counts include dividers** - LOW/LOW (30 min)
+   - Column header shows count of all items (books + dividers)
+   - When filtering, reduced count still includes dividers
+   - Should count only books, not dividers
+   - Problem: Misleading count - user expects book count, not total item count
+
+**1. 📝 Book Notes** - LOW/LOW (2-3 hours)
    - Personal notes on individual books ("Why did I buy this?", "Who recommended it?")
    - See [docs/design/BOOK-NOTES.md](docs/design/BOOK-NOTES.md) for full spec
    - Sticky note styling in detail modal (matches landing page brand element)
@@ -26,7 +36,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Book descriptions don't always capture why you bought or want to read a book
    - Impact: Personal context preserved with each book
 
-**3. 🏷️ Tags** - MEDIUM/MEDIUM (8-12 hours)
+**2. 🏷️ Tags** - MEDIUM/MEDIUM (8-12 hours)
    - Tags for books (explicit) and divs (positional inheritance)
    - See [docs/design/TAGS.md](docs/design/TAGS.md) for full spec
    - Books inherit div tags while under that div; lost when moved out
@@ -35,7 +45,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Can't find thematically related books (Time Travel, Military SF) across 100+ columns
    - Impact: Cross-library thematic organization, reduced scrolling through empty columns
 
-**4. 🎠 Column Carousel** - MEDIUM/MEDIUM (8-12 hours)
+**3. 🎠 Column Carousel** - MEDIUM/MEDIUM (8-12 hours)
    - Infinite horizontal carousel for columns (excludes pinned columns)
    - See [docs/design/COLUMN-CAROUSEL.md](docs/design/COLUMN-CAROUSEL.md) for full spec
    - Click-to-pin columns to left side; pinned columns exit carousel
@@ -45,7 +55,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: 7+ columns becomes unwieldy with linear horizontal scroll
    - Impact: Scalable navigation for large column counts (20+)
 
-**5. 📚 Series Page Bulk Import** - MEDIUM/MEDIUM (6-10 hours)
+**4. 📚 Series Page Bulk Import** - MEDIUM/MEDIUM (6-10 hours)
    - See [docs/design/SERIES-PAGE-BULK-IMPORT.md](docs/design/SERIES-PAGE-BULK-IMPORT.md) for full spec
    - Bulk import all books from an Amazon series page as wishlist entries
    - Destroyer series Reference URL: https://www.amazon.com/dp/B0D775V4W9?binding=kindle_edition
@@ -57,7 +67,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Adding 100+ books from a series requires visiting each product page individually
    - Impact: One-click bulk wishlist population for entire series
 
-**6. 💰 Wishlist Price Tracking** - MEDIUM/MEDIUM (6-10 hours)
+**5. 💰 Wishlist Price Tracking** - MEDIUM/MEDIUM (6-10 hours)
    - Fetch current prices for wishlist books from Amazon product pages
    - Target price field in wishlist book data
    - Filter in APP: show wishlist books with current price ≤ target price
