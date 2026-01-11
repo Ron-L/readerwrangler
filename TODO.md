@@ -56,7 +56,34 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: 7+ columns becomes unwieldy with linear horizontal scroll
    - Impact: Scalable navigation for large column counts (20+)
 
-**6. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
+**6. 💰 Wishlist Price Tracking** - MEDIUM/MEDIUM (6-10 hours)
+   - Fetch current prices for wishlist books from Amazon product pages
+   - Target price field in wishlist book data
+   - Filter in APP: show wishlist books with current price ≤ target price
+   - Implementation options:
+     - Add to Library Fetcher (scrape prices during existing fetch)
+     - Separate bookmarklet option with dedicated price lookup script
+   - Replaces manual eReaderIQ workflow for price monitoring
+   - Problem: Jumping between ReaderWrangler and eReaderIQ for price tracking
+   - Impact: Streamlined wishlist-to-purchase workflow
+
+**7. 📚 Series Page Bulk Import** - MEDIUM/MEDIUM (6-10 hours)
+   - Bulk import all books from an Amazon series page as wishlist entries
+   - Destroyer series Reference URL: https://www.amazon.com/dp/B0D775V4W9?binding=kindle_edition
+   - Creates wishlist entries (isOwned: false) for books not already owned
+   - Implementation notes:
+     - Series page may require multiple "Show All" clicks to load all books
+     - Pagination issues observed (e.g., 155-book series missing books 101-149)
+     - Need to investigate series page API for complete book list
+   - Related to P1 T6 (Wishlist Price Tracking) for full workflow
+   - Problem: Adding 100+ books from a series requires visiting each product page individually
+   - Impact: One-click bulk wishlist population for entire series
+
+---
+
+### ✨ Priority 2: High Priority Features
+
+**1. 👨‍👩‍👧 Family Sharing Info** - LOW/LOW (2-4 hours)
    - See [docs/design/FAMILY-SHARING.md](docs/design/FAMILY-SHARING.md) for full spec
    - Fetch which books user has shared with family members
    - Display "Shared with: Name" in book detail modal
@@ -65,25 +92,21 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: No visibility into which books are shared with family
    - Impact: Better awareness of Family Library sharing status
 
-**7. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
+**2. 📖 Reading Progress Visualization** - MEDIUM/HIGH (6-10 hours)
    - Show reading progress percentage/position for each book
    - Implementation guidance: [Amazon Organizer Reading Progress conversation](https://claude.ai/chat/6e6f23c8-b84e-4900-8c64-fecb6a6e0bd1)
    - Note: Collections data already merged (line 452 LOG.md), this adds progress visualization
    - Problem: Users can't see reading progress in organizer
    - Impact: Better tracking of currently-reading books
 
----
-
-### ✨ Priority 2: High Priority Features
-
-**1. 🗑️ Orphan Detection & Recycle Bin** - MEDIUM/MEDIUM (9-13 hours)
+**3. 🗑️ Orphan Detection & Recycle Bin** - MEDIUM/MEDIUM (9-13 hours)
    - Detect books no longer in Amazon library after re-import
    - Recycle Bin virtual column for soft-deleted books
    - See [docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md](docs/design/ORPHAN-DETECTION-RECYCLE-BIN.md) for full spec
    - Problem: Orphaned books (samples replaced by purchase, returns, expired subscriptions) clutter library
    - Impact: Clean library management, safe deletion with restore capability
 
-**2. 🔄 Phase 3 Retry Logic + Recovery + Pause/Resume** - MEDIUM/HIGH (12-16 hours, optional)
+**4. 🔄 Phase 3 Retry Logic + Recovery + Pause/Resume** - MEDIUM/HIGH (12-16 hours, optional)
    - See [docs/design/PHASE-3-RETRY-LOGIC.md](docs/design/PHASE-3-RETRY-LOGIC.md) for full spec
    - Retry logic for failed enrichments (~1.3% failure rate)
    - Pause/Resume capability with global flag + button UI
@@ -96,7 +119,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Impact: Data quality improvement (99.8%+ expected), better UX for long extractions, prevents data loss
    - Note: This consolidates former P2 "Extraction Error Recovery" feature
 
-**3. 🔧 Refactor readerwrangler.js into Modules** - LOW/MEDIUM (4-6 hours)
+**5. 🔧 Refactor readerwrangler.js into Modules** - LOW/MEDIUM (4-6 hours)
    - Current state: 3,862-line monolithic file with 50+ state variables, 80+ functions
    - **Recommended: Minimal Split (4 modules)**
 
@@ -124,7 +147,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
      5. Update main component imports
    - **Context Menu IIFE** - The context menu positioning (v4.1.0.e) uses an IIFE in JSX to calculate viewport bounds before rendering. Consider extracting to a custom hook or component for cleaner code.
 
-**4. Multi-Store Architecture** #Architecture - LOW/VERY HIGH (60-80 hours)
+**6. Multi-Store Architecture** #Architecture - LOW/VERY HIGH (60-80 hours)
    - See [docs/design/MULTI-STORE-ARCHITECTURE.md](docs/design/MULTI-STORE-ARCHITECTURE.md) for full spec
    - Status: Future enhancement (Amazon first, other stores later)
    - Covers: File naming, bookmarklet detection, data structure, migration path
