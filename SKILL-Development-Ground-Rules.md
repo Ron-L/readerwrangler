@@ -102,7 +102,7 @@ What task were you working on?
   → The APP has its OWN version incremented at release time
   → Increment file version letter suffix (a→b→c), commit before testing
   → Each code/test iteration: increment letter, commit, then test
-
+  → NOTE: It says COMMIT above. Quit skipping this step!!!
 ---
 
 ## Before Release
