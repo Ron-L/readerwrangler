@@ -1,7 +1,7 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
         const APP_VERSION = "4.14.0";  // Release version shown to users
-        const ORGANIZER_VERSION = "4.14.0.b";  // Build version for this file
+        const ORGANIZER_VERSION = "4.14.0.c";  // Build version for this file
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3356,6 +3356,26 @@
                                             return activeCount > 0 ? ` (${activeCount})` : '';
                                         })()}
                                     </button>
+
+                                    {/* Clear All Filters - v4.14.0.c moved to primary row for better UX on wide screens */}
+                                    {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || ownershipFilter || seriesFilter || dateFrom || dateTo) && (
+                                        <button
+                                            onClick={() => {
+                                                setSearchTerm('');
+                                                setReadStatusFilter('');
+                                                setCollectionFilter('');
+                                                setRatingFilter('');
+                                                setWishlistFilter('');
+                                                setOwnershipFilter('');
+                                                setSeriesFilter('');
+                                                setDateFrom('');
+                                                setDateTo('');
+                                            }}
+                                            className="px-3 py-2 text-blue-700 hover:text-blue-900 font-semibold text-sm"
+                                            title="Clear all filters">
+                                            Clear All
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* ADVANCED FILTERS - Collapsible (v4.14.0.a) */}
@@ -3467,39 +3487,21 @@
                                     </div>
                                 )}
 
-                                {/* Result Counter (v4.1.0.f - Show Hidden moved here, count order fixed) */}
-                                <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center text-sm text-gray-600">
-                                    <div className="flex items-center gap-4">
-                                        <span>
-                                            Showing: {columns.reduce((sum, col) => sum + filteredBooks(col.books).filter(item => !(item && item.type === 'divider')).length, 0)} of {books.length} books
-                                        </span>
-                                        {/* Show Hidden toggle - next to count since it affects what's shown (v4.1.0.f) */}
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={showHidden}
-                                                onChange={(e) => setShowHidden(e.target.checked)}
-                                                className="w-4 h-4 rounded border-gray-300 text-blue-700 focus:ring-blue-500"
-                                            />
-                                            <span className="text-gray-600">Show Hidden</span>
-                                        </label>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setSearchTerm('');
-                                            setReadStatusFilter('');
-                                            setCollectionFilter('');
-                                            setRatingFilter('');
-                                            setWishlistFilter('');
-                                            setOwnershipFilter('');
-                                            setSeriesFilter('');
-                                            setDateFrom('');
-                                            setDateTo('');
-                                            // v4.1.0.f - Show Hidden NOT reset by Clear Filters (it's a view mode, not a filter)
-                                        }}
-                                        className="text-blue-700 hover:text-blue-900 font-semibold">
-                                        Clear All Filters
-                                    </button>
+                                {/* Result Counter (v4.1.0.f - Show Hidden moved here, count order fixed, v4.14.0.c - Clear All moved to primary row) */}
+                                <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-4 text-sm text-gray-600">
+                                    <span>
+                                        Showing: {columns.reduce((sum, col) => sum + filteredBooks(col.books).filter(item => !(item && item.type === 'divider')).length, 0)} of {books.length} books
+                                    </span>
+                                    {/* Show Hidden toggle - next to count since it affects what's shown (v4.1.0.f) */}
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={showHidden}
+                                            onChange={(e) => setShowHidden(e.target.checked)}
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-700 focus:ring-blue-500"
+                                        />
+                                        <span className="text-gray-600">Show Hidden</span>
+                                    </label>
                                 </div>
                             </div>
                         )}
