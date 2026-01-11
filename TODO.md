@@ -68,13 +68,13 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Impact: Streamlined wishlist-to-purchase workflow
 
 **7. 📚 Series Page Bulk Import** - MEDIUM/MEDIUM (6-10 hours)
+   - See [docs/design/SERIES-PAGE-BULK-IMPORT.md](docs/design/SERIES-PAGE-BULK-IMPORT.md) for full spec
    - Bulk import all books from an Amazon series page as wishlist entries
    - Destroyer series Reference URL: https://www.amazon.com/dp/B0D775V4W9?binding=kindle_edition
+   - API: `/kindle-dbs/productPage/ajax/seriesAsinList?asin=X&pageNumber=1&pageSize=200`
+   - Single request with pageSize=200 returns all available books
    - Creates wishlist entries (isOwned: false) for books not already owned
-   - Implementation notes:
-     - Series page may require multiple "Show All" clicks to load all books
-     - Pagination issues observed (e.g., 155-book series missing books 101-149)
-     - Need to investigate series page API for complete book list
+   - **Known limitation:** Amazon data gaps (e.g., 155-book series missing books 101-149 from Kindle catalog)
    - Related to P1 T6 (Wishlist Price Tracking) for full workflow
    - Problem: Adding 100+ books from a series requires visiting each product page individually
    - Impact: One-click bulk wishlist population for entire series
