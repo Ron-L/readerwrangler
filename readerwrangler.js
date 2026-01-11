@@ -1,7 +1,7 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
         const APP_VERSION = "4.14.0";  // Release version shown to users
-        const ORGANIZER_VERSION = "4.13.0";  // Build version for this file
+        const ORGANIZER_VERSION = "4.14.0.a";  // Build version for this file
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -306,6 +306,11 @@
             const [dateFrom, setDateFrom] = useState(''); // Filter by acquisition date from (YYYY-MM-DD) (NEW v3.8.0.k)
             const [dateTo, setDateTo] = useState(''); // Filter by acquisition date to (YYYY-MM-DD) (NEW v3.8.0.k)
             const [filterPanelOpen, setFilterPanelOpen] = useState(false); // Collapsible filter panel state (NEW v3.8.0)
+            const [showAdvancedFilters, setShowAdvancedFilters] = useState(() => {
+                // v4.14.0.a - Persist advanced filters expanded state
+                const saved = localStorage.getItem('readerwrangler-advanced-filters');
+                return saved === 'true';
+            }); // Show advanced filters section (NEW v4.14.0.a)
             const [showHidden, setShowHidden] = useState(false); // Show hidden books toggle (NEW v4.1.0.d)
             const [, forceUpdate] = useState({});
             const [coverUrlMap, setCoverUrlMap] = useState({}); // Cover image cache URL map (v4.13.0)
@@ -395,6 +400,11 @@
                     console.error('Failed to save filters to localStorage:', e);
                 }
             }, [searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter, ownershipFilter, seriesFilter, dateFrom, dateTo, showHidden]);
+
+            // v4.14.0.a - Persist advanced filters expanded state
+            useEffect(() => {
+                localStorage.setItem('readerwrangler-advanced-filters', showAdvancedFilters);
+            }, [showAdvancedFilters]);
 
             const formatAcquisitionDate = (timestamp) => {
                 if (!timestamp) return '';
@@ -3278,37 +3288,38 @@
                             {books.length > 0 && <span className="text-base text-gray-500">({books.length} books)</span>}
                         </div>
 
-                        {/* Collapsible Filter Panel (v3.8.0.k - moved above Active Filters banner) */}
+                        {/* Collapsible Filter Panel (v3.8.0.k, restructured v4.14.0.a - Primary/Advanced split) */}
                         {filterPanelOpen && (
                             <div className="bg-white border border-gray-300 rounded-lg p-4 mb-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {/* PRIMARY FILTERS - Always visible (v4.14.0.a) */}
+                                <div className="flex flex-wrap gap-2 items-center">
                                     {/* Search */}
-                                    <div className="relative">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">🔍 Search</label>
-                                        <span className="absolute left-3 top-9 text-gray-400">🔍</span>
+                                    <div className="relative flex items-center">
+                                        <span className="absolute left-3 text-gray-400" title="Search">🔍</span>
                                         <input type="text"
                                                placeholder="Title or author..."
                                                value={searchTerm}
                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                               className="w-full pl-10 pr-10 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                               aria-label="Search by title or author"
+                                               className="pl-10 pr-8 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[180px] max-w-[300px]" />
                                         {searchTerm && (
                                             <button
                                                 onClick={() => setSearchTerm('')}
-                                                className="absolute right-3 top-9 text-gray-400 hover:text-gray-600 text-xl"
+                                                className="absolute right-2 text-gray-400 hover:text-gray-600 text-lg"
                                                 title="Clear search">
                                                 ×
                                             </button>
                                         )}
                                     </div>
 
-                                    {/* ROW 1: Discovery - "What book am I looking for?" */}
                                     {/* Read Status */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">📖 Read Status</label>
+                                    <div className="flex items-center">
+                                        <span className="mr-1" title="Read Status">📖</span>
                                         <select
                                             value={readStatusFilter}
                                             onChange={(e) => setReadStatusFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                            aria-label="Filter by read status"
+                                            className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[120px] max-w-[180px]">
                                             <option value="">All Status</option>
                                             <option value="READ">✓ Read</option>
                                             <option value="UNREAD">○ Unread</option>
@@ -3316,30 +3327,14 @@
                                         </select>
                                     </div>
 
-                                    {/* Rating (moved from row 2 for v4.9.0.d) */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">⭐ Rating</label>
-                                        <select
-                                            value={ratingFilter}
-                                            onChange={(e) => setRatingFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                            <option value="">All Ratings</option>
-                                            <option value="5">5★</option>
-                                            <option value="4">4+★</option>
-                                            <option value="3">3+★</option>
-                                            <option value="2">2+★</option>
-                                            <option value="1">1+★</option>
-                                        </select>
-                                    </div>
-
-                                    {/* ROW 2: Organization - "How is it organized?" */}
                                     {/* Collection */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">🗂️ Collection</label>
+                                    <div className="flex items-center">
+                                        <span className="mr-1" title="Collection">🗂️</span>
                                         <select
                                             value={collectionFilter}
                                             onChange={(e) => setCollectionFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                            aria-label="Filter by collection"
+                                            className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[140px] max-w-[220px]">
                                             <option value="">All Collections</option>
                                             <option value="UNCOLLECTED">📚 Uncollected</option>
                                             {getAllCollectionNames().map(name => (
@@ -3348,89 +3343,135 @@
                                         </select>
                                     </div>
 
-                                    {/* Series */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">📚 Series</label>
-                                        <select
-                                            value={seriesFilter}
-                                            onChange={(e) => setSeriesFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                            <option value="">All Series</option>
-                                            <option value="NOT_IN_SERIES">📖 Not in Series</option>
-                                            {getAllSeriesNames().map(name => (
-                                                <option key={name} value={name}>{name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {/* Wishlist */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">❤️ Wishlist</label>
-                                        <select
-                                            value={wishlistFilter}
-                                            onChange={(e) => setWishlistFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                            <option value="">All Books</option>
-                                            <option value="owned">Owned Books Only</option>
-                                            <option value="wishlist">Wishlist Books Only</option>
-                                        </select>
-                                    </div>
-
-                                    {/* ROW 3: Acquisition - "How did I get it?" */}
-                                    {/* Ownership Type (NEW v4.9.0) */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">🏷️ Ownership</label>
-                                        <select
-                                            value={ownershipFilter}
-                                            onChange={(e) => setOwnershipFilter(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                            <option value="">All Types</option>
-                                            <option value="purchased">Purchased</option>
-                                            <option value="sample">Sample</option>
-                                            <option value="borrowed">Borrowed</option>
-                                            <option value="prime">Prime</option>
-                                            <option value="kindleUnlimited">Kindle Unlimited</option>
-                                            <option value="koll">KOLL</option>
-                                            <option value="comixology">Comixology</option>
-                                        </select>
-                                    </div>
+                                    {/* More Filters Toggle (v4.14.0.a) */}
+                                    <button
+                                        onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                                        className={`px-3 py-2 border rounded-lg flex items-center gap-1 text-sm ${
+                                            (ratingFilter || seriesFilter || wishlistFilter || ownershipFilter || dateFrom || dateTo)
+                                            ? 'border-blue-500 text-blue-700 font-semibold'
+                                            : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                                        }`}
+                                        aria-expanded={showAdvancedFilters}
+                                        title="Toggle advanced filters">
+                                        {showAdvancedFilters ? '▼' : '▶'} More Filters
+                                        {(() => {
+                                            const activeCount = [ratingFilter, seriesFilter, wishlistFilter, ownershipFilter, dateFrom, dateTo].filter(Boolean).length;
+                                            return activeCount > 0 ? ` (${activeCount})` : '';
+                                        })()}
+                                    </button>
                                 </div>
 
-                                {/* Acquisition Date Range (NEW v3.8.0.k) - Full width row */}
-                                <div className="mt-4 flex items-end gap-4">
-                                    <div className="flex-1">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">📅 Acquisition Date - From</label>
-                                        <input
-                                            type="date"
-                                            value={dateFrom}
-                                            onChange={(e) => setDateFrom(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                        />
+                                {/* ADVANCED FILTERS - Collapsible (v4.14.0.a) */}
+                                {showAdvancedFilters && (
+                                    <div className="mt-3 pt-3 border-t border-gray-200 bg-gray-50 -mx-4 px-4 pb-3 rounded-b-lg">
+                                        <div className="flex flex-wrap gap-2 items-center">
+                                            {/* Rating */}
+                                            <div className="flex items-center">
+                                                <span className="mr-1" title="Rating">⭐</span>
+                                                <select
+                                                    value={ratingFilter}
+                                                    onChange={(e) => setRatingFilter(e.target.value)}
+                                                    aria-label="Filter by rating"
+                                                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[120px] max-w-[180px]">
+                                                    <option value="">All Ratings</option>
+                                                    <option value="5">5★</option>
+                                                    <option value="4">4+★</option>
+                                                    <option value="3">3+★</option>
+                                                    <option value="2">2+★</option>
+                                                    <option value="1">1+★</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Series */}
+                                            <div className="flex items-center">
+                                                <span className="mr-1" title="Series">📚</span>
+                                                <select
+                                                    value={seriesFilter}
+                                                    onChange={(e) => setSeriesFilter(e.target.value)}
+                                                    aria-label="Filter by series"
+                                                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[120px] max-w-[220px]">
+                                                    <option value="">All Series</option>
+                                                    <option value="NOT_IN_SERIES">📖 Not in Series</option>
+                                                    {getAllSeriesNames().map(name => (
+                                                        <option key={name} value={name}>{name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {/* Wishlist */}
+                                            <div className="flex items-center">
+                                                <span className="mr-1" title="Wishlist">❤️</span>
+                                                <select
+                                                    value={wishlistFilter}
+                                                    onChange={(e) => setWishlistFilter(e.target.value)}
+                                                    aria-label="Filter by wishlist status"
+                                                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[120px] max-w-[180px]">
+                                                    <option value="">All Books</option>
+                                                    <option value="owned">Owned Only</option>
+                                                    <option value="wishlist">Wishlist Only</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Ownership Type */}
+                                            <div className="flex items-center">
+                                                <span className="mr-1" title="Ownership">🏷️</span>
+                                                <select
+                                                    value={ownershipFilter}
+                                                    onChange={(e) => setOwnershipFilter(e.target.value)}
+                                                    aria-label="Filter by ownership type"
+                                                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[120px] max-w-[180px]">
+                                                    <option value="">All Types</option>
+                                                    <option value="purchased">Purchased</option>
+                                                    <option value="sample">Sample</option>
+                                                    <option value="borrowed">Borrowed</option>
+                                                    <option value="prime">Prime</option>
+                                                    <option value="kindleUnlimited">Kindle Unlimited</option>
+                                                    <option value="koll">KOLL</option>
+                                                    <option value="comixology">Comixology</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Date From */}
+                                            <div className="flex items-center">
+                                                <span className="mr-1" title="Acquisition Date From">📅</span>
+                                                <input
+                                                    type="date"
+                                                    value={dateFrom}
+                                                    onChange={(e) => setDateFrom(e.target.value)}
+                                                    aria-label="Acquisition date from"
+                                                    className="px-2 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[130px] max-w-[160px]"
+                                                />
+                                            </div>
+
+                                            {/* Date To */}
+                                            <div className="flex items-center">
+                                                <span className="mr-1" title="Acquisition Date To">📅</span>
+                                                <input
+                                                    type="date"
+                                                    value={dateTo}
+                                                    onChange={(e) => setDateTo(e.target.value)}
+                                                    aria-label="Acquisition date to"
+                                                    className="px-2 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[130px] max-w-[160px]"
+                                                />
+                                            </div>
+
+                                            {(dateFrom || dateTo) && (
+                                                <button
+                                                    onClick={() => {
+                                                        setDateFrom('');
+                                                        setDateTo('');
+                                                    }}
+                                                    className="px-2 py-2 text-blue-700 hover:text-blue-900 font-semibold text-sm"
+                                                    title="Clear date range">
+                                                    Clear Dates
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex-1">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">📅 Acquisition Date - To</label>
-                                        <input
-                                            type="date"
-                                            value={dateTo}
-                                            onChange={(e) => setDateTo(e.target.value)}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                        />
-                                    </div>
-                                    {(dateFrom || dateTo) && (
-                                        <button
-                                            onClick={() => {
-                                                setDateFrom('');
-                                                setDateTo('');
-                                            }}
-                                            className="px-3 py-2 text-blue-700 hover:text-blue-900 font-semibold text-sm whitespace-nowrap"
-                                            title="Clear date range">
-                                            📅 Clear
-                                        </button>
-                                    )}
-                                </div>
+                                )}
 
                                 {/* Result Counter (v4.1.0.f - Show Hidden moved here, count order fixed) */}
-                                <div className="mt-4 flex justify-between items-center text-sm text-gray-600">
+                                <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center text-sm text-gray-600">
                                     <div className="flex items-center gap-4">
                                         <span>
                                             Showing: {columns.reduce((sum, col) => sum + filteredBooks(col.books).filter(item => !(item && item.type === 'divider')).length, 0)} of {books.length} books
@@ -3453,7 +3494,7 @@
                                             setCollectionFilter('');
                                             setRatingFilter('');
                                             setWishlistFilter('');
-                                            setOwnershipFilter(''); // v4.9.1 - was missing from Clear All Filters
+                                            setOwnershipFilter('');
                                             setSeriesFilter('');
                                             setDateFrom('');
                                             setDateTo('');
