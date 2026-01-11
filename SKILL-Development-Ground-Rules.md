@@ -100,7 +100,7 @@ What task were you working on?
 * **Code change**: Before modifying any code file (not docs)
   → Each file has its own version that increments major.minor.fix(.testIterationLetter).
   → The APP has its OWN version incremented at release time
-  → Increment version letter suffix (a→b→c), commit before testing
+  → Increment file version letter suffix (a→b→c), commit before testing
   → Each code/test iteration: increment letter, commit, then test
 
 ---
@@ -115,6 +115,7 @@ What task were you working on?
   → Update APP_VERSION in readerwrangler.js (single source of truth for version)
   → Update CHANGELOG.md, and README.md/index.html if user-facing features added
   → Note that index.html mirrors README.md but must manually be kept in sync.
+  → Remove task from TODO
   → Update docs/design/VIDEO-PRODUCTION-PLAN.md Content Update Tracker with user impactful features
   → Tag release, merge to main, delete branch, push to Dev and Prod (see Git Remotes below)
 

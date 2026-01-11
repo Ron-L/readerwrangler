@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.14.0] - 2026-01-11
+
+### Added
+- **Cover Image Caching** - Local browser cache for book cover images
+  - File version: readerwrangler.js v4.13.0
+  - Cache API stores covers locally for instant loading on subsequent visits
+  - First load: ~82s to cache ~2,300 images (parallel fetching with 20 concurrent requests)
+  - Subsequent loads: ~3.5s from cache vs ~4s from network (~65% faster for filter/refresh)
+  - Background caching: non-blocking - UI renders immediately while images cache
+  - Completes Phase 2 of Cover Image Caching (Phase 1 was fetcher changes in v4.6.0.a)
+
 ## [4.13.0] - 2026-01-10
 
 ### Added

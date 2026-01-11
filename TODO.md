@@ -8,18 +8,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Top Personal Priorities
 
-**1. 🖼️ Cover Image Caching** - MEDIUM/MEDIUM (6-10 hours)
-   - Cache book cover images locally to reduce Amazon requests and speed up load times
-   - Options to investigate:
-     - Service Worker caching (browser-managed, respects cache headers)
-     - IndexedDB blob storage (more control, but more code)
-     - File System Access API (user-chosen folder, requires interaction)
-   - Note: Amazon may return cache-unfriendly headers; check DevTools Network tab
-   - Consider Amazon ToS implications for storing their images
-   - Problem: Covers refetch on every page load, slow experience, hammers Amazon servers
-   - Impact: Faster load times, works offline, reduced bandwidth
-
-**2. 📐 Responsive Filter Panel** - LOW/LOW (2-4 hours)
+**1. 📐 Responsive Filter Panel** - LOW/LOW (2-4 hours)
    - Responsive grid layout with inline labels to reduce vertical footprint
    - See [docs/design/RESPONSIVE-FILTER-PANEL.md](docs/design/RESPONSIVE-FILTER-PANEL.md) for full spec
    - CSS Grid with `auto-fit` and `minmax()` for responsive flow
@@ -28,7 +17,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Filter panel consumes ~200px vertical space (20% of 1080p viewport)
    - Impact: 60% space savings on wide screens, more visible books
 
-**3. 📝 Book Notes** - LOW/LOW (2-3 hours)
+**2. 📝 Book Notes** - LOW/LOW (2-3 hours)
    - Personal notes on individual books ("Why did I buy this?", "Who recommended it?")
    - See [docs/design/BOOK-NOTES.md](docs/design/BOOK-NOTES.md) for full spec
    - Sticky note styling in detail modal (matches landing page brand element)
@@ -37,7 +26,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Book descriptions don't always capture why you bought or want to read a book
    - Impact: Personal context preserved with each book
 
-**4. 🏷️ Tags** - MEDIUM/MEDIUM (8-12 hours)
+**3. 🏷️ Tags** - MEDIUM/MEDIUM (8-12 hours)
    - Tags for books (explicit) and divs (positional inheritance)
    - See [docs/design/TAGS.md](docs/design/TAGS.md) for full spec
    - Books inherit div tags while under that div; lost when moved out
@@ -46,7 +35,7 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Problem: Can't find thematically related books (Time Travel, Military SF) across 100+ columns
    - Impact: Cross-library thematic organization, reduced scrolling through empty columns
 
-**5. 🎠 Column Carousel** - MEDIUM/MEDIUM (8-12 hours)
+**4. 🎠 Column Carousel** - MEDIUM/MEDIUM (8-12 hours)
    - Infinite horizontal carousel for columns (excludes pinned columns)
    - See [docs/design/COLUMN-CAROUSEL.md](docs/design/COLUMN-CAROUSEL.md) for full spec
    - Click-to-pin columns to left side; pinned columns exit carousel
@@ -55,6 +44,18 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Mobile: swipe to spin, carousel locks during book drag
    - Problem: 7+ columns becomes unwieldy with linear horizontal scroll
    - Impact: Scalable navigation for large column counts (20+)
+
+**5. 📚 Series Page Bulk Import** - MEDIUM/MEDIUM (6-10 hours)
+   - See [docs/design/SERIES-PAGE-BULK-IMPORT.md](docs/design/SERIES-PAGE-BULK-IMPORT.md) for full spec
+   - Bulk import all books from an Amazon series page as wishlist entries
+   - Destroyer series Reference URL: https://www.amazon.com/dp/B0D775V4W9?binding=kindle_edition
+   - API: `/kindle-dbs/productPage/ajax/seriesAsinList?asin=X&pageNumber=1&pageSize=200`
+   - Single request with pageSize=200 returns all available books
+   - Creates wishlist entries (isOwned: false) for books not already owned
+   - **Known limitation:** Amazon data gaps (e.g., 155-book series missing books 101-149 from Kindle catalog)
+   - Related to P1 T6 Wishlist Price Tracking for full workflow
+   - Problem: Adding 100+ books from a series requires visiting each product page individually
+   - Impact: One-click bulk wishlist population for entire series
 
 **6. 💰 Wishlist Price Tracking** - MEDIUM/MEDIUM (6-10 hours)
    - Fetch current prices for wishlist books from Amazon product pages
@@ -66,18 +67,6 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
    - Replaces manual eReaderIQ workflow for price monitoring
    - Problem: Jumping between ReaderWrangler and eReaderIQ for price tracking
    - Impact: Streamlined wishlist-to-purchase workflow
-
-**7. 📚 Series Page Bulk Import** - MEDIUM/MEDIUM (6-10 hours)
-   - See [docs/design/SERIES-PAGE-BULK-IMPORT.md](docs/design/SERIES-PAGE-BULK-IMPORT.md) for full spec
-   - Bulk import all books from an Amazon series page as wishlist entries
-   - Destroyer series Reference URL: https://www.amazon.com/dp/B0D775V4W9?binding=kindle_edition
-   - API: `/kindle-dbs/productPage/ajax/seriesAsinList?asin=X&pageNumber=1&pageSize=200`
-   - Single request with pageSize=200 returns all available books
-   - Creates wishlist entries (isOwned: false) for books not already owned
-   - **Known limitation:** Amazon data gaps (e.g., 155-book series missing books 101-149 from Kindle catalog)
-   - Related to P1 T6 (Wishlist Price Tracking) for full workflow
-   - Problem: Adding 100+ books from a series requires visiting each product page individually
-   - Impact: One-click bulk wishlist population for entire series
 
 ---
 

@@ -1,7 +1,7 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
-        const APP_VERSION = "4.13.0";  // Release version shown to users
-        const ORGANIZER_VERSION = "4.12.0";  // Build version for this file
+        const APP_VERSION = "4.14.0";  // Release version shown to users
+        const ORGANIZER_VERSION = "4.13.0";  // Build version for this file
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -157,6 +157,78 @@
             return 'obsolete';
         };
 
+        // ===== Cover Image Caching (v4.13.0) =====
+        const COVER_CACHE_NAME = 'rw-covers';
+
+        // Build URL map from cached covers (synchronous lookup after async init)
+        const buildCoverUrlMap = async (books) => {
+            const startTime = performance.now();
+            const urlMap = {};
+            try {
+                const cache = await caches.open(COVER_CACHE_NAME);
+                for (const book of books) {
+                    if (book.coverUrl) {
+                        const cached = await cache.match(book.coverUrl);
+                        if (cached) {
+                            const blob = await cached.blob();
+                            urlMap[book.coverUrl] = URL.createObjectURL(blob);
+                        }
+                    }
+                }
+                const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                console.log(`📷 Cover cache: ${Object.keys(urlMap).length}/${books.length} covers loaded from cache in ${elapsed}s`);
+            } catch (e) {
+                console.error('Cover cache read failed:', e);
+            }
+            return urlMap;
+        };
+
+        // Populate cache in background (non-blocking) with parallel fetching
+        const populateCoverCache = async (books) => {
+            const CONCURRENCY = 20; // Number of parallel fetches
+            const startTime = performance.now();
+            try {
+                const cache = await caches.open(COVER_CACHE_NAME);
+                let cached = 0, fetched = 0, failed = 0;
+
+                // First pass: identify uncached books
+                const uncachedBooks = [];
+                for (const book of books) {
+                    if (!book.coverUrl) continue;
+                    const existing = await cache.match(book.coverUrl);
+                    if (existing) {
+                        cached++;
+                    } else {
+                        uncachedBooks.push(book);
+                    }
+                }
+
+                // Second pass: fetch uncached in parallel batches
+                for (let i = 0; i < uncachedBooks.length; i += CONCURRENCY) {
+                    const batch = uncachedBooks.slice(i, i + CONCURRENCY);
+                    const results = await Promise.allSettled(
+                        batch.map(async (book) => {
+                            const response = await fetch(book.coverUrl);
+                            if (response.ok) {
+                                await cache.put(book.coverUrl, response);
+                                return 'fetched';
+                            }
+                            return 'failed';
+                        })
+                    );
+                    results.forEach(r => {
+                        if (r.status === 'fulfilled' && r.value === 'fetched') fetched++;
+                        else failed++;
+                    });
+                }
+
+                const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                console.log(`📷 Cover cache populated: ${cached} already cached, ${fetched} newly fetched, ${failed} failed in ${elapsed}s`);
+            } catch (e) {
+                console.error('Cover cache population failed:', e);
+            }
+        };
+
         // Format relative time for display
         const formatRelativeTime = (dateString) => {
             if (!dateString) return 'Unknown';
@@ -236,6 +308,7 @@
             const [filterPanelOpen, setFilterPanelOpen] = useState(false); // Collapsible filter panel state (NEW v3.8.0)
             const [showHidden, setShowHidden] = useState(false); // Show hidden books toggle (NEW v4.1.0.d)
             const [, forceUpdate] = useState({});
+            const [coverUrlMap, setCoverUrlMap] = useState({}); // Cover image cache URL map (v4.13.0)
 
             // v3.11.0.d - Ref for column menu click-outside detection
             const columnMenuRef = useRef(null);
@@ -385,6 +458,13 @@
                             setBooks(loadedBooks);
                             // Update IndexedDB with merged data
                             await saveBooksToIndexedDB(loadedBooks);
+
+                            // v4.13.0: Initialize cover cache
+                            // Build URL map from cache for immediate use
+                            const urlMap = await buildCoverUrlMap(loadedBooks);
+                            setCoverUrlMap(urlMap);
+                            // Populate cache in background for uncached images
+                            populateCoverCache(loadedBooks); // Don't await - runs in background
                         }
 
                         let effectiveLastSync = null;
@@ -3834,7 +3914,7 @@
                                                 </div>
                                             </div>
                                         ) : (
-                                            <img src={modalBook.coverUrl} 
+                                            <img src={coverUrlMap[modalBook.coverUrl] || modalBook.coverUrl}
                                                  alt={modalBook.title}
                                                  className="w-48 h-72 object-cover rounded shadow-lg flex-shrink-0"
                                                  onError={(e) => e.target.src = 'https://via.placeholder.com/192x288/4f46e5/fff?text=No+Cover'} />
@@ -4292,8 +4372,8 @@
                                                                         </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <img src={book.coverUrl} 
-                                                                         alt={book.title} 
+                                                                    <img src={coverUrlMap[book.coverUrl] || book.coverUrl}
+                                                                         alt={book.title}
                                                                          className="w-full rounded shadow-lg"
                                                                          onLoad={(e) => checkIfBlankImage(e.target, book.id)}
                                                                          onError={(e) => e.target.src = 'https://via.placeholder.com/128x192/4f46e5/fff?text=No+Cover'} />
@@ -4560,7 +4640,7 @@
                                         </div>
                                     </div>
                                 ) : (
-                                    <img src={draggedBook.coverUrl}
+                                    <img src={coverUrlMap[draggedBook.coverUrl] || draggedBook.coverUrl}
                                          alt={draggedBook.title}
                                          className="w-full rounded drag-ghost-border" />
                                 )}
