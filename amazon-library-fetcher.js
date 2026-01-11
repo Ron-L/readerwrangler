@@ -1,15 +1,5 @@
-// Amazon Library Fetcher (Schema v2.0 - Unified File Format)
+// Amazon Library Fetcher
 // Fetches library books and enriches them with descriptions & reviews
-// Schema Version: 2.0 (Unified file format - books + collections in single file)
-//
-// v4.0.0 Changes:
-// - Uses File System Access API to write back to same file (Chrome/Edge)
-// - Fallback to download for Firefox/Safari (with warning about file naming)
-//
-// v3.5.0 Changes:
-// - Removed artificial delays (network RTT provides natural throttling)
-// - Batch enrichment: 30 ASINs per call (was 1 per call)
-// - Expected time: ~1 minute for 2000+ books (was ~2 hours)
 //
 // Instructions:
 // 1. Go to https://www.amazon.com/yourbooks (must be logged in)
@@ -25,7 +15,7 @@
 
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v4.5.0';
+    const FETCHER_VERSION = 'v4.6.0.a';
     const SCHEMA_VERSION = '2.0';
 
     console.log('========================================');
@@ -539,15 +529,22 @@ async function fetchAmazonLibrary() {
             .join(', ') || 'Unknown Author';
     };
 
-    const extractCoverUrl = (product) => {
+    const extractCoverUrls = (product) => {
         const images = product.images?.images?.[0];
-        if (images?.hiRes?.physicalId && images?.hiRes?.extension) {
-            return `https://images-na.ssl-images-amazon.com/images/I/${images.hiRes.physicalId}.${images.hiRes.extension}`;
-        } else if (images?.lowRes?.physicalId && images?.lowRes?.extension) {
-            return `https://images-na.ssl-images-amazon.com/images/I/${images.lowRes.physicalId}.${images.lowRes.extension}`;
-        } else {
-            return `https://images-na.ssl-images-amazon.com/images/P/${product.asin}.01.LZZZZZZZ.jpg`;
-        }
+        const hiResUrl = (images?.hiRes?.physicalId && images?.hiRes?.extension)
+            ? `https://images-na.ssl-images-amazon.com/images/I/${images.hiRes.physicalId}.${images.hiRes.extension}`
+            : null;
+        const lowResUrl = (images?.lowRes?.physicalId && images?.lowRes?.extension)
+            ? `https://images-na.ssl-images-amazon.com/images/I/${images.lowRes.physicalId}.${images.lowRes.extension}`
+            : null;
+        const fallbackUrl = `https://images-na.ssl-images-amazon.com/images/P/${product.asin}.01.LZZZZZZZ.jpg`;
+
+        // coverUrl: prefer lowRes for smaller file size (311x500 vs 1594x2560)
+        // coverUrlHiRes: archive hiRes for future use (zoom, print, etc.)
+        return {
+            coverUrl: lowResUrl || hiResUrl || fallbackUrl,
+            coverUrlHiRes: hiResUrl
+        };
     };
 
     const extractReviews = (product) => {
@@ -1147,14 +1144,17 @@ async function fetchAmazonLibrary() {
             }
 
             // Test cover URL extraction (Pass 1) - using shared function
-            const testCoverUrl = extractCoverUrl(testProduct);
+            const testCoverUrls = extractCoverUrls(testProduct);
             const testImages = testProduct.images?.images?.[0];
-            if (testImages?.hiRes?.physicalId) {
-                extractionResults.push(`✅ Cover: hiRes`);
-            } else if (testImages?.lowRes?.physicalId) {
-                extractionResults.push(`✅ Cover: lowRes`);
+            if (testImages?.lowRes?.physicalId) {
+                extractionResults.push(`✅ Cover: lowRes (primary)`);
+            } else if (testImages?.hiRes?.physicalId) {
+                extractionResults.push(`✅ Cover: hiRes (fallback)`);
             } else {
                 extractionResults.push(`⚠️  Cover: fallback URL (no image data)`);
+            }
+            if (testCoverUrls.coverUrlHiRes) {
+                extractionResults.push(`✅ Cover HiRes: available`);
             }
 
             // Test rating extraction (Pass 1)
@@ -1406,7 +1406,7 @@ async function fetchAmazonLibrary() {
                     // Extract book data - using shared functions
                     const title = product.title?.displayString || 'Unknown Title';
                     const authors = extractAuthors(product);
-                    const coverUrl = extractCoverUrl(product);
+                    const { coverUrl, coverUrlHiRes } = extractCoverUrls(product);
 
                     const rating = product.customerReviewsSummary?.rating?.value || null;
                     const reviewCount = product.customerReviewsSummary?.count?.displayString || null;
@@ -1492,6 +1492,7 @@ async function fetchAmazonLibrary() {
                         title,
                         authors,
                         coverUrl,
+                        coverUrlHiRes,
                         rating,
                         reviewCount,
                         series,
