@@ -1,7 +1,7 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
         const APP_VERSION = "4.14.0";  // Release version shown to users
-        const ORGANIZER_VERSION = "4.14.0.a";  // Build version for this file
+        const ORGANIZER_VERSION = "4.14.0.b";  // Build version for this file
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -306,11 +306,7 @@
             const [dateFrom, setDateFrom] = useState(''); // Filter by acquisition date from (YYYY-MM-DD) (NEW v3.8.0.k)
             const [dateTo, setDateTo] = useState(''); // Filter by acquisition date to (YYYY-MM-DD) (NEW v3.8.0.k)
             const [filterPanelOpen, setFilterPanelOpen] = useState(false); // Collapsible filter panel state (NEW v3.8.0)
-            const [showAdvancedFilters, setShowAdvancedFilters] = useState(() => {
-                // v4.14.0.a - Persist advanced filters expanded state
-                const saved = localStorage.getItem('readerwrangler-advanced-filters');
-                return saved === 'true';
-            }); // Show advanced filters section (NEW v4.14.0.a)
+            const [showAdvancedFilters, setShowAdvancedFilters] = useState(false); // Show advanced filters section (NEW v4.14.0.a, v4.14.0.b - no persistence, resets when panel closes)
             const [showHidden, setShowHidden] = useState(false); // Show hidden books toggle (NEW v4.1.0.d)
             const [, forceUpdate] = useState({});
             const [coverUrlMap, setCoverUrlMap] = useState({}); // Cover image cache URL map (v4.13.0)
@@ -400,11 +396,6 @@
                     console.error('Failed to save filters to localStorage:', e);
                 }
             }, [searchTerm, readStatusFilter, collectionFilter, ratingFilter, wishlistFilter, ownershipFilter, seriesFilter, dateFrom, dateTo, showHidden]);
-
-            // v4.14.0.a - Persist advanced filters expanded state
-            useEffect(() => {
-                localStorage.setItem('readerwrangler-advanced-filters', showAdvancedFilters);
-            }, [showAdvancedFilters]);
 
             const formatAcquisitionDate = (timestamp) => {
                 if (!timestamp) return '';
@@ -3274,7 +3265,13 @@
                         {/* Filter Panel (NEW v3.8.0, updated v3.8.0.k, v4.1.0.l removed Add Column - now floats with columns, v4.3.0.b added book count) */}
                         <div className="flex gap-4 items-center mb-4">
                             <button
-                                onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+                                onClick={() => {
+                                    // v4.14.0.b - Reset advanced filters when closing main panel
+                                    if (filterPanelOpen) {
+                                        setShowAdvancedFilters(false);
+                                    }
+                                    setFilterPanelOpen(!filterPanelOpen);
+                                }}
                                 className={`px-4 py-2 border rounded-lg flex items-center gap-2 ${
                                     (searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || seriesFilter || dateFrom || dateTo)
                                     ? `border-blue-500 text-blue-700 font-semibold ${!filterPanelOpen ? 'filter-button-active' : ''}`

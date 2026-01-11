@@ -8,6 +8,25 @@ _Based on user requirements + Claude.ai independent review (CLAUDE-AI-REVIEW.md)
 
 ### 🎯 Priority 1: Top Personal Priorities
 
+**0-A. 🐛 Data Status shows green checkmark when Collections empty** - LOW/LOW (1 hour)
+   - Status bar shows green checkmark overall even when Collections shows "Not loaded"
+   - Data Status modal shows "Collections: Not loaded" with old date but no actual data
+   - Should show warning/stale indicator when Collections data is missing
+   - Problem: Misleading status indicator suggests all is well when data is incomplete
+
+**0-B. 🐛 Collections Fetcher fails with SecurityError on file save** - LOW/LOW (1-2 hours)
+   - Error: `SecurityError: Failed to execute 'createWritable' on 'FileSystemFileHandle': User activation is required to request permissions`
+   - Same issue fixed in Library Fetcher - Chrome requires user interaction to refresh file write permission
+   - UI shows "Saving Library (Elapsed 0)" but freezes - no error message shown
+   - Collections Fetcher runs faster, so didn't hit timing issue before; Chrome may have tightened
+   - Fix: Add same permission refresh button/interaction as Library Fetcher
+
+**0-C. 🐛 Column counts include dividers** - LOW/LOW (30 min)
+   - Column header shows count of all items (books + dividers)
+   - When filtering, reduced count still includes dividers
+   - Should count only books, not dividers
+   - Problem: Misleading count - user expects book count, not total item count
+
 **1. 📐 Responsive Filter Panel** - LOW/LOW (2-4 hours)
    - Responsive grid layout with inline labels to reduce vertical footprint
    - See [docs/design/RESPONSIVE-FILTER-PANEL.md](docs/design/RESPONSIVE-FILTER-PANEL.md) for full spec
