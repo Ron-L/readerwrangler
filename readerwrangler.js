@@ -1,7 +1,7 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useRef } = React;
         const APP_VERSION = "4.14.0";  // Release version shown to users
-        const ORGANIZER_VERSION = "4.14.0.c";  // Build version for this file
+        const ORGANIZER_VERSION = "4.14.0.d";  // Build version for this file
         document.title = "ReaderWrangler";
         const STORAGE_KEY = "readerwrangler-state";
         const CACHE_KEY = "readerwrangler-enriched-cache";
@@ -3356,29 +3356,10 @@
                                             return activeCount > 0 ? ` (${activeCount})` : '';
                                         })()}
                                     </button>
-
-                                    {/* Clear All Filters - v4.14.0.c moved to primary row for better UX on wide screens */}
-                                    {(searchTerm || readStatusFilter || collectionFilter || ratingFilter || wishlistFilter || ownershipFilter || seriesFilter || dateFrom || dateTo) && (
-                                        <button
-                                            onClick={() => {
-                                                setSearchTerm('');
-                                                setReadStatusFilter('');
-                                                setCollectionFilter('');
-                                                setRatingFilter('');
-                                                setWishlistFilter('');
-                                                setOwnershipFilter('');
-                                                setSeriesFilter('');
-                                                setDateFrom('');
-                                                setDateTo('');
-                                            }}
-                                            className="px-3 py-2 text-blue-700 hover:text-blue-900 font-semibold text-sm"
-                                            title="Clear all filters">
-                                            Clear All
-                                        </button>
-                                    )}
                                 </div>
 
                                 {/* ADVANCED FILTERS - Collapsible (v4.14.0.a) */}
+                                {/* v4.14.0.d - Removed redundant "Clear All" button from primary row; Active Filters Banner already has it */}
                                 {showAdvancedFilters && (
                                     <div className="mt-3 pt-3 border-t border-gray-200 bg-gray-50 -mx-4 px-4 pb-3 rounded-b-lg">
                                         <div className="flex flex-wrap gap-2 items-center">
