@@ -142,18 +142,25 @@ function parseSeriesBooks(html) {
 2. Detect gaps by comparing max position to book count
 3. Warn user: "Found 106 books, but series numbering goes to 155. Books 101-149 not tagged in Amazon's series metadata."
 
-### Workaround for Missing Books
+### Gap-Filling: Core Feature (Not Optional)
 
+**UX Rationale:** Gap-filling MUST be part of the core Series Import feature, not a separate enhancement.
+
+**Why this matters:**
+1. **Frustration transfer** - Users chose ReaderWrangler to escape Amazon's chaos. If we deliver incomplete data without helping, we become "part of the problem."
+2. **Target use case is large series** - Nobody uses bulk import for 5-book series. The feature attracts users with 50-200 book series - exactly where gaps hurt most.
+3. **First impression** - If their first series import is missing 49 books with no path forward, they may abandon the feature (or the app).
+4. **Competitive differentiation** - Solving Amazon's mess IS our value prop.
+
+**Technical approach:**
 Missing books can be found via Amazon search: `"author name" "series name" #N`
 
-**Future enhancement consideration:** "Fill Series Gaps" feature that:
-1. Detects gap ranges from series import
-2. Searches Amazon for each missing book number
-3. Parses search results to get ASINs
-4. Fetches product page data
-5. Adds to wishlist JSON
-
-This is tracked as a potential enhancement, not core feature.
+The gap-filling feature will:
+1. Detect gap ranges from series page import
+2. Search Amazon for each missing book number
+3. Parse search results to get ASINs
+4. Fetch product page data for each found book
+5. Merge into the import results
 
 ### Detection Logic
 
@@ -181,18 +188,29 @@ function detectGaps(books) {
 
 ## Implementation Plan
 
-### Phase 1: Bookmarklet Script
+### Architecture Decision: Bundled Gap-Filling
+
+Gap-filling is bundled into the Series Import feature (not a separate operation) because:
+- **Best UX** - User does one operation, gets complete result
+- **2-3 minute wait is acceptable** for a one-time import of 150 books
+- Avoids user confusion about "why is my import incomplete?"
+
+### Phase 1: Series Page Fetcher (Bookmarklet Script)
 
 **New file:** `series-page-fetcher.js`
+
+**Step 1: Series Page Detection & Initial Fetch**
 
 1. **Detect series page:**
    - URL pattern: `amazon.com/dp/BXXXXXXXXX` with series indicator
    - Or presence of `.series-childAsin-item` elements
 
-2. **Extract series ASIN:**
-   - From URL or page metadata
+2. **Extract series metadata:**
+   - Series ASIN from URL
+   - Series name from page title
+   - Author name(s) for gap-filling searches
 
-3. **Fetch all books:**
+3. **Fetch all books from series page:**
    ```javascript
    async function fetchSeriesBooks(seriesAsin) {
        const url = `https://www.amazon.com/kindle-dbs/productPage/ajax/seriesAsinList?asin=${seriesAsin}&pageNumber=1&pageSize=200&binding=kindle_edition`;
@@ -206,31 +224,73 @@ function detectGaps(books) {
    }
    ```
 
-4. **Parse HTML to book objects**
+4. **Parse HTML to book objects** (see parsing code above)
 
-5. **Filter out already-owned books:**
-   - Compare ASINs against existing library
-   - Requires loading current library JSON or checking IndexedDB
+**Step 2: Gap Detection**
 
-6. **Generate wishlist JSON:**
+5. **Analyze series positions:**
    ```javascript
-   {
-       books: [...],
-       metadata: {
-           source: 'series-import',
-           seriesAsin: 'B0D775V4W9',
-           seriesName: 'The Destroyer',
-           importDate: '2026-01-10T...',
-           totalInSeries: 155,
-           foundBooks: 106,
-           gapWarning: 'Books 101-149 not available as Kindle editions'
+   function detectGaps(books) {
+       const positions = books.map(b => b.seriesPosition).filter(Boolean);
+       const maxPosition = Math.max(...positions);
+       const missing = [];
+       for (let i = 1; i <= maxPosition; i++) {
+           if (!positions.includes(i)) missing.push(i);
        }
+       return { maxPosition, found: positions.length, missing };
    }
    ```
 
-7. **Trigger file download or merge:**
-   - Option A: Download JSON for manual import
-   - Option B: Direct merge with localStorage (like current wishlist)
+6. **If gaps detected, show Gap Detection Dialog** (see UI mockups above)
+
+**Step 3: Gap-Filling (if user opts in)**
+
+7. **For each missing book number, search Amazon:**
+   ```javascript
+   async function searchForMissingBook(author, seriesName, bookNumber) {
+       const query = encodeURIComponent(`${author} ${seriesName} #${bookNumber}`);
+       const url = `https://www.amazon.com/s?k=${query}&i=digital-text`;
+       // Fetch search results page, parse first Kindle result
+   }
+   ```
+
+8. **Parse search results to extract ASIN:**
+   - First result matching pattern is likely correct
+   - Verify title contains book number
+
+9. **Fetch product page data for each found ASIN:**
+   - Reuse existing product page parsing (from Wishlist Fetcher)
+
+10. **Show progress during gap-filling** (see UI mockups above)
+
+**Step 4: Output**
+
+11. **Merge all books (series page + gap-filled)**
+
+12. **Filter out already-owned books:**
+    - Compare ASINs against existing library (IndexedDB or localStorage)
+
+13. **Generate final JSON:**
+    ```javascript
+    {
+        books: [...],
+        metadata: {
+            source: 'series-import',
+            seriesAsin: 'B0D775V4W9',
+            seriesName: 'The Destroyer',
+            importDate: '2026-01-10T...',
+            totalInSeries: 155,
+            fromSeriesPage: 106,
+            fromGapFill: 47,
+            notFound: [107, 142],
+            gapFillUsed: true
+        }
+    }
+    ```
+
+14. **Final Summary Dialog** (see UI mockups above)
+
+15. **Download JSON or merge directly**
 
 ### Phase 2: Integration with Navigator
 
@@ -239,18 +299,84 @@ Add "Import Series" option to Navigator bookmarklet when on a series page.
 ### Phase 3: Organizer Support
 
 1. **Display series metadata** in import summary
-2. **Gap warning** if missing books detected
+2. **Show gap-fill results** if applicable
 3. **Filter by source** to show series-imported books
 
 ## User Flow
+
+### Basic Flow (No Gaps)
 
 1. Navigate to Amazon series page (e.g., https://www.amazon.com/dp/B0D775V4W9)
 2. Click Navigator bookmarklet
 3. Select "Import Series to Wishlist"
 4. See progress: "Fetching series data..."
-5. See summary: "Found 106 books. 12 already owned, 94 added to wishlist."
-6. If gaps: "Note: Books 101-149 not available as Kindle editions"
-7. Download JSON or merge directly
+5. See summary: "Found 50 books. 12 already owned, 38 added to wishlist."
+6. Download JSON or merge directly
+
+### Flow with Gap Detection and Filling
+
+1. Navigate to Amazon series page
+2. Click Navigator bookmarklet → "Import Series to Wishlist"
+3. Fetcher detects gaps in series
+4. **Gap Detection Dialog:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  📚 Series Import Complete                                   │
+│                                                              │
+│  The Destroyer (155 books)                                   │
+│  ✓ 106 books found on series page                           │
+│  ✗ 49 books missing from Amazon's series list (101-149)     │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ Amazon's series page is incomplete. We can search for   ││
+│  │ the missing books individually.                         ││
+│  │                                                          ││
+│  │ This will take ~2-3 minutes for 49 books.               ││
+│  └─────────────────────────────────────────────────────────┘│
+│                                                              │
+│  [Skip - Import 106 books only]  [Find Missing Books]        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+5. **If user clicks "Find Missing Books":**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  🔍 Searching for missing books...                          │
+│                                                              │
+│  Searching: "warren murphy the destroyer #103"               │
+│  Progress: 12 of 49                                          │
+│  Found: 11  |  Not Found: 1                                  │
+│                                                              │
+│  ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░  24%              │
+│                                                              │
+│  [Cancel]                                                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+6. **Final Summary:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ✅ Series Import Complete                                   │
+│                                                              │
+│  The Destroyer                                               │
+│  • 106 from series page                                      │
+│  • 47 found via search (2 not found as Kindle)              │
+│  • 153 total added to wishlist                               │
+│                                                              │
+│  Books not found: #107, #142 (may not have Kindle editions) │
+│                                                              │
+│  [Download JSON]  [Close]                                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### UI Design Principles
+
+1. **Acknowledge the problem clearly** - "Amazon's series page is incomplete" (blame Amazon, not us)
+2. **Offer a solution immediately** - Don't make users figure it out themselves
+3. **Set expectations** - "~2-3 minutes" so users know it's not instant
+4. **Allow skip** - Some users just want what's easy; don't force the longer operation
+5. **Show progress** - Long operations need visual feedback
+6. **Report what couldn't be found** - Transparency builds trust; list specific book numbers
 
 ## Data Model
 
