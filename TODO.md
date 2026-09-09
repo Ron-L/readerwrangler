@@ -14,9 +14,11 @@
 Shipped so far: item 0 + ownership-dialog redesign + undo fence + undo-toast naming → **7.8.0** (2026-09-08);
 item 10 → **7.7.2** (2026-09-07; prod proof outstanding — first prod import on ≥7.7.2 should log
 `🧹 Reclaimed 7 absorbed bulk run(s)`, ~124MB).
-**QUEUE JUMP (Ron 2026-09-08): Unified Auto-Organize first** — docs/design/AUTO-ORGANIZE-UNIFIED.md
-(designed + pushed; one view, selection = scope, toggle dies) — live soak pain, builds as the 7.9.0 line.
-Then item 11, then 1-9. (Item 12 — This-folder multi-select repair — mooted by the unification.)
+**Unified Auto-Organize SHIPPED as 7.9.0** (2026-09-09; 9 soak-tested alphas in 2 days — the soak-as-test-rig
+model at full speed). Two §9/§2 pieces deliberately deferred (explicitly, per the scope rule):
+- [ ] **Inbox as a File-under target** (demote a mis-filed book back out) — different commit machinery
+- [ ] **Shift-click ranges follow VISUAL order** — still internal-array order; diverges in series mode + grouped Already-filed
+Then item 11, then batch 1-9. (Item 12 — mooted by the unification.)
 
 - [ ] **Save as Spreadsheet (CSV)** (first real user request, 2026-09-08 — "how do I get my items
   incl. tags and lists into Excel?"; slotted after unified-AO completes, own small branch/release):

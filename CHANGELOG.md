@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.9.0] - 2026-09-09
+
+### Auto-Organize: one view, and what you check is what happens
+- **The This-folder/Everywhere switch is gone** — because its own designer couldn't find it while staring at books it would have unlocked. Now one preview always shows *everything* by the chosen authors, wherever it lives: books from the folder you opened in and the Inbox arrive pre-checked, strays elsewhere sit visible-but-unchecked, and books already home appear small and gray, labeled **home**. The checkboxes are the scope.
+- **Every cover says where its book lives** — a small caption under each one (`Inbox`, `2 places · 1 stays`, `home`), uniformly: a caption's absence was itself a secret code, so nothing gets to go unlabeled. Click a caption for the plain-words breakdown — *moves from Wishlist · stays in Non-Fiction* — with per-folder checkboxes for the copies that should stay put. Default: books are pulled only from the folder you opened in and the Inbox; a deliberate second home is never silently stripped.
+- **File under… (right-click a cover or a group header)**: send books to another author's group, or pick any folder — a filter-as-you-type picker where **creating a new folder is always an explicit ➕ choice**, never the fruit of a typo. Made for the co-author case: "Niven, Pournelle & Barnes" filing into your *Larry Niven, Jerry Pournelle* folder in one click. (And no, the app still never parses author names — a real book credits "ARGH! Oxford".)
+- **Order you can trust**: authors alphabetical, series shelves in your own folder order — never the order you happened to click books in.
+- **The button never overpromises**: `Organize 4 books` counts what will actually move; the caption reconciles the rest ("6 selected — 4 will move, 2 already home").
+
 ## [7.8.0] - 2026-09-08
 
 ### The book dialog edits where it says
