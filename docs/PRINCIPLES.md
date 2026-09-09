@@ -141,6 +141,18 @@ them in one table. Never bare "not worth chasing" — chase it or log it with th
 **Enforcement**: `feedback_debugging` Rule 1c; telemetry tripwires instead of speculation (the
 `newOwnershipType` instrument paid off twice with zero user friction).
 
+### 16. Perceivable at the point of effect — absence, position, and silence are not communication channels
+(2026-09-07→09, the invisible-control purge — ten instances in one cycle, see the v7.8.0-7.9.0 PM's table.)
+A control styled as a display, a keystroke consumed silently, a stored rule firing invisibly, meaning encoded
+in a caption's ABSENCE, a capped list wearing a scrollbar, primary nav that hides until scrolled — each one
+survived until the sole user (who BUILT several of them) failed to perceive them within minutes of real use.
+State changes must be visible where they happen; every offered action must visibly act or visibly explain;
+hidden standing rules need a surface where they can be seen and revoked, or they don't ship (the alias
+rejection, the Reset-flag rejection).
+**Enforcement**: the design question at review time — "does the control announce itself where the need
+arises, and does its effect show where the eye already is?" Ron's field test catches these today; at launch
+that instrument is gone and only this question remains.
+
 ---
 
 ## SECOND TIER — by theme (the best of the rest)
