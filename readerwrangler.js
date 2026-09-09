@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.9.0-alpha.5";  // Build version for this file
+        const ORGANIZER_VERSION = "7.9.0-alpha.6";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -7946,6 +7946,10 @@
                     const bks = pool.filter(b => normAuthorKey(b.author) === key);
                     if (bks.length > 0) groups.push({ displayName: displayAuthorName(orig), books: bks });
                 });
+                // v7.9.0-alpha.6 (Ron) - deterministic group order: ALPHABETICAL, never selection order
+                // (accidental input state was leaking into layout — re-selecting in reverse mirrored the
+                // dialog). Sorted at build only; mid-session File-under… groups append (position stability).
+                groups.sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }));
                 return groups;
             };
 
@@ -11728,10 +11732,14 @@
                                                 existingSubs.forEach(sub => {
                                                     slots.push({ key: sub.id, standalone: false, name: sub.name, incoming: targetByDest.get(sub.name) || [], existing: existingInDest(ag.displayName, sub.name), elsewhere: elsewhereByDest.get(sub.name) || [] });
                                                 });
+                                                // v7.9.0-alpha.6 - brand-new subfolders alpha-sorted (their Map order was book-encounter order)
+                                                const newSubSlots = [];
                                                 targetByDest.forEach((books, dest) => {
                                                     if (dest === null || existingSubNames.has(dest)) return; // brand-new subfolder
-                                                    slots.push({ key: '__new__' + dest, standalone: false, name: dest, incoming: books, existing: [], elsewhere: elsewhereByDest.get(dest) || [] });
+                                                    newSubSlots.push({ key: '__new__' + dest, standalone: false, name: dest, incoming: books, existing: [], elsewhere: elsewhereByDest.get(dest) || [] });
                                                 });
+                                                newSubSlots.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+                                                slots.push(...newSubSlots);
                                                 // v6.17.0 - Series with ONLY elsewhere books (no mover, no existing subfolder) still get a shelf,
                                                 // so the whole author shows — e.g. all of "Jack Reacher" sitting in the Inbox.
                                                 elsewhereByDest.forEach((elBooks, dest) => {

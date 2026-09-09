@@ -34,6 +34,10 @@ multi-folder membership.
   trays; Shift+click ranges follow VISUAL order.
 - **The one selection drives BOTH actions** (extends the 6.16.0 principle): right-click → Add to
   Book List acts on it, and the footer button organizes it.
+- **Deterministic order** (2026-09-08, alpha.6): author groups ALPHABETICAL (never selection
+  order — accidental input state must not shape layout); within an author: root shelf, existing
+  subfolders in the user's own folder order, then new series subfolders alpha-sorted. Sorted at
+  build; mid-session File-under… groups append (position stability while manipulating).
 - The This-folder/Everywhere toggle is deleted. The Consolidate title/verb is retired (§6).
 - Entry points unchanged (right-click a folder / All Books); from All Books the "current folder"
   contribution to defaults is simply empty.
