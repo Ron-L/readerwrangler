@@ -27,10 +27,11 @@ multi-folder membership.
 - **Everything by the target authors is visible**: current-folder books, strays from other
   folders/Inbox, and already-home books. Nothing actable is hidden — the discoverability fix is
   structural, not a better toggle.
-- **Initial check-state = the current folder's books** — exactly today's safe default, so the
-  dialog opens meaning what it always meant. Ctrl+A (plus a visible **Select all** button — the
-  button teaches that expansion exists) checks everything; group checkboxes select their trays;
-  Shift+click ranges follow VISUAL order.
+- **Initial check-state = the current folder's books + the Inbox strays** (amended 2026-09-08
+  during alpha.1 soak, Ron: the Inbox books are why the dialog was opened — symmetric with the
+  §4 removal defaults). Ctrl+A (plus a visible **Select all** button at the TOP — selection is
+  where scanning starts, the footer confirms) checks everything; group checkboxes select their
+  trays; Shift+click ranges follow VISUAL order.
 - **The one selection drives BOTH actions** (extends the 6.16.0 principle): right-click → Add to
   Book List acts on it, and the footer button organizes it.
 - The This-folder/Everywhere toggle is deleted. The Consolidate title/verb is retired (§6).
