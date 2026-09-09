@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.9.0-alpha.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.9.0-alpha.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -738,6 +738,7 @@
             const [autoOrgAnchor, setAutoOrgAnchor] = useState(null);  // v6.16.0 - shift-range pivot (last plain/ctrl-clicked cover) in the preview
             const [autoOrgMenu, setAutoOrgMenu] = useState(null);       // v6.13.0-alpha.9 (D2) - preview cover right-click menu: { x, y, bookIds } or null
             const [autoOrgHover, setAutoOrgHover] = useState(null);     // v6.13.0-alpha.9 (D2) - preview cover hover "In" popup: { bookId, x, y } or null
+            const [autoOrgSrcPopup, setAutoOrgSrcPopup] = useState(null); // v7.9.0-alpha.2 (UNIFIED §3) - origin popup: { bookId, x, y } — per-source moves/stays checkboxes
             const [autoOrgOptionsOpen, setAutoOrgOptionsOpen] = useState(false); // v6.16.0 (Stage 2) - collapsible By-Series Options strip in the preview
             // v6.16.0 - The preview has ONE selection (autoOrgSel): default all-in. The checkbox tree (section → author →
             // shelf) is just select-all/none over it; cover-clicks toggle individuals. Both the footer action AND
@@ -7986,15 +7987,17 @@
                 const alreadyFiled = computeAlreadyFiled(authorGroups, dryPlan, srcId);
                 if (dryPlan.totalBooksOrganized === 0 && alreadyFiled.length === 0) { showToast('Nothing to organize — those books are already in their author homes'); return false; }
                 const sourceName = (srcId === '__inbox__' || srcId === '__all__') ? null : (folders.find(f => f.id === srcId)?.name || null);
-                // §2 initial check-state = the ENTRY folder's books: movers that live there, plus its
-                // already-filed removal candidates. From All Books, all movers (the old consolidate default).
+                // §2 initial check-state = the ENTRY folder's books PLUS the Inbox strays (Ron 2026-09-08:
+                // the Inbox books are why the dialog was opened — symmetric with the §4 removal defaults),
+                // plus the entry folder's already-filed removal candidates. From All Books, all movers.
                 const moverIds = new Set(dryPlan.allBookIdsToOrganize);
                 let initialIds;
                 if (srcId === '__all__') {
                     initialIds = [...moverIds];
                 } else {
                     const entryIds = new Set(currentFolderSourceBooks(srcId).map(b => b.id));
-                    initialIds = [...moverIds].filter(id => entryIds.has(id));
+                    const inboxIds = new Set((folders.find(f => f.id === '__inbox__')?.bookIds) || []);
+                    initialIds = [...moverIds].filter(id => entryIds.has(id) || inboxIds.has(id));
                     alreadyFiled.forEach(x => initialIds.push(x.book.id));
                 }
                 // §4 removal defaults: movers are pulled ONLY from the entry folder + the Inbox. Every other
@@ -8045,7 +8048,7 @@
                 { createSeriesFolders: true, seriesFolderMinBooks: wizardSeriesFolderMin, createMiscellaneous: wizardCreateMiscellaneous, sortByPosition: wizardSortByPosition },
                 (ags) => ags.length === 1 ? `Auto-Organized ${ags[0].displayName} by series` : `Auto-Organized ${ags.length} authors by series`);
 
-            const closeAutoOrgPreview = () => { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgExcludedMembers(new Set()); setAutoOrgAnchor(null); setAutoOrgMenu(null); setAutoOrgHover(null); };
+            const closeAutoOrgPreview = () => { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgExcludedMembers(new Set()); setAutoOrgAnchor(null); setAutoOrgMenu(null); setAutoOrgHover(null); setAutoOrgSrcPopup(null); };
 
             // v6.16.0 - Live By Author ↔ By Series toggle inside the preview: recompute the plan + already-filed in
             // place (the selection is per-book, so it persists — only the destinations change).
@@ -11423,29 +11426,8 @@
                         // selectable cover PER source (below), so you can pull one copy and keep another.
                         const consolidateSourcesOf = (b) => getFoldersContainingBook(b.id)
                             .filter(f => !['__all__', '__library__', '__trash__', '__booklists__', '__views__', '__search__'].includes(f.id));
-                        const membershipCover = (b, source, navList) => {
-                            const key = `${source.id}::${b.id}`;
-                            const sel = autoOrgSel.has(b.id) && !autoOrgExcludedMembers.has(key);
-                            const toggle = (e) => {
-                                e.stopPropagation();
-                                if (sel) { setAutoOrgExcludedMembers(prev => { const n = new Set(prev); n.add(key); return n; }); }
-                                else { setAutoOrgSel(prev => { const n = new Set(prev); n.add(b.id); return n; }); setAutoOrgExcludedMembers(prev => { const n = new Set(prev); n.delete(key); return n; }); }
-                            };
-                            return (
-                            <div key={key} title={`${b.title || 'Untitled'} — from ${source.name}`} style={{ width: '46px', flex: '0 0 auto', cursor: 'pointer' }}
-                                onClick={toggle}
-                                onDoubleClick={(e) => { e.stopPropagation(); openBookModal(b, null, navList); }}
-                                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); const ids = autoOrgSel.size > 0 ? [...autoOrgSel] : [b.id]; setAutoOrgHover(null); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ids }); }}>
-                                <div style={{ position: 'relative', borderRadius: '4px', outline: sel ? '2px solid #4f46e5' : '2px solid transparent', outlineOffset: '1px' }}>
-                                    {b.coverUrl
-                                        ? <img src={b.coverUrl} alt="" style={{ width: '46px', height: '69px', objectFit: 'cover', borderRadius: '3px', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-                                        : <div style={{ width: '46px', height: '69px', borderRadius: '3px', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', lineHeight: 1.1, textAlign: 'center', padding: '3px', overflow: 'hidden', color: '#6b7280' }}>{b.title || 'Untitled'}</div>}
-                                    {sel && <div style={{ position: 'absolute', top: '-6px', right: '-6px', width: '16px', height: '16px', borderRadius: '50%', background: '#4f46e5', color: 'white', fontSize: '10px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>✓</div>}
-                                </div>
-                                <div style={{ fontSize: '9px', color: '#64748b', textAlign: 'center', marginTop: '2px', width: '46px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={source.name}>{source.name}</div>
-                            </div>
-                            );
-                        };
+                        // v7.9.0-alpha.2 - membershipCover (one cover PER source) is gone: books render once
+                        // (UNIFIED §7 — one cover, one caption); the origin popup carries the per-source picks.
                         const coverRow = (bks) => <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>{bks.map(b => cover(b, bks))}</div>;
                         // v6.16.0 - Destination context: the books ALREADY in the folder each shelf would file into (filed
                         // elsewhere, not in the source), so you see the full series/author at once — e.g. "2 new · 5 already
@@ -11515,16 +11497,30 @@
                         // spans the WHOLE shelf — incoming + already-here — so you can flip through all of them.
                         const shelfRow = (movers, existing) => {
                             const full = [...movers, ...existing];
-                            // v7.9.0-alpha.1 (UNIFIED §3) - a book whose only membership is the entry folder renders a
-                            // plain cover (no caption — it's why you're here); anything with another source renders
-                            // one captioned cover PER source, each an inline keep/remove override (§4 defaults
-                            // pre-seed: only entry + Inbox copies start checked-for-removal).
+                            // v7.9.0-alpha.2 (UNIFIED §3/§7) - ONE cover per book, always (display now matches every
+                            // book-based count — the per-source multi-cover rendering made 4 covers of 3 books and
+                            // hid the kept-copy state in ring ambiguity). Origin caption under any book with a
+                            // non-entry source; click it for the moves/stays popup. Entry-only books: no caption.
                             return (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px', alignItems: 'flex-start' }}>
-                                {movers.flatMap(b => {
+                                {movers.map(b => {
                                     const srcs = consolidateSourcesOf(b);
-                                    const onlyEntry = srcs.length === 0 || (srcs.length === 1 && srcs[0].id === narrowSourceId);
-                                    return onlyEntry ? [cover(b, full)] : srcs.map(s => membershipCover(b, s, full));
+                                    const showCaption = srcs.some(f => f.id !== narrowSourceId);
+                                    const stays = srcs.filter(f => autoOrgExcludedMembers.has(`${f.id}::${b.id}`));
+                                    const capText = srcs.length === 1 ? (srcs[0].id === '__inbox__' ? 'Inbox' : srcs[0].name)
+                                        : `${srcs.length} places${stays.length > 0 ? ` · ${stays.length} stay${stays.length === 1 ? 's' : ''}` : ''}`;
+                                    return (
+                                        <div key={'w-' + b.id} style={{ width: '46px', flex: '0 0 auto' }}>
+                                            {cover(b, full)}
+                                            {showCaption && (
+                                                <div onClick={(e) => { e.stopPropagation(); setAutoOrgHover(null); setAutoOrgSrcPopup({ bookId: b.id, x: e.clientX, y: e.clientY }); }}
+                                                    title={`From: ${srcs.map(f => f.id === '__inbox__' ? 'Inbox' : f.name).join(', ')}${stays.length > 0 ? ` — stays in ${stays.map(f => f.name).join(', ')}` : ''}. Click to choose which copies move.`}
+                                                    style={{ fontSize: '9px', color: stays.length > 0 ? '#b45309' : '#64748b', textAlign: 'center', marginTop: '2px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'underline dotted' }}>
+                                                    {capText}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
                                 })}
                                 {existing.length > 0 && existingTray(existing, full)}
                             </div>
@@ -11539,7 +11535,12 @@
                                         {/* v7.9.0-alpha.1 (UNIFIED §2) - one view, one title; the scope toggle is gone.
                                             Subtitle teaches the model: everything by these authors is here; checks decide. */}
                                         <h2 id="modal-autoorg-preview" className="text-xl font-bold text-gray-900">✨ Auto-Organize{sourceName ? ` — from “${sourceName}”` : narrowSourceId === '__all__' ? ' — All Books' : ' — from Inbox'}</h2>
-                                        <div className="text-xs text-gray-600">Showing everything by {authorGroups.length === 1 ? 'this author' : 'these authors'}, wherever it lives — checked books get organized.</div>
+                                        <div className="text-xs text-gray-600 flex items-center gap-2 flex-wrap">
+                                            <span>Showing everything by {authorGroups.length === 1 ? 'this author' : 'these authors'}, wherever it lives — checked books get organized.</span>
+                                            {/* v7.9.0-alpha.2 (Ron) - Select all lives at the TOP: selection is where scanning starts; the footer confirms. */}
+                                            <button onClick={() => setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreview).map(b => b.id)))}
+                                                className="px-2 py-0.5 border border-indigo-300 rounded text-indigo-700 bg-white hover:bg-indigo-50 transition-colors">Select all</button>
+                                        </div>
                                     </div>
                                     <div className="flex items-center gap-3 flex-shrink-0">
                                         <div className="flex border border-indigo-400 rounded overflow-hidden text-sm" role="group" aria-label="Organize mode">
@@ -11746,11 +11747,8 @@
                                     if (alreadyHomeSel > 0) reconcile.push(`${alreadyHomeSel} already home`);
                                     return (
                                         <div className="p-4 border-t border-gray-200 flex justify-between items-center gap-3">
-                                            <div className="text-xs text-gray-500 flex-1 px-1 flex items-center gap-2 flex-wrap">
-                                                {/* v7.9.0-alpha.1 (UNIFIED §2) - a visible Select all (teaches that expansion exists; Ctrl+A twin) */}
-                                                <button onClick={() => setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreview).map(b => b.id)))}
-                                                    className="px-2 py-0.5 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 transition-colors">Select all</button>
-                                                <span>{autoOrgSel.size} selected{reconcile.length > 0 ? ` — ${reconcile.join(', ')}` : ''} · right-click a cover for Book Lists</span>
+                                            <div className="text-xs text-gray-500 flex-1 px-1">
+                                                {autoOrgSel.size} selected{reconcile.length > 0 ? ` — ${reconcile.join(', ')}` : ''} · right-click a cover for Book Lists
                                             </div>
                                             <div className="flex gap-2 flex-shrink-0">
                                                 <button onClick={closeAutoOrgPreview} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors">Cancel</button>
@@ -11761,6 +11759,40 @@
                                 })()}
                             </div>
                         </div>
+                        );
+                    })()}
+
+                    {/* v7.9.0-alpha.2 (UNIFIED §3) - Origin popup: this book's folders, each a moves/stays checkbox.
+                        Words, not glyphs. Checking a source also selects the book (a pick implies intent to organize). */}
+                    {autoOrgSrcPopup && (() => {
+                        const b = bookMap.get(autoOrgSrcPopup.bookId);
+                        if (!b) return null;
+                        const srcs = getFoldersContainingBook(b.id).filter(f => !['__all__', '__library__', '__trash__', '__booklists__', '__views__', '__search__'].includes(f.id));
+                        return (
+                            <div className="fixed inset-0 z-[75]" onClick={() => setAutoOrgSrcPopup(null)} onContextMenu={(e) => { e.preventDefault(); setAutoOrgSrcPopup(null); }}>
+                                <div className="absolute bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-w-[300px]"
+                                    style={{ left: `${Math.min(autoOrgSrcPopup.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 320)}px`, top: `${Math.min(autoOrgSrcPopup.y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - (srcs.length * 30 + 90))}px` }}
+                                    onClick={(e) => e.stopPropagation()}>
+                                    <div className="px-3 py-1.5 text-xs text-gray-600 border-b border-gray-100 truncate" title={b.title}>“{b.title || 'Untitled'}” — when organized, it…</div>
+                                    {srcs.map(f => {
+                                        const key = `${f.id}::${b.id}`;
+                                        const removing = !autoOrgExcludedMembers.has(key);
+                                        const name = f.id === '__inbox__' ? 'Inbox' : f.name;
+                                        return (
+                                            <label key={f.id} className="px-3 py-1.5 hover:bg-gray-50 cursor-pointer flex items-center gap-2 text-sm">
+                                                <input type="checkbox" checked={removing} className="w-4 h-4 accent-indigo-600"
+                                                    onChange={() => {
+                                                        setAutoOrgExcludedMembers(prev => { const n = new Set(prev); if (removing) n.add(key); else n.delete(key); return n; });
+                                                        if (!removing) setAutoOrgSel(prev => { const n = new Set(prev); n.add(b.id); return n; });
+                                                    }} />
+                                                <span className="flex-1 truncate" title={name}>{removing ? 'moves from' : 'stays in'} <strong>{name}</strong></span>
+                                            </label>
+                                        );
+                                    })}
+                                    {srcs.length === 0 && <div className="px-3 py-2 text-xs text-gray-400 italic">Not in any folder — it only gets added to its home</div>}
+                                    <div className="px-3 py-1.5 text-[10px] text-gray-400 border-t border-gray-100">Its new home folder is always added. Unchecked copies are kept.</div>
+                                </div>
+                            </div>
                         );
                     })()}
 
