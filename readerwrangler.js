@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.10.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.10.1-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -2098,11 +2098,11 @@
                     // v6.12.0 - Disclose Book List fallout: trashed books are hidden from their lists (membership
                     // survives — they return on restore). Reversible, so a toast note is enough (no extra dialog).
                     const onLists = actualBooksToTrash.some(id => bookLists.some(bl => (bl.bookIds || []).includes(id)));
-                    msgs.push(`Moved ${actualBooksToTrash.length} to Trash${onLists ? ' (hidden from Book Lists until restored)' : ''}`);
+                    msgs.push(`Moved ${bookCountLabel(actualBooksToTrash)} to Trash${onLists ? ' (hidden from Book Lists until restored)' : ''}`); // v7.10.1 - named receipt
                 }
-                if (hideInsteadIds.size > 0) msgs.push(`Hid ${hideInsteadIds.size} purchased book${hideInsteadIds.size !== 1 ? 's' : ''}`);
+                if (hideInsteadIds.size > 0) msgs.push(`Hid ${bookCountLabel(Array.from(hideInsteadIds))}${hideInsteadIds.size === 1 ? ' (purchased — hides instead of deleting)' : ' (purchased books hide instead of deleting)'}`); // v7.10.1 - named + teaching kept
                 const removedFromFolder = booksToRemoveFromFolder.length - actualBooksToTrash.length;
-                if (removedFromFolder > 0) msgs.push(`Removed ${removedFromFolder} from folder`);
+                if (removedFromFolder > 0) msgs.push(`Removed ${removedFromFolder === booksToRemoveFromFolder.length ? bookCountLabel(booksToRemoveFromFolder) : removedFromFolder + ' book' + (removedFromFolder !== 1 ? 's' : '')} from folder`); // v7.10.1
                 if (msgs.length > 0) showToast(msgs.join(', '));
             };
 
@@ -2156,7 +2156,7 @@
                 const count = bookIds.length;
                 // v6.12.0 - Book List membership returns automatically on restore (trashed IDs were only filtered)
                 const onLists = restoredBooks.some(({ id }) => bookLists.some(bl => (bl.bookIds || []).includes(id)));
-                showToast(`Restored ${count} book${count !== 1 ? 's' : ''}${onLists ? ' to their folders and Book Lists' : ''}`);
+                showToast(`Restored ${bookCountLabel(Array.from(bookIds))}${onLists ? ' to their folders and Book Lists' : ''}`); // v7.10.1 - named receipt
             };
 
             const permanentlyDeleteBooks = async (bookIds) => {
@@ -2174,6 +2174,7 @@
                 // Remove from books state and IndexedDB
                 // v6.19.0 - Capture the doomed books first: their ASINs become the tombstone letter below
                 const deletedBooksForRelay = books.filter(b => bookIdsSet.has(b.id));
+                const doomedLabel = bookCountLabel(bookIds); // v7.10.1 - capture BEFORE removal (the name is gone after)
                 const updatedBooks = books.filter(b => !bookIdsSet.has(b.id));
                 await saveBooksToIndexedDB(updatedBooks);
                 setBooks(updatedBooks);
@@ -2200,7 +2201,7 @@
                 setUndoStack(prev => prev.filter(a => !mentionsDoomed(a)));
                 setRedoStack(prev => prev.filter(a => !mentionsDoomed(a)));
 
-                showToast(`Permanently deleted ${count} book${count !== 1 ? 's' : ''}`);
+                showToast(`Permanently deleted ${doomedLabel}`); // v7.10.1 - named receipt
 
                 // v6.19.0 - Relay write redesign Phase 1: the app never rewrites the relay library.
                 // A permanent delete sends a TOMBSTONE LETTER instead (one atomic write); every
@@ -3033,9 +3034,13 @@
                 }));
 
                 // Human summary — used for BOTH the toast and the (isCopy-aware) undo/redo label.
+                // v7.10.1 - named targets: one book/folder gets its name (the chokepoint pays double —
+                // this string feeds the action receipt AND the undo toast).
                 const parts = [];
-                if (folderIdsToMove.length > 0) parts.push(`${folderIdsToMove.length} folder${folderIdsToMove.length !== 1 ? 's' : ''}`);
-                if (newBookIds.length > 0) parts.push(`${newBookIds.length} book${newBookIds.length !== 1 ? 's' : ''}`);
+                if (folderIdsToMove.length > 0) parts.push(folderIdsToMove.length === 1
+                    ? `folder '${(folders.find(f => f.id === folderIdsToMove[0]) || {}).name || 'folder'}'`
+                    : `${folderIdsToMove.length} folders`);
+                if (newBookIds.length > 0) parts.push(bookCountLabel(newBookIds));
                 const targetName = folders.find(f => f.id === targetFolderId)?.name || 'Inbox';
                 const summary = `${parts.join(' + ')} to '${targetName}'`;
 
@@ -4409,7 +4414,7 @@
                             folderId: selectedFolderId
                         }));
                         setClipboard({ type: 'cut', bookIds, sourcePositions });
-                        showToast(`${bookIds.length} book${bookIds.length !== 1 ? 's' : ''} cut`);
+                        showToast(`Cut ${bookCountLabel(bookIds)}`); // v7.10.1 - named receipt
                         console.log(`✂️ Cut ${bookIds.length} book(s) to clipboard (Explorer)`);
                         return; // Don't fall through to Columns App handler
                     }
@@ -4423,7 +4428,7 @@
                             folderId: selectedFolderId
                         }));
                         setClipboard({ type: 'copy', bookIds, sourcePositions });
-                        showToast(`${bookIds.length} book${bookIds.length !== 1 ? 's' : ''} copied`);
+                        showToast(`Copied ${bookCountLabel(bookIds)}`); // v7.10.1 - named receipt
                         console.log(`📋 Copied ${bookIds.length} book(s) to clipboard (Explorer)`);
                         return; // Don't fall through to Columns App handler
                     }
@@ -6570,9 +6575,9 @@
                     fieldKey,
                     previousValues,
                     newValue,
-                    description: `Edit ${fieldLabel} for ${count} book${count !== 1 ? 's' : ''}`
+                    description: `Edit ${fieldLabel} for ${bookCountLabel(bulkEditBookIds)}` // v7.10.1 - named (feeds undo toast too)
                 });
-                showToast(`Updated ${fieldLabel} for ${count} book${count !== 1 ? 's' : ''}`);
+                showToast(`Updated ${fieldLabel} for ${bookCountLabel(bulkEditBookIds)}`); // v7.10.1 - named receipt
                 setShowBulkEditModal(false);
                 setBulkEditSeriesDropdownOpen(false);
             };
@@ -8177,7 +8182,7 @@
                 });
                 setAutoOrgSel(prev => { const n = new Set(prev); bookIds.forEach(id => n.add(id)); return n; });
                 setAutoOrgMenu(null);
-                showToast(`Will file ${bookIds.length} book${bookIds.length !== 1 ? 's' : ''} under “${name}”`);
+                showToast(`Will file ${bookCountLabel(bookIds)} under “${name}”`); // v7.10.1 - named receipt
             };
             // v7.9.0-alpha.8 - Ron: a bare name input was a typo trap (Pournelle vs Pournell silently
             // creates a folder). Replaced with the combobox picker (autoOrgFileUnder render below).
@@ -8273,16 +8278,16 @@
                     const createdIds = new Set(subActions.filter(a => a.type === 'CREATE_FOLDER').map(a => a.folderId));
                     setFolders(placeNewFoldersAtTop(newFolders, newFolders.filter(f => createdIds.has(f.id))));
                     recordAction({ type: 'WIZARD_ORGANIZE', description: `${label} + removed ${selectedFiledIds.length} already-filed from ${where}`, subActions: stampRemovalIndices(subActions, folders) }); // v7.7.0-alpha.4 - positional undo
-                    showToast(`Organized ${plan.totalBooksOrganized} book${plan.totalBooksOrganized !== 1 ? 's' : ''} and removed ${selectedFiledIds.length} from ${where}`);
+                    showToast(`Organized ${bookCountLabel(plan.allBookIdsToOrganize)} and removed ${bookCountLabel(selectedFiledIds)} from ${where}`); // v7.10.1 - named receipt
                 } else if (willOrganize) {
                     const plan = applyOrganizePlan(moverGroupsToApply, applyOpts, label);
                     showToast(mode === 'author'
-                        ? `Organized ${plan.totalBooksOrganized} book${plan.totalBooksOrganized !== 1 ? 's' : ''} into author folders`
-                        : `Organized ${plan.totalBooksOrganized} book${plan.totalBooksOrganized !== 1 ? 's' : ''} with series subfolders`);
+                        ? `Organized ${bookCountLabel(plan.allBookIdsToOrganize)} into author folders` // v7.10.1 - named receipt
+                        : `Organized ${bookCountLabel(plan.allBookIdsToOrganize)} with series subfolders`);
                 } else {
-                    const n = removeBooksFromFolder(narrowSourceId, selectedFiledIds, `Remove ${selectedFiledIds.length} book${selectedFiledIds.length !== 1 ? 's' : ''} from ${where}`);
+                    const n = removeBooksFromFolder(narrowSourceId, selectedFiledIds, `Remove ${bookCountLabel(selectedFiledIds)} from ${where}`);
                     showToast(n > 0
-                        ? `Removed ${n} book${n !== 1 ? 's' : ''} from ${where} — still filed where they were`
+                        ? `Removed ${n === selectedFiledIds.length ? bookCountLabel(selectedFiledIds) : `${n} book${n !== 1 ? 's' : ''}`} from ${where} — still filed where ${n === 1 ? 'it was' : 'they were'}` // v7.10.1
                         : `Nothing to remove from ${where}`);
                 }
                 closeAutoOrgPreview();
@@ -8353,8 +8358,8 @@
                 const added = addBooksToBookList(bookListId, ids);
                 const bl = bookLists.find(b => b.id === bookListId);
                 showToast(added > 0
-                    ? `Added ${added} book${added !== 1 ? 's' : ''} to '${bl?.name || 'Book List'}'${added < ids.length ? ` (${ids.length - added} already there)` : ''}`
-                    : `All ${ids.length} book${ids.length !== 1 ? 's' : ''} already in '${bl?.name || 'Book List'}'`);
+                    ? `Added ${added === ids.length ? bookCountLabel(ids) : `${added} book${added !== 1 ? 's' : ''}`} to '${bl?.name || 'Book List'}'${added < ids.length ? ` (${ids.length - added} already there)` : ''}` // v7.10.1 - named receipt
+                    : `${ids.length === 1 ? bookCountLabel(ids) + ' is' : `All ${ids.length} books`} already in '${bl?.name || 'Book List'}'`);
             };
             // v6.18.0 - Smart Book-List name from a selection (Ron's queue convention): all one series → "<Series> - To
             // Read"; else all one author → "<Author> - To Read"; else '' (mixed → the generic New To Read list). Shared by
@@ -8385,7 +8390,7 @@
                 const existing = bookLists.find(b => (b.name || '').trim().toLowerCase() === trimmed.toLowerCase());
                 if (existing) { addPreviewSelToBookList(existing.id, ids); return; }
                 createBookList(trimmed, ids);
-                showToast(`Created '${trimmed}' with ${ids.length} book${ids.length !== 1 ? 's' : ''}`);
+                showToast(`Created '${trimmed}' with ${bookCountLabel(ids)}`); // v7.10.1 - named receipt
             };
 
             // v6.13.0-alpha.10 (D3) - When a double-click-opened book detail modal closes over the preview, refresh it.
@@ -10030,12 +10035,12 @@
                                                                     if (choice === 'rename') { proposed = trimmed; continue; }
                                                                     if (choice === 'add') {
                                                                         const added = addBooksToBookList(existing.id, displayedIds);
-                                                                        showToast(added > 0 ? `Added ${added} to "${existing.name}"` : `All ${count} already in "${existing.name}"`);
+                                                                        showToast(added > 0 ? `Added ${added === displayedIds.length ? bookCountLabel(displayedIds) : added} to "${existing.name}"` : `All ${count} already in "${existing.name}"`); // v7.10.1
                                                                     }
                                                                     return; // cancel / backdrop / add → done
                                                                 }
                                                                 createBookList(trimmed, displayedIds);
-                                                                showToast(`Saved ${count} book${count !== 1 ? 's' : ''} to "${trimmed}"`);
+                                                                showToast(`Saved ${bookCountLabel(displayedIds)} to "${trimmed}"`); // v7.10.1 - named receipt
                                                                 return;
                                                             }
                                                         }}>
@@ -10048,7 +10053,7 @@
                                                             className={`block w-full text-left px-3 py-1.5 truncate ${count === 0 ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100'}`}
                                                             onClick={() => {
                                                                 const added = addBooksToBookList(bl.id, displayedIds);
-                                                                showToast(added > 0 ? `Added ${added} to "${bl.name}"` : `All ${count} already in "${bl.name}"`);
+                                                                showToast(added > 0 ? `Added ${added === displayedIds.length ? bookCountLabel(displayedIds) : added} to "${bl.name}"` : `All ${count} already in "${bl.name}"`); // v7.10.1
                                                                 setSaveResultsMenuOpen(false);
                                                             }}>
                                                             {bl.name}
@@ -12559,7 +12564,7 @@
                                                 return updated;
                                             });
                                             // Toast feedback
-                                            showToast(`Price goal set to $${price.toFixed(2)} for ${count} book${count !== 1 ? 's' : ''}`);
+                                            showToast(`Price goal set to $${price.toFixed(2)} for ${bookCountLabel(bulkPriceBookIds)}`); // v7.10.1 - named receipt
                                         }
                                         setShowBulkPriceModal(false);
                                         setBulkPriceInput('');
@@ -14128,10 +14133,10 @@
                                                                     { type: 'BOOKLIST_ADD', bookListId: bl.id, bookIds: toAdd },
                                                                     { type: 'BOOKLIST_REMOVE', bookListId: srcListId, bookIds: dropIds }
                                                                 ] }); // v7.8.0-alpha.4 named target
-                                                                showToast(`Moved ${dropIds.length} ${dropIds.length === 1 ? 'book' : 'books'} to "${bl.name}"`, e.clientX, e.clientY);
+                                                                showToast(`Moved ${bookCountLabel(dropIds)} to "${bl.name}"`, e.clientX, e.clientY); // v7.10.1 - named receipt
                                                             } else {
                                                                 const added = addBooksToBookList(bl.id, dropIds);
-                                                                showToast(added > 0 ? `Added ${added} ${added === 1 ? 'book' : 'books'} to "${bl.name}"` : `Already in "${bl.name}"`, e.clientX, e.clientY);
+                                                                showToast(added > 0 ? `Added ${added === dropIds.length ? bookCountLabel(dropIds) : `${added} book${added !== 1 ? 's' : ''}`} to "${bl.name}"` : `Already in "${bl.name}"`, e.clientX, e.clientY); // v7.10.1
                                                             }
                                                             setExplorerSelectedItems(new Set());
                                                             stopDragVirtualization();
@@ -14395,7 +14400,7 @@
                                                     }
                                                     return f;
                                                 }));
-                                                showToast(`Restored ${bookIds.length} book${bookIds.length !== 1 ? 's' : ''} to Inbox`);
+                                                showToast(`Restored ${bookCountLabel(bookIds)} to Inbox`); // v7.10.1 - named receipt
                                                 setFolderDropHighlight(null);
                                                 setExplorerSelectedItems(new Set());
                                                 stopDragVirtualization();
@@ -14705,7 +14710,7 @@
                                                                     }
                                                                     return f;
                                                                 }));
-                                                                showToast(`Restored ${bookIds.length} book${bookIds.length !== 1 ? 's' : ''} to "${folder.name}"`);
+                                                                showToast(`Restored ${bookCountLabel(bookIds)} to "${folder.name}"`); // v7.10.1 - named receipt
                                                                 setFolderDropHighlight(null);
                                                                 setExplorerSelectedItems(new Set());
                                                                 stopDragVirtualization();
@@ -18417,7 +18422,7 @@
                             // v6.18.0 - KEEP the selection (see handleAddToExistingBookList) — non-destructive overlay.
                             setExplorerBookContextMenu(null);
                             setContextSubmenu(null);
-                            showToast(`Added ${ids.length} book${ids.length !== 1 ? 's' : ''} to new list '${trimmed}'`);
+                            showToast(`Added ${bookCountLabel(ids)} to new list '${trimmed}'`); // v7.10.1 - named receipt
                         };
                         const handleRemoveFromCurrentBookList = () => {
                             const ids = getSelectedBookIds();
@@ -18428,7 +18433,7 @@
                             setExplorerSelectedItems(new Set());
                             setExplorerBookContextMenu(null);
                             setContextSubmenu(null);
-                            showToast(`Removed ${ids.length} book${ids.length !== 1 ? 's' : ''} from '${bl?.name || 'Book List'}'`);
+                            showToast(`Removed ${bookCountLabel(ids)} from '${bl?.name || 'Book List'}'`); // v7.10.1 - named receipt
                         };
 
                         // v6.12.0-alpha.60 (E) - Create a new folder and move/copy the selected books into it.
@@ -18448,7 +18453,7 @@
                                 if (!isCopy) next = next.map(f => f.id === fromFolderId ? { ...f, bookIds: (f.bookIds || []).filter(id => !ids.includes(id)) } : f);
                                 return placeNewFoldersAtTop(next, [newFolder]); // v7.6.0-alpha.11 (wave C)
                             });
-                            recordAction({ type: 'COMPOUND', label: `${isCopy ? 'Copy' : 'Move'} ${ids.length} book${ids.length !== 1 ? 's' : ''} to new folder '${trimmed}'`, actions: [
+                            recordAction({ type: 'COMPOUND', label: `${isCopy ? 'Copy' : 'Move'} ${bookCountLabel(ids)} to new folder '${trimmed}'`, actions: [ // v7.10.1 - named (feeds undo toast too)
                                 { type: 'CREATE_FOLDER', folderId: newId, parentId: parentId || null, folder: { ...newFolder, bookIds: [] } },
                                 isCopy
                                     ? { type: 'COPY_BOOKS_FOLDER', bookIds: ids, toFolderId: newId, toIndex: 0 }
@@ -18457,7 +18462,7 @@
                             setExplorerSelectedItems(new Set());
                             setExplorerBookContextMenu(null);
                             setContextSubmenu(null);
-                            showToast(`${isCopy ? 'Copied' : 'Moved'} ${ids.length} book${ids.length !== 1 ? 's' : ''} to new folder '${trimmed}'`);
+                            showToast(`${isCopy ? 'Copied' : 'Moved'} ${bookCountLabel(ids)} to new folder '${trimmed}'`); // v7.10.1 - named receipt
                         };
 
                         // Build folder tree for submenu (reused for both Move to and Copy to)
@@ -18743,7 +18748,7 @@
                                                 folderId: selectedFolderId
                                             }));
                                             setClipboard({ type: 'cut', bookIds, sourcePositions });
-                                            showToast(`${bookIds.length} book${bookIds.length !== 1 ? 's' : ''} cut`);
+                                            showToast(`Cut ${bookCountLabel(bookIds)}`); // v7.10.1 - named receipt
                                             setExplorerBookContextMenu(null);
                                             setContextSubmenu(null);
                                         }}>
@@ -18764,7 +18769,7 @@
                                             folderId: selectedFolderId
                                         }));
                                         setClipboard({ type: 'copy', bookIds, sourcePositions });
-                                        showToast(`${bookIds.length} book${bookIds.length !== 1 ? 's' : ''} copied`);
+                                        showToast(`Copied ${bookCountLabel(bookIds)}`); // v7.10.1 - named receipt
                                         setExplorerBookContextMenu(null);
                                         setContextSubmenu(null);
                                     }}>
@@ -19169,7 +19174,7 @@
                                                                                                  saveBooksToIndexedDB(updated);
                                                                                                 return updated;
                                                                                             });
-                                                                                            showToast(`Removed "${tagRegistry[tagId]?.label || tagId}" from ${bookCount} book${bookCount !== 1 ? 's' : ''}`);
+                                                                                            showToast(`Removed "${tagRegistry[tagId]?.label || tagId}" from ${bookCount === 1 && selectedBookIds.length === 1 ? bookCountLabel(selectedBookIds) : `${bookCount} book${bookCount !== 1 ? 's' : ''}`}`); // v7.10.1
                                                                                         }}>
                                                                                         ×
                                                                                     </button>
@@ -19329,7 +19334,7 @@
                                                                                      return updated;
                                                                                 });
                                                                                 if (addedCount > 0) {
-                                                                                    showToast(`Added "${tagData.label}" to ${addedCount} book${addedCount !== 1 ? 's' : ''}`);
+                                                                                    showToast(`Added "${tagData.label}" to ${addedCount === selectedBookIds.length ? bookCountLabel(selectedBookIds) : `${addedCount} book${addedCount !== 1 ? 's' : ''}`}`); // v7.10.1
                                                                                 }
                                                                                 setTagInputValue('');
                                                                                 setExplorerBookContextMenu(null);
@@ -19405,7 +19410,7 @@
                                                                         saveBooksToIndexedDB(updated);
                                                                         return updated;
                                                                     });
-                                                                    showToast(`Price goal set to $${price.toFixed(2)} for ${count} book${count !== 1 ? 's' : ''}`);
+                                                                    showToast(`Price goal set to $${price.toFixed(2)} for ${bookCountLabel(selectedBookIds)}`); // v7.10.1 - named receipt
                                                                     setExplorerBookContextMenu(null);
                                                                     setContextSubmenu(null);
                                                                 }}>
@@ -19437,7 +19442,7 @@
                                                                     return updated;
                                                                 });
                                                                 // Toast feedback
-                                                                showToast(`Price goal cleared for ${count} book${count !== 1 ? 's' : ''}`);
+                                                                showToast(`Price goal cleared for ${bookCountLabel(selectedBookIds)}`); // v7.10.1 - named receipt
                                                                 setExplorerBookContextMenu(null);
                                                                 setContextSubmenu(null);
                                                             }}>
@@ -19528,8 +19533,7 @@
                                                         const removedIds = (bl?.bookIds || []).filter(id => ids.includes(id));
                                                         setBookLists(prev => prev.map(b => b.id === blId ? { ...b, bookIds: (b.bookIds || []).filter(id => !ids.includes(id)) } : b));
                                                         if (removedIds.length) recordAction({ type: 'BOOKLIST_REMOVE', bookListId: blId, bookIds: removedIds, label: `Remove ${bookCountLabel(removedIds)} from '${(bookLists.find(b => b.id === blId) || {}).name || 'Book List'}'` }); // v6.12.0 - undoable; v7.8.0-alpha.4 named target
-                                                        const w = ids.length === 1 ? 'book' : 'books';
-                                                        showToast(`Removed ${ids.length} ${w} from "${bl?.name || 'list'}"`);
+                                                        showToast(`Removed ${bookCountLabel(ids)} from "${bl?.name || 'list'}"`); // v7.10.1 - named receipt
                                                         setExplorerSelectedItems(new Set());
                                                         setExplorerBookContextMenu(null);
                                                         setContextSubmenu(null);
