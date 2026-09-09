@@ -198,11 +198,12 @@
         }
 
         /* ===== Sticky Nav Bar ===== */
+        /* v7.9.0 (Ron) - ALWAYS visible: the old scroll-to-appear bar hid that Tutorials/Security
+           exist unless a visitor scrolled 50% — discoverability beats hero purity. Sticky, so the
+           page flows naturally beneath it on every viewport. */
         .nav-bar {
-            position: fixed;
+            position: sticky;
             top: 0;
-            left: 0;
-            right: 0;
             z-index: 1001;
             background: rgba(255, 255, 255, 0.97);
             backdrop-filter: blur(8px);
@@ -211,13 +212,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transform: translateY(-100%);
-            transition: transform 0.25s ease;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-        }
-
-        .nav-bar.visible {
-            transform: translateY(0);
         }
 
         .nav-bar-brand {
@@ -1283,11 +1278,42 @@
             <a href="readerwrangler.html" class="nav-btn nav-btn-primary" title="The app walks you through setup &#8212; relay, bookmarklet, and first import">Launch ReaderWrangler</a>
         </div>
         <div class="nav-bar-links">
+            <span class="nav-current" aria-current="page" title="You are here">Home</span>
             <a href="tutorials.html">Tutorials</a>
             <a href="features.html">Features</a>
             <a href="security.html">Security</a>
+            <select class="theme-select" id="rwThemeSelect" aria-label="Theme" title="Theme &#8212; shared with the ReaderWrangler app">
+                <option value="auto">Theme: Auto</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="hc-light">High Contrast Light</option>
+                <option value="hc-dark">High Contrast Dark</option>
+            </select>
         </div>
     </div>
+    <!-- v7.9.0 - Site theme control: same stored setting as the app (Auto follows the OS) -->
+    <style>
+        .theme-select { margin-left: 12px; padding: 3px 8px; font-size: 0.85em; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #475569; cursor: pointer; }
+        [data-theme="dark"] .theme-select, [data-theme="hc-dark"] .theme-select { background: #1e293b; color: #cbd5e1; border-color: #475569; }
+        /* v7.9.0 - "You are here": current page stays in the nav, bold-muted and non-clickable (a lurching nav disorients; gray-disabled would read as unavailable) */
+        .nav-current { font-size: 13px; font-weight: 700; color: #64748b; cursor: default; }
+        [data-theme="dark"] .nav-current, [data-theme="hc-dark"] .nav-current { color: #94a3b8; }
+    </style>
+    <script>
+        (function() {
+            var sel = document.getElementById('rwThemeSelect');
+            if (!sel) return;
+            sel.value = localStorage.getItem('readerwrangler-theme') || 'auto';
+            function apply(pref) {
+                var t = pref;
+                if (!t || t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                if (t === 'light') delete document.documentElement.dataset.theme;
+                else document.documentElement.dataset.theme = t;
+            }
+            sel.addEventListener('change', function() { localStorage.setItem('readerwrangler-theme', sel.value); apply(sel.value); });
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() { if ((localStorage.getItem('readerwrangler-theme') || 'auto') === 'auto') apply('auto'); });
+        })();
+    </script>
 
     <!-- Hero -->
     <div class="hero" id="hero">
@@ -1413,21 +1439,7 @@
         </div>
     </footer>
 
-    <script>
-        // Scroll-to-shrink: show thin nav bar when hero scrolls out of view
-        const hero = document.getElementById('hero');
-        const navBar = document.getElementById('navBar');
-        let navVisible = false;
-        const onScroll = () => {
-            const heroBottom = hero.getBoundingClientRect().bottom;
-            const shouldShow = heroBottom < 0;
-            if (shouldShow !== navVisible) {
-                navVisible = shouldShow;
-                navBar.classList.toggle('visible', shouldShow);
-            }
-        };
-        window.addEventListener('scroll', onScroll, { passive: true });
-    </script>
+    <!-- v7.9.0 - scroll-to-appear nav script removed: the bar is always visible now -->
     <script data-goatcounter="https://readerwrangler.goatcounter.com/count"
             async src="//gc.zgo.at/count.js"></script>
 </body>

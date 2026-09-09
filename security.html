@@ -6,9 +6,39 @@
     <title>Security & Privacy - ReaderWrangler</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/x-icon" href="icons/favicon.ico">
+    <!-- v7.9.0 - Theme support: pre-paint detection (same stored setting as the app) + a compact
+         override sheet restyling this page's Tailwind utilities under [data-theme]. -->
+    <script>
+        (function() {
+            var stored = localStorage.getItem('readerwrangler-theme');
+            var theme = stored;
+            if (!stored || stored === 'auto') {
+                theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            if (theme && theme !== 'light') {
+                document.documentElement.dataset.theme = theme;
+            }
+        })();
+    </script>
+    <style>
+        [data-theme="dark"] body, [data-theme="hc-dark"] body { background: #0f172a !important; }
+        [data-theme="dark"] .bg-gray-100, [data-theme="hc-dark"] .bg-gray-100 { background: #0f172a !important; }
+        [data-theme="dark"] .bg-white, [data-theme="hc-dark"] .bg-white { background: #1e293b !important; }
+        [data-theme="dark"] .text-gray-800, [data-theme="dark"] .text-gray-700,
+        [data-theme="hc-dark"] .text-gray-800, [data-theme="hc-dark"] .text-gray-700 { color: #e2e8f0 !important; }
+        [data-theme="dark"] .text-gray-600, [data-theme="hc-dark"] .text-gray-600 { color: #cbd5e1 !important; }
+        [data-theme="dark"] .text-gray-500, [data-theme="dark"] .text-gray-400,
+        [data-theme="hc-dark"] .text-gray-500, [data-theme="hc-dark"] .text-gray-400 { color: #94a3b8 !important; }
+        [data-theme="dark"] .border-gray-200, [data-theme="hc-dark"] .border-gray-200 { border-color: #334155 !important; }
+        [data-theme="dark"] .text-blue-600, [data-theme="hc-dark"] .text-blue-600 { color: #60a5fa !important; }
+        [data-theme="dark"] .shadow-md, [data-theme="hc-dark"] .shadow-md { box-shadow: 0 4px 6px rgba(0,0,0,0.4) !important; }
+        [data-theme="hc-dark"] .bg-white { border: 1px solid #94a3b8 !important; }
+        .theme-select { margin-left: 12px; padding: 3px 8px; font-size: 0.85em; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #475569; cursor: pointer; }
+        [data-theme="dark"] .theme-select, [data-theme="hc-dark"] .theme-select { background: #1e293b; color: #cbd5e1; border-color: #475569; }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <!-- 2026-09-09 - Consistent site nav (this page's full restyle onto the shared theme system is a filed follow-up) -->
+    <!-- 2026-09-09 - Consistent site nav; themed via the override sheet above -->
     <div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
         <a href="index.html" class="font-bold text-gray-800 no-underline">ReaderWrangler&#8482;</a>
         <div class="flex gap-5 text-sm items-center">
@@ -16,8 +46,30 @@
             <a href="tutorials.html" class="text-gray-500 hover:text-blue-600">Tutorials</a>
             <a href="features.html" class="text-gray-500 hover:text-blue-600">Features</a>
             <span class="font-bold text-gray-400 cursor-default" title="You are here" aria-current="page">Security</span>
+            <select class="theme-select" id="rwThemeSelect" aria-label="Theme" title="Theme &#8212; shared with the ReaderWrangler app">
+                <option value="auto">Theme: Auto</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="hc-light">High Contrast Light</option>
+                <option value="hc-dark">High Contrast Dark</option>
+            </select>
         </div>
     </div>
+    <script>
+        (function() {
+            var sel = document.getElementById('rwThemeSelect');
+            if (!sel) return;
+            sel.value = localStorage.getItem('readerwrangler-theme') || 'auto';
+            function apply(pref) {
+                var t = pref;
+                if (!t || t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                if (t === 'light') delete document.documentElement.dataset.theme;
+                else document.documentElement.dataset.theme = t;
+            }
+            sel.addEventListener('change', function() { localStorage.setItem('readerwrangler-theme', sel.value); apply(sel.value); });
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() { if ((localStorage.getItem('readerwrangler-theme') || 'auto') === 'auto') apply('auto'); });
+        })();
+    </script>
     <div class="max-w-4xl mx-auto px-4 py-12">
         <h1 class="text-3xl font-bold text-gray-800 mb-8">Security & Privacy</h1>
 

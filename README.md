@@ -126,45 +126,32 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 <!-- SYNC: Keep "Recent Features" in sync with features.html -->
 ## Recent Features
 
-- **Formats tell the truth — and are yours to edit (7.7)** — Formats now arrive verbatim from Amazon (blank means honestly unknown — no more invented "Kindle eBook"), fill themselves in from your Amazon listing automatically, and are editable — single book or in bulk — with your edits winning over every future fetch. The "removed from Amazon" check also stopped flagging physical items (maps, CDs) that were there all along.
+- **Auto-Organize, one view (7.9)** — The preview now shows *everything* by your chosen authors, wherever it lives; the checkboxes are the scope. Right-click to file a whole group under any folder — including the co-author case — with a picker where creating a folder is always explicit, never a typo.
+- **Formats & ownership tell the truth (7.7-7.8)** — Real Amazon formats (editable, yours forever), an ownership editor that shows Amazon's actual state and offers only what's genuinely yours to change — with a visible "Reset to Amazon's value." Your library now reconciles with Amazon *exactly*.
+- **Undo grew up (7.8)** — Works inside the book dialog, never reaches things you can't see, and every undo names its target: *"Undone: Edit 'Bitter Gold Hearts'."*
 - **One home for your organization (7.7)** — Folders, Book Lists, and Searches live in a single guarded store that loads no matter what: an empty book database can't hide your organization, and the Welcome screen tells returning users their data is intact — with recovery options listed best-first. Plus a real fix for cloud-write waste: opening a tab no longer costs a full library upload.
-- **Pinned folders & folder sorting (7.6)** — Pin your special folders 📌 to the top and let the rest live in Name or Count order; new folders (including Auto-Organize's) land at the top where you can see them; Move to Top/Bottom; and a one-shot "Bake this order into Manual". The sort control reads the way it acts: the name opens the menu, the arrow flips the direction.
-- **Your phone finally matches (7.6)** — Mobile mirrors the desktop's folder order exactly (pins included), shows honest counts ("3,134 of 3,136 — 2 hidden by user", tappable), knows what "Date Added" means, names its server, and tells you when newer library data is waiting — with a "Library as of" line and a tap-to-refresh banner.
-- **Bulletproof sync (7.0)** — cloud sync rebuilt so an interrupted upload can never corrupt your synced library: updates travel as sealed packets, the synced copy is replaced only whole (previous version kept as automatic fallback), deletes stay deleted, backup restores stick, and synced data no longer expires between sessions.
-- **Book List & tag refinements** — adding to a Book List keeps your selection; already-filed books in the Auto-Organize preview can ride onto a list without moving; the "‹Series› - To Read" name suggestion works from anywhere; **Select All** in the Tags filter; and **drag-to-order your tags** (Manage Tags → Manual) — that order drives the tag filter and the right-click Tags menu.
-- **Consolidate a scattered author** — Auto-Organize now works across your *whole* library: flip the new **Scope: This folder / Everywhere** switch to gather an author's books out of every folder and the Inbox into one home in a single pass, without leaving the folder you started in. The preview shows the author's full footprint — what's coming in, what's **already here**, and what's sitting **elsewhere** (with its location) — and for a book that lives in two places you choose which copy to pull and which to keep. Plus a filter box on the Move to / Copy to / Add to Book List menus to find a target fast.
-- **Cleaner right-click menu & sidebar** — the book menu is regrouped by what each action does (single-book **Edit…** opens full details; multi-select gets bulk field edits), submenus never run off-screen, and the sidebar sections collapse consistently — Folders included, with a one-click collapse/expand-all for subfolders.
-- **Auto-Organize, reimagined** — Right-click a book *or* open the bulk wizard, and both land in one **live preview**: it shows the author's whole existing folder (so you never file blind), lets you flip **By Author / By Series** and tune the series-folder options on the fly, surfaces books already filed (with a one-click "remove from Inbox"), and never splits a series. A checkbox tree files exactly the books, series, or authors you choose.
-- **Publication Date column** — Show it in list view, sort by it, and use it to put a series in order.
-- **Set numbers** — On a multi-book selection, type an exact list like *"13, 13.5, 14, 14.5"* to number annual specials and fill series gaps.
-- **Book-detail navigation** — Page through the current folder's (or a preview shelf's) books with ‹ prev / next › or ←/→ — no re-opening each one.
-- **See where a book lives** — Hover a book in any folder or Book List (not just All Books) to see every folder and Book List it belongs to, in a popup that grows from your cursor. Works in cover and list views.
-- **Searches** — Save any filter combination (search, ratings, ownership, tags, dates, deals) as a named Search in the sidebar. Recall one to restore that filtered view in place — a saved lens over your library.
-- **Book Lists** — Hand-pick sets of books into simple, flat lists kept separate from your folders. Adding or removing a book from a list never tags, moves, or deletes the book itself.
-- **Unified folder ordering** — One shared order — Manual, A→Z, or Z→A — across the sidebar, the Folders view, and the Move/Copy trees. Drag to reorder in Manual mode.
-- **Ownership at a glance** — A sortable Ownership column (and a line in the book details dialog) shows whether each book is Owned, a Sample, Borrowed, Prime, Kindle Unlimited, and so on.
-- **Share Book** — Share book recommendations with friends via link, email, or native share.
-- **Tag from Collections** — One-click wizard converts your Kindle Collections into editable tags. "New books only" filter for painless repeat imports. Detects when books leave a Kindle Collection.
-- **Video Tutorials** — Quick-start guides and feature walkthroughs to get you up and running.
-- **Demo Library** — Download 100+ classic books and explore every feature without connecting your Amazon account.
-- **Folder & Tag Descriptions** — Add a description to any folder or tag; shown as a tooltip on hover.
-- **Encrypted Cloud Relay + Trash Bin** — End-to-end encrypted sync between the bookmarklet and the app. Trash Bin gives you a safety net before permanently deleting books. Orphan detection flags books removed from Amazon.
-- **Mobile Viewer** — Pair your phone with a QR code and browse your organized library anywhere — now with color-coded, collapsible Searches, Book Lists, and Folders, plus search & sort.
-- **Dark Mode + High Contrast Themes** — Four themes (light, dark, high-contrast light, high-contrast dark) with automatic OS detection.
-- **Book Explorer** — Two-pane Windows Explorer-style interface with folder tree, list and cover grid views, drag-and-drop, and Cut/Copy/Paste.
+- **Pinned folders, and a phone that matches (7.6)** — Pins and folder sorting on desktop, mirrored exactly on mobile, with honest counts and a newer-data banner.
+- **Bulletproof sync (7.0-7.5)** — Cloud sync rebuilt so an interrupted upload can never corrupt your synced library: updates travel as sealed packets, the synced copy is replaced only whole, deletes stay deleted, backup restores stick — and it now cleans up after itself: interrupted syncs no longer leave debris in the cloud.
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
 ---
 
-<!-- SYNC: Keep "Coming Soon" in sync with features.html -->
+<!-- SYNC: Keep "Coming Soon" / "Future Features" in sync with features.html -->
 ## Coming Soon!
+
+- **Save as Spreadsheet** — Your whole library as one file for Excel: tags, folders, and Book Lists included *(our first user-requested feature)*
+- **Fetch & import reports that tell the whole story** — "3 wishlist books now owned, 1 became a sample," in the dialog and the toast history
+- **Safe multi-tab** — A second ReaderWrangler tab becomes a read-only viewer instead of a hazard
+
+## Future Features
+
+*Ideas we like — no timeline promised.*
 
 - **Reading progress** — See how far you are in each book
 - **Book recommendations** — Discover similar books already in your library
 - **Series manager** — Clean up inconsistent series names and merge duplicates
 - **Keyboard accessibility** — Full keyboard navigation for every feature
-- **Faster app loading** — Reducing the initial load time
 
 Have a feature request? [Let us know on GitHub!](https://github.com/Ron-L/ReaderWrangler/issues)
 

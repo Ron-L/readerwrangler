@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Order you can trust**: authors alphabetical, series shelves in your own folder order — never the order you happened to click books in.
 - **The button never overpromises**: `Organize 4 books` counts what will actually move; the caption reconciles the rest ("6 selected — 4 will move, 2 already home").
 
+### The website grows up a little
+- Every themed page now carries the **same theme control as the app** (top-right: Auto / Light / Dark / High Contrast) — one shared setting, with Auto following your device. Dark-mode visitors no longer read about ReaderWrangler in blinding white.
+- **Navigation stopped playing hide-and-seek**: every page lists every page, with "you are here" shown in place instead of vanishing from the list — and the home page's nav bar no longer waits for you to scroll half the page to reveal that Tutorials and Security exist.
+- **The Security page rejoined the family**: its cloud-sync description had gone stale (fixed the moment it was noticed — a security page owes accuracy first), and it now wears the shared nav and themes like everyone else.
+
 ## [7.8.0] - 2026-09-08
 
 ### The book dialog edits where it says

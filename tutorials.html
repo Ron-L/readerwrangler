@@ -772,10 +772,41 @@
         </div>
         <div class="nav-bar-links">
             <a href="index.html">Home</a>
+            <span class="nav-current" aria-current="page" title="You are here">Tutorials</span>
             <a href="features.html">Features</a>
             <a href="security.html">Security</a>
+            <select class="theme-select" id="rwThemeSelect" aria-label="Theme" title="Theme &#8212; shared with the ReaderWrangler app">
+                <option value="auto">Theme: Auto</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="hc-light">High Contrast Light</option>
+                <option value="hc-dark">High Contrast Dark</option>
+            </select>
         </div>
     </div>
+    <!-- v7.9.0 - Site theme control: same stored setting as the app (Auto follows the OS) -->
+    <style>
+        .theme-select { margin-left: 12px; padding: 3px 8px; font-size: 0.85em; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #475569; cursor: pointer; }
+        [data-theme="dark"] .theme-select, [data-theme="hc-dark"] .theme-select { background: #1e293b; color: #cbd5e1; border-color: #475569; }
+        /* v7.9.0 - "You are here": current page stays in the nav, bold-muted and non-clickable (a lurching nav disorients; gray-disabled would read as unavailable) */
+        .nav-current { font-size: 0.85em; font-weight: 700; color: #64748b; cursor: default; }
+        [data-theme="dark"] .nav-current, [data-theme="hc-dark"] .nav-current { color: #94a3b8; }
+    </style>
+    <script>
+        (function() {
+            var sel = document.getElementById('rwThemeSelect');
+            if (!sel) return;
+            sel.value = localStorage.getItem('readerwrangler-theme') || 'auto';
+            function apply(pref) {
+                var t = pref;
+                if (!t || t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                if (t === 'light') delete document.documentElement.dataset.theme;
+                else document.documentElement.dataset.theme = t;
+            }
+            sel.addEventListener('change', function() { localStorage.setItem('readerwrangler-theme', sel.value); apply(sel.value); });
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() { if ((localStorage.getItem('readerwrangler-theme') || 'auto') === 'auto') apply('auto'); });
+        })();
+    </script>
 
     <!-- Page Header -->
     <div class="page-header">

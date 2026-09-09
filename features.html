@@ -689,9 +689,40 @@
         <div class="nav-bar-links">
             <a href="index.html">Home</a>
             <a href="tutorials.html">Tutorials</a>
+            <span class="nav-current" aria-current="page" title="You are here">Features</span>
             <a href="security.html">Security</a>
+            <select class="theme-select" id="rwThemeSelect" aria-label="Theme" title="Theme &#8212; shared with the ReaderWrangler app">
+                <option value="auto">Theme: Auto</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="hc-light">High Contrast Light</option>
+                <option value="hc-dark">High Contrast Dark</option>
+            </select>
         </div>
     </div>
+    <!-- v7.9.0 - Site theme control: same stored setting as the app (Auto follows the OS) -->
+    <style>
+        .theme-select { margin-left: 12px; padding: 3px 8px; font-size: 0.85em; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #475569; cursor: pointer; }
+        [data-theme="dark"] .theme-select, [data-theme="hc-dark"] .theme-select { background: #1e293b; color: #cbd5e1; border-color: #475569; }
+        /* v7.9.0 - "You are here": current page stays in the nav, bold-muted and non-clickable (a lurching nav disorients; gray-disabled would read as unavailable) */
+        .nav-current { font-size: 0.85em; font-weight: 700; color: #64748b; cursor: default; }
+        [data-theme="dark"] .nav-current, [data-theme="hc-dark"] .nav-current { color: #94a3b8; }
+    </style>
+    <script>
+        (function() {
+            var sel = document.getElementById('rwThemeSelect');
+            if (!sel) return;
+            sel.value = localStorage.getItem('readerwrangler-theme') || 'auto';
+            function apply(pref) {
+                var t = pref;
+                if (!t || t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                if (t === 'light') delete document.documentElement.dataset.theme;
+                else document.documentElement.dataset.theme = t;
+            }
+            sel.addEventListener('change', function() { localStorage.setItem('readerwrangler-theme', sel.value); apply(sel.value); });
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() { if ((localStorage.getItem('readerwrangler-theme') || 'auto') === 'auto') apply('auto'); });
+        })();
+    </script>
 
     <!-- Page Header -->
     <div class="page-header">
@@ -801,45 +832,31 @@
     <div class="container">
         <h2>Recent Features</h2>
         <ul class="version-list">
-            <li><strong>Formats tell the truth &#8212; and are yours to edit (7.7)</strong> &#8212; Formats now arrive verbatim from Amazon (blank means honestly unknown &#8212; no more invented &#8220;Kindle eBook&#8221;), fill themselves in from your Amazon listing automatically, and are editable &#8212; single book or in bulk &#8212; with your edits winning over every future fetch. The &#8220;removed from Amazon&#8221; check also stopped flagging physical items (maps, CDs) that were there all along.</li>
+            <li><strong>Auto-Organize, one view (7.9)</strong> &#8212; The preview now shows <em>everything</em> by your chosen authors, wherever it lives; the checkboxes are the scope. Right-click to file a whole group under any folder &#8212; including the co-author case &#8212; with a picker where creating a folder is always explicit, never a typo.</li>
+            <li><strong>Formats &amp; ownership tell the truth (7.7-7.8)</strong> &#8212; Real Amazon formats (editable, yours forever), an ownership editor that shows Amazon's actual state and offers only what's genuinely yours to change &#8212; with a visible &#8220;Reset to Amazon's value.&#8221; Your library now reconciles with Amazon <em>exactly</em>.</li>
+            <li><strong>Undo grew up (7.8)</strong> &#8212; Works inside the book dialog, never reaches things you can't see, and every undo names its target: <em>&#8220;Undone: Edit 'Bitter Gold Hearts'.&#8221;</em></li>
             <li><strong>One home for your organization (7.7)</strong> &#8212; Folders, Book Lists, and Searches live in a single guarded store that loads no matter what: an empty book database can't hide your organization, and the Welcome screen tells returning users their data is intact &#8212; with recovery options listed best-first. Plus a real fix for cloud-write waste: opening a tab no longer costs a full library upload.</li>
-            <li><strong>Pinned folders &amp; folder sorting (7.6)</strong> &#8212; Pin your special folders &#128204; to the top and let the rest live in Name or Count order; new folders (including Auto-Organize's) land at the top where you can see them; Move to Top/Bottom; and a one-shot &#8220;Bake this order into Manual&#8221;. The sort control reads the way it acts: the name opens the menu, the arrow flips the direction.</li>
-            <li><strong>Your phone finally matches (7.6)</strong> &#8212; Mobile mirrors the desktop's folder order exactly (pins included), shows honest counts (&#8220;3,134 of 3,136 &#8212; 2 hidden by user&#8221;, tappable), knows what &#8220;Date Added&#8221; means, names its server, and tells you when newer library data is waiting &#8212; with a &#8220;Library as of&#8221; line and a tap-to-refresh banner.</li>
-            <li><strong>Bulletproof sync (7.0)</strong> &#8212; cloud sync rebuilt so an interrupted upload can never corrupt your synced library: updates travel as sealed packets, the synced copy is replaced only whole (previous version kept as automatic fallback), deletes stay deleted, backup restores stick, and synced data no longer expires between sessions.</li>
-            <li><strong>Book List &amp; tag refinements</strong> &#8212; adding to a Book List keeps your selection; already-filed books in the Auto-Organize preview can ride onto a list without moving; the &#8220;&#8249;Series&#8250; - To Read&#8221; name suggestion works from anywhere; <strong>Select All</strong> in the Tags filter; and <strong>drag-to-order your tags</strong> (Manage Tags &#8594; Manual) &#8212; that order drives the tag filter and the right-click Tags menu.</li>
-            <li><strong>Consolidate a scattered author</strong> &#8212; Auto-Organize now works across your <em>whole</em> library: flip the new <strong>Scope: This folder / Everywhere</strong> switch to gather an author's books out of every folder and the Inbox into one home in a single pass, without leaving the folder you started in. The preview shows the author's full footprint &#8212; what's coming in, what's <strong>already here</strong>, and what's sitting <strong>elsewhere</strong> (with its location) &#8212; and for a book that lives in two places you choose which copy to pull and which to keep. Plus a filter box on the Move to / Copy to / Add to Book List menus to find a target fast.</li>
-            <li><strong>Cleaner right-click menu &amp; sidebar</strong> &#8212; the book menu is regrouped by what each action does (single-book <strong>Edit&#8230;</strong> opens full details; multi-select gets bulk field edits), submenus never run off-screen, and the sidebar sections collapse consistently &#8212; Folders included, with a one-click collapse/expand-all for subfolders.</li>
-            <li><strong>Auto-Organize, reimagined</strong> &#8212; Right-click a book <em>or</em> open the bulk wizard, and both land in one <strong>live preview</strong>: it shows the author's whole existing folder (so you never file blind), lets you flip <strong>By Author / By Series</strong> and tune the series-folder options on the fly, surfaces books already filed (with a one-click &#8220;remove from Inbox&#8221;), and never splits a series. A checkbox tree files exactly the books, series, or authors you choose.</li>
-            <li><strong>Publication Date column</strong> &#8212; Show it in list view, sort by it, and use it to put a series in order.</li>
-            <li><strong>Set numbers</strong> &#8212; On a multi-book selection, type an exact list like <em>&#8220;13, 13.5, 14, 14.5&#8221;</em> to number annual specials and fill series gaps.</li>
-            <li><strong>Book-detail navigation</strong> &#8212; Page through the current folder's (or a preview shelf's) books with &#8249; prev / next &#8250; or &#8592;/&#8594; &#8212; no re-opening each one.</li>
-            <li><strong>See where a book lives</strong> &#8212; Hover a book in any folder or Book List (not just All Books) to see every folder and Book List it belongs to, in a popup that grows from your cursor. Works in cover and list views.</li>
-            <li><strong>Searches</strong> &#8212; Save any filter combination (search, ratings, ownership, tags, dates, deals) as a named Search in the sidebar. Recall one to restore that filtered view in place &#8212; a saved lens over your library.</li>
-            <li><strong>Book Lists</strong> &#8212; Hand-pick sets of books into simple, flat lists kept separate from your folders. Adding or removing a book from a list never tags, moves, or deletes the book itself.</li>
-            <li><strong>Unified folder ordering</strong> &#8212; One shared order &#8212; Manual, A&#8594;Z, or Z&#8594;A &#8212; across the sidebar, the Folders view, and the Move/Copy trees. Drag to reorder in Manual mode.</li>
-            <li><strong>Ownership at a glance</strong> &#8212; A sortable Ownership column (and a line in the book details dialog) shows whether each book is Owned, a Sample, Borrowed, Prime, Kindle Unlimited, and so on.</li>
-            <li><strong>Share Book</strong> &#8212; Share book recommendations with friends via link, email, or native share.</li>
-            <li><strong>Tag from Collections</strong> &#8212; One-click wizard converts your Kindle Collections into editable tags. &#8220;New books only&#8221; filter for painless repeat imports. Detects when books leave a Kindle Collection.</li>
-            <li><strong>Video Tutorials</strong> &#8212; Quick-start guides and feature walkthroughs to get you up and running.</li>
-            <li><strong>Demo Library</strong> &#8212; Download 100+ classic books and explore every feature without connecting your Amazon account.</li>
-            <li><strong>Folder &amp; Tag Descriptions</strong> &#8212; Add a description to any folder or tag; shown as a tooltip on hover.</li>
-            <li><strong>Encrypted Cloud Relay + Trash Bin</strong> &#8212; End-to-end encrypted sync between the bookmarklet and the app. Trash Bin gives you a safety net before permanently deleting books. Orphan detection flags books removed from Amazon.</li>
-            <li><strong>Mobile Viewer</strong> &#8212; Pair your phone with a QR code and browse your organized library anywhere &#8212; now with color-coded, collapsible Searches, Book Lists, and Folders, plus search &amp; sort.</li>
-            <li><strong>Dark Mode + High Contrast Themes</strong> &#8212; Four themes (light, dark, high-contrast light, high-contrast dark) with automatic OS detection.</li>
-            <li><strong>Book Explorer</strong> &#8212; Two-pane Windows Explorer-style interface with folder tree, list and cover grid views, drag-and-drop, and Cut/Copy/Paste.</li>
+            <li><strong>Pinned folders, and a phone that matches (7.6)</strong> &#8212; Pins and folder sorting on desktop, mirrored exactly on mobile, with honest counts and a newer-data banner.</li>
+            <li><strong>Bulletproof sync (7.0-7.5)</strong> &#8212; Cloud sync rebuilt so an interrupted upload can never corrupt your synced library: updates travel as sealed packets, the synced copy is replaced only whole, deletes stay deleted, backup restores stick &#8212; and it now cleans up after itself: interrupted syncs no longer leave debris in the cloud.</li>
         </ul>
         <p class="changelog-link">See <a href="CHANGELOG.md">CHANGELOG.md</a> for complete version history.</p>
     </div>
 
-    <!-- Coming Soon — SYNC: Keep in sync with README.md "Coming Soon" section -->
+    <!-- Coming Soon / Future Features — SYNC: Keep in sync with README.md sections -->
     <div class="container">
         <h2>Coming Soon</h2>
+        <ul class="coming-soon-list">
+            <li><strong>Save as Spreadsheet</strong> &#8212; Your whole library as one file for Excel: tags, folders, and Book Lists included <em>(our first user-requested feature)</em></li>
+            <li><strong>Fetch &amp; import reports that tell the whole story</strong> &#8212; &#8220;3 wishlist books now owned, 1 became a sample,&#8221; in the dialog and the toast history</li>
+            <li><strong>Safe multi-tab</strong> &#8212; A second ReaderWrangler tab becomes a read-only viewer instead of a hazard</li>
+        </ul>
+        <h2 style="margin-top: 28px;">Future Features</h2>
+        <p class="coming-soon-cta" style="margin-top: 0;">Ideas we like &#8212; no timeline promised.</p>
         <ul class="coming-soon-list">
             <li><strong>Reading progress</strong> &#8212; See how far you are in each book</li>
             <li><strong>Book recommendations</strong> &#8212; Discover similar books already in your library</li>
             <li><strong>Series manager</strong> &#8212; Clean up inconsistent series names and merge duplicates</li>
             <li><strong>Keyboard accessibility</strong> &#8212; Full keyboard navigation for every feature</li>
-            <li><strong>Faster app loading</strong> &#8212; Reducing the initial load time</li>
         </ul>
         <p class="coming-soon-cta">Have a feature request? <a href="https://github.com/Ron-L/ReaderWrangler/issues" target="_blank">Let us know on GitHub!</a></p>
     </div>
