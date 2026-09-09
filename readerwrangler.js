@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.9.0-alpha.6";  // Build version for this file
+        const ORGANIZER_VERSION = "7.9.0-alpha.7";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -11547,13 +11547,21 @@
                         const originCaption = (b, width) => {
                             const srcs = consolidateSourcesOf(b);
                             if (srcs.length === 0) return null;
+                            // v7.9.0-alpha.7 (Ron) - an already-home book is NOT moving: say "home", never
+                            // "moves from" a folder it's staying in (its popup is informational, below).
+                            const isMover = moverIdSet.has(b.id);
                             const stays = srcs.filter(f => autoOrgExcludedMembers.has(`${f.id}::${b.id}`));
-                            const capText = srcs.length === 1 ? (srcs[0].id === '__inbox__' ? 'Inbox' : srcs[0].name)
+                            const capText = !isMover
+                                ? (srcs.length === 1 ? 'home' : `home +${srcs.length - 1}`)
+                                : srcs.length === 1 ? (srcs[0].id === '__inbox__' ? 'Inbox' : srcs[0].name)
                                 : `${srcs.length} places${stays.length > 0 ? ` · ${stays.length} stay${stays.length === 1 ? 's' : ''}` : ''}`;
+                            const tip = !isMover
+                                ? `Already where it belongs — in ${srcs.map(f => f.id === '__inbox__' ? 'Inbox' : f.name).join(', ')}. Organizing won't move it.`
+                                : `In: ${srcs.map(f => f.id === '__inbox__' ? 'Inbox' : f.name).join(', ')}${stays.length > 0 ? ` — stays in ${stays.map(f => f.name).join(', ')}` : ''}. Click to choose which copies move when organized.`;
                             return (
                                 <div onClick={(e) => { e.stopPropagation(); setAutoOrgHover(null); setAutoOrgSrcPopup({ bookId: b.id, x: e.clientX, y: e.clientY }); }}
-                                    title={`In: ${srcs.map(f => f.id === '__inbox__' ? 'Inbox' : f.name).join(', ')}${stays.length > 0 ? ` — stays in ${stays.map(f => f.name).join(', ')}` : ''}. Click to choose which copies move when organized.`}
-                                    style={{ fontSize: '9px', color: stays.length > 0 ? '#b45309' : '#64748b', textAlign: 'center', marginTop: '2px', width: `${width}px`, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'underline dotted' }}>
+                                    title={tip}
+                                    style={{ fontSize: '9px', color: !isMover ? '#16a34a' : stays.length > 0 ? '#b45309' : '#64748b', textAlign: 'center', marginTop: '2px', width: `${width}px`, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'underline dotted' }}>
                                     {capText}
                                 </div>
                             );
@@ -11827,11 +11835,26 @@
                         const b = bookMap.get(autoOrgSrcPopup.bookId);
                         if (!b) return null;
                         const srcs = getFoldersContainingBook(b.id).filter(f => !['__all__', '__library__', '__trash__', '__booklists__', '__views__', '__search__'].includes(f.id));
+                        // v7.9.0-alpha.7 - already-home books get an INFORMATIONAL popup: no moves/stays
+                        // checkboxes for a book that isn't moving (they were inert theater).
+                        const popupIsMover = new Set((autoOrgPreview && autoOrgPreview.dryPlan && autoOrgPreview.dryPlan.allBookIdsToOrganize) || []).has(b.id);
                         return (
                             <div className="fixed inset-0 z-[75]" onClick={() => setAutoOrgSrcPopup(null)} onContextMenu={(e) => { e.preventDefault(); setAutoOrgSrcPopup(null); }}>
                                 <div className="absolute bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-w-[300px]"
                                     style={{ left: `${Math.min(autoOrgSrcPopup.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 320)}px`, top: `${Math.min(autoOrgSrcPopup.y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - (srcs.length * 30 + 90))}px` }}
                                     onClick={(e) => e.stopPropagation()}>
+                                    {!popupIsMover ? (
+                                        <>
+                                            <div className="px-3 py-1.5 text-xs text-gray-600 border-b border-gray-100 truncate" title={b.title}>“{b.title || 'Untitled'}” is already where it belongs</div>
+                                            {srcs.map(f => (
+                                                <div key={f.id} className="px-3 py-1.5 flex items-center gap-2 text-sm text-gray-700">
+                                                    <span>📁</span><span className="flex-1 truncate">in <strong>{f.id === '__inbox__' ? 'Inbox' : f.name}</strong></span>
+                                                </div>
+                                            ))}
+                                            <div className="px-3 py-1.5 text-[10px] text-gray-400 border-t border-gray-100">Organizing won't move it. To move it anyway, right-click it and use File under…</div>
+                                        </>
+                                    ) : (
+                                    <>
                                     <div className="px-3 py-1.5 text-xs text-gray-600 border-b border-gray-100 truncate" title={b.title}>“{b.title || 'Untitled'}” — when organized, it…</div>
                                     {srcs.map(f => {
                                         const key = `${f.id}::${b.id}`;
@@ -11850,6 +11873,8 @@
                                     })}
                                     {srcs.length === 0 && <div className="px-3 py-2 text-xs text-gray-400 italic">Not in any folder — it only gets added to its home</div>}
                                     <div className="px-3 py-1.5 text-[10px] text-gray-400 border-t border-gray-100">Its new home folder is always added. Unchecked copies are kept.</div>
+                                    </>
+                                    )}
                                 </div>
                             </div>
                         );
