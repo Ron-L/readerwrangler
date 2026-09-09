@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.9.0-alpha.4";  // Build version for this file
+        const ORGANIZER_VERSION = "7.9.0-alpha.5";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -11501,7 +11501,12 @@
                         // without graying (reserved for wishlist) or motion (which would say "attention", not "settled").
                         const existingTray = (bks, navList) => (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '5px 7px', background: '#f1f3f5', border: '1px solid #e5e7eb', borderRadius: '6px', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.06)' }}>
-                                {bks.map(b => contextCover(b, navList))}
+                                {bks.map(b => (
+                                    <div key={'trayw-' + b.id} style={{ width: '38px', flex: '0 0 auto' }}>
+                                        {contextCover(b, navList)}
+                                        {originCaption(b, 38) /* v7.9.0-alpha.5 - uniform caption rule */}
+                                    </div>
+                                ))}
                             </div>
                         );
                         // v6.17.0 - "Elsewhere": the author's books that live in the Inbox / another folder and are NOT being
@@ -11531,36 +11536,35 @@
                         };
                         // A shelf = the incoming movers (raised) followed by the already-here tray. Book-detail nav (‹ ›)
                         // spans the WHOLE shelf — incoming + already-here — so you can flip through all of them.
+                        // v7.9.0-alpha.5 (Ron, uniform rule) - THE origin caption, under EVERY cover in the preview
+                        // (movers, already-here trays, Already-filed section): a caption's absence anywhere is an
+                        // invisible encoding, and it surfaces multi-home cases ('2 places') that a labeled tray hides.
+                        // Click = the moves/stays popup. Only a book in no folder at all goes captionless.
+                        const originCaption = (b, width) => {
+                            const srcs = consolidateSourcesOf(b);
+                            if (srcs.length === 0) return null;
+                            const stays = srcs.filter(f => autoOrgExcludedMembers.has(`${f.id}::${b.id}`));
+                            const capText = srcs.length === 1 ? (srcs[0].id === '__inbox__' ? 'Inbox' : srcs[0].name)
+                                : `${srcs.length} places${stays.length > 0 ? ` · ${stays.length} stay${stays.length === 1 ? 's' : ''}` : ''}`;
+                            return (
+                                <div onClick={(e) => { e.stopPropagation(); setAutoOrgHover(null); setAutoOrgSrcPopup({ bookId: b.id, x: e.clientX, y: e.clientY }); }}
+                                    title={`In: ${srcs.map(f => f.id === '__inbox__' ? 'Inbox' : f.name).join(', ')}${stays.length > 0 ? ` — stays in ${stays.map(f => f.name).join(', ')}` : ''}. Click to choose which copies move when organized.`}
+                                    style={{ fontSize: '9px', color: stays.length > 0 ? '#b45309' : '#64748b', textAlign: 'center', marginTop: '2px', width: `${width}px`, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'underline dotted' }}>
+                                    {capText}
+                                </div>
+                            );
+                        };
                         const shelfRow = (movers, existing) => {
                             const full = [...movers, ...existing];
-                            // v7.9.0-alpha.2 (UNIFIED §3/§7) - ONE cover per book, always (display now matches every
-                            // book-based count — the per-source multi-cover rendering made 4 covers of 3 books and
-                            // hid the kept-copy state in ring ambiguity). Origin caption under any book with a
-                            // non-entry source; click it for the moves/stays popup. Entry-only books: no caption.
+                            // v7.9.0-alpha.2 (UNIFIED §3/§7) - ONE cover per book, always (display matches every count).
                             return (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px', alignItems: 'flex-start' }}>
-                                {movers.map(b => {
-                                    const srcs = consolidateSourcesOf(b);
-                                    // v7.9.0-alpha.4 (Ron) - caption on EVERY foldered mover, entry-folder books included:
-                                    // a caption's absence was itself an invisible encoding (and mixed shelves read as a
-                                    // rendering bug). Only a book in no folder at all has nothing to say.
-                                    const showCaption = srcs.length > 0;
-                                    const stays = srcs.filter(f => autoOrgExcludedMembers.has(`${f.id}::${b.id}`));
-                                    const capText = srcs.length === 1 ? (srcs[0].id === '__inbox__' ? 'Inbox' : srcs[0].name)
-                                        : `${srcs.length} places${stays.length > 0 ? ` · ${stays.length} stay${stays.length === 1 ? 's' : ''}` : ''}`;
-                                    return (
-                                        <div key={'w-' + b.id} style={{ width: '46px', flex: '0 0 auto' }}>
-                                            {cover(b, full)}
-                                            {showCaption && (
-                                                <div onClick={(e) => { e.stopPropagation(); setAutoOrgHover(null); setAutoOrgSrcPopup({ bookId: b.id, x: e.clientX, y: e.clientY }); }}
-                                                    title={`From: ${srcs.map(f => f.id === '__inbox__' ? 'Inbox' : f.name).join(', ')}${stays.length > 0 ? ` — stays in ${stays.map(f => f.name).join(', ')}` : ''}. Click to choose which copies move.`}
-                                                    style={{ fontSize: '9px', color: stays.length > 0 ? '#b45309' : '#64748b', textAlign: 'center', marginTop: '2px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'underline dotted' }}>
-                                                    {capText}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                {movers.map(b => (
+                                    <div key={'w-' + b.id} style={{ width: '46px', flex: '0 0 auto' }}>
+                                        {cover(b, full)}
+                                        {originCaption(b, 46)}
+                                    </div>
+                                ))}
                                 {existing.length > 0 && existingTray(existing, full)}
                             </div>
                             );
@@ -11654,7 +11658,12 @@
                                                             <span className="text-xs text-gray-400">({entries.length})</span>
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
-                                                            {entries.map(({ book }) => cover(book, shelf))}
+                                                            {entries.map(({ book }) => (
+                                                                <div key={'afw-' + book.id} style={{ width: '46px', flex: '0 0 auto' }}>
+                                                                    {cover(book, shelf)}
+                                                                    {originCaption(book, 46) /* v7.9.0-alpha.5 - uniform caption rule */}
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     </div>
                                                 ));

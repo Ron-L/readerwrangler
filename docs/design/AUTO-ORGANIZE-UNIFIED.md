@@ -48,7 +48,9 @@ Same semantics at every level — a checkbox checks everything beneath it:
 | Book | cover check | all its removable sources (per §4 defaults) |
 | Source | the origin popup | individual folder memberships |
 
-- **Origin caption**: under **every foldered mover** (amended 2026-09-08: originally strays-only,
+- **Origin caption**: under **every foldered cover in the preview** — movers, already-here tray
+  covers, and the Already-filed section alike (re-amended same day: a labeled tray does NOT
+  exempt its covers — uniformity, plus multi-home '2 places' cases surface) (amended 2026-09-08: originally strays-only,
   but a caption's absence is itself an invisible encoding, and mixed shelves read as a rendering
   bug — entry-folder books get their caption too, confirming placement at a glance). One small
   gray line: the folder name, or `N places · M stay` for multi-source. The caption anchors the
