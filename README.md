@@ -126,6 +126,7 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 <!-- SYNC: Keep "Recent Features" in sync with features.html -->
 ## Recent Features
 
+- **Save as Spreadsheet (7.10)** — Your whole library as one file for Excel — tags, folders, and Book Lists included. Our first user-requested feature, shipped the day after it was asked for.
 - **Auto-Organize, one view (7.9)** — The preview now shows *everything* by your chosen authors, wherever it lives; the checkboxes are the scope. Right-click to file a whole group under any folder — including the co-author case — with a picker where creating a folder is always explicit, never a typo.
 - **Formats & ownership tell the truth (7.7-7.8)** — Real Amazon formats (editable, yours forever), an ownership editor that shows Amazon's actual state and offers only what's genuinely yours to change — with a visible "Reset to Amazon's value." Your library now reconciles with Amazon *exactly*.
 - **Undo grew up (7.8)** — Works inside the book dialog, never reaches things you can't see, and every undo names its target: *"Undone: Edit 'Bitter Gold Hearts'."*
@@ -140,7 +141,6 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 <!-- SYNC: Keep "Coming Soon" / "Future Features" in sync with features.html -->
 ## Coming Soon!
 
-- **Save as Spreadsheet** — Your whole library as one file for Excel: tags, folders, and Book Lists included *(our first user-requested feature)*
 - **Fetch & import reports that tell the whole story** — "3 wishlist books now owned, 1 became a sample," in the dialog and the toast history
 - **Safe multi-tab** — A second ReaderWrangler tab becomes a read-only viewer instead of a hazard
 

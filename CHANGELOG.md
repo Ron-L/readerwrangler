@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.10.0] - 2026-09-09
+
+### Save as Spreadsheet — the first feature a user asked for
+- **File → Save Spreadsheet (CSV)…** puts your whole library in one file Excel opens directly: title, author, series and number, ownership, format, **tags, folders (full paths), and Book Lists**, ratings, prices and goals, dates, notes — one row per book, with all the cross-referencing done for you (the part that's genuinely hard to do by hand from a backup file). Requested on September 8th; shipped on the 9th. Your books were always yours — now the *list* of them is too.
+
 ## [7.9.0] - 2026-09-09
 
 ### Auto-Organize: one view, and what you check is what happens
