@@ -17,6 +17,14 @@ item 10 → **7.7.2** (2026-09-07; prod proof outstanding — first prod import 
 **QUEUE JUMP (Ron 2026-09-08): Unified Auto-Organize first** — docs/design/AUTO-ORGANIZE-UNIFIED.md
 (designed + pushed; one view, selection = scope, toggle dies) — live soak pain, builds as the 7.9.0 line.
 Then item 11, then 1-9. (Item 12 — This-folder multi-select repair — mooted by the unification.)
+
+- [ ] **Save as Spreadsheet (CSV)** (first real user request, 2026-09-08 — "how do I get my items
+  incl. tags and lists into Excel?"; slotted after unified-AO completes, own small branch/release):
+  File menu, one row per book, joins done app-side — Title, Author, Series, #, Ownership, Format,
+  Tags, **Folders**, **Book Lists**, prices/goal. Kills the whole export-support class; data
+  liberation IS the doctrine (user assumed we'd refuse — delight opportunity). Excel-safe quoting;
+  no jargon in the menu label. (Interim answer for the user: Power Query recipe — the key fact is
+  book ids = ASINs, so bookLists[].bookIds join to items on asin.)
 - [ ] **1. Fetcher completion dialog reports ownership upgrades** (today: console-only ⬆️; dialog says "0 new" after you buy 4 books)
 - [ ] **2. Import summary counts ALL ownership promotions, labeled by destination** — "3 wishlist → owned", "1 wishlist → sample" — keyed on ownershipType transitions (today: onWishlist-flip only ⇒ misses sample→owned AND would mislabel wishlist→sample as owned). Also: name the titles in the console line (the 🎉-line-has-no-title gap that blocked diagnosis 2026-09-04).
 - [ ] **3. Goals on promotion: KEEP (old rule stands — never silently destroy)** + receipt line; optional one-click "Clear goals on these N" in the import summary (Ron to pick during build). Rationale: promoted books already require a manual All-Books visit to file into reading lists, so clearing rides a trip he makes anyway (Ron 2026-09-04).
