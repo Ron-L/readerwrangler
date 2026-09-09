@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.9.0-alpha.8";  // Build version for this file
+        const ORGANIZER_VERSION = "7.9.0-alpha.9";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -11836,7 +11836,10 @@
                         const roots = folders.filter(f => f.parentId === null && !SPECIALS.has(f.id));
                         const raw = autoOrgFileUnder.filter;
                         const q = raw.trim().toLowerCase();
-                        const matches = roots.filter(f => f.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })).slice(0, 12);
+                        // v7.9.0-alpha.9 (Ron) - no result cap: the list scrolls, so ALL matches show
+                        // (a capped list wearing a scrollbar secretly truncates — mouse-first users
+                        // browse to their folder without touching the keyboard).
+                        const matches = roots.filter(f => f.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
                         const exact = roots.find(f => f.name.toLowerCase() === q);
                         const n = autoOrgFileUnder.bookIds.length;
                         const pick = (name) => { const ids = autoOrgFileUnder.bookIds; setAutoOrgFileUnder(null); retargetPreviewBooks(ids, name); };
@@ -11872,7 +11875,7 @@
                                                 <span>📁</span><span className="truncate">{f.name}</span>
                                             </div>
                                         ))}
-                                        {matches.length === 0 && q.length === 0 && <div className="px-4 py-2 text-gray-400 text-sm italic">Start typing to filter your top-level folders</div>}
+                                        {matches.length === 0 && q.length === 0 && <div className="px-4 py-2 text-gray-400 text-sm italic">No top-level folders yet — type a name to create one</div>}
                                         {matches.length === 0 && q.length > 0 && <div className="px-4 py-2 text-gray-400 text-xs">No folder matches — use the Create row above if you mean a new one</div>}
                                     </div>
                                     <div className="px-4 py-2 border-t border-gray-100 text-[10px] text-gray-400">Enter picks the exact or top match. Creating a folder is always the explicit ➕ choice — never a typo.</div>
