@@ -48,10 +48,12 @@ Same semantics at every level — a checkbox checks everything beneath it:
 | Book | cover check | all its removable sources (per §4 defaults) |
 | Source | the origin popup | individual folder memberships |
 
-- **Origin caption**: under each stray cover, one small gray line in the existing caption style —
-  `⌂ Inbox`, or `⌂ Inbox +2` for multi-source. Current-folder books carry no caption. The caption
-  anchors the popup and, after an override, shows the NET effect in words: `removes from Inbox ·
-  stays in Non-Fiction`. **Words, not glyphs** (a ✂ was field-misread as "%<" during design).
+- **Origin caption**: under **every foldered mover** (amended 2026-09-08: originally strays-only,
+  but a caption's absence is itself an invisible encoding, and mixed shelves read as a rendering
+  bug — entry-folder books get their caption too, confirming placement at a glance). One small
+  gray line: the folder name, or `N places · M stay` for multi-source. The caption anchors the
+  popup and, after an override, shows the NET effect in words. **Words, not glyphs** (a ✂ was
+  field-misread as "%<" during design).
 - **Origin popup**: hover/click the caption → the book's folders, each with a checkbox (checked =
   remove when organizing). Reuses the 6.13.2 cursor-corner/hover-intent popup machinery — proven,
   no new hover behavior.
