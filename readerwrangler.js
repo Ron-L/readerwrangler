@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.10.1-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.10.1-alpha.4";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6511,6 +6511,7 @@
                     newValues,
                     label: `Edit '${(modalBook.title || 'book').slice(0, 40)}'` // v7.8.0-alpha.4 (UNDO-MODEL.md) named target
                 });
+                showToast(`Updated '${((newValues.title ?? modalBook.title) || 'book').slice(0, 40)}'`); // v7.10.1-alpha.4 (Ron #7) - the save receipt the dialog never had
 
                 cancelEditMode();
             };
@@ -6698,7 +6699,8 @@
                 EDIT_BOOK: 'Edit book', BULK_EDIT_BOOKS: 'Edit books', TOGGLE_HIDE: 'Hide / unhide books',
                 SOFT_DELETE_BOOKS: 'Delete books', RESTORE_BOOKS: 'Restore books', SEQUENCE_SERIES: 'Number series',
                 TAG_BOOKS_DRAG: 'Tag books', WIZARD_ORGANIZE: 'Auto-Organize', COMPOUND: 'Multiple changes',
-                SET_PRICE_GOAL: 'Price goal' // v7.10.1-alpha.3
+                SET_PRICE_GOAL: 'Price goal', // v7.10.1-alpha.3
+                SET_RATING: 'Rate book', SET_TAGS: 'Tag books', RESOLVE_DUPLICATES: 'Remove duplicates', HIDE_COPIES: 'Hide copies', DELETE_TAGS: 'Delete tag' // v7.10.1-alpha.4
             };
             // v7.8.0-alpha.4 (UNDO-MODEL.md) - toast targets: 1 book → its title, N → the honest count.
             // Cover view can't show a field reverting; a toast that names its target can be trusted anyway.
@@ -6717,6 +6719,53 @@
                     type: 'SET_PRICE_GOAL', bookIds: [...bookIds], previousValues, newValue,
                     label: newValue != null ? `Set $${newValue.toFixed(2)} goal for ${bookCountLabel(bookIds)}` : `Clear price goal for ${bookCountLabel(bookIds)}`
                 });
+            };
+            // v7.10.1-alpha.4 - star ratings undoable (same never-wired class as price goals)
+            const recordRating = (bookIds, newValue) => {
+                const previousValues = {};
+                bookIds.forEach(id => { const b = books.find(x => x.id === id); previousValues[id] = b ? (b.myRating || 0) : 0; });
+                recordAction({
+                    type: 'SET_RATING', bookIds: [...bookIds], previousValues, newValue,
+                    label: newValue ? `Rate ${bookCountLabel(bookIds)} ${newValue}★` : `Clear rating for ${bookCountLabel(bookIds)}`
+                });
+            };
+            // v7.10.1-alpha.4 - tag changes undoable EVERYWHERE (previously only drag-to-tag was).
+            // Fields-based: nextFieldsById[id] = the fields to apply (usually { tags }, TFC also
+            // carries collectionTags/collectionTagSeen); previous values captured per field here,
+            // BEFORE the mutation — so call this before setBooks.
+            const recordTagChange = (bookIds, nextFieldsById, label) => {
+                const prevFieldsById = {};
+                bookIds.forEach(id => {
+                    const b = books.find(x => x.id === id);
+                    const prev = {};
+                    Object.keys(nextFieldsById[id] || {}).forEach(k => {
+                        const v = b ? b[k] : undefined;
+                        prev[k] = Array.isArray(v) ? [...v] : (v ?? (Array.isArray(nextFieldsById[id][k]) ? [] : null));
+                    });
+                    prevFieldsById[id] = prev;
+                });
+                recordAction({ type: 'SET_TAGS', bookIds: [...bookIds], prevFieldsById, nextFieldsById, label });
+            };
+            // v7.10.1-alpha.4 - tag DELETION undoable (the ops-refactor leftover): captures registry
+            // entries, every affected book's tags, the tag filter, and any Searches the delete removes —
+            // undo restores the entire cascade. Call BEFORE the mutations.
+            const recordDeleteTags = (tagIds) => {
+                const del = new Set(tagIds);
+                const prevEntries = {}; tagIds.forEach(id => { if (tagRegistry[id]) prevEntries[id] = { ...tagRegistry[id] }; });
+                const affected = books.filter(b => (b.tags || []).some(t => del.has(t)));
+                const prevFieldsById = {}, nextFieldsById = {};
+                affected.forEach(b => {
+                    prevFieldsById[b.id] = { tags: [...(b.tags || [])] };
+                    nextFieldsById[b.id] = { tags: (b.tags || []).filter(t => !del.has(t)) };
+                });
+                const removedSearches = savedSearches.filter(v => v.filters?.tags?.some(t => del.has(t))).map(s => ({ ...s }));
+                const names = tagIds.map(id => tagRegistry[id]?.label || id);
+                recordAction({
+                    type: 'DELETE_TAGS', tagIds: [...tagIds], prevEntries, bookIds: affected.map(b => b.id),
+                    prevFieldsById, nextFieldsById, prevTagFilter: [...tagFilter], removedSearches,
+                    label: tagIds.length === 1 ? `Delete tag "${names[0]}"` : `Delete ${tagIds.length} tags`
+                });
+                return { affectedCount: affected.length, names, removedSearchCount: removedSearches.length };
             };
             // Resolve an action's undo/redo label: explicit label > legacy description > friendly type name (warns if none).
             const actionLabel = (action) => {
@@ -7042,6 +7091,55 @@
                             setModalBook(prev => prev ? { ...prev, priceTrigger: action.previousValues[prev.id] ?? null } : prev);
                         }
                         break;
+                    case 'SET_RATING': // v7.10.1-alpha.4
+                        setBooks(prev => {
+                            const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, myRating: action.previousValues[b.id] ?? 0 } : b);
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        if (modalBookRef.current && action.bookIds.includes(modalBookRef.current.id)) {
+                            setModalBook(prev => prev ? { ...prev, myRating: action.previousValues[prev.id] ?? 0 } : prev);
+                        }
+                        break;
+                    case 'SET_TAGS': // v7.10.1-alpha.4 - restore per-book previous field values (tags, TFC extras)
+                        setBooks(prev => {
+                            const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, ...action.prevFieldsById[b.id] } : b);
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        if (modalBookRef.current && action.bookIds.includes(modalBookRef.current.id)) {
+                            setModalBook(prev => prev ? { ...prev, ...action.prevFieldsById[prev.id] } : prev);
+                        }
+                        break;
+                    case 'RESOLVE_DUPLICATES': // v7.10.1-alpha.4 - resurrect removed copies + exact folder arrays
+                        setBooks(prev => {
+                            const updated = [...prev, ...action.removedBooks];
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        setFolders(prev => prev.map(f => {
+                            const a = action.affectedFolders.find(x => x.id === f.id);
+                            return a ? { ...f, bookIds: [...a.before] } : f;
+                        }));
+                        break;
+                    case 'HIDE_COPIES': // v7.10.1-alpha.4
+                        if (action.instanceIds.length > 0) setHiddenInstances(prev => { const n = new Set(prev); action.instanceIds.forEach(id => n.delete(id)); return n; });
+                        if (action.legacyBookIds.length > 0) setBooks(prev => {
+                            const updated = prev.map(b => action.legacyBookIds.includes(b.id) ? { ...b, isHidden: action.previousStates[b.id] || false } : b);
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        break;
+                    case 'DELETE_TAGS': // v7.10.1-alpha.4 - restore registry entries, book tags, filter, and any deleted Searches
+                        setTagRegistry(prev => ({ ...prev, ...action.prevEntries }));
+                        if (action.bookIds.length > 0) setBooks(prev => {
+                            const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, ...action.prevFieldsById[b.id] } : b);
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        setTagFilter([...action.prevTagFilter]);
+                        if (action.removedSearches.length > 0) setSavedSearches(prev => [...prev, ...action.removedSearches]);
+                        break;
                     case 'BAKE_ORDER':
                         // v7.6.0-alpha.14 (wave D) - Undo bake: restore the pre-bake order fields verbatim
                         setFolders(prev => prev.map(f => applyOrderFields(f, action.orderBefore)));
@@ -7190,13 +7288,20 @@
                             return updated;
                         });
                         // Remove from folders they were restored to
+                        // v7.10.1-alpha.4 - drag-restore records targetFolderId (the drop target, not the
+                        // books' original homes): undo removes from THERE, and re-trash above kept each
+                        // book's true pre-restore deletedFromFolderIds.
                         setFolders(prev => {
                             let updated = prev.map(f => ({ ...f }));
                             action.restoredBooks.forEach(({ id, deletedFromFolderIds }) => {
-                                const targets = (deletedFromFolderIds || []).map(normFolderMembership).filter(m =>
-                                    updated.some(f => f.id === m.folderId)
-                                );
-                                const foldersToRemoveFrom = targets.length > 0 ? targets.map(m => m.folderId) : ['__inbox__'];
+                                const foldersToRemoveFrom = action.targetFolderId
+                                    ? [action.targetFolderId]
+                                    : (() => {
+                                        const targets = (deletedFromFolderIds || []).map(normFolderMembership).filter(m =>
+                                            updated.some(f => f.id === m.folderId)
+                                        );
+                                        return targets.length > 0 ? targets.map(m => m.folderId) : ['__inbox__'];
+                                    })();
                                 foldersToRemoveFrom.forEach(folderId => {
                                     updated = updated.map(f => {
                                         if (f.id === folderId) {
@@ -7497,6 +7602,62 @@
                             setModalBook(prev => prev ? { ...prev, priceTrigger: action.newValue } : prev);
                         }
                         break;
+                    case 'SET_RATING': // v7.10.1-alpha.4
+                        setBooks(prev => {
+                            const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, myRating: action.newValue } : b);
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        if (modalBookRef.current && action.bookIds.includes(modalBookRef.current.id)) {
+                            setModalBook(prev => prev ? { ...prev, myRating: action.newValue } : prev);
+                        }
+                        break;
+                    case 'SET_TAGS': // v7.10.1-alpha.4
+                        setBooks(prev => {
+                            const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, ...action.nextFieldsById[b.id] } : b);
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        if (modalBookRef.current && action.bookIds.includes(modalBookRef.current.id)) {
+                            setModalBook(prev => prev ? { ...prev, ...action.nextFieldsById[prev.id] } : prev);
+                        }
+                        break;
+                    case 'RESOLVE_DUPLICATES': { // v7.10.1-alpha.4
+                        const removedSet = new Set(action.removedBooks.map(b => b.id));
+                        setBooks(prev => {
+                            const updated = prev.filter(b => !removedSet.has(b.id));
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        setFolders(prev => prev.map(f => {
+                            const a = action.affectedFolders.find(x => x.id === f.id);
+                            return a ? { ...f, bookIds: [...a.after] } : f;
+                        }));
+                        break;
+                    }
+                    case 'HIDE_COPIES': // v7.10.1-alpha.4
+                        if (action.instanceIds.length > 0) setHiddenInstances(prev => { const n = new Set(prev); action.instanceIds.forEach(id => n.add(id)); return n; });
+                        if (action.legacyBookIds.length > 0) setBooks(prev => {
+                            const updated = prev.map(b => action.legacyBookIds.includes(b.id) ? { ...b, isHidden: true, userEdited: { ...(b.userEdited || {}), isHidden: true } } : b);
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        break;
+                    case 'DELETE_TAGS': { // v7.10.1-alpha.4
+                        const del = new Set(action.tagIds);
+                        setTagRegistry(prev => { const updated = { ...prev }; del.forEach(id => delete updated[id]); return updated; });
+                        if (action.bookIds.length > 0) setBooks(prev => {
+                            const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, ...action.nextFieldsById[b.id] } : b);
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        setTagFilter(prev => prev.filter(t => !del.has(t)));
+                        if (action.removedSearches.length > 0) {
+                            const gone = new Set(action.removedSearches.map(s => s.id));
+                            setSavedSearches(prev => prev.filter(s => !gone.has(s.id)));
+                        }
+                        break;
+                    }
                     case 'BAKE_ORDER':
                         // v7.6.0-alpha.14 (wave D) - Redo bake: re-apply the baked order fields
                         setFolders(prev => prev.map(f => applyOrderFields(f, action.orderAfter)));
@@ -7636,12 +7797,17 @@
                             return updated;
                         });
                         // Re-add to original folders (or Inbox)
+                        // v7.10.1-alpha.4 - drag-restore redo goes to the recorded drop target instead
                         setFolders(prev => {
                             const folderIds = new Set(prev.map(f => f.id));
                             let updated = prev.map(f => ({ ...f }));
                             action.restoredBooks.forEach(({ id, deletedFromFolderIds }) => {
-                                let targets = (deletedFromFolderIds || []).map(normFolderMembership).filter(m => folderIds.has(m.folderId));
-                                if (targets.length === 0) targets = [{ folderId: '__inbox__', index: 0 }];
+                                let targets;
+                                if (action.targetFolderId) targets = [{ folderId: action.targetFolderId, index: 0 }];
+                                else {
+                                    targets = (deletedFromFolderIds || []).map(normFolderMembership).filter(m => folderIds.has(m.folderId));
+                                    if (targets.length === 0) targets = [{ folderId: '__inbox__', index: 0 }];
+                                }
                                 targets.forEach(({ folderId, index }) => {
                                     updated = updated.map(f => f.id === folderId ? { ...f, bookIds: addBookAtIndex(f.bookIds, id, index) } : f);
                                 });
@@ -10376,12 +10542,26 @@
                                 });
                                 return { ...f, bookIds: newBookIds };
                             });
+
+                            // v7.10.1-alpha.4 (audit HIGH) - undoable: this REMOVES book records and had no
+                            // undo at all. Full removed books + exact before/after bookId arrays for every
+                            // touched folder — undo restores both verbatim. Plus a named receipt (had none).
+                            const removedBooks = books.filter(b => removedIds.has(b.id));
+                            const affectedFolders = folders
+                                .map((f, i) => ({ id: f.id, before: [...(f.bookIds || [])], after: [...(updatedFolders[i].bookIds || [])] }))
+                                .filter(x => x.before.join('') !== x.after.join(''));
+                            recordAction({
+                                type: 'RESOLVE_DUPLICATES', removedBooks, affectedFolders,
+                                label: `Remove ${bookCountLabel([...removedIds])} (duplicate copies)`
+                            });
+
                             setFolders(updatedFolders);
 
                             // Remove duplicate books
                             const updatedBooks = books.filter(b => !removedIds.has(b.id));
                             setBooks(updatedBooks);
                             saveBooksToIndexedDB(updatedBooks);
+                            showToast(`Removed ${bookCountLabel(removedBooks.map(b => b.id))} — duplicate copies merged into the kept books`); // v7.10.1-alpha.4 - receipt
 
                             setDupReviewOpen(false);
                         };
@@ -12524,6 +12704,28 @@
                                                     // Apply tag registry
                                                     setTagRegistry(newTagRegistry);
 
+                                                    // v7.10.1-alpha.4 - undoable (audit gap): compute each affected book's next
+                                                    // fields from CURRENT state and record before applying (fields-based SET_TAGS
+                                                    // carries collectionTags/collectionTagSeen too). Registry additions are left
+                                                    // in place on undo (an unused tag entry is harmless).
+                                                    {
+                                                        const affectedIds = Object.keys(bookUpdates).filter(id => books.some(b => b.id === id));
+                                                        const nextById = {};
+                                                        affectedIds.forEach(id => {
+                                                            const b = books.find(x => x.id === id);
+                                                            const upd = bookUpdates[id];
+                                                            let newTags = [...(b.tags || [])];
+                                                            upd.addTags.forEach(t => { if (!newTags.includes(t)) newTags.push(t); });
+                                                            upd.removeTags.forEach(t => { newTags = newTags.filter(x => x !== t); });
+                                                            let newCTags = [...(b.collectionTags || [])];
+                                                            upd.addCollectionTags.forEach(t => { if (!newCTags.includes(t)) newCTags.push(t); });
+                                                            upd.removeCollectionTags.forEach(t => { newCTags = newCTags.filter(x => x !== t); });
+                                                            upd.promoteCollectionTags.forEach(t => { newCTags = newCTags.filter(x => x !== t); });
+                                                            nextById[id] = { tags: newTags, collectionTags: newCTags, collectionTagSeen: true };
+                                                        });
+                                                        if (affectedIds.length > 0) recordTagChange(affectedIds, nextById, `Tag from Collections (${affectedIds.length} book${affectedIds.length !== 1 ? 's' : ''})`);
+                                                    }
+
                                                     // Apply book updates
                                                     setBooks(prev => {
                                                         const updated = prev.map(b => {
@@ -12880,6 +13082,20 @@
                                                     const guidEntries = canHide.filter(sel => sel.instanceId);
                                                     const legacyEntries = canHide.filter(sel => !sel.instanceId);
 
+                                                    // v7.10.1-alpha.4 - undoable (audit gap) + named receipt
+                                                    {
+                                                        const legacyIds = legacyEntries.map(sel => sel.bookId);
+                                                        const previousStates = {};
+                                                        legacyIds.forEach(id => { const b = books.find(x => x.id === id); previousStates[id] = b ? (b.isHidden || false) : false; });
+                                                        const allIds = canHide.map(sel => sel.bookId);
+                                                        recordAction({
+                                                            type: 'HIDE_COPIES', instanceIds: guidEntries.map(sel => sel.instanceId),
+                                                            legacyBookIds: legacyIds, previousStates,
+                                                            label: `Hide ${bookCountLabel(allIds)}${canHide.length === 1 ? ' (this copy)' : ''}`
+                                                        });
+                                                        showToast(`Hid ${bookCountLabel(allIds)}${canHide.length === 1 ? ' (this copy)' : ''}`);
+                                                    }
+
                                                     // Handle GUID entries: add to hiddenInstances
                                                     if (guidEntries.length > 0) {
                                                         setHiddenInstances(prev => {
@@ -13118,6 +13334,7 @@
                                                             <button
                                                                 key={rating}
                                                                 onClick={() => {
+                                                                    recordRating([modalBook.id], rating); // v7.10.1-alpha.4 - undoable
                                                                     setBooks(prev => {
                                                                         const updated = prev.map(b =>
                                                                             b.id === modalBook.id ? { ...b, myRating: rating } : b
@@ -13137,6 +13354,7 @@
                                                     {modalBook.myRating > 0 && (
                                                         <button
                                                             onClick={() => {
+                                                                recordRating([modalBook.id], 0); // v7.10.1-alpha.4 - undoable
                                                                 setBooks(prev => {
                                                                     const updated = prev.map(b =>
                                                                         b.id === modalBook.id ? { ...b, myRating: 0 } : b
@@ -13372,6 +13590,7 @@
                                                                     <button
                                                                         onClick={() => {
                                                                             const newTags = modalBook.tags.filter(t => t !== tagId);
+                                                                            recordTagChange([modalBook.id], { [modalBook.id]: { tags: newTags } }, `Remove "${tagRegistry[tagId]?.label || tagId}" from ${bookCountLabel([modalBook.id])}`); // v7.10.1-alpha.4
                                                                             setBooks(prev => {
                                                                                 const updated = prev.map(b =>
                                                                                     b.id === modalBook.id ? { ...b, tags: newTags } : b
@@ -13430,6 +13649,7 @@
                                                                                         // Select top match
                                                                                         const [tagId, tagData] = existingTags[0];
                                                                                         const newTags = [...(modalBook.tags || []), tagId];
+                                                                                        recordTagChange([modalBook.id], { [modalBook.id]: { tags: newTags } }, `Add "${tagData.label}" to ${bookCountLabel([modalBook.id])}`); // v7.10.1-alpha.4
                                                                                         setBooks(prev => {
                                                                                             const updated = prev.map(b =>
                                                                                                 b.id === modalBook.id ? { ...b, tags: newTags } : b
@@ -13448,6 +13668,7 @@
                                                                                             [newTagId]: { label: newTagLabel, count: 1 }
                                                                                         }));
                                                                                         const newTags = [...(modalBook.tags || []), newTagId];
+                                                                                        recordTagChange([modalBook.id], { [modalBook.id]: { tags: newTags } }, `Add "${newTagLabel}" to ${bookCountLabel([modalBook.id])}`); // v7.10.1-alpha.4
                                                                                         setBooks(prev => {
                                                                                             const updated = prev.map(b =>
                                                                                                 b.id === modalBook.id ? { ...b, tags: newTags } : b
@@ -13505,6 +13726,7 @@
                                                                                                 }));
                                                                                                 // Add to book
                                                                                                 const newTags = [...(modalBook.tags || []), newTagId];
+                                                                                                recordTagChange([modalBook.id], { [modalBook.id]: { tags: newTags } }, `Add "${newTagLabel}" to ${bookCountLabel([modalBook.id])}`); // v7.10.1-alpha.4
                                                                                                 setBooks(prev => {
                                                                                                     const updated = prev.map(b =>
                                                                                                         b.id === modalBook.id ? { ...b, tags: newTags } : b
@@ -13526,6 +13748,7 @@
                                                                                             onClick={() => {
                                                                                                 // Add existing tag to book
                                                                                                 const newTags = [...(modalBook.tags || []), tagId];
+                                                                                                recordTagChange([modalBook.id], { [modalBook.id]: { tags: newTags } }, `Add "${tagData.label}" to ${bookCountLabel([modalBook.id])}`); // v7.10.1-alpha.4
                                                                                                 setBooks(prev => {
                                                                                                     const updated = prev.map(b =>
                                                                                                         b.id === modalBook.id ? { ...b, tags: newTags } : b
@@ -14429,6 +14652,12 @@
                                             // v6.0.0-alpha.53 - Drag from Trash to Inbox = undelete + place in Inbox only
                                             if (sourceFolder === '__trash__') {
                                                 const bookIdsSet = new Set(bookIds);
+                                                // v7.10.1-alpha.4 - undoable (audit gap): capture pre-restore trash state
+                                                recordAction({
+                                                    type: 'RESTORE_BOOKS', bookIds: [...bookIds], targetFolderId: '__inbox__',
+                                                    restoredBooks: books.filter(b => bookIdsSet.has(b.id) && b.isDeleted).map(b => ({ id: b.id, deletedFromFolderIds: b.deletedFromFolderIds || [] })),
+                                                    label: `Restore ${bookCountLabel(bookIds)} to Inbox`
+                                                });
                                                 setBooks(prev => {
                                                     const updated = prev.map(b => bookIdsSet.has(b.id) && b.isDeleted
                                                         ? { ...b, isDeleted: false, deletedAt: null, deletedFromFolderIds: null }
@@ -14738,6 +14967,12 @@
                                                             // v6.0.0-alpha.53 - Drag from Trash = undelete + place in target folder only
                                                             if (sourceFolder === '__trash__') {
                                                                 const bookIdsSet = new Set(bookIds);
+                                                                // v7.10.1-alpha.4 - undoable (audit gap): capture pre-restore trash state
+                                                                recordAction({
+                                                                    type: 'RESTORE_BOOKS', bookIds: [...bookIds], targetFolderId: folder.id,
+                                                                    restoredBooks: books.filter(b => bookIdsSet.has(b.id) && b.isDeleted).map(b => ({ id: b.id, deletedFromFolderIds: b.deletedFromFolderIds || [] })),
+                                                                    label: `Restore ${bookCountLabel(bookIds)} to '${folder.name}'`
+                                                                });
                                                                 setBooks(prev => {
                                                                     const updated = prev.map(b => bookIdsSet.has(b.id) && b.isDeleted
                                                                         ? { ...b, isDeleted: false, deletedAt: null, deletedFromFolderIds: null }
@@ -17273,6 +17508,7 @@
                                                 : `Delete ${selectedTags.size} tag${selectedTags.size !== 1 ? 's' : ''} (${tagNames})?`;
                                             if (await showConfirmDialog('Delete Tags', msg)) {
                                                 const toDelete = new Set(selectedTags);
+                                                const delInfo = recordDeleteTags([...toDelete]); // v7.10.1-alpha.4 - undoable cascade
                                                 setBooks(prev => {
                                                     const updated = prev.map(b => {
                                                         if (b.tags && b.tags.some(t => toDelete.has(t))) {
@@ -17283,6 +17519,7 @@
                                                     saveBooksToIndexedDB(updated);
                                                     return updated;
                                                 });
+                                                showToast(`Deleted ${toDelete.size} tag${toDelete.size !== 1 ? 's' : ''}${delInfo.affectedCount > 0 ? ` — removed from ${delInfo.affectedCount} book${delInfo.affectedCount !== 1 ? 's' : ''}` : ''}${delInfo.removedSearchCount > 0 ? `, ${delInfo.removedSearchCount} Search${delInfo.removedSearchCount !== 1 ? 'es' : ''} deleted` : ''}`); // v7.10.1-alpha.4 - receipt
                                                 setTagRegistry(prev => {
                                                     const updated = { ...prev };
                                                     toDelete.forEach(tagId => delete updated[tagId]);
@@ -17410,6 +17647,7 @@
                                                                         onClick={async () => {
                                                                             const bookCount = getTagCount(tagId);
                                                                             if (await showConfirmDialog('Delete Tag', `Delete tag "${label}"?${bookCount > 0 ? ` This will remove it from ${bookCount} book${bookCount !== 1 ? 's' : ''}.` : ''}`)) {
+                                                                                const delInfo = recordDeleteTags([tagId]); // v7.10.1-alpha.4 - undoable cascade
                                                                                 setBooks(prev => {
                                                                                     const updated = prev.map(b => {
                                                                                         if (b.tags && b.tags.includes(tagId)) {
@@ -17420,6 +17658,7 @@
                                                                                     saveBooksToIndexedDB(updated);
                                                                                     return updated;
                                                                                 });
+                                                                                showToast(`Deleted tag "${label}"${delInfo.affectedCount > 0 ? ` — removed from ${delInfo.affectedCount} book${delInfo.affectedCount !== 1 ? 's' : ''}` : ''}`); // v7.10.1-alpha.4 - receipt
                                                                                 setTagRegistry(prev => {
                                                                                     const updated = { ...prev };
                                                                                     delete updated[tagId];
@@ -19210,6 +19449,12 @@
                                                                                         onClick={(e) => {
                                                                                             e.stopPropagation();
                                                                                             const selectedBookIds = getSelectedBookIds();
+                                                                                            // v7.10.1-alpha.4 - undoable: capture affected books + their next tags first
+                                                                                            {
+                                                                                                const affected = selectedBookIds.filter(id => { const b = books.find(x => x.id === id); return b && (b.tags || []).includes(tagId); });
+                                                                                                const nextById = {}; affected.forEach(id => { const b = books.find(x => x.id === id); nextById[id] = { tags: (b.tags || []).filter(t => t !== tagId) }; });
+                                                                                                if (affected.length > 0) recordTagChange(affected, nextById, `Remove "${tagRegistry[tagId]?.label || tagId}" from ${bookCountLabel(affected)}`);
+                                                                                            }
                                                                                             // Remove tag from all selected books
                                                                                             setBooks(prev => {
                                                                                                 const updated = prev.map(b => {
@@ -19265,6 +19510,12 @@
                                                                             // Add existing tag to books that don't have it
                                                                             const [tagId] = exactMatch;
                                                                             let addedCount = 0;
+                                                                            // v7.10.1-alpha.4 - undoable
+                                                                            {
+                                                                                const affected = selectedBookIds.filter(id => { const b = books.find(x => x.id === id); return b && !(b.tags || []).includes(tagId); });
+                                                                                const nextById = {}; affected.forEach(id => { const b = books.find(x => x.id === id); nextById[id] = { tags: [...(b.tags || []), tagId] }; });
+                                                                                if (affected.length > 0) recordTagChange(affected, nextById, `Add "${tagRegistry[tagId]?.label || tagId}" to ${bookCountLabel(affected)}`);
+                                                                            }
                                                                             setBooks(prev => {
                                                                                 const updated = prev.map(b => {
                                                                                     if (selectedBookIds.includes(b.id) && !(b.tags || []).includes(tagId)) {
@@ -19283,6 +19534,12 @@
                                                                                 ...prev,
                                                                                 [newTagId]: { label: newTagLabel, count: selectedBookIds.length }
                                                                             }));
+                                                                            // v7.10.1-alpha.4 - undoable (registry entry stays on undo; unused = harmless)
+                                                                            {
+                                                                                const nextById = {}; selectedBookIds.forEach(id => { const b = books.find(x => x.id === id); if (b) nextById[id] = { tags: [...(b.tags || []), newTagId] }; });
+                                                                                const affected = selectedBookIds.filter(id => nextById[id]);
+                                                                                if (affected.length > 0) recordTagChange(affected, nextById, `Add "${newTagLabel}" to ${bookCountLabel(affected)}`);
+                                                                            }
                                                                             setBooks(prev => {
                                                                                 const updated = prev.map(b => {
                                                                                     if (selectedBookIds.includes(b.id)) {
@@ -19344,6 +19601,12 @@
                                                                                     ...prev,
                                                                                     [newTagId]: { label: newTagLabel, count: selectedBookIds.length }
                                                                                 }));
+                                                                                // v7.10.1-alpha.4 - undoable (registry entry stays on undo; unused = harmless)
+                                                                                {
+                                                                                    const nextById = {}; selectedBookIds.forEach(id => { const b = books.find(x => x.id === id); if (b) nextById[id] = { tags: [...(b.tags || []), newTagId] }; });
+                                                                                    const affected = selectedBookIds.filter(id => nextById[id]);
+                                                                                    if (affected.length > 0) recordTagChange(affected, nextById, `Add "${newTagLabel}" to ${bookCountLabel(affected)}`);
+                                                                                }
                                                                                 setBooks(prev => {
                                                                                     const updated = prev.map(b => {
                                                                                         if (selectedBookIds.includes(b.id)) {
@@ -19369,6 +19632,12 @@
                                                                             onClick={() => {
                                                                                 const selectedBookIds = getSelectedBookIds();
                                                                                 let addedCount = 0;
+                                                                                // v7.10.1-alpha.4 - undoable
+                                                                                {
+                                                                                    const affected = selectedBookIds.filter(id => { const b = books.find(x => x.id === id); return b && !(b.tags || []).includes(tagId); });
+                                                                                    const nextById = {}; affected.forEach(id => { const b = books.find(x => x.id === id); nextById[id] = { tags: [...(b.tags || []), tagId] }; });
+                                                                                    if (affected.length > 0) recordTagChange(affected, nextById, `Add "${tagData.label}" to ${bookCountLabel(affected)}`);
+                                                                                }
                                                                                 setBooks(prev => {
                                                                                     const updated = prev.map(b => {
                                                                                         if (selectedBookIds.includes(b.id) && !(b.tags || []).includes(tagId)) {
