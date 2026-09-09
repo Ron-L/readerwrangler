@@ -6697,13 +6697,27 @@
                 BOOKLIST_REMOVE: 'Remove from Book List', BOOKLIST_CREATE: 'Create Book List', BOOKLIST_DELETE: 'Delete Book List',
                 EDIT_BOOK: 'Edit book', BULK_EDIT_BOOKS: 'Edit books', TOGGLE_HIDE: 'Hide / unhide books',
                 SOFT_DELETE_BOOKS: 'Delete books', RESTORE_BOOKS: 'Restore books', SEQUENCE_SERIES: 'Number series',
-                TAG_BOOKS_DRAG: 'Tag books', WIZARD_ORGANIZE: 'Auto-Organize', COMPOUND: 'Multiple changes'
+                TAG_BOOKS_DRAG: 'Tag books', WIZARD_ORGANIZE: 'Auto-Organize', COMPOUND: 'Multiple changes',
+                SET_PRICE_GOAL: 'Price goal' // v7.10.1-alpha.3
             };
             // v7.8.0-alpha.4 (UNDO-MODEL.md) - toast targets: 1 book → its title, N → the honest count.
             // Cover view can't show a field reverting; a toast that names its target can be trusted anyway.
             const bookCountLabel = (ids) => ids.length === 1
                 ? `'${(((books.find(b => b.id === ids[0]) || {}).title) || 'book').slice(0, 40)}'`
                 : `${ids.length} books`;
+            // v7.10.1-alpha.3 (Ron) - price goals become undoable (they never were — predates the ops
+            // refactor; no design decision said otherwise, we checked). Captures previous per-book
+            // values BEFORE the mutation, so call this before setBooks. Dialog chip clicks record
+            // undo but do NOT toast (the goal line updates under your eyes — the reorder precedent);
+            // the menu/bulk paths keep their named receipt toasts.
+            const recordPriceGoal = (bookIds, newValue) => {
+                const previousValues = {};
+                bookIds.forEach(id => { const b = books.find(x => x.id === id); previousValues[id] = b ? (b.priceTrigger ?? null) : null; });
+                recordAction({
+                    type: 'SET_PRICE_GOAL', bookIds: [...bookIds], previousValues, newValue,
+                    label: newValue != null ? `Set $${newValue.toFixed(2)} goal for ${bookCountLabel(bookIds)}` : `Clear price goal for ${bookCountLabel(bookIds)}`
+                });
+            };
             // Resolve an action's undo/redo label: explicit label > legacy description > friendly type name (warns if none).
             const actionLabel = (action) => {
                 if (action.label) return action.label;
@@ -7016,6 +7030,17 @@
                             }
                             return folder;
                         }));
+                        break;
+                    case 'SET_PRICE_GOAL':
+                        // v7.10.1-alpha.3 - Undo price goal: restore each book's previous trigger
+                        setBooks(prev => {
+                            const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, priceTrigger: action.previousValues[b.id] ?? null } : b);
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        if (modalBookRef.current && action.bookIds.includes(modalBookRef.current.id)) {
+                            setModalBook(prev => prev ? { ...prev, priceTrigger: action.previousValues[prev.id] ?? null } : prev);
+                        }
                         break;
                     case 'BAKE_ORDER':
                         // v7.6.0-alpha.14 (wave D) - Undo bake: restore the pre-bake order fields verbatim
@@ -7460,6 +7485,17 @@
                             }
                             return folder;
                         }));
+                        break;
+                    case 'SET_PRICE_GOAL':
+                        // v7.10.1-alpha.3 - Redo price goal: re-apply the new trigger to all books
+                        setBooks(prev => {
+                            const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, priceTrigger: action.newValue } : b);
+                            saveBooksToIndexedDB(updated);
+                            return updated;
+                        });
+                        if (modalBookRef.current && action.bookIds.includes(modalBookRef.current.id)) {
+                            setModalBook(prev => prev ? { ...prev, priceTrigger: action.newValue } : prev);
+                        }
                         break;
                     case 'BAKE_ORDER':
                         // v7.6.0-alpha.14 (wave D) - Redo bake: re-apply the baked order fields
@@ -12561,6 +12597,7 @@
                                         const price = parseFloat(bulkPriceInput);
                                         if (!isNaN(price) && price > 0) {
                                             const count = bulkPriceBookIds.length;
+                                            recordPriceGoal(bulkPriceBookIds, price); // v7.10.1-alpha.3 - undoable
                                             setBooks(prev => {
                                                 const updated = prev.map(b =>
                                                     bulkPriceBookIds.includes(b.id) ? { ...b, priceTrigger: price } : b
@@ -13557,6 +13594,7 @@
                                                             <button
                                                                 key={price}
                                                                 onClick={() => {
+                                                                    recordPriceGoal([modalBook.id], price); // v7.10.1-alpha.3 - undoable
                                                                     setBooks(prev => {
                                                                         const updated = prev.map(b =>
                                                                             b.id === modalBook.id ? { ...b, priceTrigger: price } : b
@@ -13586,6 +13624,7 @@
                                                                     e.preventDefault();
                                                                     const price = parseFloat(customPriceInput);
                                                                     if (!isNaN(price) && price > 0) {
+                                                                        recordPriceGoal([modalBook.id], price); // v7.10.1-alpha.3 - undoable
                                                                         setBooks(prev => {
                                                                             const updated = prev.map(b =>
                                                                                 b.id === modalBook.id ? { ...b, priceTrigger: price } : b
@@ -13620,6 +13659,7 @@
                                                         {modalBook.priceTrigger && (
                                                             <button
                                                                 onClick={() => {
+                                                                    recordPriceGoal([modalBook.id], null); // v7.10.1-alpha.3 - undoable
                                                                     setBooks(prev => {
                                                                         const updated = prev.map(b =>
                                                                             b.id === modalBook.id ? { ...b, priceTrigger: null } : b
@@ -19410,6 +19450,7 @@
                                                                     className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${hasThisGoal ? 'font-bold' : ''}`}
                                                                     onClick={async () => {
                                                                     const selectedBookIds = getSelectedBookIds();
+                                                                    recordPriceGoal(selectedBookIds, price); // v7.10.1-alpha.3 - undoable
                                                                     setBooks(prev => {
                                                                         const updated = prev.map(b =>
                                                                             selectedBookIds.includes(b.id) ? { ...b, priceTrigger: price } : b
@@ -19441,6 +19482,7 @@
                                                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-red-600"
                                                             onClick={async () => {
                                                                 const selectedBookIds = getSelectedBookIds();
+                                                                recordPriceGoal(selectedBookIds, null); // v7.10.1-alpha.3 - undoable
                                                                 setBooks(prev => {
                                                                     const updated = prev.map(b =>
                                                                         selectedBookIds.includes(b.id) ? { ...b, priceTrigger: null } : b
