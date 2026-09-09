@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.9.0-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.9.0-alpha.3";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -8067,6 +8067,42 @@
             };
             // v7.9.0-alpha.1 (AUTO-ORGANIZE-UNIFIED.md) - the This-folder/Everywhere scope switch is GONE:
             // one view, selection is the scope (setAutoOrgScope deleted with it).
+            // v7.9.0-alpha.3 (UNIFIED §9) - File under…: retarget books to another group / a folder by name
+            // (existing root folder → targeted; unknown name → created on commit). Books move between the
+            // preview's author groups (the group name IS the destination root); plan + already-filed recompute;
+            // selection persists and retargeted books are selected (a retarget implies intent to organize).
+            const retargetPreviewBooks = (bookIds, targetName) => {
+                const name = (targetName || '').trim();
+                if (!name || !bookIds || bookIds.length === 0) return;
+                const idSet = new Set(bookIds);
+                setAutoOrgPreview(prev => {
+                    if (!prev) return prev;
+                    const moving = [];
+                    let groups = prev.authorGroups.map(ag => {
+                        const keep = [], go = [];
+                        ag.books.forEach(b => (idSet.has(b.id) ? go : keep).push(b));
+                        moving.push(...go);
+                        return { ...ag, books: keep };
+                    });
+                    if (moving.length === 0) return prev;
+                    const targetKey = normAuthorKey(name);
+                    const existing = groups.find(ag => normAuthorKey(ag.displayName) === targetKey);
+                    if (existing) existing.books = [...existing.books, ...moving.filter(b => !existing.books.some(x => x.id === b.id))];
+                    else groups.push({ displayName: name, books: moving });
+                    groups = groups.filter(ag => ag.books.length > 0);
+                    const dryPlan = computeOrganizePlan(groups, folders, prev.opts);
+                    const alreadyFiled = computeAlreadyFiled(groups, dryPlan, prev.narrowSourceId);
+                    return { ...prev, authorGroups: groups, dryPlan, alreadyFiled };
+                });
+                setAutoOrgSel(prev => { const n = new Set(prev); bookIds.forEach(id => n.add(id)); return n; });
+                setAutoOrgMenu(null);
+                showToast(`Will file ${bookIds.length} book${bookIds.length !== 1 ? 's' : ''} under “${name}”`);
+            };
+            const fileUnderByName = async (bookIds) => {
+                const name = await showInputDialog('File under…', 'Type a folder name. An existing top-level folder is used as-is; a new name creates that folder when you organize.', '', 'Folder name');
+                if (name === null) return;
+                retargetPreviewBooks(bookIds, name);
+            };
             // v6.16.0 (Stage 2) - Live By-Series options (threshold / Miscellaneous / sort-by-position), tuned in the
             // preview: patch opts, recompute the plan + already-filed in place (selection persists), AND persist the
             // choice to the shared defaults so it sticks next time (fixes "changed it, cancelled, it reverted").
@@ -11693,7 +11729,10 @@
                                                 const multiShelf = slots.filter(s => s.incoming.length > 0).length > 1;
                                                 return (
                                                     <div key={ag.displayName} className="mb-4">
-                                                        <div className="font-semibold text-gray-900 flex items-center gap-2">
+                                                        {/* v7.9.0-alpha.3 (UNIFIED §9) - right-click the group header = act on the whole group */}
+                                                        <div className="font-semibold text-gray-900 flex items-center gap-2"
+                                                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setAutoOrgHover(null); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ag.books.map(b => b.id) }); }}
+                                                            title="Right-click: add this group to a Book List or file it under a different folder">
                                                             {multiAuthor && triCheck(ag.books.map(b => b.id))}
                                                             📁 {ag.displayName}
                                                         </div>
@@ -11815,6 +11854,23 @@
                                     </div>
                                 ))}
                                 {bookLists.length === 0 && <div className="px-4 py-2 text-gray-400 text-sm">No Book Lists yet — use "New Book List…"</div>}
+                                {/* v7.9.0-alpha.3 (UNIFIED §9) - File under…: retarget to another group, or a folder by
+                                    name (existing root folder used as-is, new name created on commit). */}
+                                {autoOrgPreview && (
+                                    <>
+                                        <div className="px-4 py-1.5 text-xs text-gray-500 border-t border-gray-200 mt-1">File under…</div>
+                                        {autoOrgPreview.authorGroups.filter(ag => !ag.books.every(b => autoOrgMenu.bookIds.includes(b.id)) || autoOrgPreview.authorGroups.length > 1).map(ag => (
+                                            <div key={'ft-' + ag.displayName} className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+                                                role="menuitem" onClick={() => retargetPreviewBooks(autoOrgMenu.bookIds, ag.displayName)}>
+                                                <span>📁</span><span className="truncate max-w-[200px]">{ag.displayName}</span>
+                                            </div>
+                                        ))}
+                                        <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 font-medium text-blue-700"
+                                            role="menuitem" onClick={() => { const ids = autoOrgMenu.bookIds; setAutoOrgMenu(null); fileUnderByName(ids); }}>
+                                            <span>📁</span><span>Folder by name… (existing or new)</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
