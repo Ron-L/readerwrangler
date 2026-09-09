@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.10.1-alpha.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.10.1-alpha.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -4470,13 +4470,17 @@
                                 return folder;
                             }));
 
+                            // v7.10.1-alpha.2 (Ron) - label says what the user DID ('Paste', not 'Move'/'Copy' —
+                            // which read as un-copying the clipboard in the undo toast), and paste finally gets
+                            // a receipt (it never had one; predates the receipts doctrine).
                             recordAction({
                                 type: 'PASTE_BOOKS_CUT',
                                 bookIds: clipboard.bookIds,
                                 sourcePositions: clipboard.sourcePositions,
                                 targetFolderId,
-                                label: `Move ${bookCountLabel(clipboard.bookIds)} to '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}'` // v7.8.0-alpha.4 named target
+                                label: `Paste ${bookCountLabel(clipboard.bookIds)} into '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}'`
                             });
+                            showToast(`Pasted ${bookCountLabel(clipboard.bookIds)} into '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}' — moved from the original folder`);
 
                             // Clear clipboard after cut-paste
                             setClipboard(null);
@@ -4500,8 +4504,9 @@
                                 type: 'PASTE_BOOKS_COPY',
                                 bookIds: clipboard.bookIds,
                                 targetFolderId,
-                                label: `Copy ${bookCountLabel(clipboard.bookIds)} to '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}'` // v7.8.0-alpha.4 named target
+                                label: `Paste ${bookCountLabel(clipboard.bookIds)} into '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}'` // v7.10.1-alpha.2 - 'Paste', not 'Copy' (undo-toast ambiguity)
                             });
+                            showToast(`Pasted ${bookCountLabel(clipboard.bookIds)} into '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}'`); // v7.10.1-alpha.2 - paste receipt
 
                             // Clipboard persists after copy-paste
                             console.log(`📥 Pasted ${clipboard.bookIds.length} book(s) (copy) to folder`);
@@ -18822,8 +18827,9 @@
                                                     bookIds: clipboard.bookIds,
                                                     sourcePositions: clipboard.sourcePositions,
                                                     targetFolderId,
-                                                    label: `Move ${bookCountLabel(clipboard.bookIds)} to '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}'` // v7.8.0-alpha.5 named target (missed site)
+                                                    label: `Paste ${bookCountLabel(clipboard.bookIds)} into '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}'` // v7.10.1-alpha.2
                                                 });
+                                                showToast(`Pasted ${bookCountLabel(clipboard.bookIds)} into '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}' — moved from the original folder`); // v7.10.1-alpha.2 - paste receipt
 
                                                 setClipboard(null);
                                                 setClipboardMessage(null);
@@ -18844,8 +18850,9 @@
                                                     type: 'PASTE_BOOKS_COPY',
                                                     bookIds: clipboard.bookIds,
                                                     targetFolderId,
-                                                    label: `Copy ${bookCountLabel(clipboard.bookIds)} to '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}'` // v7.8.0-alpha.5 named target (missed site)
+                                                    label: `Paste ${bookCountLabel(clipboard.bookIds)} into '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}'` // v7.10.1-alpha.2
                                                 });
+                                                showToast(`Pasted ${bookCountLabel(clipboard.bookIds)} into '${(folders.find(f => f.id === targetFolderId) || {}).name || 'folder'}'`); // v7.10.1-alpha.2 - paste receipt
                                             }
 
                                             setExplorerBookContextMenu(null);
