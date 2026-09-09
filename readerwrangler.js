@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.9.0-alpha.7";  // Build version for this file
+        const ORGANIZER_VERSION = "7.9.0-alpha.8";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -739,6 +739,7 @@
             const [autoOrgMenu, setAutoOrgMenu] = useState(null);       // v6.13.0-alpha.9 (D2) - preview cover right-click menu: { x, y, bookIds } or null
             const [autoOrgHover, setAutoOrgHover] = useState(null);     // v6.13.0-alpha.9 (D2) - preview cover hover "In" popup: { bookId, x, y } or null
             const [autoOrgSrcPopup, setAutoOrgSrcPopup] = useState(null); // v7.9.0-alpha.2 (UNIFIED §3) - origin popup: { bookId, x, y } — per-source moves/stays checkboxes
+            const [autoOrgFileUnder, setAutoOrgFileUnder] = useState(null); // v7.9.0-alpha.8 (UNIFIED §9) - File-under folder picker: { bookIds, filter } — combobox, creation always explicit
             const [autoOrgOptionsOpen, setAutoOrgOptionsOpen] = useState(false); // v6.16.0 (Stage 2) - collapsible By-Series Options strip in the preview
             // v6.16.0 - The preview has ONE selection (autoOrgSel): default all-in. The checkbox tree (section → author →
             // shelf) is just select-all/none over it; cover-clicks toggle individuals. Both the footer action AND
@@ -8052,7 +8053,7 @@
                 { createSeriesFolders: true, seriesFolderMinBooks: wizardSeriesFolderMin, createMiscellaneous: wizardCreateMiscellaneous, sortByPosition: wizardSortByPosition },
                 (ags) => ags.length === 1 ? `Auto-Organized ${ags[0].displayName} by series` : `Auto-Organized ${ags.length} authors by series`);
 
-            const closeAutoOrgPreview = () => { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgExcludedMembers(new Set()); setAutoOrgAnchor(null); setAutoOrgMenu(null); setAutoOrgHover(null); setAutoOrgSrcPopup(null); };
+            const closeAutoOrgPreview = () => { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgExcludedMembers(new Set()); setAutoOrgAnchor(null); setAutoOrgMenu(null); setAutoOrgHover(null); setAutoOrgSrcPopup(null); setAutoOrgFileUnder(null); };
 
             // v6.16.0 - Live By Author ↔ By Series toggle inside the preview: recompute the plan + already-filed in
             // place (the selection is per-book, so it persists — only the destinations change).
@@ -8102,11 +8103,9 @@
                 setAutoOrgMenu(null);
                 showToast(`Will file ${bookIds.length} book${bookIds.length !== 1 ? 's' : ''} under “${name}”`);
             };
-            const fileUnderByName = async (bookIds) => {
-                const name = await showInputDialog('File under…', 'Type a folder name. An existing top-level folder is used as-is; a new name creates that folder when you organize.', '', 'Folder name');
-                if (name === null) return;
-                retargetPreviewBooks(bookIds, name);
-            };
+            // v7.9.0-alpha.8 - Ron: a bare name input was a typo trap (Pournelle vs Pournell silently
+            // creates a folder). Replaced with the combobox picker (autoOrgFileUnder render below).
+            const fileUnderByName = (bookIds) => setAutoOrgFileUnder({ bookIds, filter: '' });
             // v6.16.0 (Stage 2) - Live By-Series options (threshold / Miscellaneous / sort-by-position), tuned in the
             // preview: patch opts, recompute the plan + already-filed in place (selection persists), AND persist the
             // choice to the shared defaults so it sticks next time (fixes "changed it, cancelled, it reverted").
@@ -11829,6 +11828,59 @@
                         );
                     })()}
 
+                    {/* v7.9.0-alpha.8 (UNIFIED §9) - File-under folder picker: combobox over root folders.
+                        The typo-hazard rule: creation is ALWAYS an explicit, visually-distinct choice —
+                        Enter picks the exact match, else the top MATCH; it never silently creates. */}
+                    {autoOrgFileUnder && (() => {
+                        const SPECIALS = new Set(['__inbox__', '__all__', '__library__', '__views__', '__booklists__', '__trash__', '__search__']);
+                        const roots = folders.filter(f => f.parentId === null && !SPECIALS.has(f.id));
+                        const raw = autoOrgFileUnder.filter;
+                        const q = raw.trim().toLowerCase();
+                        const matches = roots.filter(f => f.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })).slice(0, 12);
+                        const exact = roots.find(f => f.name.toLowerCase() === q);
+                        const n = autoOrgFileUnder.bookIds.length;
+                        const pick = (name) => { const ids = autoOrgFileUnder.bookIds; setAutoOrgFileUnder(null); retargetPreviewBooks(ids, name); };
+                        return (
+                            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[80]" onClick={() => setAutoOrgFileUnder(null)}>
+                                <div className="bg-white rounded-lg shadow-2xl w-full" style={{ maxWidth: '380px' }} onClick={(e) => e.stopPropagation()}>
+                                    <div className="p-3 border-b border-gray-200">
+                                        <div className="text-sm font-semibold text-gray-900 mb-2">File {n} book{n !== 1 ? 's' : ''} under…</div>
+                                        <input autoFocus value={raw}
+                                            onChange={(e) => setAutoOrgFileUnder(prev => ({ ...prev, filter: e.target.value }))}
+                                            onKeyDown={(e) => {
+                                                e.stopPropagation();
+                                                if (e.key === 'Escape') { setAutoOrgFileUnder(null); return; }
+                                                if (e.key === 'Enter') {
+                                                    if (exact) pick(exact.name);
+                                                    else if (matches.length > 0) pick(matches[0].name);
+                                                    // no match: Enter does NOT create — the Create row must be clicked
+                                                }
+                                            }}
+                                            placeholder="Type to filter your folders"
+                                            className="w-full px-3 py-2 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                                    </div>
+                                    <div className="max-h-[300px] overflow-y-auto py-1">
+                                        {q.length > 0 && !exact && (
+                                            <div className="px-4 py-2 hover:bg-amber-50 cursor-pointer flex items-center gap-2 text-amber-800 border-b border-amber-100"
+                                                onClick={() => pick(raw.trim())}>
+                                                <span>➕</span><span>Create new folder <strong>“{raw.trim()}”</strong></span>
+                                            </div>
+                                        )}
+                                        {matches.map(f => (
+                                            <div key={f.id} className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+                                                onClick={() => pick(f.name)}>
+                                                <span>📁</span><span className="truncate">{f.name}</span>
+                                            </div>
+                                        ))}
+                                        {matches.length === 0 && q.length === 0 && <div className="px-4 py-2 text-gray-400 text-sm italic">Start typing to filter your top-level folders</div>}
+                                        {matches.length === 0 && q.length > 0 && <div className="px-4 py-2 text-gray-400 text-xs">No folder matches — use the Create row above if you mean a new one</div>}
+                                    </div>
+                                    <div className="px-4 py-2 border-t border-gray-100 text-[10px] text-gray-400">Enter picks the exact or top match. Creating a folder is always the explicit ➕ choice — never a typo.</div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     {/* v7.9.0-alpha.2 (UNIFIED §3) - Origin popup: this book's folders, each a moves/stays checkbox.
                         Words, not glyphs. Checking a source also selects the book (a pick implies intent to organize). */}
                     {autoOrgSrcPopup && (() => {
@@ -11912,7 +11964,7 @@
                                         ))}
                                         <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 font-medium text-blue-700"
                                             role="menuitem" onClick={() => { const ids = autoOrgMenu.bookIds; setAutoOrgMenu(null); fileUnderByName(ids); }}>
-                                            <span>📁</span><span>Folder by name… (existing or new)</span>
+                                            <span>📁</span><span>Choose folder… (or create new)</span>
                                         </div>
                                     </>
                                 )}
