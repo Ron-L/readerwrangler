@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.9.0-alpha.3";  // Build version for this file
+        const ORGANIZER_VERSION = "7.9.0-alpha.4";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -11541,7 +11541,10 @@
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px', alignItems: 'flex-start' }}>
                                 {movers.map(b => {
                                     const srcs = consolidateSourcesOf(b);
-                                    const showCaption = srcs.some(f => f.id !== narrowSourceId);
+                                    // v7.9.0-alpha.4 (Ron) - caption on EVERY foldered mover, entry-folder books included:
+                                    // a caption's absence was itself an invisible encoding (and mixed shelves read as a
+                                    // rendering bug). Only a book in no folder at all has nothing to say.
+                                    const showCaption = srcs.length > 0;
                                     const stays = srcs.filter(f => autoOrgExcludedMembers.has(`${f.id}::${b.id}`));
                                     const capText = srcs.length === 1 ? (srcs[0].id === '__inbox__' ? 'Inbox' : srcs[0].name)
                                         : `${srcs.length} places${stays.length > 0 ? ` · ${stays.length} stay${stays.length === 1 ? 's' : ''}` : ''}`;
