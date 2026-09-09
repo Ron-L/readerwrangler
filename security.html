@@ -8,6 +8,16 @@
     <link rel="icon" type="image/x-icon" href="icons/favicon.ico">
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <!-- 2026-09-09 - Consistent site nav (this page's full restyle onto the shared theme system is a filed follow-up) -->
+    <div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+        <a href="index.html" class="font-bold text-gray-800 no-underline">ReaderWrangler&#8482;</a>
+        <div class="flex gap-5 text-sm items-center">
+            <a href="index.html" class="text-gray-500 hover:text-blue-600">Home</a>
+            <a href="tutorials.html" class="text-gray-500 hover:text-blue-600">Tutorials</a>
+            <a href="features.html" class="text-gray-500 hover:text-blue-600">Features</a>
+            <span class="font-bold text-gray-400 cursor-default" title="You are here" aria-current="page">Security</span>
+        </div>
+    </div>
     <div class="max-w-4xl mx-auto px-4 py-12">
         <h1 class="text-3xl font-bold text-gray-800 mb-8">Security & Privacy</h1>
 
@@ -45,9 +55,9 @@
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Privacy &amp; Data Security</h2>
             <ul class="list-disc list-inside text-gray-600 space-y-2">
                 <li><strong>No Account Required:</strong> No sign-up, no login, no personal information collected.</li>
-                <li><strong>Your Library Stays in Your Browser:</strong> All book data (titles, covers, folders, tags) is stored in your browser's local storage. It is not uploaded to any cloud service.</li>
+                <li><strong>Your Library Lives on Your Devices:</strong> All book data (titles, covers, folders, tags) is stored in your browser. If you use cloud sync, an end-to-end encrypted copy is stored on the sync service &mdash; encrypted before it leaves your browser, unreadable to the server or anyone else.</li>
                 <li><strong>Encrypted Data Transfer:</strong> When syncing between the bookmarklet and the app, your library data is encrypted end-to-end (AES-256-GCM) before it leaves your browser. The relay server stores and returns encrypted data it cannot read. Your encryption keys never leave your devices.</li>
-                <li><strong>No Cloud Storage:</strong> The relay is a temporary pass-through, not a permanent store. Synced data expires automatically (10 days for library imports, 90 days for device state).</li>
+                <li><strong>Encrypted Cloud Sync, Not Readable Cloud Storage:</strong> The sync service holds only ciphertext it cannot decrypt. Your encrypted library persists there so your devices stay in sync; temporary transfer packets clean themselves up automatically. Regenerating your credentials in the app revokes the old channel and deletes its data from the server.</li>
                 <li><strong>Privacy-Focused Analytics:</strong> We use <a href="https://www.goatcounter.com/" class="text-blue-600 hover:underline">GoatCounter</a> for basic traffic statistics (page views, referrers) and anonymous usage events (e.g., how often imports and backups occur) to improve the site. GoatCounter uses no cookies, collects no personal data, and does no cross-site tracking. Your book library data is never included in analytics.</li>
                 <li><strong>Open Source:</strong> All code is visible on <a href="https://github.com/Ron-L/ReaderWrangler" class="text-blue-600 hover:underline">GitHub</a>. Security rests on encryption, not obscurity.</li>
             </ul>
@@ -63,7 +73,7 @@
                 <li>When you click "Refresh Library Data", it loads the fetcher script</li>
                 <li>The script reads your book data from the Amazon page you're viewing</li>
                 <li>Your data is encrypted in the browser using your personal encryption keys</li>
-                <li>The encrypted data is uploaded to a temporary relay (Cloudflare Worker)</li>
+                <li>The encrypted data is uploaded to the relay (a Cloudflare Worker)</li>
                 <li>The ReaderWrangler app downloads and decrypts it using the same keys</li>
             </ol>
             <p class="text-gray-600 mt-4 text-sm">
