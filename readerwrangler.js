@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.9.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.10.0-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -5524,6 +5524,82 @@
                 }
             };
 
+            // v7.10.0 - Save Spreadsheet (CSV): the library flattened for Excel — RW's first
+            // user-REQUESTED feature (2026-09-08: "how do I get my items incl. tags and lists into
+            // Excel?"). Joins done app-side: tags live on books; Folders/Book Lists reverse-joined
+            // by book id. Excel-safe: UTF-8 BOM, CRLF, RFC-4180 quoting; multi-value cells joined
+            // with "; " (folder/list names can contain commas). Same picker-first save flow as
+            // backups (the 7.6.2 lesson: picker before work, completion means the file exists).
+            const exportSpreadsheet = async () => {
+                const now = new Date();
+                const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const suggestedName = `readerwrangler-library-${dateStr}.csv`;
+                let fileHandle = null;
+                if (window.showSaveFilePicker) {
+                    try {
+                        fileHandle = await window.showSaveFilePicker({
+                            suggestedName,
+                            types: [{ description: 'Spreadsheet (CSV)', accept: { 'text/csv': ['.csv'] } }]
+                        });
+                    } catch (e) {
+                        if (e && e.name === 'AbortError') { showToast('Spreadsheet cancelled — nothing saved'); return; }
+                        fileHandle = null; // picker unavailable/refused → anchor fallback below
+                    }
+                }
+                const progress = showProgressDialog('Saving Spreadsheet', 'Preparing your spreadsheet…');
+                try {
+                    const allBooks = (await loadBooksFromIndexedDB()).filter(b => !b.isDeleted);
+                    // Reverse joins: book id → folder paths / Book List names
+                    const folderById = new Map(folders.map(f => [f.id, f]));
+                    const VIRTUAL = new Set(['__all__', '__library__', '__views__', '__booklists__', '__trash__', '__search__']);
+                    const folderPath = (f) => { const parts = []; let cur = f, guard = 0; while (cur && guard++ < 50) { parts.unshift(cur.name); cur = cur.parentId ? folderById.get(cur.parentId) : null; } return parts.join(' / '); };
+                    const foldersOf = new Map();
+                    folders.forEach(f => {
+                        if (VIRTUAL.has(f.id)) return;
+                        const path = f.id === '__inbox__' ? 'Inbox' : folderPath(f);
+                        (f.bookIds || []).forEach(id => { if (!foldersOf.has(id)) foldersOf.set(id, []); foldersOf.get(id).push(path); });
+                    });
+                    const listsOf = new Map();
+                    bookLists.forEach(bl => (bl.bookIds || []).forEach(id => { if (!listsOf.has(id)) listsOf.set(id, []); listsOf.get(id).push(bl.name); }));
+                    const esc = (v) => { const s = v == null ? '' : String(v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+                    const header = ['ASIN', 'Title', 'Author', 'Series', 'Series #', 'Ownership', 'Format', 'Tags', 'Folders', 'Book Lists', 'My Rating', 'Amazon Rating', 'Current Price', 'List Price', 'Price Goal', 'Date Added', 'Note'];
+                    const rows = allBooks.map(b => [
+                        b.asin, b.title || '', b.author || '', b.series || '', b.seriesPosition ?? '',
+                        getOwnershipLabel(b), b.binding || '',
+                        (b.tags || []).join('; '),
+                        (foldersOf.get(b.id) || []).join('; '),
+                        (listsOf.get(b.id) || []).join('; '),
+                        b.myRating || '', b.rating ?? '',
+                        b.currentPrice ?? '', b.listPrice ?? '', (b.priceTrigger ?? b.targetPrice) ?? '',
+                        b.dateAdded || '', b.userNote || ''
+                    ].map(esc).join(','));
+                    const csv = '\ufeff' + header.map(esc).join(',') + '\r\n' + rows.join('\r\n') + '\r\n'; // \ufeff = the BOM; Excel needs it to read UTF-8
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+                    let savedName;
+                    if (fileHandle) {
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(blob);
+                        await writable.close();
+                        savedName = fileHandle.name;
+                    } else {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = suggestedName;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        savedName = suggestedName;
+                    }
+                    new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/spreadsheet-saved';
+                    progress.close();
+                    showToast(`Spreadsheet saved — ${allBooks.length.toLocaleString()} books, ${(blob.size / 1048576).toFixed(1)} MB → ${savedName}`);
+                } catch (error) {
+                    progress.close();
+                    console.error('Failed to save spreadsheet:', error);
+                    showInfoDialog('Spreadsheet Error', 'Failed to save the spreadsheet.');
+                }
+            };
+
             const clearLibrary = () => {
                 setResetConfirmOpen(true);
             };
@@ -8490,6 +8566,17 @@
                                                     opacity: books.length === 0 ? 0.5 : 1
                                                 }} onMouseEnter={e => books.length > 0 && (e.currentTarget.style.background = 'var(--bg-hover)')} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
                                                     💾 Save Backup…
+                                                </button>
+                                                {/* v7.10.0 - Save Spreadsheet (CSV) — first user-requested feature */}
+                                                <button onClick={() => { exportSpreadsheet(); setOpenMenuBar(null); }} disabled={books.length === 0}
+                                                    title="Your library as a spreadsheet file (CSV) — opens in Excel; includes tags, folders, and Book Lists"
+                                                    style={{
+                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
+                                                    border: 'none', background: 'var(--bg-surface)', cursor: books.length === 0 ? 'not-allowed' : 'pointer',
+                                                    transition: 'background 0.1s', color: books.length === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+                                                    opacity: books.length === 0 ? 0.5 : 1
+                                                }} onMouseEnter={e => books.length > 0 && (e.currentTarget.style.background = 'var(--bg-hover)')} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                    📊 Save Spreadsheet…
                                                 </button>
                                                 <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
                                                 {/* v5.1.0-alpha.2 - Auto-Organize wizard */}
