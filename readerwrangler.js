@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.10.1-alpha.4";  // Build version for this file
+        const ORGANIZER_VERSION = "7.10.1-alpha.5";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -2992,6 +2992,36 @@
                 const bookIds = itemIds.filter(id => bookMap.has(id));
                 const folderIdsToMove = itemIds.filter(id => folders.some(f => f.id === id));
 
+                // v7.10.1-alpha.5 (Ron #5) - a drag OUT OF TRASH is a RESTORE, not a membership move:
+                // one drag path bypassed the wired drop handlers and landed here, which shuffled
+                // membership while the book stayed isDeleted — "Moved to Inbox" yet visible nowhere.
+                // The chokepoint owns the rule now, so every surface (and future ones) inherits it.
+                // Copy-from-trash routes here too: the only sane meaning is restore.
+                if (sourceFolderId === '__trash__' && targetFolderId !== '__trash__' && bookIds.length > 0) {
+                    const trashSet = new Set(bookIds);
+                    const restoreTargetName = targetFolderId === '__inbox__' ? 'Inbox' : (folders.find(f => f.id === targetFolderId)?.name || 'folder');
+                    recordAction({
+                        type: 'RESTORE_BOOKS', bookIds: [...bookIds], targetFolderId,
+                        restoredBooks: books.filter(b => trashSet.has(b.id) && b.isDeleted).map(b => ({ id: b.id, deletedFromFolderIds: b.deletedFromFolderIds || [] })),
+                        label: `Restore ${bookCountLabel(bookIds)} to '${restoreTargetName}'`
+                    });
+                    setBooks(prev => {
+                        const updated = prev.map(b => trashSet.has(b.id) && b.isDeleted
+                            ? { ...b, isDeleted: false, deletedAt: null, deletedFromFolderIds: null }
+                            : b);
+                        saveBooksToIndexedDB(updated);
+                        return updated;
+                    });
+                    setFolders(prev => prev.map(f => {
+                        if (f.id !== targetFolderId) return f;
+                        const existing = new Set(f.bookIds || []);
+                        const toAdd = bookIds.filter(id => !existing.has(id));
+                        return toAdd.length > 0 ? { ...f, bookIds: [...toAdd, ...(f.bookIds || [])] } : f;
+                    }));
+                    showToast(`Restored ${bookCountLabel(bookIds)} to '${restoreTargetName}'`);
+                    return true;
+                }
+
                 // Validate: if ANY folder can't move, abort ENTIRE operation
                 for (const fid of folderIdsToMove) {
                     if (fid === targetFolderId || isDescendantFolder(fid, targetFolderId)) {
@@ -4401,7 +4431,11 @@
                     }
 
                     // v5.0.0-alpha.168 - Ctrl+X in Explorer view: Cut selected books
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'x' && getSelectedBookIds().length > 0) {
+                    // v7.10.1-alpha.5 (Ron) - CRITICAL: with any dialog open, book cut/copy/paste/delete
+                    // must NOT fall through to the library underneath (a Ctrl+X in the toast-history
+                    // dialog CUT a selected book). Bonus: not intercepting also lets native text-copy
+                    // work inside dialogs. Undo/redo stay live (the dialog fence governs those).
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !anyModalOpenRef.current && getSelectedBookIds().length > 0) {
                         e.preventDefault();
                         // Can't cut from virtual folders (Inbox is a real folder, allow cut)
                         if (['__all__', '__library__'].includes(selectedFolderId)) {
@@ -4420,7 +4454,7 @@
                     }
 
                     // v5.0.0-alpha.168 - Ctrl+C in Explorer view: Copy selected books
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && getSelectedBookIds().length > 0) {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !anyModalOpenRef.current && getSelectedBookIds().length > 0) { // v7.10.1-alpha.5 - modal guard
                         e.preventDefault();
                         const bookIds = getSelectedBookIds();
                         const sourcePositions = bookIds.map(bookId => ({
@@ -4434,7 +4468,7 @@
                     }
 
                     // v5.0.0-alpha.168 - Ctrl+V in Explorer view: Paste books to current folder
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboard && clipboard.bookIds && clipboard.bookIds.length > 0) {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !anyModalOpenRef.current && clipboard && clipboard.bookIds && clipboard.bookIds.length > 0) { // v7.10.1-alpha.5 - modal guard
                         e.preventDefault();
                         // Can't paste to special folders
                         if (['__all__', '__library__', '__inbox__'].includes(selectedFolderId)) {
@@ -4517,7 +4551,7 @@
 
                     // v5.0.0-alpha.46 - DEL key in Explorer: Remove selected books from current folder
                     // v6.0.0-alpha.49 - DEL key: Trash view = permanent delete, Tag view = remove tag, else = soft delete
-                    if (e.key === 'Delete' && getSelectedBookIds().length > 0) {
+                    if (e.key === 'Delete' && !anyModalOpenRef.current && getSelectedBookIds().length > 0) { // v7.10.1-alpha.5 - modal guard
                         e.preventDefault();
                         const bookIdsToDelete = getSelectedBookIds();
 
@@ -6616,8 +6650,8 @@
             }, [autoOrgPreview]);
             // v5.2.0-alpha.18 - Track whether any modal/dialog overlay is open
             useEffect(() => {
-                anyModalOpenRef.current = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview);
-            }, [modalBook, showBulkPriceModal, showBulkEditModal, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, aboutDialogOpen, shortcutsDialogOpen, howToDialogOpen, wizardHelpOpen, relayHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, autoOrgPreview]);
+                anyModalOpenRef.current = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen); // v7.10.1-alpha.5 - history dialog counts (Ctrl+X leak)
+            }, [modalBook, showBulkPriceModal, showBulkEditModal, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, aboutDialogOpen, shortcutsDialogOpen, howToDialogOpen, wizardHelpOpen, relayHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, autoOrgPreview, toastHistoryOpen]);
 
             // v6.16.0 (#55) - ←/→ navigate the open book-detail modal (not while editing or typing in a field).
             useEffect(() => {
@@ -19801,6 +19835,7 @@
                                                                 newState: newHiddenState,
                                                                 label: `${newHiddenState ? 'Hide' : 'Unhide'} ${bookCountLabel(bookIdsToToggle)}` // v7.8.0-alpha.5 named target (missed site)
                                                             });
+                                                            showToast(`${newHiddenState ? 'Hid' : 'Unhid'} ${bookCountLabel(bookIdsToToggle)}`); // v7.10.1-alpha.5 (Ron #9) - action receipt
 
                                                             setExplorerBookContextMenu(null);
                                                             setContextSubmenu(null);
