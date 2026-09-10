@@ -11,6 +11,11 @@
 
 ## 🔝 TOP OF STACK (Ron 2026-09-09/10)
 
+- [ ] **Ctrl+X from a Book List / Search view silently degrades to copy** (found during alpha.7, filed not fixed):
+  cut records the view id as source, but paste-cut removes from FOLDERS only — the book never leaves the list.
+  Fix: refuse with the explanatory toast (like All Books) or make paste-cut honor Book List sources.
+
+
 - [ ] **Book dialog goes fully transactional (7.11.0, ratified 2026-09-10 — fresh branch AFTER 7.10.1 ships)**:
   in the dialog, Edit/Save is the ONLY way anything changes (one undo per Save); everywhere else changes are
   instant commands (one undo each). Rating / price goal / tags leave view mode (read-only displays) and join

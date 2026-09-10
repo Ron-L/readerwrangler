@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.10.1-alpha.7";  // Build version for this file
+        const ORGANIZER_VERSION = "7.10.1-alpha.8";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -20127,15 +20127,10 @@
                                                     <span>Remove from "{getBookList(selectedFolderId)?.name || 'list'}"</span>
                                                     <span className="ml-auto text-xs text-gray-400">Del</span>
                                                 </div>
-                                            ) : selectedFolderId === '__all__' ? (
-                                                <div
-                                                    className="px-4 py-2 text-gray-400 cursor-not-allowed flex items-center gap-3" role="menuitem" aria-disabled="true"
-                                                    title="Delete books from their folder">
-                                                    <span>🗑️</span>
-                                                    <span>Delete</span>
-                                                    <span className="ml-auto text-xs">Del</span>
-                                                </div>
                                             ) : (
+                                                /* v7.10.1-alpha.8 (Ron) - All Books no longer disabled: softDeleteBooks
+                                                   handles aggregate views since alpha.7 (menu was the missed second site
+                                                   of the same operation the DEL key fix covered) */
                                                 <div
                                                     className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3 text-red-600" role="menuitem"
                                                     onClick={() => {
