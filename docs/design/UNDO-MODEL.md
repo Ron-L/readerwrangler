@@ -115,3 +115,36 @@ permanent deletion are not.**
   a drag you just watched needs no receipt.
 - Tag creation leaving an unused registry entry on undo remains the ratified alpha.4 decision
   (harmless).
+
+## The dialog goes FULLY transactional (ratified 2026-09-10; build queued as 7.11.0)
+
+**Defect found (Ron)**: during edit mode, the instant controls (rating stars, Buy-at price-goal
+buttons, tag input) stayed live, intermixed with staged form fields — two commit semantics in
+one surface, indistinguishable to the user.
+
+**Decision — Ron's model, adopted after genuine pushback**: *inside the dialog, Edit/Save is
+the only way anything changes (one undo per Save); everywhere else, changes are instant
+commands (one undo each).*
+
+- Dialog view mode: rating / price goal / tags become read-only displays. Edit mode: they join
+  `editBookFields` as staged fields — Cancel discards, Save commits all as the one atomic
+  EDIT_BOOK step. New-tag creation happens at Save.
+- Fields vs commands: only DATA FIELDS join the form; commands stay live in both modes (Share,
+  Amazon link, Status History, ◀▶ nav). Build begins with an enumeration pass classifying every
+  interactive dialog control — explicit, not vibes.
+- Quick access replaces dialog instant-set: line-view cell popups for Price Goal and My Rating
+  (click the cell → preset goals/custom, or the star row); right-click menus unchanged
+  (instant, atomic, undoable each).
+
+**Why the counter-proposal (freeze instant controls only during edit mode) lost**:
+1. **Context-keying (Ron's principle, now doctrine)**: users build commit semantics from the
+   interaction CONTEXT — "right-click menu" vs "form with Save/Cancel" — not from field
+   identity. Same-field-different-surface is not a real inconsistency; mixed semantics within
+   one surface is. Don't apply the formal per-field consistency test to cross-surface flows.
+2. **Precedent alignment**: OWNERSHIP-MODEL.md §4 already made Ownership and Format
+   edit-in-place staged fields. The instant controls were the anomaly in the dialog's own
+   newest pattern; this finishes that design rather than fighting it.
+
+This supersedes the level-1/2/3 table's premise that some dialog fields commit instantly —
+once built, level 2 covers EVERY field and the "three levels" collapse to: native text undo
+in-field, Cancel/Save as the transaction, one global undo step per Save.

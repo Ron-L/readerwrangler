@@ -9,7 +9,19 @@
 
 ---
 
-## 🔝 TOP OF STACK (Ron 2026-09-09, after the alpha.5 test pass)
+## 🔝 TOP OF STACK (Ron 2026-09-09/10)
+
+- [ ] **Book dialog goes fully transactional (7.11.0, ratified 2026-09-10 — fresh branch AFTER 7.10.1 ships)**:
+  in the dialog, Edit/Save is the ONLY way anything changes (one undo per Save); everywhere else changes are
+  instant commands (one undo each). Rating / price goal / tags leave view mode (read-only displays) and join
+  `editBookFields` as staged fields — Cancel discards, Save folds them into the one atomic EDIT_BOOK step;
+  new-tag creation happens at Save. Finishes the OWNERSHIP-MODEL §4 edit-in-place pattern (instant controls
+  were the anomaly). Commands stay live in both modes (Share, Amazon link, Status History, ◀▶) — build starts
+  with an enumeration pass classifying every dialog control field-vs-command (explicit, not vibes).
+  **Quick access replaces dialog instant-set**: line-view cell popups for Price Goal + My Rating (click cell →
+  preset goals/custom, or star row); decide during build whether cover right-click gains a My Rating submenu.
+  UNDO-MODEL.md §"fully transactional" has the rationale + Ron's context-keying principle.
+
 
 - [ ] **Second-generation coverage audit** — Ron's Tag-Manager rename (Adult→Mainstream) exposed TWO classes the
   alpha.4 audits never scanned: the rename wasn't recorded (audit keyed on `saveBooksToIndexedDB` = book-array
