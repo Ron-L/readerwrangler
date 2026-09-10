@@ -107,6 +107,23 @@ and re-importing brought it back as Sample.
   walked records for already-known ASINs, so a wishlist walk won't auto-update a known sample
   book. Item 6 turns those into update events; until then the manual override is the answer._
 
+**The truth path (when the fact itself is removable).** The override records *your state* over
+Amazon's fact — fine for facts you can't remove (a book you own). But an unwanted sample is a
+fact you CAN delete, and removing it at the source keeps everything literally true (Ron's
+standard, 2026-09-10: "the override is a lie — it's still a sample on my Kindle"):
+
+1. **Amazon**: delete the sample (Manage Your Content) — and add the book/series to the
+   wishlist in the same visit if that's the goal.
+2. **Full library fetch → import**: the book vanishes from the walk → RW orphan-flags it
+   (must be a FULL fetch — an incremental one can't prove absence).
+3. **RW**: delete the flagged book, **Empty Trash** (tombstone). The ASIN is now unknown.
+4. **Wishlist fetch → import**: the record isn't dup-skipped any more (ASIN unknown), lands as
+   genuine wishlist, dated after the tombstone → revives as wishlist. True end to end.
+
+_Ordering constraint (until item 6): step 3 must sit BETWEEN the two fetches — a wishlist walk
+while the sample is still a known book gets discarded as a duplicate. Amazon-side actions batch
+into one visit; RW needs two import rounds. Item 6 collapses this to one pass._
+
 ## Meta
 - **There's no single right way** — these are compositions of the same primitives (folders, Book Lists, tags, saved searches, Auto-Organize). The guide should present them as menus of trade-offs, not mandates.
 - Add new patterns here as they surface, then distill for the USER-GUIDE near launch.
