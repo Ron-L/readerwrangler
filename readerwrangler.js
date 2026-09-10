@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.10.1-alpha.8";  // Build version for this file
+        const ORGANIZER_VERSION = "7.10.1-alpha.9";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -93,6 +93,42 @@
         // detection instead of a counter: presence of the class IS the truth, nothing can drift.
         const imperativeDialogsUp = () => !!document.querySelector('.rw-imperative-overlay');
 
+        // v7.10.1-alpha.9 (Ron) - shared dismissal chrome for the imperative dialogs: Esc cancels and
+        // an ✕ in the corner closes (both yield the dialog's cancel value). Capture-phase listener so
+        // the keystroke never reaches the app underneath (keystroke scope consistency); when dialogs
+        // stack, only the TOPMOST overlay responds. showProgressDialog deliberately opts out (a running
+        // import must not be Esc-dismissed). Every exit path must use the returned close() — it detaches
+        // the listener exactly once and is idempotent.
+        function attachDialogDismiss(overlay, dialog, closeRaw, cancelValue) {
+            let closed = false;
+            const close = (val) => {
+                if (closed) return;
+                closed = true;
+                window.removeEventListener('keydown', onKey, true);
+                closeRaw(val);
+            };
+            const onKey = (e) => {
+                if (e.key !== 'Escape') return;
+                const stack = document.querySelectorAll('.rw-imperative-overlay');
+                if (stack[stack.length - 1] !== overlay) return; // not topmost — the newer dialog handles it
+                e.stopPropagation();
+                e.preventDefault();
+                close(cancelValue);
+            };
+            window.addEventListener('keydown', onKey, true);
+            const x = document.createElement('button');
+            x.textContent = '✕';
+            x.setAttribute('aria-label', 'Close');
+            x.title = 'Close';
+            x.style.cssText = 'position: absolute; top: 10px; right: 12px; background: none; border: none; font-size: 16px; line-height: 1; cursor: pointer; color: var(--text-muted); padding: 4px;';
+            x.onmouseover = () => x.style.color = 'var(--text-primary)';
+            x.onmouseout = () => x.style.color = 'var(--text-muted)';
+            x.onclick = () => close(cancelValue);
+            dialog.style.position = 'relative';
+            dialog.appendChild(x);
+            return close;
+        }
+
         function showInfoDialog(title, message) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
@@ -128,7 +164,9 @@
                 `;
                 button.onmouseover = () => button.style.background = 'var(--bg-accent-hover)';
                 button.onmouseout = () => button.style.background = 'var(--bg-accent)';
-                button.onclick = () => { document.body.removeChild(overlay); resolve(); };
+                // v7.10.1-alpha.9 - Esc + ✕ dismiss (shared chrome)
+                const close = attachDialogDismiss(overlay, dialog, () => { if (overlay.parentNode) document.body.removeChild(overlay); resolve(); }, undefined);
+                button.onclick = () => close();
 
                 dialog.appendChild(titleEl);
                 dialog.appendChild(messageEl);
@@ -256,7 +294,9 @@
                 `;
                 cancelBtn.onmouseover = () => cancelBtn.style.background = 'var(--bg-hover)';
                 cancelBtn.onmouseout = () => cancelBtn.style.background = 'var(--bg-elevated)';
-                cancelBtn.onclick = () => { document.body.removeChild(overlay); resolve(false); };
+                // v7.10.1-alpha.9 - Esc + ✕ dismiss = Cancel (shared chrome)
+                const close = attachDialogDismiss(overlay, dialog, (val) => { if (overlay.parentNode) document.body.removeChild(overlay); resolve(val); }, false);
+                cancelBtn.onclick = () => close(false);
 
                 const confirmBtn = document.createElement('button');
                 confirmBtn.textContent = confirmText;
@@ -266,7 +306,7 @@
                 `;
                 confirmBtn.onmouseover = () => confirmBtn.style.background = 'var(--bg-accent-hover)';
                 confirmBtn.onmouseout = () => confirmBtn.style.background = 'var(--bg-accent)';
-                confirmBtn.onclick = () => { document.body.removeChild(overlay); resolve(true); };
+                confirmBtn.onclick = () => close(true); // v7.10.1-alpha.9 - through the shared closer
 
                 btnRow.appendChild(cancelBtn);
                 btnRow.appendChild(confirmBtn);
@@ -296,7 +336,8 @@
                 messageEl.textContent = message;
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = `display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;`;
-                const close = (val) => { document.body.removeChild(overlay); resolve(val); };
+                // v7.10.1-alpha.9 - Esc + ✕ dismiss (shared chrome); backdrop click kept
+                const close = attachDialogDismiss(overlay, dialog, (val) => { if (overlay.parentNode) document.body.removeChild(overlay); resolve(val); }, null);
                 overlay.onclick = (e) => { if (e.target === overlay) close(null); };
                 choices.forEach((c) => {
                     const btn = document.createElement('button');
@@ -340,7 +381,9 @@
                 input.style.cssText = `width: 100%; box-sizing: border-box; margin-bottom: 24px; padding: 8px 10px; font-size: 14px; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--bg-page); color: var(--text-primary);`;
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = `display: flex; gap: 8px; justify-content: flex-end;`;
-                const close = (val) => { document.body.removeChild(overlay); resolve(val); };
+                // v7.10.1-alpha.9 - Esc + ✕ dismiss (shared chrome); the input's own Esc handler routes
+                // through the same idempotent closer
+                const close = attachDialogDismiss(overlay, dialog, (val) => { if (overlay.parentNode) document.body.removeChild(overlay); resolve(val); }, null);
                 const cancelBtn = document.createElement('button');
                 cancelBtn.textContent = cancelText;
                 cancelBtn.style.cssText = `background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border-strong); border-radius: 4px; padding: 8px 16px; font-size: 14px; cursor: pointer;`;
@@ -398,7 +441,10 @@
                 `;
                 cancelBtn.onmouseover = () => cancelBtn.style.background = 'var(--bg-hover)';
                 cancelBtn.onmouseout = () => cancelBtn.style.background = 'var(--bg-elevated)';
-                cancelBtn.onclick = () => { document.body.removeChild(overlay); resolve(null); };
+                // v7.10.1-alpha.9 - Esc + ✕ dismiss = Cancel (shared chrome) — Ron's report: the delete
+                // warning could only be dismissed by clicking Cancel
+                const close = attachDialogDismiss(overlay, dialog, (val) => { if (overlay.parentNode) document.body.removeChild(overlay); resolve(val); }, null);
+                cancelBtn.onclick = () => close(null);
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.textContent = 'Delete Anyway';
@@ -408,7 +454,7 @@
                 `;
                 deleteBtn.onmouseover = () => deleteBtn.style.background = '#b91c1c';
                 deleteBtn.onmouseout = () => deleteBtn.style.background = '#dc2626';
-                deleteBtn.onclick = () => { document.body.removeChild(overlay); resolve('delete'); };
+                deleteBtn.onclick = () => close('delete'); // v7.10.1-alpha.9 - through the shared closer
 
                 const hideBtn = document.createElement('button');
                 hideBtn.textContent = 'Hide Instead';
@@ -418,7 +464,7 @@
                 `;
                 hideBtn.onmouseover = () => hideBtn.style.background = 'var(--bg-accent-hover)';
                 hideBtn.onmouseout = () => hideBtn.style.background = 'var(--bg-accent)';
-                hideBtn.onclick = () => { document.body.removeChild(overlay); resolve('hide'); };
+                hideBtn.onclick = () => close('hide'); // v7.10.1-alpha.9 - through the shared closer
 
                 btnRow.appendChild(cancelBtn);
                 btnRow.appendChild(deleteBtn);
@@ -6829,6 +6875,9 @@
             useEffect(() => {
                 const handleModalEsc = (e) => {
                     if (e.key !== 'Escape') return;
+                    // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - Status History popover closes on Esc
+                    // (was click-outside only)
+                    if (toastHistoryOpen) { setToastHistoryOpen(false); return; }
                     // v6.13.0-alpha.7/9 - Auto-Organize preview stack: the cover right-click menu, then the preview itself
                     if (autoOrgMenu) { setAutoOrgMenu(null); return; }
                     if (autoOrgPreview) { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgHover(null); return; }
@@ -6850,6 +6899,9 @@
                     if (tagManagementOpen) { setTagManagementOpen(false); return; }
                     if (wizardModalOpen) { setWizardModalOpen(false); return; }
                     if (folderPropertiesDialog) { setFolderPropertiesDialog(null); return; }
+                    // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - these two were missing from the chain
+                    if (dupReviewOpen) { setDupReviewOpen(false); return; }
+                    if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
                     // Confirmations / info
                     if (lastCopyDialogData) { setLastCopyDialogData(null); return; }
                     if (resetConfirmOpen) { setResetConfirmOpen(false); return; }
@@ -6860,7 +6912,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData]);
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen]); // v7.10.1-alpha.9 - three added
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
