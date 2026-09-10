@@ -11,6 +11,16 @@
 
 ## 🔝 TOP OF STACK (Ron 2026-09-09/10)
 
+- [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind 7.10.1 + 7.11.0):
+  pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
+  no second ordering system three inches from the first. List reorder already undoable (7.10.1-alpha.6); pin
+  toggle joins undo. Motivation: hunting a series list in a long Book Lists column (Ctrl+F works but costs a
+  thought-process switch). Expected usage: **Name to FIND, back to Manual for priority** — Ron's top tier =
+  the `New To Read - *` work lists (mobile-filter surrogates, Prime clearing first), series To-Reads below.
+- [ ] **Left-pane type-to-filter box** (Ron 2026-09-10, companion/escalation to the above): one box narrowing
+  **Folders + Book Lists + Searches** by name — the strongest pure "find" at scale. Design questions for the
+  build: placement (whole-pane vs per-section), keyboard focus/shortcut, clear-on-navigate, interaction with
+  the accordion collapse.
 - [ ] **Ctrl+X from a Book List / Search view silently degrades to copy** (found during alpha.7, filed not fixed):
   cut records the view id as source, but paste-cut removes from FOLDERS only — the book never leaves the list.
   Fix: refuse with the explanatory toast (like All Books) or make paste-cut honor Book List sources.
@@ -28,7 +38,9 @@
   UNDO-MODEL.md §"fully transactional" has the rationale + Ron's context-keying principle.
 
 
-- [ ] **Second-generation coverage audit** — Ron's Tag-Manager rename (Adult→Mainstream) exposed TWO classes the
+- [x] **Second-generation coverage audit** — DONE in 7.10.1-alpha.6 (universal dialog fence + DIALOG_POLICY
+  registry, rename/Search/reorder undo coverage) and alpha.9 (dialog dismissal chrome). Original scope: Ron's
+  Tag-Manager rename (Adult→Mainstream) exposed TWO classes the
   alpha.4 audits never scanned: the rename wasn't recorded (audit keyed on `saveBooksToIndexedDB` = book-array
   writes only) AND Ctrl+Z passed through the dialog to the global book stack (fence exists only on book-detail).
   Three sweeps: **(A)** all NON-book persistence writers (tag registry, folders, Book Lists, saved Searches,

@@ -137,6 +137,20 @@ inconsistency-as-error — e.g. book #4 sampled before adopting RW, #5–6 added
 series-wishlist habit. The fix is one-time normalization (this pattern, or the override),
 then keeping a single habit going forward: **series wishlist-add for wanted-but-unowned books**.
 
+## Pattern: Book Lists as mobile filters (2026-09-10)
+
+Mobile can browse but not filter — so **do the filtering on desktop and freeze the results into
+Book Lists**, which mirror to the phone (order included, per the 7.6.0 mobile honesty suite).
+Ron's working set: `New To Read - Prime`, `- Sample`, `- Wishlist`, `- Time Travel`,
+`- Systemized Magic`… — each is a desktop filter pass (by ownership, tag, etc.) sorted into a
+list, then consumed from the phone. The Prime list doubles as a priority queue: clearing read
+Primes frees loan slots for new ones.
+
+Structural takeaway for the sidebar: this splits Book Lists into two tiers — a handful of
+**work lists** (filter surrogates, priority-ordered, touched daily) and a long alphabetical
+tail of **per-series To-Read queues** (hunted occasionally by name). Sidebar ordering features
+(pins, name-sort) should serve exactly that split.
+
 ## Meta
 - **There's no single right way** — these are compositions of the same primitives (folders, Book Lists, tags, saved searches, Auto-Organize). The guide should present them as menus of trade-offs, not mandates.
 - Add new patterns here as they surface, then distill for the USER-GUIDE near launch.
