@@ -83,6 +83,30 @@ _(Historical note: tags were once considered for "next reads" — still perfectl
 
 Distilled as prescriptive rules in [../SUGGESTED-ORGANIZING-PRINCIPLES.md](../SUGGESTED-ORGANIZING-PRINCIPLES.md).
 
+---
+
+## Pattern: correcting ownership — override, don't delete (2026-09-10)
+
+Live case: a series book showed as **Sample** when the user wanted it tracked as **Wishlist**
+(the whole series had been added to the Amazon wishlist). Deleting the book, emptying Trash,
+and re-importing brought it back as Sample.
+
+- **Never delete to correct ownership.** Delete means "I don't want this record." A sample
+  lives in your Amazon content library *permanently*, so every fresh fetch (dated after the
+  delete) legitimately revives it — "Amazon still reports this" beats a tombstone by design.
+  Delete-and-hope is unwinnable against a fact Amazon keeps asserting.
+- **The Ownership dropdown is the front door, not a backdoor**: book dialog → Edit →
+  Ownership → **Wishlist** (or Owned) → Save. This is one of the two legal manual transitions
+  (OWNERSHIP-MODEL.md), it's **protected from fetch overwrite** (marked user-edited), and
+  Amazon's original value is snapshotted behind a **Reset** option in the same dropdown.
+- The mental model that makes this click: RW separates **Amazon's facts** (you hold a sample)
+  from **your states** (you want this book). The override changes your state while RW keeps
+  knowing the truth underneath — it's the mechanism *designed* for "Amazon's label isn't my
+  truth."
+- _Interim caveat (until ownership-honesty batch item 6 lands): the fetchers currently discard
+  walked records for already-known ASINs, so a wishlist walk won't auto-update a known sample
+  book. Item 6 turns those into update events; until then the manual override is the answer._
+
 ## Meta
 - **There's no single right way** — these are compositions of the same primitives (folders, Book Lists, tags, saved searches, Auto-Organize). The guide should present them as menus of trade-offs, not mandates.
 - Add new patterns here as they surface, then distill for the USER-GUIDE near launch.
