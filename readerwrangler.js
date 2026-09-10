@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.10.1-alpha.6";  // Build version for this file
+        const ORGANIZER_VERSION = "7.10.1-alpha.7";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -2098,9 +2098,13 @@
                     });
                 });
 
-                // Determine which folders to remove from
-                // All Books is an aggregate view — delete is disabled there
-                const foldersToRemoveFrom = new Set([currentFolderId]);
+                // Determine which folders to remove from.
+                // v7.10.1-alpha.7 (Ron) - aggregate views (All Books / My Library / Searches) have no
+                // single source folder: delete there means delete the BOOK — remove from every folder,
+                // trash it. (Previously delete was silently disabled in All Books and silently PARTIAL
+                // in My Library/Searches: only folderless books trashed. Same fix for the whole class.)
+                const isAggregateView = currentFolderId === '__all__' || currentFolderId === '__library__' || isViewFolder(currentFolderId);
+                const foldersToRemoveFrom = isAggregateView ? new Set(folders.map(f => f.id)) : new Set([currentFolderId]);
 
                 // Calculate which books would go to trash (lose their last folder ref)
                 const tempFolders = folders.map(f => {
@@ -2194,7 +2198,9 @@
                         booksToTrash: actualBooksToTrash,
                         folderMembership,
                         fromFolderId: currentFolderId,
-                        label: `Delete ${bookCountLabel(actualBooksToTrash.length > 0 ? actualBooksToTrash : booksToRemoveFromFolder)}` // v7.8.0-alpha.4 named target
+                        // v7.10.1-alpha.7 (Ron) - name the source folder: "where did it go back to?" is THE
+                        // question when this label surfaces in an undo toast. Aggregate views stay folder-less.
+                        label: `Delete ${bookCountLabel(actualBooksToTrash.length > 0 ? actualBooksToTrash : booksToRemoveFromFolder)}${(() => { const sf = folders.find(f => f.id === currentFolderId); return sf ? ` from '${sf.name.slice(0, 40)}'` : ''; })()}`
                     });
                 }
                 if (hideInsteadIds.size > 0) {
@@ -3223,8 +3229,10 @@
                 coverTipTimerRef.current = setTimeout(() => { if (coverTipPendingRef.current) setBookTooltip(coverTipPendingRef.current); }, 280);
             };
             // v6.13.2-alpha.6 - The "In" popup shows in cover view for every content view (All Books, Inbox, Library,
-            // any folder, any Book List) — everywhere except Trash and the Views/Searches list. "See where a book lives."
-            const bookTipViewOk = (fid) => fid !== '__trash__' && fid !== '__views__';
+            // any folder, any Book List) — everywhere except the Views/Searches list. "See where a book lives."
+            // v7.10.1-alpha.7 (Ron) - Trash included: a trashed book shows its FORMER homes ("Was in:"),
+            // exactly the question you ask before restoring.
+            const bookTipViewOk = (fid) => fid !== '__views__';
             const handleCoverTip = (e, bookId) => { if (bookTipViewOk(selectedFolderId)) showCoverTipSoon(e.currentTarget, bookId, e.clientX, e.clientY); };
             const handleCoverTipLeave = () => {
                 coverTipPendingRef.current = null;
@@ -4572,8 +4580,9 @@
                     if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !dialogUp() && getSelectedBookIds().length > 0) {
                         e.preventDefault();
                         // Can't cut from virtual folders (Inbox is a real folder, allow cut)
+                        // v7.10.1-alpha.7 (Ron) - was a silent console.log dead key (Law 16): explain instead
                         if (['__all__', '__library__'].includes(selectedFolderId)) {
-                            console.log('⚠️ Cannot cut books from virtual folders');
+                            showToast("Can't cut from this view — cut moves books between folders. Use Copy, or cut from the book's folder.");
                             return;
                         }
                         const bookIds = getSelectedBookIds();
@@ -4710,10 +4719,9 @@
                         // preset, not a tag bucket you delete out of; clicking one restores filters in place
                         // (never navigates into a view folder), so this path is unreachable.
 
-                        // All Books: delete disabled (aggregate view)
-                        if (selectedFolderId === '__all__') return;
-
-                        // All other views: soft delete to Trash
+                        // v7.10.1-alpha.7 (Ron) - DEL now works in All Books (was a SILENT dead key):
+                        // soft delete needs no folder context — softDeleteBooks handles aggregate views
+                        // (remove from every folder, trash) since this alpha.
                         softDeleteBooks(bookIdsToDelete);
                         return; // Don't fall through to folder delete
                     }
@@ -16803,17 +16811,15 @@
                                                         return (
                                                         <tr
                                                             key={book.id}
-                                                            className={`group cursor-pointer border-b border-gray-100 ${isSelected(book.id) ? 'bg-blue-50' : 'hover:bg-gray-100'}`}
+                                                            className={`group cursor-pointer border-b border-gray-100 ${isSelected(book.id) ? 'bg-blue-50' : 'hover:bg-gray-100'}${clipboard?.type === 'cut' && clipboard?.bookIds?.includes(book.id) ? ' rw-cut-pending' : ''}`}
                                                             style={(() => {
                                                                 const styles = {};
                                                                 // v5.0.6 - Hidden book visual feedback (check both current and legacy formats)
                                                                 if (hiddenInstances.has(book._instanceId) || book.isHidden) {
                                                                     styles.opacity = 0.4;
                                                                 }
-                                                                // v5.0.0-alpha.168 - Cut book visual feedback (takes precedence over hidden)
-                                                                if (clipboard?.type === 'cut' && clipboard?.bookIds?.includes(book.id)) {
-                                                                    styles.opacity = 0.5;
-                                                                }
+                                                                // v7.10.1-alpha.7 (Ron) - cut feedback was opacity 0.5 — indistinguishable from
+                                                                // hidden's 0.4 (dim channel already taken). Now marching ants (.rw-cut-pending).
                                                                 return styles;
                                                             })()}
                                                             draggable="true"
@@ -17417,17 +17423,15 @@
                                                     return (
                                                     <div
                                                         key={book.id}
-                                                        className="cursor-pointer hover:opacity-80"
+                                                        className={`cursor-pointer hover:opacity-80${clipboard?.type === 'cut' && clipboard?.bookIds?.includes(book.id) ? ' rw-cut-pending' : ''}`}
                                                         style={(() => {
                                                             const styles = {};
                                                             // v5.0.6 - Hidden book visual feedback (check both current and legacy formats)
                                                             if (hiddenInstances.has(book._instanceId) || book.isHidden) {
                                                                 styles.opacity = 0.4;
                                                             }
-                                                            // v5.0.0-alpha.168 - Cut book visual feedback (takes precedence over hidden)
-                                                            if (clipboard?.type === 'cut' && clipboard?.bookIds?.includes(book.id)) {
-                                                                styles.opacity = 0.5;
-                                                            }
+                                                            // v7.10.1-alpha.7 (Ron) - cut feedback was opacity 0.5 — indistinguishable from
+                                                            // hidden's 0.4 (dim channel already taken). Now marching ants (.rw-cut-pending).
                                                             return styles;
                                                         })()}
                                                         draggable="true"
@@ -17997,7 +18001,13 @@
                     {bookTooltip && bookTipViewOk(selectedFolderId) && (() => {
                         const containingFolders = getFoldersContainingBook(bookTooltip.bookId);
                         const containingLists = getBookListsContainingBook(bookTooltip.bookId); // v6.12.0-alpha.56 (A)
-                        if (containingFolders.length === 0 && containingLists.length === 0) return null;
+                        // v7.10.1-alpha.7 (Ron) - trashed book: former homes from deletedFromFolderIds
+                        const tipBook = books.find(b => b.id === bookTooltip.bookId);
+                        const formerHomes = (tipBook?.isDeleted)
+                            ? (tipBook.deletedFromFolderIds || []).map(normFolderMembership)
+                                .map(m => folders.find(f => f.id === m.folderId)).filter(Boolean)
+                            : [];
+                        if (containingFolders.length === 0 && containingLists.length === 0 && formerHomes.length === 0) return null;
 
                         // v6.13.2-alpha.3 - Cursor-aware placement: the popup extends AWAY from where you entered the
                         // cover — up if you came in high, down if low — overlapping the cover by only ~10% (enough to
@@ -18006,6 +18016,7 @@
                         const PW = 300;
                         const estH = 20
                             + (containingFolders.length > 0 ? 24 + containingFolders.length * 26 : 0)
+                            + (formerHomes.length > 0 ? 24 + formerHomes.length * 26 : 0) // v7.10.1-alpha.7
                             + (containingLists.length > 0 ? 28 + containingLists.length * 26 : 0);
                         const vw = (typeof window !== 'undefined' ? window.innerWidth : 1200);
                         const vh = (typeof window !== 'undefined' ? window.innerHeight : 800);
@@ -18054,8 +18065,20 @@
                                     }
                                     setBookTooltip(null);
                                 }}>
+                                {/* v7.10.1-alpha.7 (Ron) - trashed book: where it lived before Trash (plain text —
+                                    navigating there wouldn't show the book, so no links) */}
+                                {formerHomes.length > 0 && (<>
+                                <div className="font-semibold text-gray-700 mb-1">Was in (before Trash):</div>
+                                <div className="flex flex-col gap-1">
+                                    {formerHomes.map(folder => (
+                                        <div key={folder.id} className="text-gray-700">
+                                            {folder.id === '__inbox__' ? '📥 ' : '📁 '}{folder.name}
+                                        </div>
+                                    ))}
+                                </div>
+                                </>)}
                                 {containingFolders.length > 0 && (<>
-                                <div className="font-semibold text-gray-700 mb-1">Found in:</div>
+                                <div className={`font-semibold text-gray-700 mb-1${formerHomes.length > 0 ? ' mt-2' : ''}`}>Found in:</div>
                                 <div className="flex flex-col gap-1">
                                     {containingFolders.map(folder => (
                                         <button
@@ -18072,7 +18095,7 @@
                                 </>)}
                                 {/* v6.12.0-alpha.56 (A) - Book Lists this book is on */}
                                 {containingLists.length > 0 && (<>
-                                <div className={`font-semibold text-gray-700 mb-1 ${containingFolders.length > 0 ? 'mt-2' : ''}`}>On Book Lists:</div>
+                                <div className={`font-semibold text-gray-700 mb-1 ${(containingFolders.length > 0 || formerHomes.length > 0) ? 'mt-2' : ''}`}>On Book Lists:</div>
                                 <div className="flex flex-col gap-1">
                                     {containingLists.map(bl => (
                                         <button

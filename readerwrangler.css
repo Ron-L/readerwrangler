@@ -921,3 +921,21 @@ body { margin: 0; padding: 0; overflow: hidden; }
     30% { opacity: 0.8; }
     100% { opacity: 0; transform: translateX(-50%) scale(1); }
 }
+
+/* ===== v7.10.1-alpha.7 - Pending-cut marching ants (Ron) =====
+   Cut books are MARKED, not moved (commit on paste — Explorer semantics). The old
+   opacity-0.5 treatment collided with hidden books' 0.4 dim (one channel, two meanings).
+   Excel/Photoshop convention instead: animated dashed border + soft glow pulse.
+   Keyed off clipboard state in JS, so Esc / paste / new-cut clear it automatically. */
+.rw-cut-pending {
+    outline: 2px dashed #3b82f6;
+    outline-offset: 2px;
+    animation: rw-cut-glow 1.2s ease-in-out infinite;
+}
+tr.rw-cut-pending {
+    outline-offset: -2px; /* keep the ants inside the row bounds */
+}
+@keyframes rw-cut-glow {
+    0%, 100% { box-shadow: 0 0 4px 1px rgba(59, 130, 246, 0.25); }
+    50%      { box-shadow: 0 0 10px 3px rgba(59, 130, 246, 0.55); }
+}
