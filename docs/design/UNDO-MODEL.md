@@ -68,3 +68,50 @@ toasts (scattered showToast calls, no chokepoint) are deliberately deferred, NOT
 bulk keep counts, explanatory clauses survive (e.g. the load-bearing "purchased" in the
 hide-instead toast). This split was originally made silently — caught, analyzed, and turned
 into the scope-narrowing rule (memory: feedback_scope_narrowing).
+
+## The universal dialog fence — DIALOG_POLICY registry (7.10.1-alpha.6, ratified 2026-09-09)
+
+Ron's Tag Manager rename (Adult→Mainstream, Ctrl+Z undid an earlier BOOK action instead)
+exposed that the fence covered only the book dialog; every other dialog silently forwarded
+Ctrl+Z to the global stack — the outlawed third state.
+
+**The rule — keystroke scope consistency (Ron's formulation)**: *while a dialog is open, every
+keystroke applies to the dialog or to nothing.* Ctrl+C copying dialog text while Ctrl+Z reaches
+the world behind it is two scopes on adjacent keys — rejected. This also collapsed the proposed
+fence/block/allow taxonomy to ONE policy:
+
+- **Every dialog is fenced.** The fence stamps when the first dialog opens (rising edge of the
+  registry), undo/redo refuse to pop below it. A dialog that records actions while open (book
+  detail, Tag Manager) gets scoped undo above the fence for free; one that records nothing
+  (Status History, bulk pickers, confirms) yields the info toast. No categories to pick = no
+  policy to get wrong when adding a dialog.
+- **The registry** (`anyDialogOpen`, readerwrangler.js) is THE list of dialogs; `dialogUp()` =
+  registry ∪ imperative overlays. It drives: the fence, book cut/copy/paste/Delete guards,
+  Ctrl+A, Alt+←/→ nav, and Esc's selection/clipboard clearing (Esc that closes a dialog no
+  longer wipes the cut clipboard underneath). Audit additions: relaySetupOpen, dupReviewOpen,
+  tagFromCollectionsOpen were missing; imperative overlays (showConfirm/Input/Info/Choice/
+  Progress/DeleteWarning) are detected by DOM class `rw-imperative-overlay` and block undo/redo
+  outright (they stamp no fence).
+- Nested dialogs keep the outer fence (same away-from-main-view session); book-dialog ◀▶ nav
+  still re-stamps.
+
+## Coverage doctrine (7.10.1-alpha.6): gaps, not coverage, cause mis-undo
+
+The feared scenario "user hits Ctrl+Z, something OLDER than expected reverts" happens exactly
+when the most recent gesture was NOT recorded — undo reaches past it. Total coverage of data
+mutations is therefore the fix, not the risk. Convention split (ratified): **data mutations
+all undoable; view state (selection, scroll, collapse, filters, theme) and explicitly-confirmed
+permanent deletion are not.**
+
+- **Renames** (the class that bit): folder (inline ×4 + Properties dialog), tag, Search,
+  Book List — all route through ops-layer chokepoints (`renameFolder`/`renameTag`/
+  `renameSearch`/`renameBookList`/`editFolderProps`), each undoable + receipt toast.
+  Naming a just-created folder/list folds into its CREATE record (Finder convention: one
+  undo removes the named thing). Inline editors double-fire Enter+blur from the same stale
+  render — absorbed by a 500ms keyed guard, not state comparison.
+- **Searches**: create (SEARCH_CREATE) and delete (SEARCH_DELETE, 2 sites → `deleteSearch`)
+  undoable with receipts, matching Book Lists.
+- **Reorders** (tags / Searches / Book Lists): undoable and SILENT — REORDER_FOLDER convention,
+  a drag you just watched needs no receipt.
+- Tag creation leaving an unused registry entry on undo remains the ratified alpha.4 decision
+  (harmless).

@@ -9,6 +9,20 @@
 
 ---
 
+## 🔝 TOP OF STACK (Ron 2026-09-09, after the alpha.5 test pass)
+
+- [ ] **Second-generation coverage audit** — Ron's Tag-Manager rename (Adult→Mainstream) exposed TWO classes the
+  alpha.4 audits never scanned: the rename wasn't recorded (audit keyed on `saveBooksToIndexedDB` = book-array
+  writes only) AND Ctrl+Z passed through the dialog to the global book stack (fence exists only on book-detail).
+  Three sweeps: **(A)** all NON-book persistence writers (tag registry, folders, Book Lists, saved Searches,
+  settings) × undoable? receipt? — non-undoable must be a recorded decision, not an accident; **(B)** modal ×
+  live-global-shortcut matrix (alpha.5 fixed X/C/V/Delete; what else passes up? Ctrl+A, arrows, F2…);
+  **(C)** fence policy per modal — every modal either has its own fence (records undoables, e.g. Tag Manager
+  once RENAME_TAG exists) or blocks Ctrl+Z with the info toast; NO silent forwarding to the global stack.
+  Tag Manager fix (RENAME_TAG action + receipt + fence) falls out of the audit.
+
+---
+
 ## ⏸️ Ownership-honesty batch (ratified 2026-09-04, HELD — awaiting Ron's go; likely 7.8.0)
 
 Shipped so far: item 0 + ownership-dialog redesign + undo fence + undo-toast naming → **7.8.0** (2026-09-08);

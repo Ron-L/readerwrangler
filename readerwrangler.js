@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.10.1-alpha.5";  // Build version for this file
+        const ORGANIZER_VERSION = "7.10.1-alpha.6";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -88,9 +88,15 @@
 
         // v5.0.0-alpha.130: Reusable info dialog for large messages (avoids alert() scrollbar issues)
         // v5.5.7-alpha.13: CSS variables for dark mode support
+        // v7.10.1-alpha.6 (DIALOG_POLICY, audit sweep B) - the imperative overlays (confirm/input/info/
+        // choice/progress/delete-warning) live outside React, so the registry can't see them. DOM
+        // detection instead of a counter: presence of the class IS the truth, nothing can drift.
+        const imperativeDialogsUp = () => !!document.querySelector('.rw-imperative-overlay');
+
         function showInfoDialog(title, message) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
+                overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
                 overlay.style.cssText = `
                     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
                     background: rgba(0, 0, 0, 0.5);
@@ -136,6 +142,7 @@
         // Returns controller: { update(msg), finish(title, msg), close() }
         function showProgressDialog(title, message) {
             const overlay = document.createElement('div');
+            overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
             overlay.style.cssText = `
                 position: fixed; top: 0; left: 0; right: 0; bottom: 0;
                 background: rgba(0, 0, 0, 0.5);
@@ -214,6 +221,7 @@
         function showConfirmDialog(title, message, confirmText = 'OK', cancelText = 'Cancel') {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
+                overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
                 overlay.style.cssText = `
                     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
                     background: rgba(0, 0, 0, 0.5);
@@ -276,6 +284,7 @@
         function showChoiceDialog(title, message, choices) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
+                overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
                 overlay.style.cssText = `position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;`;
                 const dialog = document.createElement('div');
                 dialog.style.cssText = `background: var(--bg-surface); border-radius: 8px; padding: 24px; max-width: 540px; width: 90%; box-shadow: var(--shadow-modal); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;`;
@@ -316,6 +325,7 @@
         function showInputDialog(title, message, defaultValue = '', placeholder = '', confirmText = 'OK', cancelText = 'Cancel') {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
+                overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
                 overlay.style.cssText = `position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;`;
                 const dialog = document.createElement('div');
                 dialog.style.cssText = `background: var(--bg-surface); border-radius: 8px; padding: 24px; max-width: 500px; width: 90%; box-shadow: var(--shadow-modal); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;`;
@@ -351,6 +361,7 @@
         function showDeleteWarningDialog(purchasedCount) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
+                overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
                 overlay.style.cssText = `
                     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
                     background: rgba(0, 0, 0, 0.5);
@@ -768,6 +779,11 @@
             const dialogRedoFenceRef = useRef(0);
             const isEditingBookRef = useRef(false); // v7.8.0-alpha.4 - edit mode blocks global undo (Ctrl+Z = text there)
             const anyModalOpenRef = useRef(false); // v5.2.0-alpha.18 - Track any modal open for global key guard
+            const prevAnyDialogOpenRef = useRef(false); // v7.10.1-alpha.6 - rising-edge detector for the universal fence
+            // v7.10.1-alpha.6 (DIALOG_POLICY) - THE gate for "is any dialog up": React-registry dialogs
+            // plus the imperative overlays (confirm/input/progress...). Every global shortcut that acts
+            // on the library consults this, not anyModalOpenRef directly.
+            const dialogUp = () => anyModalOpenRef.current || imperativeDialogsUp();
             const autoOrgPreviewRef = useRef(null); // v6.16.0 - current auto-organize preview, for the keydown handler (which doesn't dep on it)
             const backdropMouseDownRef = useRef(null); // v5.2.0-alpha.15 - Track mousedown origin for backdrop close (prevents swipe-past-edge closing modals)
             const [contextMenu, setContextMenu] = useState(null); // {x, y, bookId, columnId}
@@ -804,10 +820,13 @@
             };
             const reorderTags = (draggedId, targetId) => {
                 if (!draggedId || draggedId === targetId) return;
-                const ordered = tagOrderedNames();
+                const before = tagOrderedNames();
+                const ordered = [...before];
                 const from = ordered.indexOf(draggedId), to = ordered.indexOf(targetId);
                 if (from < 0 || to < 0) return;
                 ordered.splice(to, 0, ordered.splice(from, 1)[0]);
+                // v7.10.1-alpha.6 (audit sweep A) - undoable, silent (REORDER_FOLDER convention)
+                recordAction({ type: 'REORDER_TAGS', orderBefore: before, orderAfter: ordered, label: 'Reorder tags' });
                 setTagRegistry(prev => { const next = { ...prev }; ordered.forEach((name, i) => { if (next[name]) next[name] = { ...next[name], order: i }; }); return next; });
             };
             const [selectedCollections, setSelectedCollections] = useState([]); // v5.0.0-alpha.175.41 - Phase 5.2: Collections filter (array, OR logic)
@@ -1354,6 +1373,104 @@
                 showToast(`Created Book List '${finalName}'`);
             };
 
+            // ===== v7.10.1-alpha.6 (audit sweep A) - rename / Search / reorder operations =====
+            // THE chokepoints: every rename surface routes here so undo + receipt can't be forgotten
+            // at a call site (the class that bit us: 10 silent, non-undoable rename sites).
+            // renameGuardRef absorbs the inline editors' Enter+blur double-fire — both fire from the
+            // same stale render, so state comparison can't dedupe them; a short time window can.
+            const renameGuardRef = useRef({ key: null, t: 0 });
+            const renameGuardPasses = (key) => {
+                const now = Date.now();
+                if (renameGuardRef.current.key === key && now - renameGuardRef.current.t < 500) return false;
+                renameGuardRef.current = { key, t: now };
+                return true;
+            };
+            const renameFolder = (folderId, newName) => {
+                const f = folders.find(x => x.id === folderId);
+                const nm = (newName || '').trim();
+                if (!f || !nm || nm === f.name) return false;
+                if (!renameGuardPasses(`folder:${folderId}:${nm}`)) return true;
+                setFolders(prev => prev.map(x => x.id === folderId ? { ...x, name: nm } : x));
+                // Naming a JUST-created folder is part of creation (Finder convention): fold the name
+                // into the CREATE_FOLDER record — one undo removes the named folder, no separate rename.
+                const stack = undoStackRef.current || [];
+                const last = stack[stack.length - 1];
+                if (last && last.type === 'CREATE_FOLDER' && last.folderId === folderId) {
+                    setUndoStack(prev => {
+                        const l = prev[prev.length - 1];
+                        return (l && l.type === 'CREATE_FOLDER' && l.folderId === folderId)
+                            ? [...prev.slice(0, -1), { ...l, label: `Create folder '${nm}'`, folder: { ...l.folder, name: nm } }]
+                            : prev;
+                    });
+                    showToast(`Created folder '${nm.slice(0, 40)}'`);
+                    return true;
+                }
+                recordAction({ type: 'RENAME_FOLDER', folderId, prevName: f.name, newName: nm, label: `Rename folder '${f.name.slice(0, 40)}' to '${nm.slice(0, 40)}'` });
+                showToast(`Renamed folder '${f.name.slice(0, 40)}' to '${nm.slice(0, 40)}'`);
+                return true;
+            };
+            const editFolderProps = (folderId, { name, description }) => {
+                const f = folders.find(x => x.id === folderId);
+                const nm = (name || '').trim();
+                if (!f || !nm) return false;
+                const desc = description !== undefined ? description : f.description;
+                if (nm === f.name && desc === f.description) return false;
+                recordAction({ type: 'EDIT_FOLDER_PROPS', folderId, prev: { name: f.name, description: f.description }, next: { name: nm, description: desc }, label: `Edit folder '${f.name.slice(0, 40)}'` });
+                setFolders(prev => prev.map(x => x.id === folderId ? { ...x, name: nm, description: desc } : x));
+                showToast(`Updated folder '${nm.slice(0, 40)}'`);
+                return true;
+            };
+            const renameTag = (tagId, newLabel) => {
+                const entry = tagRegistry[tagId];
+                const nm = (newLabel || '').trim();
+                if (!entry || !nm || nm === entry.label) return false;
+                if (!renameGuardPasses(`tag:${tagId}:${nm}`)) return true;
+                recordAction({ type: 'RENAME_TAG', tagId, prevLabel: entry.label, newLabel: nm, label: `Rename tag '${entry.label.slice(0, 40)}' to '${nm.slice(0, 40)}'` });
+                setTagRegistry(prev => prev[tagId] ? { ...prev, [tagId]: { ...prev[tagId], label: nm } } : prev);
+                showToast(`Renamed tag '${entry.label.slice(0, 40)}' to '${nm.slice(0, 40)}'`);
+                return true;
+            };
+            const renameSearch = (viewId, newName) => {
+                const sv = savedSearches.find(v => v.id === viewId);
+                const nm = (newName || '').trim();
+                if (!sv || !nm || nm === (sv.name || '')) return false;
+                if (!renameGuardPasses(`search:${viewId}:${nm}`)) return true;
+                const prevName = sv.name || '';
+                recordAction({ type: 'RENAME_SEARCH', viewId, prevName, newName: nm, label: prevName ? `Rename Search '${prevName.slice(0, 40)}' to '${nm.slice(0, 40)}'` : `Name Search '${nm.slice(0, 40)}'` });
+                setSavedSearches(prev => prev.map(v => v.id === viewId ? { ...v, name: nm } : v));
+                showToast(prevName ? `Renamed Search '${prevName.slice(0, 40)}' to '${nm.slice(0, 40)}'` : `Named Search '${nm.slice(0, 40)}'`);
+                return true;
+            };
+            const renameBookList = (blId, newName) => {
+                const bl = bookLists.find(x => x.id === blId);
+                const nm = (newName || '').trim();
+                if (!bl || !nm || nm === bl.name) return false;
+                if (!renameGuardPasses(`booklist:${blId}:${nm}`)) return true;
+                setBookLists(prev => prev.map(x => x.id === blId ? { ...x, name: nm } : x));
+                // Naming a just-created list is part of creation — finalizeCreatedBookList (called by
+                // the editor alongside this) folds the name into BOOKLIST_CREATE and toasts. Skip here.
+                const last = (undoStackRef.current || [])[(undoStackRef.current || []).length - 1];
+                if (last && last.type === 'BOOKLIST_CREATE' && last.bookList?.id === blId) return true;
+                recordAction({ type: 'RENAME_BOOKLIST', bookListId: blId, prevName: bl.name, newName: nm, label: `Rename Book List '${bl.name.slice(0, 40)}' to '${nm.slice(0, 40)}'` });
+                showToast(`Renamed Book List '${bl.name.slice(0, 40)}' to '${nm.slice(0, 40)}'`);
+                return true;
+            };
+            const deleteSearch = (viewId) => {
+                const sv = savedSearches.find(v => v.id === viewId);
+                if (!sv) return false;
+                recordAction({ type: 'SEARCH_DELETE', search: { ...sv }, label: sv.name ? `Delete Search '${sv.name.slice(0, 40)}'` : 'Delete Search' });
+                setSavedSearches(prev => prev.filter(v => v.id !== viewId));
+                showToast(sv.name ? `Deleted Search '${sv.name.slice(0, 40)}'` : 'Deleted Search');
+                return true;
+            };
+            // Reorders record silently (REORDER_FOLDER convention: a drag you just watched needs no receipt)
+            const repositionSearch = (viewId, newPos) => {
+                const sv = savedSearches.find(v => v.id === viewId);
+                if (!sv || newPos === sv.position) return;
+                recordAction({ type: 'REORDER_SEARCH', viewId, prevPos: sv.position, newPos, label: 'Reorder Searches' });
+                setSavedSearches(prev => prev.map(v => v.id === viewId ? { ...v, position: newPos } : v));
+            };
+
             // v6.10.0-alpha.17 - Build filter object from current active filters
             const buildCurrentFilters = () => {
                 const f = {};
@@ -1464,7 +1581,9 @@
                 if (name === null) return false;
                 const trimmed = (name || '').trim();
                 const maxPos = savedSearches.length > 0 ? Math.max(...savedSearches.map(v => v.position ?? 0)) : -1;
-                setSavedSearches(prev => [...prev, { id: `view_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name: trimmed, filters, position: maxPos + 1 }]);
+                const newSearch = { id: `view_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name: trimmed, filters, position: maxPos + 1 };
+                recordAction({ type: 'SEARCH_CREATE', search: { ...newSearch }, label: trimmed ? `Save Search '${trimmed.slice(0, 40)}'` : 'Save Search' }); // v7.10.1-alpha.6 (audit sweep A) - undoable, like BOOKLIST_CREATE
+                setSavedSearches(prev => [...prev, newSearch]);
                 showToast(trimmed ? `Saved as a Search: "${trimmed}"` : 'Saved as a Search');
                 return true;
             };
@@ -2583,15 +2702,17 @@
             // v6.12.0-alpha.57 (G) - Reorder the Book Lists themselves: drop one list onto another → insert at the
             // target's slot, then renumber positions 0..N (the sidebar sorts by position).
             const reorderBookLists = (draggedId, targetId) => {
-                setBookLists(prev => {
-                    const sorted = [...prev].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-                    const from = sorted.findIndex(b => b.id === draggedId);
-                    const to = sorted.findIndex(b => b.id === targetId);
-                    if (from === -1 || to === -1 || from === to) return prev;
-                    const [moved] = sorted.splice(from, 1);
-                    sorted.splice(to, 0, moved);
-                    return sorted.map((b, i) => ({ ...b, position: i }));
-                });
+                // v7.10.1-alpha.6 (audit sweep A) - undoable, silent (REORDER_FOLDER convention)
+                const sorted = [...bookLists].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+                const from = sorted.findIndex(b => b.id === draggedId);
+                const to = sorted.findIndex(b => b.id === targetId);
+                if (from === -1 || to === -1 || from === to) return;
+                const positionsBefore = {}; bookLists.forEach(b => { positionsBefore[b.id] = b.position ?? 0; });
+                const [moved] = sorted.splice(from, 1);
+                sorted.splice(to, 0, moved);
+                const positionsAfter = {}; sorted.forEach((b, i) => { positionsAfter[b.id] = i; });
+                recordAction({ type: 'REORDER_BOOKLISTS', positionsBefore, positionsAfter, label: 'Reorder Book Lists' });
+                setBookLists(prev => prev.map(b => ({ ...b, position: positionsAfter[b.id] !== undefined ? positionsAfter[b.id] : (b.position ?? 0) })));
             };
 
             // v6.12.0 - Number the given book ids in the order provided, optionally set a series name. Undoable,
@@ -4339,17 +4460,23 @@
             useEffect(() => {
                 const handleKeyDown = async (e) => {
                     if (e.key === 'Escape') {
-                        clearSelection();
                         setContextMenu(null);
-                        // v4.16.0 - Also clear clipboard on Escape
-                        setClipboard(null);
-                        // v4.16.0.g - Clear clipboard message on Escape
-                        setClipboardMessage(null);
                         // v4.16.0.l - Clear toast state on Escape
                         setToastVisible(false);
                         setToastAnimating(false);
-                        // v4.16.0.o - Clear footer clipboard visibility
-                        setFooterClipboardVisible(false);
+                        // v7.10.1-alpha.6 (audit sweep B) - the Esc that closes a dialog must NOT also
+                        // wipe the selection and the cut clipboard underneath it (cut books, open any
+                        // dialog, Esc to close = cut silently gone). Selection/clipboard clearing is a
+                        // main-view gesture only.
+                        if (!dialogUp()) {
+                            clearSelection();
+                            // v4.16.0 - Also clear clipboard on Escape
+                            setClipboard(null);
+                            // v4.16.0.g - Clear clipboard message on Escape
+                            setClipboardMessage(null);
+                            // v4.16.0.o - Clear footer clipboard visibility
+                            setFooterClipboardVisible(false);
+                        }
                     }
 
                     // v4.21.1.a - Let browser handle Ctrl+A/C/X natively when input/textarea focused
@@ -4364,7 +4491,7 @@
                     }
 
                     // v5.2.0-alpha.18 - Skip DEL when any modal/dialog is open (even without input focus)
-                    if (anyModalOpenRef.current && e.key === 'Delete') {
+                    if (dialogUp() && e.key === 'Delete') { // v7.10.1-alpha.6 - imperative overlays too
                         return;
                     }
 
@@ -4388,11 +4515,12 @@
                     }
 
                     // v5.0.0-alpha.92 - Alt+Left: Back, Alt+Right: Forward
-                    if (e.altKey && e.key === 'ArrowLeft') {
+                    // v7.10.1-alpha.6 (audit sweep B) - not while a dialog is up (was navigating folders BEHIND it)
+                    if (e.altKey && e.key === 'ArrowLeft' && !dialogUp()) {
                         e.preventDefault();
                         goBack();
                     }
-                    if (e.altKey && e.key === 'ArrowRight') {
+                    if (e.altKey && e.key === 'ArrowRight' && !dialogUp()) {
                         e.preventDefault();
                         goForward();
                     }
@@ -4414,6 +4542,12 @@
 
 
                     // v5.0.0-alpha.102 - Ctrl+A: Select all visible books/folders
+                    // v7.10.1-alpha.6 (audit sweep B) - not while a dialog is up: it silently selected
+                    // every explorer item UNDER the dialog (close + Delete = mass trash). Return without
+                    // preventDefault so native select-all still works on dialog text.
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'a' && dialogUp()) {
+                        return;
+                    }
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
                         e.preventDefault(); // Prevent browser's select-all
 
@@ -4435,7 +4569,7 @@
                     // must NOT fall through to the library underneath (a Ctrl+X in the toast-history
                     // dialog CUT a selected book). Bonus: not intercepting also lets native text-copy
                     // work inside dialogs. Undo/redo stay live (the dialog fence governs those).
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !anyModalOpenRef.current && getSelectedBookIds().length > 0) {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !dialogUp() && getSelectedBookIds().length > 0) {
                         e.preventDefault();
                         // Can't cut from virtual folders (Inbox is a real folder, allow cut)
                         if (['__all__', '__library__'].includes(selectedFolderId)) {
@@ -4454,7 +4588,7 @@
                     }
 
                     // v5.0.0-alpha.168 - Ctrl+C in Explorer view: Copy selected books
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !anyModalOpenRef.current && getSelectedBookIds().length > 0) { // v7.10.1-alpha.5 - modal guard
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !dialogUp() && getSelectedBookIds().length > 0) { // v7.10.1-alpha.5 - modal guard
                         e.preventDefault();
                         const bookIds = getSelectedBookIds();
                         const sourcePositions = bookIds.map(bookId => ({
@@ -4468,7 +4602,7 @@
                     }
 
                     // v5.0.0-alpha.168 - Ctrl+V in Explorer view: Paste books to current folder
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !anyModalOpenRef.current && clipboard && clipboard.bookIds && clipboard.bookIds.length > 0) { // v7.10.1-alpha.5 - modal guard
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !dialogUp() && clipboard && clipboard.bookIds && clipboard.bookIds.length > 0) { // v7.10.1-alpha.5 - modal guard
                         e.preventDefault();
                         // Can't paste to special folders
                         if (['__all__', '__library__', '__inbox__'].includes(selectedFolderId)) {
@@ -4551,7 +4685,7 @@
 
                     // v5.0.0-alpha.46 - DEL key in Explorer: Remove selected books from current folder
                     // v6.0.0-alpha.49 - DEL key: Trash view = permanent delete, Tag view = remove tag, else = soft delete
-                    if (e.key === 'Delete' && !anyModalOpenRef.current && getSelectedBookIds().length > 0) { // v7.10.1-alpha.5 - modal guard
+                    if (e.key === 'Delete' && !dialogUp() && getSelectedBookIds().length > 0) { // v7.10.1-alpha.5 - modal guard
                         e.preventDefault();
                         const bookIdsToDelete = getSelectedBookIds();
 
@@ -4680,7 +4814,7 @@
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
                     // Skip if any modal/dialog or context menu is open
-                    if (folderContextMenu || folderPropertiesDialog || anyModalOpenRef.current) return;
+                    if (folderContextMenu || folderPropertiesDialog || dialogUp()) return; // v7.10.1-alpha.6 - imperative overlays too
 
                     const currentFolder = folders.find(f => f.id === selectedFolderId);
                     if (!currentFolder) return;
@@ -6648,10 +6782,25 @@
             useEffect(() => {
                 autoOrgPreviewRef.current = autoOrgPreview;
             }, [autoOrgPreview]);
-            // v5.2.0-alpha.18 - Track whether any modal/dialog overlay is open
+            // v7.10.1-alpha.6 (DIALOG_POLICY registry, audit sweeps B+C) - THE single list of dialogs.
+            // Adding a dialog = adding it here (and to Esc dismissal); everything else derives:
+            //   • anyModalOpenRef / dialogUp() — gates book cut/copy/paste/delete, Ctrl+A, Alt+nav,
+            //     and Esc's selection/clipboard clearing
+            //   • the UNIVERSAL undo fence — stamped when the first dialog opens (rising edge below).
+            //     Every dialog is fenced: while one is open, undo/redo reach only actions recorded
+            //     since it opened. Dialogs that record actions (book detail, Tag Manager) get scoped
+            //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
+            //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
+            // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
+            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen);
             useEffect(() => {
-                anyModalOpenRef.current = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen); // v7.10.1-alpha.5 - history dialog counts (Ctrl+X leak)
-            }, [modalBook, showBulkPriceModal, showBulkEditModal, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, aboutDialogOpen, shortcutsDialogOpen, howToDialogOpen, wizardHelpOpen, relayHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, autoOrgPreview, toastHistoryOpen]);
+                anyModalOpenRef.current = anyDialogOpen;
+                if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
+                    dialogUndoFenceRef.current = undoStackRef.current.length;
+                    dialogRedoFenceRef.current = redoStackRef.current.length;
+                }
+                prevAnyDialogOpenRef.current = anyDialogOpen;
+            }, [anyDialogOpen]);
 
             // v6.16.0 (#55) - ←/→ navigate the open book-detail modal (not while editing or typing in a field).
             useEffect(() => {
@@ -6734,7 +6883,9 @@
                 SOFT_DELETE_BOOKS: 'Delete books', RESTORE_BOOKS: 'Restore books', SEQUENCE_SERIES: 'Number series',
                 TAG_BOOKS_DRAG: 'Tag books', WIZARD_ORGANIZE: 'Auto-Organize', COMPOUND: 'Multiple changes',
                 SET_PRICE_GOAL: 'Price goal', // v7.10.1-alpha.3
-                SET_RATING: 'Rate book', SET_TAGS: 'Tag books', RESOLVE_DUPLICATES: 'Remove duplicates', HIDE_COPIES: 'Hide copies', DELETE_TAGS: 'Delete tag' // v7.10.1-alpha.4
+                SET_RATING: 'Rate book', SET_TAGS: 'Tag books', RESOLVE_DUPLICATES: 'Remove duplicates', HIDE_COPIES: 'Hide copies', DELETE_TAGS: 'Delete tag', // v7.10.1-alpha.4
+                RENAME_FOLDER: 'Rename folder', EDIT_FOLDER_PROPS: 'Edit folder', RENAME_TAG: 'Rename tag', RENAME_SEARCH: 'Rename Search', RENAME_BOOKLIST: 'Rename Book List',
+                SEARCH_CREATE: 'Save Search', SEARCH_DELETE: 'Delete Search', REORDER_TAGS: 'Reorder tags', REORDER_SEARCH: 'Reorder Searches', REORDER_BOOKLISTS: 'Reorder Book Lists' // v7.10.1-alpha.6
             };
             // v7.8.0-alpha.4 (UNDO-MODEL.md) - toast targets: 1 book → its title, N → the honest count.
             // Cover view can't show a field reverting; a toast that names its target can be trusted anyway.
@@ -7173,6 +7324,38 @@
                         });
                         setTagFilter([...action.prevTagFilter]);
                         if (action.removedSearches.length > 0) setSavedSearches(prev => [...prev, ...action.removedSearches]);
+                        break;
+                    // v7.10.1-alpha.6 (audit sweep A) - rename / Search / reorder coverage
+                    case 'RENAME_FOLDER':
+                        setFolders(prev => prev.map(f => f.id === action.folderId ? { ...f, name: action.prevName } : f));
+                        break;
+                    case 'EDIT_FOLDER_PROPS':
+                        setFolders(prev => prev.map(f => f.id === action.folderId ? { ...f, name: action.prev.name, description: action.prev.description } : f));
+                        break;
+                    case 'RENAME_TAG':
+                        setTagRegistry(prev => prev[action.tagId] ? { ...prev, [action.tagId]: { ...prev[action.tagId], label: action.prevLabel } } : prev);
+                        break;
+                    case 'RENAME_SEARCH':
+                        setSavedSearches(prev => prev.map(v => v.id === action.viewId ? { ...v, name: action.prevName } : v));
+                        break;
+                    case 'RENAME_BOOKLIST':
+                        setBookLists(prev => prev.map(b => b.id === action.bookListId ? { ...b, name: action.prevName } : b));
+                        break;
+                    case 'SEARCH_CREATE':
+                        setSavedSearches(prev => prev.filter(v => v.id !== action.search.id));
+                        if (isViewFolder(selectedFolderId) && getViewId(selectedFolderId) === action.search.id) navigateToFolder('__all__');
+                        break;
+                    case 'SEARCH_DELETE':
+                        setSavedSearches(prev => prev.some(v => v.id === action.search.id) ? prev : [...prev, { ...action.search }]);
+                        break;
+                    case 'REORDER_TAGS':
+                        setTagRegistry(prev => { const next = { ...prev }; action.orderBefore.forEach((name, i) => { if (next[name]) next[name] = { ...next[name], order: i }; }); return next; });
+                        break;
+                    case 'REORDER_SEARCH':
+                        setSavedSearches(prev => prev.map(v => v.id === action.viewId ? { ...v, position: action.prevPos } : v));
+                        break;
+                    case 'REORDER_BOOKLISTS':
+                        setBookLists(prev => prev.map(b => action.positionsBefore[b.id] !== undefined ? { ...b, position: action.positionsBefore[b.id] } : b));
                         break;
                     case 'BAKE_ORDER':
                         // v7.6.0-alpha.14 (wave D) - Undo bake: restore the pre-bake order fields verbatim
@@ -7692,6 +7875,38 @@
                         }
                         break;
                     }
+                    // v7.10.1-alpha.6 (audit sweep A) - rename / Search / reorder coverage
+                    case 'RENAME_FOLDER':
+                        setFolders(prev => prev.map(f => f.id === action.folderId ? { ...f, name: action.newName } : f));
+                        break;
+                    case 'EDIT_FOLDER_PROPS':
+                        setFolders(prev => prev.map(f => f.id === action.folderId ? { ...f, name: action.next.name, description: action.next.description } : f));
+                        break;
+                    case 'RENAME_TAG':
+                        setTagRegistry(prev => prev[action.tagId] ? { ...prev, [action.tagId]: { ...prev[action.tagId], label: action.newLabel } } : prev);
+                        break;
+                    case 'RENAME_SEARCH':
+                        setSavedSearches(prev => prev.map(v => v.id === action.viewId ? { ...v, name: action.newName } : v));
+                        break;
+                    case 'RENAME_BOOKLIST':
+                        setBookLists(prev => prev.map(b => b.id === action.bookListId ? { ...b, name: action.newName } : b));
+                        break;
+                    case 'SEARCH_CREATE':
+                        setSavedSearches(prev => prev.some(v => v.id === action.search.id) ? prev : [...prev, { ...action.search }]);
+                        break;
+                    case 'SEARCH_DELETE':
+                        setSavedSearches(prev => prev.filter(v => v.id !== action.search.id));
+                        if (isViewFolder(selectedFolderId) && getViewId(selectedFolderId) === action.search.id) navigateToFolder('__all__');
+                        break;
+                    case 'REORDER_TAGS':
+                        setTagRegistry(prev => { const next = { ...prev }; action.orderAfter.forEach((name, i) => { if (next[name]) next[name] = { ...next[name], order: i }; }); return next; });
+                        break;
+                    case 'REORDER_SEARCH':
+                        setSavedSearches(prev => prev.map(v => v.id === action.viewId ? { ...v, position: action.newPos } : v));
+                        break;
+                    case 'REORDER_BOOKLISTS':
+                        setBookLists(prev => prev.map(b => action.positionsAfter[b.id] !== undefined ? { ...b, position: action.positionsAfter[b.id] } : b));
+                        break;
                     case 'BAKE_ORDER':
                         // v7.6.0-alpha.14 (wave D) - Redo bake: re-apply the baked order fields
                         setFolders(prev => prev.map(f => applyOrderFields(f, action.orderAfter)));
@@ -7860,7 +8075,13 @@
                 const currentStack = undoStackRef.current;
                 // v7.8.0-alpha.4 (UNDO-MODEL.md) - dialog fence: behind a modal, pre-dialog actions are
                 // state you can't see — never pop past the fence. And never a dead key: explain instead.
-                if (modalBookRef.current && currentStack.length <= dialogUndoFenceRef.current) {
+                // v7.10.1-alpha.6 (DIALOG_POLICY) - UNIVERSAL: every dialog is fenced, not just book detail.
+                // Imperative overlays (confirm/progress) stamp no fence — they block undo outright.
+                if (imperativeDialogsUp()) {
+                    showToast('Nothing to undo from this dialog — close it to undo earlier actions');
+                    return;
+                }
+                if (dialogUp() && currentStack.length <= dialogUndoFenceRef.current) {
                     showToast('Nothing to undo from this dialog — close it to undo earlier actions');
                     return;
                 }
@@ -7877,7 +8098,12 @@
                 const currentStack = redoStackRef.current;
                 // v7.8.0-alpha.4 (UNDO-MODEL.md) - fence, symmetric: only redo entries created above it
                 // (i.e., by this dialog session's own undos).
-                if (modalBookRef.current && currentStack.length <= dialogRedoFenceRef.current) {
+                // v7.10.1-alpha.6 (DIALOG_POLICY) - universal, matching undo().
+                if (imperativeDialogsUp()) {
+                    showToast('Nothing to redo from this dialog — close it to redo earlier actions');
+                    return;
+                }
+                if (dialogUp() && currentStack.length <= dialogRedoFenceRef.current) {
                     showToast('Nothing to redo from this dialog — close it to redo earlier actions');
                     return;
                 }
@@ -14255,7 +14481,7 @@
                                                                 const next = viewIndex < sortedViewList.length - 1 ? sortedViewList[viewIndex + 1] : null;
                                                                 newPos = next ? (sv.position + next.position) / 2 : sv.position + 1;
                                                             }
-                                                            setSavedSearches(prev => prev.map(v => v.id === draggedViewId ? { ...v, position: newPos } : v));
+                                                            repositionSearch(draggedViewId, newPos); // v7.10.1-alpha.6 - undoable via chokepoint
                                                             return;
                                                         }
                                                         // v6.12.0 Phase 7 - filter-view drop and book-drop-to-tag removed.
@@ -14287,8 +14513,7 @@
                                                             onChange={(e) => setEditingFolderName(e.target.value)}
                                                             onBlur={() => {
                                                                 if (editingFolderName.trim()) {
-                                                                    const newName = editingFolderName.trim();
-                                                                    setSavedSearches(prev => prev.map(v => v.id === sv.id ? { ...v, name: newName } : v));
+                                                                    renameSearch(sv.id, editingFolderName.trim()); // v7.10.1-alpha.6 - undoable + receipt via chokepoint
                                                                 }
                                                                 setEditingFolderId(null);
                                                                 setEditingFolderName('');
@@ -14312,7 +14537,7 @@
                                                                 e.stopPropagation();
                                                                 const viewId = getViewId(viewFolderId);
                                                                 if (await showConfirmDialog('Delete Search', `Remove "${viewLabel}" from Searches?`)) {
-                                                                    setSavedSearches(prev => prev.filter(v => v.id !== viewId));
+                                                                    deleteSearch(viewId); // v7.10.1-alpha.6 - undoable + receipt via chokepoint
                                                                     if (selectedFolderId === viewFolderId) navigateToFolder('__all__');
                                                                 }
                                                             }}
@@ -14456,7 +14681,7 @@
                                                                 onBlur={() => {
                                                                     const nm = editingBookListName.trim();
                                                                     if (nm) {
-                                                                        setBookLists(prev => prev.map(x => x.id === bl.id ? { ...x, name: nm } : x));
+                                                                        renameBookList(bl.id, nm); // v7.10.1-alpha.6 - undoable + receipt (create-naming folds via finalize below)
                                                                         finalizeCreatedBookList(bl, nm);
                                                                     }
                                                                     setEditingBookListId(null); setEditingBookListName('');
@@ -14916,9 +15141,7 @@
                                                                         const next = myIndex < mergedItems.length - 1 ? mergedItems[myIndex + 1] : null;
                                                                         newPos = next ? (folderDisplayPos + next.displayPos) / 2 : folderDisplayPos + 1;
                                                                     }
-                                                                    setSavedSearches(prev => prev.map(v =>
-                                                                        v.id === draggedViewId ? { ...v, position: newPos } : v
-                                                                    ));
+                                                                    repositionSearch(draggedViewId, newPos); // v7.10.1-alpha.6 - undoable via chokepoint
                                                                 } catch (err) {
                                                                     console.error('Tag view on folder drop error:', err);
                                                                 }
@@ -15083,9 +15306,7 @@
                                                                         ? editingFolderName
                                                                         : editingFolderName.trim();
                                                                     if (finalName) {
-                                                                        setFolders(prev => prev.map(f =>
-                                                                            f.id === folder.id ? { ...f, name: finalName } : f
-                                                                        ));
+                                                                        renameFolder(folder.id, finalName); // v7.10.1-alpha.6 - undoable + receipt via chokepoint
                                                                     }
                                                                     setEditingFolderId(null);
                                                                     setEditingFolderName('');
@@ -15108,9 +15329,7 @@
                                                                             ? editingFolderName
                                                                             : editingFolderName.trim();
                                                                         if (finalName) {
-                                                                            setFolders(prev => prev.map(f =>
-                                                                                f.id === folder.id ? { ...f, name: finalName } : f
-                                                                            ));
+                                                                            renameFolder(folder.id, finalName); // v7.10.1-alpha.6 - undoable + receipt via chokepoint
                                                                         }
                                                                         setEditingFolderId(null);
                                                                         setEditingFolderName('');
@@ -16461,9 +16680,7 @@
                                                                                     ? rightPanelEditingName
                                                                                     : rightPanelEditingName.trim();
                                                                                 if (finalName) {
-                                                                                    setFolders(prev => prev.map(f =>
-                                                                                        f.id === folder.id ? { ...f, name: finalName } : f
-                                                                                    ));
+                                                                                    renameFolder(folder.id, finalName); // v7.10.1-alpha.6 - undoable + receipt via chokepoint
                                                                                 }
                                                                                 setRightPanelEditingId(null);
                                                                                 setRightPanelEditingName('');
@@ -16481,9 +16698,7 @@
                                                                                         ? rightPanelEditingName
                                                                                         : rightPanelEditingName.trim();
                                                                                     if (finalName) {
-                                                                                        setFolders(prev => prev.map(f =>
-                                                                                            f.id === folder.id ? { ...f, name: finalName } : f
-                                                                                        ));
+                                                                                        renameFolder(folder.id, finalName); // v7.10.1-alpha.6 - undoable + receipt via chokepoint
                                                                                     }
                                                                                     setRightPanelEditingId(null);
                                                                                     setRightPanelEditingName('');
@@ -17638,10 +17853,7 @@
                                                                                 } else if (e.key === 'Enter') {
                                                                                     const newLabel = e.target.value.trim();
                                                                                     if (newLabel && newLabel !== label) {
-                                                                                        setTagRegistry(prev => ({
-                                                                                            ...prev,
-                                                                                            [tagId]: { ...prev[tagId], label: newLabel }
-                                                                                        }));
+                                                                                        renameTag(tagId, newLabel); // v7.10.1-alpha.6 - undoable + receipt (the Adult→Mainstream gap)
                                                                                     }
                                                                                     setEditingTagId(null);
                                                                                 }
@@ -17649,10 +17861,7 @@
                                                                             onBlur={(e) => {
                                                                                 const newLabel = e.target.value.trim();
                                                                                 if (newLabel && newLabel !== label) {
-                                                                                    setTagRegistry(prev => ({
-                                                                                        ...prev,
-                                                                                        [tagId]: { ...prev[tagId], label: newLabel }
-                                                                                    }));
+                                                                                    renameTag(tagId, newLabel); // v7.10.1-alpha.6 - undoable + receipt (the Adult→Mainstream gap)
                                                                                 }
                                                                                 setEditingTagId(null);
                                                                             }}
@@ -18639,7 +18848,7 @@
                                         setFolderContextMenu(null);
                                         const label = isNamedSearch ? `"${view.name}"` : `this search (${searchLabel})`;
                                         if (await showConfirmDialog('Delete Search', `Remove ${label} from Searches?\n\nYour books and tags are not affected.`)) {
-                                            setSavedSearches(prev => prev.filter(v => v.id !== view.id));
+                                            deleteSearch(view.id); // v7.10.1-alpha.6 - undoable + receipt via chokepoint
                                             if (isViewFolder(selectedFolderId) && getViewId(selectedFolderId) === view.id) {
                                                 navigateToFolder('__all__');
                                             }
@@ -19975,13 +20184,10 @@
                                 return;
                             }
 
-                            // Update folder - v5.0.0-alpha.144: Removed modified timestamp (not tracked)
-                            setFolders(prev => prev.map(f =>
-                                f.id === folder.id ? { ...f, name: folderPropertiesEditedName.trim(), description: folderPropertiesEditedDescription.trim() || undefined } : f
-                            ));
+                            // v7.10.1-alpha.6 - undoable + receipt via chokepoint (was a silent console.log-only save)
+                            editFolderProps(folder.id, { name: folderPropertiesEditedName.trim(), description: folderPropertiesEditedDescription.trim() || undefined });
 
                             setFolderPropertiesDialog(null);
-                            console.log(`💾 Updated folder "${folder.name}" → "${folderPropertiesEditedName.trim()}"`);
                         };
 
                         return (
