@@ -126,6 +126,17 @@ _Ordering constraint (until item 6): step 3 must sit BETWEEN the two fetches —
 while the sample is still a known book gets discarded as a duplicate. Amazon-side actions batch
 into one visit; RW needs two import rounds. Item 6 collapses this to one pass._
 
+_Validated live 2026-09-10 (Ron, the original case): sequence worked exactly as written._
+
+**Relay timing (support note):** an import racing right behind a fetcher push can miss it —
+relay storage propagates with eventual consistency ("additions take ~a minute to arrive",
+PM v7.0.0). If a just-fetched book doesn't appear, wait a minute and import again. Not a bug.
+
+**Why series end up mixed in the first place:** usually *historical accretion*, not
+inconsistency-as-error — e.g. book #4 sampled before adopting RW, #5–6 added later via the
+series-wishlist habit. The fix is one-time normalization (this pattern, or the override),
+then keeping a single habit going forward: **series wishlist-add for wanted-but-unowned books**.
+
 ## Meta
 - **There's no single right way** — these are compositions of the same primitives (folders, Book Lists, tags, saved searches, Auto-Organize). The guide should present them as menus of trade-offs, not mandates.
 - Add new patterns here as they surface, then distill for the USER-GUIDE near launch.
