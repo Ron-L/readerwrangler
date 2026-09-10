@@ -114,8 +114,10 @@ standard, 2026-09-10: "the override is a lie — it's still a sample on my Kindl
 
 1. **Amazon**: delete the sample (Manage Your Content) — and add the book/series to the
    wishlist in the same visit if that's the goal.
-2. **Full library fetch → import**: the book vanishes from the walk → RW orphan-flags it
-   (must be a FULL fetch — an incremental one can't prove absence).
+2. **Library fetch → import**: any normal fetch works — the fetcher's Phase 5 **orphan scan is
+   always a full-library pass**, run automatically at the end of every fetch. Just **don't close
+   the tab early**: the scan runs after "fetch complete" with its own progress bar; let it
+   finish, then import. The book comes back orphan-flagged (🔍 filter finds it).
 3. **RW**: delete the flagged book, **Empty Trash** (tombstone). The ASIN is now unknown.
 4. **Wishlist fetch → import**: the record isn't dup-skipped any more (ASIN unknown), lands as
    genuine wishlist, dated after the tombstone → revives as wishlist. True end to end.
