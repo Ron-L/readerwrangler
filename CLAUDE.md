@@ -84,6 +84,7 @@ Standard semver with pre-release suffix for test iterations:
 - Update CHANGELOG.md, README.md (and its mirror index.html) sections Recent Features and Coming Soon!
 - Sync "Recent Features" and "Coming Soon" lists between README.md and features.html
 - Re-align "Coming Soon" content with actual TODO priorities (public promises must track the real queue)
+- Sweep the cycle's support-shaped material into docs/design/SUPPORT-KB.md (facts/fixes) and WORKFLOW-PATTERNS.md (usage patterns) — backstop for the same-breath mining rule; update SUPPORT-KB's "up to date as of" stamp
 - TODO.md: delete all checked `- [x]` items (now recorded in CHANGELOG) — TODO is future-only
 - After push: "Ready for post-mortem?"
 - After post-mortem: update memory files (lessons → feedback_*, project state → project_*) — post-mortems are the archive; memory is what makes them load-bearing next session
