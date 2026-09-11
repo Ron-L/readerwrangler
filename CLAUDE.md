@@ -23,6 +23,7 @@
 * **Idea evaluation** → Evaluate critically, identify issues, disagree when warranted
 * **Code change approved ("proceed")** → Make change, increment ORGANIZER_VERSION, commit, report ready for testing (follows Versioning workflow)
 * **Scope reduction** → explicit, never silent: delivering less than the words asked requires naming the gap and FILING the remainder (TODO line) in the same breath. Tripwire: requests containing all/every/everywhere/always — at report time, check delivery against those words. (Earned 2026-09-08: "toasts EVERYWHERE" silently became undo-toasts-only; memory: feedback_scope_narrowing)
+* **Class-of-sites change** → two independent pivots + condition-grep (guards find disabled/negative branches) + user-surface walk (shortcuts, context menus, menu bar, drag-drop, dialogs); publish the site map before claiming coverage. (Earned 2026-09-10: right-click Delete missed after DEL-key fix; memory: feedback_investigate_completely)
 
 ---
 
