@@ -11,7 +11,7 @@
 
 ## 🔝 TOP OF STACK (Ron 2026-09-09/10)
 
-- [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind 7.10.1 + 7.11.0):
+- [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the 7.12.0 transactional dialog):
   pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
   no second ordering system three inches from the first. List reorder already undoable (7.10.1-alpha.6); pin
   toggle joins undo. Motivation: hunting a series list in a long Book Lists column (Ctrl+F works but costs a
@@ -26,7 +26,7 @@
   Fix: refuse with the explanatory toast (like All Books) or make paste-cut honor Book List sources.
 
 
-- [ ] **Book dialog goes fully transactional (7.11.0, ratified 2026-09-10 — fresh branch AFTER 7.10.1 ships)**:
+- [ ] **Book dialog goes fully transactional (7.12.0 — NEXT UP, ratified 2026-09-10; the audit release shipped as 7.11.0)**:
   in the dialog, Edit/Save is the ONLY way anything changes (one undo per Save); everywhere else changes are
   instant commands (one undo each). Rating / price goal / tags leave view mode (read-only displays) and join
   `editBookFields` as staged fields — Cancel discards, Save folds them into the one atomic EDIT_BOOK step;
@@ -37,18 +37,6 @@
   preset goals/custom, or star row); decide during build whether cover right-click gains a My Rating submenu.
   UNDO-MODEL.md §"fully transactional" has the rationale + Ron's context-keying principle.
 
-
-- [x] **Second-generation coverage audit** — DONE in 7.10.1-alpha.6 (universal dialog fence + DIALOG_POLICY
-  registry, rename/Search/reorder undo coverage) and alpha.9 (dialog dismissal chrome). Original scope: Ron's
-  Tag-Manager rename (Adult→Mainstream) exposed TWO classes the
-  alpha.4 audits never scanned: the rename wasn't recorded (audit keyed on `saveBooksToIndexedDB` = book-array
-  writes only) AND Ctrl+Z passed through the dialog to the global book stack (fence exists only on book-detail).
-  Three sweeps: **(A)** all NON-book persistence writers (tag registry, folders, Book Lists, saved Searches,
-  settings) × undoable? receipt? — non-undoable must be a recorded decision, not an accident; **(B)** modal ×
-  live-global-shortcut matrix (alpha.5 fixed X/C/V/Delete; what else passes up? Ctrl+A, arrows, F2…);
-  **(C)** fence policy per modal — every modal either has its own fence (records undoables, e.g. Tag Manager
-  once RENAME_TAG exists) or blocks Ctrl+Z with the info toast; NO silent forwarding to the global stack.
-  Tag Manager fix (RENAME_TAG action + receipt + fence) falls out of the audit.
 
 ---
 

@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.11.0] - 2026-09-10
+
+### Every action gets a receipt, and every receipt names its target
+- **The other half of "toasts everywhere" lands**: moving, copying, pasting, hiding, deleting, restoring — each action now confirms itself with the book's title (*"Hid 'Red Cell'"*) or an honest count, matching the undo toasts from 7.8.0. Paste, which previously happened in silence, both announces itself and stopped being labeled "Copy" in undo.
+- **Delete receipts say where from**: *"Undone: Delete 'A People's History…' from 'Folder A'"* — because "where did it go back to?" is the question you're asking when you read that toast.
+
+### If you did it, you can undo it
+- **The silent minority is gone.** Price goals, ratings, tag edits from every surface, duplicate cleanup, hiding copies, deleting tags — and the entire rename family: folders (inline in either pane *or* the Properties dialog), tags, Searches, Book Lists. Ten rename spots, all previously silent and permanent, now all undoable with receipts. Saving and deleting a Search joined too, and reordering tags, Searches, or Book Lists quietly went undoable (no toast for a drag you just watched — but Ctrl+Z puts it back).
+- **Naming a just-created folder or list counts as creating it** — one undo removes the whole named thing, instead of un-renaming it first.
+- Why total coverage matters: the scary scenario — Ctrl+Z reverting something *older* than you expected — only happens when your last action **wasn't** recorded. Gaps cause that surprise; coverage cures it.
+
+### Dialogs keep their keys to themselves
+- **The dangerous one**: with the Status History window open, Ctrl+X passed *through* it and cut the selected book underneath — one toast away from an unnoticed delete. Now one rule governs every dialog: **while it's open, keys apply to the dialog or to nothing.** Cut/copy/paste/delete, Ctrl+A, and Back/Forward navigation all stop at the glass — and native text copy finally works inside dialogs, because the app stopped intercepting it.
+- **Undo is fenced in every dialog now**, not just the book dialog: Ctrl+Z reaches only what happened since the dialog opened (rename a tag in Tag Manager, undo it right there), and says *"close this dialog to undo earlier actions"* otherwise. Three dialogs — Relay Setup, Duplicate Review, Tags from Collections — turned out to be missing from the guard list entirely; found by audit, not by accident.
+- **Every prompt can be dismissed like a dialog should**: Esc cancels and a ✕ closes on every confirmation — including the delete warning that previously only answered to its Cancel button. Esc also closes Status History, Duplicate Review, and Tags from Collections. One deliberate exception: a running import's progress box ignores Esc.
+- **Esc stopped stealing on its way out**: closing a dialog with Esc no longer wipes your selection and your cut clipboard behind it.
+
+### Trash tells the truth
+- **Dragging a book out of Trash always restores it** — one drag path moved the book's folder membership while leaving it deleted: "Moved to Inbox," visible nowhere. Every path now restores properly, undoably.
+- **Hover a trashed book to see where it lived** — *"Was in (before Trash): Folder A"* — exactly the question you ask before restoring.
+- **Delete works from All Books now** (and My Library, and Searches): DEL key or right-click — removes the book from every folder and trashes it, since an aggregate view has no single folder to remove from. Previously the key did nothing, silently — or worse, silently half-worked.
+- **Cut from All Books explains itself** instead of doing nothing: cut moves books *between folders*, so it needs a source folder — the toast now says so.
+
+### Cut you can finally see
+- **Cut books wear marching ants** — a dashed, softly pulsing border (the Excel/Photoshop convention) on cover and list view alike — until you paste or press Esc. The old treatment was 50% opacity… next to hidden books' 40%: one visual channel, two meanings, caught by the resident UX critic. A hidden book that's cut now shows both signals, unambiguously.
+
 ## [7.10.0] - 2026-09-09
 
 ### Save as Spreadsheet — the first feature a user asked for

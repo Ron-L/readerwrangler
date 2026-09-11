@@ -116,7 +116,7 @@ permanent deletion are not.**
 - Tag creation leaving an unused registry entry on undo remains the ratified alpha.4 decision
   (harmless).
 
-## The dialog goes FULLY transactional (ratified 2026-09-10; build queued as 7.11.0)
+## The dialog goes FULLY transactional (ratified 2026-09-10; build queued as 7.12.0 — the audit release shipped as 7.11.0)
 
 **Defect found (Ron)**: during edit mode, the instant controls (rating stars, Buy-at price-goal
 buttons, tag input) stayed live, intermixed with staged form fields — two commit semantics in
