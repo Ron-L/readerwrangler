@@ -111,15 +111,28 @@ Seed facts:
 - **Shift+Click a column header** sets a secondary sort key (e.g. Series, then #).
 - Cover size slider in Cover View; Grid/List toggle in the View menu and toolbar.
 
-## 5. Search box & filters — _(pending: batch 3)_
+## 5. Search box & filters
 
-Seed facts:
-- The search box matches **title, author, or series**, anywhere in the field.
-- Filters persist as you click between folders — an "empty" folder usually means a filter is
-  active (counts read N/M when a filter hides books). Clear All restores the world.
-- **Show Hidden** is a three-state filter, and hidden books are counted honestly
-  ("3134 of 3136 — 2 hidden by user").
-- **Deals Only** shows books at or below your price goals.
+**What does the search box match?** Title, author, or series — anywhere in the field, as you
+type. Recent filter combos live in its dropdown (apply, save, or remove them).
+
+**What can I filter by?** Ownership type (Owned / Wishlist / Sample / Prime…), read status,
+tags, Kindle Collections, series, Amazon rating, your rating, date added — plus **Show
+Hidden** (a three-state control: hide hidden / show all / *only* hidden) and **Deals Only**
+(books at or below your price goal). Filters combine.
+
+**Why does my folder look empty?!** A filter is almost certainly active — filters *persist*
+as you click between folders (that's what makes them useful), and folder counts switch to
+"matching/total" (e.g. 3/41) while one is on. The Active-filters banner names what's applied;
+**Clear All** restores the world. Hidden books are always counted honestly ("3134 of 3136 —
+2 hidden by user").
+
+**Can't filter by some field?** More than one way to skin a cat: List View → Choose Columns →
+add the field (Format, ASIN, publication date, price date…) → sort by it.
+
+**Do folders with no matches disappear while filtering?** They're hidden to reduce noise —
+the "Show all" control at the top of the sidebar brings them back (sticky until you change
+it).
 
 ## 6. Folders & organizing by hand
 
@@ -198,17 +211,73 @@ to Book List (e.g. select the unread ones → `<Series> - To Read` — the sugge
 the series); double-click a cover to open its book dialog; group headers take File under…
 for the whole group. One Organize click = one undo.
 
-## 8. Book Lists — _(pending: batch 3)_
+## 8. Book Lists
 
-## 9. Tags & Tag-from-Collections — _(pending: batch 3)_
+**What exactly is a Book List?** A flat, hand-curated list of *shortcuts* to books. The
+anchor model: **All Books is where the book truly lives; Folders hold Linked Copies of it;
+Book Lists hold shortcuts to it.** Delete a copy → the book leaves that folder; delete a
+shortcut → it leaves that list; the book itself survives until you trash it. Adding or
+removing from a list never moves, tags, hides, or deletes the book.
 
-## 10. Saved Searches — _(pending: batch 3)_
+**When do I use one instead of a folder?** For *transient status* — above all, to-read
+queues: `<Series> - To Read`, a shared `New To Read`. Finish a book → delete it from the
+list; its folder home never churns. (Folders are for *where a book belongs*; they nest, lists
+don't.) Full patterns: WORKFLOW-PATTERNS.md.
 
-Seed facts:
-- Clicking a Search sets the active filters on whatever you're viewing — exactly as if you'd
-  clicked the filter buttons yourself; hand-setting matching filters highlights the Search.
-- Save the current filters via the results bar ("Save these results…") — as a **Search**
-  (live filter) or a **Book List** (snapshot of the current matches).
+**How do I make and fill one?** ➕ on the Book Lists header (name it in place — Escape keeps
+the suggested name); or select books anywhere → right-click → **Add to Book List** (existing
+list or "New Book List…" — the suggested name knows the series/author: `<Series> - To Read`);
+or save filter results as a snapshot list; or drag books onto a list row. From the
+Auto-Organize preview you can add straight to a list mid-organize.
+
+**Drag rules**: book(s) → list row *adds* (dedup, book stays put). List → list *moves* the
+shortcut; **Ctrl+drag copies** it. Reordering the lists themselves: drag (undoable).
+
+**Deleting**: DEL inside a list removes the selected shortcuts from *that list only*. ✕ on
+the list row deletes the list (confirmation only if it isn't empty) — the books are
+untouched. Both undoable.
+
+**Do Book Lists sync to mobile?** Yes — and since mobile can't filter, pre-filtering into
+lists is *the* mobile pattern ("Book Lists as mobile filters", WORKFLOW-PATTERNS).
+
+## 9. Tags & Tag-from-Collections
+
+**What are tags for?** Cross-cutting labels that overlay your folder structure without
+touching it — kind/genre/mood slices (`Time Travel`, `Non-Fiction`, `Classics`) you filter
+by. A book takes any number of tags.
+
+**How do I tag books?** Select → right-click → **Tags ▸**: check/uncheck existing tags, or
+type to create a new one. View → **Manage Tags…** is the registry: create, rename, delete,
+multi-select, and **drag to reorder** — that order drives the right-click Tags menu.
+
+**What happens when I delete a tag?** It's removed from every book carrying it, from the
+active filter, and any saved Search that depended on it is removed too — the receipt spells
+out the fallout, and one undo reverses all of it.
+
+**What's Tag from Collections?** File → **Tag from Collections…** turns your Kindle
+Collections into RW tags in one reviewed pass — pick which collections become tags and apply.
+On later runs, "New books only" limits the pass to books that joined collections since last
+time, and the wizard also flags books whose collection membership *ended* so their
+collection-tags can be retired. (Collections themselves remain Amazon-side data — see §14.)
+
+## 10. Saved Searches
+
+**What is a saved Search?** A saved *filter preset*. Clicking one sets the active filters on
+whatever you're currently viewing — folder, list, or All Books — exactly as if you'd pressed
+the filter buttons yourself. It doesn't navigate anywhere, and it stays applied as you browse
+until you clear it.
+
+**Live, not snapshot.** A Search's results change as your library does ("Wishlist" always
+means *current* wishlist). Want the frozen version? Save the results as a **Book List**
+instead — the results bar offers both: *Search (live filter) or Book List (snapshot)*.
+
+**How do I make one?** Set up filters, then Save via the results bar (name optional — an
+unnamed Search shows its filter chips as its label). Hand-building the same filters later
+highlights the matching saved Search automatically.
+
+**Managing them**: rename inline (or right-click), drag to reorder, delete via hover-✕ or
+right-click — "your books and tags are not affected," and it's undoable. Searches are
+read-only presets: you can't drop books "into" one.
 
 ## 11. The book dialog — _(pending: batch 4)_
 
