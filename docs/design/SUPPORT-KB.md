@@ -1,139 +1,254 @@
-# Support Knowledge Base — mined behavior facts & Q&A
+# Support Knowledge Base — the questions users ask, answered
 
 _The raw material for the USER-GUIDE and the support GPT (docs/design/SUPPORT-GPT.md: "the real
-asset is the docs"). Every entry is a fact a user needs, a symptom worth explaining, or a concept
-worth teaching — mined from real sessions, then kept current by the standing rule: **any
-support-shaped answer lands here (or in WORKFLOW-PATTERNS.md for usage patterns) in the same
-breath as answering.** The Release Checklist backstops it._
+asset is the docs"). Organized by feature area; entries are phrased as the questions a user
+would ask. Two source pivots: (1) the **feature surface** — every menu item, tooltip, dialog,
+and page implies a question; (2) **real usage** — the working-session transcript
+(2026-05-10 → present), post-mortems, and design docs. Kept current by the standing rule:
+**any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
+patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-09-10.** Sources swept: the full working-session transcript
-(2026-05-10 → 2026-09-10), all post-mortems, design docs (OWNERSHIP-MODEL, UNDO-MODEL,
-FORMAT-POLICY, TOMBSTONE-DELETE, MULTI-INSTANCE, AUTO-ORGANIZE-UNIFIED, DATA-DURABILITY),
-TERMINOLOGY.md, WORKFLOW-PATTERNS.md, TODO's scattered "GPT note" lines. Older sessions survive
-only through those artifacts; anything they didn't capture is gone — future material is captured
-live._
+_**Up to date as of 2026-09-13** (structure + §1–2, §19–21 complete; sections marked
+"pending" are being filled in batches). Scrub rule (public repo): no channel IDs, tokens,
+cookies, emails, or user-identifying data — facts only._
 
 Companion docs: **WORKFLOW-PATTERNS.md** (usage patterns & trade-offs), **TERMINOLOGY.md**,
-**SUGGESTED-ORGANIZING-PRINCIPLES.md** (prescriptive rules).
+**SUGGESTED-ORGANIZING-PRINCIPLES.md** (the suggested method, in full).
 
 ---
 
-## A. Core concepts (the mental model, in user words)
+## 1. What is ReaderWrangler?
 
-1. **Folders are custodial; Book Lists are supplemental.** A folder is a book's *home*; a Book
-   List is a set of *linked copies* — like a library card catalog: destroy the index card and
-   the book stays on the shelf. Adding/removing from a list never moves, tags, hides, or deletes
-   the book. Folders nest; Book Lists are flat.
-2. **Searches are saved filter presets, not destinations.** Clicking one sets the active filters
-   on whatever you're currently viewing (folder, list, All Books) — exactly as if you'd clicked
-   the filter buttons by hand. Setting matching filters by hand highlights the saved Search.
-   Filters persist as you click between folders; an "empty" folder usually means a filter is on.
-3. **The RW Wishlist is NOT your Amazon account wishlist.** "Add to Wishlist" is a bookmarklet
-   run on an Amazon product or series page that adds those books *directly to ReaderWrangler*.
-   Amazon keeps no copy — which is why deleting a wishlist book from RW is permanent (nothing at
-   Amazon to re-fetch it from), unlike owned books.
-4. **Amazon's facts vs your states (ownership).** Amazon reports what you hold (Purchased,
-   Sample, Prime, Borrowed…). You may manually set only two *states*: **Owned** ("I have it,
-   Amazon's record is stale") and **Wishlist** ("I want it"). A manual override is protected
-   from fetch overwrite, and Amazon's original value stays available behind "Reset to Amazon's
-   value" in the same dropdown. (Full model: OWNERSHIP-MODEL.md.)
-5. **The Inbox is where pending decisions live** — new arrivals land there; organizing means
-   moving them to homes. All Books / My Library / Searches are aggregate *views*; deleting from
-   them means deleting the book everywhere (v7.11), while cut/move need a real source folder.
+**What does it do?** ReaderWrangler organizes your Amazon Kindle library — the one Amazon
+gives you no real tools to organize. It pulls in your books (covers, series, ratings,
+descriptions, prices, your Kindle collections), and lets you arrange them your way: folders,
+tags, Book Lists, saved Searches, drag-and-drop, and an Auto-Organize that files whole author
+backlogs in one preview. Its reason to exist: *unbury your next great read* from a backlog
+Amazon shows you only as an endless recency scroll.
 
-## B. Behavior facts users will ask about
+**Do I install anything?** No. It runs entirely in your browser at readerwrangler.com — no
+install, no account, no sign-up. (The one thing you drag to your bookmarks bar is a
+bookmarklet used on Amazon's own pages to fetch your library.)
 
-**Loading & syncing**
-1. **First load takes ~15–25 seconds** (the app compiles in your browser) and Chrome may show
-   "Page Unresponsive" — the loading screen says so; don't panic, don't reset.
-2. **A fetch you just pushed can take up to ~a minute to be importable** (cloud storage
+**Where is my data? Who can see it?** Your library lives in *your browser* on your machine.
+Syncing between your devices travels through a relay in the cloud, but everything stored
+there is encrypted with a key only your devices hold — the relay (and its operator) cannot
+read your library. Details: the Security & Privacy page.
+
+**Does it cost anything?** No.
+
+**Does it change anything on Amazon?** No. Fetching reads your library via the same requests
+Amazon's own "Your Books" page makes. Nothing you do in ReaderWrangler (folders, tags,
+deletes) writes back to your Amazon account.
+
+**Does it work for non-Kindle books?** Its data source is your Amazon content library, which
+includes print books Amazon knows you bought, samples, borrows (Prime/KU), and wishlist adds
+you make via the bookmarklet from any product page — print editions included.
+
+## 2. Getting started
+
+**The whole path, in order** (also in the app under Help → How To Use):
+1. **Set up sync** — File → Relay Setup: generate your credentials, **drag the bookmarklet to
+   your bookmarks bar**, and optionally pair your phone with the QR code.
+2. **Fetch** — go to Amazon (your Books page), click the bookmarklet, choose Download
+   Library (and Download Collections for your Kindle collections/read status). Let it finish —
+   including the background orphan scan after "fetch complete."
+3. **Import** — back in ReaderWrangler: File → Import from Relay. Your books appear in the
+   **Inbox**.
+4. **Organize** — drag books into folders, tag them, build Book Lists — or right-click →
+   Auto-Organize to file whole authors at once. Repeat steps 2–3 occasionally to pick up new
+   purchases.
+
+**What's the bookmarklet, and why one?** A bookmark that runs the fetcher on Amazon's page —
+it's how your (already logged-in) browser session reads your own library. Nothing to install,
+no password ever given to ReaderWrangler. Your relay credentials are baked into it when you
+create it — if you ever regenerate credentials, drag a fresh bookmarklet (the app detects
+mismatches and offers it).
+
+**Do I need an Amazon account to try it? (The Demo Library.)** No — download the demo library
+(100+ classic books) from the home or Tutorials page, open ReaderWrangler, and load the file:
+on a fresh install the Welcome screen offers **Restore a backup** — choose the downloaded
+`readerwrangler-demo-library.json`. (Same path later: File → Restore Backup….) Every feature
+works on it: folders, tags, filters, Auto-Organize.
+
+**What's the Welcome screen telling me?** It appears when the app finds no books. If you're
+genuinely new, it walks you through setup. If you're a returning user whose browser data was
+cleared (or a new machine), it says so — *"Your folders and lists are intact"* — and lists
+recovery options best-first: Import from Relay (your library is still in the cloud), Restore
+a backup, or fetch fresh then import. It never means your organization is gone.
+
+**How do I keep it current?** Buy books as usual; every so often run the bookmarklet
+(Download Library) and then Import from Relay. Incremental fetches are quick — they stop at
+the newest book ReaderWrangler already knows.
+
+## 3. The sidebar: what all those sections are
+
+_(Concepts below; per-feature details in their own sections.)_
+
+- **All Books** — every unique book in your library, organized or not. A view, not a folder:
+  you browse, filter, edit, and (since 7.11) delete here, but books can't be *moved* from
+  here (there's no single "from").
+- **Searches** — saved filter presets. Clicking one applies its filters to whatever you're
+  viewing. They're live: results change as your library does.
+- **Book Lists** — flat, hand-curated lists of *linked copies* (shortcuts). Adding/removing a
+  book from a list never moves, tags, hides, or deletes the book itself — like a library card
+  catalog: destroy the index card and the book stays on the shelf.
+- **Inbox** — where newly imported books land, awaiting a decision. Drag them into folders
+  (or Auto-Organize) to file them.
+- **Folders** — your hierarchy; a folder is a book's *home*. Folders nest (author → series is
+  the common shape).
+- **Trash** — deleted books, still recoverable until you empty it.
+
+**Folders vs Book Lists — which do I use?** Folders hold *where a book belongs* (stable,
+set once); Book Lists hold *transient status* like "still to read" (cheap to add, cheap to
+delete from when done). The full patterns: WORKFLOW-PATTERNS.md.
+
+## 4. Views, columns & sorting — _(pending: batch 5)_
+
+Seed facts:
+- **"I can't filter by field X."** More than one way to skin a cat: List View → column picker
+  (Choose Columns) → add the column (Format, ASIN, publication date, price date…) → sort by it.
+- **Shift+Click a column header** sets a secondary sort key (e.g. Series, then #).
+- Cover size slider in Cover View; Grid/List toggle in the View menu and toolbar.
+
+## 5. Search box & filters — _(pending: batch 3)_
+
+Seed facts:
+- The search box matches **title, author, or series**, anywhere in the field.
+- Filters persist as you click between folders — an "empty" folder usually means a filter is
+  active (counts read N/M when a filter hides books). Clear All restores the world.
+- **Show Hidden** is a three-state filter, and hidden books are counted honestly
+  ("3134 of 3136 — 2 hidden by user").
+- **Deals Only** shows books at or below your price goals.
+
+## 6. Folders & organizing by hand — _(pending: batch 2)_
+
+Seed facts:
+- Drag moves; **Ctrl+drag copies**. Cut/copy/paste works too (cut marks with "marching ants";
+  nothing moves until paste; Esc cancels).
+- Right-click → Move to Top / Move to Bottom; 📌 pin folders to a top tier; sort folders by
+  Name or Count and **bake** a sorted order into Manual when you like it.
+- Books can live in more than one folder (a deliberate copy). Hover a cover to see everywhere
+  a book lives ("Found in… / On Book Lists…" — and in Trash, "Was in…").
+
+## 7. Auto-Organize — _(pending: batch 2)_
+
+Seed facts:
+- Right-click any book → Auto-Organize (By Author / By Series), or File → Auto-Organize… for
+  the multi-author wizard. One preview shows everything by the chosen authors wherever it
+  lives; **the checkboxes are the scope** — nothing moves that you didn't leave checked.
+- Author strings are never parsed: "Larry Niven, Jerry Pournelle" is its own author. Use
+  **File under…** (right-click in the preview) to send co-author books into the folder you
+  choose — creating a folder is always an explicit choice, never a typo.
+
+## 8. Book Lists — _(pending: batch 3)_
+
+## 9. Tags & Tag-from-Collections — _(pending: batch 3)_
+
+## 10. Saved Searches — _(pending: batch 3)_
+
+Seed facts:
+- Clicking a Search sets the active filters on whatever you're viewing — exactly as if you'd
+  clicked the filter buttons yourself; hand-setting matching filters highlights the Search.
+- Save the current filters via the results bar ("Save these results…") — as a **Search**
+  (live filter) or a **Book List** (snapshot of the current matches).
+
+## 11. The book dialog — _(pending: batch 4)_
+
+Seed facts:
+- **Ownership** shows Amazon's actual state (Sample, Prime, Borrowed…) and offers only what's
+  yours to set: **Owned** ("I have it; Amazon's record is stale") and **Wishlist** ("I want
+  it") — plus **Reset to Amazon's value** after an override. Overrides survive fetches.
+- **Format is editable** (free text, blank = honest unknown) because Amazon sometimes gets it
+  wrong — real formats observed include "shoes."
+- ◀ ▶ arrows walk the books of the current folder without closing the dialog.
+
+## 12. Hide, Trash & delete — _(pending: batch 4)_
+
+Seed facts (the most misunderstood area — full entries coming):
+- **A deleted owned book comes back on the next fetch, by design** — it's still in your
+  Amazon library. **Hide** is the tool for owned books you never want to see.
+- **Wishlist deletes stick** (ReaderWrangler-native data; Amazon holds no copy). **Samples**
+  return unless you delete the sample at Amazon first (Manage Your Content) — the "truth
+  path" sequence is in WORKFLOW-PATTERNS.
+- **Re-adding a deleted wishlist book requires Empty Trash first** (until then the book is
+  still "known" and the add is skipped as a duplicate).
+- **Never delete to correct ownership** — use the Ownership dropdown.
+- Delete works from All Books / My Library / Searches (removes from every folder and
+  trashes); from a folder, delete removes from *that folder* and trashes only if it was the
+  book's last home; in a Book List, DEL just removes from the list.
+
+## 13. Undo — _(pending: batch 4)_
+
+Seed facts:
+- **Everything you do is undoable** (moves, renames, tags, goals, ratings, reorders, Search
+  create/delete), and every undo/redo toast names its target. Not undoable, by decision: view
+  state (sorting, collapse, filters) and confirmed permanent deletes. Ctrl+Z / Ctrl+Y or
+  Ctrl+Shift+Z.
+- In the book dialog: instant controls are one undo step each; an Edit-mode Save is ONE
+  atomic step. While any dialog is open, undo reaches only what happened in that dialog.
+- A backup restore clears undo history (pre-restore entries would lie).
+
+## 14. Sync, fetching & importing
+
+1. **A fetch you just pushed can take up to ~a minute to be importable** (cloud storage
    propagates gradually). If Import says "up to date" right after a fetch, wait a minute and
-   import again. Not a bug.
-3. **The library fetcher runs in phases**; after "fetch complete" a **full-library orphan scan**
-   runs in the background with its own progress bar — closing the tab early skips it (the dialog's
-   ℹ️ explains). The orphan scan is what notices books you removed on Amazon's side.
-4. **Incremental fetches stop at the newest already-known book** — old books aren't re-walked
-   (a recovery sweep fires when counts disagree with Amazon's). Withdrawn/delisted books that
-   Amazon half-reports are flagged, never silently dropped.
-5. **Mobile is a viewer.** It mirrors the desktop's data *and order* (refresh the page to pick
-   up the latest push; a freshness banner nudges when newer data exists). Mobile can't filter —
-   the pattern is to pre-filter on desktop into Book Lists (see WORKFLOW-PATTERNS).
+   try again. Not a bug.
+2. **The fetcher runs in phases** (titles → enrichment → tags → prices), and after "fetch
+   complete" a **full-library orphan scan** runs in the background with its own progress bar.
+   Closing the tab early skips it (the dialog's ℹ️ explains). The orphan scan is what notices
+   books you removed on Amazon's side.
+3. **Incremental fetches stop at the newest already-known book**; a recovery sweep fires when
+   counts disagree with Amazon's. Withdrawn/delisted books Amazon half-reports are flagged,
+   never silently dropped.
+4. **Buying a tracked book upgrades it in place** (same ASIN): folders, tags, and price goal
+   survive; the book stays where you filed it (find recent purchases via All Books sorted by
+   Date Added). If the publisher re-issued under a **new ASIN**, the purchase arrives as a new
+   Inbox book and your old wishlist copy remains — delete the stale copy by hand.
+5. **The Data Status ball** (File menu / status bar) tracks freshness; it turns red when the
+   relay holds newer data than you've imported.
+6. **A "channel revoked" notice** means relay credentials were revoked (usually deliberately,
+   in Relay Setup). Regenerate credentials and remake bookmarklets to resume syncing.
+7. **One working tab.** Running a second ReaderWrangler tab (or the mobile view) in the same
+   browser profile risks the copies overwriting each other's organization — organize in one
+   tab (guards exist for the known cases; MULTI-INSTANCE.md).
+8. **Collections and read status come FROM the Kindle/Amazon side** — fetch Collections to
+   refresh them; they're edited on your Kindle/Amazon, not in RW. Amazon's automatic "read"
+   status (fires around 99%) is separate from any collection you happen to name "Read".
 
-**Deleting — the most misunderstood area**
-6. **A deleted owned book comes back on the next fetch, by design** — it's still in your Amazon
-   library, and a fresh sighting revives it (tombstones only block *stale pre-delete* data from
-   echoing back). The delete warning steers you to **Hide** for owned books because Hide sticks.
-7. **Wishlist deletes stick** (RW-owned data, no Amazon backstop). **Samples are in-between**:
-   the sample lives in your Amazon content library forever, so a deleted sample returns on
-   fetch — the truth path is deleting the sample at Amazon (Manage Your Content) first
-   (full sequence in WORKFLOW-PATTERNS "Correcting ownership").
-8. **Re-adding a wishlist book you deleted requires Empty Trash first** — until the Trash copy
-   is purged, the ASIN is still "known" and the add is skipped as a duplicate.
-9. **Never delete to correct ownership** — use the Ownership dropdown (Edit mode). Delete means
-   "I don't want this record."
+## 15. Backups & spreadsheet
 
-**Buying books you tracked**
-10. **Buying a wishlist/sample book upgrades it in place** (same ASIN): same folders, tags, and
-    price goal — that's why homing wishlist books early costs nothing. But **publishers sometimes
-    re-issue under a new ASIN**: then the purchase arrives as a *new* Inbox book and your old
-    wishlist copy remains — resolve the duplicate by hand (delete the old wishlist copy).
-11. **Upgraded books stay where you filed them** — they do NOT jump to the Inbox. To round up
-    recent purchases: All Books, sort by Date Added. (Import summaries counting upgrades
-    properly — "3 wishlist → owned" — are a queued improvement.)
+1. **Backups are yours, in files you keep** (File → Save Backup…). Restore returns you to the
+   backup's state, with guarded prompts if current Book Lists/Searches would be lost.
+2. **Presentation settings** (cover/list view, columns, theme) are deliberately NOT part of a
+   backup — restoring your books shouldn't restyle your screen.
+3. **Your sync channel is never changed by a restore.** If you regenerated credentials since
+   the backup, remake the bookmarklet — the app detects the mismatch and hands you the new
+   bookmarklet to drag.
+4. **File → Save Spreadsheet (CSV)…** exports one row per book — tags, folder paths, and Book
+   Lists included — and opens directly in Excel. Book ids are ASINs.
 
-**Editing & undo**
-12. **Everything you do is undoable** (7.11): moves, renames (folders/tags/Searches/Book Lists),
-    tag edits, price goals, ratings, reorders, Search create/delete. Undo/redo toasts always name
-    what they reverted. Not undoable, by decision: view state (sorting, collapse, filters) and
-    permanent deletes (confirmed dialogs). A backup restore clears undo history (pre-restore
-    actions would lie).
-13. **In the book dialog**: instant controls commit one undo step each; Edit-mode Save commits
-    everything as ONE step. (7.12 makes the dialog fully transactional: Edit/Save will be the
-    only way anything changes there.)
-14. **Cut marks, paste moves.** Ctrl+X marks books (dashed "marching ants") — nothing moves
-    until you paste. Esc cancels a pending cut from anywhere; navigating doesn't.
-15. **Author strings are never parsed or merged.** "Larry Niven, Jerry Pournelle" is its own
-    author; "Kevin J Anderson" (no period) is a different author than "Kevin J. Anderson" and
-    will auto-organize into a separate folder — fix by editing the author field on the books.
-    Auto-Organize's *File under…* handles co-author books into the folder you choose.
-16. **Format can be wrong at the source** (Amazon has reported formats as absurd as "shoes") —
-    that's why Format is editable free-text; blank = honest unknown. (FORMAT-POLICY.md.)
+## 16. Price watching & deals — _(pending: batch 5)_
 
-**Filters, counts, columns**
-17. **"My folder is empty!"** — check the active filters (folder counts read N/M when a filter
-    hides books) and the Show Hidden toggle. Clearing filters restores the world.
-18. **"I can't filter by field X"** — more than one way to skin a cat: List view → add the
-    column (column picker) → sort by it. ASIN, Format, publication date, price date etc. are
-    all available as columns.
-19. **Hidden books are counted honestly**: "3134 of 3136 (2 hidden by user)" — the hidden filter
-    has three states so you can see just the hidden ones.
+Seed facts:
+- Set a goal from the book dialog or right-click → Set Price Goal (presets or custom);
+  **Deals Only** filters to books at or below goal.
+- Prices are as fresh as your last fetch; each shows its "as of" date and dims after ~24h.
+  Some books legitimately have no price (delisted, or only an audiobook edition is sold);
+  Prime/KU books can show a buy-price while borrowable.
 
-**Prices**
-20. **Prices are as fresh as your last fetch** — each shows its "as of" date and dims after ~24h.
-    Some books legitimately have no price (delisted, or only an audiobook edition is sold).
-    Prime/KU books can show a buy-price even while borrowable — ownership shows Prime, price
-    shows what buying costs.
+## 17. Mobile — _(pending: batch 5)_
 
-**Backups & credentials**
-21. **Restore returns you to the backup's state** — with guarded prompts if current Book Lists /
-    Searches would be lost. Presentation settings (cover/list view, columns, theme) are
-    deliberately NOT part of a backup. **Your sync channel is never changed by a restore** — if
-    you've regenerated credentials since the backup, remake the bookmarklet (the app detects the
-    mismatch and offers the new bookmarklet to drag).
-22. **Backups are yours, in files you keep.** For spreadsheets: File → Save Spreadsheet (CSV) —
-    one row per book with tags, folder paths, and Book Lists joined in; book ids are ASINs.
-23. **A "channel revoked" notice** means relay credentials were revoked (usually deliberately, in
-    Relay Setup). Regenerate credentials + remake bookmarklets to resume syncing.
-24. **One working tab.** Running a second RW tab (or the mobile view) against the same browser
-    profile risks the copies overwriting each other's organization — the app guards against the
-    known cases (MULTI-INSTANCE.md), but the rule of thumb is: organize in one tab.
+Seed facts:
+- Mobile is a **viewer**: it mirrors the desktop's data and order (refresh to pick up the
+  latest push; a freshness banner nudges when newer data exists). Pair via the QR code in
+  Relay Setup.
+- Mobile can't filter — the pattern is to pre-filter on desktop into Book Lists
+  (WORKFLOW-PATTERNS: "Book Lists as mobile filters").
 
-**Kindle-side data**
-25. **Collections and read status come FROM the Kindle/Amazon side** — RW displays them (fetch
-    Collections to refresh) but they're edited on your Kindle/Amazon, not in RW. Note Amazon's
-    automatic "read" status (fires at ~99%) is separate from any collection you name "Read".
+## 18. Keyboard shortcuts & mouse tricks — _(pending: batch 5; the app's Help → Keyboard Shortcuts is the authority)_
 
-## C. Troubleshooting shapes (symptom → explanation → fix)
+## 19. Troubleshooting (symptom → explanation → fix)
 
 | Symptom | Explanation | Fix |
 |---|---|---|
@@ -143,13 +258,30 @@ Companion docs: **WORKFLOW-PATTERNS.md** (usage patterns & trade-offs), **TERMIN
 | Folder looks empty / counts look wrong | A filter (or Show Hidden) is active | Clear filters |
 | Same book twice, one wishlist one owned | Publisher re-issued under a new ASIN | Delete the stale wishlist copy |
 | Series mixes Sample and Wishlist states | Historical accretion (sampled before adopting the wishlist habit) | Override to Wishlist, or the truth path; then keep one habit |
-| App shows an old version after update | Browser cache | Hard refresh (Ctrl+Shift+R); verify in Help/About |
+| App shows an old version after update | Browser cache | Hard refresh (Ctrl+Shift+R); verify in Help → About |
+| First load feels stuck / "Page Unresponsive" | The app compiles in your browser (~15–25s); the loading screen says so | Wait it out — don't reset |
 | "Sync data check failed / checksum mismatch" | A cloud write was interrupted (rare since v7's sealed-packet sync) | Follow the dialog: full fetch rebuilds, then import — local data is intact |
-| Slow first "Checking pending additions" | First fetch after new relay data does extra accounting | Let it run; subsequent fetches are quick |
+| Slow first "Checking pending additions" | First fetch after new relay data does extra accounting | Let it run; later fetches are quick |
+| Bookmarklet fetches the wrong library / mismatch warning | Bookmarklet carries older credentials than the app | Recreate the bookmarklet from Relay Setup |
 
-## D. Meta
+## 20. A suggested way to organize (one of many)
 
-- **Scrub rule (public repo):** entries never contain channel IDs, tokens, cookies, emails, or
-  any user-identifying data. Facts only.
+The full method is **SUGGESTED-ORGANIZING-PRINCIPLES.md**; the patterns and trade-offs are
+**WORKFLOW-PATTERNS.md**. The one-paragraph version:
+
+> Give every book a stable **folder home** (author folders, series subfolders — Auto-Organize
+> builds these for you; a catch-all like *Various Authors* for one-offs). Track *what's left
+> to read* on **Book Lists** you delete from as you finish (`<Series> - To Read`, a shared
+> `New To Read` for one-offs). Home wishlist books immediately in their future folders —
+> purchase day is then zero work. Slice by kind with **tags**; keep self-maintaining views
+> (Wishlist, Read/Unread) as **saved Searches**, never hand-maintained lists. There's no
+> single right way — these are compositions of the same primitives.
+
+## 21. Meta
+
 - **Add here** when an answer is a *fact or fix*; add to **WORKFLOW-PATTERNS.md** when it's a
-  *way of using RW*. Distill both into USER-GUIDE at launch; the GPT is loaded from these files.
+  *way of using RW*. Distill both into USER-GUIDE at launch; the GPT is loaded from these
+  files.
+- Site-page finding (2026-09-13): index.html and tutorials.html demo-library sections stop at
+  "Step 2: Open ReaderWrangler" without saying how to load the file (Welcome screen → Restore
+  a backup). Consider adding a Step 3 to both pages.
