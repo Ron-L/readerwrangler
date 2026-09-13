@@ -1,5 +1,19 @@
 # Protocol Execution Engine (PEE) - Learnings and Approaches
 
+> **OBSOLETE — archived 2026-09-13 (Ron's call).** The problem this document fought no longer
+> exists in practice. Ron's assessment (2026-09-04, recorded in the collaboration memory):
+> early-model struggles — instruction drift, unevaluatable trigger-rules, fighting stated
+> intentions — largely healed with model generations; current Claude "is MUCH more trustworthy
+> to follow my intentions." The mechanics changed too: sessions now run for months with
+> compactions that are rare and non-damaging, because the load-bearing state lives OUTSIDE the
+> context window — CLAUDE.md and the memory index are re-injected automatically, depth docs
+> (design docs, PRINCIPLES.md) are fetched on demand, and post-mortems feed a persistent
+> memory system. **"Externalize, then forget" replaced "force verbatim retention"** — which is
+> what every attempt below was trying (and failing) to achieve. What survived from this work:
+> the instinct toward small, greppable, single-purpose files (Option B's checklists became, in
+> spirit, today's CLAUDE.md behaviors + memory files + never-relitigate design docs).
+> Kept as history of the problem and the attempts.
+
 **Date**: 2025-12-13
 **Context**: Attempts to make Claude reliably execute ground rules as a "Protocol Execution Engine"
 
