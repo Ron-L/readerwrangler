@@ -41,7 +41,8 @@ read your library. Details: the Security & Privacy page.
 
 **Does it change anything on Amazon?** No. Fetching reads your library via the same requests
 Amazon's own "Your Books" page makes. Nothing you do in ReaderWrangler (folders, tags,
-deletes) writes back to your Amazon account.
+deletes) writes back to your Amazon account — all your organization lives in your browser,
+on your computer.
 
 **Does it work for non-Kindle books?** Its data source is your Amazon content library, which
 includes print books Amazon knows you bought, samples, borrows (Prime/KU), and wishlist adds
