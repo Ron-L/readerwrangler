@@ -279,41 +279,97 @@ highlights the matching saved Search automatically.
 right-click — "your books and tags are not affected," and it's undoable. Searches are
 read-only presets: you can't drop books "into" one.
 
-## 11. The book dialog — _(pending: batch 4)_
+## 11. The book dialog
 
-Seed facts:
-- **Ownership** shows Amazon's actual state (Sample, Prime, Borrowed…) and offers only what's
-  yours to set: **Owned** ("I have it; Amazon's record is stale") and **Wishlist** ("I want
-  it") — plus **Reset to Amazon's value** after an override. Overrides survive fetches.
-- **Format is editable** (free text, blank = honest unknown) because Amazon sometimes gets it
-  wrong — real formats observed include "shoes."
-- ◀ ▶ arrows walk the books of the current folder without closing the dialog.
+**What's in it?** Double-click a book (or right-click → the book's name): cover, title
+(linked to Amazon), author, series & position, format, ownership, Amazon rating & reviews,
+**My Rating** stars, current price with its "as of" date, **price goal** (preset "Buy at"
+amounts or a custom target), tags, Kindle Collections, description, and your note. **◀ ▶
+arrows (or ← →) walk the current folder's books** without closing the dialog — great for
+reviewing a series in order.
 
-## 12. Hide, Trash & delete — _(pending: batch 4)_
+**How do I edit?** The ✏️ pencil enters edit mode: title, author, series name & number,
+format, ownership, note. **Save commits everything as one step** (one undo reverses the whole
+save); Cancel discards; Enter saves, Escape cancels. _(Planned next: the dialog goes fully
+transactional — rating/goal/tags will also stage until Save.)_
 
-Seed facts (the most misunderstood area — full entries coming):
-- **A deleted owned book comes back on the next fetch, by design** — it's still in your
-  Amazon library. **Hide** is the tool for owned books you never want to see.
-- **Wishlist deletes stick** (ReaderWrangler-native data; Amazon holds no copy). **Samples**
-  return unless you delete the sample at Amazon first (Manage Your Content) — the "truth
-  path" sequence is in WORKFLOW-PATTERNS.
-- **Re-adding a deleted wishlist book requires Empty Trash first** (until then the book is
-  still "known" and the add is skipped as a duplicate).
-- **Never delete to correct ownership** — use the Ownership dropdown.
-- Delete works from All Books / My Library / Searches (removes from every folder and
-  trashes); from a folder, delete removes from *that folder* and trashes only if it was the
-  book's last home; in a Book List, DEL just removes from the list.
+**Ownership — what am I allowed to change?** The dropdown shows Amazon's actual state
+(*Sample (from Amazon)*, Prime, Borrowed…) and offers only what's genuinely yours to declare:
+**Owned** ("I have it — Amazon's record is stale") and **Wishlist** ("I want it"). After an
+override it also offers **Reset to Amazon's value (…)**. Your override is protected — future
+fetches won't flip it back. And never *delete* to correct ownership (see §12).
 
-## 13. Undo — _(pending: batch 4)_
+**Why is Format editable?** Because Amazon sometimes gets it wrong (real values observed
+include "shoes"). Free text with suggestions from your library's vocabulary; **blank = honest
+unknown**.
 
-Seed facts:
-- **Everything you do is undoable** (moves, renames, tags, goals, ratings, reorders, Search
-  create/delete), and every undo/redo toast names its target. Not undoable, by decision: view
-  state (sorting, collapse, filters) and confirmed permanent deletes. Ctrl+Z / Ctrl+Y or
-  Ctrl+Shift+Z.
-- In the book dialog: instant controls are one undo step each; an Edit-mode Save is ONE
-  atomic step. While any dialog is open, undo reaches only what happened in that dialog.
-- A backup restore clears undo history (pre-restore entries would lie).
+**Why can't I select/copy the title text?** It's a link (it opens Amazon) — use right-click →
+**Copy Title** from the book's context menu instead.
+
+**What's Share?** Copy the Amazon link (affiliate-tagged), or build an email with up to 20
+selected books' titles and links — copied to paste into your mail app.
+
+## 12. Hide, Trash & delete
+
+**The golden rule: match the tool to the goal.**
+- *"I own it but never want to see it"* (gifts bought for others, kids' books, maps) →
+  **Hide**.
+- *"Remove this record"* (stale wishlist entries, rejected samples — after deleting the
+  sample at Amazon) → **Delete** (Trash).
+- *"Amazon's label is wrong"* → **Ownership override** (§11) — never delete.
+
+**Hide.** Right-click → Hide Book(s) (or the delete-warning's "Hide Instead"). Hidden books
+dim and drop out of normal views; the **Show Hidden** filter has three states (hide them /
+show all / *only* hidden — that last one is how you review what's hidden). Counts stay honest
+("2 hidden by user"). Unhide from the same menu. Hide sticks across fetches — it's the right
+tool for owned books precisely because deletes don't stick on them (below). A book that
+appears twice (e.g. once solo and once inside a series shelf) can have a single *copy* hidden
+from the dialog without hiding the book.
+
+**Delete = Trash first.** Deleting from a **folder** removes the book from *that folder* —
+it only goes to Trash if that was its last home (copies elsewhere live on). Deleting from
+**All Books / My Library / a Search** means "delete the book": it's removed from every folder
+and trashed. In a **Book List**, DEL just removes shortcuts from the list. Deleting an
+**owned** book gets a warning first — "it will reappear next fetch; consider Hide instead"
+(Hide Instead / Delete Anyway / Cancel).
+
+**Trash view.** Deleted books wait here, recoverable. Hover one to see **"Was in (before
+Trash)"** — its former homes. **Restore** (right-click) returns it to all its former folders,
+and it reappears on its Book Lists (list membership survives a trip through Trash). Dragging
+a book *out* of Trash restores it to wherever you dropped it. DEL inside Trash — or
+right-click the Trash row → **Empty Trash** — deletes permanently, with confirmation
+("cannot be undone", Book-List fallout disclosed).
+
+**Why did my deleted book come back?** It's owned or sampled — it's still in your Amazon
+library, and a fresh fetch legitimately re-lists it (permanent-delete tombstones stop *stale*
+data from resurrecting it, not Amazon's live report). Owned → Hide it. Sample → delete the
+sample at Amazon first (Manage Your Content), then the truth-path sequence in
+WORKFLOW-PATTERNS. **Wishlist books are the exception: their deletes stick** (they're
+ReaderWrangler-native; Amazon holds no copy) — though re-*adding* one requires **Empty
+Trash** first, or the add is skipped as a duplicate of the trashed copy.
+
+## 13. Undo
+
+**What can I undo?** Everything you do to your data: moves, copies, paste, delete/restore,
+hide/unhide, renames (folders, tags, Book Lists, Searches), tag edits, price goals, ratings,
+edits, reorders, Search and Book List create/delete, Auto-Organize passes (one click = one
+undo). **Every undo/redo toast names its target** — "Undone: Delete 'A People's History…'
+from 'Folder A'" — so you always know what just reverted. **Ctrl+Z** undoes; **Ctrl+Y or
+Ctrl+Shift+Z** redoes.
+
+**Deliberately NOT undoable**: view state (sort modes, collapse/expand, filters, selection)
+and explicitly-confirmed permanent deletes (Empty Trash). Cut/copy to the clipboard isn't an
+action yet — the paste is.
+
+**Undo in dialogs is scoped.** While any dialog is open, Ctrl+Z reaches only what happened
+since it opened (rename a tag in Manage Tags, undo it right there); otherwise the app says
+"Nothing to undo from this dialog — close it to undo earlier actions" rather than silently
+reverting something you can't see. In the book dialog, instant controls are one step each and
+an Edit-mode Save is ONE atomic step; in edit mode Ctrl+Z is native text-undo for the field
+you're typing in.
+
+**When history resets**: a backup restore clears the undo history (entries from before the
+restore would lie about the state they'd return you to).
 
 ## 14. Sync, fetching & importing
 
