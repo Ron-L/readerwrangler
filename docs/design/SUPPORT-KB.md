@@ -8,9 +8,10 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-09-13** (structure + §1–2, §19–21 complete; sections marked
-"pending" are being filled in batches). Scrub rule (public repo): no channel IDs, tokens,
-cookies, emails, or user-identifying data — facts only._
+_**Up to date as of 2026-09-13 — all sections complete** (feature-surface pass: 140 UI
+strings, all menus/dialogs/pages walked; plus the transcript/post-mortem mining pass).
+Scrub rule (public repo): no channel IDs, tokens, cookies, emails, or user-identifying
+data — facts only._
 
 Companion docs: **WORKFLOW-PATTERNS.md** (usage patterns & trade-offs), **TERMINOLOGY.md**,
 **SUGGESTED-ORGANIZING-PRINCIPLES.md** (the suggested method, in full).
@@ -103,13 +104,25 @@ _(Concepts below; per-feature details in their own sections.)_
 set once); Book Lists hold *transient status* like "still to read" (cheap to add, cheap to
 delete from when done). The full patterns: WORKFLOW-PATTERNS.md.
 
-## 4. Views, columns & sorting — _(pending: batch 5)_
+## 4. Views, columns & sorting
 
-Seed facts:
-- **"I can't filter by field X."** More than one way to skin a cat: List View → column picker
-  (Choose Columns) → add the column (Format, ASIN, publication date, price date…) → sort by it.
-- **Shift+Click a column header** sets a secondary sort key (e.g. Series, then #).
-- Cover size slider in Cover View; Grid/List toggle in the View menu and toolbar.
+**Cover View vs List View** (View menu or the toolbar toggle): covers for browsing by eye —
+with a width slider to size them — and List for data work: sortable columns, more fields
+visible at once. Each folder remembers its own sort; series-grouped displays show group
+headers you can collapse (and Collapse/Expand All Groups controls).
+
+**Columns are yours to shape** (List View): **Choose Columns** picks which show (Title,
+Author, Series, #, Ownership, Format, ASIN, ratings, prices, price date, dates, Amazon
+link…), drag headers to reorder, drag edges to resize. **Click a header to sort; click again
+to reverse; Shift+Click another column for a secondary key** (e.g. Series, then #). This is
+also the answer to "I can't filter by X" — add the column and sort.
+
+**Badges on covers**: non-purchased ownership shows as a badge (SAMPLE, PRIME…); wishlist
+books render dimmed; a cut book wears "marching ants"; hidden books dim further.
+
+**Number by Current Order** (right-click, with books selected): stamps series positions to
+match the current display order — arrange 32 unrelated Heinleins by publication date, select,
+number them once.
 
 ## 5. Search box & filters
 
@@ -410,25 +423,68 @@ restore would lie about the state they'd return you to).
 4. **File → Save Spreadsheet (CSV)…** exports one row per book — tags, folder paths, and Book
    Lists included — and opens directly in Excel. Book ids are ASINs.
 
-## 16. Price watching & deals — _(pending: batch 5)_
+## 16. Price watching & deals
 
-Seed facts:
-- Set a goal from the book dialog or right-click → Set Price Goal (presets or custom);
-  **Deals Only** filters to books at or below goal.
-- Prices are as fresh as your last fetch; each shows its "as of" date and dims after ~24h.
-  Some books legitimately have no price (delisted, or only an audiobook edition is sold);
-  Prime/KU books can show a buy-price while borrowable.
+**How do I watch for a sale?** Give a book a **price goal**: right-click → Set Price Goal
+(preset amounts or a custom target), or the "Buy at" buttons in its dialog. Then **Deals
+Only** (View menu / filter bar) shows every book at or below its goal — check it after a
+fetch and buy. Wishlist and sample books are the natural targets: track the book, name your
+price, wait.
 
-## 17. Mobile — _(pending: batch 5)_
+**How fresh are prices?** As fresh as your last fetch — every wishlist-priced book is
+re-priced each run. Each price shows its "as of" date and **dims once it's stale (~24h)** so
+a sale you're seeing might already be over — fetch before you buy.
 
-Seed facts:
-- Mobile is a **viewer**: it mirrors the desktop's data and order (refresh to pick up the
-  latest push; a freshness banner nudges when newer data exists). Pair via the QR code in
-  Relay Setup.
-- Mobile can't filter — the pattern is to pre-filter on desktop into Book Lists
-  (WORKFLOW-PATTERNS: "Book Lists as mobile filters").
+**Why does this book show no price?** Usually honest: delisted from the Kindle store, or only
+a non-Kindle edition (e.g. audiobook) is on sale. A **Prime/KU book showing a price** means
+"free to borrow, $X to buy" — ownership says Prime, price says what buying costs.
 
-## 18. Keyboard shortcuts & mouse tricks — _(pending: batch 5; the app's Help → Keyboard Shortcuts is the authority)_
+**Do goals survive buying the book?** Yes — promotion keeps your data (you'll visit the book
+anyway to file/queue it; clear the goal then if you like).
+
+## 17. Mobile
+
+**What is the mobile app?** A phone-sized *viewer* of your library — browse your folders,
+lists, and Searches; it deliberately doesn't edit or organize (that's desktop work). Install
+it as a home-screen app or just open readerwrangler.com on your phone.
+
+**How do I set it up?** Relay Setup on desktop → pair your phone with the **QR code**. The
+phone pulls your library from the relay — same encryption, key delivered by the QR, nothing
+readable in the cloud.
+
+**Does it match my desktop?** Yes — books, folders, Book Lists, Searches, **and your order**,
+pins included (the desktop is the ordering authority; there's no reordering on the phone).
+The drawer (hamburger) is the sidebar's twin for jumping between sections; sections collapse;
+color spines mark Searches / Book Lists / Folders.
+
+**Why is my phone showing older data?** It shows the library as of its last refresh — a
+banner nudges when the relay holds something newer; refresh to pull it. Desktop-side changes
+reach the relay shortly after you make them.
+
+**How do I filter on mobile?** You don't — you *pre-filter on desktop into Book Lists* and
+read the lists on the phone ("Book Lists as mobile filters", WORKFLOW-PATTERNS). Sorting
+within a shelf cycles like the desktop's sorts; hidden-book counts can be tapped to reveal.
+
+## 18. Keyboard shortcuts & mouse tricks
+
+The app's own list: Help → **Keyboard Shortcuts**. The core set:
+
+| Keys | Action |
+|---|---|
+| Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) | Undo / Redo (toasts name the target) |
+| Ctrl+A | Select all in the current view |
+| Ctrl+X / Ctrl+C / Ctrl+V | Cut (marks) / Copy / Paste books into the current folder |
+| Ctrl+Click / Shift+Click | Multi-select / range-select |
+| DEL | Delete selection (context-aware — see §12) |
+| Esc | Close dialog · cancel pending cut · clear selection |
+| ← → (book dialog) | Previous / next book |
+| Alt+← / Alt+→ | Back / Forward through your navigation history |
+| F2 | Rename the selected folder |
+
+Mouse tricks worth knowing: **Ctrl+drag = copy**; Shift+Click a column header = secondary
+sort key; hover a cover = "where does this book live" popup; double-click = open the book;
+right-click *everything* — books, folders, lists, Searches, tags, blank space, even the Trash
+row — the menus are where the power hides.
 
 ## 19. Troubleshooting (symptom → explanation → fix)
 
