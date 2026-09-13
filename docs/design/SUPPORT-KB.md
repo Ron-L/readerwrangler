@@ -101,12 +101,17 @@ _(Concepts below; per-feature details in their own sections.)_
 - **Inbox** — where newly imported books land, awaiting a decision. Drag them into folders
   (or Auto-Organize) to file them.
 - **Folders** — your hierarchy; a folder is a book's *home*. Folders nest (author → series is
-  the common shape).
-- **Trash** — deleted books, still recoverable until you empty it.
+  the common shape) — but nothing says they must be authors: catch-all shelves work just as
+  well (*Various Authors*, *Non-Fiction*, *Comics*), or anything your imagination suggests.
+- **Trash** — deleted books, still recoverable until you empty it. Just like your computer's
+  recycle bin.
 
-**Folders vs Book Lists — which do I use?** Folders hold *where a book belongs* (stable,
-set once); Book Lists hold *transient status* like "still to read" (cheap to add, cheap to
-delete from when done). The full patterns: WORKFLOW-PATTERNS.md.
+**Folders vs Book Lists vs tags — which do I use?** The rule of thumb: **folders hold where
+a book belongs** (stable, set once); **Book Lists hold what's next** (transient status like
+"still to read" — cheap to add, cheap to delete from when done); **tags hold what kind**
+(cross-cutting labels — *SF*, *Non-Fiction*, *My Wife's Books* — filterable in any
+combination with everything else, for unlimited views of your collection). The full
+patterns: WORKFLOW-PATTERNS.md.
 
 ## 4. Views, columns & sorting
 
