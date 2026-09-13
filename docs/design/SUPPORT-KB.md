@@ -57,16 +57,17 @@ you make via the bookmarklet from any product page — print editions included.
    Library (and Download Collections for your Kindle collections/read status). Let it finish —
    including the background orphan scan after "fetch complete."
 3. **Import** — back in ReaderWrangler: File → Import from Relay. Your books appear in the
-   **Inbox**.
+   **Inbox**. (A just-finished fetch can take up to a minute to arrive — if Import says
+   "up to date" too soon, wait a moment and try again.)
 4. **Organize** — drag books into folders, tag them, build Book Lists — or right-click →
    Auto-Organize to file whole authors at once. Repeat steps 2–3 occasionally to pick up new
    purchases.
 
 **What's the bookmarklet, and why one?** A bookmark that runs the fetcher on Amazon's page —
 it's how your (already logged-in) browser session reads your own library. Nothing to install,
-no password ever given to ReaderWrangler. Your relay credentials are baked into it when you
-create it — if you ever regenerate credentials, drag a fresh bookmarklet (the app detects
-mismatches and offers it).
+no password ever given to ReaderWrangler. Your ReaderWrangler relay credentials are baked
+into it when you create it — if you ever regenerate credentials, drag a fresh bookmarklet
+(the app detects mismatches and offers it).
 
 **Do I need an Amazon account to try it? (The Demo Library.)** No — download the demo library
 (100+ classic books) from the home or Tutorials page, open ReaderWrangler, and load the file:
@@ -80,9 +81,10 @@ cleared (or a new machine), it says so — *"Your folders and lists are intact"*
 recovery options best-first: Import from Relay (your library is still in the cloud), Restore
 a backup, or fetch fresh then import. It never means your organization is gone.
 
-**How do I keep it current?** Buy books as usual; every so often run the bookmarklet
-(Download Library) and then Import from Relay. Incremental fetches are quick — they stop at
-the newest book ReaderWrangler already knows.
+**How do I keep it current?** Buy books as usual; every so often run the bookmarklet —
+Download Library, plus Download Collections when your Kindle collections or read status
+have changed — then Import from Relay. Incremental fetches are quick — they stop at the
+newest book ReaderWrangler already knows.
 
 ## 3. The sidebar: what all those sections are
 
