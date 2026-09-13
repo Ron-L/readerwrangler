@@ -101,17 +101,19 @@ _(Concepts below; per-feature details in their own sections.)_
 - **Inbox** — where newly imported books land, awaiting a decision. Drag them into folders
   (or Auto-Organize) to file them.
 - **Folders** — your hierarchy; a folder is a book's *home*. Folders nest (author → series is
-  the common shape) — but nothing says they must be authors: catch-all shelves work just as
-  well (*Various Authors*, *Non-Fiction*, *Comics*), or anything your imagination suggests.
+  the common shape) — but nothing says they must *all* be authors: mix in catch-all shelves
+  (*Various Authors*, *Non-Fiction*, *Comics*), or anything your imagination suggests.
 - **Trash** — deleted books, still recoverable until you empty it. Just like your computer's
   recycle bin.
 
-**Folders vs Book Lists vs tags — which do I use?** The rule of thumb: **folders hold where
-a book belongs** (stable, set once); **Book Lists hold what's next** (transient status like
-"still to read" — cheap to add, cheap to delete from when done); **tags hold what kind**
-(cross-cutting labels — *SF*, *Non-Fiction*, *My Wife's Books* — filterable in any
-combination with everything else, for unlimited views of your collection). The full
-patterns: WORKFLOW-PATTERNS.md.
+**Folders vs Book Lists vs tags — which do I use?** Three tools, three textures: **a folder
+is a shelf** — where the book belongs, its home, set once. **A Book List is a stack of index
+cards** — any hand-picked set: a to-read queue, all your SF, your wife's books; tear up a
+card and the book stays on its shelf. **A tag is a sticky note** — a label you filter by, in
+any combination with everything else, for unlimited views of your collection. Book Lists and
+tags overlap on purpose — plenty of schemes work as either, and which carries what is *your*
+preference. ReaderWrangler provides the tools; the schema is yours. Proven patterns and
+their trade-offs: WORKFLOW-PATTERNS.md.
 
 ## 4. Views, columns & sorting
 
@@ -241,10 +243,12 @@ Book Lists hold shortcuts to it.** Delete a copy → the book leaves that folder
 shortcut → it leaves that list; the book itself survives until you trash it. Adding or
 removing from a list never moves, tags, hides, or deletes the book.
 
-**When do I use one instead of a folder?** For *transient status* — above all, to-read
-queues: `<Series> - To Read`, a shared `New To Read`. Finish a book → delete it from the
-list; its folder home never churns. (Folders are for *where a book belongs*; they nest, lists
-don't.) Full patterns: WORKFLOW-PATTERNS.md.
+**When do I use one instead of a folder?** For any hand-picked set that isn't the book's
+*home*: all your SF, your wife's books, gift ideas — and the classic, *to-read queues*
+(`<Series> - To Read`, a shared `New To Read`: finish a book → delete it from the list; its
+folder home never churns). Folders are for where a book belongs and they nest; lists are
+flat and disposable by design. Many schemes work as either a Book List or a tag — your
+preference decides. Full patterns: WORKFLOW-PATTERNS.md.
 
 **How do I make and fill one?** ➕ on the Book Lists header (name it in place — Escape keeps
 the suggested name); or select books anywhere → right-click → **Add to Book List** (existing
