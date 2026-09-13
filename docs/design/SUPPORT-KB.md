@@ -20,9 +20,10 @@ Companion docs: **WORKFLOW-PATTERNS.md** (usage patterns & trade-offs), **TERMIN
 
 ## 1. What is ReaderWrangler?
 
-**What does it do?** ReaderWrangler organizes your Amazon Kindle library — the one Amazon
-gives you no real tools to organize. It pulls in your books (covers, series, ratings,
-descriptions, prices, your Kindle collections), and lets you arrange them your way: folders,
+**What does it do?** Amazon.com/yourbooks lists all your books but only in sorted order. You
+can't group them, reorder them, make lists of them. In short — you can't organize them.
+ReaderWrangler pulls in your books (covers, series, ratings, descriptions, prices, your
+Kindle collections) into a page on YOUR browser, and lets you arrange them your way: folders,
 tags, Book Lists, saved Searches, drag-and-drop, and an Auto-Organize that files whole author
 backlogs in one preview. Its reason to exist: *unbury your next great read* from a backlog
 Amazon shows you only as an endless recency scroll.
