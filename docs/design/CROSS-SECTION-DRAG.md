@@ -3,6 +3,11 @@
 _Status: **DECIDED 2026-08-29, not built.** Separate work package from folder-ordering Phase 2/3
 (same recon session, different branch/scope). Findings verified in code 2026-08-29._
 
+> **When this ships, update docs/design/SUPPORT-KB.md** — §8 (Book Lists: drag rules) and §6
+> document CURRENT behavior only and deliberately omit the not-yet-built gestures (folder→list
+> add, between-rows create) and the honesty fixes. WORKFLOW-PATTERNS.md may gain the
+> drag-to-create-list pattern too. (Noted 2026-09-13 during the KB feature-surface pass.)
+
 > "A foolish consistency is the hobgoblin of little minds." — the design principle below was
 > challenged head-on and ratified with conviction; see **The naming rule** before re-litigating.
 

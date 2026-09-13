@@ -520,6 +520,8 @@ The full method is **SUGGESTED-ORGANIZING-PRINCIPLES.md**; the patterns and trad
 - **Add here** when an answer is a *fact or fix*; add to **WORKFLOW-PATTERNS.md** when it's a
   *way of using RW*. Distill both into USER-GUIDE at launch; the GPT is loaded from these
   files.
-- Site-page finding (2026-09-13): index.html and tutorials.html demo-library sections stop at
-  "Step 2: Open ReaderWrangler" without saying how to load the file (Welcome screen → Restore
-  a backup). Consider adding a Step 3 to both pages.
+- Site-page finding (2026-09-13, RESOLVED same day): the demo-library load instruction was
+  tooltip-only on the Step 2 button — a visible Step 3 ("Restore a backup → pick the file")
+  now appears on both index.html and tutorials.html.
+- Pending-feature note: CROSS-SECTION-DRAG (decided, unbuilt) will change §8's drag rules —
+  the spec and TODO both carry an update-the-KB-on-ship note.
