@@ -121,25 +121,82 @@ Seed facts:
   ("3134 of 3136 — 2 hidden by user").
 - **Deals Only** shows books at or below your price goals.
 
-## 6. Folders & organizing by hand — _(pending: batch 2)_
+## 6. Folders & organizing by hand
 
-Seed facts:
-- Drag moves; **Ctrl+drag copies**. Cut/copy/paste works too (cut marks with "marching ants";
-  nothing moves until paste; Esc cancels).
-- Right-click → Move to Top / Move to Bottom; 📌 pin folders to a top tier; sort folders by
-  Name or Count and **bake** a sorted order into Manual when you like it.
-- Books can live in more than one folder (a deliberate copy). Hover a cover to see everywhere
-  a book lives ("Found in… / On Book Lists…" — and in Trash, "Was in…").
+**How do I move books into folders?** Drag them (multi-select first if you like: click,
+Ctrl+click, Shift+click for ranges, Ctrl+A for all). Plain **drag moves; Ctrl+drag copies** —
+the toast confirms which happened. Right-click → **Move to ▸ / Copy to ▸** offers the folder
+tree as a menu (in your sidebar's order), including "New folder…" targets. Cut/copy/paste
+works too: Ctrl+X marks books with a dashed "marching ants" border — **nothing moves until
+you paste** into the destination folder (Esc cancels a pending cut from anywhere).
 
-## 7. Auto-Organize — _(pending: batch 2)_
+**Can a book be in two folders?** Yes — a deliberate copy (Ctrl+drag or Copy to) gives it two
+homes; both show the same book. Hover a cover to see everywhere it lives ("Found in… / On
+Book Lists…"). Dropping a book on a folder that already holds it says "Book already in
+folder" rather than making a duplicate.
 
-Seed facts:
-- Right-click any book → Auto-Organize (By Author / By Series), or File → Auto-Organize… for
-  the multi-author wizard. One preview shows everything by the chosen authors wherever it
-  lives; **the checkboxes are the scope** — nothing moves that you didn't leave checked.
-- Author strings are never parsed: "Larry Niven, Jerry Pournelle" is its own author. Use
-  **File under…** (right-click in the preview) to send co-author books into the folder you
-  choose — creating a folder is always an explicit choice, never a typo.
+**How do folders themselves get organized?** Folders nest (drag one into another; a folder
+can't be dropped into its own subtree, and the Inbox can't be moved). The FOLDERS list has
+**one order, mirrored everywhere it appears** — sidebar, the Folders view in the right pane,
+and the Move/Copy menus:
+- **Sort modes**: Manual (drag to reorder), Name, or book Count — pick via the FOLDERS-header
+  control (sidebar) or column headers (right pane, where clicking cycles ascending/descending).
+- **Drag-reorder works only in Manual** — in a sorted mode the app says so instead of
+  silently ignoring you; Move to Top / Move to Bottom likewise explain when they can't apply.
+- **Your Manual order survives sort excursions**: flip to Name to find something, flip back
+  to Manual and nothing has moved. Like a sorted order enough to keep it? **Bake** it — the
+  sorted order becomes your new Manual order.
+- **📌 Pin folders to the top** (right-click → Pin to top): pinned folders float in their own
+  small hand-ordered zone above whatever sort is active — how "Various Authors / New To Read"
+  stay on top of an alphabetized author list. The pin boundary is a wall for drags in both
+  directions.
+- **New folders land at the top** (below pins) so you can see what you just made; a batch of
+  new folders (one Auto-Organize pass) lands as an alphabetized block.
+
+**Where do subfolder books show up?** A folder's count includes its subtree; in sorted modes
+a parent row shows "N matching in subfolders" when a filter matches deeper down.
+
+**Each folder remembers its own book sort** (title, author, series, date…, or Manual), and
+returning to that folder restores it. Series sorting uses series then # — Shift+Click a
+column header for your own secondary key.
+
+## 7. Auto-Organize
+
+**What does it do?** Files books into `Author` folders (and `Author/Series` subfolders) for
+you — the cure for a thousand-book Inbox. Two entry points, one engine:
+- **Right-click a book → Auto-Organize ▸ By Author / By Series** — acts on the chosen
+  authors' books.
+- **File → Auto-Organize…** — the wizard: pick multiple authors at once (filter box,
+  All/Some/None, minimum-books slider), then the same preview.
+
+**The preview is the contract.** It shows *everything* by the chosen authors, wherever it
+lives: books from the folder you launched in and the Inbox arrive pre-checked (they'll move);
+strays living elsewhere are visible but unchecked (they stay unless you check them); books
+already in their destination show small and gray, labeled **home**. **The checkboxes are the
+scope** — the button counts what will actually move ("Organize 4 books"), and nothing you
+left unchecked is touched. Every cover carries a caption saying where it lives now; click it
+for the plain-words breakdown ("moves from Wishlist · stays in Non-Fiction") with per-folder
+checkboxes for copies that should stay put.
+
+**What's the ⚙ Options strip?** Live controls inside the preview: the series-folder threshold
+(how many books a series needs before it earns its own subfolder — below it, books file
+directly under the author), and related knobs. Adjust and watch the preview reorganize.
+
+**Will it undo my existing organization?** No — two guards. Books already filed elsewhere are
+never pulled without your checkbox, and Auto-Organize refuses to *flatten* an existing author
+tree (running By Author on a folder that already has series subfolders won't dissolve them).
+
+**Co-authors and name variants.** Author strings are **never parsed**: "Larry Niven, Jerry
+Pournelle" is its own author, and "Kevin J Anderson" (no period) is a different author from
+"Kevin J. Anderson" — variants file into separate folders until you edit the books' author
+field to match. For co-author books, right-click in the preview → **File under…**: send them
+to another group or pick any folder by name — creating a new folder is always an explicit
+➕ choice in the picker, never the accident of a typo.
+
+**Handy inside the preview**: multi-select covers (Ctrl/Shift/Ctrl+A) and right-click → Add
+to Book List (e.g. select the unread ones → `<Series> - To Read` — the suggested name knows
+the series); double-click a cover to open its book dialog; group headers take File under…
+for the whole group. One Organize click = one undo.
 
 ## 8. Book Lists — _(pending: batch 3)_
 
