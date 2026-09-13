@@ -20,13 +20,13 @@ Companion docs: **WORKFLOW-PATTERNS.md** (usage patterns & trade-offs), **TERMIN
 
 ## 1. What is ReaderWrangler?
 
-**What does it do?** Amazon.com/yourbooks lists all your books but only in sorted order. You
-can't group them, reorder them, make lists of them. In short — you can't organize them.
-ReaderWrangler pulls in your books (covers, series, ratings, descriptions, prices, your
-Kindle collections) into a page on YOUR browser, and lets you arrange them your way: folders,
-tags, Book Lists, saved Searches, drag-and-drop, and an Auto-Organize that files whole author
-backlogs in one preview. Its reason to exist: *unbury your next great read* from a backlog
-Amazon shows you only as an endless recency scroll.
+**What does it do?** Amazon's Your Books page lists everything you own — as one endless,
+sorted scroll. You can't group books, reorder them, or make lists of them. In short: you
+can't *organize* them. ReaderWrangler pulls your library — covers, series, ratings,
+descriptions, prices, your Kindle collections — into a page that lives in *your* browser,
+and lets you arrange it your way: folders, tags, Book Lists, saved Searches, drag-and-drop,
+and an Auto-Organize that files whole author backlogs in one preview. Its reason to exist:
+**unbury your next great read.**
 
 **Do I install anything?** No. It runs entirely in your browser at readerwrangler.com — no
 install, no account, no sign-up. (The one thing you drag to your bookmarks bar is a
