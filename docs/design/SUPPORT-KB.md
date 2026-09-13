@@ -107,13 +107,14 @@ _(Concepts below; per-feature details in their own sections.)_
   recycle bin.
 
 **Folders vs Book Lists vs tags — which do I use?** Three tools, three textures: **a folder
-is a shelf** — where the book belongs, its home, set once. **A Book List is a stack of index
-cards** — any hand-picked set: a to-read queue, all your SF, your wife's books; tear up a
-card and the book stays on its shelf. **A tag is a sticky note** — a label you filter by, in
-any combination with everything else, for unlimited views of your collection. Book Lists and
-tags overlap on purpose — plenty of schemes work as either, and which carries what is *your*
-preference. ReaderWrangler provides the tools; the schema is yours. Proven patterns and
-their trade-offs: WORKFLOW-PATTERNS.md.
+is a shelf** — where the book belongs, its home. **A Book List is a stack of index cards** —
+any hand-picked set: a to-read queue, all your SF, your wife's books; tear up a card and the
+book stays on its shelf. **A tag is a sticky note** — a label you filter by, in any
+combination with everything else, for unlimited views of your collection. (Tags are the one
+tool here without a sidebar section of their own — they live in the filter bar, and under
+View → Manage Tags.) Book Lists and tags overlap on purpose — plenty of schemes work as
+either, and which carries what is *your* preference. ReaderWrangler provides the tools; the
+schema is yours. Proven patterns and their trade-offs: WORKFLOW-PATTERNS.md.
 
 ## 4. Views, columns & sorting
 
