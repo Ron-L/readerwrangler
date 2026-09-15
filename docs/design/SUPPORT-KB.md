@@ -163,15 +163,16 @@ it).
 
 **How do I move books into folders?** Drag them (multi-select first if you like: click,
 Ctrl+click, Shift+click for ranges, Ctrl+A for all). Plain **drag moves; Ctrl+drag copies** —
-the toast confirms which happened. Right-click → **Move to ▸ / Copy to ▸** offers the folder
+the toast confirms which happened (and the 🕐 button by the status bar keeps a history of
+recent messages, in case one faded before you read it). Right-click → **Move to ▸ / Copy to ▸** offers the folder
 tree as a menu (in your sidebar's order), including "New folder…" targets. Cut/copy/paste
 works too: Ctrl+X marks books with a dashed "marching ants" border — **nothing moves until
 you paste** into the destination folder (Esc cancels a pending cut from anywhere).
 
 **Can a book be in two folders?** Yes — a deliberate copy (Ctrl+drag or Copy to) gives it two
 homes; both show the same book. Hover a cover to see everywhere it lives ("Found in… / On
-Book Lists…"). Dropping a book on a folder that already holds it says "Book already in
-folder" rather than making a duplicate.
+Book Lists…"). But a book can't appear twice in the *same* folder — dropping it on a folder
+that already holds it says "Book already in folder" rather than making a duplicate.
 
 **How do folders themselves get organized?** Folders nest (drag one into another; a folder
 can't be dropped into its own subtree, and the Inbox can't be moved). The FOLDERS list has
