@@ -328,7 +328,8 @@ read-only presets: you can't drop books "into" one.
 **What's in it?** Double-click a book (or right-click → the book's name): cover, title
 (linked to Amazon), author, series & position, format, ownership, Amazon rating & reviews,
 **My Rating** stars, current price with its "as of" date, **price goal** (preset "Buy at"
-amounts or a custom target), tags, Kindle Collections, description, and your note. **◀ ▶
+amounts or a custom target, plus "was $X.XX when goal set" — the price recorded the moment
+you set the goal; see §16), tags, Kindle Collections, description, and your note. **◀ ▶
 arrows (or ← →) walk the current folder's books** without closing the dialog — great for
 reviewing a series in order.
 
