@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.11.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.12.0-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -5501,6 +5501,8 @@
                     tags: book.tags,
                     note: book.userNote,
                     priceTrigger: book.priceTrigger,
+                    priceAtGoalSet: book.priceAtGoalSet ?? null, // v7.12.0 - price when goal was set
+                    priceGoalSetAt: book.priceGoalSetAt ?? null, // v7.12.0
                     myRating: book.myRating || 0,
                     userEdited: book.userEdited || undefined,
                     orphanStatus: book.orphanStatus || null, // v6.12.0 Phase 8b - mobile "orphan" ownership filter
@@ -5640,10 +5642,12 @@
                         targetPrice: book.targetPrice,
                         genres: book.genres,
                         genresAsOf: book.genresAsOf,
-                        // v5.0.0-alpha.175.28 - User metadata (tags, notes, price alerts)
+                        // v5.0.0-alpha.175.28 - User metadata (tags, notes, price goals)
                         tags: book.tags,
                         note: book.userNote,
                         priceTrigger: book.priceTrigger,
+                        priceAtGoalSet: book.priceAtGoalSet ?? null, // v7.12.0 - price when goal was set
+                        priceGoalSetAt: book.priceGoalSetAt ?? null, // v7.12.0
                         myRating: book.myRating || 0,  // v5.0.0-alpha.175.31 - Personal rating (0=unrated, 1-5=rated)
                         userEdited: book.userEdited || undefined  // v5.4.7 - Track user-edited fields
                     }));
@@ -6140,6 +6144,8 @@
                             listPrice: parsePrice(item.listPrice),
                             priceFetchedAt: item.priceFetchedAt || item.priceAsOf || null, // v7.1.0 - wishlist adds stamp priceAsOf
                             priceTrigger: item.priceTrigger ?? null,
+                            priceAtGoalSet: item.priceAtGoalSet ?? null, // v7.12.0 - price when goal was set
+                            priceGoalSetAt: item.priceGoalSetAt ?? null, // v7.12.0
                             // Genre data (v4.17.0.a)
                             genres: item.genres || [],
                             // v5.0.0-alpha.175.28 - User metadata (tags, notes)
@@ -6208,6 +6214,8 @@
                             listPrice: parsePrice(item.listPrice),
                             priceFetchedAt: item.priceFetchedAt || item.priceAsOf || null, // v7.1.0 - wishlist adds stamp priceAsOf
                             priceTrigger: item.priceTrigger ?? null,
+                            priceAtGoalSet: item.priceAtGoalSet ?? null, // v7.12.0 - price when goal was set
+                            priceGoalSetAt: item.priceGoalSetAt ?? null, // v7.12.0
                             // Genre data (v4.17.0.a)
                             genres: item.genres || [],
                             // v5.0.0-alpha.175.28 - User metadata (tags, notes)
@@ -6957,13 +6965,40 @@
             // values BEFORE the mutation, so call this before setBooks. Dialog chip clicks record
             // undo but do NOT toast (the goal line updates under your eyes — the reorder precedent);
             // the menu/bulk paths keep their named receipt toasts.
-            const recordPriceGoal = (bookIds, newValue) => {
-                const previousValues = {};
-                bookIds.forEach(id => { const b = books.find(x => x.id === id); previousValues[id] = b ? (b.priceTrigger ?? null) : null; });
+            // v7.12.0 - upgraded from record-only to THE apply chokepoint (one place per operation):
+            // records undo, mutates books, syncs the open dialog. Also captures the PRICE SNAPSHOT —
+            // priceAtGoalSet/priceGoalSetAt = the book's current price and date at the moment the goal
+            // was set ("what did it cost when I decided to care?" — Amazon list prices are theater, so
+            // this is the honest reference for what the book returns to after a sale). Policy (ratified
+            // 2026-09-15): capture on EVERY set — including re-setting the SAME value, which is the
+            // documented way to refresh the reference on pre-7.12 goals — display shows the date so a
+            // mid-sale capture is self-evident. One snapshot per set, never a history. No price at set
+            // time → snapshot stays empty (blank = honest unknown). Clearing the goal clears it.
+            const applyPriceGoal = (bookIds, newValue) => {
+                const previousValues = {}, previousSnapshots = {}, newSnapshots = {};
+                const now = Date.now();
+                bookIds.forEach(id => {
+                    const b = books.find(x => x.id === id);
+                    previousValues[id] = b ? (b.priceTrigger ?? null) : null;
+                    previousSnapshots[id] = { p: b?.priceAtGoalSet ?? null, at: b?.priceGoalSetAt ?? null };
+                    newSnapshots[id] = (newValue != null && b?.currentPrice != null)
+                        ? { p: b.currentPrice, at: now } : { p: null, at: null };
+                });
                 recordAction({
-                    type: 'SET_PRICE_GOAL', bookIds: [...bookIds], previousValues, newValue,
+                    type: 'SET_PRICE_GOAL', bookIds: [...bookIds], previousValues, previousSnapshots, newSnapshots, newValue,
                     label: newValue != null ? `Set $${newValue.toFixed(2)} goal for ${bookCountLabel(bookIds)}` : `Clear price goal for ${bookCountLabel(bookIds)}`
                 });
+                const idSet = new Set(bookIds);
+                setBooks(prev => {
+                    const updated = prev.map(b => idSet.has(b.id)
+                        ? { ...b, priceTrigger: newValue, priceAtGoalSet: newSnapshots[b.id].p, priceGoalSetAt: newSnapshots[b.id].at }
+                        : b);
+                    saveBooksToIndexedDB(updated);
+                    return updated;
+                });
+                setModalBook(prev => prev && idSet.has(prev.id)
+                    ? { ...prev, priceTrigger: newValue, priceAtGoalSet: newSnapshots[prev.id].p, priceGoalSetAt: newSnapshots[prev.id].at }
+                    : prev);
             };
             // v7.10.1-alpha.4 - star ratings undoable (same never-wired class as price goals)
             const recordRating = (bookIds, newValue) => {
@@ -7327,8 +7362,13 @@
                         break;
                     case 'SET_PRICE_GOAL':
                         // v7.10.1-alpha.3 - Undo price goal: restore each book's previous trigger
+                        // v7.12.0 - and its previous price snapshot (?. guards pre-7.12 stack entries)
                         setBooks(prev => {
-                            const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, priceTrigger: action.previousValues[b.id] ?? null } : b);
+                            const updated = prev.map(b => action.bookIds.includes(b.id)
+                                ? { ...b, priceTrigger: action.previousValues[b.id] ?? null,
+                                    priceAtGoalSet: action.previousSnapshots?.[b.id]?.p ?? b.priceAtGoalSet ?? null,
+                                    priceGoalSetAt: action.previousSnapshots?.[b.id]?.at ?? b.priceGoalSetAt ?? null }
+                                : b);
                             saveBooksToIndexedDB(updated);
                             return updated;
                         });
@@ -7870,8 +7910,13 @@
                         break;
                     case 'SET_PRICE_GOAL':
                         // v7.10.1-alpha.3 - Redo price goal: re-apply the new trigger to all books
+                        // v7.12.0 - and the snapshot captured at original do-time (?. guards old entries)
                         setBooks(prev => {
-                            const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, priceTrigger: action.newValue } : b);
+                            const updated = prev.map(b => action.bookIds.includes(b.id)
+                                ? { ...b, priceTrigger: action.newValue,
+                                    priceAtGoalSet: action.newSnapshots?.[b.id]?.p ?? b.priceAtGoalSet ?? null,
+                                    priceGoalSetAt: action.newSnapshots?.[b.id]?.at ?? b.priceGoalSetAt ?? null }
+                                : b);
                             saveBooksToIndexedDB(updated);
                             return updated;
                         });
@@ -9226,7 +9271,7 @@
                                                     transition: 'background 0.1s', color: 'var(--text-primary)', position: 'relative'
                                                 }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
                                                     {dealsFilterActive && <span style={{ position: 'absolute', left: '12px' }}>✓</span>}
-                                                    Deals Only
+                                                    Goal Met
                                                 </button>
                                                 <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
                                                 <button onClick={() => { setTagManagementOpen(true); setOpenMenuBar(null); }} style={{
@@ -9991,7 +10036,7 @@
                                 style={{ marginRight: '2px' }}
                             />
                             <span>
-                                Deals only ({books.filter(b => b.priceTrigger != null && b.currentPrice != null && b.currentPrice <= b.priceTrigger).length})
+                                Goal Met ({books.filter(b => b.priceTrigger != null && b.currentPrice != null && b.currentPrice <= b.priceTrigger).length})
                             </span>
                         </label>
 
@@ -13118,16 +13163,7 @@
                                         e.preventDefault();
                                         const price = parseFloat(bulkPriceInput);
                                         if (!isNaN(price) && price > 0) {
-                                            const count = bulkPriceBookIds.length;
-                                            recordPriceGoal(bulkPriceBookIds, price); // v7.10.1-alpha.3 - undoable
-                                            setBooks(prev => {
-                                                const updated = prev.map(b =>
-                                                    bulkPriceBookIds.includes(b.id) ? { ...b, priceTrigger: price } : b
-                                                );
-                                                saveBooksToIndexedDB(updated);
-                                                return updated;
-                                            });
-                                            // Toast feedback
+                                            applyPriceGoal(bulkPriceBookIds, price); // v7.12.0 - chokepoint (undo + snapshot)
                                             showToast(`Price goal set to $${price.toFixed(2)} for ${bookCountLabel(bulkPriceBookIds)}`); // v7.10.1 - named receipt
                                         }
                                         setShowBulkPriceModal(false);
@@ -14136,18 +14172,8 @@
                                                         {[0.99, 1.99, 2.99, 3.99, 4.99].map(price => (
                                                             <button
                                                                 key={price}
-                                                                onClick={() => {
-                                                                    recordPriceGoal([modalBook.id], price); // v7.10.1-alpha.3 - undoable
-                                                                    setBooks(prev => {
-                                                                        const updated = prev.map(b =>
-                                                                            b.id === modalBook.id ? { ...b, priceTrigger: price } : b
-                                                                        );
-                                                                        saveBooksToIndexedDB(updated);
-                                                                        return updated;
-                                                                    });
-                                                                    setModalBook(prev => ({ ...prev, priceTrigger: price }));
-                                                                }}
-                                                                title={`Notify me when price drops to $${price.toFixed(2)} or below`}
+                                                                onClick={() => applyPriceGoal([modalBook.id], price)} // v7.12.0 - chokepoint (undo + snapshot)
+                                                                title={`Your target price — books at or below their goal are filterable under Goal Met`}
                                                                 className={`px-2 py-1 text-sm rounded ${modalBook.priceTrigger === price ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
                                                             >
                                                                 ${price.toFixed(2)}
@@ -14167,15 +14193,7 @@
                                                                     e.preventDefault();
                                                                     const price = parseFloat(customPriceInput);
                                                                     if (!isNaN(price) && price > 0) {
-                                                                        recordPriceGoal([modalBook.id], price); // v7.10.1-alpha.3 - undoable
-                                                                        setBooks(prev => {
-                                                                            const updated = prev.map(b =>
-                                                                                b.id === modalBook.id ? { ...b, priceTrigger: price } : b
-                                                                            );
-                                                                            saveBooksToIndexedDB(updated);
-                                                                            return updated;
-                                                                        });
-                                                                        setModalBook(prev => ({ ...prev, priceTrigger: price }));
+                                                                        applyPriceGoal([modalBook.id], price); // v7.12.0 - chokepoint (undo + snapshot)
                                                                     }
                                                                     setShowCustomPriceInput(false);
                                                                     setCustomPriceInput('');
@@ -14201,17 +14219,7 @@
                                                         {/* v4.20.0.a - More visible Clear button for consistency with bulk menu */}
                                                         {modalBook.priceTrigger && (
                                                             <button
-                                                                onClick={() => {
-                                                                    recordPriceGoal([modalBook.id], null); // v7.10.1-alpha.3 - undoable
-                                                                    setBooks(prev => {
-                                                                        const updated = prev.map(b =>
-                                                                            b.id === modalBook.id ? { ...b, priceTrigger: null } : b
-                                                                        );
-                                                                        saveBooksToIndexedDB(updated);
-                                                                        return updated;
-                                                                    });
-                                                                    setModalBook(prev => ({ ...prev, priceTrigger: null }));
-                                                                }}
+                                                                onClick={() => applyPriceGoal([modalBook.id], null)} // v7.12.0 - chokepoint (undo + snapshot cleared)
                                                                 className="px-2 py-1 text-sm rounded bg-red-100 hover:bg-red-200 text-red-700"
                                                                 title="Clear price goal"
                                                             >
@@ -14223,6 +14231,13 @@
                                                     {modalBook.priceTrigger && (
                                                         <p className="mt-2 text-sm text-green-600">
                                                             ✓ Goal: {'$'}{modalBook.priceTrigger.toFixed(2)} or less
+                                                            {/* v7.12.0 - the price you saw when you decided: the honest "what does it
+                                                                normally cost" reference (list prices are theater); date shown so a
+                                                                mid-sale capture is self-evident. Absent on pre-7.12 goals — re-set the
+                                                                goal (same value is fine) to stamp today's price. */}
+                                                            {modalBook.priceAtGoalSet != null && (
+                                                                <span className="text-gray-500 font-normal"> — was {'$'}{modalBook.priceAtGoalSet.toFixed(2)} when goal set{modalBook.priceGoalSetAt ? ` (${new Date(modalBook.priceGoalSetAt).toLocaleDateString()})` : ''}</span>
+                                                            )}
                                                         </p>
                                                     )}
                                             </div>
@@ -20037,14 +20052,7 @@
                                                                     className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${hasThisGoal ? 'font-bold' : ''}`}
                                                                     onClick={async () => {
                                                                     const selectedBookIds = getSelectedBookIds();
-                                                                    recordPriceGoal(selectedBookIds, price); // v7.10.1-alpha.3 - undoable
-                                                                    setBooks(prev => {
-                                                                        const updated = prev.map(b =>
-                                                                            selectedBookIds.includes(b.id) ? { ...b, priceTrigger: price } : b
-                                                                        );
-                                                                        saveBooksToIndexedDB(updated);
-                                                                        return updated;
-                                                                    });
+                                                                    applyPriceGoal(selectedBookIds, price); // v7.12.0 - chokepoint (undo + snapshot)
                                                                     showToast(`Price goal set to $${price.toFixed(2)} for ${bookCountLabel(selectedBookIds)}`); // v7.10.1 - named receipt
                                                                     setExplorerBookContextMenu(null);
                                                                     setContextSubmenu(null);
@@ -20069,15 +20077,7 @@
                                                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-red-600"
                                                             onClick={async () => {
                                                                 const selectedBookIds = getSelectedBookIds();
-                                                                recordPriceGoal(selectedBookIds, null); // v7.10.1-alpha.3 - undoable
-                                                                setBooks(prev => {
-                                                                    const updated = prev.map(b =>
-                                                                        selectedBookIds.includes(b.id) ? { ...b, priceTrigger: null } : b
-                                                                    );
-                                                                    saveBooksToIndexedDB(updated);
-                                                                    return updated;
-                                                                });
-                                                                // Toast feedback
+                                                                applyPriceGoal(selectedBookIds, null); // v7.12.0 - chokepoint (undo + snapshot cleared)
                                                                 showToast(`Price goal cleared for ${bookCountLabel(selectedBookIds)}`); // v7.10.1 - named receipt
                                                                 setExplorerBookContextMenu(null);
                                                                 setContextSubmenu(null);

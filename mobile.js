@@ -1,6 +1,6 @@
 // mobile.js — ReaderWrangler Mobile Viewer
 // MOBILE_VERSION tracks mobile-specific iterations
-const MOBILE_VERSION = '1.8.1'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
+const MOBILE_VERSION = '1.8.2-alpha.1'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
 console.log(`✅ Mobile viewer ${MOBILE_VERSION} | APP_VERSION: ${APP_VERSION}`);
 
 // v1.7.0 - Which server is this copy talking to? Derived from the page's own address, so an
@@ -59,6 +59,8 @@ function mapBackupBook(item) {
         priceAsOf: item.priceAsOf || '',
         targetPrice: item.targetPrice,
         priceTrigger: item.priceTrigger,
+        priceAtGoalSet: item.priceAtGoalSet ?? null, // v7.12.0 - price when goal was set
+        priceGoalSetAt: item.priceGoalSetAt ?? null, // v7.12.0
         genres: item.genres || [],
         genresAsOf: item.genresAsOf || '',
         tags: item.tags || [],
@@ -941,7 +943,7 @@ function AppMenu({ themePreference, viewMode, showDealsOnly, showHidden, onApply
                 <button onClick={onToggleDeals}
                     className="w-full text-left py-3 px-4 text-sm flex items-center justify-between"
                     style={{ touchAction: 'manipulation' }}>
-                    <span>Deals Only</span>
+                    <span>Goal Met</span>
                     {showDealsOnly && <IconCheck />}
                 </button>
 

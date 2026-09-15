@@ -118,6 +118,8 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                         addedToWishlist: existing.addedToWishlist,
                         // v5.0.0-alpha.163 - PRESERVE price goal when book transitions to owned
                         priceTrigger: existing.priceTrigger ?? book.priceTrigger,
+                        priceAtGoalSet: existing.priceAtGoalSet ?? book.priceAtGoalSet, // v7.12.0 - snapshot rides with the goal
+                        priceGoalSetAt: existing.priceGoalSetAt ?? book.priceGoalSetAt, // v7.12.0
                         targetPrice: existing.targetPrice ?? book.targetPrice,
                         myRating: existing.myRating ?? book.myRating,  // v5.0.0-alpha.175.31 - Personal rating
                         userEdited: { ...(book.userEdited || {}), ...ueWish }  // v6.12.0 - union flags
@@ -129,6 +131,8 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                         ...existing,
                         addedToWishlist: book.addedToWishlist ?? existing.addedToWishlist,
                         priceTrigger: book.priceTrigger ?? existing.priceTrigger,
+                        priceAtGoalSet: book.priceAtGoalSet ?? existing.priceAtGoalSet, // v7.12.0 - snapshot rides with the goal
+                        priceGoalSetAt: book.priceGoalSetAt ?? existing.priceGoalSetAt, // v7.12.0
                         targetPrice: book.targetPrice ?? existing.targetPrice,
                         myRating: book.myRating ?? existing.myRating  // v5.0.0-alpha.175.31 - Personal rating
                     });
@@ -169,6 +173,8 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                         lastAmazonOwnershipType: book.lastAmazonOwnershipType ?? previousBook.lastAmazonOwnershipType,  // v7.8.0-alpha.3 - snapshot survives imports (OWNERSHIP-MODEL.md §4 carrier checklist)
                         addedToWishlist: book.addedToWishlist ?? previousBook.addedToWishlist,
                         priceTrigger: book.priceTrigger ?? previousBook.priceTrigger,
+                        priceAtGoalSet: book.priceAtGoalSet ?? previousBook.priceAtGoalSet, // v7.12.0 - snapshot rides with the goal
+                        priceGoalSetAt: book.priceGoalSetAt ?? previousBook.priceGoalSetAt, // v7.12.0
                         targetPrice: book.targetPrice ?? previousBook.targetPrice,
                         tags: book.tags ?? previousBook.tags,
                         note: book.note ?? previousBook.note,
