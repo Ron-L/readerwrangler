@@ -86,7 +86,7 @@ Standard semver with pre-release suffix for test iterations:
 - Re-align "Coming Soon" content with actual TODO priorities (public promises must track the real queue)
 - Sweep the cycle's support-shaped material into docs/design/SUPPORT-KB.md (facts/fixes) and WORKFLOW-PATTERNS.md (usage patterns) — backstop for the same-breath mining rule; update SUPPORT-KB's "up to date as of" stamp
 - TODO.md: delete all checked `- [x]` items (now recorded in CHANGELOG) — TODO is future-only
-- After push: "Ready for post-mortem?"
+- After push: post-mortem — ALWAYS (Ron 2026-09-15: even an uneventful release is process data; the PM collection is itself reviewable data)
 - After post-mortem: update memory files (lessons → feedback_*, project state → project_*) — post-mortems are the archive; memory is what makes them load-bearing next session
 
 ---
