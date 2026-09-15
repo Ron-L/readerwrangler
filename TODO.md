@@ -9,7 +9,18 @@
 
 ---
 
-## 🔝 TOP OF STACK (Ron 2026-09-09/10)
+## 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-15)
+
+**THE CURRENT STACK (pop in this order):**
+1. **Finish the SUPPORT-KB human review** — parked at **§11** (§1–10 done; §16 re-review also
+   pending since its 7.12.0 rewrite). Doc-only, lands on main.
+2. **7.13.0 enumeration pass** — the field-vs-command classification table for every book-dialog
+   control, published for Ron's red pen BEFORE any transactional surgery (branch
+   `feature/dialog-transactional` is open; alpha.1 = copy chips + Copy Author, shipped & tested).
+3. **7.13.0 transactional build** against the approved table.
+4. Then the queued items below (left-pane parity, filter box, Ctrl+X-from-list fix, ownership
+   batch — item 6 first).
+
 
 - [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the 7.12.0 transactional dialog):
   pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
