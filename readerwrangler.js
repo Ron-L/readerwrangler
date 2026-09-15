@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.12.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.13.0-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -13616,10 +13616,19 @@
                                                     placeholder="Title"
                                                 />
                                             ) : (
-                                                /* v5.6.6 - Title links to Amazon */
-                                                <a href={getAmazonUrl(modalBook.asin)} target="_blank" rel="noopener noreferrer"
-                                                    className="text-3xl font-bold text-gray-900 mb-3 block hover:text-blue-700 transition-colors"
-                                                    title="View on Amazon">{modalBook.title}</a>
+                                                /* v5.6.6 - Title links to Amazon
+                                                   v7.13.0-alpha.1 (Ron) - copy chip: a linked title fights drag-select, so the
+                                                   value gets the standard take-me affordance (GitHub-SHA / DNS-record pattern) */
+                                                <div className="mb-3">
+                                                    <a href={getAmazonUrl(modalBook.asin)} target="_blank" rel="noopener noreferrer"
+                                                        className="text-3xl font-bold text-gray-900 hover:text-blue-700 transition-colors"
+                                                        title="View on Amazon">{modalBook.title}</a>
+                                                    <button
+                                                        onClick={() => { navigator.clipboard.writeText(modalBook.title); showToast('Title copied!'); }}
+                                                        className="ml-2 align-middle text-base opacity-40 hover:opacity-90 transition-opacity"
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                                                        title="Copy title" aria-label="Copy title">📋</button>
+                                                </div>
                                             )}
                                             {isEditingBook ? (
                                                 /* v7.8.0-alpha.3 (OWNERSHIP-MODEL.md §4) - Ownership + Format now edit IN PLACE in
@@ -13672,7 +13681,15 @@
                                                     />
                                                 </div>
                                             ) : (
-                                                <p className="text-xl text-gray-700 mb-4">by {modalBook.author}</p>
+                                                /* v7.13.0-alpha.1 (Ron) - matching copy chip: co-author strings read like
+                                                   random passwords; one chip would make this line look like it forgot its own */
+                                                <p className="text-xl text-gray-700 mb-4">by {modalBook.author}
+                                                    <button
+                                                        onClick={() => { navigator.clipboard.writeText(modalBook.author || ''); showToast('Author copied!'); }}
+                                                        className="ml-2 align-middle text-sm opacity-40 hover:opacity-90 transition-opacity"
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                                                        title="Copy author" aria-label="Copy author">📋</button>
+                                                </p>
                                             )}
 
                                             {modalBook.rating > 0 && (
@@ -19608,12 +19625,34 @@
                                                 onClick={() => {
                                                     const titles = selectedBooksArray.map(book => book.title).join('\n');
                                                     navigator.clipboard.writeText(titles);
+                                                    showToast(count !== 1 ? `${count} titles copied!` : 'Title copied!'); // v7.13.0-alpha.1 - receipt (clipboard family, non-undoable by doctrine)
                                                     setExplorerBookContextMenu(null);
                                                     setContextSubmenu(null);
                                                 }}>
                                                 <span>📝</span>
                                                 <span>Copy Title{count !== 1 ? 's' : ''}</span>
                                             </div>
+
+                                            {/* v7.13.0-alpha.1 (Ron) - Copy Author(s): co-author strings read like random
+                                                passwords; this is the designed per-field copy channel for every view.
+                                                Deduped (five books by one author = one line, unlike titles). */}
+                                            {(() => {
+                                                const uniqueAuthors = [...new Set(selectedBooksArray.map(b => b.author).filter(Boolean))];
+                                                return (
+                                                    <div
+                                                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3"
+                                                        role="menuitem"
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(uniqueAuthors.join('\n'));
+                                                            showToast(uniqueAuthors.length !== 1 ? `${uniqueAuthors.length} authors copied!` : 'Author copied!');
+                                                            setExplorerBookContextMenu(null);
+                                                            setContextSubmenu(null);
+                                                        }}>
+                                                        <span>👤</span>
+                                                        <span>Copy Author{uniqueAuthors.length !== 1 ? 's' : ''}</span>
+                                                    </div>
+                                                );
+                                            })()}
 
                                             {/* Edit, Note, Tags, Price Goal — hidden in Trash view */}
                                             {!isTrashView && (<>
