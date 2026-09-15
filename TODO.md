@@ -14,15 +14,14 @@
 **THE CURRENT STACK (pop in this order):**
 1. **Finish the SUPPORT-KB human review** — parked at **§11** (§1–10 done; §16 re-review also
    pending since its 7.12.0 rewrite). Doc-only, lands on main.
-2. **7.13.0 enumeration pass** — the field-vs-command classification table for every book-dialog
-   control, published for Ron's red pen BEFORE any transactional surgery (branch
-   `feature/dialog-transactional` is open; alpha.1 = copy chips + Copy Author, shipped & tested).
-3. **7.13.0 transactional build** against the approved table.
+2. **7.14.0 enumeration pass** — the field-vs-command classification table for every book-dialog
+   control, published for Ron's red pen BEFORE any transactional surgery (the copy-chips work that opened the branch shipped as 7.13.0; transactional gets a fresh branch).
+3. **7.14.0 transactional build** against the approved table.
 4. Then the queued items below (left-pane parity, filter box, Ctrl+X-from-list fix, ownership
    batch — item 6 first).
 
 
-- [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the 7.12.0 transactional dialog):
+- [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the 7.14.0 transactional dialog):
   pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
   no second ordering system three inches from the first. List reorder already undoable (7.10.1-alpha.6); pin
   toggle joins undo. Motivation: hunting a series list in a long Book Lists column (Ctrl+F works but costs a
@@ -37,7 +36,7 @@
   Fix: refuse with the explanatory toast (like All Books) or make paste-cut honor Book List sources.
 
 
-- [ ] **Book dialog goes fully transactional (7.13.0 — NEXT UP, ratified 2026-09-10; renumbered twice: audit shipped as 7.11.0, price-goal snapshot as 7.12.0)**:
+- [ ] **Book dialog goes fully transactional (7.14.0 — NEXT UP, ratified 2026-09-10; renumbered thrice: 7.11.0=audit, 7.12.0=price snapshot, 7.13.0=copy chips)**:
   in the dialog, Edit/Save is the ONLY way anything changes (one undo per Save); everywhere else changes are
   instant commands (one undo each). Rating / price goal / tags leave view mode (read-only displays) and join
   `editBookFields` as staged fields — Cancel discards, Save folds them into the one atomic EDIT_BOOK step;
@@ -60,7 +59,7 @@ item 10 → **7.7.2** (2026-09-07; prod proof outstanding — first prod import 
 model at full speed). Two §9/§2 pieces deliberately deferred (explicitly, per the scope rule):
 - [ ] **Inbox as a File-under target** (demote a mis-filed book back out) — different commit machinery
 - [ ] **Shift-click ranges follow VISUAL order** — still internal-array order; diverges in series mode + grouped Already-filed
-Then item 11, then batch 1-9. (Item 12 — mooted by the unification.)
+Then batch 1-9 (item 11 SHIPPED in 7.11.0). (Item 12 — mooted by the unification.)
 
 Save as Spreadsheet (CSV): **SHIPPED as 7.10.0** (2026-09-09 — requested 09-08, shipped next day).
 Reply to the user still owed (Ron's channel).
@@ -72,7 +71,6 @@ Reply to the user still owed (Ron's channel).
 - [ ] **6. Known-ASIN walked records become UPDATE events, not dup-skip discards** ([fetcher:1422-1425](../amazon-library-fetcher.js) seeds seenASINs with all known ASINs; live sample record for wishlisted Oath of Honor was thrown away 2026-09-04) — refresh ownershipType/acquisitionDate/binding from the record; wishlist→sample/borrow becomes visible (today invisible FOREVER for borrows — no pastPurchase backstop); never downgrade purchased (stale sample records in full fetches); newest-record-wins = record date vs STORED acquisitionDate; respect userEdited; acquisitionDate refresh also heals the watermark re-walk quirk. pastPurchase upgrade demoted to backstop.
 - [ ] **7. `TEMP_OWNERSHIP` gains `publicLibraryLending` + `audiblePlus`** (list written v4.11.8, never updated for v5.2.0's new types — loan→purchase can never upgrade; no-goal loans skipped by price phase)
 - [ ] **8. Docs**: wishlist model + transition matrix into a design doc (FORMAT-POLICY sibling) — never relitigate. ~~Divider between Move to / Copy to~~ (suspect exonerated by item 9's diagnosis).
-- [ ] **11. Action toasts name their targets** (NEXT UP — Ron 2026-09-08; the deferred half of "toasts name targets EVERYWHERE", split from the undo/redo pass with his blessing this time): single-target action toasts carry the book/folder/list name ("Hid 'Bitter Gold Hearts' (purchased — hides instead of deleting)"); bulk keep honest counts; explanatory clauses survive, naming adds to them. No chokepoint — scattered showToast calls — so the pass needs a systematic audit like alpha.5's (spot-fixes miss sites; sweeps with a checker don't). Ops-layer toasts (6.13.1) largely compliant already; the pass is for count-only stragglers.
 - [ ] **9. Relay-import Inbox placement: predicate must be "in no folder", not "new to the books DB"** (DIAGNOSED 2026-09-04: Ron's whole library — Inbox count 3076 — got Inbox-copied when Relay Import ran as a restore against the deleted books store on Sep-3; every book was "new to the DB" while the folders blob still filed them; js:4770/4824. Fix: filter newBookIds through getAllBookIdsInFolders() + skip isDeleted). Add restore-into-empty-DB to PRELAUNCH-TEST-GATE suite 4. ~~One-shot cleanup~~ RESOLVED 2026-09-04: Ron restored the 9/3 13:05 backup; count script showed only 4 genuine dual-filed stragglers (hand-cleaned). Retest this path after the fix (books-blob delete + relay restore ⇒ Inbox count unchanged).
 
 ---

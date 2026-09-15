@@ -8,7 +8,7 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-09-15 (through release 7.12.0)** — all sections complete
+_**Up to date as of 2026-09-15 (through release 7.13.0)** — all sections complete
 (feature-surface pass: 140 UI strings, all menus/dialogs/pages walked; plus the
 transcript/post-mortem mining pass; §1–10 human-reviewed). Scrub rule (public repo): no
 channel IDs, tokens, cookies, emails, or user-identifying data — facts only._
@@ -348,8 +348,10 @@ fetches won't flip it back. And never *delete* to correct ownership (see §12).
 include "shoes"). Free text with suggestions from your library's vocabulary; **blank = honest
 unknown**.
 
-**Why can't I select/copy the title text?** It's a link (it opens Amazon) — use right-click →
-**Copy Title** from the book's context menu instead.
+**How do I copy the title or author?** Click the small 📋 chip after each — one click,
+"Title copied!" / "Author copied!" (the title is a link, so drag-selecting it fights you;
+the chip is the intended path). Outside the dialog: right-click → **Copy Title(s)** /
+**Copy Author(s)** work in every view — authors dedupe across a selection.
 
 **What's Share?** Copy the Amazon link (affiliate-tagged), or build an email with up to 20
 selected books' titles and links — copied to paste into your mail app.
@@ -404,7 +406,9 @@ Ctrl+Shift+Z** redoes.
 
 **Deliberately NOT undoable**: view state (sort modes, collapse/expand, filters, selection)
 and explicitly-confirmed permanent deletes (Empty Trash). Cut/copy to the clipboard isn't an
-action yet — the paste is.
+action yet — the paste is. The doctrine in one line: **toasts promise truth, not
+reversibility** — every data mutation is undoable and gets a receipt, but receipts also
+confirm things with nothing to undo (clipboard copies, file saves, refusals).
 
 **Undo in dialogs is scoped.** While any dialog is open, Ctrl+Z reaches only what happened
 since it opened (rename a tag in Manage Tags, undo it right there); otherwise the app says

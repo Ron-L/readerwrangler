@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.13.0] - 2026-09-15
+
+### Copy without the fight
+- The book dialog's title is a link — great for opening Amazon, hostile to selecting text. **The title and author lines now carry a small copy chip (📋)**: one click, "Title copied!" / "Author copied!" — built for the co-author strings that read like random passwords.
+- **Copy Author(s)** joins Copy Title in the right-click menu, in every view, deduped across a selection (five books by one author paste as one line). And Copy Title finally announces itself with a receipt.
+
 ## [7.12.0] - 2026-09-15
 
 ### Price goals remember what you saw
