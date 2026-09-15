@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.12.0-alpha.3";  // Build version for this file
+        const ORGANIZER_VERSION = "7.12.0-alpha.4";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -16134,12 +16134,10 @@
                                                         <div className="flex flex-col gap-1.5">
                                                             {/* v5.0.0-alpha.172 - Dynamic column checkboxes in columnOrder */}
                                                             {(() => {
-                                                                const labels = {
-                                                                    title: 'Name', author: 'Author', series: 'Series', seriesNum: '#',
-                                                                    rating: 'Rating', myRating: 'My Rating', dateAdded: 'Date Added', price: 'Price',
-                                                                    priceGoal: 'Goal', delta: 'Under', ownership: 'Ownership', format: 'Format', asin: 'ASIN', amazon: 'Amazon',
-                                                                    publicationDate: 'Published'
-                                                                };
+                                                                // v7.12.0-alpha.4 (Ron: blank checkbox for the new column) - the menu had its
+                                                                // own label map, a silent duplicate of COLUMN_CONFIG that every new column
+                                                                // would have to remember to feed. One source of truth now.
+                                                                const labels = Object.fromEntries(Object.entries(COLUMN_CONFIG).map(([k, v]) => [k, v.label]));
                                                                 return columnOrder.map(colKey => {
                                                                     if (colKey === 'title') {
                                                                         return (
