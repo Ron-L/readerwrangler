@@ -273,13 +273,18 @@ from the phone ("Book Lists as mobile filters", WORKFLOW-PATTERNS).
 
 ## 9. Tags & Tag-from-Collections
 
-**What are tags for?** Cross-cutting labels that overlay your folder structure without
-touching it — kind/genre/mood slices (`Time Travel`, `Non-Fiction`, `Classics`) you filter
-by. A book takes any number of tags.
+**What are tags for?** The sticky note of the toolkit (§3's triad): cross-cutting labels
+that overlay your folder structure without touching it — kind/genre/mood slices (`Time
+Travel`, `Non-Fiction`, `Classics`) you filter by, in any combination. A book takes any
+number of sticky notes.
 
 **How do I tag books?** Select → right-click → **Tags ▸**: check/uncheck existing tags, or
 type to create a new one. View → **Manage Tags…** is the registry: create, rename, delete,
 multi-select, and **drag to reorder** — that order drives the right-click Tags menu.
+
+**What happens when I rename a tag?** The label changes everywhere at once — on every book,
+in the filter bar, in the Tags menu. Nothing needs re-tagging, and saved Searches built on
+the tag keep working (they follow the tag, not its spelling). Undoable, with a receipt.
 
 **What happens when I delete a tag?** It's removed from every book carrying it, from the
 active filter, and any saved Search that depended on it is removed too — the receipt spells
@@ -289,7 +294,15 @@ out the fallout, and one undo reverses all of it.
 Collections into RW tags in one reviewed pass — pick which collections become tags and apply.
 On later runs, "New books only" limits the pass to books that joined collections since last
 time, and the wizard also flags books whose collection membership *ended* so their
-collection-tags can be retired. (Collections themselves remain Amazon-side data — see §14.)
+collection-tags can be retired.
+
+**Why would I want that, if I can already filter by Collections?** Because collections are
+*Amazon-side* data: read-only in ReaderWrangler, editable only on your Kindle (see §14).
+Converting them to tags takes the curation you already did on the device and makes it
+*yours* — editable here (add/remove books without touching the Kindle), renameable,
+splittable, combinable with every other filter, and permanent even if the collection later
+changes or disappears on Amazon's side. TFC is the bridge from curation you rent to curation
+you own.
 
 ## 10. Saved Searches
 
