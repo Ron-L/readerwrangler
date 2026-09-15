@@ -245,7 +245,7 @@ Book Lists hold shortcuts to it.** Delete a copy → the book leaves that folder
 shortcut → it leaves that list; the book itself survives until you trash it. Adding or
 removing from a list never moves, tags, hides, or deletes the book.
 
-**When do I use one instead of a folder?** For any hand-picked set that isn't the book's
+**When do I use one instead of a folder — or a tag?** For any hand-picked set that isn't the book's
 *home*: all your SF, your wife's books, gift ideas — and the classic, *to-read queues*
 (`<Series> - To Read`, a shared `New To Read`: finish a book → delete it from the list; its
 folder home never churns). Folders are for where a book belongs and they nest; lists are
@@ -263,10 +263,13 @@ shortcut; **Ctrl+drag copies** it. Reordering the lists themselves: drag (undoab
 
 **Deleting**: DEL inside a list removes the selected shortcuts from *that list only*. ✕ on
 the list row deletes the list (confirmation only if it isn't empty) — the books are
-untouched. Both undoable.
+untouched. Both genuinely undoable: undo brings a deleted list back with its contents and
+its place in the sidebar.
 
 **Do Book Lists sync to mobile?** Yes — and since mobile can't filter, pre-filtering into
-lists is *the* mobile pattern ("Book Lists as mobile filters", WORKFLOW-PATTERNS).
+lists is *the* mobile pattern: filter on desktop, save the results as lists like `New To
+Read`, `New To Read - Prime`, `New To Read - Samples`, `<Series> - To Read`, then read them
+from the phone ("Book Lists as mobile filters", WORKFLOW-PATTERNS).
 
 ## 9. Tags & Tag-from-Collections
 
