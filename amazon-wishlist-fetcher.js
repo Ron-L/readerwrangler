@@ -26,7 +26,7 @@
 async function addToWishlist() {
     'use strict';
 
-    const FETCHER_VERSION = 'v2.0.2';
+    const FETCHER_VERSION = 'v2.1.0';
     const SCHEMA_VERSION = '2.1';
     const LIBRARY_FILENAME = 'amazon-library.json';
 
@@ -479,6 +479,11 @@ async function addToWishlist() {
             const selectedSwatch = doc.querySelector('#tmmSwatches .a-button-selected .a-button-text, #tmmSwatches .swatchElement.selected .a-button-text');
             if (selectedSwatch) binding = selectedSwatch.textContent.trim().split('\n')[0].trim() || null;
         }
+        // v2.1.0 (FORMAT-POLICY) - the product page's format swatch says "Kindle" where the
+        // library API says "Kindle Edition" — same format, two Amazon vocabularies, split sort
+        // buckets. Map ONLY this observed synonym to the library API's canonical string; any
+        // other swatch text still records verbatim (synonyms earn entries by being observed).
+        if (binding === 'Kindle') binding = 'Kindle Edition';
         console.log(`   Binding/format found: ${binding || 'NONE'}`);
 
         return {

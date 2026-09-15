@@ -92,3 +92,23 @@ same API the /yourbooks page uses (verified by captured page requests).
   without judgment.
 - App-side format surfaces (Format column/sort, edit dialog datalist) treat the value
   as free text drawn from the library's own vocabulary.
+
+## Synonym normalization (7.12.0, ratified 2026-09-15)
+
+Amazon speaks two vocabularies for the same format: the library API's
+`bindingInformation` says **"Kindle Edition"** while the product page's format swatch —
+what the wishlist fetcher scrapes — says **"Kindle"**. One format, two spellings, split
+sort buckets; and the spelling variant had accidentally become a "this record came from
+a wishlist add" tell — rejected as an invisible encoding (Law 16 family: Ownership is the
+designed channel for that fact, and the tell was unreliable — absent on PB/HB adds,
+erased by purchase upgrades, broken by any hand edit).
+
+Rules:
+1. **The library API's string is canonical** (it feeds the vast majority of records).
+2. **Map only OBSERVED synonyms**, never predicted ones. Current table: `Kindle` →
+   `Kindle Edition`. Applied in two places: the wishlist fetcher at capture (v2.1.0) and
+   `normalizeBook` inbound (heals pre-existing records on load/import).
+3. **A hand-edited format is never remapped** (`userEdited.binding` wins — the user's
+   word beats vocabulary hygiene).
+4. A future synonym (e.g. a swatch "Audiobook" vs API "Audible Audiobook") earns its
+   entry the same way: by being seen in real data, then added to both map sites.

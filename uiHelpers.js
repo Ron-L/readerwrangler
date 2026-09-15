@@ -76,6 +76,14 @@ const normalizeBook = (book) => {
     // fetcher letters present the flag indefinitely — this line is kept forever.
     if (normalized.onWishlist && !normalized.ownershipType) normalized.ownershipType = 'wishlist';
 
+    // v7.12.0 (FORMAT-POLICY) - format-synonym normalization: pre-v2.1.0 wishlist records carry
+    // the product page's swatch vocabulary ("Kindle") where the library API says "Kindle
+    // Edition" — one format, two spellings, split sort buckets. Map the ONE observed synonym,
+    // and never a hand-edited format (the user's word beats vocabulary hygiene).
+    if (normalized.binding === 'Kindle' && !normalized.userEdited?.binding) {
+        normalized.binding = 'Kindle Edition';
+    }
+
     // Ensure defaults
     normalized.onWishlist = normalized.onWishlist ?? false;
     normalized.ownershipType = normalized.ownershipType || 'purchased';
