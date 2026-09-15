@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.12.0-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.12.0-alpha.3";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -36,6 +36,7 @@
             publicationDate: { label: 'Published', sortKey: 'publicationDate', defaultDir: 'asc', cssVar: '--col-publicationDate' }, // v6.16.0 - chronological/series order
             price: { label: 'Price', sortKey: 'price', defaultDir: 'asc', cssVar: '--col-price' },
             priceGoal: { label: 'Goal', sortKey: 'priceGoal', defaultDir: 'asc', cssVar: '--col-priceGoal' },
+            priceWhenSet: { label: 'Price When Set', sortKey: 'priceWhenSet', defaultDir: 'asc', cssVar: '--col-priceWhenSet' }, // v7.12.0 - snapshot at goal-set time
             delta: { label: 'Under', sortKey: 'delta', defaultDir: 'desc', cssVar: '--col-delta' },
             ownership: { label: 'Ownership', sortKey: 'ownership', defaultDir: 'asc', cssVar: '--col-ownership' }, // v6.12.0
             format: { label: 'Format', sortKey: 'format', defaultDir: 'asc', cssVar: '--col-format' }, // v6.12.0 - book.binding
@@ -1074,6 +1075,7 @@
                 publicationDate: false, // v6.16.0 - Publication date column (hidden by default)
                 price: true,
                 priceGoal: true,
+                priceWhenSet: false, // v7.12.0 - snapshot column (hidden by default)
                 delta: true,
                 ownership: false, // v6.12.0 - Ownership/acquisition type column (hidden by default)
                 format: false, // v6.12.0 - Format/binding column (hidden by default)
@@ -1094,6 +1096,7 @@
                 publicationDate: 112, // v6.16.0
                 price: 80,
                 priceGoal: 80,
+                priceWhenSet: 130, // v7.12.0
                 delta: 80,
                 ownership: 110, // v6.12.0 - Ownership column width
                 format: 110, // v6.12.0 - Format column width
@@ -1103,7 +1106,7 @@
             const [resizingColumn, setResizingColumn] = useState(null); // v5.0.0-alpha.109 - { columnId, startX, startWidth }
             const [columnOrder, setColumnOrder] = useState([ // v5.0.0-alpha.172 - Column display order (drag to reorder)
                 'title', 'author', 'series', 'seriesNum', 'rating', 'myRating',
-                'dateAdded', 'publicationDate', 'price', 'priceGoal', 'delta', 'ownership', 'format', 'asin', 'amazon'
+                'dateAdded', 'publicationDate', 'price', 'priceGoal', 'priceWhenSet', 'delta', 'ownership', 'format', 'asin', 'amazon'
             ]);
             const [draggingColumn, setDraggingColumn] = useState(null); // v5.0.0-alpha.172 - Column header being dragged
             const [headerDropTarget, setHeaderDropTarget] = useState(null); // v5.0.0-alpha.172 - { column, side: 'left'|'right' }
@@ -1280,6 +1283,7 @@
                 }
                 if (col === 'price') return book.currentPrice != null ? `$${book.currentPrice.toFixed(2)}` : 'No Price';
                 if (col === 'priceGoal') return book.priceTrigger != null ? `$${book.priceTrigger.toFixed(2)}` : 'No Goal';
+                if (col === 'priceWhenSet') return book.priceAtGoalSet != null ? `$${book.priceAtGoalSet.toFixed(2)}` : 'No Snapshot'; // v7.12.0
                 if (col === 'delta') {
                     if (book.priceTrigger == null || book.currentPrice == null) return 'N/A';
                     const delta = book.priceTrigger - book.currentPrice;
@@ -1892,6 +1896,8 @@
                                 comparison = (a.currentPrice ?? Infinity) - (b.currentPrice ?? Infinity);
                             } else if (sort.column === 'priceGoal') {
                                 comparison = (a.priceTrigger ?? Infinity) - (b.priceTrigger ?? Infinity);
+                            } else if (sort.column === 'priceWhenSet') { // v7.12.0
+                                comparison = (a.priceAtGoalSet ?? Infinity) - (b.priceAtGoalSet ?? Infinity);
                             } else if (sort.column === 'delta') {
                                 const deltaA = (a.priceTrigger != null && a.currentPrice != null) ? (a.priceTrigger - a.currentPrice) : -Infinity;
                                 const deltaB = (b.priceTrigger != null && b.currentPrice != null) ? (b.priceTrigger - b.currentPrice) : -Infinity;
@@ -17109,6 +17115,14 @@
                                                                     case 'priceGoal':
                                                                         content = book.priceTrigger != null ? `$${book.priceTrigger.toFixed(2)}` : '-';
                                                                         cellClass += ' text-gray-500 text-xs';
+                                                                        break;
+                                                                    case 'priceWhenSet':
+                                                                        // v7.12.0 - price + date: the date is what disarms a mid-sale capture
+                                                                        content = book.priceAtGoalSet != null
+                                                                            ? `$${book.priceAtGoalSet.toFixed(2)}${book.priceGoalSetAt ? ` · ${new Date(book.priceGoalSetAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' })}` : ''}`
+                                                                            : '-';
+                                                                        cellClass += ' text-gray-500 text-xs';
+                                                                        cellTitle = 'Price when the goal was set';
                                                                         break;
                                                                     case 'delta': {
                                                                         if (book.priceTrigger == null || book.currentPrice == null) {
