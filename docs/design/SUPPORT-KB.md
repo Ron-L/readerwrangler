@@ -431,6 +431,9 @@ restore would lie about the state they'd return you to).
    survive; the book stays where you filed it (find recent purchases via All Books sorted by
    Date Added). If the publisher re-issued under a **new ASIN**, the purchase arrives as a new
    Inbox book and your old wishlist copy remains — delete the stale copy by hand.
+   **Just bought part of a series? Add-Series-to-Wishlist is still safe** — it skips books the
+   Amazon page shows as owned (which includes purchases made seconds ago), so only the ones
+   you don't own become wishlist entries. Order doesn't matter; one import reconciles all.
 5. **The Data Status ball** (File menu / status bar) tracks freshness; it turns red when the
    relay holds newer data than you've imported.
 6. **A "channel revoked" notice** means relay credentials were revoked (usually deliberately,
