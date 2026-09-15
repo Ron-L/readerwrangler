@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.12.0] - 2026-09-15
+
+### Price goals remember what you saw
+- **"was $2.99 when goal set (9/15/2026)"** — setting a price goal now records the book's price at that moment, shown on the dialog's goal line and in an optional **Price When Set** column. Amazon's advertised list prices are theater (a $1.99 Kindle sale "marked down" from a $17.99 *print* list) — the price you saw when you decided to care is the honest guide to what a book returns to when its sale ends. The date rides along, so a snapshot taken mid-sale is self-evident. Re-setting a goal — the same value included — stamps today's price onto goals from before the feature existed.
+- **Deals Only is now Goal Met** — a clearer name for what it always was: every book at or below *its own* goal. And books in the Trash no longer count toward it — a bargain you consciously binned isn't a deal waiting for you.
+
+### One format, one spelling
+- Wishlist-added Kindle books said **"Kindle"** while library-fetched ones said **"Kindle Edition"** — the same format in two Amazon vocabularies, splitting the Format column into two buckets. New wishlist adds and existing records now both speak the library's language; any format you edited by hand is never touched.
+
+### Small fixes
+- The Show Columns menu derives its labels from the column registry now — the new column briefly had a nameless checkbox because a duplicate label list existed to forget. The duplicate is gone, so the mistake can't be made twice.
+
 ## [7.11.0] - 2026-09-10
 
 ### Every action gets a receipt, and every receipt names its target

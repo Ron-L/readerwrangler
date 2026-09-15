@@ -126,12 +126,12 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 <!-- SYNC: Keep "Recent Features" in sync with features.html -->
 ## Recent Features
 
+- **Price goals remember what you saw (7.12)** — Setting a goal records the book's price at that moment: "was $2.99 when goal set" is the honest guide to what a book costs once its sale ends, list-price theater ignored. "Deals Only" became **Goal Met**, and Kindle formats speak one language everywhere.
 - **Receipts, total undo, and dialogs that behave (7.11)** — Every action confirms itself and names its target; everything you do — renames, Search edits, reorders included — is undoable; keystrokes never pass through an open dialog to the library beneath; cut books wear visible "marching ants"; and Trash restores truthfully, showing where each book lived.
 - **Save as Spreadsheet (7.10)** — Your whole library as one file for Excel — tags, folders, and Book Lists included. Our first user-requested feature, shipped the day after it was asked for.
 - **Auto-Organize, one view (7.9)** — The preview now shows *everything* by your chosen authors, wherever it lives; the checkboxes are the scope. Right-click to file a whole group under any folder — including the co-author case — with a picker where creating a folder is always explicit, never a typo.
 - **Formats & ownership tell the truth (7.7-7.8)** — Real Amazon formats (editable, yours forever), an ownership editor that shows Amazon's actual state and offers only what's genuinely yours to change — with a visible "Reset to Amazon's value." Your library now reconciles with Amazon *exactly*.
 - **Undo grew up (7.8)** — Works inside the book dialog, never reaches things you can't see, and every undo names its target: *"Undone: Edit 'Bitter Gold Hearts'."*
-- **One home for your organization (7.7)** — Folders, Book Lists, and Searches live in a single guarded store that loads no matter what: an empty book database can't hide your organization, and the Welcome screen tells returning users their data is intact — with recovery options listed best-first. Plus a real fix for cloud-write waste: opening a tab no longer costs a full library upload.
 - **Bulletproof sync (7.0-7.5)** — Cloud sync rebuilt so an interrupted upload can never corrupt your synced library: updates travel as sealed packets, the synced copy is replaced only whole, deletes stay deleted, backup restores stick — and it now cleans up after itself: interrupted syncs no longer leave debris in the cloud.
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.

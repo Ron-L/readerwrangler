@@ -143,7 +143,7 @@ type. Recent filter combos live in its dropdown (apply, save, or remove them).
 
 **What can I filter by?** Ownership type (Owned / Wishlist / Sample / Prime…), read status,
 tags, Kindle Collections, series, Amazon rating, your rating, date added — plus **Show
-Hidden** (a three-state control: hide hidden / show all / *only* hidden) and **Deals Only**
+Hidden** (a three-state control: hide hidden / show all / *only* hidden) and **Goal Met**
 (books at or below your price goal). Filters combine.
 
 **Why does my folder look empty?!** A filter is almost certainly active — filters *persist*
@@ -457,24 +457,39 @@ restore would lie about the state they'd return you to).
 4. **File → Save Spreadsheet (CSV)…** exports one row per book — tags, folder paths, and Book
    Lists included — and opens directly in Excel. Book ids are ASINs.
 
-## 16. Price watching & deals
+## 16. Price goals
 
-**How do I watch for a sale?** Give a book a **price goal**: right-click → Set Price Goal
-(preset amounts or a custom target), or the "Buy at" buttons in its dialog. Then **Deals
-Only** (View menu / filter bar) shows every book at or below its goal — check it after a
+**How do I use price goals?** Give a book a target price: right-click → Set Price Goal
+(preset amounts or a custom target), or the "Buy at" buttons in its dialog. Then **Goal
+Met** (View menu / filter bar) shows every book at or below its goal — check it after a
 fetch and buy. Wishlist and sample books are the natural targets: track the book, name your
 price, wait.
+
+**What's "was $X.XX when goal set"?** Setting a goal also records the book's price *at that
+moment* — the price you saw when you decided to care. Amazon's advertised list prices are
+often theater (a $1.99 Kindle sale "marked down" from a $17.99 *print* list price), so this
+snapshot is the honest reference for what the book will likely cost once a sale ends. It
+appears on the dialog's goal line with its date — so a snapshot taken mid-sale is
+self-evident — and as the optional **Price When Set** column (List View → Choose Columns).
+A book with no price at set time records nothing (blank, not a guess); clearing the goal
+clears it. **Re-setting a goal — the same value included — refreshes the snapshot**, which
+is also how you stamp goals created before the feature existed.
+
+**Before mass-setting goals**, glance at the price line: "(Save $0.00)" against the list
+price means the book already sells at that price every day — a goal set *at* the everyday
+price is "met" forever and tells you nothing. The snapshot makes this visible after the
+fact too.
 
 **How fresh are prices?** As fresh as your last fetch — every wishlist-priced book is
 re-priced each run. Each price shows its "as of" date and **dims once it's stale (~24h)** so
 a sale you're seeing might already be over — fetch before you buy.
 
-**Why does this book show no price?** Usually honest: delisted from the Kindle store, or only
-a non-Kindle edition (e.g. audiobook) is on sale. A **Prime/KU book showing a price** means
-"free to borrow, $X to buy" — ownership says Prime, price says what buying costs.
+**Why does this book show no price?** Usually honest: delisted from the Kindle store, or
+only a non-Kindle edition (e.g. audiobook) is for sale. A **Prime/KU book showing a price**
+means "free to borrow, $X to buy" — ownership says Prime, price says what buying costs.
 
-**Do goals survive buying the book?** Yes — promotion keeps your data (you'll visit the book
-anyway to file/queue it; clear the goal then if you like).
+**Do goals survive buying the book?** Yes — promotion keeps your data, snapshot included
+(you'll visit the book anyway to file/queue it; clear the goal then if you like).
 
 ## 17. Mobile
 

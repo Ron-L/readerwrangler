@@ -26,7 +26,7 @@
   Fix: refuse with the explanatory toast (like All Books) or make paste-cut honor Book List sources.
 
 
-- [ ] **Book dialog goes fully transactional (7.12.0 — NEXT UP, ratified 2026-09-10; the audit release shipped as 7.11.0)**:
+- [ ] **Book dialog goes fully transactional (7.13.0 — NEXT UP, ratified 2026-09-10; renumbered twice: audit shipped as 7.11.0, price-goal snapshot as 7.12.0)**:
   in the dialog, Edit/Save is the ONLY way anything changes (one undo per Save); everywhere else changes are
   instant commands (one undo each). Rating / price goal / tags leave view mode (read-only displays) and join
   `editBookFields` as staged fields — Cancel discards, Save folds them into the one atomic EDIT_BOOK step;
