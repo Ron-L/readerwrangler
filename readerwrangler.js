@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.12.0-alpha.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.12.0-alpha.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -10036,7 +10036,9 @@
                                 style={{ marginRight: '2px' }}
                             />
                             <span>
-                                Goal Met ({books.filter(b => b.priceTrigger != null && b.currentPrice != null && b.currentPrice <= b.priceTrigger).length})
+                                {/* v7.12.0-alpha.2 (Ron) - trashed books don't count: a bargain you consciously
+                                    binned isn't a deal waiting for you, and "Goal Met (2)" over an empty view lies */}
+                                Goal Met ({books.filter(b => !b.isDeleted && b.priceTrigger != null && b.currentPrice != null && b.currentPrice <= b.priceTrigger).length})
                             </span>
                         </label>
 
