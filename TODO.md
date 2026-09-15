@@ -137,7 +137,19 @@ Reply to the user still owed (Ron's channel).
 - [ ] Metadata import (paste-list / CSV) + matching → see docs/design/Metadata-Import.md
 
 - [ ] Comma-separated series-position multi-edit ("2, 4" mapped to selected books in display order) — **needed for David Drake / Raj Whitehall** (ownership gaps that "renumber by current order" can't handle)
-- [ ] **Omnibus / multi-volume series position (B)** — a single book that IS volumes 1–3 wants a range/multi position (`1-3` or `1,2,3`) on ONE record. Distinct from the comma-separated multi-edit above (which spreads a sequence across MANY books). Needs a data-model decision: `seriesPosition` is a single value today ("1-3" would sort as 1, display as text). Consider a `seriesPositionEnd` or a positions array + sort/display/number-by-order handling. (Ron, 2026-08-09.)
+- [ ] **Multi-position series books: omnibus AND anthology (B)** — ONE record holding MULTIPLE series
+  positions, **rendered once at EACH position in series-sorted views**. Two cases, one mechanism
+  (ratified direction 2026-09-15): the omnibus that IS volumes 1–3 (`1-3` / `1,2,3`; Raj Whitehall
+  "789" workaround); the anthology whose stories interleave the series (`2.5, 4.5, 4.6, 5.5` —
+  Dresden Side Jobs pattern; today Ron files it at first occurrence with the story map in the Note).
+  Design points: `seriesPosition` becomes parseable list/range → sort-time expansion into display
+  instances (the `_instanceId` render-layer concept — NOT duplicate book records; ASIN-suffixed
+  pseudo-books REJECTED 2026-09-15: they'd fight ASIN-keyed merge, orphan scan would flag them every
+  fetch, dup detection/upgrades/CSV all need special cases). Repeats need a visible cue ("also at
+  4.5" / ⟳ badge — Law 16: deliberate duplication must read as intentional). **Manual order shows the
+  book ONCE** (manual slots are id-based; multi-slot belongs to series-sorted views). Interplay to
+  spec: Number-by-Current-Order, the comma-separated multi-edit above, CSV export (one row, list in
+  the column). The no-duplicates-per-folder invariant stays untouched.
 - [ ] Folder "Move to Top / Move to Bottom" context items (D)
 - [ ] Fix drag-subfolder→root drop-position (**confirmed still broken 2026-08-03**, annoying) — dropping a subfolder at root lands it alphabetical-ish near the bottom instead of at the drop target; shares a root cause with new-folder alphabetical insert + Move-to stale position
 - [ ] Book Lists: **"Arrange by series #"** — in Manual mode, bake the series-number order into the list's manual order (persistent, then hand-tweak). The Book-List analog of folder sort-then-bake; a one-time rearrange, not a live sort mode. (Distinct from the existing "Number by current order," which sets each book's *position value*, not the list's order.)
