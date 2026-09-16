@@ -24,6 +24,7 @@
 * **Code change approved ("proceed")** → Make change, increment ORGANIZER_VERSION, commit, report ready for testing (follows Versioning workflow)
 * **Scope reduction** → explicit, never silent: delivering less than the words asked requires naming the gap and FILING the remainder (TODO line) in the same breath. Tripwire: requests containing all/every/everywhere/always — at report time, check delivery against those words. (Earned 2026-09-08: "toasts EVERYWHERE" silently became undo-toasts-only; memory: feedback_scope_narrowing)
 * **Class-of-sites change** → two independent pivots + condition-grep (guards find disabled/negative branches) + user-surface walk (shortcuts, context menus, menu bar, drag-drop, dialogs); publish the site map before claiming coverage. (Earned 2026-09-10: right-click Delete missed after DEL-key fix; memory: feedback_investigate_completely)
+* **New dialog/modal → the checklist** (every one): (1) register in `anyDialogOpen` (keystroke-guard + undo-fence registry — else Ctrl+X/Delete leak to the library beneath); (2) add to `handleModalEsc` (Esc closes); (3) a ✕ close button; (4) backdrop-click close. (Earned 2026-09-16: built the Share dialog with only Cancel+backdrop — the exact class the 7.10.1 dismissal *audit* fixed but never made a *rule* to prevent recurring. Durable chokepoint TODO: a shared `<Dialog>` that bakes all four in.)
 
 ---
 
