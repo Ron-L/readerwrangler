@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.14.0] - 2026-09-16
+
+### Email a friend, without the dead end
+- **Sharing a book by email now asks how you want to send it.** Before, "email a friend" tried to hand off to Gmail on its own — and for anyone whose browser routes mail through Gmail on the web, that could spin into a "too many redirects" error with no way back and no way for the app to tell it had happened. Now a small **Share by Email** dialog offers three honest choices: **Open in email app** (your default mail program, prefilled), **Copy to clipboard** (always works — paste it anywhere), and **Open in Gmail (web)** for those it suits. You pick the one that works for you, instead of being dropped into whichever one your browser guessed.
+- The Copy option is the safety net that never fails, so no one is stranded if their mail setup misbehaves.
+
 ## [7.13.2] - 2026-09-16
 
 ### Developer-only; invisible to users

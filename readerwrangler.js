@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.14.0-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.14.0";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -20445,6 +20445,7 @@
                                 <h3 className="text-lg font-bold text-gray-900 mb-2">Share by Email</h3>
                                 <p className="text-sm text-gray-600 mb-4">How would you like to send this?</p>
                                 <div className="flex flex-col gap-2">
+                                    {/* The two mail-client hand-offs, grouped. Copy is the fallback below the divider. */}
                                     {/* Desktop mail client via mailto (Outlook, Thunderbird, …). New context, so
                                         RW is never clobbered. The reliable prefill path. */}
                                     <button
@@ -20454,16 +20455,6 @@
                                             setShareEmailChoice(null);
                                         }}>
                                         📧 Open in email app
-                                    </button>
-                                    {/* Universal, always-works escape */}
-                                    <button
-                                        className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium"
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(`Subject: ${shareEmailChoice.subject}\n\n${shareEmailChoice.body}`);
-                                            showToast('Email content copied — paste into your email app');
-                                            setShareEmailChoice(null);
-                                        }}>
-                                        📋 Copy to clipboard
                                     </button>
                                     {/* Gmail web: anchor (user-click nav), with the documented Enter-workaround for
                                         Gmail's redirect loop — which we can't fix from a link (cross-site initiator). */}
@@ -20475,6 +20466,18 @@
                                         ✉️ Open in Gmail (web)
                                     </a>
                                     <p className="text-xs text-gray-400 mt-0 mb-1">If the Gmail tab shows a &ldquo;redirect error,&rdquo; click the address bar and press Enter.</p>
+                                    {/* Divider: below here is the always-works fallback, not a peer client. */}
+                                    <div className="border-t border-gray-200 my-1" />
+                                    {/* Universal, always-works escape */}
+                                    <button
+                                        className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(`Subject: ${shareEmailChoice.subject}\n\n${shareEmailChoice.body}`);
+                                            showToast('Email content copied — paste into your email app');
+                                            setShareEmailChoice(null);
+                                        }}>
+                                        📋 Copy to clipboard
+                                    </button>
                                     <button
                                         className="w-full px-4 py-2 text-gray-500 hover:text-gray-700 text-sm"
                                         onClick={() => setShareEmailChoice(null)}>

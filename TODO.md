@@ -15,16 +15,21 @@ _(Done 2026-09-16: 7.13.1 mobile dev-relay-worker fix + 7.13.2 relay worker+stor
 both shipped to prod; dev confirmed, prod verify in progress.)_
 
 **THE CURRENT STACK (pop in this order):**
-1. **Finish the SUPPORT-KB human review** — parked at **§11** (§1–10 done; §16 re-review also
+1. **Finish the SUPPORT-KB human review** — parked at **§12** (§1–11 done; §16 re-review also
    pending since its 7.12.0 rewrite). Doc-only, lands on main.
-2. **7.14.0 enumeration pass** — the field-vs-command classification table for every book-dialog
-   control, published for Ron's red pen BEFORE any transactional surgery (the copy-chips work that opened the branch shipped as 7.13.0; transactional gets a fresh branch).
-3. **7.14.0 transactional build** against the approved table.
-4. Then the queued items below (left-pane parity, filter box, Ctrl+X-from-list fix, ownership
+2. **Registry-gap fix release** — 4 dialogs found missing from `anyDialogOpen`
+   (`newFolderHiddenAlert` moderate; `autoOrgFileUnder` / `corruptionRecovery` / restore-loss low).
+   Register + ✕ + Esc + backdrop; file the shared-`<Dialog>` chokepoint TODO. Quick patch release.
+3. **Transactional book-dialog enumeration pass** — the field-vs-command classification table for
+   every book-dialog control, published for Ron's red pen BEFORE any transactional surgery (the
+   copy-chips work that opened its branch shipped as 7.13.0; transactional gets a fresh branch).
+   _Version number assigned when the work is taken up — not pre-planned._
+4. **Transactional book-dialog build** against the approved table (number assigned at pickup).
+5. Then the queued items below (left-pane parity, filter box, Ctrl+X-from-list fix, ownership
    batch — item 6 first).
 
 
-- [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the 7.14.0 transactional dialog):
+- [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the transactional dialog):
   pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
   no second ordering system three inches from the first. List reorder already undoable (7.10.1-alpha.6); pin
   toggle joins undo. Motivation: hunting a series list in a long Book Lists column (Ctrl+F works but costs a
