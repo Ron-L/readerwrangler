@@ -11,6 +11,12 @@
 
 ## 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-15)
 
+**⏭️ FIRST THING 2026-09-16: push 7.13.1 to PROD.** Mobile dev-relay-worker fix — merged to
+main, on dev, confirmed working tonight (dev phone now shows localhost org; prod correctly
+unaffected). `git push prod main` then verify prod build; test prod phone still shows its OWN
+(older) org and didn't break. Dev-first-for-relay-routing per CLAUDE.md; prod push held to
+morning by Ron.
+
 **THE CURRENT STACK (pop in this order):**
 1. **Finish the SUPPORT-KB human review** — parked at **§11** (§1–10 done; §16 re-review also
    pending since its 7.12.0 rewrite). Doc-only, lands on main.
