@@ -359,6 +359,13 @@ the chip is the intended path). Outside the dialog: right-click → **Copy Title
 clipboard** (always works — paste anywhere), and **Open in Gmail (web)**. See §19 if the Gmail
 option shows a "redirect error."
 
+There's also a third Share item on some devices — **Share…** — which hands off to your
+operating system's own share sheet (Windows/Mac/phone). On Windows, the share sheet's **Gmail**
+tile opens Gmail *cleanly* (no redirect error), so if you're a Gmail-on-the-web user, **Share… →
+Gmail** is the smoothest Gmail path — better than the in-app "Open in Gmail (web)" button. (The
+OS share sheet is your operating system's window, not ReaderWrangler's — RW can't change how it
+opens or closes.)
+
 ## 12. Hide, Trash & delete
 
 **The golden rule: match the tool to the goal.**
@@ -554,7 +561,7 @@ row — the menus are where the power hides.
 | Same book twice, one wishlist one owned | Publisher re-issued under a new ASIN | Delete the stale wishlist copy |
 | Series mixes Sample and Wishlist states | Historical accretion (sampled before adopting the wishlist habit) | Override to Wishlist, or the truth path; then keep one habit |
 | App shows an old version after update | Browser cache | Hard refresh (Ctrl+Shift+R); verify in Help → About |
-| "Open in Gmail (web)" shows ERR_TOO_MANY_REDIRECTS | A browser boundary: navigating to Gmail from another site withholds some Google auth cookies, so Gmail loops trying to re-auth (can't be fixed from a link) | In the looping tab, click the address bar and press **Enter** — a top-level navigation composes cleanly. Better: use **Open in email app** (a desktop client) or **Copy to clipboard**. |
+| "Open in Gmail (web)" shows ERR_TOO_MANY_REDIRECTS | A browser boundary: navigating to Gmail from another site withholds some Google auth cookies, so Gmail loops trying to re-auth (can't be fixed from a link) | Best on Windows: use **Share… → Gmail** (the OS share sheet's Gmail tile opens cleanly). Or, in the looping tab, click the address bar and press **Enter** — a top-level navigation composes cleanly. Or use **Open in email app** / **Copy to clipboard**. |
 | Share "email a friend" doesn't open my mail app | No default mail app / mailto handler set (or it points at the browser) | Set your default mail app: Windows Settings → Apps → Default apps → MAILTO → choose your client (e.g. Outlook); then "Open in email app" opens it prefilled |
 | First load feels stuck / "Page Unresponsive" | The app compiles in your browser (~15–25s); the loading screen says so | Wait it out — don't reset |
 | "Sync data check failed / checksum mismatch" | A cloud write was interrupted (rare since v7's sealed-packet sync) | Follow the dialog: full fetch rebuilds, then import — local data is intact |
