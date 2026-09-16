@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.13.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.14.0-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -756,7 +756,7 @@
             // v5.4.6 - Book dialog edit mode
             const [isEditingBook, setIsEditingBook] = useState(false);
             const [shareDropdownOpen, setShareDropdownOpen] = useState(false); // v6.10.0-alpha.9 - Share dropdown in book dialog
-            const [shareEmailFallback, setShareEmailFallback] = useState(null); // v6.10.0-alpha.13 - { subject, body } when mailto: fails
+            const [shareEmailChoice, setShareEmailChoice] = useState(null); // v7.14.0 - { subject, body }; share-by-email choice dialog (replaces the mailto-auto-fire + failure-fallback)
             // v6.10.0-alpha.14 - Tag from Collections wizard
             const [tagFromCollectionsOpen, setTagFromCollectionsOpen] = useState(false);
             const [tfcSelectedCollection, setTfcSelectedCollection] = useState(null); // highlighted collection in left pane
@@ -1352,17 +1352,12 @@
                 };
             };
 
-            // v6.10.0-alpha.13 - Open share email: try mailto:, detect failure, offer fallback
+            // v7.14.0 (Ron 2026-09-16) - Always present the choice; never auto-fire mailto. mailto
+            // can't be auto-fired safely: a Gmail web-handler navigates away and loops in a tab RW
+            // can't see (undetectable silent stranding — the old focus-heuristic couldn't catch it).
+            // The user picks a path knowingly; Copy is the always-works escape.
             const openShareEmail = (shareData) => {
-                const mailtoUrl = `mailto:?subject=${encodeURIComponent(shareData.emailSubject)}&body=${encodeURIComponent(shareData.emailBody)}`;
-                // Try mailto: — if no handler, window stays focused and we show fallback
-                const w = window.open(mailtoUrl, '_self');
-                setTimeout(() => {
-                    // If we're still here after 500ms, mailto: didn't work
-                    if (document.hasFocus()) {
-                        setShareEmailFallback({ subject: shareData.emailSubject, body: shareData.emailBody });
-                    }
-                }, 500);
+                setShareEmailChoice({ subject: shareData.emailSubject, body: shareData.emailBody });
             };
 
             // v6.10.0-alpha.16 - Saved View helpers
@@ -20440,36 +20435,47 @@
                     })()}
 
                     {/* v6.10.0-alpha.13 - Share Email Fallback Dialog */}
-                    {shareEmailFallback && (
+                    {shareEmailChoice && (
                         <>
-                            <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShareEmailFallback(null)} />
+                            <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShareEmailChoice(null)} />
                             <div className="fixed z-50 bg-white rounded-lg shadow-xl p-6 max-w-md"
                                 style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                                <h3 className="text-lg font-bold text-gray-900 mb-2">No Email App Detected</h3>
-                                <p className="text-sm text-gray-600 mb-4">Your browser couldn't open an email app. Choose how to share:</p>
+                                <h3 className="text-lg font-bold text-gray-900 mb-2">Share by Email</h3>
+                                <p className="text-sm text-gray-600 mb-4">How would you like to send this?</p>
                                 <div className="flex flex-col gap-2">
+                                    {/* Desktop mail client via mailto (Outlook, Thunderbird, …). New context, so
+                                        RW is never clobbered. The reliable prefill path. */}
                                     <button
                                         className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
                                         onClick={() => {
-                                            const gmailUrl = `https://mail.google.com/mail/?view=cm&su=${encodeURIComponent(shareEmailFallback.subject)}&body=${encodeURIComponent(shareEmailFallback.body)}`;
-                                            window.open(gmailUrl, '_blank');
-                                            setShareEmailFallback(null);
+                                            window.open(`mailto:?subject=${encodeURIComponent(shareEmailChoice.subject)}&body=${encodeURIComponent(shareEmailChoice.body)}`);
+                                            setShareEmailChoice(null);
                                         }}>
-                                        Open in Gmail
+                                        📧 Open in email app
                                     </button>
+                                    {/* Universal, always-works escape */}
                                     <button
                                         className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium"
                                         onClick={() => {
-                                            const clipText = `Subject: ${shareEmailFallback.subject}\n\n${shareEmailFallback.body}`;
-                                            navigator.clipboard.writeText(clipText);
+                                            navigator.clipboard.writeText(`Subject: ${shareEmailChoice.subject}\n\n${shareEmailChoice.body}`);
                                             showToast('Email content copied — paste into your email app');
-                                            setShareEmailFallback(null);
+                                            setShareEmailChoice(null);
                                         }}>
-                                        Copy to Clipboard
+                                        📋 Copy to clipboard
                                     </button>
+                                    {/* Gmail web: anchor (user-click nav), with the documented Enter-workaround for
+                                        Gmail's redirect loop — which we can't fix from a link (cross-site initiator). */}
+                                    <a
+                                        href={`https://mail.google.com/mail/?view=cm&su=${encodeURIComponent(shareEmailChoice.subject)}&body=${encodeURIComponent(shareEmailChoice.body)}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium text-center inline-block no-underline"
+                                        onClick={() => setShareEmailChoice(null)}>
+                                        ✉️ Open in Gmail (web)
+                                    </a>
+                                    <p className="text-xs text-gray-400 mt-0 mb-1">If the Gmail tab shows a &ldquo;redirect error,&rdquo; click the address bar and press Enter.</p>
                                     <button
                                         className="w-full px-4 py-2 text-gray-500 hover:text-gray-700 text-sm"
-                                        onClick={() => setShareEmailFallback(null)}>
+                                        onClick={() => setShareEmailChoice(null)}>
                                         Cancel
                                     </button>
                                 </div>
