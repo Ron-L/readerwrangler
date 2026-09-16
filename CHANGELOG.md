@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.13.1] - 2026-09-15
+
+### Fixed (developer-only; invisible to users)
+- The mobile viewer always talked to the **production** relay worker, even when loaded from a dev or localhost build — so a dev phone could never see dev-relay data (the desktop app and bookmarklet already route to the isolated dev worker; mobile.js hadn't mirrored that). Dev/localhost mobile now reads the dev relay, matching every other dev surface.
+
 ## [7.13.0] - 2026-09-15
 
 ### Copy without the fight
