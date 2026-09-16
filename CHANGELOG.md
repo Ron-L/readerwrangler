@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.13.2] - 2026-09-16
+
+### Developer-only; invisible to users
+- **The relay worker+storage a build reads is now shown, not hidden.** Dev and localhost share one relay worker (isolated KV storage); prod has its own. That routing was a hidden variable — same channel ID, silently different data store — which made "where is my data?" a guessing game. Dev builds now say so: the mobile badge reads **Dev/Local**, and both Relay Setup and Data Status name the **Dev relay worker + storage** alongside the channel. Prod stays clean (no dev jargon for real users).
+
 ## [7.13.1] - 2026-09-15
 
 ### Fixed (developer-only; invisible to users)

@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.13.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.13.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -23,6 +23,12 @@
                 console.log(`🔧 DEV environment: relay → dev worker (${window._RW_RELAY_WORKER_URL})`);
             }
         })();
+
+        // v7.13.2 - The hidden var made visible: which relay worker+storage this build reads.
+        // Dev/localhost share the dev worker+storage; prod reads prod. Surfaced on Relay Setup and
+        // Data Status (dev builds only — a prod user needs no "prod relay" jargon) so the data's true
+        // address is (worker × channel), both visible, never a silent split (Law 16).
+        const RELAY_IS_DEV = typeof window !== 'undefined' && !!window._RW_RELAY_WORKER_URL && window._RW_RELAY_WORKER_URL.includes('-dev');
 
         // v5.0.0-alpha.172.1 - Static column configuration (outside component for performance)
         const COLUMN_CONFIG = {
@@ -10744,6 +10750,14 @@
                                         );
                                     })()}
 
+                                    {/* v7.13.2 - which relay worker+storage this build reads (dev only; the hidden var made visible) */}
+                                    {RELAY_IS_DEV && (
+                                        <div className="border-b border-gray-200 pb-3">
+                                            <p className="text-sm font-medium" style={{ color: '#9333ea' }}>🔧 Relay: Dev relay worker + storage</p>
+                                            <p className="text-xs mt-1 text-gray-500">Dev &amp; localhost share this store; prod is separate.</p>
+                                        </div>
+                                    )}
+
                                     {/* v6.10.0-alpha.29 - Relay freshness section */}
                                     {window.RWRelay && window.RWRelay.isConfigured() && (
                                     <div className="border-b border-gray-200 pb-3">
@@ -11130,7 +11144,8 @@
                                                                                 'Credentials loaded — not yet verified'
                                                                             )
                                                                         ),
-                                                                        React.createElement('p', { className: 'mt-1', style: { color: 'var(--text-secondary)' } }, `Channel: ${stored.channelId.slice(0, 8)}...${stored.channelId.slice(-4)}`)
+                                                                        React.createElement('p', { className: 'mt-1', style: { color: 'var(--text-secondary)' } }, `Channel: ${stored.channelId.slice(0, 8)}...${stored.channelId.slice(-4)}`),
+                                                                        RELAY_IS_DEV && React.createElement('p', { className: 'mt-1 font-medium', style: { color: '#9333ea' } }, '🔧 Dev relay worker + storage') // v7.13.2 - the store this build reads (dev only)
                                                                     ),
                                                                     React.createElement('button', {
                                                                         onClick: () => relayOp('test', { channelId: stored.channelId }),

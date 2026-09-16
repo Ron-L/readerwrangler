@@ -1,6 +1,6 @@
 // mobile.js — ReaderWrangler Mobile Viewer
 // MOBILE_VERSION tracks mobile-specific iterations
-const MOBILE_VERSION = '1.8.3'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
+const MOBILE_VERSION = '1.8.4'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
 console.log(`✅ Mobile viewer ${MOBILE_VERSION} | APP_VERSION: ${APP_VERSION}`);
 
 // v1.7.0 - Which server is this copy talking to? Derived from the page's own address, so an
@@ -8,9 +8,11 @@ console.log(`✅ Mobile viewer ${MOBILE_VERSION} | APP_VERSION: ${APP_VERSION}`)
 // (the installed-PWA-was-dev hunt, 2026-08-30). Prod stays unbadged; oddballs announce themselves.
 const SERVER_ENV = (() => {
     const h = location.hostname;
-    if (h === 'localhost' || h === '127.0.0.1') return { label: 'Localhost', chip: 'LOCAL' };
+    // v1.8.4 (Ron) - chip says DEV/LOCAL for BOTH non-prod builds: the reminder that localhost and
+    // the dev site share one relay worker + storage (the label below still names the exact build).
+    if (h === 'localhost' || h === '127.0.0.1') return { label: 'Localhost', chip: 'DEV/LOCAL' };
     if (h === 'readerwrangler.com' || h === 'www.readerwrangler.com') return { label: 'readerwrangler.com', chip: null };
-    return { label: `Dev (${h})`, chip: 'DEV' };
+    return { label: `Dev (${h})`, chip: 'DEV/LOCAL' };
 })();
 
 // v1.8.3 - Dev environments talk to the DEV relay worker (isolated KV namespace) — MIRRORS the
@@ -26,6 +28,10 @@ const SERVER_ENV = (() => {
         console.log(`🔧 DEV environment: relay → dev worker (${window._RW_RELAY_WORKER_URL})`);
     }
 })();
+// v1.8.4 - Which relay store this build actually reads (the hidden var made visible). Dev/localhost
+// share the dev worker+storage; prod reads prod. Shown on the About panel so "where is my data" is
+// answerable, not deduced.
+const RELAY_IS_DEV = !!window._RW_RELAY_WORKER_URL && window._RW_RELAY_WORKER_URL.includes('-dev');
 
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
@@ -1068,6 +1074,7 @@ function AppMenu({ themePreference, viewMode, showDealsOnly, showHidden, onApply
                     <p><a href="changelog.html" style={{ color: 'var(--text-link, #2563eb)', textDecoration: 'none' }}>App v{APP_VERSION}</a></p>
                     <p>Mobile v{MOBILE_VERSION}</p>
                     <p>Server: {SERVER_ENV.label}</p>
+                    {RELAY_IS_DEV && <p>Relay: Dev relay worker + storage</p>}
                     {libraryAsOf && <p>Library as of {new Date(libraryAsOf).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{(() => { try { const g = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').deviceStateGen; return g ? ` (copy …${String(g).slice(-4)})` : ''; } catch (e) { return ''; } })()}</p>}
                 </div>
             </div>
