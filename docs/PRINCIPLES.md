@@ -10,6 +10,24 @@ and recurred ~11 more times anyway; one PM even records the lesson being read an
 the rule, checklist item, memory file, or code pattern that makes it mechanical. A principle without an
 enforcement is a wish.
 
+**The newest and most literal mechanism (2026-09-17): the pre-build gate.** A `PreToolUse` hook
+(`.claude/hooks/gate-check.py`) denies the *first* edit of `readerwrangler.js`/`mobile.js` each turn and
+presents an 11-point checklist; a `Stop`/`SessionStart` hook re-arms it per turn. It exists because of a
+sharper form of the meta-principle, paid for the same week it was written: **invoking a rule's name is not
+running it.** A "new dialog checklist" added to CLAUDE.md was skipped the same session it was authored, and a
+class-of-sites "comb" was performed *by eye* (missing a 5th broken overlay) while its name was invoked — the
+mechanical two-pivot grep found what the impression missed. A written rule gets *performed*; a gate *fires*
+whether it's remembered or not. The 11 points (source of truth: `gate-check.py`): (1) extending a spaghetti
+section → restructure; (2) adding state → represent *legal* states (FSM / cooperating FSMs / reducer), not
+loose flags [Law 17]; (3) reinventing a React/DOM wheel?; (4) can the relationship live in a *structure*
+(containment) not a hand-synced list?; (5) call the existing closer/accessor, don't hand-roll a partial;
+(6) less code, not cleverer?; (7) class of sites → run `/sitemap` (two pivots, publish the table before
+claiming coverage) [Law 5]; (8) grounded in the code, not a hazy memory? [Law 2]; (9) delivering less than
+asked → name + FILE the gap; (10) build-grade or explore-quality?; (11) did Ron approve *this* change? [Law
+1]. It is a trial (`.claude/settings.local.json`); the design of the *structural* version that would retire
+it — a self-registering `<Dialog>`/`<Popover>` layer registry — is in **DIALOG-DISMISSAL-AUDIT.md** (deferred
+to its own branch).
+
 **Era note (Ron, 2026-09-04)**: some recurrence counts below are partly artifacts of earlier AI model
 generations, not process gaps — early models fought the versioning rules, couldn't reliably evaluate the
 old trigger-based rule system (abandoned for that reason), and drifted from instructions in ways current
@@ -153,6 +171,20 @@ rejection, the Reset-flag rejection).
 arises, and does its effect show where the eye already is?" Ron's field test catches these today; at launch
 that instrument is gone and only this question remains.
 
+### 17. Represent legal states, not loose flags — make illegal states unrepresentable (Ron's doctrine)
+N independent booleans for one feature permit 2ⁿ combinations, including the nonsensical ones — the
+Auto-Organize orphan was exactly an illegal combo a flag allowed ("preview closed, child popup still open").
+Two failure modes compound: a *new* flag must be threaded into every existing decision point or it **fails
+open** (the one branch you forget is a silent bug), whereas an FSM's states are **enumerable**, so a new
+state is a thing you're forced to consider. Related-but-*independent* dimensions aren't an excuse for flags:
+model them as one FSM over the reachable combinations (`None, A, AB, B`) or as **cooperating / orthogonal
+FSMs** that coordinate by event — both make illegal states unrepresentable without a 2ⁿ transition table. The
+tell that the structure is missing: a close/reset function that hand-clears 3+ related states (and the day
+one path clears a subset, you have an orphan). Pairs with the containment law — push the relationship into a
+structure so the procedure shrinks to nothing.
+**Enforcement**: pre-build gate checklist item 2; the overlay-registry design (DIALOG-DISMISSAL-AUDIT.md) as
+the worked example; `project_714_release` memory.
+
 ---
 
 ## SECOND TIER — by theme (the best of the rest)
@@ -221,6 +253,8 @@ that instrument is gone and only this question remains.
 | Domain-boundary checklist (cross-component comms) | v3.8.0 (2025-12-20) | Superseded: Law 2 + the platform-facts section + MULTI-INSTANCE.md's universe model |
 | Release-criteria checkpoint before dropping the suffix | v3.8.0 (2025-12-20) | Superseded: the CLAUDE.md release checklist + the CHANGELOG-past-Ron ("word") ritual |
 | Trigger-based rule system | v3.x era | Abandoned — early models couldn't evaluate triggers reliably; replaced by CLAUDE.md behaviors + memory rules, which current models follow |
+| Pre-build structural checklist / gate | implicit across many PMs | **Built 2026-09-17** — a `PreToolUse` hook fires an 11-point checklist on the first app edit each turn (the meta-principle made literal); `/sitemap` command mechanizes the class-of-sites comb |
+| Overlay dismissal redesign (`<Dialog>`/`<Popover>` layer registry) | 2026-09-16 | **Designed** (DIALOG-DISMISSAL-AUDIT.md), deferred to its own branch; the audit found the defect is a *class* (~40 overlays, 3 Esc regimes); stopgap shipped 7.14.2, the class-fix awaits the primitive |
 
 The pattern in the graveyard is the meta-principle again: proposals became real only when they became
 mechanisms (a file that loads, a rule that fires, a checklist line). When adding to this document, add the
