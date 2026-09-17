@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.14.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.14.1-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1357,7 +1357,15 @@
             // can't see (undetectable silent stranding — the old focus-heuristic couldn't catch it).
             // The user picks a path knowingly; Copy is the always-works escape.
             const openShareEmail = (shareData) => {
-                setShareEmailChoice({ subject: shareData.emailSubject, body: shareData.emailBody });
+                // v7.14.1 - carry the web-share fields too, so the redirect-hint's "Share…" shortcut
+                // can hand off to the OS share sheet (the same path as the Share ▶ menu, one level up).
+                setShareEmailChoice({
+                    subject: shareData.emailSubject,
+                    body: shareData.emailBody,
+                    webShareTitle: shareData.webShareTitle,
+                    webShareText: shareData.webShareText,
+                    webShareUrl: shareData.webShareUrl,
+                });
             };
 
             // v6.10.0-alpha.16 - Saved View helpers
@@ -20465,7 +20473,29 @@
                                         onClick={() => setShareEmailChoice(null)}>
                                         ✉️ Open in Gmail (web)
                                     </a>
-                                    <p className="text-xs text-gray-400 mt-0 mb-1">If the Gmail tab shows a &ldquo;redirect error,&rdquo; click the address bar and press Enter.</p>
+                                    {/* v7.14.1 - Recovery hint for the Gmail redirect loop. When the OS share
+                                        sheet is available, lead with it (a button-click fix, and it often carries
+                                        a working Gmail option); always offer the universal address-bar workaround. */}
+                                    <p className="text-xs text-gray-400 mt-0 mb-1">
+                                        If the Gmail tab shows a &ldquo;redirect error,&rdquo;{' '}
+                                        {navigator.share && (
+                                            <>try{' '}
+                                                <button
+                                                    type="button"
+                                                    className="text-blue-500 hover:text-blue-700 underline"
+                                                    onClick={() => {
+                                                        navigator.share({
+                                                            title: shareEmailChoice.webShareTitle,
+                                                            text: shareEmailChoice.webShareText,
+                                                            url: shareEmailChoice.webShareUrl || undefined
+                                                        }).catch(() => {});
+                                                        setShareEmailChoice(null);
+                                                    }}>Share…</button>{' '}
+                                                (uses your system&rsquo;s sharing &mdash; often has a working Gmail option), or{' '}
+                                            </>
+                                        )}
+                                        click the address bar and press Enter.
+                                    </p>
                                     {/* Divider: below here is the always-works fallback, not a peer client. */}
                                     <div className="border-t border-gray-200 my-1" />
                                     {/* Universal, always-works escape */}
