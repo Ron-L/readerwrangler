@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.14.1] - 2026-09-16
+
+### A smoother way out of the Gmail dead end
+- When "Open in Gmail (web)" hits a browser redirect error, the hint below it now offers a one-click **Share…** shortcut (where your device supports it) that hands off to your system's own sharing — which often has a working Gmail option — so you're not stuck retyping anything. The hint also spells out the manual fix more clearly: click the **new tab's** address bar and press Enter.
+
 ## [7.14.0] - 2026-09-16
 
 ### Email a friend, without the dead end
