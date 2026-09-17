@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.14.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.14.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6869,7 +6869,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice);
+            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || newFolderHiddenAlert || corruptionRecovery || restoreConfirm); // v7.14.2 - last three were unfenced
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6904,7 +6904,7 @@
                     if (shareEmailChoice) { setShareEmailChoice(null); return; } // v7.14.0
                     // v6.13.0-alpha.7/9 - Auto-Organize preview stack: the cover right-click menu, then the preview itself
                     if (autoOrgMenu) { setAutoOrgMenu(null); return; }
-                    if (autoOrgPreview) { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgHover(null); return; }
+                    if (autoOrgPreview) { closeAutoOrgPreview(); return; } // v7.14.2 - was a partial clear that orphaned autoOrgSrcPopup/autoOrgFileUnder on Esc; delegate to the one closer
                     // Wizard sub-dialogs (innermost)
                     if (wizardResultsOpen) { setWizardResultsOpen(false); return; }
                     if (wizardPreviewMode) { setWizardPreviewMode(false); return; }
@@ -6926,6 +6926,10 @@
                     // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - these two were missing from the chain
                     if (dupReviewOpen) { setDupReviewOpen(false); return; }
                     if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
+                    // v7.14.2 - these three modals were entirely outside the Esc chain (and the fence)
+                    if (restoreConfirm) { console.log('📋 Backup restore cancelled by user (Esc)'); setRestoreConfirm(null); return; }
+                    if (newFolderHiddenAlert) { setNewFolderHiddenAlert(null); return; }
+                    if (corruptionRecovery) { setCorruptionRecovery(false); return; }
                     // Confirmations / info
                     if (lastCopyDialogData) { setLastCopyDialogData(null); return; }
                     if (resetConfirmOpen) { setResetConfirmOpen(false); return; }
@@ -6936,7 +6940,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice, restoreConfirm, newFolderHiddenAlert, corruptionRecovery]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -11473,7 +11477,7 @@
 
                     {/* v6.8.0 - New folder hidden by active filters alert */}
                     {newFolderHiddenAlert && (
-                        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" onClick={() => setNewFolderHiddenAlert(null)}>
                             <div className="bg-white rounded-lg shadow-2xl max-w-sm w-full mx-4" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex justify-between items-start p-4 border-b border-gray-200">
                                     <h2 className="text-base font-semibold text-gray-900">New folder is hidden</h2>
@@ -12070,7 +12074,7 @@
                         };
                         const losses = lostLists.length + lostSearches.length;
                         return (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" onClick={() => { console.log('📋 Backup restore cancelled by user (backdrop)'); setRestoreConfirm(null); }}>
                             <div className="bg-white rounded-lg shadow-2xl w-full" style={{ maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
                                     <h2 className="text-lg font-bold text-gray-900">Restore backup?</h2>

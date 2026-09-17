@@ -15,22 +15,27 @@ _(Done 2026-09-16: 7.13.1 mobile dev-relay-worker fix + 7.13.2 relay worker+stor
 both shipped to prod; dev confirmed, prod verify in progress.)_
 
 **THE CURRENT STACK (pop in this order):**
-0. **DIALOG DISMISSAL — DECISION PENDING (Ron, morning of 2026-09-17): tackle now vs. design-doc+TODO.**
-   The "registry-gap fix" grew: a true mechanical comb found the defect is a *class*, not 4 dialogs.
-   Full audit + system design captured in **docs/design/DIALOG-DISMISSAL-AUDIT.md** (written overnight
-   2026-09-16; **doc is uncommitted — review + `word` to commit**). Findings: 1 live orphan
-   (`autoOrgPreview` Esc leaves a child popup floating — one-line fix: call `closeAutoOrgPreview()`),
-   3 unfenced modals (`restoreConfirm` = destructive + no Esc + no backdrop + unfenced; the serious
-   one), 6 no-Esc menus, latent close-drift (wizard + relaySetup). Recommended split:
-   - **(a) 7.14.2 stopgap NOW** — orphan one-liner + fence the 3 modals by the current mechanism.
-     Small, minutes to test, removes all *live* harm.
-   - **(b) Overlay primitive on its own branch** (`feature/overlay-system`) — a minimal layer
-     registry + `<Dialog>`/`<Popover>` that self-register (fence + Esc-order + backdrop + ✕ + cascade
-     become STRUCTURAL; the CLAUDE.md checklist becomes unnecessary). Radix/React-Aria shape,
-     hand-rolled ~100-150 lines (no bundler). Incremental migration, one family per alpha. Removes
-     the *class*. Ron's containment model = the design; open questions in doc §9 (portals? menus-Esc?
-     first-cut scope? focus mgmt later?).
-1. **Finish the SUPPORT-KB human review** — parked at **§12** (§1–11 done; §16 re-review also
+0. **DIALOG DISMISSAL — stopgap SHIPPED as 7.14.2 (2026-09-17); overlay primitive still pending.**
+   A true mechanical comb found the defect is a *class*, not 4 dialogs. Full audit + system design in
+   **docs/design/DIALOG-DISMISSAL-AUDIT.md** (committed).
+   - **DONE (7.14.2):** orphan one-liner (`autoOrgPreview` Esc → `closeAutoOrgPreview()`) + fenced the
+     3 unfenced modals (`restoreConfirm`, `newFolderHiddenAlert`, `corruptionRecovery`) with Esc +
+     backdrop. Tested by Ron.
+   - **STILL PENDING — overlay primitive on its own branch** (`feature/overlay-system`): a minimal
+     layer registry + `<Dialog>`/`<Popover>` that self-register (fence + Esc-order + backdrop + ✕ +
+     cascade become STRUCTURAL; the CLAUDE.md checklist becomes unnecessary). Radix/React-Aria shape,
+     hand-rolled ~100-150 lines. Incremental, one family per alpha. Also mops up the DEFERRED items:
+     the 6 no-Esc menus and the latent wizard/relaySetup close-drift. Doc §9 open Qs (portals?
+     menus-Esc? first-cut scope? focus mgmt later?).
+1. **New-folder "discard on cancel" (Option A) — its own small release (~7.14.3).** Discovered during
+   7.14.2 testing (unrelated). `newFolderHiddenAlert` should get 4 buttons: Clear All Filters / Show
+   All Folders / Leave As Is (keep hidden) / **Cancel** (discard). Cancel + Esc + ✕ + backdrop →
+   delete the just-created folder via the existing undoable CREATE_FOLDER machinery + toast **"New
+   folder discarded"**. Add `folderId` to the alert payload at the 3 trigger sites (js 14972 / 15560 /
+   18451). LATER polish (Option C, separate): warn BEFORE creating (predict `hasActiveFilters`) so
+   nothing is created on cancel, and fix the inline-rename that currently happens in the hidden sidebar
+   row. Ron chose A now, C deferred.
+2. **Finish the SUPPORT-KB human review** — parked at **§12** (§1–11 done; §16 re-review also
    pending since its 7.12.0 rewrite). Doc-only, lands on main.
 2. **Transactional book-dialog enumeration pass** — the field-vs-command classification table for
    every book-dialog control, published for Ron's red pen BEFORE any transactional surgery (the
