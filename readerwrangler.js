@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.14.1-alpha.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.14.1-alpha.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -20494,7 +20494,7 @@
                                                 (uses your system&rsquo;s sharing &mdash; often has a working Gmail option), or{' '}
                                             </>
                                         )}
-                                        click the address bar and press Enter.
+                                        click the new tab&rsquo;s address bar and press Enter.
                                     </p>
                                     {/* Divider: below here is the always-works fallback, not a peer client. */}
                                     <div className="border-t border-gray-200 my-1" />
