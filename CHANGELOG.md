@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.14.2] - 2026-09-17
+
+### Dialogs that close when you tell them to
+- **Esc, and clicking outside, now close a few dialogs that ignored them.** The backup-restore confirmation, the "new folder is hidden" notice, and the sync-recovery notice can now be dismissed with Esc or a click on the dimmed background, like every other dialog — and while any of them is open, typing shortcuts no longer slip through to the library behind.
+- **Fixed a stray popup after pressing Esc in Auto-Organize.** Pressing Esc while a book's "where it lives" popup was open used to close the preview but leave that little popup stranded on an empty screen. Esc now clears everything cleanly.
+
+_These fixes came out of a full audit of how every dialog and pop-up in ReaderWrangler handles Esc and clicking away. The audit found more to tighten than we changed here; we fixed the highest-impact cases now and are planning a deeper, do-it-once rework so every dialog behaves the same way by design (details in [docs/design/DIALOG-DISMISSAL-AUDIT.md](docs/design/DIALOG-DISMISSAL-AUDIT.md))._
+
 ## [7.14.1] - 2026-09-16
 
 ### A smoother way out of the Gmail dead end
