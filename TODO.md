@@ -15,17 +15,29 @@ _(Done 2026-09-16: 7.13.1 mobile dev-relay-worker fix + 7.13.2 relay worker+stor
 both shipped to prod; dev confirmed, prod verify in progress.)_
 
 **THE CURRENT STACK (pop in this order):**
+0. **DIALOG DISMISSAL — DECISION PENDING (Ron, morning of 2026-09-17): tackle now vs. design-doc+TODO.**
+   The "registry-gap fix" grew: a true mechanical comb found the defect is a *class*, not 4 dialogs.
+   Full audit + system design captured in **docs/design/DIALOG-DISMISSAL-AUDIT.md** (written overnight
+   2026-09-16; **doc is uncommitted — review + `word` to commit**). Findings: 1 live orphan
+   (`autoOrgPreview` Esc leaves a child popup floating — one-line fix: call `closeAutoOrgPreview()`),
+   3 unfenced modals (`restoreConfirm` = destructive + no Esc + no backdrop + unfenced; the serious
+   one), 6 no-Esc menus, latent close-drift (wizard + relaySetup). Recommended split:
+   - **(a) 7.14.2 stopgap NOW** — orphan one-liner + fence the 3 modals by the current mechanism.
+     Small, minutes to test, removes all *live* harm.
+   - **(b) Overlay primitive on its own branch** (`feature/overlay-system`) — a minimal layer
+     registry + `<Dialog>`/`<Popover>` that self-register (fence + Esc-order + backdrop + ✕ + cascade
+     become STRUCTURAL; the CLAUDE.md checklist becomes unnecessary). Radix/React-Aria shape,
+     hand-rolled ~100-150 lines (no bundler). Incremental migration, one family per alpha. Removes
+     the *class*. Ron's containment model = the design; open questions in doc §9 (portals? menus-Esc?
+     first-cut scope? focus mgmt later?).
 1. **Finish the SUPPORT-KB human review** — parked at **§12** (§1–11 done; §16 re-review also
    pending since its 7.12.0 rewrite). Doc-only, lands on main.
-2. **Registry-gap fix release** — 4 dialogs found missing from `anyDialogOpen`
-   (`newFolderHiddenAlert` moderate; `autoOrgFileUnder` / `corruptionRecovery` / restore-loss low).
-   Register + ✕ + Esc + backdrop; file the shared-`<Dialog>` chokepoint TODO. Quick patch release.
-3. **Transactional book-dialog enumeration pass** — the field-vs-command classification table for
+2. **Transactional book-dialog enumeration pass** — the field-vs-command classification table for
    every book-dialog control, published for Ron's red pen BEFORE any transactional surgery (the
    copy-chips work that opened its branch shipped as 7.13.0; transactional gets a fresh branch).
    _Version number assigned when the work is taken up — not pre-planned._
-4. **Transactional book-dialog build** against the approved table (number assigned at pickup).
-5. Then the queued items below (left-pane parity, filter box, Ctrl+X-from-list fix, ownership
+3. **Transactional book-dialog build** against the approved table (number assigned at pickup).
+4. Then the queued items below (left-pane parity, filter box, Ctrl+X-from-list fix, ownership
    batch — item 6 first).
 
 
