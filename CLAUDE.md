@@ -96,11 +96,29 @@ Standard semver with pre-release suffix for test iterations:
 
 **Remotes:** `dev` (testing) / `prod` (production) — no `origin`
 
-**Feature branches:** For customer-facing work (not doc-only changes):
-1. `git checkout -b feature/descriptive-name` from main
-2. Develop with alpha versions, commit before each test
-3. Test locally (most changes don't require push)
-4. When complete: merge to main, push to prod
+**ALWAYS branch for dev work** (customer-facing code; not doc-only changes). You can't predict
+when a side fix will appear mid-stream, so main stays clean by default — a fix can always branch
+off it. (Ratified 2026-09-17.)
+1. `git checkout -b feature/descriptive-name` (or `fix/…`) from main — one branch per feature.
+2. Develop with alpha versions, commit before each test.
+3. Test locally (most changes don't require push).
+4. When complete: **squash-merge** the whole feature as ONE clean delta to main, **tag the
+   release `vX.Y.Z`**, and **KEEP the branch** (do NOT delete it).
+
+**Why squash + keep-branch (a matched pair):** squash gives main a readable one-delta-per-feature
+history; the kept branch preserves the full alpha-by-alpha detail. They compose — squash makes a
+NEW commit, so the alphas are reachable ONLY from the branch; squashing AND deleting the branch
+would destroy the alpha history. So we keep every merged branch as its archive (`git branch
+--sort=-committerdate` when the list gets long).
+
+**Tags:** every release gets `vX.Y.Z` at the (squashed) release commit. The tag is the "where did
+current work begin" boundary (current work = commits since the latest tag) and the rollback/bisect
+anchor. Push tags with the release.
+
+**Side fix mid-feature:** `git checkout main` (clean) → `git checkout -b fix/Y` → fix →
+squash-merge to main + tag → `git checkout feature/X` → `git merge main` (pull the fix into the
+in-flight feature). This clean isolation is *only* possible because dev work is on a branch, not
+main — the reason "always branch" is the rule.
 
 **When to push to dev:**
 - Navigator link changes (require extension loaded from URL to test)
@@ -113,7 +131,7 @@ Branch naming: `feature/tags`, `fix/filter-bug`, `refactor/modules`
 | User says | Do |
 |-----------|-----|
 | "push" or "proceed" | Ask: navigator changes or ready to share? |
-| "push to prod" | Merge to main first, then `git push prod main` |
+| "push to prod" | Squash-merge to main, tag `vX.Y.Z`, then `git push prod main --tags` (keep the branch) |
 | "release" | Clarify which |
 
 **Navigator changes**: Dev first → test → then Prod
