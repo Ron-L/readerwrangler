@@ -237,7 +237,11 @@ the worked example; `project_714_release` memory.
 - Browser: drag events lie about modifier keys on Windows; `title` doesn't render on touch; `aria-label`
   overrides visible text; user gestures expire during long async work (`showSaveFilePicker` first);
   localStorage beats useState defaults; IndexedDB is domain-isolated; null in persisted state becomes
-  `"nullpx"`.
+  `"nullpx"`. Status icons (v3.5 PNG era): swapping an `<img>` `src` to change an icon caused a
+  30-60s load lag, and a React `key` prop blanked it during mount — the fix was pre-load ALL icon
+  variants and toggle CSS `display`, never touch `src` (salvaged 2026-09-18 from the retired
+  `readerwrangler-project` skill; verify whether it still bites the current SVG icons before relying
+  on it).
 
 ---
 

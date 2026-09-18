@@ -35,8 +35,16 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
    18451). LATER polish (Option C, separate): warn BEFORE creating (predict `hasActiveFilters`) so
    nothing is created on cancel, and fix the inline-rename that currently happens in the hidden sidebar
    row. Ron chose A now, C deferred.
-2. **Finish the SUPPORT-KB human review** — parked at **§12** (§1–11 done; §16 re-review also
-   pending since its 7.12.0 rewrite). Doc-only, lands on main.
+1b. **Auto-start the local RW server (dev convenience, addressed in RW).** Pain point: after every
+   reboot Ron hunts the `python -m http.server` line in developers.md. **Fix = Option 3 (rec): a
+   Startup-folder shortcut to a versioned `.bat` in the repo** — `python -m http.server 8000 --directory
+   C:\Users\Ron\Projects\ReaderWrangler`, started minimized. Keeps the **`localhost:8000` origin**
+   (critical — the Apache-alias option would change the origin and orphan ALL of RW's localStorage:
+   library, organization, relay credentials; plus breaks root-relative paths + phone testing). Do NOT
+   add `--bind 127.0.0.1` (phone tests over the LAN). Option 2 (scheduled task at logon) = headless
+   alternative if a console window isn't wanted.
+2. **Finish the SUPPORT-KB human review** — in progress (§1–14 done incl. incidental §1/§2/§17;
+   currently in **§15**; §16 re-review pending since its 7.12.0 rewrite). Doc-only, lands on main.
 2. **Transactional book-dialog enumeration pass** — the field-vs-command classification table for
    every book-dialog control, published for Ron's red pen BEFORE any transactional surgery (the
    copy-chips work that opened its branch shipped as 7.13.0; transactional gets a fresh branch).

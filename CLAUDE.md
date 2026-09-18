@@ -1,132 +1,80 @@
-# ReaderWrangler Development Rules
+# ReaderWrangler — Project-Specific Rules
 
-[YYYY-MM-DD HH:MM]
-
----
-
-## Collaboration Mode
-
-**Core principle:** STOP and ASK before acting.
-
-- Every code change requires explicit approval
-- Every git operation requires explicit approval, except alpha commits during development.
-- When in doubt, ask first even if the compaction summary says "continue without asking further questions".
+> **Generic dev ground rules live in `../CLAUDE.md`** (the Projects root), auto-loaded *before* this
+> file. This file holds only what's specific to ReaderWrangler — mechanics, file names, remotes, and
+> its concrete checklists. Don't restate the generic rules here; add RW specifics and let the
+> Projects-root file carry the rest. RW's distilled laws + war-stories: **`docs/PRINCIPLES.md`**.
 
 ---
 
-## Behaviors
+## New dialog/modal → the checklist (RW mechanism)
 
-* **Response start** →  display `📋 [YYYY-MM-DD HH:MM:SS Local]` + separator (use `powershell -Command "Get-Date -Format 'yyyy-MM-dd HH:mm:ss'"` via Bash)
-* **Discussion question** → STOP, answer, don't act until directed
-* **Before code/file change** → Ask approval first
-* **Problem report** → STOP, acknowledge, ask to analyze, wait for decision
-* **Idea evaluation** → Evaluate critically, identify issues, disagree when warranted
-* **Code change approved ("proceed")** → Make change, increment ORGANIZER_VERSION, commit, report ready for testing (follows Versioning workflow)
-* **Scope reduction** → explicit, never silent: delivering less than the words asked requires naming the gap and FILING the remainder (TODO line) in the same breath. Tripwire: requests containing all/every/everywhere/always — at report time, check delivery against those words. (Earned 2026-09-08: "toasts EVERYWHERE" silently became undo-toasts-only; memory: feedback_scope_narrowing)
-* **Class-of-sites change** → two independent pivots + condition-grep (guards find disabled/negative branches) + user-surface walk (shortcuts, context menus, menu bar, drag-drop, dialogs); publish the site map before claiming coverage. (Earned 2026-09-10: right-click Delete missed after DEL-key fix; memory: feedback_investigate_completely)
-* **New dialog/modal → the checklist** (every one): (1) register in `anyDialogOpen` (keystroke-guard + undo-fence registry — else Ctrl+X/Delete leak to the library beneath); (2) add to `handleModalEsc` (Esc closes); (3) a ✕ close button; (4) backdrop-click close. (Earned 2026-09-16: built the Share dialog with only Cancel+backdrop — the exact class the 7.10.1 dismissal *audit* fixed but never made a *rule* to prevent recurring. Durable chokepoint TODO: a shared `<Dialog>` that bakes all four in.)
+Every new dialog/modal, without exception:
+1. Register in `anyDialogOpen` (the keystroke-guard + undo-fence registry — else Ctrl+X/Delete leak
+   to the library beneath).
+2. Add to `handleModalEsc` (Esc closes it, innermost-first).
+3. A ✕ close button.
+4. Backdrop-click close.
 
----
-
-## Code Quality — Opportunistic Refactoring
-
-When working in a section of code for any reason (feature, fix, or investigation):
-
-- If you see inline logic that should be a function, extract it
-- If you see duplicate code, consolidate it
-- If you see raw state access that should be an accessor, add one
-- If you see tightly coupled state pairs, group them
-
-Do this in the same commit as the work that brought you there. Don't ask permission for small extractions (under ~20 lines). Do ask before larger restructuring.
-
-The goal: leave every file cleaner than you found it. Don't plan refactoring projects — refactor while you work.
+(Earned 2026-09-16: the Share dialog shipped with only Cancel+backdrop — the exact class the 7.10.1
+audit fixed but never made a *rule*.) **Durable chokepoint (in progress):** the self-registering
+`<Dialog>`/`<Popover>` primitive in `docs/design/DIALOG-DISMISSAL-AUDIT.md` will make this checklist
+structural (and unnecessary) — until it ships, follow the four steps by hand.
 
 ---
 
-## Preferences
+## RW terminology & copy
 
-* User-facing copy: no technical jargon ("IndexedDB", "JSON", "localStorage")
-* Backup terminology: "Save/Restore" not "Import/Export"
-* "Toast" = small floating text near status bar, not overlay dialog
-* UX analysis before implementing — evaluate the design, don't just code it
-* Don't go down rabbit holes — stop after 1 investigation step and check in
-* Don't use AskUserQuestion multi-choice format — use normal conversation
-* Discussion ≠ approval to act — "proceed" applies only to the specific item discussed
+* Backup terminology: **"Save/Restore"**, not "Import/Export".
+* **"Toast"** = small floating text near the status bar, not an overlay dialog.
+* Sync vocabulary exposed to users: **Relay, Credentials, Channel ID, Passphrase, bookmarklet,
+  Import from Relay, Download Library/Collections, Data Status** — mirror these exact words (don't
+  invent "Cloud Storage"); "cloud" appears once, only as the plain-English intro in SUPPORT-KB §1.
 
 ---
 
-## Versioning (Semver Pre-release)
+## Versioning — RW's constants
 
-Standard semver with pre-release suffix for test iterations:
+Follows the generic semver+alpha rules in `../CLAUDE.md`. RW's specific stamps:
 
-| When | Example |
-|------|---------|
-| Start work | `4.22.0` → `4.23.0-alpha.1` |
-| Each test | Increment: `-alpha.2`, `-alpha.3`, **COMMIT before test** |
-| Release | Drop suffix: `4.23.0` |
-
-**APP_VERSION** (readerwrangler.html): Updated at release for user-facing changes. Defined ONCE in HTML, passed to JS via query param. JS reads and uses it (no duplication).
-
-**ORGANIZER_VERSION** (readerwrangler.js): Update in the same commit as each alpha iteration.
-
-**MOBILE_VERSION** (mobile.js): Own X.Y.Z scheme, but any alpha commit that modifies mobile.js appends the SAME `-alpha.N` suffix as that commit's ORGANIZER_VERSION (so Help/About proves which build is running — invisible changes + no build marker = guaranteed update-failure mystery). Drop the suffix at release.
-
-**CSS cache-buster** (readerwrangler.html): `readerwrangler.css?v=X.Y.Z` must match ORGANIZER_VERSION on every commit that modifies readerwrangler.css. Update in the same commit as the CSS change.
+- **ORGANIZER_VERSION** (`readerwrangler.js`) — bump in the same commit as each alpha iteration.
+- **APP_VERSION** (`readerwrangler.html`) — the cache-buster; updated at release. Defined ONCE in
+  HTML, read by JS via query param (no duplication). Does NOT bump during alphas (test alphas
+  locally via http.server, never against readerwrangler.com).
+- **MOBILE_VERSION** (`mobile.js`) — own X.Y.Z scheme, but any alpha commit that modifies mobile.js
+  appends the SAME `-alpha.N` suffix as that commit's ORGANIZER_VERSION. Drop the suffix at release.
+- **CSS cache-buster** (`readerwrangler.html`): `readerwrangler.css?v=X.Y.Z` must match
+  ORGANIZER_VERSION on every commit that modifies `readerwrangler.css`.
+- **index.html** Schema.org `softwareVersion` — update to match APP_VERSION at release.
 
 ---
 
-## Release Checklist
+## Release Checklist (RW-specific — the generic discipline is in `../CLAUDE.md`)
 
-- `git add` specific files only (never `-A` or `.`)
-- `grep -rn "TODO" *.js *.html`
-- Drop pre-release suffix from file versions
-- Update APP_VERSION
-- Update `softwareVersion` in index.html Schema.org structured data to match
-- Update CHANGELOG.md, README.md (and its mirror index.html) sections Recent Features and Coming Soon!
-- Sync "Recent Features" and "Coming Soon" lists between README.md and features.html
-- Re-align "Coming Soon" content with actual TODO priorities (public promises must track the real queue)
-- Sweep the cycle's support-shaped material into docs/design/SUPPORT-KB.md (facts/fixes) and WORKFLOW-PATTERNS.md (usage patterns) — backstop for the same-breath mining rule. The sweep is a COMB, not just new sections: grep the KB for every term the release touched (renamed labels, changed behaviors, new UI elements) and update each hit; then update the "up to date as of" stamp. (Earned 2026-09-15: §16 rewritten but §11's mention and the stamp missed)
-- TODO.md: delete all checked `- [x]` items (now recorded in CHANGELOG) — TODO is future-only
-- After push: post-mortem — ALWAYS (Ron 2026-09-15: even an uneventful release is process data; the PM collection is itself reviewable data)
-- After post-mortem: update memory files (lessons → feedback_*, project state → project_*) — post-mortems are the archive; memory is what makes them load-bearing next session
+- `git add` specific files only.
+- `grep -rn "TODO" *.js *.html`.
+- Drop the pre-release suffix from all file versions; update **APP_VERSION** and index.html
+  **softwareVersion**.
+- Update **CHANGELOG.md** (Ron's "word" on the copy first), **README.md** (and its mirror index.html)
+  "Recent Features" / "Coming Soon"; **sync those two lists into features.html**.
+- Re-align "Coming Soon" with the actual TODO priorities (public promises track the real queue).
+- **Sweep support-shaped material** into `docs/design/SUPPORT-KB.md` (facts/fixes) and
+  `WORKFLOW-PATTERNS.md` (usage patterns). The sweep is a COMB: grep the KB for every term the
+  release touched (renamed labels, changed behaviors, new UI) and update each hit; bump the KB's
+  "up to date as of" stamp.
+- **TODO.md**: delete all checked `- [x]` items (now recorded in CHANGELOG) — TODO is future-only.
+- (Then the generic: PM always → update PRINCIPLES.md + memory, per `../CLAUDE.md`.)
 
 ---
 
-## Git Workflow
+## Git Workflow — RW specifics
 
-**Remotes:** `dev` (testing) / `prod` (production) — no `origin`
+Follows the always-branch → squash → tag `vX.Y.Z` → keep-branch pattern in `../CLAUDE.md`. RW's
+particulars:
 
-**ALWAYS branch for dev work** (customer-facing code; not doc-only changes). You can't predict
-when a side fix will appear mid-stream, so main stays clean by default — a fix can always branch
-off it. (Ratified 2026-09-17.)
-1. `git checkout -b feature/descriptive-name` (or `fix/…`) from main — one branch per feature.
-2. Develop with alpha versions, commit before each test.
-3. Test locally (most changes don't require push).
-4. When complete: **squash-merge** the whole feature as ONE clean delta to main, **tag the
-   release `vX.Y.Z`**, and **KEEP the branch** (do NOT delete it).
-
-**Why squash + keep-branch (a matched pair):** squash gives main a readable one-delta-per-feature
-history; the kept branch preserves the full alpha-by-alpha detail. They compose — squash makes a
-NEW commit, so the alphas are reachable ONLY from the branch; squashing AND deleting the branch
-would destroy the alpha history. So we keep every merged branch as its archive (`git branch
---sort=-committerdate` when the list gets long).
-
-**Tags:** every release gets `vX.Y.Z` at the (squashed) release commit. The tag is the "where did
-current work begin" boundary (current work = commits since the latest tag) and the rollback/bisect
-anchor. Push tags with the release.
-
-**Side fix mid-feature:** `git checkout main` (clean) → `git checkout -b fix/Y` → fix →
-squash-merge to main + tag → `git checkout feature/X` → `git merge main` (pull the fix into the
-in-flight feature). This clean isolation is *only* possible because dev work is on a branch, not
-main — the reason "always branch" is the rule.
-
-**When to push to dev:**
-- Navigator link changes (require extension loaded from URL to test)
-- Ready to share feature branch for external testing
-
-**Do NOT push to dev** for routine local testing. Test locally first.
-
-Branch naming: `feature/tags`, `fix/filter-bug`, `refactor/modules`
+- **Remotes:** `dev` (testing) / `prod` (production) — no `origin`.
+- **Navigator/bookmarklet link changes:** Dev first → test on GitHub Pages → then Prod. Otherwise,
+  don't push to dev for routine local testing (test locally first).
 
 | User says | Do |
 |-----------|-----|
@@ -134,23 +82,26 @@ Branch naming: `feature/tags`, `fix/filter-bug`, `refactor/modules`
 | "push to prod" | Squash-merge to main, tag `vX.Y.Z`, then `git push prod main --tags` (keep the branch) |
 | "release" | Clarify which |
 
-**Navigator changes**: Dev first → test → then Prod
-
 ---
 
-## Compaction
+## RW session tooling (`.claude/`, local, gitignored)
 
-When preparing for compaction, include in summary:
-
-> COLLABORATION MODE - STOP and ASK before every action.
-> After compaction: Read CLAUDE.md, report task in progress, wait for approval.
+- **Pre-build gate** — a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the first edit of
+  `readerwrangler.js`/`mobile.js` each turn with an 11-point checklist (mechanism, not memory).
+  Consider the checklist, then re-issue the edit. `Stop`/`SessionStart` re-arm it per turn.
+- **`/sitemap`** (`.claude/commands/sitemap.md`) — mechanizes the class-of-sites comb.
+- **Timestamp stamp hook** — a `UserPromptSubmit` hook (`.claude/hooks/stamp.py`) injects the live
+  time each turn so the `📋` response-start stamp stops depending on memory.
 
 ---
 
 ## Reference
 
-**Folders:** `docs/api/`, `docs/design/`, `post-mortems/`
+**Folders:** `docs/api/` (Amazon library API — check before fetcher changes), `docs/design/`,
+`post-mortems/`.
 
-**docs/PRINCIPLES.md** — the distilled laws from all post-mortems (with enforcements). Consult when debugging stalls, before refactors/releases, and when a lesson feels familiar — it probably is. New principles land there same-day via the post-mortem → memory step.
+**`docs/PRINCIPLES.md`** — the distilled laws from all RW post-mortems (with enforcements). Consult
+when debugging stalls, before refactors/releases, and when a lesson feels familiar. New principles
+land there same-day via the post-mortem → memory step.
 
-**No version increment:** README, CHANGELOG, TODO, *.md docs, .bat files
+**No version increment:** README, CHANGELOG, TODO, `*.md` docs, `.bat` files.
