@@ -35,7 +35,7 @@ bookmarklet used on Amazon's own pages to fetch your library.)
 **Where is my data? Who can see it?** Your library lives in *your browser* on your machine.
 Syncing between your devices travels through a relay in the cloud, but everything stored
 there is encrypted with a key only your devices hold — the relay (and its operator) cannot
-read your library. Details: the Security & Privacy page.
+decipher your library. Details: the Security & Privacy page.
 
 **Does it cost anything?** No.
 
@@ -69,6 +69,14 @@ no password ever given to ReaderWrangler. Your ReaderWrangler relay credentials 
 into it when you create it — if you ever regenerate credentials, drag a fresh bookmarklet
 (the app detects mismatches and offers it).
 
+**What are my credentials?** A **Channel ID** and a **Passphrase** (File → Relay Setup). The
+Channel ID is your private channel through the Cloudflare relay; the Passphrase is the key that
+encrypts everything the fetcher and the app exchange on that channel — so the relay only ever
+holds **encrypted** data it can't decipher. Both live only in this browser. When you make a
+bookmarklet, your credentials are copied into it ("baked in") so the fetcher can encrypt your
+library with your passphrase before sending it through the relay — which is why regenerating your
+credentials means dragging a fresh bookmarklet.
+
 **Do I need an Amazon account to try it? (The Demo Library.)** No — download the demo library
 (100+ classic books) from the home or Tutorials page, open ReaderWrangler, and load the file:
 on a fresh install the Welcome screen offers **Restore a backup** — choose the downloaded
@@ -78,7 +86,7 @@ works on it: folders, tags, filters, Auto-Organize.
 **What's the Welcome screen telling me?** It appears when the app finds no books. If you're
 genuinely new, it walks you through setup. If you're a returning user whose browser data was
 cleared (or a new machine), it says so — *"Your folders and lists are intact"* — and lists
-recovery options best-first: Import from Relay (your library is still in the cloud), Restore
+recovery options best-first: Import from Relay (your synced library is still there), Restore
 a backup, or fetch fresh then import. It never means your organization is gone.
 
 **How do I keep it current?** Buy books as usual; every so often run the bookmarklet —
@@ -163,8 +171,7 @@ it).
 
 **How do I move books into folders?** Drag them (multi-select first if you like: click,
 Ctrl+click, Shift+click for ranges, Ctrl+A for all). Plain **drag moves; Ctrl+drag copies** —
-the toast confirms which happened (and the 🕐 button by the status bar keeps a history of
-recent messages, in case one faded before you read it). Right-click → **Move to ▸ / Copy to ▸** offers the folder
+the toast confirms which happened (kept in the 🕐 message log by the status bar — see §13). Right-click → **Move to ▸ / Copy to ▸** offers the folder
 tree as a menu (in your sidebar's order), including "New folder…" targets. Cut/copy/paste
 works too: Ctrl+X marks books with a dashed "marching ants" border — **nothing moves until
 you paste** into the destination folder (Esc cancels a pending cut from anywhere).
@@ -385,7 +392,7 @@ from the dialog without hiding the book.
 
 **Delete = Trash first.** Deleting from a **folder** removes the book from *that folder* —
 it only goes to Trash if that was its last home (copies elsewhere live on). Deleting from
-**All Books / My Library / a Search** means "delete the book": it's removed from every folder
+**All Books** or **a Search** means "delete the book": it's removed from every folder
 and trashed. In a **Book List**, DEL just removes shortcuts from the list. Deleting an
 **owned** book gets a warning first — "it will reappear next fetch; consider Hide instead"
 (Hide Instead / Delete Anyway / Cancel).
@@ -398,8 +405,9 @@ right-click the Trash row → **Empty Trash** — deletes permanently, with conf
 ("cannot be undone", Book-List fallout disclosed).
 
 **Why did my deleted book come back?** It's owned or sampled — it's still in your Amazon
-library, and a fresh fetch legitimately re-lists it (permanent-delete tombstones stop *stale*
-data from resurrecting it, not Amazon's live report). Owned → Hide it. Sample → delete the
+library, and a fresh fetch legitimately re-lists it. (Emptying the Trash does keep a *stale*
+backup or sync from bringing a book back — but it can't overrule Amazon's live report that the
+book is still yours.) Owned → Hide it. Sample → delete the
 sample at Amazon first (Manage Your Content), then the truth-path sequence in
 WORKFLOW-PATTERNS. **Wishlist books are the exception: their deletes stick** (they're
 ReaderWrangler-native; Amazon holds no copy) — though re-*adding* one requires **Empty
@@ -420,6 +428,11 @@ action yet — the paste is. The doctrine in one line: **toasts promise truth, n
 reversibility** — every data mutation is undoable and gets a receipt, but receipts also
 confirm things with nothing to undo (clipboard copies, file saves, refusals).
 
+**Missed a message?** The 🕐 button by the status bar keeps this session's messages — the last
+~50 receipts and undo/redo confirmations — so a toast that faded before you read it isn't lost.
+(It's a log of what happened, not a clickable undo list; use **Ctrl+Z** to undo and **Ctrl+Shift+Z**
+or **Ctrl+Y** to redo.)
+
 **Undo in dialogs is scoped.** While any dialog is open, Ctrl+Z reaches only what happened
 since it opened (rename a tag in Manage Tags, undo it right there); otherwise the app says
 "Nothing to undo from this dialog — close it to undo earlier actions" rather than silently
@@ -432,16 +445,20 @@ restore would lie about the state they'd return you to).
 
 ## 14. Sync, fetching & importing
 
-1. **A fetch you just pushed can take up to ~a minute to be importable** (cloud storage
-   propagates gradually). If Import says "up to date" right after a fetch, wait a minute and
-   try again. Not a bug.
+1. **After you Download your Library, it can take up to ~a minute before the Relay has it ready
+   to Import** (the relay propagates gradually). If Import says "up to date" right after a fetch,
+   wait a minute and try again. Not a bug.
 2. **The fetcher runs in phases** (titles → enrichment → tags → prices), and after "fetch
    complete" a **full-library orphan scan** runs in the background with its own progress bar.
    Closing the tab early skips it (the dialog's ℹ️ explains). The orphan scan is what notices
    books you removed on Amazon's side.
-3. **Incremental fetches stop at the newest already-known book**; a recovery sweep fires when
-   counts disagree with Amazon's. Withdrawn/delisted books Amazon half-reports are flagged,
-   never silently dropped.
+3. **Fetches are incremental** — they stop at the newest book RW already knows, since older ones
+   usually haven't changed. But if the fetcher's known count doesn't match the total Amazon
+   currently reports — which happens when books were removed, returned, or delisted on Amazon's
+   side (an incremental pass only checks the top, so it can't see a removal deeper down), or a
+   previous fetch was interrupted — it **automatically** does a fuller pass that re-reads deeper
+   to find what changed and reconcile. This isn't a setting you pick; the fetcher decides.
+   Withdrawn/delisted books Amazon half-reports are flagged, never silently dropped.
 4. **Buying a tracked book upgrades it in place** (same ASIN): folders, tags, and price goal
    survive; the book stays where you filed it (find recent purchases via All Books sorted by
    Date Added). If the publisher re-issued under a **new ASIN**, the purchase arrives as a new
@@ -452,17 +469,28 @@ restore would lie about the state they'd return you to).
 5. **The Data Status ball** (File menu / status bar) tracks freshness; it turns red when the
    relay holds newer data than you've imported.
 6. **A "channel revoked" notice** means relay credentials were revoked (usually deliberately,
-   in Relay Setup). Regenerate credentials and remake bookmarklets to resume syncing.
-7. **One working tab.** Running a second ReaderWrangler tab (or the mobile view) in the same
-   browser profile risks the copies overwriting each other's organization — organize in one
-   tab (guards exist for the known cases; MULTI-INSTANCE.md).
+   in **File → Relay Setup**; see §2). Regenerate credentials and remake bookmarklets to resume
+   syncing.
+7. **One working tab — but a second browser is fine.** The risk is a second ReaderWrangler
+   **desktop tab in the same browser**: browser storage is last-writer-wins, so one edit in a
+   stale second tab can overwrite everything you did in the first. Organize in one tab
+   (automatic read-only-second-tab protection is designed but not yet built — MULTI-INSTANCE.md).
+   **The mobile view is always safe** — it only displays your library and never writes changes
+   back, so it can't overwrite your organization. **A different browser (or browser profile)
+   is a separate universe** — its library lives in its own storage. Give it its **own
+   credentials** and it's a completely independent organization, a deliberate way to keep two
+   different setups that never affect each other. Point it at your **existing** channel instead
+   and it will sync the same fetched books, but your by-hand organization won't travel between the
+   two desktops (they drift apart) — so use a separate channel unless you truly want the same
+   library twice. We only test **Chrome**; other browsers are on your own.
 8. **Collections and read status come FROM the Kindle/Amazon side** — fetch Collections to
    refresh them; they're edited on your Kindle/Amazon, not in RW. Amazon's automatic "read"
    status (fires around 99%) is separate from any collection you happen to name "Read".
 
 ## 15. Backups & spreadsheet
 
-1. **Backups are yours, in files you keep** (File → Save Backup…). Restore returns you to the
+1. **Backups are yours — real files you keep on your computer** (File → Save Backup…), not
+   something stored in the browser like your working library. Restore returns you to the
    backup's state, with guarded prompts if current Book Lists/Searches would be lost.
 2. **Presentation settings** (cover/list view, columns, theme) are deliberately NOT part of a
    backup — restoring your books shouldn't restyle your screen.
@@ -513,8 +541,8 @@ lists, and Searches; it deliberately doesn't edit or organize (that's desktop wo
 it as a home-screen app or just open readerwrangler.com on your phone.
 
 **How do I set it up?** Relay Setup on desktop → pair your phone with the **QR code**. The
-phone pulls your library from the relay — same encryption, key delivered by the QR, nothing
-readable in the cloud.
+phone pulls your library from the relay — same encryption, key delivered by the QR, nothing the
+Relay can decipher.
 
 **Does it match my desktop?** Yes — books, folders, Book Lists, Searches, **and your order**,
 pins included (the desktop is the ordering authority; there's no reordering on the phone).
@@ -555,7 +583,7 @@ row — the menus are where the power hides.
 | Symptom | Explanation | Fix |
 |---|---|---|
 | Deleted book reappeared after a fetch | It's owned/sampled — Amazon still lists it; revive-on-sighting is by design | Hide it (owned), or delete the sample at Amazon first (truth path) |
-| New purchase missing after import | Import raced the push (wait ~1 min), or it was an *upgrade* of a tracked book (didn't count as "new", stayed in its folder) | Re-import; check All Books by Date Added |
+| New purchase missing after import | Import raced the fetch — give the Relay ~1 min to catch up, or it was an *upgrade* of a tracked book (didn't count as "new", stayed in its folder) | Re-import; check All Books by Date Added |
 | Can't re-add a deleted wishlist book | Trash copy still holds the ASIN | Empty Trash, then add |
 | Folder looks empty / counts look wrong | A filter (or Show Hidden) is active | Clear filters |
 | Same book twice, one wishlist one owned | Publisher re-issued under a new ASIN | Delete the stale wishlist copy |
@@ -564,7 +592,7 @@ row — the menus are where the power hides.
 | "Open in Gmail (web)" shows ERR_TOO_MANY_REDIRECTS | A browser boundary: navigating to Gmail from another site withholds some Google auth cookies, so Gmail loops trying to re-auth (can't be fixed from a link) | Best on Windows: use **Share… → Gmail** (the OS share sheet's Gmail tile opens cleanly). Or, in the looping tab, click the address bar and press **Enter** — a top-level navigation composes cleanly. Or use **Open in email app** / **Copy to clipboard**. |
 | Share "email a friend" doesn't open my mail app | No default mail app / mailto handler set (or it points at the browser) | Set your default mail app: Windows Settings → Apps → Default apps → MAILTO → choose your client (e.g. Outlook); then "Open in email app" opens it prefilled |
 | First load feels stuck / "Page Unresponsive" | The app compiles in your browser (~15–25s); the loading screen says so | Wait it out — don't reset |
-| "Sync data check failed / checksum mismatch" | A cloud write was interrupted (rare since v7's sealed-packet sync) | Follow the dialog: full fetch rebuilds, then import — local data is intact |
+| "Sync data check failed / checksum mismatch" | A Relay write was interrupted (rare since v7's sealed-packet sync) | Follow the dialog: full fetch rebuilds, then import — local data is intact |
 | Slow first "Checking pending additions" | First fetch after new relay data does extra accounting | Let it run; later fetches are quick |
 | Bookmarklet fetches the wrong library / mismatch warning | Bookmarklet carries older credentials than the app | Recreate the bookmarklet from Relay Setup |
 
