@@ -172,19 +172,25 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                         ownershipType: ue.onWishlist ? previousBook.ownershipType : book.ownershipType,  // v5.4.8
                         lastAmazonOwnershipType: book.lastAmazonOwnershipType ?? previousBook.lastAmazonOwnershipType,  // v7.8.0-alpha.3 - snapshot survives imports (OWNERSHIP-MODEL.md §4 carrier checklist)
                         addedToWishlist: book.addedToWishlist ?? previousBook.addedToWishlist,
-                        priceTrigger: book.priceTrigger ?? previousBook.priceTrigger,
-                        priceAtGoalSet: book.priceAtGoalSet ?? previousBook.priceAtGoalSet, // v7.12.0 - snapshot rides with the goal
-                        priceGoalSetAt: book.priceGoalSetAt ?? previousBook.priceGoalSetAt, // v7.12.0
-                        targetPrice: book.targetPrice ?? previousBook.targetPrice,
-                        tags: book.tags ?? previousBook.tags,
-                        note: book.note ?? previousBook.note,
+                        // v7.14.4 - USER-ONLY fields (the fetcher NEVER sets these): LOCAL wins, so a
+                        // deliberate CLEAR survives import. The old `incoming ?? local` treated a cleared
+                        // null as "absent, fall back to incoming" — and incoming here is only a stale echo
+                        // of the app's own past push/backup, so cleared goals/ratings/tags/notes came back
+                        // (Ron 2026-09-20). Cross-device propagation of these is a non-goal (mobile is
+                        // read-only; two-desktops-one-channel is discouraged — MULTI-INSTANCE §5).
+                        priceTrigger: previousBook.priceTrigger,
+                        priceAtGoalSet: previousBook.priceAtGoalSet, // rides the goal
+                        priceGoalSetAt: previousBook.priceGoalSetAt,
+                        targetPrice: previousBook.targetPrice,
+                        tags: previousBook.tags,
+                        note: previousBook.note,
                         isHidden: ue.isHidden ? previousBook.isHidden : book.isHidden,  // v6.12.0 - F4: was a phantom `hidden` field (real field is isHidden). isHidden is user-owned → defer to local edit, else take incoming.
                         // v7.7.0-alpha.12 (2026-09-04, FORMAT POLICY) - Format is user-editable: an edited
                         // binding wins over every fetch, forever; otherwise take the incoming verbatim value,
                         // but never let an incoming BLANK erase a known binding (a lean run without
                         // bindingInformation must not undo the scan's backfill).
                         binding: ue.binding ? previousBook.binding : (book.binding ?? previousBook.binding),
-                        myRating: book.myRating ?? previousBook.myRating,  // v5.0.0-alpha.175.31 - Personal rating
+                        myRating: previousBook.myRating,  // v7.14.4 - user-only: local wins (see the cluster note above), so a cleared rating survives import
                         userEdited: { ...(book.userEdited || {}), ...ue },  // v6.12.0 - union: inherit other-device flags, keep local
                         // v6.0.0-alpha.48 - Preserve Trash state (user-initiated, survives relay imports)
                         // v6.12.0 - OR-merge soft-delete (backups don't reach this branch; relay imports preserve it)
