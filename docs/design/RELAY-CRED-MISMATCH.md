@@ -1,6 +1,14 @@
 # Relay credential mismatch — safe restore
 
-_Moved verbatim from TODO.md during the 6.12.0 TODO restructure (2026-08-03). Backlog. Refined 2026-06-15. **MEDIUM / LOW (2-3 hours).**_
+_Moved verbatim from TODO.md during the 6.12.0 TODO restructure (2026-08-03). Refined 2026-06-15._
+
+**✅ SHIPPED in 7.14.3 (2026-09-20)** — a few lines, not 2-3 hours. The fix landed as designed
+(minus the inline-bookmarklet nicety): restore adopts the backup's credentials only when the app
+has **none** (fresh/migration) or they **match**; on a **different** channel a mismatch-only
+`showConfirmDialog` keeps current by default ("Keep current" vs "Use the backup's credentials"),
+dismiss = keep. The deliberate "adopt the backup's channel" path is already served by Relay Setup →
+"Load credentials from backup", so no restore-time inline bookmarklet was needed. The problem this
+prevented (silent credential overwrite on restore) is dead.
 
 ---
 

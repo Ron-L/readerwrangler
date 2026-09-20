@@ -494,9 +494,11 @@ restore would lie about the state they'd return you to).
    backup's state, with guarded prompts if current Book Lists/Searches would be lost.
 2. **Presentation settings** (cover/list view, columns, theme) are deliberately NOT part of a
    backup — restoring your books shouldn't restyle your screen.
-3. **Your sync channel is never changed by a restore.** If you regenerated credentials since
-   the backup, remake the bookmarklet — the app detects the mismatch and hands you the new
-   bookmarklet to drag.
+3. **Restoring keeps your current sync credentials by default.** A backup does carry the sync
+   channel it was made with, but a restore won't silently switch you to it: if the backup's
+   channel differs from the one you're using, ReaderWrangler asks — **Keep current** (recommended;
+   matches your installed bookmarklet) or **Use the backup's**. On a fresh install, or when the
+   channels match, it just adopts the backup's silently (that's the device-migration case). (7.14.3)
 4. **File → Save Spreadsheet (CSV)…** exports one row per book — tags, folder paths, and Book
    Lists included — and opens directly in Excel. Book ids are ASINs.
 
