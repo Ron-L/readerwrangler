@@ -183,7 +183,7 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                         priceGoalSetAt: previousBook.priceGoalSetAt,
                         targetPrice: previousBook.targetPrice,
                         tags: previousBook.tags,
-                        note: previousBook.note,
+                        userNote: previousBook.userNote,  // v7.14.4 - REAL field is userNote (the merge preserved a phantom `note` — notes were never preserved on import; same class as the isHidden/hidden F4 phantom)
                         isHidden: ue.isHidden ? previousBook.isHidden : book.isHidden,  // v6.12.0 - F4: was a phantom `hidden` field (real field is isHidden). isHidden is user-owned → defer to local edit, else take incoming.
                         // v7.7.0-alpha.12 (2026-09-04, FORMAT POLICY) - Format is user-editable: an edited
                         // binding wins over every fetch, forever; otherwise take the incoming verbatim value,
