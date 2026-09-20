@@ -244,6 +244,20 @@ Reply to the user still owed (Ron's channel).
   book ONCE** (manual slots are id-based; multi-slot belongs to series-sorted views). Interplay to
   spec: Number-by-Current-Order, the comma-separated multi-edit above, CSV export (one row, list in
   the column). The no-duplicates-per-folder invariant stays untouched.
+  **EXTENSION — multiple SERIES per record (MegaPacks, Ron 2026-09-20):** a public-domain MegaPack can
+  hold scattered volumes of *several* series at once (one ASIN = Skylark 1,4 + Lensman 2,4; possibly
+  cross-author). Generalize `seriesPosition` → **`seriesMemberships: [{series, positions:[…]}]`** (a
+  normal book = one entry, one position — uniform data; the UI compacts it). **Progressive-disclosure
+  UI** (don't tax the common case): ONE series → the existing series field + a **ranges/lists number
+  field** (`1-3, 5`); a **"+ add series"** affordance reveals the structured multi-row editor (series +
+  ranges per row) ONLY for the multi-series outlier. Filter matches if ANY membership matches; sort uses
+  the min position. **Per-work notes: OUT OF SCOPE** — user tags notes free-form (Ron already does this;
+  per-series notes would need context-tagged notes — not worth it). **Open rendering decision:** a
+  scattered list (`1, 4`) fills each slot (the gap-filling point), but a big contiguous range (`1-3`)
+  may collapse to ONE labeled/spanning entry to avoid N duplicate covers — settle against a real
+  MegaPack. **LUID / duplicate records stay REJECTED** (see above) — the memberships list handles
+  multi-series without touching ASIN identity. (Multi-author MegaPacks: the compound-author gap is a
+  separate, pre-existing concern, not solved here.)
 - [ ] Folder "Move to Top / Move to Bottom" context items (D)
 - [ ] Fix drag-subfolder→root drop-position (**confirmed still broken 2026-08-03**, annoying) — dropping a subfolder at root lands it alphabetical-ish near the bottom instead of at the drop target; shares a root cause with new-folder alphabetical insert + Move-to stale position
 - [ ] Book Lists: **"Arrange by series #"** — in Manual mode, bake the series-number order into the list's manual order (persistent, then hand-tweak). The Book-List analog of folder sort-then-bake; a one-time rearrange, not a live sort mode. (Distinct from the existing "Number by current order," which sets each book's *position value*, not the list's order.)
