@@ -68,6 +68,25 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   cut records the view id as source, but paste-cut removes from FOLDERS only — the book never leaves the list.
   Fix: refuse with the explanatory toast (like All Books) or make paste-cut honor Book List sources.
 
+- [ ] **Fetcher: throttle the full-library passes on back-to-back fetches** (Ron 2026-09-19, felt while
+  patching $0.99 series holes — buy → download → import, repeatedly). Grabbing 1 new book still re-prices
+  EVERY wishlist book, re-enriches, and runs the full orphan scan — wasteful back-to-back. Design:
+  - **Always** run the incremental fetch + **enrich the NEW books** (series/cover/description — needed to
+    file them; never skip this).
+  - **Throttle only the FULL-LIBRARY passes** — re-price-all-wishlist, re-enrich-existing, orphan-scan —
+    to at most **once per ~24h**. Principled interval: matches the existing price-staleness threshold
+    (prices dim at ~24h, KB §16), so throttling doesn't degrade price-watching.
+  - **State:** `lastFullPassAt` (relay, or localStorage on the Amazon origin).
+  - **Override at the point of effect** (Law 16): when the fetcher skips the full passes, its completion
+    dialog says so and offers one click — *"Skipped the full refresh (prices, re-enrichment, orphan scan)
+    — already done today. Do it now?"* Gives "full twice today" without a 2nd bookmarklet. **Do NOT** use a
+    Shift/Alt-click modifier (PRINCIPLES/Browser: Windows drag/click events lie about modifiers —
+    unreliable + undiscoverable).
+  - **ANALYSIS FIRST (before building):** does the fetcher already separate "enrich NEW" from
+    "re-price/re-enrich ALL" in its phases (titles → enrichment → tags → prices)? If entangled, splitting
+    them is the real work. Read the fetcher (bookmarklet) code first. Fetcher-side change (+ maybe app/relay
+    coordination for the state + the override dialog) — separate codebase from the app.
+
 
 - [ ] **Book dialog goes fully transactional (7.14.0 — NEXT UP, ratified 2026-09-10; renumbered thrice: 7.11.0=audit, 7.12.0=price snapshot, 7.13.0=copy chips)**:
   in the dialog, Edit/Save is the ONLY way anything changes (one undo per Save); everywhere else changes are
