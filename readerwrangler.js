@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.15.0-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.15.0-alpha.3";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -12662,8 +12662,8 @@
                         const popupIsMover = new Set((autoOrgPreview && autoOrgPreview.dryPlan && autoOrgPreview.dryPlan.allBookIdsToOrganize) || []).has(b.id);
                         return (
                             <div className="fixed inset-0 z-[75]" onClick={() => setAutoOrgSrcPopup(null)} onContextMenu={(e) => { e.preventDefault(); setAutoOrgSrcPopup(null); }}>
-                                <div className="absolute bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-w-[300px]"
-                                    style={{ left: `${Math.min(autoOrgSrcPopup.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 320)}px`, top: `${Math.min(autoOrgSrcPopup.y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - (srcs.length * 30 + 90))}px` }}
+                                <CursorPopup open={true} x={autoOrgSrcPopup.x} y={autoOrgSrcPopup.y}
+                                    className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-w-[300px]"
                                     onClick={(e) => e.stopPropagation()}>
                                     {!popupIsMover ? (
                                         <>
@@ -12697,7 +12697,7 @@
                                     <div className="px-3 py-1.5 text-[10px] text-gray-400 border-t border-gray-100">Its new home folder is always added. Unchecked copies are kept.</div>
                                     </>
                                     )}
-                                </div>
+                                </CursorPopup>
                             </div>
                         );
                     })()}
@@ -12705,8 +12705,8 @@
                     {/* v6.13.0-alpha.9 (D2) - Preview cover right-click: add the selection to a Book List (flat menu; the only action here) */}
                     {autoOrgMenu && (
                         <div className="fixed inset-0 z-[75]" onClick={() => setAutoOrgMenu(null)} onContextMenu={(e) => { e.preventDefault(); setAutoOrgMenu(null); }}>
-                            <div className="absolute bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-h-[360px] overflow-y-auto"
-                                style={{ left: `${Math.min(autoOrgMenu.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 250)}px`, top: `${autoOrgMenu.y}px` }}
+                            <CursorPopup open={true} x={autoOrgMenu.x} y={autoOrgMenu.y}
+                                className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-h-[360px] overflow-y-auto"
                                 onClick={(e) => e.stopPropagation()}>
                                 <div className="px-4 py-1.5 text-xs text-gray-500 border-b border-gray-100">Add {autoOrgMenu.bookIds.length} book{autoOrgMenu.bookIds.length !== 1 ? 's' : ''} to a Book List</div>
                                 <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 font-medium text-blue-700"
@@ -12738,7 +12738,7 @@
                                         </div>
                                     </>
                                 )}
-                            </div>
+                            </CursorPopup>
                         </div>
                     )}
 
@@ -12747,8 +12747,9 @@
                         const flds = getFoldersContainingBook(autoOrgHover.bookId).filter(f => f.id !== '__inbox__' && f.id !== '__all__' && f.id !== '__library__');
                         const lists = getBookListsContainingBook(autoOrgHover.bookId);
                         return (
-                            <div className="fixed bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-xs z-[76]"
-                                style={{ left: `${autoOrgHover.x}px`, top: `${autoOrgHover.y}px`, maxWidth: '260px', pointerEvents: 'none' }}>
+                            <CursorPopup open={true} x={autoOrgHover.x} y={autoOrgHover.y}
+                                className="bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-xs z-[76]"
+                                style={{ maxWidth: '260px', pointerEvents: 'none' }}>
                                 {(flds.length === 0 && lists.length === 0)
                                     ? <div className="text-gray-400 italic">Only in Inbox — not filed or listed yet</div>
                                     : <>
@@ -12757,7 +12758,7 @@
                                         {lists.length > 0 && <div className={`text-gray-500 mb-0.5 ${flds.length > 0 ? 'mt-1' : ''}`}>On Book Lists:</div>}
                                         {lists.map(bl => <div key={bl.id} className="text-gray-700 truncate">📗 {bl.name}</div>)}
                                       </>}
-                            </div>
+                            </CursorPopup>
                         );
                     })()}
 
@@ -18301,9 +18302,9 @@
                         return (
                             <>
                                 <div className="fixed inset-0 z-[59]" onClick={() => setRightPaneContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setRightPaneContextMenu(null); }} />
-                                <div className="fixed bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] z-[60]"
-                                    role="menu" aria-label="Create folder"
-                                    style={{ left: `${rightPaneContextMenu.x}px`, top: `${rightPaneContextMenu.y}px` }}
+                                <CursorPopup open={true} x={rightPaneContextMenu.x} y={rightPaneContextMenu.y}
+                                    className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] z-[60]"
+                                    role="menu" ariaLabel="Create folder"
                                     onClick={(e) => e.stopPropagation()}>
                                     {/* v6.12.0-alpha.68 (#8) - Single context-appropriate action: subfolder inside a folder,
                                         else a root folder (a new root folder wouldn't appear in the current folder view). */}
@@ -18316,7 +18317,7 @@
                                             <span>📁</span><span>New folder</span>
                                         </div>
                                     )}
-                                </div>
+                                </CursorPopup>
                             </>
                         );
                     })()}
