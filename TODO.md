@@ -120,6 +120,33 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     `read.amazon.co.uk` / `.co.jp` / etc.; RW may need the user's marketplace or default to `.com` + rely
     on fallback. (Backstory link: `reference_read_in_kindle` memory.)
 
+- [ ] **BUG (2026-09-20, real-use): right-click context menus clip off the bottom** for items low in the
+  viewport — the menu grew (Share submenu, copy chips…) past a stale/hardcoded position. **Fix = a
+  chokepoint, not a patch:** route EVERY positioned menu / context-menu / popup through ONE measured
+  positioner (RW's `FlipToFitPopup` — measure height → clamp/flip so it never runs off-screen), so a menu
+  can't be born clipped and adding items never needs re-tuning. `/sitemap` first (find every positioned
+  menu; which already measure vs hand-roll; converge them). **Align with the `<Popover>`/`<Menu>` overlay
+  primitive** (docs/design/DIALOG-DISMISSAL-AUDIT.md) — positioning belongs there too; don't build a
+  throwaway positioner now and a second one later.
+
+- [ ] **BUG (2026-09-20, real-use): price goals resurrect after Import from Relay.** Ron cleared the goals
+  on 4 books he'd bought; a later Import brought them back — a deliberate user change silently reverting
+  (Law-10 "removed value comes back on every import" family; a data-integrity smell, NOT cockpit error).
+  Investigate how a goal *removal* travels (or fails to) through the device-state push + merge-on-import
+  path — the merge is likely re-applying the stale goal because the removal wasn't honored. Bisect hint
+  (Ron): feels newer than the big v7 sync changes, but not certain (v7 is a plausible origin).
+
+- [ ] **Orphan-cleanup step at import (2026-09-20, Ron)** — discoverability + action. When the orphan scan
+  finds books **no longer in your Amazon library**, show a dialog with a **checkbox list of those titles**
+  + **"Delete permanently"** (removes from folders AND trash in one step — for true orphans this STICKS).
+  Design must-haves: (a) **scope to genuine orphans** — a book still in the Amazon library (owned/sample)
+  re-lists on the next fetch no matter how it's deleted in RW, so exclude those or warn *"still in your
+  Amazon library — remove it there first, or it comes back"* (exactly what bit Ron: samples he removed at
+  Amazon returned because they were still in the library); (b) permanent-delete is **destructive** (skips
+  the trash safety net) → a clear *"Permanently delete N books — can't be undone"* confirm. (Started as a
+  passive info notice; Ron upgraded it to the actionable checkbox-delete.) New dialog → follow the
+  new-dialog checklist / the `<Dialog>` primitive when it lands.
+
 
 - [ ] **Book dialog goes fully transactional (7.14.0 — NEXT UP, ratified 2026-09-10; renumbered thrice: 7.11.0=audit, 7.12.0=price snapshot, 7.13.0=copy chips)**:
   in the dialog, Edit/Save is the ONLY way anything changes (one undo per Save); everywhere else changes are
