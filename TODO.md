@@ -101,9 +101,24 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     it to the top of the Uncollected collection on the Paperwhite (the hoped-for cross-device surfacing).
     So the value is limited to people who read in the **Android app or Cloud Reader** — Paperwhite-only
     users gain nothing. Priority accordingly.
-  - **ANALYSIS FIRST:** confirm the exact deep-link schemes (Kindle Android URI + Cloud Reader ASIN URL) —
-    Amazon barely documents these; verify per platform before building. (Ron worked out the specifics in a
-    claude.ai chat 2026-09-19; link stashed in memory.)
+  - **Deep-link specifics (Ron's research 2026-09-19; all UNOFFICIAL/undocumented — Amazon could break
+    them, so best-effort with a fallback, and TEST per platform/version):**
+    - **Android → intent URL with fallback** (preferred over the bare scheme):
+      `intent://book?action=open&asin=<ASIN>#Intent;scheme=kindle;package=com.amazon.kindle;S.browser_fallback_url=https%3A%2F%2Fwww.amazon.com%2Fdp%2F<ASIN>;end`
+      — falls back to the Amazon product page if the app isn't installed. Bare form:
+      `kindle://book?action=open&asin=<ASIN>`. **Must be a user tap** (Chrome blocks otherwise); owned
+      books only; behavior has shifted across app versions (may land on the detail page instead of
+      opening to read).
+    - **Desktop → Kindle Cloud Reader:** `https://read.amazon.com/?asin=<ASIN>` (opens the book if
+      signed in; resumes at last position via Whispersync). Optional secondary "Open in Kindle app"
+      using the same `kindle://…` scheme for **Kindle-for-PC** users (browser shows an "Open Kindle?"
+      prompt).
+  - **Caveats:** use the **Kindle-edition ASIN** (not print) — fine for owned Kindle books (RW's ASINs
+    come from the Kindle library), but a print-only owned book won't open. Not every title is
+    Cloud-Reader-readable (some restricted → "download the app" prompt, undetectable in advance) → keep
+    the `amazon.com/dp/<ASIN>` fallback. **Marketplace matters** — non-US accounts need
+    `read.amazon.co.uk` / `.co.jp` / etc.; RW may need the user's marketplace or default to `.com` + rely
+    on fallback. (Backstory link: `reference_read_in_kindle` memory.)
 
 
 - [ ] **Book dialog goes fully transactional (7.14.0 — NEXT UP, ratified 2026-09-10; renumbered thrice: 7.11.0=audit, 7.12.0=price snapshot, 7.13.0=copy chips)**:
