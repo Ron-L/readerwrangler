@@ -86,6 +86,8 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     "re-price/re-enrich ALL" in its phases (titles → enrichment → tags → prices)? If entangled, splitting
     them is the real work. Read the fetcher (bookmarklet) code first. Fetcher-side change (+ maybe app/relay
     coordination for the state + the override dialog) — separate codebase from the app.
+  - **Cross-ref:** Ownership-honesty batch **item #1** ("Fetcher completion dialog reports ownership
+    upgrades") touches the SAME fetcher completion dialog — build them together.
 
 
 - [ ] **Book dialog goes fully transactional (7.14.0 — NEXT UP, ratified 2026-09-10; renumbered thrice: 7.11.0=audit, 7.12.0=price snapshot, 7.13.0=copy chips)**:
@@ -115,7 +117,7 @@ Then batch 1-9 (item 11 SHIPPED in 7.11.0). (Item 12 — mooted by the unificati
 
 Save as Spreadsheet (CSV): **SHIPPED as 7.10.0** (2026-09-09 — requested 09-08, shipped next day).
 Reply to the user still owed (Ron's channel).
-- [ ] **1. Fetcher completion dialog reports ownership upgrades** (today: console-only ⬆️; dialog says "0 new" after you buy 4 books)
+- [ ] **1. Fetcher completion dialog reports ownership upgrades** (today: console-only ⬆️; dialog says "0 new" after you buy 4 books) — **cross-ref:** the "Fetcher: throttle the full-library passes" item in the TOP-OF-STACK queued list also lives in this completion dialog; build them together.
 - [ ] **2. Import summary counts ALL ownership promotions, labeled by destination** — "3 wishlist → owned", "1 wishlist → sample" — keyed on ownershipType transitions (today: onWishlist-flip only ⇒ misses sample→owned AND would mislabel wishlist→sample as owned). Also: name the titles in the console line (the 🎉-line-has-no-title gap that blocked diagnosis 2026-09-04).
 - [ ] **3. Goals on promotion: KEEP (old rule stands — never silently destroy)** + receipt line; optional one-click "Clear goals on these N" in the import summary (Ron to pick during build). Rationale: promoted books already require a manual All-Books visit to file into reading lists, so clearing rides a trip he makes anyway (Ron 2026-09-04).
 - [ ] **4. Import summary echoed into 🕐 toast history** (receipts gap: dialog evidence vanishes on refresh)
