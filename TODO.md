@@ -89,6 +89,22 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   - **Cross-ref:** Ownership-honesty batch **item #1** ("Fetcher completion dialog reports ownership
     upgrades") touches the SAME fetcher completion dialog — build them together.
 
+- [ ] **"Read in Kindle" — jump from RW to the book in a Kindle reader** (Ron 2026-09-20; RW has become
+  his primary library organizer and he keeps wanting to open a book straight from RW mobile). **NOT a
+  built-in reader** (he still reads on the Paperwhite; too much scope). Instead, a per-book **Read**
+  action for OWNED books:
+  - **Mobile RW → Android Kindle app** via a deep link by ASIN (Kindle app URI scheme / Android App Link).
+  - **Desktop RW → Kindle Cloud Reader** (`read.amazon.com`, opened to the ASIN).
+  - **Owned-only:** show it only for owned books — you can't read a wishlist/sample entry (those keep
+    "Open in Amazon" / the product page).
+  - **Known dead-end (tested 2026-09-19, FAILED):** opening a book in the Android Kindle app does NOT bump
+    it to the top of the Uncollected collection on the Paperwhite (the hoped-for cross-device surfacing).
+    So the value is limited to people who read in the **Android app or Cloud Reader** — Paperwhite-only
+    users gain nothing. Priority accordingly.
+  - **ANALYSIS FIRST:** confirm the exact deep-link schemes (Kindle Android URI + Cloud Reader ASIN URL) —
+    Amazon barely documents these; verify per platform before building. (Ron worked out the specifics in a
+    claude.ai chat 2026-09-19; link stashed in memory.)
+
 
 - [ ] **Book dialog goes fully transactional (7.14.0 — NEXT UP, ratified 2026-09-10; renumbered thrice: 7.11.0=audit, 7.12.0=price snapshot, 7.13.0=copy chips)**:
   in the dialog, Edit/Save is the ONLY way anything changes (one undo per Save); everywhere else changes are
