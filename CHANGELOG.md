@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.14.4] - 2026-09-20
+
+### Cleared details stay cleared after Import
+- When you cleared a price goal, star rating, tag, or note and then used Import from Relay, the cleared detail could quietly come back. Now a detail you clear stays cleared. (Notes were also never actually kept across an import — now they are.) Details you *set* are preserved as before, and updates from Amazon still flow in normally.
+
 ## [7.14.3] - 2026-09-20
 
 ### Sync setup & restore — safer, less surprising

@@ -129,12 +129,20 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   primitive** (docs/design/DIALOG-DISMISSAL-AUDIT.md) — positioning belongs there too; don't build a
   throwaway positioner now and a second one later.
 
-- [ ] **BUG (2026-09-20, real-use): price goals resurrect after Import from Relay.** Ron cleared the goals
-  on 4 books he'd bought; a later Import brought them back — a deliberate user change silently reverting
-  (Law-10 "removed value comes back on every import" family; a data-integrity smell, NOT cockpit error).
-  Investigate how a goal *removal* travels (or fails to) through the device-state push + merge-on-import
-  path — the merge is likely re-applying the stale goal because the removal wasn't honored. Bisect hint
-  (Ron): feels newer than the big v7 sync changes, but not certain (v7 is a plausible origin).
+- [ ] **Import-merge follow-ups (from 7.14.4 — the clear-then-resurrect + phantom-field fix).** The merge
+  is now data-driven from `BOOK_FIELD_OWNERSHIP` in `bookMerge.js` (node-tested in the gate). Two pieces
+  were deliberately left out of that release and named as the scope boundary:
+  - **Route branch 2 through `mergeBookFields`.** The dedup branch where a still-owned book meets an
+    incoming *wishlist* duplicate keeps its distinct "owned identity wins" ownership logic, so it doesn't
+    use `mergeBookFields` (that would let the wishlist flip ownership) — only its user-field lines were
+    fixed via `assignUserOwnedFields`. Unify once the ownership-keep case is expressed in the merge (an
+    "ownership: keepLocal" option) and verified by a test, so no field list survives outside the registry.
+  - **Field-name constants everywhere (the maximal "same name everywhere").** The registry + gate test
+    now catch a phantom field *in the merge* (a key on neither input fails the test). The recurring
+    footgun — the same concept under different names at different sites (`note`↔`userNote`,
+    `priceGoal` column↔`priceTrigger` field, once `hidden`↔`isHidden`) — is only fully killed by field-name
+    **constants** used at every read/write site (`F.userNote`, so a typo is a JS reference error, not a
+    silent string). Big adoption effort across the app; the registry covers the merge in the meantime.
 
 - [ ] **Orphan-cleanup step at import (2026-09-20, Ron)** — discoverability + action. When the orphan scan
   finds books **no longer in your Amazon library**, show a dialog with a **checkbox list of those titles**
