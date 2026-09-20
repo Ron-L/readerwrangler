@@ -117,7 +117,20 @@ writes, and loud (never silent) save failures.
 Backups carry it, restores push it to the relay, imports bring it home again. A migration that clears a
 value **must** pair with an inbound filter while any source of truth still carries it, or the value
 resurrects on every import (the 'Kindle eBook' token did exactly this, silently zeroing a backfill).
-**Enforcement**: FORMAT-POLICY.md; the migration+filter pair as the standard shape.
+A **user's deliberate clear is the same shape as a migration's clear**: a cleared field is `null`, and
+`incoming ?? local` reads `null` as "absent — use incoming", so the stale value comes back. Fields the
+user owns and the fetcher never sets must be **local-wins**, not `??` (7.14.4: cleared goals/ratings/tags/
+notes resurrected on import for exactly this reason). Declare each field's ownership in **one registry**
+(`bookMerge.js` `BOOK_FIELD_OWNERSHIP`) and drive the merge from it — a field can't be missed and its
+behavior lives in one place.
+**Corollary — a merge must never invent a field name.** The same file preserved a phantom `note` (real
+field `userNote`) and once a phantom `hidden` (`isHidden`): the wrong name is silently created, the real
+one silently dropped, and JS never complains. The mechanism is a test invariant: **the merge output may
+not contain a key absent from both inputs** (that is exactly what a phantom target name looks like),
+paired with a per-user-field clear-survives round-trip. Both would have caught both phantoms on sight.
+The maximal cure is field-name **constants** used at every site so a typo is a reference error (filed).
+**Enforcement**: FORMAT-POLICY.md; the migration+filter pair as the standard shape; `bookMerge.js` +
+`test/bookMerge.test.js` (the ownership registry + the no-invented-keys / clear-survives gate tests).
 
 ### 11. Design-doc-first for anything architectural — then check yourself against it
 The single most consistent predictor of smooth execution across all eras (11+ PMs; the four cleanest
