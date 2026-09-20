@@ -101,41 +101,23 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                     // New book is owned, replace wishlist entry
                     // Preserve user metadata from wishlist entry (column assignment preserved via localStorage)
                     wishlistToOwned.push(book.asin);
-                    // v6.12.0 - Per-field userEdited merge (see the previousBook branch below for rationale).
-                    // `existing` is the earlier same-ASIN entry, which already carries merged local flags.
-                    const ueWish = existing.userEdited || {};
-                    // v5.4.8 - If user manually set ownership, preserve their choice
-                    const preserveOwnership = ueWish.onWishlist;
-                    booksByAsin.set(book.asin, {
-                        ...book,
-                        title: ueWish.title ? existing.title : book.title,
-                        author: ueWish.author ? existing.author : book.author,
-                        series: ueWish.series ? existing.series : book.series,
-                        seriesPosition: ueWish.seriesPosition ? existing.seriesPosition : book.seriesPosition,
-                        onWishlist: preserveOwnership ? existing.onWishlist : book.onWishlist,
-                        ownershipType: preserveOwnership ? existing.ownershipType : book.ownershipType,
-                        lastAmazonOwnershipType: existing.lastAmazonOwnershipType ?? book.lastAmazonOwnershipType, // v7.8.0-alpha.3 - app-side snapshot (OWNERSHIP-MODEL.md §4); local wins, incoming lacks it
-                        addedToWishlist: existing.addedToWishlist,
-                        // v5.0.0-alpha.163 - PRESERVE price goal when book transitions to owned
-                        priceTrigger: existing.priceTrigger ?? book.priceTrigger,
-                        priceAtGoalSet: existing.priceAtGoalSet ?? book.priceAtGoalSet, // v7.12.0 - snapshot rides with the goal
-                        priceGoalSetAt: existing.priceGoalSetAt ?? book.priceGoalSetAt, // v7.12.0
-                        targetPrice: existing.targetPrice ?? book.targetPrice,
-                        myRating: existing.myRating ?? book.myRating,  // v5.0.0-alpha.175.31 - Personal rating
-                        userEdited: { ...(book.userEdited || {}), ...ueWish }  // v6.12.0 - union flags
-                    });
+                    // v7.14.4 - Same-payload wishlist→owned dedup: the wishlist entry (existing) is LOCAL,
+                    // the owned entry (book) is INCOMING. mergeBookFields keeps the wishlist entry's price
+                    // goal / rating / tags / note (local wins) and, absent a manual onWishlist edit, adopts
+                    // the owned ownership — the "preserve the goal across the transition" behavior, now data-
+                    // driven. (Previously this branch omitted tags/userNote/isHidden entirely — a latent
+                    // resurrection gap of the same class, closed here.)
+                    booksByAsin.set(book.asin, mergeBookFields(existing, book));
                 } else if (!isWishlisted(existing) && isWishlisted(book)) {
-                    // Existing is owned, new is wishlist - keep existing
-                    // v5.0.0-alpha.163 - Preserve addedToWishlist and price goals from wishlist
-                    booksByAsin.set(book.asin, {
+                    // Existing is owned, new is wishlist - keep existing (owned identity wins; this branch
+                    // does NOT route through mergeBookFields because that would let the incoming wishlist
+                    // flip ownership). v7.14.4 - user-owned fields take the OWNED (local) entry via
+                    // assignUserOwnedFields, so a value the user cleared on the owned book isn't resurrected
+                    // by a stale wishlist duplicate in the same payload (same class as the import-merge fix).
+                    booksByAsin.set(book.asin, assignUserOwnedFields({
                         ...existing,
                         addedToWishlist: book.addedToWishlist ?? existing.addedToWishlist,
-                        priceTrigger: book.priceTrigger ?? existing.priceTrigger,
-                        priceAtGoalSet: book.priceAtGoalSet ?? existing.priceAtGoalSet, // v7.12.0 - snapshot rides with the goal
-                        priceGoalSetAt: book.priceGoalSetAt ?? existing.priceGoalSetAt, // v7.12.0
-                        targetPrice: book.targetPrice ?? existing.targetPrice,
-                        myRating: book.myRating ?? existing.myRating  // v5.0.0-alpha.175.31 - Personal rating
-                    });
+                    }, existing));
                 }
                 // If both same ownership status, keep first occurrence (existing)
             } else {
@@ -162,36 +144,13 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                     if (Object.keys(ue).length > 0) {
                         console.log(`🛡️ Preserving user-edited fields for "${previousBook.title}":`, Object.keys(ue).join(', '));
                     }
-                    booksByAsin.set(book.asin, {
-                        ...book,
-                        title: ue.title ? previousBook.title : book.title,
-                        author: ue.author ? previousBook.author : book.author,
-                        series: ue.series ? previousBook.series : book.series,
-                        seriesPosition: ue.seriesPosition ? previousBook.seriesPosition : book.seriesPosition,
-                        onWishlist: ue.onWishlist ? previousBook.onWishlist : book.onWishlist,  // v5.4.8 - Ownership toggle
-                        ownershipType: ue.onWishlist ? previousBook.ownershipType : book.ownershipType,  // v5.4.8
-                        lastAmazonOwnershipType: book.lastAmazonOwnershipType ?? previousBook.lastAmazonOwnershipType,  // v7.8.0-alpha.3 - snapshot survives imports (OWNERSHIP-MODEL.md §4 carrier checklist)
-                        addedToWishlist: book.addedToWishlist ?? previousBook.addedToWishlist,
-                        priceTrigger: book.priceTrigger ?? previousBook.priceTrigger,
-                        priceAtGoalSet: book.priceAtGoalSet ?? previousBook.priceAtGoalSet, // v7.12.0 - snapshot rides with the goal
-                        priceGoalSetAt: book.priceGoalSetAt ?? previousBook.priceGoalSetAt, // v7.12.0
-                        targetPrice: book.targetPrice ?? previousBook.targetPrice,
-                        tags: book.tags ?? previousBook.tags,
-                        note: book.note ?? previousBook.note,
-                        isHidden: ue.isHidden ? previousBook.isHidden : book.isHidden,  // v6.12.0 - F4: was a phantom `hidden` field (real field is isHidden). isHidden is user-owned → defer to local edit, else take incoming.
-                        // v7.7.0-alpha.12 (2026-09-04, FORMAT POLICY) - Format is user-editable: an edited
-                        // binding wins over every fetch, forever; otherwise take the incoming verbatim value,
-                        // but never let an incoming BLANK erase a known binding (a lean run without
-                        // bindingInformation must not undo the scan's backfill).
-                        binding: ue.binding ? previousBook.binding : (book.binding ?? previousBook.binding),
-                        myRating: book.myRating ?? previousBook.myRating,  // v5.0.0-alpha.175.31 - Personal rating
-                        userEdited: { ...(book.userEdited || {}), ...ue },  // v6.12.0 - union: inherit other-device flags, keep local
-                        // v6.0.0-alpha.48 - Preserve Trash state (user-initiated, survives relay imports)
-                        // v6.12.0 - OR-merge soft-delete (backups don't reach this branch; relay imports preserve it)
-                        isDeleted: previousBook.isDeleted || book.isDeleted || false,
-                        deletedAt: previousBook.deletedAt || book.deletedAt || null,
-                        deletedFromFolderIds: previousBook.deletedFromFolderIds || book.deletedFromFolderIds || null
-                    });
+                    // v7.14.4 - Data-driven merge (bookMerge.js). Every field's behavior — user-owned
+                    // fields (local wins so a deliberate CLEAR survives import), user-overridable fields
+                    // (userEdited flag decides), and Amazon-owned metadata (incoming wins) — is declared
+                    // ONCE in BOOK_FIELD_OWNERSHIP and applied by mergeBookFields. Replaces the hand-listed
+                    // field block that (a) resurrected cleared goals/ratings/tags via `incoming ?? local`
+                    // and (b) preserved a phantom `note` while the real field is userNote (Ron 2026-09-20).
+                    booksByAsin.set(book.asin, mergeBookFields(previousBook, book));
                 } else {
                     // React saves: just save as-is, no merge
                     booksByAsin.set(book.asin, book);
