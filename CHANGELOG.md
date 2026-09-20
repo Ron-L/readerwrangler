@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.14.3] - 2026-09-20
+
+### Sync setup & restore — safer, less surprising
+- **Restoring a backup no longer silently changes your sync credentials.** A backup carries the sync channel it was made with, and before, restoring one could quietly switch you to it — so an old backup could point you at a stale channel without a word. Now, if the backup's channel differs from the one you're using, ReaderWrangler asks: keep your current credentials (the default — they match your installed bookmarklet) or switch to the backup's. Matching (and first-time) restores stay silent, as before.
+- **Relay Setup no longer gets stuck in "enter credentials manually."** Closing the credentials screen from the manual-entry form (via ✕, clicking outside, or Done) used to leave it in that mode, so the next time you opened Relay Setup it jumped straight back to the form. It now always returns to the full Credentials view.
+
 ## [7.14.2] - 2026-09-17
 
 ### Dialogs that close when you tell them to

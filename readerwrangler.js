@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.14.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.14.3";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -5262,6 +5262,25 @@
                     return;
                 }
                 dataOpInProgressRef.current = true;
+                // v7.14.3 - Decide credential handling BEFORE the progress dialog (RELAY-CRED-MISMATCH):
+                // never silently overwrite existing creds; on a DIFFERENT channel, ask once (mismatch
+                // only), keeping current by default. Decided here so the confirm isn't stacked on progress.
+                let adoptBackupCreds = false;
+                if (parsedData.relay && parsedData.relay.channelId) {
+                    let currentCreds = null;
+                    try { currentCreds = JSON.parse(localStorage.getItem(RELAY_KEY)); } catch { /* none */ }
+                    const haveCurrent = currentCreds && currentCreds.channelId;
+                    if (!haveCurrent || currentCreds.channelId === parsedData.relay.channelId) {
+                        adoptBackupCreds = true; // new machine / migration, or same channel — adopt silently
+                    } else {
+                        adoptBackupCreds = await showConfirmDialog(
+                            'Different sync channel',
+                            "This backup was made on a different sync channel than the one you're using now. Keep your current credentials (recommended — they match your installed bookmarklet), or switch to the backup's?",
+                            "Use the backup's credentials",
+                            'Keep current'
+                        );
+                    }
+                }
                 // v7.4.0 - Visible progress: restoring a large library takes seconds, and a
                 // dismissed dialog with nothing on screen reads as "done" or "dead".
                 const progress = showProgressDialog('Restoring Backup', 'Taking your library back to the backup’s state…\nThis can take a little while for a large library.');
@@ -5291,8 +5310,10 @@
                     } else {
                         console.log('⚠️ Backup file has no organization section - will start fresh');
                     }
-                    // v6.0.0 - Restore relay credentials from backup
-                    if (parsedData.relay && parsedData.relay.channelId) {
+                    // v7.14.3 - Apply the credential decision made above; never silently overwrites
+                    // existing creds (RELAY-CRED-MISMATCH). adoptBackupCreds is true only for a fresh
+                    // app, the same channel, or an explicit "use the backup's" choice.
+                    if (parsedData.relay && parsedData.relay.channelId && adoptBackupCreds) {
                         relayOp('setKeys', parsedData.relay);
                     }
 
@@ -8727,6 +8748,9 @@
                 (ags) => ags.length === 1 ? `Auto-Organized ${ags[0].displayName} by series` : `Auto-Organized ${ags.length} authors by series`);
 
             const closeAutoOrgPreview = () => { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgExcludedMembers(new Set()); setAutoOrgAnchor(null); setAutoOrgMenu(null); setAutoOrgHover(null); setAutoOrgSrcPopup(null); setAutoOrgFileUnder(null); };
+            // v7.14.3 - single closer for Relay Setup: X / backdrop / Done reset sub-state too, so
+            // closing from manual-entry mode no longer leaves it stuck for the next open.
+            const closeRelaySetup = () => { setRelaySetupOpen(false); setRelaySetupSection(null); setRelayManualCreds(false); setRelayHelpOpen(false); };
 
             // v6.16.0 - Live By Author ↔ By Series toggle inside the preview: recompute the plan + already-filed in
             // place (the selection is per-book, so it persists — only the destinations change).
@@ -11039,13 +11063,13 @@
 
                     {/* v6.0.0 - Relay Setup Modal */}
                     {relaySetupOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) { setRelaySetupOpen(false); setRelaySetupSection(null); } backdropMouseDownRef.current = null; }}>
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) { closeRelaySetup(); } backdropMouseDownRef.current = null; }}>
                             <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full" role="dialog" aria-modal="true" aria-labelledby="modal-relay-setup" onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-start p-4 rounded-t-lg border-b" style={{ background: 'var(--bg-chrome)', borderColor: 'var(--border-default)', flexShrink: 0 }}>
                                     <h2 id="modal-relay-setup" className="text-xl font-bold" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><img src="icons/sync-tower-neutral.svg" alt="" style={{ width: '14px', height: '22px' }} /> Relay Setup</h2>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <button onClick={() => setRelayHelpOpen(true)} style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }} title="Learn about the relay, credentials, and bookmarklet" aria-label="Help">?</button>
-                                        <button onClick={() => { setRelaySetupOpen(false); setRelaySetupSection(null); }} className="text-2xl leading-none" style={{ color: 'var(--text-muted)' }} title="Close" aria-label="Close">×</button>
+                                        <button onClick={() => closeRelaySetup()} className="text-2xl leading-none" style={{ color: 'var(--text-muted)' }} title="Close" aria-label="Close">×</button>
                                     </div>
                                 </div>
                                 <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -11360,7 +11384,7 @@
                                             // ─── Footer ───
                                             React.createElement('div', { style: { padding: '12px 16px', display: 'flex', justifyContent: 'flex-end' } },
                                                 React.createElement('button', {
-                                                    onClick: () => { setRelaySetupOpen(false); setRelaySetupSection(null); },
+                                                    onClick: () => closeRelaySetup(),
                                                     className: 'px-4 py-2 rounded-lg font-medium text-sm',
                                                     style: { background: 'var(--bg-accent)', color: 'white', cursor: 'pointer' }
                                                 }, hasCreds ? 'Done' : 'Close')
