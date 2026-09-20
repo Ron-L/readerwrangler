@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.14.4";  // Build version for this file
+        const ORGANIZER_VERSION = "7.15.0-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -513,6 +513,40 @@
                 <div ref={ref} className={className} role={role} aria-label={ariaLabel}
                     onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onClick={onClick}
                     style={{ position: 'absolute', [pos.h]: '100%', [pos.v]: 0, ...style }}>
+                    {children}
+                </div>
+            );
+        }
+
+        // v7.15.0 - Cursor-anchored measured positioner: the sibling of FlipToFitPopup for overlays that
+        // open at a free (x, y) point (right-click context menus, cursor popups) instead of anchored to a
+        // parent element. Renders position:fixed at (x, y), then in a layout-effect MEASURES its actual
+        // rendered size (getBoundingClientRect) and flips/shifts to stay within the viewport — so a menu
+        // can never outgrow a hardcoded size guess (the clip that started this: the book menu grew past its
+        // 600px guess and the flip-up under-shot). children is a dep, so it re-measures as a menu grows or
+        // shrinks. Position only — NEVER add overflow here: menus with fly-out submenus (FlipToFitPopup
+        // children) would get clipped by a scroll container. The measure-and-clamp core the future
+        // <Popover>/<Menu> overlay primitive will reuse (not a throwaway).
+        function CursorPopup({ open, x, y, className, style, role, ariaLabel, onClick, onContextMenu, children, margin = 8 }) {
+            const ref = useRef(null);
+            const [coords, setCoords] = useState({ left: x, top: y });
+            useLayoutEffect(() => {
+                if (!open || !ref.current) return;
+                const { width, height } = ref.current.getBoundingClientRect();
+                const vw = window.innerWidth, vh = window.innerHeight;
+                // Prefer opening down-right from the cursor; if that overflows, flip to the other side of
+                // the cursor; then hard-clamp so a menu taller/wider than the cursor offset still fits.
+                let left = (x + width + margin > vw) ? x - width : x;
+                let top = (y + height + margin > vh) ? y - height : y;
+                left = Math.max(margin, Math.min(left, vw - width - margin));
+                top = Math.max(margin, Math.min(top, vh - height - margin));
+                setCoords({ left, top });
+            }, [open, x, y, children, margin]);
+            if (!open) return null;
+            return (
+                <div ref={ref} className={className} role={role} aria-label={ariaLabel}
+                    onClick={onClick} onContextMenu={onContextMenu}
+                    style={{ position: 'fixed', left: coords.left, top: coords.top, ...style }}>
                     {children}
                 </div>
             );
@@ -19033,20 +19067,8 @@
                     {explorerBookContextMenu && (() => {
                         // v5.0.0-alpha.166 - Phase 2: Full implementation with Move to / Copy to submenus
 
-                        // Calculate menu position to avoid going off-screen
-                        const menuHeight = 600; // v6.10.0-alpha.9 - Increased for Share submenu
-                        const menuWidth = 220;
-                        const viewportHeight = window.innerHeight;
-                        const viewportWidth = window.innerWidth;
-
-                        // Flip up if menu would go below viewport
-                        const top = explorerBookContextMenu.y + menuHeight > viewportHeight
-                            ? Math.max(10, explorerBookContextMenu.y - menuHeight)
-                            : explorerBookContextMenu.y;
-                        // Flip left if menu would go past right edge
-                        const left = explorerBookContextMenu.x + menuWidth > viewportWidth
-                            ? Math.max(10, explorerBookContextMenu.x - menuWidth)
-                            : explorerBookContextMenu.x;
+                        // v7.15.0 - Positioned via CursorPopup (measured, below). The old menuHeight/menuWidth
+                        // guess (600×220) under-shot the flip-up once the menu outgrew it and clipped the bottom.
 
                         // v6.15.0 - All book-menu submenus now position themselves via FlipToFitPopup (measured, both
                         // axes). The old submenuOnLeft / *ItemOffset estimates are gone.
@@ -19264,13 +19286,10 @@
                         );
 
                         return (
-                            <div
-                                className="fixed bg-white border border-gray-300 rounded-lg shadow-xl z-[60] py-1 min-w-[200px]"
-                                role="menu" aria-label="Book options"
-                                style={{
-                                    left: `${left}px`,
-                                    top: `${top}px`
-                                }}
+                            <CursorPopup open={true}
+                                x={explorerBookContextMenu.x} y={explorerBookContextMenu.y}
+                                className="bg-white border border-gray-300 rounded-lg shadow-xl z-[60] py-1 min-w-[200px]"
+                                role="menu" ariaLabel="Book options"
                                 onClick={(e) => e.stopPropagation()}>
                                 {/* Header */}
                                 <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 border-b border-gray-200">
@@ -20295,7 +20314,7 @@
                                                     <span className="ml-auto text-xs text-gray-400">Del</span>
                                                 </div>
                                             )}
-                            </div>
+                            </CursorPopup>
                         );
                     })()}
 
