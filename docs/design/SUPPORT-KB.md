@@ -8,10 +8,10 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-09-15 (through release 7.13.0)** — all sections complete
-(feature-surface pass: 140 UI strings, all menus/dialogs/pages walked; plus the
-transcript/post-mortem mining pass; §1–10 human-reviewed). Scrub rule (public repo): no
-channel IDs, tokens, cookies, emails, or user-identifying data — facts only._
+_**Up to date as of 2026-09-21 (through release 7.15.3)** — all sections human-reviewed (§1–21).
+Earlier passes: feature-surface (140 UI strings, all menus/dialogs/pages walked) + transcript/
+post-mortem mining. Scrub rule (public repo): no channel IDs, tokens, cookies, emails, or
+user-identifying data — facts only._
 
 Companion docs: **WORKFLOW-PATTERNS.md** (usage patterns & trade-offs), **TERMINOLOGY.md**,
 **SUGGESTED-ORGANIZING-PRINCIPLES.md** (the suggested method, in full).
@@ -567,14 +567,15 @@ to the relay (a separate push from the bookmarklet's raw fetch), and your phone 
 published copy**. So the phone shows *your organization*, not raw Amazon data. The encryption key
 lives only on **your own devices** — your desktop, your bookmarklets, and your phone (the QR
 delivers it there when you pair) — never on the Relay, so it only ever holds data it can't
-decipher.
+decipher. Because the QR carries that key, treat it — and any screenshot of it — like your
+passphrase: anyone who has it can pair a device and read your library.
 
 **Does it match my desktop?** Yes — books, folders, Book Lists, Searches, **and your order**,
 pins included (the desktop is the ordering authority; there's no reordering on the phone).
 The drawer (hamburger) is the sidebar's twin for jumping between sections; sections collapse;
 color spines mark Searches / Book Lists / Folders.
 
-**Why is my phone showing older data?** It shows the library as of its last refresh — a
+**Why is my phone showing older data?** It shows the library as of the phone's last refresh — a
 banner nudges when the relay holds something newer; refresh to pull it. Desktop-side changes
 reach the relay shortly after you make them.
 
@@ -583,6 +584,11 @@ read the lists on the phone ("Book Lists as mobile filters", WORKFLOW-PATTERNS).
 within a shelf cycles like the desktop's sorts; hidden-book counts can be tapped to reveal.
 
 ## 18. Keyboard shortcuts & mouse tricks
+
+ReaderWrangler uses the **standard shortcuts your operating system already knows** — the same
+Ctrl+Z, Ctrl+C, and so on you use everywhere else — so there's little RW-specific to memorize; it
+just recognizes them. On a **Mac**, use **⌘ (Command)** wherever the table shows **Ctrl** — RW
+accepts both.
 
 The app's own list: Help → **Keyboard Shortcuts**. The core set:
 
@@ -599,7 +605,7 @@ The app's own list: Help → **Keyboard Shortcuts**. The core set:
 | F2 | Rename the selected folder |
 
 Mouse tricks worth knowing: **Ctrl+drag = copy**; Shift+Click a column header = secondary
-sort key; hover a cover = "where does this book live" popup; double-click = open the book;
+sort key; hover a cover = a "where does this book live" popup whose folders and Book Lists are **clickable — click one to jump straight there**; double-click = open the book;
 right-click *everything* — books, folders, lists, Searches, tags, blank space, even the Trash
 row — the menus are where the power hides.
 
@@ -608,7 +614,8 @@ row — the menus are where the power hides.
 | Symptom | Explanation | Fix |
 |---|---|---|
 | Deleted book reappeared after a fetch | It's owned/sampled — Amazon still lists it; revive-on-sighting is by design | Hide it (owned), or delete the sample at Amazon first (truth path) |
-| New purchase missing after import | Import raced the fetch — give the Relay ~1 min to catch up, or it was an *upgrade* of a tracked book (didn't count as "new", stayed in its folder) | Re-import; check All Books by Date Added |
+| New purchase missing after import | Import raced the fetch — give the Relay ~1 min to catch up, or it was an *upgrade* of a tracked book (didn't count as "new", stayed in its folder) | Re-import and check the **Inbox** (where new purchases land); an upgrade of a tracked book stays in its folder — find it via All Books sorted by Date Added |
+| Found a book (via search or All Books) but don't know where it's filed | Column and cover views don't show a book's folder/list membership | **Hover its cover** — the "Found in" folders and "On Book Lists" are clickable; click one to jump there |
 | Can't re-add a deleted wishlist book | Trash copy still holds the ASIN | Empty Trash, then add |
 | Folder looks empty / counts look wrong | A filter (or Show Hidden) is active | Clear filters |
 | Same book twice, one wishlist one owned | Publisher re-issued under a new ASIN | Delete the stale wishlist copy |
@@ -616,7 +623,7 @@ row — the menus are where the power hides.
 | App shows an old version after update | Browser cache | Hard refresh (Ctrl+Shift+R); verify in Help → About |
 | "Open in Gmail (web)" shows ERR_TOO_MANY_REDIRECTS | A browser boundary: navigating to Gmail from another site withholds some Google auth cookies, so Gmail loops trying to re-auth (can't be fixed from a link) | Best on Windows: use **Share… → Gmail** (the OS share sheet's Gmail tile opens cleanly). Or, in the looping tab, click the address bar and press **Enter** — a top-level navigation composes cleanly. Or use **Open in email app** / **Copy to clipboard**. |
 | Share "email a friend" doesn't open my mail app | No default mail app / mailto handler set (or it points at the browser) | Set your default mail app: Windows Settings → Apps → Default apps → MAILTO → choose your client (e.g. Outlook); then "Open in email app" opens it prefilled |
-| First load feels stuck / "Page Unresponsive" | The app compiles in your browser (~15–25s); the loading screen says so | Wait it out — don't reset |
+| Loading feels stuck / "Page Unresponsive" | The app compiles in your browser on every load (~15–25s); the loading screen says so | Wait it out — don't reset |
 | "Sync data check failed / checksum mismatch" | A Relay write was interrupted (rare since v7's sealed-packet sync) | Follow the dialog: full fetch rebuilds, then import — local data is intact |
 | Slow first "Checking pending additions" | First fetch after new relay data does extra accounting | Let it run; later fetches are quick |
 | Bookmarklet fetches the wrong library / mismatch warning | Bookmarklet carries older credentials than the app | Recreate the bookmarklet from Relay Setup |
@@ -639,8 +646,3 @@ The full method is **SUGGESTED-ORGANIZING-PRINCIPLES.md**; the patterns and trad
 - **Add here** when an answer is a *fact or fix*; add to **WORKFLOW-PATTERNS.md** when it's a
   *way of using RW*. Distill both into USER-GUIDE at launch; the GPT is loaded from these
   files.
-- Site-page finding (2026-09-13, RESOLVED same day): the demo-library load instruction was
-  tooltip-only on the Step 2 button — a visible Step 3 ("Restore a backup → pick the file")
-  now appears on both index.html and tutorials.html.
-- Pending-feature note: CROSS-SECTION-DRAG (decided, unbuilt) will change §8's drag rules —
-  the spec and TODO both carry an update-the-KB-on-ship note.
