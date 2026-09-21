@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.15.0-alpha.5";  // Build version for this file
+        const ORGANIZER_VERSION = "7.15.0-alpha.6";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -543,8 +543,12 @@
                 setCoords({ left, top });
             }, [open, x, y, children, margin]);
             if (!open) return null;
+            // The `fixed` CSS class is REQUIRED, not just cosmetic: the context-menu close-on-outside-click
+            // handler (mousedown) decides inside-vs-outside via `e.target.closest('.fixed')`. Position is set
+            // inline, but the class must be present or a click inside the menu reads as "outside" and the menu
+            // closes on mousedown before the item's onClick can fire (the 7.15.0 AO-won't-open regression).
             return (
-                <div ref={ref} className={className} role={role} aria-label={ariaLabel}
+                <div ref={ref} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu}
                     style={{ position: 'fixed', left: coords.left, top: coords.top, ...style }}>
                     {children}
