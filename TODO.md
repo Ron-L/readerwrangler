@@ -120,6 +120,21 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     `read.amazon.co.uk` / `.co.jp` / etc.; RW may need the user's marketplace or default to `.com` + rely
     on fallback. (Backstory link: `reference_read_in_kindle` memory.)
 
+- [ ] **Native right-click suppression in the left pane is UNRELIABLE — open investigation (2026-09-21).**
+  Goal: no native browser menu inside the left pane (native stays elsewhere for Inspect). Tried a
+  container-level `onContextMenu` preventDefault on the left pane (js ~14462, INPUT/TEXTAREA exempt) — **NO
+  effect**. The leak is non-deterministic ("sometimes as expected, sometimes native") and — the KEY CLUE —
+  it hits **named folder rows that HAVE working custom menus**, and once appeared in the right pane
+  (unreproducible). So it is **NOT a handler-coverage gap**: a container preventDefault that should catch
+  everything by bubbling didn't, and it affects elements whose custom onContextMenu works — meaning the
+  `contextmenu` event or its `preventDefault` is intermittently **not firing / not honored** (suspect
+  browser-level: native menu already open, focus state, or React-root event timing). **NEXT: instrument
+  first** — a document-level `contextmenu` logger (capture AND bubble phases: log `e.target` +
+  `e.defaultPrevented`) to see, in failing vs working cases, whether the event fires and whether prevent
+  ran, BEFORE deciding if it's fixable at all. On branch `fix/left-pane-header-right-click` @ 7.15.2-alpha.2.
+  **KEEP regardless:** the FOLDERS-header full-line right-click (alpha.1) works; the suppression is the
+  unresolved part — decide whether to keep or back out the container suppressor once the mechanism is known.
+
 - [ ] **Import-merge follow-ups (from 7.14.4 — the clear-then-resurrect + phantom-field fix).** The merge
   is now data-driven from `BOOK_FIELD_OWNERSHIP` in `bookMerge.js` (node-tested in the gate). Two pieces
   were deliberately left out of that release and named as the scope boundary:
