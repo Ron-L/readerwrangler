@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.15.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.15.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -15681,9 +15681,10 @@
                                             title="Deleted books that are still recoverable. Right-click to empty the trash and remove them permanently."
                                             onContextMenu={(e) => {
                                                 e.preventDefault();
-                                                if (trashCount > 0) {
-                                                    setFolderContextMenu({ folderId: '__trash__', x: e.clientX, y: e.clientY, source: 'left' });
-                                                }
+                                                // v7.15.1 - always open; the menu itself shows "Trash is empty" when there's
+                                                // nothing to empty (was: no menu at all on an empty Trash, contradicting the
+                                                // row's own "right-click to empty" tooltip).
+                                                setFolderContextMenu({ folderId: '__trash__', x: e.clientX, y: e.clientY, source: 'left' });
                                             }}
                                             onDragOver={(e) => {
                                                 if (!Array.from(e.dataTransfer.types).includes('application/x-readerwrangler')) return;
@@ -18375,17 +18376,25 @@
                                         className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
                                         role="menu" ariaLabel="Trash options"
                                         onClick={(e) => e.stopPropagation()}>
-                                        <div
-                                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3 text-red-600"
-                                            role="menuitem"
-                                            onClick={async () => {
-                                                const deletedBooks = books.filter(b => b.isDeleted);
-                                                setFolderContextMenu(null);
-                                                await permanentlyDeleteBooks(deletedBooks.map(b => b.id)); // self-confirms (no-op if Trash empty)
-                                            }}>
-                                            <span>🗑️</span>
-                                            <span>Empty Trash</span>
-                                        </div>
+                                        {trashCount > 0 ? (
+                                            <div
+                                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3 text-red-600"
+                                                role="menuitem"
+                                                onClick={async () => {
+                                                    const deletedBooks = books.filter(b => b.isDeleted);
+                                                    setFolderContextMenu(null);
+                                                    await permanentlyDeleteBooks(deletedBooks.map(b => b.id)); // self-confirms
+                                                }}>
+                                                <span>🗑️</span>
+                                                <span>Empty Trash ({trashCount})</span>
+                                            </div>
+                                        ) : (
+                                            // v7.15.1 - empty state: a muted status row, not a dead/greyed command (Law 16)
+                                            <div className="px-4 py-2 flex items-center gap-3 text-gray-400 cursor-default select-none">
+                                                <span>🗑️</span>
+                                                <span>Trash is empty</span>
+                                            </div>
+                                        )}
                                     </CursorPopup>
                                 </>
                             );

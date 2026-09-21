@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.15.1] - 2026-09-21
+
+### Empty the Trash from a right-click
+- Right-clicking Trash now always opens a menu — **Empty Trash (N)** when there are deleted books to clear (N shows how many), or a quiet **"Trash is empty"** when there's nothing to remove. Before, right-clicking an empty Trash did nothing.
+
 ## [7.15.0] - 2026-09-21
 
 ### Right-click menus that never run off-screen
