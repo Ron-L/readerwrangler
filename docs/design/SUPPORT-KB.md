@@ -53,9 +53,10 @@ you make via the bookmarklet from any product page — print editions included.
 **The whole path, in order** (also in the app under Help → How To Use):
 1. **Set up sync** — File → Relay Setup: generate your credentials, **drag the bookmarklet to
    your bookmarks bar**, and optionally pair your phone with the QR code.
-2. **Fetch** — go to Amazon (your Books page), click the bookmarklet, choose Download
-   Library (and Download Collections for your Kindle collections/read status). Let it finish —
-   including the background orphan scan after "fetch complete."
+2. **Fetch** — on your Amazon Your Books page, click the bookmarklet and choose **Download Library**.
+   For your Kindle collections/read status, run the bookmarklet on the Manage Your Content & Devices
+   page instead and choose **Download Collections** (it offers a "Go to Amazon Collections Page"
+   button). Let it finish — including the background orphan scan after "fetch complete."
 3. **Import** — back in ReaderWrangler: File → Import from Relay. Your books appear in the
    **Inbox**. (A just-finished fetch can take up to a minute to arrive — if Import says
    "up to date" too soon, wait a moment and try again.)
@@ -444,6 +445,20 @@ you're typing in.
 restore would lie about the state they'd return you to).
 
 ## 14. Sync, fetching & importing
+
+**What fetching is.** ReaderWrangler never talks to Amazon itself — *you* do, through your own
+logged-in browser. Fetching is a **bookmarklet** (set up in §2) that runs on your Amazon page, reads
+your library the same way Amazon's own page does, **encrypts** it with your passphrase, and sends it
+to the **Relay**. Back in ReaderWrangler, **Import from Relay** pulls it down and **decrypts** it with
+your credentials — so the relay only ever holds encrypted data, and only *your* ReaderWrangler can
+read it. A fetch brings in each book's title, author, series, cover, format, current & list price,
+description, ratings & reviews, genres, and publication date.
+
+**Two Amazon pages, one bookmarklet.** Your library comes from amazon.com/yourbooks — run the
+bookmarklet there and choose **Download Library**. Your Kindle Collections (and read status) live on a
+different page, Manage Your Content & Devices (amazon.com/hz/mycd/digital-console) — run the same
+bookmarklet there and choose **Download Collections** (it even offers a "Go to Amazon Collections
+Page" button). ReaderWrangler then shows your Collections alongside your library.
 
 1. **After you Download your Library, it can take up to ~a minute before the Relay has it ready
    to Import** (the relay propagates gradually). If Import says "up to date" right after a fetch,
