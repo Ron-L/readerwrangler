@@ -59,6 +59,10 @@ corrected twice before "go read the code." **The tell that catches an assumption
 _just / only / redundant / cosmetic / should be / safe to / probably / I'm sure / I think_** — each marks
 a belief about to be acted on unchecked; stop and verify before the next keystroke (7.15.0: "*just*
 cosmetic" dropped a CSS class a live handler matched on — the assuming, not the class, made the mistake).
+The assumption can be about a **solution**, not just a fact: "this mechanism prevents X" is a claim to
+verify before selling it — check the mechanism actually *enforces* what you promise (7.15.3: "field-name
+constants everywhere" was pitched as killing the name-mismatch class, but plain-JS constants return
+`undefined` on a typo, enforcing nothing — a runtime validator was the real tool).
 **Ron's standing trade (2026-09-21): OVER-confirm — spend the tokens and the time; that cost is always
 smaller than a mistake built on incomplete memory or an assumption. He would rather wait.**
 **Enforcement**: `feedback_verify_dont_assume` + `feedback_wait_for_answer` memory; the pre-build gate's
@@ -144,9 +148,15 @@ field `userNote`) and once a phantom `hidden` (`isHidden`): the wrong name is si
 one silently dropped, and JS never complains. The mechanism is a test invariant: **the merge output may
 not contain a key absent from both inputs** (that is exactly what a phantom target name looks like),
 paired with a per-user-field clear-survives round-trip. Both would have caught both phantoms on sight.
-The maximal cure is field-name **constants** used at every site so a typo is a reference error (filed).
+A once-proposed "field-name **constants** everywhere" cure was **REJECTED** (7.15.3): in plain JS a typo'd
+constant access returns `undefined` *silently* — the very failure it was meant to prevent — so it's
+large-scope + real-risk with no compile-time safety. The tool instead is a **runtime field-schema
+validator**: `KNOWN_BOOK_FIELDS` + `unknownBookFields()` flag any book key outside the known set
+(dev-gated: `console.warn` + a localhost popup), generalizing the no-invented-keys invariant from the
+merge to whole loaded books.
 **Enforcement**: FORMAT-POLICY.md; the migration+filter pair as the standard shape; `bookMerge.js` +
-`test/bookMerge.test.js` (the ownership registry + the no-invented-keys / clear-survives gate tests).
+`test/bookMerge.test.js` (the ownership registry + the no-invented-keys / clear-survives gate tests + the
+`KNOWN_BOOK_FIELDS` schema validator).
 
 ### 11. Design-doc-first for anything architectural — then check yourself against it
 The single most consistent predictor of smooth execution across all eras (11+ PMs; the four cleanest
