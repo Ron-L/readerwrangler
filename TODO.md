@@ -120,12 +120,6 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     `read.amazon.co.uk` / `.co.jp` / etc.; RW may need the user's marketplace or default to `.com` + rely
     on fallback. (Backstory link: `reference_read_in_kindle` memory.)
 
-- [ ] **Audit which left-pane rows are right-clickable** (surfaced 2026-09-20 during the 7.15.0 CursorPopup
-  rollout; the Trash "Empty Trash" right-click itself shipped in 7.15.1). All Books opens Select All; Trash
-  now always opens (Empty Trash (N) / "Trash is empty"). Still to check: any other special rows that should
-  offer a right-click and don't — and **remove the DEAD `__library__` branch** in `folderContextMenu` ("My
-  Library" is gone since the Book Explorer makeover renamed it "Folders" in v6.4.0).
-
 - [ ] **Import-merge follow-ups (from 7.14.4 — the clear-then-resurrect + phantom-field fix).** The merge
   is now data-driven from `BOOK_FIELD_OWNERSHIP` in `bookMerge.js` (node-tested in the gate). Two pieces
   were deliberately left out of that release and named as the scope boundary:
