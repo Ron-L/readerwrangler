@@ -231,14 +231,23 @@ const loadBooksFromIndexedDB = async () => {
             // allow-list (a warn = add the field to KNOWN_BOOK_FIELDS if legit, else a real phantom to fix).
             try {
                 const loc = (typeof window !== 'undefined') && window.location;
-                const isDevEnv = !!loc && (['localhost', '127.0.0.1'].includes(loc.hostname) ||
-                    (loc.hostname === 'ron-l.github.io' && loc.pathname.startsWith('/readerwranglerdev')));
+                const isLocalhost = !!loc && ['localhost', '127.0.0.1'].includes(loc.hostname);
+                const isDevEnv = isLocalhost || (!!loc && loc.hostname === 'ron-l.github.io' && loc.pathname.startsWith('/readerwranglerdev'));
                 if (isDevEnv && typeof unknownBookFields === 'function') {
                     const seen = new Set();
                     for (const b of books) for (const k of unknownBookFields(b)) seen.add(k);
                     if (seen.size > 0) {
-                        console.warn('🔎[schema] Unknown book field(s) on loaded books:', [...seen].sort().join(', '),
+                        const list = [...seen].sort().join(', ');
+                        console.warn('🔎[schema] Unknown book field(s) on loaded books:', list,
                             '— add to KNOWN_BOOK_FIELDS (bookMerge.js) if legitimate, else a phantom/misnamed field leaked in.');
+                        // v7.15.3 - LOCALHOST dev only: a loud popup so a real phantom can't be missed in the
+                        // console. (Not on the dev repo or prod — console.warn covers the dev repo; prod is silent.)
+                        if (isLocalhost && typeof window.alert === 'function') {
+                            window.alert('⚠ ReaderWrangler dev — book-field schema check\n\n' +
+                                'Unknown field(s) found on loaded books:\n    ' + list + '\n\n' +
+                                'Either add them to KNOWN_BOOK_FIELDS in bookMerge.js (if legitimate), or investigate a ' +
+                                'phantom / misnamed field that leaked onto a stored book.\n\n(This popup is localhost-only.)');
+                        }
                     }
                 }
             } catch (e) { /* a validator must never break a library load */ }
