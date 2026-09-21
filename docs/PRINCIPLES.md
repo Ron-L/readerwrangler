@@ -50,12 +50,20 @@ auto-mode-switch rejection) improved the product.
 **Enforcement**: CLAUDE.md Collaboration Mode; `feedback_wait_for_answer` memory; "discussion mode" protocol
 with explicit enter/exit.
 
-### 2. Verify, don't infer — read the code, capture the request, run the probe
+### 2. NEVER ASSUME — verify it or ask; a belief you haven't checked is not a fact (Ron: "the biggest rule")
 The most-recurrent technical failure (12+ PMs): asserting from a hazy model instead of reading. A hazy
-mental model is the *signal* to re-read, not license to guess. Page-vs-API claims require a captured
-request. Sub-agent output is intermediate, not settled. The costliest case: an entire durability argument
-built on confusing RW-Wishlist with the Amazon wishlist — corrected twice before "go read the code."
-**Enforcement**: `feedback_verify_dont_assume` memory; cheap read-only probes as the default first move.
+mental model — or a fragment of a compaction summary — is the *signal* to re-read, not license to guess.
+Page-vs-API claims require a captured request. Sub-agent output is intermediate, not settled. The
+costliest case: an entire durability argument built on confusing RW-Wishlist with the Amazon wishlist —
+corrected twice before "go read the code." **The tell that catches an assumption in flight — the words
+_just / only / redundant / cosmetic / should be / safe to / probably / I'm sure / I think_** — each marks
+a belief about to be acted on unchecked; stop and verify before the next keystroke (7.15.0: "*just*
+cosmetic" dropped a CSS class a live handler matched on — the assuming, not the class, made the mistake).
+**Ron's standing trade (2026-09-21): OVER-confirm — spend the tokens and the time; that cost is always
+smaller than a mistake built on incomplete memory or an assumption. He would rather wait.**
+**Enforcement**: `feedback_verify_dont_assume` + `feedback_wait_for_answer` memory; the pre-build gate's
+item 8; the NEVER-ASSUME rule atop `../CLAUDE.md` (loaded every turn); cheap read-only probes as the
+default first move.
 
 ### 3. Instrument → prove the theory → fix → prove the fix (Ron's doctrine)
 Fix-then-test just *moves* the problem; testing only the old symptom lets it go. Prove where the time/bug
