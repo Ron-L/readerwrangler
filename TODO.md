@@ -123,17 +123,24 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
 - [ ] **Import-merge follow-ups (from 7.14.4 — the clear-then-resurrect + phantom-field fix).** The merge
   is now data-driven from `BOOK_FIELD_OWNERSHIP` in `bookMerge.js` (node-tested in the gate). Two pieces
   were deliberately left out of that release and named as the scope boundary:
-  - **Route branch 2 through `mergeBookFields`.** The dedup branch where a still-owned book meets an
-    incoming *wishlist* duplicate keeps its distinct "owned identity wins" ownership logic, so it doesn't
-    use `mergeBookFields` (that would let the wishlist flip ownership) — only its user-field lines were
-    fixed via `assignUserOwnedFields`. Unify once the ownership-keep case is expressed in the merge (an
-    "ownership: keepLocal" option) and verified by a test, so no field list survives outside the registry.
-  - **Field-name constants everywhere (the maximal "same name everywhere").** The registry + gate test
-    now catch a phantom field *in the merge* (a key on neither input fails the test). The recurring
-    footgun — the same concept under different names at different sites (`note`↔`userNote`,
-    `priceGoal` column↔`priceTrigger` field, once `hidden`↔`isHidden`) — is only fully killed by field-name
-    **constants** used at every read/write site (`F.userNote`, so a typo is a JS reference error, not a
-    silent string). Big adoption effort across the app; the registry covers the merge in the meantime.
+  - **(a) Route branch 2 through `mergeBookFields`. [SCOPE: Small, ~1–2 alphas.]** The dedup branch where a
+    still-owned book meets an incoming *wishlist* duplicate keeps its distinct "owned identity wins" ownership
+    logic, so it doesn't use `mergeBookFields` (that would let the wishlist flip ownership) — only its
+    user-field lines were fixed via `assignUserOwnedFields`. Unify once the ownership-keep case is expressed
+    in the merge (an "ownership: keepLocal" option) and verified by a test, so no field list survives outside
+    the registry.
+  - **(b) Runtime field-schema validator (replaces the earlier "constants everywhere" idea — Ron 2026-09-21).**
+    Constants-everywhere was REJECTED: in plain JS a typo'd constant access (`F.USER_NUTE`) silently returns
+    `undefined` — the SAME silent failure as the phantom-field bug — so it'd be large scope AND real risk with
+    no compile-time safety (misses are harmless string literals; typos are silent-undefined). Instead: a
+    canonical **known-book-field set** + a validator that flags any book key NOT in the set (a phantom/misnamed
+    field like `note`↔`userNote`, once `hidden`↔`isHidden`). Generalizes the "no-invented-keys" invariant
+    already in `test/bookMerge.test.js` from the merge to book objects. **SCOPE: Small–Medium.** The validator
+    fn is ~15 lines; the real work + risk is compiling the COMPLETE legit field set (grep the fetcher + app for
+    every field ever written to a book — bounded, ~1 sitting) so it doesn't false-positive. Safest home = the
+    pre-launch test gate (assert no-unknown-keys through the merge + representative setters); optionally a
+    DEV-ONLY `console.warn` on load. Must WARN, NEVER throw in production (an unknown field must not break a
+    library load). Low production risk (additive check, no data-flow change).
 
 - [ ] **Orphan-cleanup step at import (2026-09-20, Ron)** — discoverability + action. When the orphan scan
   finds books **no longer in your Amazon library**, show a dialog with a **checkbox list of those titles**
