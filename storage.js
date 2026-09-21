@@ -109,11 +109,18 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                     // resurrection gap of the same class, closed here.)
                     booksByAsin.set(book.asin, mergeBookFields(existing, book));
                 } else if (!isWishlisted(existing) && isWishlisted(book)) {
-                    // Existing is owned, new is wishlist - keep existing (owned identity wins; this branch
-                    // does NOT route through mergeBookFields because that would let the incoming wishlist
-                    // flip ownership). v7.14.4 - user-owned fields take the OWNED (local) entry via
-                    // assignUserOwnedFields, so a value the user cleared on the owned book isn't resurrected
-                    // by a stale wishlist duplicate in the same payload (same class as the import-merge fix).
+                    // Existing is owned, new is wishlist → keep the OWNED record (authoritative).
+                    // DELIBERATELY NOT routed through mergeBookFields (reviewed 2026-09-21, decided against
+                    // unifying — see PM v7.15.x / TODO):
+                    //   (1) mergeBookFields is INCOMING-as-base; this branch needs LOCAL(owned)-as-base — the
+                    //       owned record carries full library metadata, while the incoming wishlist duplicate is
+                    //       product-page-scraped and often LESS complete (e.g. "Kindle" vs "Kindle Edition").
+                    //       Basing on the wishlist dup could pull worse metadata in this rare same-payload dedup.
+                    //   (2) The user-owned cluster is ALREADY registry-driven here via assignUserOwnedFields, so a
+                    //       cleared goal/rating/tag/note on the owned book isn't resurrected by a stale wishlist
+                    //       dup — the "no field list outside the registry" goal is already met. Unifying would
+                    //       need a whole LOCAL-as-base merge mode in mergeBookFields for near-zero gain, and would
+                    //       add rare-path regression risk. Left as-is on purpose.
                     booksByAsin.set(book.asin, assignUserOwnedFields({
                         ...existing,
                         addedToWishlist: book.addedToWishlist ?? existing.addedToWishlist,
