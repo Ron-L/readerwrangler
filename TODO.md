@@ -120,14 +120,12 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     `read.amazon.co.uk` / `.co.jp` / etc.; RW may need the user's marketplace or default to `.com` + rely
     on fallback. (Backstory link: `reference_read_in_kindle` memory.)
 
-- [ ] **BUG (2026-09-20, real-use): right-click context menus clip off the bottom** for items low in the
-  viewport — the menu grew (Share submenu, copy chips…) past a stale/hardcoded position. **Fix = a
-  chokepoint, not a patch:** route EVERY positioned menu / context-menu / popup through ONE measured
-  positioner (RW's `FlipToFitPopup` — measure height → clamp/flip so it never runs off-screen), so a menu
-  can't be born clipped and adding items never needs re-tuning. `/sitemap` first (find every positioned
-  menu; which already measure vs hand-roll; converge them). **Align with the `<Popover>`/`<Menu>` overlay
-  primitive** (docs/design/DIALOG-DISMISSAL-AUDIT.md) — positioning belongs there too; don't build a
-  throwaway positioner now and a second one later.
+- [ ] **Trash needs an "Empty Trash" right-click (2026-09-20, Ron).** Right-clicking the Trash row in the
+  left pane shows no menu. The `folderContextMenu` `__trash__` branch (Empty Trash) already exists in code,
+  so the Trash row likely just isn't wired with an `onContextMenu` that opens it — wire it (self-confirms;
+  no-op when empty). Ties to a broader question surfaced during the 7.15.0 CursorPopup rollout: **audit
+  which left-pane rows are right-clickable** (All Books does open Select All; Trash and possibly others may
+  not be wired, and My Library is gone since the Book Explorer makeover — its `__library__` branch is dead).
 
 - [ ] **Import-merge follow-ups (from 7.14.4 — the clear-then-resurrect + phantom-field fix).** The merge
   is now data-driven from `BOOK_FIELD_OWNERSHIP` in `bookMerge.js` (node-tested in the gate). Two pieces
