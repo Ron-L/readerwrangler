@@ -124,28 +124,6 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     `read.amazon.co.uk` / `.co.jp` / etc.; RW may need the user's marketplace or default to `.com` + rely
     on fallback. (Backstory link: `reference_read_in_kindle` memory.)
 
-- [ ] **Import-merge follow-ups (from 7.14.4 — the clear-then-resurrect + phantom-field fix).** The merge
-  is now data-driven from `BOOK_FIELD_OWNERSHIP` in `bookMerge.js` (node-tested in the gate). Two pieces
-  were deliberately left out of that release and named as the scope boundary:
-  - **(a) Route branch 2 through `mergeBookFields` — RESOLVED 2026-09-21: decided AGAINST (documented in
-    storage.js).** Grounding showed the goal is already met — branch 2's user-owned cluster is registry-driven
-    via `assignUserOwnedFields`, so no user-field list survives outside the registry. And `mergeBookFields` is
-    incoming-as-base, whereas branch 2 needs local(owned)-as-base (the incoming wishlist dup is product-page
-    scraped, often less complete); unifying would require a whole local-as-base merge mode for near-zero gain
-    + rare-path regression risk. Left as-is on purpose.
-  - **(b) Runtime field-schema validator (replaces the earlier "constants everywhere" idea — Ron 2026-09-21).**
-    Constants-everywhere was REJECTED: in plain JS a typo'd constant access (`F.USER_NUTE`) silently returns
-    `undefined` — the SAME silent failure as the phantom-field bug — so it'd be large scope AND real risk with
-    no compile-time safety (misses are harmless string literals; typos are silent-undefined). Instead: a
-    canonical **known-book-field set** + a validator that flags any book key NOT in the set (a phantom/misnamed
-    field like `note`↔`userNote`, once `hidden`↔`isHidden`). Generalizes the "no-invented-keys" invariant
-    already in `test/bookMerge.test.js` from the merge to book objects. **SCOPE: Small–Medium.** The validator
-    fn is ~15 lines; the real work + risk is compiling the COMPLETE legit field set (grep the fetcher + app for
-    every field ever written to a book — bounded, ~1 sitting) so it doesn't false-positive. Safest home = the
-    pre-launch test gate (assert no-unknown-keys through the merge + representative setters); optionally a
-    DEV-ONLY `console.warn` on load. Must WARN, NEVER throw in production (an unknown field must not break a
-    library load). Low production risk (additive check, no data-flow change).
-
 - [ ] **Orphan-cleanup step at import (2026-09-20, Ron)** — discoverability + action. When the orphan scan
   finds books **no longer in your Amazon library**, show a dialog with a **checkbox list of those titles**
   + **"Delete permanently"** (removes from folders AND trash in one step — for true orphans this STICKS).
