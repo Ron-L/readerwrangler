@@ -123,12 +123,12 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
 - [ ] **Import-merge follow-ups (from 7.14.4 — the clear-then-resurrect + phantom-field fix).** The merge
   is now data-driven from `BOOK_FIELD_OWNERSHIP` in `bookMerge.js` (node-tested in the gate). Two pieces
   were deliberately left out of that release and named as the scope boundary:
-  - **(a) Route branch 2 through `mergeBookFields`. [SCOPE: Small, ~1–2 alphas.]** The dedup branch where a
-    still-owned book meets an incoming *wishlist* duplicate keeps its distinct "owned identity wins" ownership
-    logic, so it doesn't use `mergeBookFields` (that would let the wishlist flip ownership) — only its
-    user-field lines were fixed via `assignUserOwnedFields`. Unify once the ownership-keep case is expressed
-    in the merge (an "ownership: keepLocal" option) and verified by a test, so no field list survives outside
-    the registry.
+  - **(a) Route branch 2 through `mergeBookFields` — RESOLVED 2026-09-21: decided AGAINST (documented in
+    storage.js).** Grounding showed the goal is already met — branch 2's user-owned cluster is registry-driven
+    via `assignUserOwnedFields`, so no user-field list survives outside the registry. And `mergeBookFields` is
+    incoming-as-base, whereas branch 2 needs local(owned)-as-base (the incoming wishlist dup is product-page
+    scraped, often less complete); unifying would require a whole local-as-base merge mode for near-zero gain
+    + rare-path regression risk. Left as-is on purpose.
   - **(b) Runtime field-schema validator (replaces the earlier "constants everywhere" idea — Ron 2026-09-21).**
     Constants-everywhere was REJECTED: in plain JS a typo'd constant access (`F.USER_NUTE`) silently returns
     `undefined` — the SAME silent failure as the phantom-field bug — so it'd be large scope AND real risk with

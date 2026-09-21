@@ -6,6 +6,8 @@ const {
     BOOK_FIELD_OWNERSHIP,
     USER_OWNED_FIELDS,
     mergeBookFields,
+    KNOWN_BOOK_FIELDS,
+    unknownBookFields,
 } = require('../bookMerge.js');
 
 let passed = 0;
@@ -171,6 +173,35 @@ test('lastAmazonOwnershipType: incoming wins, falls back to local when absent', 
     incoming.lastAmazonOwnershipType = undefined;
     merged = mergeBookFields(local, incoming);
     assert.strictEqual(merged.lastAmazonOwnershipType, 'purchased', 'kept local when incoming absent');
+});
+
+// ---- Field-schema validator (v7.15.3) ----
+test('mergeBookFields output contains no unknown fields (merge stays within the schema)', () => {
+    const { local, incoming } = makePair();
+    const merged = mergeBookFields(local, incoming);
+    assert.deepStrictEqual(unknownBookFields(merged), [],
+        'merge produced field(s) not in KNOWN_BOOK_FIELDS');
+});
+
+test('unknownBookFields flags a phantom / wire-alias field on a book', () => {
+    const { local } = makePair();
+    local.note = 'wire alias of userNote';   // the exact 7.14.4 phantom
+    local.hidden = true;                       // the 6.12.0 F4 phantom
+    const flagged = unknownBookFields(local);
+    assert.ok(flagged.includes('note'), 'should flag phantom `note`');
+    assert.ok(flagged.includes('hidden'), 'should flag phantom `hidden`');
+});
+
+test('unknownBookFields is clean on a fully-populated legitimate book', () => {
+    const { local } = makePair();
+    assert.deepStrictEqual(unknownBookFields(local), [],
+        'a realistic book should have no unknown fields (extend KNOWN_BOOK_FIELDS if this trips)');
+});
+
+test('every BOOK_FIELD_OWNERSHIP field is also in KNOWN_BOOK_FIELDS (registry ⊆ schema)', () => {
+    const missing = Object.keys(BOOK_FIELD_OWNERSHIP).filter(f => !KNOWN_BOOK_FIELDS.has(f));
+    assert.deepStrictEqual(missing, [],
+        `registry fields missing from the schema: ${missing.join(', ')}`);
 });
 
 console.log(`\n${passed} bookMerge tests passed.`);
