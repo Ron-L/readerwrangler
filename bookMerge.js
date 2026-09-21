@@ -102,6 +102,47 @@ const mergeBookFields = (local, incoming) => {
     return merged;
 };
 
+// ---- Field-schema validator (v7.15.3) ------------------------------------------
+// The complete set of legitimate DESKTOP book-object fields — the schema the validator checks against.
+// A key on a stored/merged book that is NOT here is a phantom, a misnamed field, or a wire-name alias
+// that leaked in (the `note`/`userNote`, `hidden`/`isHidden` class). Compiled 2026-09-21 from a full
+// enumeration of the fetchers, uiHelpers.normalizeBook, this file, storage.js, and readerwrangler.js's
+// import parser + export builder + setters.
+// DELIBERATELY EXCLUDES wire/backup aliases (authors, note, reviewCount, acquisitionDate, priceAsOf,
+// seriesNum, collectionList) and dead/vestigial fields (isDeal, purchaseDate, coverUrlHiRes, recovered,
+// genresAsOf) — so any of those appearing on a real book gets FLAGGED, which is the whole point.
+// Validate DESKTOP-shape books only (merge output / loaded books), NEVER raw fetcher/wire records.
+const KNOWN_BOOK_FIELDS = new Set([
+    // identity
+    'id', 'asin', 'store',
+    // bibliographic / Amazon metadata
+    'title', 'author', 'series', 'seriesPosition', 'seriesTotal', 'binding',
+    'coverUrl', 'description', 'topReviews', 'genres', 'publicationDate', 'rating', 'ratingCount',
+    // pricing (Amazon)
+    'currentPrice', 'listPrice', 'priceFetchedAt',
+    // ownership
+    'onWishlist', 'ownershipType', 'lastAmazonOwnershipType', 'addedToWishlist', 'acquired', 'dateAdded',
+    // user-owned data
+    'priceTrigger', 'priceAtGoalSet', 'priceGoalSetAt', 'targetPrice', 'tags', 'userNote', 'myRating', 'isHidden',
+    // collections / read status
+    'collections', 'readStatus', 'collectionTags', 'collectionTagSeen',
+    // orphan scan
+    'orphanStatus', 'orphanCheckedDate',
+    // enrichment flag
+    'hasEnrichedData',
+    // soft-delete (trash)
+    'isDeleted', 'deletedAt', 'deletedFromFolderIds',
+    // edit-protection map
+    'userEdited',
+]);
+
+// Return the keys on `book` that are NOT known legitimate desktop fields — phantoms / misnamed /
+// wire-alias fields that leaked onto a stored book. Empty array = clean. DESKTOP-shape books only.
+const unknownBookFields = (book) => {
+    if (!book || typeof book !== 'object') return [];
+    return Object.keys(book).filter(k => !KNOWN_BOOK_FIELDS.has(k));
+};
+
 // Node export for unit tests (no-op in the browser classic-script context).
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -110,5 +151,7 @@ if (typeof module !== 'undefined' && module.exports) {
         USER_OVERRIDABLE_FIELDS,
         assignUserOwnedFields,
         mergeBookFields,
+        KNOWN_BOOK_FIELDS,
+        unknownBookFields,
     };
 }
