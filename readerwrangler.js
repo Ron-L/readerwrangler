@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.15.1-alpha.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.15.1-alpha.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -18386,7 +18386,7 @@
                                                     await permanentlyDeleteBooks(deletedBooks.map(b => b.id)); // self-confirms
                                                 }}>
                                                 <span>🗑️</span>
-                                                <span>Empty Trash</span>
+                                                <span>Empty Trash ({trashCount})</span>
                                             </div>
                                         ) : (
                                             // v7.15.1 - empty state: a muted status row, not a dead/greyed command (Law 16)
