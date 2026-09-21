@@ -88,6 +88,10 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     coordination for the state + the override dialog) — separate codebase from the app.
   - **Cross-ref:** Ownership-honesty batch **item #1** ("Fetcher completion dialog reports ownership
     upgrades") touches the SAME fetcher completion dialog — build them together.
+  - **KB update on ship (Ron 2026-09-21):** once full re-pricing is throttled to ~once/24h, §16's answers
+    *"How fresh are prices? As fresh as your last fetch"* and *"every wishlist-priced book is re-priced each
+    run"* become inaccurate — update them (prices refresh at most ~once/day by default; the override forces a
+    fresh pass).
 
 - [ ] **"Read in Kindle" — jump from RW to the book in a Kindle reader** (Ron 2026-09-20; RW has become
   his primary library organizer and he keeps wanting to open a book straight from RW mobile). **NOT a

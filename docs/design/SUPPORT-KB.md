@@ -537,8 +537,8 @@ A book with no price at set time records nothing (blank, not a guess); clearing 
 clears it. **Re-setting a goal — the same value included — refreshes the snapshot**, which
 is also how you stamp goals created before the feature existed.
 
-**Before mass-setting goals**, glance at the price line: "(Save $0.00)" against the list
-price means the book already sells at that price every day — a goal set *at* the everyday
+**Before mass-setting goals**, glance at a book's price line in its ReaderWrangler dialog: a
+"(Save $0.00)" next to the list price means the book already sells at that price every day — a goal set *at* the everyday
 price is "met" forever and tells you nothing. The snapshot makes this visible after the
 fact too.
 
@@ -555,13 +555,19 @@ means "free to borrow, $X to buy" — ownership says Prime, price says what buyi
 
 ## 17. Mobile
 
-**What is the mobile app?** A phone-sized *viewer* of your library — browse your folders,
-lists, and Searches; it deliberately doesn't edit or organize (that's desktop work). Install
-it as a home-screen app or just open readerwrangler.com on your phone.
+**What is the mobile app?** A *read-only*, phone-sized view of your library — browse your
+folders, Book Lists, and Searches; it deliberately doesn't edit or organize (that's desktop
+work). **There's nothing to install from an app store** — just open **readerwrangler.com in
+your phone's browser** (Safari or Chrome). You can then add it to your home screen so it opens
+like an app.
 
-**How do I set it up?** Relay Setup on desktop → pair your phone with the **QR code**. The
-phone pulls your library from the relay — same encryption, key delivered by the QR, nothing the
-Relay can decipher.
+**How do I set it up?** Relay Setup on desktop → pair your phone with the **QR code**. Your
+desktop **publishes your organized library** — books, folders, Book Lists, Searches, and order —
+to the relay (a separate push from the bookmarklet's raw fetch), and your phone **pulls that
+published copy**. So the phone shows *your organization*, not raw Amazon data. The encryption key
+lives only on **your own devices** — your desktop, your bookmarklets, and your phone (the QR
+delivers it there when you pair) — never on the Relay, so it only ever holds data it can't
+decipher.
 
 **Does it match my desktop?** Yes — books, folders, Book Lists, Searches, **and your order**,
 pins included (the desktop is the ordering authority; there's no reordering on the phone).
