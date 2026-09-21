@@ -457,8 +457,8 @@ description, ratings & reviews, genres, and publication date.
 **Two Amazon pages, one bookmarklet.** Your library comes from amazon.com/yourbooks — run the
 bookmarklet there and choose **Download Library**. Your Kindle Collections (and read status) live on a
 different page, Manage Your Content & Devices (amazon.com/hz/mycd/digital-console) — run the same
-bookmarklet there and choose **Download Collections** (it even offers a "Go to Amazon Collections
-Page" button). ReaderWrangler then shows your Collections alongside your library.
+bookmarklet there (the bookmarklet can take you to that page) and choose **Download Collections**.
+ReaderWrangler then shows your Collections alongside your library.
 
 1. **After you Download your Library, it can take up to ~a minute before the Relay has it ready
    to Import** (the relay propagates gradually). If Import says "up to date" right after a fetch,
@@ -504,9 +504,11 @@ Page" button). ReaderWrangler then shows your Collections alongside your library
 
 ## 15. Backups & spreadsheet
 
-1. **Backups are yours — real files you keep on your computer** (File → Save Backup…), not
-   something stored in the browser like your working library. Restore returns you to the
-   backup's state, with guarded prompts if current Book Lists/Searches would be lost.
+1. **Backups are yours — a real file you save on your computer** (File → Save Backup…). You choose
+   where it goes — Documents, the Desktop, Downloads, even a USB drive — unlike your working library,
+   which lives inside the browser. Restore returns you to the backup's state, guarded so nothing of
+   yours is quietly lost or changed — current Book Lists/Searches, and your sync credentials (item 3
+   below).
 2. **Presentation settings** (cover/list view, columns, theme) are deliberately NOT part of a
    backup — restoring your books shouldn't restyle your screen.
 3. **Restoring keeps your current sync credentials by default.** A backup does carry the sync
