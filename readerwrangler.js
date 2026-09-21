@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.15.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.15.2-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -14465,7 +14465,8 @@
                                 {/* Sticky section: Header + virtual folders */}
                                 {/* v5.0.0-alpha.97 - Border-bottom separates sticky from scrollable */}
                                 <div className="sticky top-0 bg-white z-10 border-b border-gray-300">
-                                <div className="p-3 border-b border-gray-200 font-medium text-gray-700 flex items-center justify-between">
+                                <div className="p-3 border-b border-gray-200 font-medium text-gray-700 flex items-center justify-between"
+                                    onContextMenu={(e) => e.preventDefault()}>{/* v7.15.2 - no menu here; suppress the native browser menu leaking through the app chrome */}
                                     <div className="flex items-center gap-2">
                                         <span>Folders</span>
                                         {/* v5.0.0-alpha.125 - Navigation buttons with proper chevron icons */}
@@ -14568,7 +14569,8 @@
                                     </div>
                                     {/* v6.12.0 - SEARCHES section header (was "Views"); Phase 7 removed the filter-view drop zone (use the visible "Save" control) */}
                                     <div
-                                        className="flex items-center gap-1 px-2 pt-1 pb-0.5 rounded transition-colors">
+                                        className="flex items-center gap-1 px-2 pt-1 pb-0.5 rounded transition-colors"
+                                        onContextMenu={(e) => e.preventDefault()}>{/* v7.15.2 - no menu here; suppress the native browser menu */}
                                         <button
                                             onClick={() => setViewsSectionCollapsed(prev => !prev)}
                                             className="text-gray-400 hover:text-gray-600 text-xs px-0.5 hover:bg-gray-200 rounded leading-none"
@@ -14743,7 +14745,8 @@
                                     {/* v6.12.0 - BOOK LISTS section header (curated, supplemental bookId sets).
                                         Bolder top divider signals these are LOCATIONS (clicking replaces your view),
                                         distinct from Searches above (filter presets that overlay the current view). */}
-                                    <div className="flex items-center justify-between px-2 pt-2 pb-0.5 mt-2 border-t-2 border-gray-300">
+                                    <div className="flex items-center justify-between px-2 pt-2 pb-0.5 mt-2 border-t-2 border-gray-300"
+                                        onContextMenu={(e) => e.preventDefault()}>{/* v7.15.2 - no menu here; suppress the native browser menu */}
                                         <div className="flex items-center gap-1 min-w-0">
                                             <button
                                                 onClick={() => setBookListsSectionCollapsed(prev => !prev)}
@@ -14897,7 +14900,12 @@
                                         </>);
                                     })()}
                                     {/* v6.4.0 - FOLDERS section header */}
-                                    <div className="flex items-center justify-between px-2 pt-2 pb-0.5 mt-1 border-t border-gray-100">
+                                    {/* v7.15.2 - right-click target extended to the full header row (was just the "Folders" word) */}
+                                    <div className="flex items-center justify-between px-2 pt-2 pb-0.5 mt-1 border-t border-gray-100"
+                                        onContextMenu={(e) => {
+                                            e.preventDefault();
+                                            setFolderContextMenu({ folderId: '__library__', x: e.clientX, y: e.clientY, source: 'left' });
+                                        }}>
                                         <div className="flex items-center gap-1 min-w-0">
                                         <button
                                             onClick={() => setFoldersSectionCollapsed(prev => !prev)}
@@ -14909,10 +14917,6 @@
                                         <span
                                             className={`text-xs font-semibold uppercase tracking-wide cursor-pointer ${selectedFolderId === '__library__' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
                                             onClick={() => navigateToFolder('__library__')}
-                                            onContextMenu={(e) => {
-                                                e.preventDefault();
-                                                setFolderContextMenu({ folderId: '__library__', x: e.clientX, y: e.clientY, source: 'left' });
-                                            }}
                                             onDragOver={(e) => {
                                                 if (Array.from(e.dataTransfer.types).includes('application/x-folder-reorder')) {
                                                     e.preventDefault();
