@@ -266,7 +266,10 @@ the worked example; `project_714_release` memory.
 - Browser: drag events lie about modifier keys on Windows; `title` doesn't render on touch; `aria-label`
   overrides visible text; user gestures expire during long async work (`showSaveFilePicker` first);
   localStorage beats useState defaults; IndexedDB is domain-isolated; null in persisted state becomes
-  `"nullpx"`. Status icons (v3.5 PNG era): swapping an `<img>` `src` to change an icon caused a
+  `"nullpx"`; **suppressing the native context menu via `preventDefault` is intermittently NOT honored**
+  (7.15.2: a left-pane container `preventDefault` had no reliable effect, and the native menu leaked even
+  on elements with working custom menus — browser-level, not a handler-coverage gap; accept it, don't
+  chase). Status icons (v3.5 PNG era): swapping an `<img>` `src` to change an icon caused a
   30-60s load lag, and a React `key` prop blanked it during mount — the fix was pre-load ALL icon
   variants and toggle CSS `display`, never touch `src` (salvaged 2026-09-18 from the retired
   `readerwrangler-project` skill; verify whether it still bites the current SVG icons before relying

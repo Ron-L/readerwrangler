@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.15.2-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.15.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -14463,12 +14463,15 @@
                                 style={{ width: `${leftPaneWidth}px` }}
                                 onDragOver={(e) => e.preventDefault()}
                                 onContextMenu={(e) => {
-                                    // v7.15.2 - Suppress the native browser menu across the WHOLE left pane so it never
-                                    // leaks through the app chrome (one chokepoint; catches every gap/sub-element that
-                                    // per-header no-ops missed). Row/header custom menus still open — their own
-                                    // onContextMenu runs and this bubbled preventDefault is just redundant. Exempt
-                                    // INPUT/TEXTAREA so right-click paste/copy still works in the inline rename field.
-                                    // Native right-click stays available everywhere OUTSIDE the left pane.
+                                    // v7.15.2 - Best-effort suppression of the native browser menu inside the left pane
+                                    // (native stays available everywhere else, e.g. for Inspect). Row/header custom menus
+                                    // still open — their own onContextMenu runs; this bubbled preventDefault is redundant.
+                                    // Exempt INPUT/TEXTAREA so right-click paste/copy works in the inline rename field.
+                                    // KNOWN LIMITATION (accepted 2026-09-21, do NOT chase — see PM v7.15.2): suppression is
+                                    // INTERMITTENT. The native menu still leaks sometimes — even on elements WITH working
+                                    // custom menus, and a container-level preventDefault had no reliable effect — so the
+                                    // contextmenu event / its preventDefault is not always honored (browser-level, not a
+                                    // handler-coverage gap). Left as best-effort on purpose.
                                     if (!['INPUT', 'TEXTAREA'].includes(e.target.tagName)) e.preventDefault();
                                 }}>
                                 {/* Sticky section: Header + virtual folders */}
