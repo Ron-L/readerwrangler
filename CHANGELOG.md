@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.15.0] - 2026-09-21
+
+### Right-click menus that never run off-screen
+- Right-click menus (on books, folders, Book Lists, Searches, and in the Auto-Organize preview) now measure themselves and flip or shift to stay fully on screen, however long they get — so the bottom of a menu is never cut off again. Previously a menu that had grown past a fixed size guess could open partly off the bottom of the window.
+
 ## [7.14.4] - 2026-09-20
 
 ### Cleared details stay cleared after Import

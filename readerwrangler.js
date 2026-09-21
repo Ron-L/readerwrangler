@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.14.4";  // Build version for this file
+        const ORGANIZER_VERSION = "7.15.0";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -513,6 +513,44 @@
                 <div ref={ref} className={className} role={role} aria-label={ariaLabel}
                     onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onClick={onClick}
                     style={{ position: 'absolute', [pos.h]: '100%', [pos.v]: 0, ...style }}>
+                    {children}
+                </div>
+            );
+        }
+
+        // v7.15.0 - Cursor-anchored measured positioner: the sibling of FlipToFitPopup for overlays that
+        // open at a free (x, y) point (right-click context menus, cursor popups) instead of anchored to a
+        // parent element. Renders position:fixed at (x, y), then in a layout-effect MEASURES its actual
+        // rendered size (getBoundingClientRect) and flips/shifts to stay within the viewport — so a menu
+        // can never outgrow a hardcoded size guess (the clip that started this: the book menu grew past its
+        // 600px guess and the flip-up under-shot). children is a dep, so it re-measures as a menu grows or
+        // shrinks. Position only — NEVER add overflow here: menus with fly-out submenus (FlipToFitPopup
+        // children) would get clipped by a scroll container. The measure-and-clamp core the future
+        // <Popover>/<Menu> overlay primitive will reuse (not a throwaway).
+        function CursorPopup({ open, x, y, className, style, role, ariaLabel, onClick, onContextMenu, children, margin = 8 }) {
+            const ref = useRef(null);
+            const [coords, setCoords] = useState({ left: x, top: y });
+            useLayoutEffect(() => {
+                if (!open || !ref.current) return;
+                const { width, height } = ref.current.getBoundingClientRect();
+                const vw = window.innerWidth, vh = window.innerHeight;
+                // Prefer opening down-right from the cursor; if that overflows, flip to the other side of
+                // the cursor; then hard-clamp so a menu taller/wider than the cursor offset still fits.
+                let left = (x + width + margin > vw) ? x - width : x;
+                let top = (y + height + margin > vh) ? y - height : y;
+                left = Math.max(margin, Math.min(left, vw - width - margin));
+                top = Math.max(margin, Math.min(top, vh - height - margin));
+                setCoords({ left, top });
+            }, [open, x, y, children, margin]);
+            if (!open) return null;
+            // The `fixed` CSS class is REQUIRED, not just cosmetic: the context-menu close-on-outside-click
+            // handler (mousedown) decides inside-vs-outside via `e.target.closest('.fixed')`. Position is set
+            // inline, but the class must be present or a click inside the menu reads as "outside" and the menu
+            // closes on mousedown before the item's onClick can fire (the 7.15.0 AO-won't-open regression).
+            return (
+                <div ref={ref} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
+                    onClick={onClick} onContextMenu={onContextMenu}
+                    style={{ position: 'fixed', left: coords.left, top: coords.top, ...style }}>
                     {children}
                 </div>
             );
@@ -12628,8 +12666,8 @@
                         const popupIsMover = new Set((autoOrgPreview && autoOrgPreview.dryPlan && autoOrgPreview.dryPlan.allBookIdsToOrganize) || []).has(b.id);
                         return (
                             <div className="fixed inset-0 z-[75]" onClick={() => setAutoOrgSrcPopup(null)} onContextMenu={(e) => { e.preventDefault(); setAutoOrgSrcPopup(null); }}>
-                                <div className="absolute bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-w-[300px]"
-                                    style={{ left: `${Math.min(autoOrgSrcPopup.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 320)}px`, top: `${Math.min(autoOrgSrcPopup.y, (typeof window !== 'undefined' ? window.innerHeight : 9999) - (srcs.length * 30 + 90))}px` }}
+                                <CursorPopup open={true} x={autoOrgSrcPopup.x} y={autoOrgSrcPopup.y}
+                                    className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-w-[300px]"
                                     onClick={(e) => e.stopPropagation()}>
                                     {!popupIsMover ? (
                                         <>
@@ -12663,7 +12701,7 @@
                                     <div className="px-3 py-1.5 text-[10px] text-gray-400 border-t border-gray-100">Its new home folder is always added. Unchecked copies are kept.</div>
                                     </>
                                     )}
-                                </div>
+                                </CursorPopup>
                             </div>
                         );
                     })()}
@@ -12671,8 +12709,8 @@
                     {/* v6.13.0-alpha.9 (D2) - Preview cover right-click: add the selection to a Book List (flat menu; the only action here) */}
                     {autoOrgMenu && (
                         <div className="fixed inset-0 z-[75]" onClick={() => setAutoOrgMenu(null)} onContextMenu={(e) => { e.preventDefault(); setAutoOrgMenu(null); }}>
-                            <div className="absolute bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-h-[360px] overflow-y-auto"
-                                style={{ left: `${Math.min(autoOrgMenu.x, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 250)}px`, top: `${autoOrgMenu.y}px` }}
+                            <CursorPopup open={true} x={autoOrgMenu.x} y={autoOrgMenu.y}
+                                className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-h-[360px] overflow-y-auto"
                                 onClick={(e) => e.stopPropagation()}>
                                 <div className="px-4 py-1.5 text-xs text-gray-500 border-b border-gray-100">Add {autoOrgMenu.bookIds.length} book{autoOrgMenu.bookIds.length !== 1 ? 's' : ''} to a Book List</div>
                                 <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 font-medium text-blue-700"
@@ -12704,7 +12742,7 @@
                                         </div>
                                     </>
                                 )}
-                            </div>
+                            </CursorPopup>
                         </div>
                     )}
 
@@ -12713,8 +12751,9 @@
                         const flds = getFoldersContainingBook(autoOrgHover.bookId).filter(f => f.id !== '__inbox__' && f.id !== '__all__' && f.id !== '__library__');
                         const lists = getBookListsContainingBook(autoOrgHover.bookId);
                         return (
-                            <div className="fixed bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-xs z-[76]"
-                                style={{ left: `${autoOrgHover.x}px`, top: `${autoOrgHover.y}px`, maxWidth: '260px', pointerEvents: 'none' }}>
+                            <CursorPopup open={true} x={autoOrgHover.x} y={autoOrgHover.y}
+                                className="bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-xs z-[76]"
+                                style={{ maxWidth: '260px', pointerEvents: 'none' }}>
                                 {(flds.length === 0 && lists.length === 0)
                                     ? <div className="text-gray-400 italic">Only in Inbox — not filed or listed yet</div>
                                     : <>
@@ -12723,7 +12762,7 @@
                                         {lists.length > 0 && <div className={`text-gray-500 mb-0.5 ${flds.length > 0 ? 'mt-1' : ''}`}>On Book Lists:</div>}
                                         {lists.map(bl => <div key={bl.id} className="text-gray-700 truncate">📗 {bl.name}</div>)}
                                       </>}
-                            </div>
+                            </CursorPopup>
                         );
                     })()}
 
@@ -18267,9 +18306,9 @@
                         return (
                             <>
                                 <div className="fixed inset-0 z-[59]" onClick={() => setRightPaneContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setRightPaneContextMenu(null); }} />
-                                <div className="fixed bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] z-[60]"
-                                    role="menu" aria-label="Create folder"
-                                    style={{ left: `${rightPaneContextMenu.x}px`, top: `${rightPaneContextMenu.y}px` }}
+                                <CursorPopup open={true} x={rightPaneContextMenu.x} y={rightPaneContextMenu.y}
+                                    className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] z-[60]"
+                                    role="menu" ariaLabel="Create folder"
                                     onClick={(e) => e.stopPropagation()}>
                                     {/* v6.12.0-alpha.68 (#8) - Single context-appropriate action: subfolder inside a folder,
                                         else a root folder (a new root folder wouldn't appear in the current folder view). */}
@@ -18282,7 +18321,7 @@
                                             <span>📁</span><span>New folder</span>
                                         </div>
                                     )}
-                                </div>
+                                </CursorPopup>
                             </>
                         );
                     })()}
@@ -18293,16 +18332,12 @@
                         if (isBookListFolder(folderContextMenu.folderId)) {
                             const blId = getBookListId(folderContextMenu.folderId);
                             const bl = bookLists.find(b => b.id === blId);
-                            const menuWidth = 180;
-                            const menuX = Math.max(10, Math.min(folderContextMenu.x, window.innerWidth - menuWidth - 10));
-                            const menuY = Math.max(10, Math.min(folderContextMenu.y, window.innerHeight - 100));
                             return (
                                 <>
                                     <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <div
-                                        className="fixed bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
-                                        role="menu" aria-label="Book List options"
-                                        style={{ left: `${menuX}px`, top: `${menuY}px` }}
+                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                        role="menu" ariaLabel="Book List options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
                                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3"
@@ -18326,7 +18361,7 @@
                                             <span>🗑️</span>
                                             <span>Delete</span>
                                         </div>
-                                    </div>
+                                    </CursorPopup>
                                 </>
                             );
                         }
@@ -18336,10 +18371,9 @@
                             return (
                                 <>
                                     <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <div
-                                        className="fixed bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
-                                        role="menu" aria-label="Trash options"
-                                        style={{ left: `${folderContextMenu.x}px`, top: `${folderContextMenu.y}px` }}
+                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                        role="menu" ariaLabel="Trash options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
                                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3 text-red-600"
@@ -18352,23 +18386,19 @@
                                             <span>🗑️</span>
                                             <span>Empty Trash</span>
                                         </div>
-                                    </div>
+                                    </CursorPopup>
                                 </>
                             );
                         }
 
                         // v6.10.0-alpha.7 - All Books context menu: Select All
                         if (folderContextMenu.folderId === '__all__') {
-                            const menuWidth = 180;
-                            const menuX = Math.max(10, Math.min(folderContextMenu.x, window.innerWidth - menuWidth - 10));
-                            const menuY = Math.max(10, Math.min(folderContextMenu.y, window.innerHeight - 80));
                             return (
                                 <>
                                     <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <div
-                                        className="fixed bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
-                                        role="menu" aria-label="All Books options"
-                                        style={{ left: `${menuX}px`, top: `${menuY}px` }}
+                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                        role="menu" ariaLabel="All Books options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
                                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3"
@@ -18385,23 +18415,19 @@
                                             }}>
                                             <span>☑️</span><span>Select All</span>
                                         </div>
-                                    </div>
+                                    </CursorPopup>
                                 </>
                             );
                         }
 
                         // v6.10.0-alpha.7 - Inbox context menu: Auto-Organize + Select All
                         if (folderContextMenu.folderId === '__inbox__') {
-                            const menuWidth = 180;
-                            const menuX = Math.max(10, Math.min(folderContextMenu.x, window.innerWidth - menuWidth - 10));
-                            const menuY = Math.max(10, Math.min(folderContextMenu.y, window.innerHeight - 120));
                             return (
                                 <>
                                     <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <div
-                                        className="fixed bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
-                                        role="menu" aria-label="Inbox options"
-                                        style={{ left: `${menuX}px`, top: `${menuY}px` }}
+                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                        role="menu" ariaLabel="Inbox options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
                                             className={`px-4 py-2 ${books.length > 0 ? 'hover:bg-gray-100 cursor-pointer' : 'opacity-50 cursor-not-allowed'} flex items-center gap-3`}
@@ -18429,23 +18455,19 @@
                                             }}>
                                             <span>☑️</span><span>Select All</span>
                                         </div>
-                                    </div>
+                                    </CursorPopup>
                                 </>
                             );
                         }
 
                         // v6.3.0 - My Library context menu: Open + New Folder
                         if (folderContextMenu.folderId === '__library__') {
-                            const menuWidth = 180;
-                            const menuX = Math.max(10, Math.min(folderContextMenu.x, window.innerWidth - menuWidth - 10));
-                            const menuY = Math.max(10, Math.min(folderContextMenu.y, window.innerHeight - 120));
                             return (
                                 <>
                                     <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <div
-                                        className="fixed bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
-                                        role="menu" aria-label="My Library options"
-                                        style={{ left: `${menuX}px`, top: `${menuY}px` }}
+                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                        role="menu" ariaLabel="My Library options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
                                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3"
@@ -18476,7 +18498,7 @@
                                             }}>
                                             <span>📁</span><span>New Folder</span>
                                         </div>
-                                    </div>
+                                    </CursorPopup>
                                 </>
                             );
                         }
@@ -18507,34 +18529,13 @@
                             return ok;
                         };
 
-                        // v5.0.0-alpha.144 - Viewport-aware positioning
-                        const menuWidth = 200;
-                        const menuHeight = 400; // Approximate max height
-                        let menuX = folderContextMenu.x;
-                        let menuY = folderContextMenu.y;
-
-                        // Adjust if off-screen right
-                        if (menuX + menuWidth > window.innerWidth) {
-                            menuX = window.innerWidth - menuWidth - 10;
-                        }
-
-                        // Adjust if off-screen bottom
-                        if (menuY + menuHeight > window.innerHeight) {
-                            menuY = window.innerHeight - menuHeight - 10;
-                        }
-
-                        // Ensure not off-screen left/top
-                        menuX = Math.max(10, menuX);
-                        menuY = Math.max(10, menuY);
-
+                        // v7.15.0 - Positioned via CursorPopup (measured; the old menuHeight=400 guess
+                        // under-shot and clipped the bottom for a tall folder menu). No backdrop here — the
+                        // document mousedown handler closes this menu (folderContextMenu, see ~4899).
                         return (
-                            <div
-                                className="fixed bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[200px]"
-                                role="menu" aria-label="Folder options"
-                                style={{
-                                    left: `${menuX}px`,
-                                    top: `${menuY}px`
-                                }}
+                            <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[200px]"
+                                role="menu" ariaLabel="Folder options"
                                 onClick={(e) => e.stopPropagation()}>
 
                                 {/* Open */}
@@ -18952,7 +18953,7 @@
                                     <span>ℹ️</span>
                                     <span>Folder Properties</span>
                                 </div>
-                            </div>
+                            </CursorPopup>
                         );
                     })()}
 
@@ -18967,16 +18968,11 @@
                         const searchLabel = isNamedSearch ? view.name : filterChipsLabel(view.filters);
 
                         // Viewport-aware positioning
-                        const menuWidth = 200;
-                        const menuHeight = 260;
-                        let menuX = Math.max(10, Math.min(folderContextMenu.x, window.innerWidth - menuWidth - 10));
-                        let menuY = Math.max(10, Math.min(folderContextMenu.y, window.innerHeight - menuHeight - 10));
-
+                        // v7.15.0 - Positioned via CursorPopup (measured). No backdrop — document mousedown closes it.
                         return (
-                            <div
-                                className="fixed bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[200px]"
-                                role="menu" aria-label="Search options"
-                                style={{ left: `${menuX}px`, top: `${menuY}px` }}
+                            <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[200px]"
+                                role="menu" ariaLabel="Search options"
                                 onClick={(e) => e.stopPropagation()}>
 
                                 {/* Apply */}
@@ -19025,7 +19021,7 @@
                                     <span>🗑️</span>
                                     <span>Delete Search</span>
                                 </div>
-                            </div>
+                            </CursorPopup>
                         );
                     })()}
 
@@ -19033,20 +19029,8 @@
                     {explorerBookContextMenu && (() => {
                         // v5.0.0-alpha.166 - Phase 2: Full implementation with Move to / Copy to submenus
 
-                        // Calculate menu position to avoid going off-screen
-                        const menuHeight = 600; // v6.10.0-alpha.9 - Increased for Share submenu
-                        const menuWidth = 220;
-                        const viewportHeight = window.innerHeight;
-                        const viewportWidth = window.innerWidth;
-
-                        // Flip up if menu would go below viewport
-                        const top = explorerBookContextMenu.y + menuHeight > viewportHeight
-                            ? Math.max(10, explorerBookContextMenu.y - menuHeight)
-                            : explorerBookContextMenu.y;
-                        // Flip left if menu would go past right edge
-                        const left = explorerBookContextMenu.x + menuWidth > viewportWidth
-                            ? Math.max(10, explorerBookContextMenu.x - menuWidth)
-                            : explorerBookContextMenu.x;
+                        // v7.15.0 - Positioned via CursorPopup (measured, below). The old menuHeight/menuWidth
+                        // guess (600×220) under-shot the flip-up once the menu outgrew it and clipped the bottom.
 
                         // v6.15.0 - All book-menu submenus now position themselves via FlipToFitPopup (measured, both
                         // axes). The old submenuOnLeft / *ItemOffset estimates are gone.
@@ -19264,13 +19248,10 @@
                         );
 
                         return (
-                            <div
-                                className="fixed bg-white border border-gray-300 rounded-lg shadow-xl z-[60] py-1 min-w-[200px]"
-                                role="menu" aria-label="Book options"
-                                style={{
-                                    left: `${left}px`,
-                                    top: `${top}px`
-                                }}
+                            <CursorPopup open={true}
+                                x={explorerBookContextMenu.x} y={explorerBookContextMenu.y}
+                                className="bg-white border border-gray-300 rounded-lg shadow-xl z-[60] py-1 min-w-[200px]"
+                                role="menu" ariaLabel="Book options"
                                 onClick={(e) => e.stopPropagation()}>
                                 {/* Header */}
                                 <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 border-b border-gray-200">
@@ -20295,7 +20276,7 @@
                                                     <span className="ml-auto text-xs text-gray-400">Del</span>
                                                 </div>
                                             )}
-                            </div>
+                            </CursorPopup>
                         );
                     })()}
 
