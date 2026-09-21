@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.15.0-alpha.4";  // Build version for this file
+        const ORGANIZER_VERSION = "7.15.0-alpha.5";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -8752,6 +8752,7 @@
             };
             // Right-click path: build authorGroups from the clicked/selected books, scope to the current folder.
             const openAutoOrgPreview = (mode, selBooks, opts, labelFor) => {
+                console.log('🔎[AO-DEBUG] openAutoOrgPreview wrapper', { mode, selBooks: selBooks?.length }); // TEMP alpha.5 debug — remove
                 setExplorerBookContextMenu(null); setContextSubmenu(null);
                 const authorGroups = buildAuthorGroupsFromSelection(selBooks);
                 const srcId = sourceFolderIdForScope(selectedFolderId);
@@ -18430,6 +18431,7 @@
                                             className={`px-4 py-2 ${books.length > 0 ? 'hover:bg-gray-100 cursor-pointer' : 'opacity-50 cursor-not-allowed'} flex items-center gap-3`}
                                             role="menuitem"
                                             onClick={() => {
+                                                console.log('🔎[AO-DEBUG] INBOX-menu AO item clicked', { books: books.length }); // TEMP alpha.5 debug — remove
                                                 if (books.length === 0) return;
                                                 setWizardModalOpen(true);
                                                 setFolderContextMenu(null);
@@ -19392,7 +19394,7 @@
                                     List views — a list is supplemental, not a custodial home, so this folder operation doesn't apply. */}
                                 {canAutoOrganizeInView(selectedFolderId) && (
                                     <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
-                                        onClick={() => autoOrganizeBySeries(selectedBooksArray)}>
+                                        onClick={() => { console.log('🔎[AO-DEBUG] BOOK-menu AO item clicked', { sel: selectedBooksArray.length }); autoOrganizeBySeries(selectedBooksArray); }}>
                                         <span>✨</span><span>Auto-Organize…</span>
                                     </div>
                                 )}
