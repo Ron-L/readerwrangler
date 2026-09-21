@@ -116,7 +116,8 @@ const KNOWN_BOOK_FIELDS = new Set([
     // identity
     'id', 'asin', 'store',
     // bibliographic / Amazon metadata
-    'title', 'author', 'series', 'seriesPosition', 'seriesTotal', 'binding',
+    // TEMP alpha.3 popup-test — 'title' removed on purpose so the check trips; REVERT next alpha.
+    'author', 'series', 'seriesPosition', 'seriesTotal', 'binding',
     'coverUrl', 'description', 'topReviews', 'genres', 'publicationDate', 'rating', 'ratingCount',
     // pricing (Amazon)
     'currentPrice', 'listPrice', 'priceFetchedAt',
