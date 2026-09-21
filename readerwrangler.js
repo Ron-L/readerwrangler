@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.15.3";  // Build version for this file
+        const ORGANIZER_VERSION = "7.16.0-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -836,6 +836,9 @@
             const [autoOrgSel, setAutoOrgSel] = useState(new Set());    // v6.13.0-alpha.9 (D2) - selected cover ids within the preview
             const [corruptionRecovery, setCorruptionRecovery] = useState(false); // v6.17.1 - show the sync-corruption recovery dialog
             const [restoreConfirm, setRestoreConfirm] = useState(null); // v7.4.0 - informed restore confirm { text, parsedData, lostLists, lostSearches, backupDate }
+            const [orphanCleanupOpen, setOrphanCleanupOpen] = useState(false); // v7.16.0 - orphan-cleanup dialog (books no longer in the Amazon library)
+            const [orphanNudge, setOrphanNudge] = useState(false); // v7.16.0 - post-import nudge banner when orphans exist
+            const [orphanSelected, setOrphanSelected] = useState(() => new Set()); // v7.16.0 - orphan ids checked in the dialog
             const [autoOrgExcludedMembers, setAutoOrgExcludedMembers] = useState(new Set()); // v6.17.0 (B) - consolidate: deselected "folderId::bookId" copies (default all-in) for a multi-folder book
             const [autoOrgAnchor, setAutoOrgAnchor] = useState(null);  // v6.16.0 - shift-range pivot (last plain/ctrl-clicked cover) in the preview
             const [autoOrgMenu, setAutoOrgMenu] = useState(null);       // v6.13.0-alpha.9 (D2) - preview cover right-click menu: { x, y, bookIds } or null
@@ -5192,6 +5195,10 @@
                             ? `Library updated: ${totalBooks} books (${parts.join(', ')}).`
                             : `No new books found (${totalBooks} books).`;
                     await progress.finish('Relay Import', message);
+                    // v7.16.0 - Orphan-cleanup nudge: if the last orphan scan flagged books no longer in your
+                    // Amazon library, surface a dismissible banner → the cleanup dialog (books/folders unchanged
+                    // until you act there). Non-blocking, non-modal — the import is already done.
+                    if ((result.orphanCount || 0) > 0) setOrphanNudge(true);
                 } catch (err) {
                     console.error('❌ Relay import failed:', err);
                     if (err && err.isCorruption) {
@@ -6600,7 +6607,7 @@
                     setLastSyncTime(Date.now());
                     setSyncStatus('fresh');
                     if (onComplete) setTimeout(() => onComplete(metadata.totalBooks), 0);
-                    return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0 };
+                    return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0, orphanCount: mergedBooks.filter(b => b.orphanStatus === 'orphan').length };
                 }
 
                 // No organization found, start fresh
@@ -6608,7 +6615,7 @@
                 setLastSyncTime(Date.now());
                 setSyncStatus('fresh');
                 if (onComplete) setTimeout(() => onComplete(metadata.totalBooks), 0);
-                return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0 };
+                return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0, orphanCount: mergedBooks.filter(b => b.orphanStatus === 'orphan').length };
             };
 
             const checkIfBlankImage = (img, bookId) => {
@@ -6928,7 +6935,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || newFolderHiddenAlert || corruptionRecovery || restoreConfirm); // v7.14.2 - last three were unfenced
+            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || newFolderHiddenAlert || corruptionRecovery || restoreConfirm || orphanCleanupOpen); // v7.14.2 - last three were unfenced; v7.16.0 - orphan cleanup
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6985,6 +6992,7 @@
                     // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - these two were missing from the chain
                     if (dupReviewOpen) { setDupReviewOpen(false); return; }
                     if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
+                    if (orphanCleanupOpen) { setOrphanCleanupOpen(false); return; } // v7.16.0
                     // v7.14.2 - these three modals were entirely outside the Esc chain (and the fence)
                     if (restoreConfirm) { console.log('📋 Backup restore cancelled by user (Esc)'); setRestoreConfirm(null); return; }
                     if (newFolderHiddenAlert) { setNewFolderHiddenAlert(null); return; }
@@ -9473,6 +9481,20 @@
                             </div>
                         </div>
                     )}
+                    {/* v7.16.0 - Orphan-cleanup nudge: books the last scan found gone from your Amazon library. */}
+                    {orphanNudge && !orphanCleanupOpen && !relayImporting && (() => {
+                        const n = books.filter(b => b.orphanStatus === 'orphan').length;
+                        if (n === 0) return null;
+                        return (
+                            <div style={{ background: 'linear-gradient(135deg, #fef3c7, #fee2e2)', borderBottom: '1px solid var(--border-default)', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                                <span style={{ color: 'var(--text-primary)' }}>🧹 {n} book{n !== 1 ? 's are' : ' is'} no longer in your Amazon library.</span>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button onClick={() => { setOrphanSelected(new Set()); setOrphanNudge(false); setOrphanCleanupOpen(true); }} style={{ padding: '4px 12px', fontSize: '12px', fontWeight: 'bold', background: 'linear-gradient(135deg, #667eea, #764ba2)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Review</button>
+                                    <button onClick={() => setOrphanNudge(false)} style={{ padding: '4px 12px', fontSize: '12px', background: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border-default)', borderRadius: '4px', cursor: 'pointer' }}>Dismiss</button>
+                                </div>
+                            </div>
+                        );
+                    })()}
                     {/* v6.0.0-alpha.44 - Removed relay importing status bar; now uses showInfoDialog on completion */}
 
                     {/* v6.0.0-alpha.23 - Full-width welcome screen when no books loaded */}
@@ -12102,6 +12124,80 @@
                             </div>
                         </div>
                     )}
+
+                    {/* v7.16.0 - Orphan-cleanup dialog: books no longer in your Amazon library, in two hide-when-empty
+                        groups (still filed vs already in Trash). Permanent delete via the confirming permanentlyDeleteBooks. */}
+                    {orphanCleanupOpen && (() => {
+                        const orphans = books.filter(b => b.orphanStatus === 'orphan');
+                        const filed = orphans.filter(b => !b.isDeleted);
+                        const trashed = orphans.filter(b => b.isDeleted);
+                        const selectedCount = orphanSelected.size;
+                        const toggle = (id) => setOrphanSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+                        const groupChecked = (list) => list.length > 0 && list.every(b => orphanSelected.has(b.id));
+                        const toggleGroup = (list) => setOrphanSelected(prev => { const n = new Set(prev); const all = list.every(b => n.has(b.id)); list.forEach(b => all ? n.delete(b.id) : n.add(b.id)); return n; });
+                        const locOf = (b) => {
+                            const fs = getFoldersContainingBook(b.id).filter(f => !['__all__', '__inbox__', '__library__', '__trash__', '__booklists__', '__views__', '__search__'].includes(f.id));
+                            const ls = getBookListsContainingBook(b.id);
+                            const parts = [...fs.map(f => f.name), ...ls.map(l => `📗 ${l.name}`)];
+                            return parts.length ? parts.join(', ') : 'Inbox / unfiled';
+                        };
+                        const row = (b, showLoc) => (
+                            <label key={b.id} className="flex items-start gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
+                                <input type="checkbox" checked={orphanSelected.has(b.id)} onChange={() => toggle(b.id)} className="mt-1 w-4 h-4 accent-indigo-600 flex-shrink-0" />
+                                <span className="flex-1 min-w-0">
+                                    <span className="block truncate font-medium text-gray-800">{b.title || 'Untitled'}</span>
+                                    <span className="block truncate text-xs text-gray-500">{b.author || 'Unknown author'}{showLoc ? ` · ${locOf(b)}` : ''}</span>
+                                </span>
+                            </label>
+                        );
+                        return (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                                onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }}
+                                onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setOrphanCleanupOpen(false); backdropMouseDownRef.current = null; }}>
+                                <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col" role="dialog" aria-modal="true" aria-label="Clean up orphaned books" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
+                                        <h2 className="text-lg font-bold text-gray-900">🧹 Books no longer in your Amazon library</h2>
+                                        <button onClick={() => setOrphanCleanupOpen(false)} className="text-gray-500 hover:text-gray-700 font-bold text-xl leading-none" title="Close" aria-label="Close">✕</button>
+                                    </div>
+                                    <div className="p-4 overflow-y-auto flex-1">
+                                        <p className="text-sm text-gray-600 mb-3">These were removed, returned, or delisted on Amazon since your last fetch. Pick any you want to remove from ReaderWrangler.</p>
+                                        {filed.length === 0 && trashed.length === 0 && (
+                                            <p className="text-sm text-gray-500 italic">No orphaned books right now.</p>
+                                        )}
+                                        {filed.length > 0 && (<>
+                                            <div className="flex items-center justify-between mt-1 mb-1">
+                                                <div className="text-sm font-semibold text-gray-700">Still in your library ({filed.length})</div>
+                                                <button onClick={() => toggleGroup(filed)} className="text-xs text-blue-600 hover:underline">{groupChecked(filed) ? 'Clear' : 'Select all'}</button>
+                                            </div>
+                                            <div className="text-xs text-red-600 mb-1">⚠ Deleting these is a <strong>permanent</strong> removal — it does <strong>not</strong> go to the Trash and <strong>can't be undone</strong>.</div>
+                                            <div className="border border-gray-200 rounded divide-y divide-gray-100">{filed.map(b => row(b, true))}</div>
+                                        </>)}
+                                        {trashed.length > 0 && (<>
+                                            <div className="flex items-center justify-between mt-3 mb-1">
+                                                <div className="text-sm font-semibold text-gray-700">Already in your Trash ({trashed.length})</div>
+                                                <button onClick={() => toggleGroup(trashed)} className="text-xs text-blue-600 hover:underline">{groupChecked(trashed) ? 'Clear' : 'Select all'}</button>
+                                            </div>
+                                            <div className="text-xs text-gray-500 mb-1">You already deleted these — removing them here just finalizes it (also permanent).</div>
+                                            <div className="border border-gray-200 rounded divide-y divide-gray-100">{trashed.map(b => row(b, false))}</div>
+                                        </>)}
+                                    </div>
+                                    <div className="flex justify-between items-center gap-2 p-4 border-t border-gray-200">
+                                        <button onClick={() => setOrphanCleanupOpen(false)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded">Not now</button>
+                                        <button
+                                            disabled={selectedCount === 0}
+                                            onClick={async () => {
+                                                const ids = [...orphanSelected];
+                                                await permanentlyDeleteBooks(ids); // self-confirms ("Permanently delete N? cannot be undone") + Book List fallout
+                                                setOrphanSelected(new Set()); // deleted books drop out of the lists on re-render; dialog stays open (shows the empty state if none remain)
+                                            }}
+                                            className={`px-4 py-1.5 text-sm font-bold rounded ${selectedCount === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}>
+                                            Permanently delete selected ({selectedCount})
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* v6.17.1 - Sync-corruption recovery: shown when Import from Relay hits a checksum mismatch. */}
                     {corruptionRecovery && (
