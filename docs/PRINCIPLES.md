@@ -77,8 +77,16 @@ Fixing only the reported instance is the default failure ("Claude doesn't natura
 still true in v7 until made mechanical). The class includes: sibling fetchers (the same user-gesture bug
 fixed in 5 files across 4 releases), all registrations of a listener (a second keydown handler hid for 16
 alphas), every modal close path, every render path, `foo` AND `setFoo`, and **inline duplicates of a
-structure you extend** (the alpha.13 crash lived in a copy of `enterEditMode`).
-**Enforcement**: `feedback_investigate_completely` memory; grep-the-class before declaring done.
+structure you extend** (the alpha.13 crash lived in a copy of `enterEditMode`). **And the remote
+consumers of an element's markup**: when you change a DOM element's class / attributes / structure,
+grep for what *else* keys on it — `.closest('.x')`, `querySelector`, class/attr hooks — because a
+markup change can silently break a handler elsewhere in the file. 7.15.0: a menu refactor moved
+`position:fixed` from the `fixed` CSS **class** to an inline style and dropped the class; the
+close-on-outside handler matched `e.target.closest('.fixed')`, so every menu item's click died on
+mousedown — **no console error, 6 alphas to find.** A class/attribute an element wears may be
+load-bearing for code that never appears in the diff.
+**Enforcement**: `feedback_investigate_completely` memory; grep-the-class before declaring done —
+for a markup change, grep the class/attr name across the file for remote matchers *before* editing.
 
 ### 6. Commit before every test; one concern per alpha; build markers on every surface
 What keeps 25-alpha runs bisectable and revertible, and what makes "which build am I running?" answerable
