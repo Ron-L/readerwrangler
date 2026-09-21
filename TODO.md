@@ -120,12 +120,11 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     `read.amazon.co.uk` / `.co.jp` / etc.; RW may need the user's marketplace or default to `.com` + rely
     on fallback. (Backstory link: `reference_read_in_kindle` memory.)
 
-- [ ] **Trash needs an "Empty Trash" right-click (2026-09-20, Ron).** Right-clicking the Trash row in the
-  left pane shows no menu. The `folderContextMenu` `__trash__` branch (Empty Trash) already exists in code,
-  so the Trash row likely just isn't wired with an `onContextMenu` that opens it — wire it (self-confirms;
-  no-op when empty). Ties to a broader question surfaced during the 7.15.0 CursorPopup rollout: **audit
-  which left-pane rows are right-clickable** (All Books does open Select All; Trash and possibly others may
-  not be wired, and My Library is gone since the Book Explorer makeover — its `__library__` branch is dead).
+- [ ] **Audit which left-pane rows are right-clickable** (surfaced 2026-09-20 during the 7.15.0 CursorPopup
+  rollout; the Trash "Empty Trash" right-click itself shipped in 7.15.1). All Books opens Select All; Trash
+  now always opens (Empty Trash (N) / "Trash is empty"). Still to check: any other special rows that should
+  offer a right-click and don't — and **remove the DEAD `__library__` branch** in `folderContextMenu` ("My
+  Library" is gone since the Book Explorer makeover renamed it "Folders" in v6.4.0).
 
 - [ ] **Import-merge follow-ups (from 7.14.4 — the clear-then-resurrect + phantom-field fix).** The merge
   is now data-driven from `BOOK_FIELD_OWNERSHIP` in `bookMerge.js` (node-tested in the gate). Two pieces
