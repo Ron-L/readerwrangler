@@ -1,9 +1,10 @@
 # Multi-instance model: storage universes, writers, and guests
 
 _Status: DECIDED 2026-08-30 (the folder-order-scramble forensics session). The guest guard +
-field-preserving cache ship in 7.6.0-alpha.6; the read-only second tab and split view are
-designed-here, built-later. This doc is the "Ron, Ron, Ron" reference for every future
-"two copies of RW touched the same data" question._
+field-preserving cache ship in 7.6.0-alpha.6; the read-only second tab (§4), the cross-browser
+sequential-coherence check (§6, added 2026-09-22), and split view are designed-here, built-later.
+This doc is the "Ron, Ron, Ron" reference for every future "two copies of RW touched the same
+data" question._
 
 ---
 
@@ -105,7 +106,84 @@ snapshot), so their organizations drift apart forever and the phone mirrors whic
 last. Verdict: not dangerous, just incoherent — give a second real desktop (e.g. the Firefox
 experiment) its **own channel** unless collecting the same fetcher data twice is the goal.
 
-## 6. Loose ends tracked elsewhere
+## 6. Sequential coherence across browsers: check-on-activation + soft lease (designed 2026-09-22, built-later)
+
+**The footgun this closes.** A clever user restores Browser A's backup into Browser B to "keep them
+in sync" — which copies the channel ID + passphrase, so now two desktops write the same channel.
+§5 says this cannot *corrupt* the library sync (7.0 letters + merge), but the organization drifts
+(each pushes its own monolithic device-state blob; the phone mirrors whichever pushed last), and
+**the user is never told** — a silent mismatch between "I have sync" and what RW actually provides.
+This section is the enforced, honest fix.
+
+**Non-goal — live two-way concurrent sync (rejected on the ratio, 2026-09-22).** Medium value ÷
+huge effort = a bad quotient. It needs two expensive things RW doesn't have: (a) **push** — the
+relay is Cloudflare KV + a stateless worker (write keys, *poll* to read); real-time push means
+Durable Objects holding a WebSocket per channel, i.e. the never-built "Phase 2" relay; and (b) a
+**merge for organization** — folder hierarchy + order + pins + multi-placement are relational and
+ordered, so concurrent moves/reorders are the textbook-hard CRDT cases, in the one domain where a
+merge bug silently corrupts a user's whole organization. The monolithic last-writer-wins blob
+exists precisely to dodge that merge. Not worth it.
+
+**The insight that makes it cheap:** the user is one person at one machine at a time. The real need
+is **sequential** coherence — "whichever browser I sit down at next continues from my latest" — not
+live concurrency. You only need the truth *at the transition* (idle→in-use), so a check-on-activation
+replaces a live feed, and no push is required.
+
+The design:
+
+1. **One "am I the editor?" concept, two enforcement layers.** Same-browser tabs → the §4 Web Locks
+   lease (hard, auto-releasing on close/crash). Cross-browser → a **soft relay lease** record (holder
+   instance id + heartbeat/timestamp). Soft = advisory, not a mutex (KV is eventually-consistent and
+   rate-limited; two claims in the same instant could both think they won) — acceptable because this
+   guards a *single-user footgun*, not adversarial contention. Not security, just a guard.
+   **The lease is the safety net, and it is NOT focus-driven** — two physical computers can both stay
+   focused, neither ever blurs, so a focus trigger would never re-fire. Instead:
+   - **Write-gated on the lease (the floor):** every mutation checks "do I currently hold the lease?"
+     *at commit time* and refuses + flips to read-only if not. This prevents the clobber no matter how
+     many browsers stay focused — B cannot write over A while A holds the pen.
+   - **A light periodic lease poll while active** (~15–30 s): so a browser's read-only/editor UI stays
+     honest without a focus event — B, sitting focused, sees A holds the lease; if A goes idle and its
+     lease expires, B can offer takeover. Bounded (only while the tab is active), one tiny KV read — not
+     the Tier-2 push infra creeping back in.
+
+2. **Org-freshness check — lazy, on activation.** This is separate from the lease (point 1) and has a
+   different cadence: you only need to see the latest *organization* when you sit down at a browser. On
+   idle→in-use (`visibilitychange` / window focus), fetch the relay device-state and compare its
+   **serialized-state stamp** (`organization.savedAt` — the §3 guard's stamp, the timestamp OF THE STATE
+   SERIALIZED, never wall-clock) to the last stamp this browser adopted or pushed (stored locally). Relay
+   stamp newer → this browser is **behind**. For *this* check, one read on activation (no poll loop) is
+   enough — you don't care about staleness while you're away from the machine. (The lease, by contrast,
+   *is* refreshed periodically while active — point 1 — precisely because focus can't cover two focused
+   computers.)
+
+3. **Prompt only when there's a decision** (Law 16, inverted — don't surface a control with nothing
+   to choose). In sync, or *ahead* (this browser was the last editor), with the lease free → silently
+   become the editor, no nag. Prompt only when **behind**, or the lease is held by a live instance.
+
+4. **Intent-shaped choice, not two raw toggles.** "Sync?" and "take the lease?" are one intent to the
+   user. When a behind browser activates:
+   > *"Another browser has been organizing your library — this one is showing an older view."*
+   > **Catch up & edit here** (adopt latest + take the lease — the "I've moved to this machine" case)
+   > · **Just view** (adopt latest, stay read-only) · **Leave as-is**
+
+5. **Adopt = the real work.** "Catch up" reconstitutes *this* browser's folders/lists/order/tags from
+   the relay blob. The phone already rebuilds a *view* from a device-state blob, but the desktop has
+   never applied one to its own **editable** state (today `getDeviceState` on the desktop is only a
+   connection test — readerwrangler.js:1246). Reuse §4's discipline: **reload-from-state, then acquire
+   the lease, then enable writes — never promote on stale state.** The monolithic blob is authoritative
+   and single-writer (the lease guarantees one writer), so **nothing needs merging.**
+
+6. **The one honest cost.** If someone genuinely edits two browsers in overlapping sessions, the
+   second is read-only until an explicit handoff, and taking over reloads — discarding that viewer's
+   in-memory tweaks. §4 already accepts this as correct (a snapshot silently becoming writer commits
+   the exact clobber this doc exists to prevent). That is the single-writer contract, stated plainly.
+
+**New surfaces this needs:** a small per-channel **lease record** on the relay (holder + heartbeat),
+and a real desktop **device-state adopt path** (distinct from today's connection-test read). The
+"catch up / view / leave" prompt is a new modal → `anyDialogOpen` + `handleModalEsc` + ✕ + backdrop
+(or the `<Dialog>` primitive once it lands).
+
+## 7. Loose ends tracked elsewhere
 
 - **F1 consolidation** (folders → blob-only + load reorder) — TODO, unchanged by today: the
   double-store made diagnosis harder even though it wasn't the thief.
