@@ -41,7 +41,8 @@ const WIRE_FIELDS = [
     { app: 'rating', def: 0 },
     { app: 'ratingCount', wire: 'reviewCount', def: '' },
     { app: 'genres', def: [] },
-    { app: 'genresAsOf' },                           // was never unpacked; now round-trips
+    // NB: genresAsOf is intentionally NOT here — it's vestigial (nothing populates/reads it on desktop;
+    // excluded from KNOWN_BOOK_FIELDS in 7.15.3). Producing it would trip the field-schema validator.
     { app: 'hasEnrichedData', def: true },           // was never packed; now travels
     // binding: incoming "Kindle eBook" (the app's pre-7.7 invented default) means blank;
     // normalizeBook (post-unpack) additionally maps "Kindle" → "Kindle Edition".

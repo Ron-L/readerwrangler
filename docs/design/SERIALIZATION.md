@@ -23,7 +23,7 @@ is done by **multiple hand-written functions that were supposed to match but dri
 `orphanStatus`, and the trash triple (`isDeleted`/`deletedAt`/`deletedFromFolderIds`) — so restore
 silently loses trash state (would *resurrect* trashed books), date-added, and orphan flags too. And
 the unpacker reads fields the packer never writes (`publicationDate`, `seriesTotal`, `hasEnrichedData`)
-while the packer writes one the unpacker ignores (`genresAsOf`) — more silent loss, both directions.
+(and the packer wrote a vestigial `genresAsOf` that nothing reads — dropped from the schema, not carried). So Save/Restore silently drops the real ones.
 
 This is the drift the merge-completeness chokepoint (alpha.2) was built to kill, one layer out.
 
@@ -76,7 +76,7 @@ A single ordered list; each entry describes one wire field:
     numbers (`parsePrice`).
 - **Fields this restores that Save/Restore drops today:** `dateAdded`, `orphanStatus`,
   `orphanCheckedDate`, `collectionTags`, `collectionTagSeen`, `isDeleted`/`deletedAt`/
-  `deletedFromFolderIds`, `publicationDate`, `seriesTotal`, `hasEnrichedData`, `genresAsOf`.
+  `deletedFromFolderIds`, `publicationDate`, `seriesTotal`, `hasEnrichedData`.
 
 **Backup is lossless:** every app-authored *and* Amazon-sourced field is packed, so a restore is
 complete without needing a re-fetch. (This corrects an earlier framing — Amazon-sourced fields are

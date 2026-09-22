@@ -14,7 +14,7 @@ function ownedBook() {
         title: 'Local Title', author: 'Jane Doe', series: 'The Series', seriesPosition: 3,
         seriesTotal: 7, coverUrl: 'c.jpg', description: 'desc', topReviews: [{ r: 5 }],
         publicationDate: '2020-01-01', rating: 4.5, ratingCount: '1,234', genres: ['scifi'],
-        genresAsOf: '2026-09-01', hasEnrichedData: true, binding: 'Kindle Edition',
+        hasEnrichedData: true, binding: 'Kindle Edition',
         currentPrice: 6.99, listPrice: 9.99, priceFetchedAt: '2026-09-20', targetPrice: 5.0,
         priceTrigger: 4.99, priceAtGoalSet: 9.99, priceGoalSetAt: '2026-01-01',
         onWishlist: false, ownershipType: 'purchased', lastAmazonOwnershipType: 'purchased',
@@ -95,7 +95,6 @@ test('previously-lost fields survive the round trip', () => {
     assert.strictEqual(b.targetPrice, 5.0, 'targetPrice (was packed, never unpacked)');
     assert.strictEqual(b.dateAdded, '2019-06-02', 'dateAdded (was never unpacked)');
     assert.strictEqual(b.seriesTotal, 7, 'seriesTotal (was hard-blanked)');
-    assert.strictEqual(b.genresAsOf, '2026-09-01', 'genresAsOf (was never unpacked)');
     assert.strictEqual(b.publicationDate, '2020-01-01', 'publicationDate (was never packed)');
     assert.strictEqual(b.hasEnrichedData, true, 'hasEnrichedData (was never packed)');
     assert.strictEqual(b.orphanStatus, 'verified', 'orphanStatus');
