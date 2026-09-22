@@ -4,6 +4,7 @@
 **Status**: Planned
 **Created**: 2026-01-07
 **Updated**: 2026-03-04 — Orphan detection approach superseded by [SMART-FETCH-DESIGN.md](SMART-FETCH-DESIGN.md) (fetcher-side background scan replaces loadId approach). Recycle Bin design below remains valid.
+**SUPERSEDED**: 2026-09-22 — the orphan-cleanup UX **and its durable-status lifecycle** now live in [../ORPHAN-CLEANUP.md](../ORPHAN-CLEANUP.md). This file is kept only as the historical record; note that *its* `isKeptOrphan` / Keep / Ignore(re-prompt-next-load) lifecycle was the durable model that got dropped when detection moved to the fetcher scan — and that the new design revives. (See ORPHAN-CLEANUP §1 for how losing this lifecycle caused the 7.16.0 scope miss.)
 
 ---
 
