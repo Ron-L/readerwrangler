@@ -52,6 +52,10 @@
 //                   userEdited (union); lastAmazonOwnershipType / addedToWishlist (incoming ?? local).
 //   'soft-delete'   isDeleted/deletedAt/deletedFromFolderIds — OR-merged (a delete on
 //                   either side sticks). Special-cased in mergeBookFields.
+//   'freshness'     orphanStatus/orphanCheckedDate — sticky by freshness: the copy with the
+//                   NEWER orphanCheckedDate wins. A fresh scan (orphan OR verified) wins; a stale
+//                   echo, or a fetcher run that carries no scan, can't clear a flagged orphan.
+//                   Guest-guard stamp pattern (MULTI-INSTANCE §3). Special-cased in mergeBookFields.
 //
 // ⚠️ OWNERSHIP-AUDIT SUSPECTS (2026-09-22): a few 'amazon' entries CODIFY CURRENT
 // BEHAVIOR but may actually be app/user-authored — the same latent class as orphanStatus.
@@ -111,8 +115,8 @@ const BOOK_FIELD_OWNERSHIP = {
     dateAdded:       'amazon',    // set once from the wire; stable across fetches
     collections:     'amazon',    // Kindle collections — read-only from Amazon
     readStatus:      'amazon',    // refreshed from Amazon collections each fetch
-    orphanStatus:      'amazon',  // KNOWN: becomes freshness-special in 7.16.0 (ORPHAN-CLEANUP §3)
-    orphanCheckedDate: 'amazon',  // rides orphanStatus (same 7.16.0 change)
+    orphanStatus:      'freshness', // sticky: the newer orphanCheckedDate wins (special-cased below) — ORPHAN-CLEANUP §3
+    orphanCheckedDate: 'freshness', // the freshness stamp orphanStatus rides
     hasEnrichedData:   'amazon',  // fetcher-set enrichment flag
 };
 
@@ -148,6 +152,18 @@ const mergeBookFields = (local, incoming) => {
     // Amazon-ownership snapshot: fresh Amazon signal wins, keep local if incoming lacks it
     merged.lastAmazonOwnershipType = incoming.lastAmazonOwnershipType ?? local.lastAmazonOwnershipType;
     merged.addedToWishlist = incoming.addedToWishlist ?? local.addedToWishlist;
+    // orphanStatus: sticky by freshness — the copy with the newer orphanCheckedDate wins. A fresh scan
+    // (orphan OR verified) wins so a returned book clears; a stale echo, or a fetcher run carrying no
+    // scan (no orphanCheckedDate), can't clear a flagged orphan. {...incoming} already took incoming's
+    // pair; override only when LOCAL is strictly fresher. Guest-guard stamp (MULTI-INSTANCE §3).
+    {
+        const localOCD = local.orphanCheckedDate ? new Date(local.orphanCheckedDate).getTime() : 0;
+        const incomingOCD = incoming.orphanCheckedDate ? new Date(incoming.orphanCheckedDate).getTime() : 0;
+        if (incomingOCD < localOCD) {
+            merged.orphanStatus = local.orphanStatus;
+            merged.orphanCheckedDate = local.orphanCheckedDate;
+        }
+    }
     // soft-delete: OR-merge (a delete on either side sticks; survives relay imports)
     merged.isDeleted = local.isDeleted || incoming.isDeleted || false;
     merged.deletedAt = local.deletedAt || incoming.deletedAt || null;
@@ -176,6 +192,7 @@ const KNOWN_BOOK_FIELDS = new Set(Object.keys(BOOK_FIELD_OWNERSHIP));
 // map exists to kill). Gate-tested in bookMerge.test.js.
 const FIELD_MERGE_CLASSES = new Set([
     'user', 'edit', 'edit-format', 'ride-wishlist', 'amazon', 'identity', 'special', 'soft-delete',
+    'freshness',
 ]);
 
 // Return the keys on `book` that are NOT known legitimate desktop fields — phantoms / misnamed /

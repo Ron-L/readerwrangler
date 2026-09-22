@@ -118,13 +118,25 @@ filters, not the removed-books surfaces.
 
 ---
 
-## 6. Scope & non-goals (7.16.0)
+## 6. Scope & non-goals — SPLIT into two releases (revised 2026-09-22)
 
-**In:** sticky `orphanStatus` (§3) + gate invariant; `isKeptOrphan` revival; live-count nudge; File →
-Removed books entry; import-summary line + Review button; the 🛡️ merge-log → summary line (Option C).
-**Decide:** whether §4's full merge-completeness chokepoint rides this release or a sibling one.
-**Out (for now):** a Recycle-Bin virtual column (the app already has Trash); cross-device propagation of
-`isKeptOrphan` (user-owned = local-wins, matches MULTI-INSTANCE §5); auto-empty policies.
+This design is delivered in **two** parts, because the merge/durability pieces are data-integrity
+HARDENING while the rest is orphan UI. (The split was decided when testing revealed the original dialog
+was a one-shot and the root cause lived in the merge — see §1.)
+
+**A. 7.16.0 — data-integrity / merge hardening** (branch `feature/orphan-cleanup-dialog`, in flight):
+the merge-completeness chokepoint (§4, shipped alpha.2); the collectionTags/collectionTagSeen ownership fix
+(alpha.3) + its push-payload second half; **sticky `orphanStatus`** (§3, freshness-guard); the 🛡️ merge-log
+→ summary line (Option C). The orphan **dialog** (built as alpha.1) is REVERTED off this branch before
+merge — it's an unfinished feature, not hardening.
+
+**B. Later — orphan cleanup FEATURE** (its own branch, ~7.17.0): the dialog (rebuilt from the reverted
+alpha.1 + this doc), `isKeptOrphan` revival (§2/§5), the live-count nudge, File → Removed books entry, and
+the import-summary line + Review button (§5). Builds ON part A — durable `orphanStatus` is the foundation
+the UI needs, which is exactly why it goes in the hardening first.
+
+**Out of both (for now):** a Recycle-Bin virtual column (the app already has Trash); cross-device
+propagation of `isKeptOrphan` (user-owned = local-wins, MULTI-INSTANCE §5); auto-empty policies.
 
 ---
 

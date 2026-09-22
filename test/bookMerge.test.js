@@ -99,6 +99,30 @@ test('collectionTags / collectionTagSeen survive an import whose incoming lacks 
         'collectionTagSeen wiped by an import that lacked it');
 });
 
+// ---- orphanStatus: sticky by freshness (7.16.0 hardening — ORPHAN-CLEANUP §3) ----
+test('orphanStatus: a stale echo or scan-less incoming cannot clear a flagged orphan', () => {
+    let { local, incoming } = makePair();
+    local.orphanStatus = 'orphan'; local.orphanCheckedDate = '2026-09-22T10:00:00Z';
+    incoming.orphanStatus = 'verified'; incoming.orphanCheckedDate = '2026-09-20T10:00:00Z'; // older
+    let merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.orphanStatus, 'orphan', 'an older incoming scan cleared a local orphan');
+    // a lean fetcher run carrying NO scan at all also must not clear it
+    ({ local, incoming } = makePair());
+    local.orphanStatus = 'orphan'; local.orphanCheckedDate = '2026-09-22T10:00:00Z';
+    delete incoming.orphanStatus; delete incoming.orphanCheckedDate;
+    merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.orphanStatus, 'orphan', 'a scan-less incoming cleared a local orphan');
+});
+
+test('orphanStatus: a fresher scan wins (a returned book clears to verified)', () => {
+    const { local, incoming } = makePair();
+    local.orphanStatus = 'orphan'; local.orphanCheckedDate = '2026-09-20T10:00:00Z';
+    incoming.orphanStatus = 'verified'; incoming.orphanCheckedDate = '2026-09-22T10:00:00Z'; // newer
+    const merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.orphanStatus, 'verified', 'a fresher scan did not win');
+    assert.strictEqual(merged.orphanCheckedDate, '2026-09-22T10:00:00Z');
+});
+
 // ---- Overridable fields: userEdited flag decides ----
 test('overridable field with userEdited flag → local wins', () => {
     const { local, incoming } = makePair();
