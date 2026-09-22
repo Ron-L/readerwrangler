@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.16.0-alpha.6";  // Build version for this file
+        const ORGANIZER_VERSION = "7.16.0-alpha.7";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6015,6 +6015,11 @@
                     }
 
                     data = parsedData.books.items;
+                    // v7.16.0 - refuse ancient v1.x records (raw amazonData blobs) even inside a 2.x wrapper;
+                    // unpackBook handles the current flat shape only. See SERIALIZATION.md §10.
+                    if (data.some(it => it && it.amazonData)) {
+                        throw new Error("This file was saved by a very old, unsupported version of ReaderWrangler and can't be restored.");
+                    }
                     metadata = {
                         schemaVersion: parsedData.schemaVersion,
                         fetchDate: parsedData.books.fetchDate,
@@ -6056,25 +6061,13 @@
                         });
                     }
                 }
-                // Legacy v1.x format - object with metadata and books array
-                else if (parsedData.metadata && parsedData.books) {
-                    data = parsedData.books;
-                    metadata = parsedData.metadata;
-
-                    console.log(`📋 Loaded legacy schema ${metadata.schemaVersion}`);
-                    console.log(`   Total books: ${metadata.totalBooks}`);
-                    console.log(`   Fetched: ${new Date(metadata.fetchDate).toLocaleString()}`);
-                    console.log(`   Fetcher version: ${metadata.fetcherVersion}`);
-                    console.log(`   ⚠️  Note: Re-run fetchers to upgrade to v2.0 format`);
-
-                    // Legacy format - collections loaded separately (use existing collectionsData state)
-                    collections = collectionsData || null;
-                }
+                // v7.16.0 - Anything that isn't the current schema 2.x is refused honestly. The pre-2.0
+                // v1.x formats (raw amazonData blobs, or {metadata, books}) predate essentially all current
+                // architecture (before schema 2.0 / the V4 "Column App" / Book Explorer) and are no longer
+                // supported — importing one produced mostly-blank books. See docs/design/SERIALIZATION.md §10.
                 else {
-                    console.error('❌ Invalid library JSON format');
-                    console.error('   Expected: v2.0 unified or legacy {metadata, books}');
-                    console.error('   Received:', Object.keys(parsedData));
-                    throw new Error('Invalid library JSON format - please re-fetch your library using the latest fetcher');
+                    console.error('❌ Unsupported library file (pre-2.0 format):', Object.keys(parsedData));
+                    throw new Error("This file was saved by a very old, unsupported version of ReaderWrangler and can't be restored.");
                 }
 
                 // Update library status from loaded JSON metadata
@@ -6115,137 +6108,15 @@
                 };
 
                 const processedBooks = data.map((item) => {
-                    const isNewFormat = !item.amazonData;
-
-                    // Get collections data for this book (if available)
+                    // v7.16.0 - ONE unpacker (serialization.js `unpackBook`). Legacy v1.x amazonData is refused
+                    // upstream, so this handles only the current flat schema — no more per-item format branch.
+                    // Collections/read status ride a separate list, merged in here (not part of the book wire
+                    // item). See docs/design/SERIALIZATION.md.
+                    const book = unpackBook(item);
                     const bookCollections = collections?.get(item.asin) || { readStatus: 'UNKNOWN', collections: [] };
-
-                    if (isNewFormat) {
-                        // v4.18.0.a - Use normalizeBook to handle legacy isOwned/isWishlist fields
-                        const normalized = normalizeBook(item);
-                        return {
-                            id: item.asin,  // Use ASIN as stable ID instead of sequential number
-                            asin: item.asin,
-                            title: item.title || 'Unknown',
-                            author: item.authors || 'Unknown',
-                            acquired: item.acquisitionDate || '',
-                            series: item.series || '',
-                            seriesPosition: item.seriesPosition || '',
-                            seriesTotal: '',
-                            rating: item.rating || 0,
-                            ratingCount: item.reviewCount || '',
-                            description: item.description || '',
-                            topReviews: item.topReviews || [],
-                            // v7.7.0-alpha.12 (FORMAT POLICY, 2026-09-04) - blank means unknown; the old 'Kindle eBook'
-                            // default was an invented claim. alpha.15: the token is also FILTERED on the way in —
-                            // backup/restore round trips seeded it into the relay canonical, and without this filter
-                            // every import resurrected it (blocking the fetcher's verbatim backfill forever).
-                            binding: (item.binding === 'Kindle eBook' ? undefined : item.binding) || undefined,
-                            coverUrl: item.coverUrl,
-                            publicationDate: item.publicationDate || '',
-                            hasEnrichedData: true,
-                            store: "Amazon",
-                            // v4.18.0.a - onWishlist replaces isWishlist (normalized handles legacy)
-                            onWishlist: normalized.onWishlist,
-                            isHidden: item.isHidden || false,
-                            addedToWishlist: item.addedToWishlist || '',
-                            // Ownership type (v4.9.0, v4.18.0.a - normalized handles 'wishlist' type)
-                            ownershipType: normalized.ownershipType,
-                            lastAmazonOwnershipType: item.lastAmazonOwnershipType || undefined, // v7.8.0-alpha.3 - carrier checklist (OWNERSHIP-MODEL.md §4)
-                            // Collections data
-                            readStatus: bookCollections.readStatus,
-                            collections: bookCollections.collections,
-                            // Price data (v4.17.0.a, v4.18.0.a - parse string prices to numbers)
-                            currentPrice: parsePrice(item.currentPrice),
-                            listPrice: parsePrice(item.listPrice),
-                            priceFetchedAt: item.priceFetchedAt || item.priceAsOf || null, // v7.1.0 - wishlist adds stamp priceAsOf
-                            priceTrigger: item.priceTrigger ?? null,
-                            priceAtGoalSet: item.priceAtGoalSet ?? null, // v7.12.0 - price when goal was set
-                            priceGoalSetAt: item.priceGoalSetAt ?? null, // v7.12.0
-                            // Genre data (v4.17.0.a)
-                            genres: item.genres || [],
-                            // v5.0.0-alpha.175.28 - User metadata (tags, notes)
-                            tags: item.tags,
-                            userNote: item.note,
-                            myRating: item.myRating || 0,  // v5.0.0-alpha.175.31 - Personal rating
-                            userEdited: item.userEdited || undefined,  // v5.4.7 - Restore user-edited flags
-                            // v7.7.0-alpha.11 - Orphan flags from the scan's follow-up run. The allow-list
-                            // strip class again: the fetcher marked them since v5.0.0, this mapping discarded
-                            // them, and the 🔍 Orphan filter (here AND mobile) showed 0 forever.
-                            orphanStatus: item.orphanStatus || null,
-                            orphanCheckedDate: item.orphanCheckedDate || null,
-                            collectionTags: item.collectionTags || [], // v7.16.0 - preserve Tag-from-Collections state on import/restore
-                            collectionTagSeen: item.collectionTagSeen || false, // v7.16.0
-                            // v6.0.0-alpha.48 - Trash Bin state (preserved for backup restore)
-                            isDeleted: item.isDeleted || false,
-                            deletedAt: item.deletedAt || null,
-                            deletedFromFolderIds: item.deletedFromFolderIds || null
-                        };
-                    } else {
-                        // Legacy format with amazonData (v1.x format)
-                        const amazonData = item.amazonData?.data?.getProduct;
-                        const imageData = amazonData?.images?.images?.[0]?.hiRes;
-
-                        let asin = item.asin;
-                        if (asin && asin.length < 10 && /^[0-9]+$/.test(asin)) {
-                            asin = asin.padStart(10, '0');
-                        }
-
-                        let coverUrl = `https://images-na.ssl-images-amazon.com/images/P/${asin}.01.LZZZZZZZ.jpg`;
-                        if (imageData?.physicalId) {
-                            coverUrl = `https://images-na.ssl-images-amazon.com/images/I/${imageData.physicalId}.${imageData.extension}`;
-                        }
-
-                        // v4.18.0.a - Use normalizeBook to handle legacy isOwned/isWishlist fields
-                        const normalized = normalizeBook(item);
-
-                        return {
-                            id: asin,  // Use ASIN as stable ID instead of sequential number
-                            asin: asin,
-                            title: amazonData?.title?.displayString || item.title || 'Unknown',
-                            author: amazonData?.byLine?.contributors?.[0]?.contributor?.author?.profile?.displayName || item.author || 'Unknown',
-                            acquired: amazonData?.pastPurchase?.purchaseHistory?.lastOrderDate || item.acquired || '',
-                            series: amazonData?.bookSeries?.singleBookView?.series?.title || '',
-                            seriesPosition: amazonData?.bookSeries?.singleBookView?.series?.position || '',
-                            seriesTotal: amazonData?.bookSeries?.singleBookView?.series?.numberOfBooks || '',
-                            rating: amazonData?.customerReviewsSummary?.rating?.value || 0,
-                            ratingCount: amazonData?.customerReviewsSummary?.count?.displayString || '',
-                            description: extractDescription(amazonData?.description),
-                            topReviews: amazonData?.customerReviewsTop?.reviews || [],
-                            binding: amazonData?.bindingInformation?.binding?.displayString || undefined, // v7.7.0-alpha.12 (FORMAT POLICY) - blank means unknown, never an invented default
-                            coverUrl: coverUrl,
-                            publicationDate: '', // Legacy format doesn't have publication date
-                            hasEnrichedData: true,
-                            store: "Amazon",
-                            // v4.18.0.a - onWishlist replaces isWishlist (normalized handles legacy)
-                            onWishlist: normalized.onWishlist,
-                            isHidden: item.isHidden || false,
-                            addedToWishlist: item.addedToWishlist || '',
-                            // Ownership type (v4.9.0, v4.18.0.a - normalized handles 'wishlist' type)
-                            ownershipType: normalized.ownershipType,
-                            lastAmazonOwnershipType: item.lastAmazonOwnershipType || undefined, // v7.8.0-alpha.3 - carrier checklist (OWNERSHIP-MODEL.md §4)
-                            // Collections data
-                            readStatus: bookCollections.readStatus,
-                            collections: bookCollections.collections,
-                            // Price data (v4.17.0.a, v4.18.0.a - parse string prices to numbers)
-                            currentPrice: parsePrice(item.currentPrice),
-                            listPrice: parsePrice(item.listPrice),
-                            priceFetchedAt: item.priceFetchedAt || item.priceAsOf || null, // v7.1.0 - wishlist adds stamp priceAsOf
-                            priceTrigger: item.priceTrigger ?? null,
-                            priceAtGoalSet: item.priceAtGoalSet ?? null, // v7.12.0 - price when goal was set
-                            priceGoalSetAt: item.priceGoalSetAt ?? null, // v7.12.0
-                            // Genre data (v4.17.0.a)
-                            genres: item.genres || [],
-                            // v5.0.0-alpha.175.28 - User metadata (tags, notes)
-                            tags: item.tags,
-                            userNote: item.note,
-                            myRating: item.myRating || 0,  // v5.0.0-alpha.175.31 - Personal rating
-                            orphanStatus: item.orphanStatus || null, // v7.7.0-alpha.11 - see new-format branch
-                            orphanCheckedDate: item.orphanCheckedDate || null,
-                            collectionTags: item.collectionTags || [], // v7.16.0 - preserve Tag-from-Collections state
-                            collectionTagSeen: item.collectionTagSeen || false // v7.16.0
-                        };
-                    }
+                    book.readStatus = bookCollections.readStatus;
+                    book.collections = bookCollections.collections;
+                    return book;
                 });
 
                 // Sort books by acquisition date (newest first) to maintain original order
