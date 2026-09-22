@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.16.0-alpha.8";  // Build version for this file
+        const ORGANIZER_VERSION = "7.16.0-alpha.9";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -4013,6 +4013,28 @@
                             }
 
                             setBooks(loadedBooks);
+
+                            // v7.16.0 - Serialization self-check (SERIALIZATION.md §5): on localhost, once per
+                            // build, confirm the whole library survives a pack→unpack round trip. A mechanism
+                            // (auto-runs on load) rather than a dev test someone must remember to run (no CI here).
+                            try {
+                                const _loc = window.location;
+                                const _isLocalhost = _loc && ['localhost', '127.0.0.1'].includes(_loc.hostname);
+                                if (_isLocalhost && typeof roundTripCheck === 'function'
+                                    && localStorage.getItem('rw-serialization-selftest') !== ORGANIZER_VERSION) {
+                                    const _fail = roundTripCheck(loadedBooks);
+                                    if (_fail) {
+                                        const _msg = `${_fail.asin}.${_fail.field}: ${JSON.stringify(_fail.first)} → ${JSON.stringify(_fail.second)}`;
+                                        console.error('🧪❌ [serialization self-check] round-trip FAILED — ' + _msg);
+                                        window.alert('Serialization self-check FAILED (localhost dev):\n\n' + _msg
+                                            + '\n\nA book field does not survive pack→unpack. See docs/design/SERIALIZATION.md.');
+                                    } else {
+                                        console.log(`🧪✅ [serialization self-check] ${loadedBooks.length} books round-trip clean (${ORGANIZER_VERSION}).`);
+                                    }
+                                    localStorage.setItem('rw-serialization-selftest', ORGANIZER_VERSION);
+                                }
+                            } catch (_e) { console.warn('[serialization self-check] skipped:', _e && _e.message); }
+
                             await saveBooksToIndexedDB(loadedBooks);
 
                             // v4.13.0: cover cache
