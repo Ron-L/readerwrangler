@@ -71,6 +71,11 @@ const BOOK_FIELD_OWNERSHIP = {
     tags:           'user',
     userNote:       'user',   // NB: the real field is userNote — the backup wire calls it `note`
     myRating:       'user',
+    // Tag-from-Collections wizard state — app/user-authored. The fetcher NEVER sets these AND the
+    // device-state push (readerwrangler ~5560) doesn't carry them, so incoming ALWAYS lacks them →
+    // they MUST be local-wins or every import silently wipes them (7.16.0 fix; were 'amazon' = wiped).
+    collectionTags:    'user',   // RW tags created FROM Kindle collections; removal-detection needs them to persist
+    collectionTagSeen: 'user',   // "user has processed this book in the wizard" — drives the "New books only" toggle
 
     // USER-OVERRIDABLE — userEdited flag decides, else incoming
     title:          'edit',
@@ -106,8 +111,6 @@ const BOOK_FIELD_OWNERSHIP = {
     dateAdded:       'amazon',    // set once from the wire; stable across fetches
     collections:     'amazon',    // Kindle collections — read-only from Amazon
     readStatus:      'amazon',    // refreshed from Amazon collections each fetch
-    collectionTags:    'amazon',  // SUSPECT: user tag-promotion mutates this (readerwrangler ~13279) — audit
-    collectionTagSeen: 'amazon',  // SUSPECT: app "seen" flag set on a USER action → incoming-wins may re-nag — audit
     orphanStatus:      'amazon',  // KNOWN: becomes freshness-special in 7.16.0 (ORPHAN-CLEANUP §3)
     orphanCheckedDate: 'amazon',  // rides orphanStatus (same 7.16.0 change)
     hasEnrichedData:   'amazon',  // fetcher-set enrichment flag

@@ -82,6 +82,23 @@ test('every user-owned field: a local VALUE wins over a different incoming value
     }
 });
 
+// ---- Tag-from-Collections wizard state survives import (the 7.16.0 wipe fix) ----
+// collectionTags/collectionTagSeen are app/user-authored, but the fetcher never sets them
+// AND the device-state push doesn't carry them — so incoming ALWAYS lacks them. As 'amazon'
+// (incoming-wins) they were wiped on EVERY import; as 'user' (local-wins) they survive.
+test('collectionTags / collectionTagSeen survive an import whose incoming lacks them', () => {
+    const { local, incoming } = makePair();
+    local.collectionTags = ['read', 'scifi'];
+    local.collectionTagSeen = true;
+    delete incoming.collectionTags;      // a fetch / device-state record never carries these
+    delete incoming.collectionTagSeen;
+    const merged = mergeBookFields(local, incoming);
+    assert.deepStrictEqual(merged.collectionTags, ['read', 'scifi'],
+        'collectionTags wiped by an import that lacked it');
+    assert.strictEqual(merged.collectionTagSeen, true,
+        'collectionTagSeen wiped by an import that lacked it');
+});
+
 // ---- Overridable fields: userEdited flag decides ----
 test('overridable field with userEdited flag → local wins', () => {
     const { local, incoming } = makePair();

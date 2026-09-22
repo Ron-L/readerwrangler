@@ -134,6 +134,35 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   the trash safety net) → a clear *"Permanently delete N books — can't be undone"* confirm. (Started as a
   passive info notice; Ron upgraded it to the actionable checkbox-delete.) New dialog → follow the
   new-dialog checklist / the `<Dialog>` primitive when it lands.
+  **→ NOW DESIGNED + IN BUILD: docs/design/ORPHAN-CLEANUP.md** (expanded scope after testing found the
+  original was a one-shot): durable orphan STATUS (not an import-time moment), sticky-by-freshness merge,
+  `isKeptOrphan` revival, persistent entry points (live-count nudge + File→Removed books + import-summary
+  button). Branch `feature/orphan-cleanup-dialog`; **7.16.0-alpha.2 = the merge-completeness chokepoint
+  (below) shipped**; remaining: sticky orphanStatus + entry points. Open Qs in the doc await Ron's red pen.
+
+- [ ] **bookMerge ownership audit — the deeper invariant the chokepoint surfaced (2026-09-22)**.
+  DONE so far (7.16.0-alpha.3): `collectionTagSeen` + `collectionTags` were silently `'amazon'`
+  (incoming-wins) and WIPED on every import — the fetcher never sets them AND the device-state push
+  (readerwrangler ~5560-5594) doesn't carry them, so incoming ALWAYS lacks them. Reclassified to `'user'`
+  (local-wins) + a gate test locking it. **The general invariant to sweep for:** any book field the APP
+  writes but the device-state push payload does NOT include must be `'user'` (local-wins), or import
+  silently wipes it. Walk the payload vs the registry and check every field lands right.
+  **SECOND HALF — still OPEN (separate, wire-schema):** those two fields are also absent from the push
+  payload, so **Save/Restore and cross-device still lose them** (local-wins only saves them from the IMPORT
+  merge, not from a restore that replaces wholesale). If preserving wizard state across backup/restore
+  matters, ADD both to the payload builder (~5560) + the import parser (~6186/6270). Decide if in scope.
+
+- [ ] **Principle-to-hook audit — can each distilled law be MECHANIZED, not just remembered? (Ron 2026-09-22)**
+  Motivated by "assuming bit us again" (orphanStatus durability, a DESIGN-time assumption the edit-time gate
+  never saw). Walk `docs/PRINCIPLES.md` law by law and classify each: **(a) reducible to a deterministic gate**
+  (a script/test a hook runs + BLOCKS on red — real teeth: e.g. run the test suite before commit; grep TODO/
+  REMOVE before release; version-bump-when-.js-changed; cache-buster-matches; the merge-completeness test)
+  vs **(b) judgment-only** (NEVER ASSUME, model-legal-states, UX-first — a hook can only REMIND, and reminders
+  decay to rubber-stamps). For (b), the leverage is giving reminders *teeth via a required artifact*: e.g. a
+  design-doc **`## Assumptions (and how each was verified)`** section a PreToolUse hook can check EXISTS on a
+  `docs/design/*` write — the content is judgment but the visibility is enforced, and it fires at DESIGN time
+  (where this assumption slipped), not just edit time. Guard against reminder-bloat (the gate is already 11
+  points; more dilutes). Meta-principle recursion: prefer converting a law to a check over adding another tap.
 
 
 - [ ] **Book dialog goes fully transactional (7.14.0 — NEXT UP, ratified 2026-09-10; renumbered thrice: 7.11.0=audit, 7.12.0=price snapshot, 7.13.0=copy chips)**:
