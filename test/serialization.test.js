@@ -3,6 +3,11 @@
 // lost or renamed wrong across pack→unpack, and the idempotency self-check is stable.
 const assert = require('assert');
 const { WIRE_FIELDS, packBook, unpackBook, roundTripCheck } = require('../serialization.js');
+const { KNOWN_BOOK_FIELDS } = require('../bookMerge.js');
+
+// Fields that legitimately live on a book but are NOT on the book wire item: id is derived from asin;
+// readStatus/collections travel in a separate collections sub-list, merged in after unpack.
+const NON_WIRE_KNOWN = new Set(['id', 'readStatus', 'collections']);
 
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log('  ✓ ' + name); }
@@ -123,6 +128,21 @@ test('cleared user fields stay cleared through the round trip', () => {
     assert.strictEqual(b.collectionTagSeen, false);
     assert.deepStrictEqual(b.collectionTags, []);
     assert.strictEqual(b.myRating, 0);
+});
+
+// ---- Cross-check: the wire list and the book schema must agree (the genresAsOf guard) ----
+// Turns the runtime validator's catch into a BUILD-time gate, both directions.
+test('every WIRE_FIELDS.app is a KNOWN_BOOK_FIELD (nothing crosses the wire outside the schema)', () => {
+    const strays = WIRE_FIELDS.map(f => f.app).filter(a => !KNOWN_BOOK_FIELDS.has(a));
+    assert.deepStrictEqual(strays, [],
+        `wire field(s) not in KNOWN_BOOK_FIELDS (would trip the schema validator): ${strays.join(', ')}`);
+});
+
+test('every KNOWN_BOOK_FIELD is serialized or a known non-wire field (nothing silently dropped on save)', () => {
+    const wireApps = new Set(WIRE_FIELDS.map(f => f.app));
+    const unserialized = [...KNOWN_BOOK_FIELDS].filter(f => !wireApps.has(f) && !NON_WIRE_KNOWN.has(f));
+    assert.deepStrictEqual(unserialized, [],
+        `book field(s) in the schema but not serialized (lost on Save/Restore): ${unserialized.join(', ')}`);
 });
 
 console.log(`\n${passed} serialization tests passed.`);
