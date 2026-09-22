@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.16.0-alpha.4";  // Build version for this file
+        const ORGANIZER_VERSION = "7.16.0-alpha.5";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -5587,6 +5587,9 @@
                     myRating: book.myRating || 0,
                     userEdited: book.userEdited || undefined,
                     orphanStatus: book.orphanStatus || null, // v6.12.0 Phase 8b - mobile "orphan" ownership filter
+                    orphanCheckedDate: book.orphanCheckedDate || null, // v7.16.0 - orphan freshness stamp travels (push + backup) so orphan state survives Save/Restore
+                    collectionTags: book.collectionTags || [], // v7.16.0 - Tag-from-Collections state; MUST travel or Save/Restore loses it (was omitted → wiped)
+                    collectionTagSeen: book.collectionTagSeen || false, // v7.16.0 - "processed in wizard" flag; same reason
                     // v6.0.0-alpha.48 - Trash Bin state
                     isDeleted: book.isDeleted || false,
                     deletedAt: book.deletedAt || null,
@@ -6239,6 +6242,8 @@
                             // them, and the 🔍 Orphan filter (here AND mobile) showed 0 forever.
                             orphanStatus: item.orphanStatus || null,
                             orphanCheckedDate: item.orphanCheckedDate || null,
+                            collectionTags: item.collectionTags || [], // v7.16.0 - preserve Tag-from-Collections state on import/restore
+                            collectionTagSeen: item.collectionTagSeen || false, // v7.16.0
                             // v6.0.0-alpha.48 - Trash Bin state (preserved for backup restore)
                             isDeleted: item.isDeleted || false,
                             deletedAt: item.deletedAt || null,
@@ -6304,7 +6309,9 @@
                             userNote: item.note,
                             myRating: item.myRating || 0,  // v5.0.0-alpha.175.31 - Personal rating
                             orphanStatus: item.orphanStatus || null, // v7.7.0-alpha.11 - see new-format branch
-                            orphanCheckedDate: item.orphanCheckedDate || null
+                            orphanCheckedDate: item.orphanCheckedDate || null,
+                            collectionTags: item.collectionTags || [], // v7.16.0 - preserve Tag-from-Collections state
+                            collectionTagSeen: item.collectionTagSeen || false // v7.16.0
                         };
                     }
                 });
