@@ -217,7 +217,20 @@ Reply to the user still owed (Ron's channel).
 
 
 - [ ] **Legacy FOLDERS_KEY/BOOKLISTS_KEY migration reads: KEEP INDEFINITELY** (Ron 2026-09-04: field users update on their own schedule — GoatCounter shows real users; the reads are cheap and dated comments explain them). Revisit only with adoption evidence, never on a release-count schedule.
-- [ ] **Multi-tab hardening — Web-Locks read-only second tab** + reload-then-promote + live/freeze viewer → designed in docs/design/MULTI-INSTANCE.md §4. NEXT in the agreed queue after 7.7.0 lands.
+- [ ] **Multi-tab hardening — Web-Locks read-only second tab (MEDIUM priority)** + reload-then-promote +
+  live/freeze viewer → designed in docs/design/MULTI-INSTANCE.md §4. This is **Tier 0**: the real data-loss
+  footgun (two tabs share ONE localStorage, so a stale tab's edit clobbers the other's work). Fully designed
+  and ratified 2026-08-30; unbuilt. (Queue note "after 7.7.0" is stale — 7.7.0 shipped long ago; this just
+  hasn't been picked up.)
+- [ ] **Cross-browser sequential coherence — check-on-activation + soft relay lease (LOW priority)** →
+  designed in docs/design/MULTI-INSTANCE.md **§6** (added 2026-09-22). This is **Tier 1**: closes the
+  restore-to-sync footgun (two browsers on one channel via a copied backup) *without* live sync or a merge.
+  On idle→in-use, the browser compares the relay's serialized-state stamp to its own; if behind, offers
+  **Catch up & edit here / Just view / Leave as-is** (adopt the relay org blob + optionally claim the soft
+  lease). Real work = giving the desktop a device-state **adopt** path (today `getDeviceState` on desktop is
+  only a connection test, readerwrangler.js:1246) + the per-channel lease record. Builds on Tier 0's writer-state
+  (one "am I the editor?" concept, Web Locks in-browser + soft relay lease cross-browser). Live two-way concurrent
+  sync (Tier 2) is REJECTED on the ratio (needs push infra + an org CRDT) — see §6 non-goal.
 
 **Auto-Organize ergonomics:**
 - [ ] **Book List right-click menu — drop Move/Copy + block Book-List→folder drag (A)** — a Book List entry is a shortcut; Move/Copy of a shortcut INTO a folder is incoherent. When viewing a Book List, remove those two menu items (keep Add-to-Book-List, Remove-from-list, Edit, reorder); block plain AND Ctrl drag from a Book List onto a folder. (Ron, 2026-08-08 — the muddled Book-List→Inbox "move" that created the Inbox+folder+list triple-membership mess.)
