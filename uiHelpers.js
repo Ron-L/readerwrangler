@@ -131,3 +131,12 @@ const formatRelativeTime = (dateString) => {
     if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
     return `${diffDays}d ago`;
 };
+
+// Node export for unit tests / shared modules (no-op in the browser classic-script context,
+// where these are plain globals). v7.16.0 - added so serialization.js + its test can reach them.
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        parsePrice, getAmazonUrl, isWishlisted, normalizeBook,
+        calculateFreshness, formatRelativeTime,
+    };
+}

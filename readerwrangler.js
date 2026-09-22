@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.16.0-alpha.5";  // Build version for this file
+        const ORGANIZER_VERSION = "7.16.0-alpha.6";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -5554,47 +5554,9 @@
             const buildDeviceStatePayload = async () => {
                 const allBooks = await loadBooksFromIndexedDB();
 
-                const bookItems = allBooks.map(book => ({
-                    asin: book.asin,
-                    onWishlist: isWishlisted(book), // v7.8.0 - derived wire field (self-healing)
-                    ownershipType: book.ownershipType || (isWishlisted(book) ? 'wishlist' : 'purchased'),
-                    lastAmazonOwnershipType: book.lastAmazonOwnershipType || undefined, // v7.8.0-alpha.3 - carrier checklist (OWNERSHIP-MODEL.md §4)
-                    isHidden: book.isHidden || false,
-                    addedToWishlist: book.addedToWishlist || '',
-                    title: book.title,
-                    authors: book.author,
-                    coverUrl: book.coverUrl,
-                    rating: book.rating,
-                    reviewCount: book.ratingCount,
-                    series: book.series,
-                    seriesPosition: book.seriesPosition,
-                    acquisitionDate: book.acquired,
-                    dateAdded: book.dateAdded, // v7.6.0 - mobile's "Date Added" sort was fabricating this from acquisitionDate (empty for wishlist)
-                    description: book.description,
-                    topReviews: book.topReviews,
-                    binding: book.binding,
-                    currentPrice: book.currentPrice,
-                    listPrice: book.listPrice,
-                    priceAsOf: book.priceFetchedAt || book.priceAsOf, // v7.1.0 - real sweep date (legacy wire name kept)
-                    targetPrice: book.targetPrice,
-                    genres: book.genres,
-                    genresAsOf: book.genresAsOf,
-                    tags: book.tags,
-                    note: book.userNote,
-                    priceTrigger: book.priceTrigger,
-                    priceAtGoalSet: book.priceAtGoalSet ?? null, // v7.12.0 - price when goal was set
-                    priceGoalSetAt: book.priceGoalSetAt ?? null, // v7.12.0
-                    myRating: book.myRating || 0,
-                    userEdited: book.userEdited || undefined,
-                    orphanStatus: book.orphanStatus || null, // v6.12.0 Phase 8b - mobile "orphan" ownership filter
-                    orphanCheckedDate: book.orphanCheckedDate || null, // v7.16.0 - orphan freshness stamp travels (push + backup) so orphan state survives Save/Restore
-                    collectionTags: book.collectionTags || [], // v7.16.0 - Tag-from-Collections state; MUST travel or Save/Restore loses it (was omitted → wiped)
-                    collectionTagSeen: book.collectionTagSeen || false, // v7.16.0 - "processed in wizard" flag; same reason
-                    // v6.0.0-alpha.48 - Trash Bin state
-                    isDeleted: book.isDeleted || false,
-                    deletedAt: book.deletedAt || null,
-                    deletedFromFolderIds: book.deletedFromFolderIds || null
-                }));
+                // v7.16.0 - ONE packer (serialization.js `packBook`) replaces this device-state copy of the
+                // book serializer. See docs/design/SERIALIZATION.md.
+                const bookItems = allBooks.map(packBook);
 
                 const collectionItems = allBooks
                     .filter(book => book.collections || book.readStatus)
@@ -5701,40 +5663,10 @@
                     // Convert app book format back to fetcher format for books.items
                     // v4.18.0.a - Export uses onWishlist + ownershipType (new format)
                     // v4.18.0.d - Export includes price data, genres, targetPrice (user metadata)
-                    const bookItems = allBooks.map(book => ({
-                        asin: book.asin,
-                        onWishlist: isWishlisted(book), // v7.8.0 - derived wire field (self-healing)
-                        ownershipType: book.ownershipType || (isWishlisted(book) ? 'wishlist' : 'purchased'),
-                        lastAmazonOwnershipType: book.lastAmazonOwnershipType || undefined, // v7.8.0-alpha.3 - carrier checklist (OWNERSHIP-MODEL.md §4)
-                        isHidden: book.isHidden || false,
-                        addedToWishlist: book.addedToWishlist || '',
-                        title: book.title,
-                        authors: book.author,
-                        coverUrl: book.coverUrl,
-                        rating: book.rating,
-                        reviewCount: book.ratingCount,
-                        series: book.series,
-                        seriesPosition: book.seriesPosition,
-                        acquisitionDate: book.acquired,
-                        description: book.description,
-                        topReviews: book.topReviews,
-                        binding: book.binding,
-                        // v4.18.0.d - Price data and user metadata
-                        currentPrice: book.currentPrice,
-                        listPrice: book.listPrice,
-                        priceAsOf: book.priceFetchedAt || book.priceAsOf, // v7.1.0 - real sweep date (legacy wire name kept)
-                        targetPrice: book.targetPrice,
-                        genres: book.genres,
-                        genresAsOf: book.genresAsOf,
-                        // v5.0.0-alpha.175.28 - User metadata (tags, notes, price goals)
-                        tags: book.tags,
-                        note: book.userNote,
-                        priceTrigger: book.priceTrigger,
-                        priceAtGoalSet: book.priceAtGoalSet ?? null, // v7.12.0 - price when goal was set
-                        priceGoalSetAt: book.priceGoalSetAt ?? null, // v7.12.0
-                        myRating: book.myRating || 0,  // v5.0.0-alpha.175.31 - Personal rating (0=unrated, 1-5=rated)
-                        userEdited: book.userEdited || undefined  // v5.4.7 - Track user-edited fields
-                    }));
+                    // v7.16.0 - ONE packer (serialization.js `packBook`). This was a DRIFTED duplicate that
+                    // omitted 8 fields → Save/Restore silently lost them (trash state, collection tags, etc.);
+                    // see docs/design/SERIALIZATION.md.
+                    const bookItems = allBooks.map(packBook);
 
                     // Build collections.items from books that have collection data
                     const collectionItems = allBooks
