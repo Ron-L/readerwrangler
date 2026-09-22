@@ -106,6 +106,12 @@ crying wolf.
   mismatch, a loud console error + a localhost popup naming the book/field (same style as the
   field-schema validator). This is the *mechanism* — it runs itself, on real data, without anyone
   remembering to run the dev test (RW has no CI). Ships inert off-localhost.
+- **Build-time cross-check** (added cb82559): the test suite asserts the wire list and the book schema
+  agree BOTH directions — every `WIRE_FIELDS.app` ∈ `KNOWN_BOOK_FIELDS` (catches a field crossing the wire
+  outside the schema — the `genresAsOf` slip the runtime validator caught live), and every
+  `KNOWN_BOOK_FIELD` is serialized or a known non-wire field (`id`/`readStatus`/`collections`) (catches the
+  opposite — a schema field silently dropped on save). Turns the runtime catch into a build-time gate;
+  interim until §11 makes the agreement structural.
 - **Both callers share one `roundTripCheck(book)` function** in the module.
 
 ---
@@ -122,16 +128,18 @@ crying wolf.
 
 ## 7. Staging (commits on this branch)
 
-1. **The module, unwired** — master list + packer + unpacker + `wireRoundTripCheck` + the developer
-   test. No app changes; get the test green first (characterization before change).
-2. **Wire the packer in** — `exportBackup` and `buildDeviceStatePayload` both call the packer (collapse
-   to one packer; **fixes the Save/Restore data loss**). Verify with a real Save→Restore.
-3. **Wire the unpacker in** — `loadLibrary` uses it; the legacy v1.x `amazonData` branch and the
-   legacy-file handling are **removed** in favor of one top-level unsupported-file guard (§10).
-   Add the localhost/version-gated in-app self-check.
-4. **Mobile** — `mapBackupBook` adopts the shared unpacker.
+1. **The module, unwired** ✓ (alpha.6) — master list + `packBook` + `unpackBook` + `roundTripCheck` + the
+   developer test. Characterization green before any wiring.
+2. **Wire the packer in** ✓ (alpha.6) — `exportBackup` and `buildDeviceStatePayload` both call `packBook`
+   (one packer; **fixed the Save/Restore data loss**). Verified live (collectionTagSeen 1470 survived).
+3. **Wire the unpacker in** ✓ (alpha.7) — `loadLibrary` uses `unpackBook`; the legacy v1.x `amazonData`
+   branch + legacy-file handling removed for one unsupported-file guard (§10). Follow-ons: vestigial
+   `genresAsOf` dropped (alpha.8 — the validator caught it), in-app self-check (alpha.9), build-time
+   cross-check (cb82559).
+4. **Mobile** — **DEFERRED to the one-table unification (§11).** `mapBackupBook` diverges (app-names + 3
+   wire quirks + safe defaults); folding it in belongs with the unified table + the safe-default mode.
 
-Each step verified with the pack→unpack round-trip (the repro→fix→verify rhythm we've been using).
+Steps 1–3 done: desktop pack + unpack are one field list, lossless, schema-clean, triple-guarded.
 
 ---
 
@@ -155,9 +163,9 @@ Each step verified with the pack→unpack round-trip (the repro→fix→verify r
 - **`isWishlisted`/`normalizeBook`/`parsePrice` live in `uiHelpers.js`** — verified by grep.
 - **`uiHelpers.js` lacks a Node export** — verified (no `module.exports`; only `bookMerge` and
   `organizeEngine` have one). ⇒ add one.
-- **UNVERIFIED, to confirm during build:** the exact unpack default for every field (some are `''`, some
-  `null`, some `[]`), and whether `mapBackupBook` maps to the same book shape as the desktop unpacker or
-  a mobile subset. The round-trip test is what pins these.
+- **NOW VERIFIED:** unpack defaults are pinned by the round-trip test. `mapBackupBook` maps to a
+  *near-desktop* shape — app-names for most fields, three wire-name quirks (`reviewCount` rendered;
+  `priceAsOf`/`genresAsOf` set-but-dead), plus mobile-safe defaults. Details + plan in §11.
 
 ---
 
@@ -176,8 +184,42 @@ Each step verified with the pack→unpack round-trip (the repro→fix→verify r
   *"This file was saved by a very old, unsupported version of ReaderWrangler and can't be restored."*
   No re-save-in-old-version advice (there's no version picker on GitHub Pages, and old data wouldn't
   survive current code). The master-list unpacker then handles only the current schema — clean.
-- **Mobile:** fold `mapBackupBook` into the shared unpacker **now** (step 4). ✓
+- **Mobile:** ~~fold into the shared unpacker now (step 4)~~ **SUPERSEDED 2026-09-22 — deferred to the
+  one-table unification (§11):** `mapBackupBook` diverges (app-names + 3 wire quirks; needs a safe-default
+  mode + a mobile audit + test), so it's done once, holistically, with the unified table.
 - **In-app self-check:** gated on **localhost AND version-change** (both); no extra Save/Restore
   trigger. ✓
 - **Naming:** **"serialization"** — it covers the wire *and* the backup file. This doc =
   `SERIALIZATION.md`, module = `serialization.js`. ✓
+
+---
+
+## 11. Next: unify into ONE per-field table + fold in mobile (the "next big thing", ratified 2026-09-22)
+
+The end-state that makes drift **structural**, not merely test-caught: merge `BOOK_FIELD_OWNERSHIP`
+(bookMerge.js — merge behavior) and `WIRE_FIELDS` (serialization.js — wire mapping) into **one master
+table**, one row per book field, columns for both. A field then can't exist in one list and not the other
+— the `genresAsOf` slip becomes *unrepresentable*, beyond the §5 cross-check test that only *catches* it.
+
+**Shape:** a new shared `bookFields.js` (the master table). `bookMerge.js` reads its merge column,
+`serialization.js` reads its wire column, `KNOWN_BOOK_FIELDS` = its keys — one source, thin consumers.
+
+**Helpers stay in `uiHelpers`** (`isWishlisted`/`normalizeBook`/`parsePrice`) — used app-wide; the table
+DEPENDS on uiHelpers (clean layering), doesn't absorb them (absorbing would force app-wide imports from
+bookFields, or duplicate = drift). Open: `normalizeBook` is book-specific and *could* migrate — decide then.
+
+**Mobile folds in here (was step 4).** Findings from the aborted step-4 attempt:
+- `mapBackupBook` is **not** 1:1 wire-names — it uses **app-names for most** (`author`, `userNote`,
+  `acquired`) and only three **wire-names**: `reviewCount` (rendered, one spot: mobile.js ~2173),
+  `priceAsOf` + `genresAsOf` (set but never read — dead). So there is no "wire-name mode" to honor:
+  mobile adopts the app shape, its one `reviewCount` render becomes `ratingCount`, the two dead fields drop.
+- Mobile needs **`SAFE_DEFAULT` behavior** — non-undefined defaults (`tags: []`, `userEdited: {}`,
+  `coverUrl: ''`) so its rendering never hits `undefined.map()`. This is a per-field **safe-default column
+  in the table** + a `{ safeDefaults }` option on `unpackBook`, applied in the ONE loop (not a separate
+  branch/`else`). Desktop calls without it (unchanged); mobile calls with it.
+- So mobile becomes `mapBackupBook(item) → unpackBook(item, { safeDefaults: true })` + merge
+  `readStatus`/`collections` + the one render rename. Requires a **mobile field-read audit** + a
+  **dev-deploy mobile test**.
+
+**De-risked** by the existing round-trip test (11 cases) + the 22 merge tests + the §5 cross-check. Its own
+focused step + a short design note when taken up. (TODO filed.)
