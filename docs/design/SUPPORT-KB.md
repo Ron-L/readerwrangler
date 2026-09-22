@@ -460,6 +460,15 @@ different page, Manage Your Content & Devices (amazon.com/hz/mycd/digital-consol
 bookmarklet there (the bookmarklet can take you to that page) and choose **Download Collections**.
 ReaderWrangler then shows your Collections alongside your library.
 
+**Wishlist items import on their own — new purchases need a Download Library first.** ReaderWrangler's
+Wishlist is its own thing — *not* your Amazon wishlist (RW doesn't connect to Amazon wishlists at all).
+Add a book or series with the bookmarklet on a product or series page and RW builds its own wishlist
+entry, written **straight to the Relay** (invisible to Amazon) — so **Import from Relay** brings it in
+with no Download Library needed. Purchases, samples, and borrows are different: those live in your Amazon
+library at amazon.com/yourbooks, and **Download Library** is exactly the fetcher reading that page — so a
+new purchase appears only after you Download Library and then Import. Either way, allow up to ~a minute
+for a change to reach the Relay before Import can read it.
+
 1. **After you Download your Library, it can take up to ~a minute before the Relay has it ready
    to Import** (the relay propagates gradually). If Import says "up to date" right after a fetch,
    wait a minute and try again. Not a bug.
