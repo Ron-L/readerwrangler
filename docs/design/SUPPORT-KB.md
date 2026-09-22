@@ -460,7 +460,8 @@ different page, Manage Your Content & Devices (amazon.com/hz/mycd/digital-consol
 bookmarklet there (the bookmarklet can take you to that page) and choose **Download Collections**.
 ReaderWrangler then shows your Collections alongside your library.
 
-**Wishlist items import on their own — new purchases need a Download Library first.** ReaderWrangler's
+**Adding to your wishlist puts it on the relay right away — a new purchase reaches the relay (and so
+ReaderWrangler) only through Download Library.** ReaderWrangler's
 Wishlist is its own thing — *not* your Amazon wishlist (RW doesn't connect to Amazon wishlists at all).
 Add a book or series with the bookmarklet on a product or series page and RW builds its own wishlist
 entry, written **straight to the Relay** (invisible to Amazon) — so **Import from Relay** brings it in
