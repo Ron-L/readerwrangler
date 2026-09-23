@@ -75,6 +75,11 @@ actually is before touching code, and let the same instrumentation certify the f
 **confidence before evidence** — never present a theory as a verdict; present it with the probe that would
 falsify it. (v5.5.4 spent ~10 alphas optimizing React renders; the diagnostic showed 2 renders in a
 44-second drag — it was browser paint.)
+**7.16.0 reprise (Ron re-drove it):** shipping a *fix* before *reproducing* the bug leaves you with no
+known-good test case — you cannot certify the fix. The collectionTags-wipe fix went out on code-reading
+alone; Ron: *"It is ALWAYS worth verifying a bug before fixing so we KNOW we have a good test case."*
+Thereafter every fix ran **repro → fix → verify** with console probes against the real IndexedDB — and
+that discipline caught the `genresAsOf` slip before it could ship.
 **Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule.
 
 ### 4. After 3 iterations, question the abstraction
@@ -154,9 +159,20 @@ large-scope + real-risk with no compile-time safety. The tool instead is a **run
 validator**: `KNOWN_BOOK_FIELDS` + `unknownBookFields()` flag any book key outside the known set
 (dev-gated: `console.warn` + a localhost popup), generalizing the no-invented-keys invariant from the
 merge to whole loaded books.
+**7.16.0 — the drift was structural, so the cure is too.** The lesson generalized from the merge to the
+WIRE: two *duplicate serializers* (`exportBackup` vs `buildDeviceStatePayload`) had drifted 8 fields
+apart, and the packer wrote fields the unpacker ignored (and vice-versa) — Save/Restore silently dropped
+both classes. Fix: ONE `WIRE_FIELDS` list drives ONE `packBook` + ONE `unpackBook` (`serialization.js`),
+plus a **build-time cross-check** asserting the wire list and `KNOWN_BOOK_FIELDS` agree BOTH directions
+(turning the runtime validator's catch into a gate) and a localhost self-check that round-trips the real
+library. Endgame (SERIALIZATION.md §11): fold `BOOK_FIELD_OWNERSHIP` + `WIRE_FIELDS` into ONE per-field
+table so a field can't live in one and not the other — drift becomes *unrepresentable*, the strongest
+form of this law. (And: a stale code *comment* — "shared with exportBackup" — is not a fact; that comment
+sent the first fix to the wrong serializer. Law 2.)
 **Enforcement**: FORMAT-POLICY.md; the migration+filter pair as the standard shape; `bookMerge.js` +
-`test/bookMerge.test.js` (the ownership registry + the no-invented-keys / clear-survives gate tests + the
-`KNOWN_BOOK_FIELDS` schema validator).
+`test/bookMerge.test.js` (ownership registry + no-invented-keys / clear-survives gates + `KNOWN_BOOK_FIELDS`
+validator); `serialization.js` + `test/serialization.test.js` (one packer/unpacker, round-trip + the
+wire↔schema cross-check).
 
 ### 11. Design-doc-first for anything architectural — then check yourself against it
 The single most consistent predictor of smooth execution across all eras (11+ PMs; the four cleanest
