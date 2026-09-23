@@ -8,7 +8,7 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-09-21 (through release 7.15.3)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-09-22 (through release 7.16.0)** — all sections human-reviewed (§1–21).
 Earlier passes: feature-surface (140 UI strings, all menus/dialogs/pages walked) + transcript/
 post-mortem mining. Scrub rule (public repo): no channel IDs, tokens, cookies, emails, or
 user-identifying data — facts only._

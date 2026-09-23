@@ -7,6 +7,7 @@ const {
     USER_OWNED_FIELDS,
     mergeBookFields,
     KNOWN_BOOK_FIELDS,
+    FIELD_MERGE_CLASSES,
     unknownBookFields,
 } = require('../bookMerge.js');
 
@@ -79,6 +80,47 @@ test('every user-owned field: a local VALUE wins over a different incoming value
         assert.deepStrictEqual(merged[field], local[field],
             `user field "${field}" did not take the local value`);
     }
+});
+
+// ---- Tag-from-Collections wizard state survives import (the 7.16.0 wipe fix) ----
+// collectionTags/collectionTagSeen are app/user-authored, but the fetcher never sets them
+// AND the device-state push doesn't carry them — so incoming ALWAYS lacks them. As 'amazon'
+// (incoming-wins) they were wiped on EVERY import; as 'user' (local-wins) they survive.
+test('collectionTags / collectionTagSeen survive an import whose incoming lacks them', () => {
+    const { local, incoming } = makePair();
+    local.collectionTags = ['read', 'scifi'];
+    local.collectionTagSeen = true;
+    delete incoming.collectionTags;      // a fetch / device-state record never carries these
+    delete incoming.collectionTagSeen;
+    const merged = mergeBookFields(local, incoming);
+    assert.deepStrictEqual(merged.collectionTags, ['read', 'scifi'],
+        'collectionTags wiped by an import that lacked it');
+    assert.strictEqual(merged.collectionTagSeen, true,
+        'collectionTagSeen wiped by an import that lacked it');
+});
+
+// ---- orphanStatus: sticky by freshness (7.16.0 hardening — ORPHAN-CLEANUP §3) ----
+test('orphanStatus: a stale echo or scan-less incoming cannot clear a flagged orphan', () => {
+    let { local, incoming } = makePair();
+    local.orphanStatus = 'orphan'; local.orphanCheckedDate = '2026-09-22T10:00:00Z';
+    incoming.orphanStatus = 'verified'; incoming.orphanCheckedDate = '2026-09-20T10:00:00Z'; // older
+    let merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.orphanStatus, 'orphan', 'an older incoming scan cleared a local orphan');
+    // a lean fetcher run carrying NO scan at all also must not clear it
+    ({ local, incoming } = makePair());
+    local.orphanStatus = 'orphan'; local.orphanCheckedDate = '2026-09-22T10:00:00Z';
+    delete incoming.orphanStatus; delete incoming.orphanCheckedDate;
+    merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.orphanStatus, 'orphan', 'a scan-less incoming cleared a local orphan');
+});
+
+test('orphanStatus: a fresher scan wins (a returned book clears to verified)', () => {
+    const { local, incoming } = makePair();
+    local.orphanStatus = 'orphan'; local.orphanCheckedDate = '2026-09-20T10:00:00Z';
+    incoming.orphanStatus = 'verified'; incoming.orphanCheckedDate = '2026-09-22T10:00:00Z'; // newer
+    const merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.orphanStatus, 'verified', 'a fresher scan did not win');
+    assert.strictEqual(merged.orphanCheckedDate, '2026-09-22T10:00:00Z');
 });
 
 // ---- Overridable fields: userEdited flag decides ----
@@ -202,6 +244,27 @@ test('every BOOK_FIELD_OWNERSHIP field is also in KNOWN_BOOK_FIELDS (registry �
     const missing = Object.keys(BOOK_FIELD_OWNERSHIP).filter(f => !KNOWN_BOOK_FIELDS.has(f));
     assert.deepStrictEqual(missing, [],
         `registry fields missing from the schema: ${missing.join(', ')}`);
+});
+
+// ---- Merge-completeness chokepoint (v7.16.0) ----
+// The registry and the schema are now ONE list (KNOWN is derived from the registry).
+// This asserts the bijection holds even if someone later un-derives KNOWN, and — the
+// point — that EVERY book field carries an explicit merge decision (no silent
+// incoming-wins default, the gap that let orphanStatus slip). Adding a field to one list
+// but not the other fails here. See ORPHAN-CLEANUP.md §4.
+test('merge-completeness: KNOWN_BOOK_FIELDS === BOOK_FIELD_OWNERSHIP keys (every field has a decision)', () => {
+    const known = [...KNOWN_BOOK_FIELDS].sort();
+    const registry = Object.keys(BOOK_FIELD_OWNERSHIP).sort();
+    assert.deepStrictEqual(known, registry,
+        'every book field must have exactly one explicit merge decision (no silent default)');
+});
+
+test('every registry field has a recognized merge class (catches class typos)', () => {
+    const bad = Object.entries(BOOK_FIELD_OWNERSHIP)
+        .filter(([, cls]) => !FIELD_MERGE_CLASSES.has(cls))
+        .map(([f, cls]) => `${f}:${cls}`);
+    assert.deepStrictEqual(bad, [],
+        `registry field(s) with an unrecognized class: ${bad.join(', ')}`);
 });
 
 console.log(`\n${passed} bookMerge tests passed.`);

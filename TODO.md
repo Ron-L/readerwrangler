@@ -134,6 +134,71 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   the trash safety net) → a clear *"Permanently delete N books — can't be undone"* confirm. (Started as a
   passive info notice; Ron upgraded it to the actionable checkbox-delete.) New dialog → follow the
   new-dialog checklist / the `<Dialog>` primitive when it lands.
+  **→ NOW DESIGNED + IN BUILD: docs/design/ORPHAN-CLEANUP.md** (expanded scope after testing found the
+  original was a one-shot): durable orphan STATUS (not an import-time moment), sticky-by-freshness merge,
+  `isKeptOrphan` revival, persistent entry points (live-count nudge + File→Removed books + import-summary
+  button). Branch `feature/orphan-cleanup-dialog`; **7.16.0-alpha.2 = the merge-completeness chokepoint
+  (below) shipped**; remaining: sticky orphanStatus + entry points. Open Qs in the doc await Ron's red pen.
+
+- [ ] **bookMerge ownership audit — the deeper invariant the chokepoint surfaced (2026-09-22)**.
+  DONE so far (7.16.0-alpha.3): `collectionTagSeen` + `collectionTags` were silently `'amazon'`
+  (incoming-wins) and WIPED on every import — the fetcher never sets them AND the device-state push
+  (readerwrangler ~5560-5594) doesn't carry them, so incoming ALWAYS lacks them. Reclassified to `'user'`
+  (local-wins) + a gate test locking it. **The general invariant to sweep for:** any book field the APP
+  writes but the device-state push payload does NOT include must be `'user'` (local-wins), or import
+  silently wipes it. Walk the payload vs the registry and check every field lands right.
+  **SECOND HALF — still OPEN (separate, wire-schema):** those two fields are also absent from the push
+  payload, so **Save/Restore and cross-device still lose them** (local-wins only saves them from the IMPORT
+  merge, not from a restore that replaces wholesale). If preserving wizard state across backup/restore
+  matters, ADD both to the payload builder (~5560) + the import parser (~6186/6270). Decide if in scope.
+
+- [ ] **Principle-to-hook audit — can each distilled law be MECHANIZED, not just remembered? (Ron 2026-09-22)**
+  Motivated by "assuming bit us again" (orphanStatus durability, a DESIGN-time assumption the edit-time gate
+  never saw). Walk `docs/PRINCIPLES.md` law by law and classify each: **(a) reducible to a deterministic gate**
+  (a script/test a hook runs + BLOCKS on red — real teeth: e.g. run the test suite before commit; grep TODO/
+  REMOVE before release; version-bump-when-.js-changed; cache-buster-matches; the merge-completeness test)
+  vs **(b) judgment-only** (NEVER ASSUME, model-legal-states, UX-first — a hook can only REMIND, and reminders
+  decay to rubber-stamps). For (b), the leverage is giving reminders *teeth via a required artifact*: e.g. a
+  design-doc **`## Assumptions (and how each was verified)`** section a PreToolUse hook can check EXISTS on a
+  `docs/design/*` write — the content is judgment but the visibility is enforced, and it fires at DESIGN time
+  (where this assumption slipped), not just edit time. Guard against reminder-bloat (the gate is already 11
+  points; more dilutes). Meta-principle recursion: prefer converting a law to a check over adding another tap.
+
+- [ ] **Tag-from-Collections wizard: right-pane vs checkbox confusion (UNSETTLED — 2026-09-22)**. The
+  left-pane row has TWO hit-targets doing different things with no cue: the **checkbox** = "include in Apply";
+  clicking the **name text** = "show this collection's books in the right pane" (`tfcSelectedCollection`).
+  Unchecking a box doesn't change the right pane — only a text-click does; and "checked" vs "being viewed"
+  share the same row highlight, so the two models are invisible (fooled Ron). **UNSETTLED — the goal of the
+  right pane isn't even clear (preview? the apply-set?); do NOT prescribe a fix yet.** When taken up: first
+  pin down what the right pane is FOR, then make the two states distinct (or unify: right pane follows the
+  checkbox / last action; header "Viewing: X"). Design pass before any code.
+  **Also (Ron 2026-09-22): UX-Expert opinion wanted on whether AND where to ALSO surface the
+  Tag-from-Collections wizard from the Manage Tags menu / sub-menu** (in addition to its current launch
+  point) — a discoverability/placement question; evaluate, don't just wire it in.
+
+- [ ] **Restore dialog mislabels a backup's relative date (2026-09-22)**: a backup from **9/21 6:54 PM** was
+  labeled **"— today"** while the real date was 9/22 (Ron: NOT a timezone artifact — it was yesterday
+  everywhere). The "today"/relative-date logic is wrong — likely a "within ~24h = today" heuristic instead of
+  a calendar-day compare, or a UTC/local mismatch. VERIFY first (grep the "— today" string / the label code),
+  then compare by calendar day in local time + add yesterday / N-days-ago cases.
+
+- [ ] **Mobile: show a live BUILD marker, not just the released `APP_VERSION` (Ron 2026-09-22)**. Mobile's
+  About shows `App v{APP_VERSION}` (the last *released* version, which by design doesn't bump during alphas)
+  + `Mobile v{MOBILE_VERSION}`. During alpha testing the desktop surfaces the live `ORGANIZER_VERSION`
+  (e.g. 7.16.0-alpha.6) but mobile can't (it's a different file). Surface a live build marker on mobile so a
+  tester can tell which build the phone is actually running (MOBILE_VERSION already moves per alpha, but the
+  "App v" line reads stale-looking). Small UI/version-plumbing polish.
+
+- [ ] **Unify `BOOK_FIELD_OWNERSHIP` (merge) + `WIRE_FIELDS` (serialization) into ONE per-field table (Ron 2026-09-22)**
+  — the strongest chokepoint: one row per book field with columns for BOTH merge-class and wire-mapping, so a
+  field can't exist in one list and not the other (the `genresAsOf` drift becomes *unrepresentable*, beyond the
+  cross-check test which only CATCHES it). Shape: a new shared `bookFields.js` (the master table) that
+  `bookMerge.js` (reads the merge column), `serialization.js` (reads the wire column), and the schema validator
+  (keys = `KNOWN_BOOK_FIELDS`) all import. Helpers (`isWishlisted`/`normalizeBook`/`parsePrice`) STAY in
+  `uiHelpers` (shared, used app-wide) — the table DEPENDS on uiHelpers (clean layering), doesn't absorb them
+  (absorbing would force app-wide imports from bookFields or duplicate = drift). De-risked by the existing
+  round-trip + 22 merge tests. SEQUENCING (ratified 2026-09-22): AFTER serialization steps 3b + 4; its own
+  focused step + a short design note. See docs/design/SERIALIZATION.md.
 
 
 - [ ] **Book dialog goes fully transactional (7.14.0 — NEXT UP, ratified 2026-09-10; renumbered thrice: 7.11.0=audit, 7.12.0=price snapshot, 7.13.0=copy chips)**:

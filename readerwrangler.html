@@ -134,9 +134,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Shared modules (pure JS, no Babel needed) -->
-    <script src="uiHelpers.js?v=7.12.0"></script>
+    <script src="uiHelpers.js?v=7.16.0"></script>
+    <script src="serialization.js?v=7.16.0"></script>
     <!-- v7.14.4 - Data-driven book merge (field-ownership registry); node-unit-tested; loads before storage.js -->
-    <script src="bookMerge.js?v=7.15.3"></script>
+    <script src="bookMerge.js?v=7.16.0"></script>
     <script src="storage.js?v=7.15.3"></script>
     <!-- v6.3.0 - Data integrity checks -->
     <script src="integrity.js?v=6.3.0-alpha.6"></script>
@@ -166,7 +167,7 @@
     <script>
         // APP_VERSION - Single source of truth for cache busting
         // Update this on each release to force browsers to fetch new code
-        const APP_VERSION = "7.15.3";
+        const APP_VERSION = "7.16.0";
 
         // Viewport detection: load mobile.js on phone-width screens
         // Session guard: once desktop loads in a tab, it stays desktop for that session

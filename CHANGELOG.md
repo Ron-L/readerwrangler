@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.16.0] - 2026-09-22
+
+### Fixed
+- **Backups are complete again.** Saving and restoring a backup no longer quietly drops parts of your library — collection-based tags, trash, price goals, read status, and more all survive a Save/Restore intact.
+
+### Changed
+- Very old backups (from a pre-2026 version) now show a clear "this file is too old to restore" message instead of importing incomplete books.
+- Data-integrity hardening under the hood: the code that merges and saves your books now guarantees no field is silently lost or resurrected — guardrails against a whole class of quiet data bugs.
+
 ## [7.15.3] - 2026-09-21
 
 ### Under the hood
