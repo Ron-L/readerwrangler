@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.16.0-alpha.10";  // Build version for this file
+        const ORGANIZER_VERSION = "7.16.0-alpha.11";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6092,35 +6092,6 @@
                     loadStatus,
                     loadDate: metadata.fetchDate || null
                 });
-
-                const extractDescription = (descData) => {
-                    if (!descData?.sections?.[0]?.content) return '';
-
-                    const content = descData.sections[0].content;
-
-                    if (content.text) return content.text;
-
-                    if (content.fragments) {
-                        const texts = [];
-                        content.fragments.forEach(frag => {
-                            if (frag.text) {
-                                texts.push(frag.text);
-                            } else if (frag.semanticContent?.content?.text) {
-                                texts.push(frag.semanticContent.content.text);
-                            } else if (frag.semanticContent?.content?.fragments) {
-                                frag.semanticContent.content.fragments.forEach(subfrag => {
-                                    if (subfrag.text) texts.push(subfrag.text);
-                                    if (subfrag.semanticContent?.content?.text) {
-                                        texts.push(subfrag.semanticContent.content.text);
-                                    }
-                                });
-                            }
-                        });
-                        return texts.join(' ').trim();
-                    }
-
-                    return '';
-                };
 
                 const processedBooks = data.map((item) => {
                     // v7.16.0 - ONE unpacker (serialization.js `unpackBook`). Legacy v1.x amazonData is refused
