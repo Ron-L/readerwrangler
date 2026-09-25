@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.17.0] - 2026-09-25
+
+### Under the hood — no visible change
+- **Save, Restore, and phone sync now share one definition of your book details.** Version 7.16.0 fixed a set of details that Save/Restore had been quietly dropping — collection-based tags, price goals, notes, dates, trash and read status — caused by the save side and the restore side keeping separate, hand-kept lists of what each detail is called (some were stored under one name and looked for under another, or saved but never read back). 7.17.0 makes that class of bug impossible to reintroduce: desktop save/restore, phone sync, and the merge that folds in updates all now read from a single shared definition, so a detail can't be named or handled one way in one place and differently in another. Nothing changes in how the app looks or works.
+
 ## [7.16.0] - 2026-09-22
 
 ### Fixed

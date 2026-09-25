@@ -1,7 +1,10 @@
 # The book-fields table — one row per field, every behavior a column
 
-**Status**: DESIGN — for Ron's red pen (2026-09-25). The "next big thing" ratified in
-SERIALIZATION.md §11: merge the two per-field lists into ONE table so drift becomes *structural*.
+**Status**: ✅ IMPLEMENTED — shipped in **7.17.0** (2026-09-25). This doc is now the design record.
+`bookFields.js` holds `BOOK_FIELDS` (the one table) + serialize/deserialize + the schema validator;
+`bookMerge.js` reads the merge column; `serialization.js` was retired; mobile's `mapBackupBook` folded
+onto `unpackBook(item, { safeDefaults: true })`. Desktop verified (3186 books round-trip clean) + mobile
+verified in the simulator. The §5 staging below is the plan that was followed — kept for the record.
 
 ## 1. Why
 

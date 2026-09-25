@@ -1,7 +1,11 @@
 # Serialization: one field list, one packer, one unpacker (wire + backup)
 
-**Status**: DESIGN — for Ron's red pen (2026-09-22). Part of the 7.16.0 data-integrity hardening
-(branch `feature/orphan-cleanup-dialog`).
+**Status**: ✅ SHIPPED (7.16.0) then SUPERSEDED (7.17.0). This is the historical design record for
+the data-integrity hardening. 7.16.0 consolidated the drifted packers into one `serialization.js`
+(`WIRE_FIELDS` + `packBook`/`unpackBook`). **7.17.0 then merged `WIRE_FIELDS` and `BOOK_FIELD_OWNERSHIP`
+into the ONE table `bookFields.js`, and retired `serialization.js`** — so the code this doc describes
+now lives in `bookFields.js`. For the current design see **docs/design/BOOK-FIELDS-TABLE.md**; the §11
+one-table plan below is what 7.17.0 built.
 **Problem owner**: the library's save/sync format ("the wire") is packed and unpacked by *several*
 hand-maintained functions that have drifted apart, silently dropping fields on Save/Restore.
 
