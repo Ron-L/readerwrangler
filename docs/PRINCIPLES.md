@@ -146,8 +146,8 @@ A **user's deliberate clear is the same shape as a migration's clear**: a cleare
 `incoming ?? local` reads `null` as "absent — use incoming", so the stale value comes back. Fields the
 user owns and the fetcher never sets must be **local-wins**, not `??` (7.14.4: cleared goals/ratings/tags/
 notes resurrected on import for exactly this reason). Declare each field's ownership in **one registry**
-(`bookMerge.js` `BOOK_FIELD_OWNERSHIP`) and drive the merge from it — a field can't be missed and its
-behavior lives in one place.
+(now `bookFields.js` `BOOK_FIELDS`, the `merge` column) and drive the merge from it — a field can't be
+missed and its behavior lives in one place.
 **Corollary — a merge must never invent a field name.** The same file preserved a phantom `note` (real
 field `userNote`) and once a phantom `hidden` (`isHidden`): the wrong name is silently created, the real
 one silently dropped, and JS never complains. The mechanism is a test invariant: **the merge output may
@@ -165,14 +165,20 @@ apart, and the packer wrote fields the unpacker ignored (and vice-versa) — Sav
 both classes. Fix: ONE `WIRE_FIELDS` list drives ONE `packBook` + ONE `unpackBook` (`serialization.js`),
 plus a **build-time cross-check** asserting the wire list and `KNOWN_BOOK_FIELDS` agree BOTH directions
 (turning the runtime validator's catch into a gate) and a localhost self-check that round-trips the real
-library. Endgame (SERIALIZATION.md §11): fold `BOOK_FIELD_OWNERSHIP` + `WIRE_FIELDS` into ONE per-field
-table so a field can't live in one and not the other — drift becomes *unrepresentable*, the strongest
-form of this law. (And: a stale code *comment* — "shared with exportBackup" — is not a fact; that comment
+library. (And: a stale code *comment* — "shared with exportBackup" — is not a fact; that comment
 sent the first fix to the wrong serializer. Law 2.)
-**Enforcement**: FORMAT-POLICY.md; the migration+filter pair as the standard shape; `bookMerge.js` +
-`test/bookMerge.test.js` (ownership registry + no-invented-keys / clear-survives gates + `KNOWN_BOOK_FIELDS`
-validator); `serialization.js` + `test/serialization.test.js` (one packer/unpacker, round-trip + the
-wire↔schema cross-check).
+**7.17.0 — the endgame shipped.** `BOOK_FIELD_OWNERSHIP` + `WIRE_FIELDS` are now ONE per-field table
+(`bookFields.js` `BOOK_FIELDS`): one row per field, columns for BOTH merge class and wire mapping, so a
+field can't live in one and not the other — drift is *unrepresentable*, the strongest form of this law
+(structure over discipline, applied to the thing itself, not just tested for). `serialization.js` retired
+into `bookFields.js`; mobile's hand-kept `mapBackupBook` folded onto the shared
+`unpackBook(item, {safeDefaults})`, so desktop AND phone deserialize through the ONE table (two mappers →
+one). The build-time cross-check became `schemaSelfCheck()` — a pure function run in the Node gate AND the
+localhost in-app self-check. See BOOK-FIELDS-TABLE.md.
+**Enforcement**: FORMAT-POLICY.md; the migration+filter pair as the standard shape; `bookFields.js`
+`BOOK_FIELDS` (the one table) + `test/bookFields.test.js` (one packer/unpacker, round-trip, `schemaSelfCheck`
+structural gate, mobile-safeDefaults) + `test/bookMerge.test.js` (no-invented-keys / clear-survives /
+merge-completeness gates + `KNOWN_BOOK_FIELDS` / `unknownBookFields` validator).
 
 ### 11. Design-doc-first for anything architectural — then check yourself against it
 The single most consistent predictor of smooth execution across all eras (11+ PMs; the four cleanest
