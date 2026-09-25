@@ -151,10 +151,10 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                     if (Object.keys(ue).length > 0) {
                         console.log(`🛡️ Preserving user-edited fields for "${previousBook.title}":`, Object.keys(ue).join(', '));
                     }
-                    // v7.14.4 - Data-driven merge (bookMerge.js). Every field's behavior — user-owned
-                    // fields (local wins so a deliberate CLEAR survives import), user-overridable fields
-                    // (userEdited flag decides), and Amazon-owned metadata (incoming wins) — is declared
-                    // ONCE in BOOK_FIELD_OWNERSHIP and applied by mergeBookFields. Replaces the hand-listed
+                    // v7.14.4 (one-table v7.17.0) - Data-driven merge (bookMerge.js). Every field's behavior —
+                    // user-owned fields (local wins so a deliberate CLEAR survives import), user-overridable fields
+                    // (userEdited flag decides), and Amazon-owned metadata (incoming wins) — is declared ONCE in
+                    // the BOOK_FIELDS table (bookFields.js, `merge` column) and applied by mergeBookFields. Replaces the hand-listed
                     // field block that (a) resurrected cleared goals/ratings/tags via `incoming ?? local`
                     // and (b) preserved a phantom `note` while the real field is userNote (Ron 2026-09-20).
                     booksByAsin.set(book.asin, mergeBookFields(previousBook, book));
@@ -225,7 +225,7 @@ const loadBooksFromIndexedDB = async () => {
             const books = (request.result || []).map(normalizeBook);
             console.log('✅ Loaded', books.length, 'books from IndexedDB');
             // v7.15.3 (1B) - DEV-ONLY schema check: WARN (never throw) if any loaded book carries a key that
-            // isn't a known legitimate field (KNOWN_BOOK_FIELDS in bookMerge.js) — a phantom / misnamed /
+            // isn't a known legitimate field (KNOWN_BOOK_FIELDS in bookFields.js) — a phantom / misnamed /
             // wire-alias field that leaked onto a stored book (the note/userNote, hidden/isHidden class).
             // Dev/local only so production is never affected; first run on a real library also calibrates the
             // allow-list (a warn = add the field to KNOWN_BOOK_FIELDS if legit, else a real phantom to fix).
@@ -239,13 +239,13 @@ const loadBooksFromIndexedDB = async () => {
                     if (seen.size > 0) {
                         const list = [...seen].sort().join(', ');
                         console.warn('🔎[schema] Unknown book field(s) on loaded books:', list,
-                            '— add to KNOWN_BOOK_FIELDS (bookMerge.js) if legitimate, else a phantom/misnamed field leaked in.');
+                            '— add to KNOWN_BOOK_FIELDS (bookFields.js) if legitimate, else a phantom/misnamed field leaked in.');
                         // v7.15.3 - LOCALHOST dev only: a loud popup so a real phantom can't be missed in the
                         // console. (Not on the dev repo or prod — console.warn covers the dev repo; prod is silent.)
                         if (isLocalhost && typeof window.alert === 'function') {
                             window.alert('⚠ ReaderWrangler dev — book-field schema check\n\n' +
                                 'Unknown field(s) found on loaded books:\n    ' + list + '\n\n' +
-                                'Either add them to KNOWN_BOOK_FIELDS in bookMerge.js (if legitimate), or investigate a ' +
+                                'Either add them to KNOWN_BOOK_FIELDS in bookFields.js (if legitimate), or investigate a ' +
                                 'phantom / misnamed field that leaked onto a stored book.\n\n(This popup is localhost-only.)');
                         }
                     }

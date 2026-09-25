@@ -126,7 +126,7 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 <!-- SYNC: Keep "Recent Features" in sync with features.html -->
 ## Recent Features
 
-- **Backups stay whole (7.16)** — Save and Restore no longer quietly drop parts of your library; collection-based tags, trash, price goals, read status and more all come back intact. Very old (pre-2026) backups now say so plainly instead of importing blanks.
+- **Backups stay whole (7.16–7.17)** — Save and Restore no longer quietly drop parts of your library; collection-based tags, trash, price goals, read status and more all come back intact. Very old (pre-2026) backups now say so plainly instead of importing blanks. 7.17 locks it in — backup, phone sync, and update-merging now share one definition of your book details, so this can't creep back.
 - **Email a friend, without the dead end (7.14)** — Sharing a book by email now asks how you want to send it: your email app, Gmail on the web, or copy-to-clipboard — instead of guessing and sometimes stranding you in a redirect loop. The copy option always works, so no one gets stuck.
 - **Copy without the fight (7.13)** — One-click copy chips for a book's title and author (those co-author strings that read like random passwords), plus Copy Author(s) in the right-click menu everywhere.
 - **Price goals remember what you saw (7.12)** — Setting a goal records the book's price at that moment: "was $2.99 when goal set" is the honest guide to what a book costs once its sale ends, list-price theater ignored. "Deals Only" became **Goal Met**, and Kindle formats speak one language everywhere.

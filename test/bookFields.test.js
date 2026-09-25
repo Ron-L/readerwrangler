@@ -1,13 +1,12 @@
-// Unit tests for serialization.js — run: node test/serialization.test.js
-// Locks the one-packer/one-unpacker wire round-trip (docs/design/SERIALIZATION.md): nothing is
-// lost or renamed wrong across pack→unpack, and the idempotency self-check is stable.
+// Unit tests for bookFields.js — run: node test/bookFields.test.js
+// Locks the ONE table's wire round-trip (docs/design/BOOK-FIELDS-TABLE.md): nothing is lost or
+// renamed wrong across pack→unpack, the idempotency self-check is stable, mobile safe-defaults
+// behave, and the structural schema self-check is clean. (Was serialization.test.js pre-7.17.0.)
 const assert = require('assert');
-const { WIRE_FIELDS, packBook, unpackBook, roundTripCheck } = require('../serialization.js');
-const { KNOWN_BOOK_FIELDS } = require('../bookMerge.js');
-
-// Fields that legitimately live on a book but are NOT on the book wire item: id is derived from asin;
-// readStatus/collections travel in a separate collections sub-list, merged in after unpack.
-const NON_WIRE_KNOWN = new Set(['id', 'readStatus', 'collections']);
+const {
+    BOOK_FIELDS, KNOWN_BOOK_FIELDS, NON_WIRE_FIELDS,
+    packBook, unpackBook, roundTripCheck, schemaSelfCheck,
+} = require('../bookFields.js');
 
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log('  ✓ ' + name); }
@@ -45,7 +44,7 @@ function corpus() {
     return [owned, wishlist, sample, cleared, trashed, orphan, hidden];
 }
 
-console.log('serialization tests:');
+console.log('bookFields tests:');
 
 // ---- Idempotency: pack→unpack→pack is stable (the anti-drift self-check) ----
 test('round-trip is stable for every book in the corpus (no field lost or altered)', () => {
@@ -130,19 +129,50 @@ test('cleared user fields stay cleared through the round trip', () => {
     assert.strictEqual(b.myRating, 0);
 });
 
-// ---- Cross-check: the wire list and the book schema must agree (the genresAsOf guard) ----
-// Turns the runtime validator's catch into a BUILD-time gate, both directions.
-test('every WIRE_FIELDS.app is a KNOWN_BOOK_FIELD (nothing crosses the wire outside the schema)', () => {
-    const strays = WIRE_FIELDS.map(f => f.app).filter(a => !KNOWN_BOOK_FIELDS.has(a));
-    assert.deepStrictEqual(strays, [],
-        `wire field(s) not in KNOWN_BOOK_FIELDS (would trip the schema validator): ${strays.join(', ')}`);
+// ---- Mobile safe-defaults (the { safeDefaults } deserialize option that folds in mapBackupBook) ----
+// Mobile renders straight off unpacked books and must never hit undefined.map()/Object.keys(undefined).
+// With { safeDefaults }, absent tags/userEdited/coverUrl come back as [] / {} / '' — NOT undefined.
+// Desktop (no option) must be unchanged: those absent fields stay undefined (no invented keys on save).
+test('safeDefaults gives mobile non-undefined tags/userEdited/coverUrl for a sparse item', () => {
+    const sparse = { asin: 'M1', title: 'Mobile Book' };
+    const b = unpackBook(sparse, { safeDefaults: true });
+    assert.deepStrictEqual(b.tags, [], 'tags → []');
+    assert.deepStrictEqual(b.userEdited, {}, 'userEdited → {}');
+    assert.strictEqual(b.coverUrl, '', 'coverUrl → ""');
 });
 
-test('every KNOWN_BOOK_FIELD is serialized or a known non-wire field (nothing silently dropped on save)', () => {
-    const wireApps = new Set(WIRE_FIELDS.map(f => f.app));
-    const unserialized = [...KNOWN_BOOK_FIELDS].filter(f => !wireApps.has(f) && !NON_WIRE_KNOWN.has(f));
-    assert.deepStrictEqual(unserialized, [],
-        `book field(s) in the schema but not serialized (lost on Save/Restore): ${unserialized.join(', ')}`);
+test('desktop (no safeDefaults) leaves the same absent fields undefined', () => {
+    const sparse = { asin: 'M1', title: 'Mobile Book' };
+    const b = unpackBook(sparse);
+    assert.strictEqual(b.tags, undefined, 'tags stays undefined on desktop');
+    assert.strictEqual(b.coverUrl, undefined, 'coverUrl stays undefined on desktop');
+    // userEdited is undefined coming out of the wire loop; normalizeBook only adds it for a hidden book.
+    assert.strictEqual(b.userEdited, undefined, 'userEdited stays undefined on desktop');
 });
 
-console.log(`\n${passed} serialization tests passed.`);
+// ---- Structural schema self-check (replaces the two-list cross-check; now table-internal) ----
+// With merge + wire in ONE table a field can't exist in one and not the other. The failure mode that
+// replaces the old drift: a field added with wire:null (or packSkip and no unpack) is silently dropped
+// on Save. schemaSelfCheck() is that guard, run here AND in the localhost in-app self-check.
+test('schemaSelfCheck is clean (every field serialized, derived, or a known non-wire field)', () => {
+    const problems = schemaSelfCheck();
+    assert.deepStrictEqual(problems, [], `schema self-check problems:\n  ${problems.join('\n  ')}`);
+});
+
+test('a book field is serialized, derived on unpack, or a known separately-carried field', () => {
+    const dropped = Object.entries(BOOK_FIELDS).filter(([f, spec]) => {
+        const w = spec.wire;
+        if (w === null) return !NON_WIRE_FIELDS.has(f);   // wire:null must be a known separate-list field
+        if (w.packSkip) return !w.unpack;                  // packSkip must be recoverable on unpack
+        return false;                                      // has a wire mapping → serialized
+    }).map(([f]) => f);
+    assert.deepStrictEqual(dropped, [],
+        `book field(s) silently dropped on Save (add a wire mapping or list as non-wire): ${dropped.join(', ')}`);
+});
+
+test('every table key is a KNOWN_BOOK_FIELD (schema is the table keys)', () => {
+    const strays = Object.keys(BOOK_FIELDS).filter(f => !KNOWN_BOOK_FIELDS.has(f));
+    assert.deepStrictEqual(strays, [], `table key(s) missing from KNOWN_BOOK_FIELDS: ${strays.join(', ')}`);
+});
+
+console.log(`\n${passed} bookFields tests passed.`);

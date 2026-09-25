@@ -189,17 +189,6 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   tester can tell which build the phone is actually running (MOBILE_VERSION already moves per alpha, but the
   "App v" line reads stale-looking). Small UI/version-plumbing polish.
 
-- [ ] **Unify `BOOK_FIELD_OWNERSHIP` (merge) + `WIRE_FIELDS` (serialization) into ONE per-field table (Ron 2026-09-22)**
-  — the strongest chokepoint: one row per book field with columns for BOTH merge-class and wire-mapping, so a
-  field can't exist in one list and not the other (the `genresAsOf` drift becomes *unrepresentable*, beyond the
-  cross-check test which only CATCHES it). Shape: a new shared `bookFields.js` (the master table) that
-  `bookMerge.js` (reads the merge column), `serialization.js` (reads the wire column), and the schema validator
-  (keys = `KNOWN_BOOK_FIELDS`) all import. Helpers (`isWishlisted`/`normalizeBook`/`parsePrice`) STAY in
-  `uiHelpers` (shared, used app-wide) — the table DEPENDS on uiHelpers (clean layering), doesn't absorb them
-  (absorbing would force app-wide imports from bookFields or duplicate = drift). De-risked by the existing
-  round-trip + 22 merge tests. SEQUENCING (ratified 2026-09-22): AFTER serialization steps 3b + 4; its own
-  focused step + a short design note. See docs/design/SERIALIZATION.md.
-
 
 - [ ] **Book dialog goes fully transactional (7.14.0 — NEXT UP, ratified 2026-09-10; renumbered thrice: 7.11.0=audit, 7.12.0=price snapshot, 7.13.0=copy chips)**:
   in the dialog, Edit/Save is the ONLY way anything changes (one undo per Save); everywhere else changes are

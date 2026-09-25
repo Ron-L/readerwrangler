@@ -8,7 +8,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.16.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.17.0";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -4011,26 +4011,34 @@
 
                             setBooks(loadedBooks);
 
-                            // v7.16.0 - Serialization self-check (SERIALIZATION.md §5): on localhost, once per
-                            // build, confirm the whole library survives a pack→unpack round trip. A mechanism
+                            // v7.16.0 (one-table v7.17.0) - Serialization self-check (BOOK-FIELDS-TABLE.md): on
+                            // localhost, once per build, confirm (a) the ONE table is structurally sound — no field
+                            // is silently non-serialized (schemaSelfCheck, the build-time cross-check as a runtime
+                            // guard) — and (b) the whole library survives a pack→unpack round trip. A mechanism
                             // (auto-runs on load) rather than a dev test someone must remember to run (no CI here).
                             try {
                                 const _loc = window.location;
                                 const _isLocalhost = _loc && ['localhost', '127.0.0.1'].includes(_loc.hostname);
                                 if (_isLocalhost && typeof roundTripCheck === 'function'
                                     && localStorage.getItem('rw-serialization-selftest') !== ORGANIZER_VERSION) {
+                                    const _schema = (typeof schemaSelfCheck === 'function') ? schemaSelfCheck() : [];
                                     const _fail = roundTripCheck(loadedBooks);
-                                    if (_fail) {
+                                    if (_schema.length) {
+                                        const _smsg = _schema.join('\n');
+                                        console.error('🧪❌ [book-fields self-check] table structure PROBLEM —\n' + _smsg);
+                                        window.alert('Book-fields table self-check FAILED (localhost dev):\n\n' + _smsg
+                                            + '\n\nA field would be dropped on Save. See docs/design/BOOK-FIELDS-TABLE.md.');
+                                    } else if (_fail) {
                                         const _msg = `${_fail.asin}.${_fail.field}: ${JSON.stringify(_fail.first)} → ${JSON.stringify(_fail.second)}`;
-                                        console.error('🧪❌ [serialization self-check] round-trip FAILED — ' + _msg);
-                                        window.alert('Serialization self-check FAILED (localhost dev):\n\n' + _msg
-                                            + '\n\nA book field does not survive pack→unpack. See docs/design/SERIALIZATION.md.');
+                                        console.error('🧪❌ [book-fields self-check] round-trip FAILED — ' + _msg);
+                                        window.alert('Book-fields round-trip self-check FAILED (localhost dev):\n\n' + _msg
+                                            + '\n\nA book field does not survive pack→unpack. See docs/design/BOOK-FIELDS-TABLE.md.');
                                     } else {
-                                        console.log(`🧪✅ [serialization self-check] ${loadedBooks.length} books round-trip clean (${ORGANIZER_VERSION}).`);
+                                        console.log(`🧪✅ [book-fields self-check] table sound + ${loadedBooks.length} books round-trip clean (${ORGANIZER_VERSION}).`);
                                     }
                                     localStorage.setItem('rw-serialization-selftest', ORGANIZER_VERSION);
                                 }
-                            } catch (_e) { console.warn('[serialization self-check] skipped:', _e && _e.message); }
+                            } catch (_e) { console.warn('[book-fields self-check] skipped:', _e && _e.message); }
 
                             await saveBooksToIndexedDB(loadedBooks);
 
@@ -5569,7 +5577,7 @@
             const buildDeviceStatePayload = async () => {
                 const allBooks = await loadBooksFromIndexedDB();
 
-                // v7.16.0 - ONE packer (serialization.js `packBook`) replaces this device-state copy of the
+                // v7.16.0 (one-table v7.17.0) - ONE packer (bookFields.js `packBook`) replaces this device-state copy of the
                 // book serializer. See docs/design/SERIALIZATION.md.
                 const bookItems = allBooks.map(packBook);
 
@@ -5678,7 +5686,7 @@
                     // Convert app book format back to fetcher format for books.items
                     // v4.18.0.a - Export uses onWishlist + ownershipType (new format)
                     // v4.18.0.d - Export includes price data, genres, targetPrice (user metadata)
-                    // v7.16.0 - ONE packer (serialization.js `packBook`). This was a DRIFTED duplicate that
+                    // v7.16.0 (one-table v7.17.0) - ONE packer (bookFields.js `packBook`). This was a DRIFTED duplicate that
                     // omitted 8 fields → Save/Restore silently lost them (trash state, collection tags, etc.);
                     // see docs/design/SERIALIZATION.md.
                     const bookItems = allBooks.map(packBook);
@@ -6094,7 +6102,7 @@
                 });
 
                 const processedBooks = data.map((item) => {
-                    // v7.16.0 - ONE unpacker (serialization.js `unpackBook`). Legacy v1.x amazonData is refused
+                    // v7.16.0 (one-table v7.17.0) - ONE unpacker (bookFields.js `unpackBook`). Legacy v1.x amazonData is refused
                     // upstream, so this handles only the current flat schema — no more per-item format branch.
                     // Collections/read status ride a separate list, merged in here (not part of the book wire
                     // item). See docs/design/SERIALIZATION.md.

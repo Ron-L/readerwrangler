@@ -1,6 +1,6 @@
 // mobile.js — ReaderWrangler Mobile Viewer
 // MOBILE_VERSION tracks mobile-specific iterations
-const MOBILE_VERSION = '1.8.4'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
+const MOBILE_VERSION = '1.9.0'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
 console.log(`✅ Mobile viewer ${MOBILE_VERSION} | APP_VERSION: ${APP_VERSION}`);
 
 // v1.7.0 - Which server is this copy talking to? Derived from the page's own address, so an
@@ -59,46 +59,13 @@ if (!document.getElementById('mobile-styles')) {
 
 // --- Backup import helpers ---
 
-function mapBackupBook(item) {
-    return {
-        id: item.asin,
-        asin: item.asin,
-        title: item.title || '',
-        author: item.authors || '',
-        coverUrl: item.coverUrl || '',
-        rating: item.rating || 0,
-        reviewCount: item.reviewCount || '',
-        series: item.series || '',
-        seriesPosition: item.seriesPosition || '',
-        acquired: item.acquisitionDate || '',
-        dateAdded: item.dateAdded || item.acquisitionDate || item.addedToWishlist || '', // v1.7.0 - real field from the wire (app 7.6.0+); fallbacks for stale payloads
-        description: item.description || '',
-        binding: item.binding || '',
-        currentPrice: item.currentPrice,
-        listPrice: item.listPrice,
-        priceAsOf: item.priceAsOf || '',
-        targetPrice: item.targetPrice,
-        priceTrigger: item.priceTrigger,
-        priceAtGoalSet: item.priceAtGoalSet ?? null, // v7.12.0 - price when goal was set
-        priceGoalSetAt: item.priceGoalSetAt ?? null, // v7.12.0
-        genres: item.genres || [],
-        genresAsOf: item.genresAsOf || '',
-        tags: item.tags || [],
-        userNote: item.note || '',
-        myRating: item.myRating || 0,
-        onWishlist: item.onWishlist || false,
-        // v7.8.0 (item 0) - inbound normalization: a legacy item carrying only the flag gets the
-        // real type; ownershipType is the only decision source (isWishlisted, from uiHelpers.js)
-        ownershipType: item.ownershipType || (item.onWishlist ? 'wishlist' : 'purchased'),
-        orphanStatus: item.orphanStatus || null, // v6.12.0 Phase 8b - for the "orphan" ownership filter
-        isHidden: item.isHidden || false,
-        addedToWishlist: item.addedToWishlist || '',
-        topReviews: item.topReviews || [],
-        userEdited: item.userEdited || {},
-        readStatus: item.readStatus || 'UNKNOWN', // v6.12.0 Phase 8b - overwritten by the collections-section merge
-        collections: item.collections || []
-    };
-}
+// v1.9.0 (one-table 7.17.0): the hand-kept mapBackupBook is GONE — mobile now deserializes wire
+// items through the SAME shared unpacker as desktop: unpackBook(item, { safeDefaults: true })
+// (bookFields.js, a global here). `safeDefaults` fills the fields mobile renders straight off the
+// book (tags:[], userEdited:{}, coverUrl:'') so nothing hits undefined.map(). readStatus/collections
+// aren't on the book wire item (they ride a separate section) — the load path defaults + merges them.
+// See docs/design/BOOK-FIELDS-TABLE.md. The one wire-name mobile rendered directly (reviewCount) is
+// now the desktop app-name (ratingCount); the dead priceAsOf/genresAsOf quirks are dropped.
 
 function restoreOrganization(org, bookIds, sourceStamp, sourceGen) {
     if (!org) return;
@@ -309,7 +276,10 @@ function sortBooks(books, sortKey) {
             // app 7.6.0), acquisition date only as fallback for stale payloads. The old
             // `acquired || dateAdded` made acquisition win under the Date Added label, and wishlist
             // books (never acquired) sank to the bottom of every date sort.
-            default: c = parseBookDate(b.dateAdded || b.acquired) - parseBookDate(a.dateAdded || a.acquired);
+            // v1.9.0 - the addedToWishlist fallback (wishlist books never acquired) used to live in
+            // mapBackupBook's dateAdded; unpackBook keeps dateAdded literal, so it moves here — the sole
+            // consumer — preserving the wishlist date-added sort.
+            default: c = parseBookDate(b.dateAdded || b.acquired || b.addedToWishlist) - parseBookDate(a.dateAdded || a.acquired || a.addedToWishlist);
         }
         return c || tiebreak(a, b);
     });
@@ -2170,8 +2140,8 @@ function BookDetailView({ bookId, books, coverUrlMap, blankImageBooks, setBlankI
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                         {renderStars(book.rating)}
                         <span style={{ fontWeight: 700, fontSize: '14px' }}>{book.rating.toFixed(1)}</span>
-                        {book.reviewCount && (
-                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>({book.reviewCount})</span>
+                        {book.ratingCount && (
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>({book.ratingCount})</span>
                         )}
                     </span>
                 </DetailRow>
@@ -2614,18 +2584,19 @@ function MobileApp() {
                     if (data.isBackup && data.books?.items?.length) {
                         console.log(`📡 Device-state received: ${data.books.items.length} books`);
                         setLoadingMessage(`Loading ${data.books.items.length.toLocaleString()} books...`);
-                        const mappedBooks = data.books.items.map(mapBackupBook);
+                        // v1.9.0 (one-table 7.17.0) - deserialize wire items through the shared unpacker
+                        // (bookFields.js), with mobile safe-defaults so rendering never hits undefined.
+                        const mappedBooks = data.books.items.map(item => unpackBook(item, { safeDefaults: true }));
                         // v6.12.0 Phase 8b - Read Status + Collections ride in a separate collections section
-                        // (set together on the Kindle), keyed by asin. Merge them onto book objects so the
-                        // Search matcher (and the existing READ badge / collection count) have the data.
+                        // (set together on the Kindle), keyed by asin. They're NOT on the book wire item, so
+                        // unpackBook doesn't set them — default them for EVERY book (READ badge / collection
+                        // count / Search matcher / filters all read these), then override from the section.
                         const collById = {};
                         (data.collections?.items || []).forEach(c => { collById[c.asin] = c; });
                         mappedBooks.forEach(b => {
                             const c = collById[b.asin];
-                            if (c) {
-                                b.readStatus = c.readStatus || 'UNKNOWN';
-                                b.collections = c.collections || [];
-                            }
+                            b.readStatus = (c && c.readStatus) || 'UNKNOWN';
+                            b.collections = (c && c.collections) || [];
                         });
                         // v1.7.0-alpha.6 - Guest guard (MULTI-INSTANCE.md §3): cache the payload (org keys
                         // AND IndexedDB books — gated together) only when it's NEWER than this browser's
