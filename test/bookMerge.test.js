@@ -2,14 +2,16 @@
 // The pre-launch gate for the import merge. These lock the two footguns that kept
 // going off (see bookMerge.js header): clear-then-resurrect, and phantom field names.
 const assert = require('assert');
+const { mergeBookFields } = require('../bookMerge.js');
+// v7.17.0: the field catalog + schema live in bookFields.js (the ONE table); the merge is
+// implemented in bookMerge.js. BOOK_FIELDS[f].merge is the former BOOK_FIELD_OWNERSHIP[f].
 const {
-    BOOK_FIELD_OWNERSHIP,
+    BOOK_FIELDS,
     USER_OWNED_FIELDS,
-    mergeBookFields,
     KNOWN_BOOK_FIELDS,
     FIELD_MERGE_CLASSES,
     unknownBookFields,
-} = require('../bookMerge.js');
+} = require('../bookFields.js');
 
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log('  ✓ ' + name); }
@@ -54,7 +56,7 @@ test('never invents a key absent from both inputs (phantom-field guard)', () => 
     const allowed = new Set([
         ...Object.keys(local),
         ...Object.keys(incoming),
-        ...Object.keys(BOOK_FIELD_OWNERSHIP), // registry names are, by definition, real fields
+        ...Object.keys(BOOK_FIELDS), // table field names are, by definition, real fields
     ]);
     const invented = Object.keys(merged).filter(k => !allowed.has(k));
     assert.deepStrictEqual(invented, [], `merge invented field(s): ${invented.join(', ')}`);
@@ -240,31 +242,30 @@ test('unknownBookFields is clean on a fully-populated legitimate book', () => {
         'a realistic book should have no unknown fields (extend KNOWN_BOOK_FIELDS if this trips)');
 });
 
-test('every BOOK_FIELD_OWNERSHIP field is also in KNOWN_BOOK_FIELDS (registry ⊆ schema)', () => {
-    const missing = Object.keys(BOOK_FIELD_OWNERSHIP).filter(f => !KNOWN_BOOK_FIELDS.has(f));
+test('every table field is also in KNOWN_BOOK_FIELDS (table ⊆ schema)', () => {
+    const missing = Object.keys(BOOK_FIELDS).filter(f => !KNOWN_BOOK_FIELDS.has(f));
     assert.deepStrictEqual(missing, [],
-        `registry fields missing from the schema: ${missing.join(', ')}`);
+        `table fields missing from the schema: ${missing.join(', ')}`);
 });
 
-// ---- Merge-completeness chokepoint (v7.16.0) ----
-// The registry and the schema are now ONE list (KNOWN is derived from the registry).
-// This asserts the bijection holds even if someone later un-derives KNOWN, and — the
-// point — that EVERY book field carries an explicit merge decision (no silent
-// incoming-wins default, the gap that let orphanStatus slip). Adding a field to one list
-// but not the other fails here. See ORPHAN-CLEANUP.md §4.
-test('merge-completeness: KNOWN_BOOK_FIELDS === BOOK_FIELD_OWNERSHIP keys (every field has a decision)', () => {
+// ---- Merge-completeness chokepoint (v7.16.0; one-table v7.17.0) ----
+// KNOWN_BOOK_FIELDS is DERIVED from the table keys, so the bijection is structural. This
+// asserts it holds even if someone later un-derives KNOWN, and — the point — that EVERY book
+// field carries an explicit merge decision (no silent incoming-wins default, the gap that let
+// orphanStatus slip). A field on the book but absent from the table fails here. See ORPHAN-CLEANUP.md §4.
+test('merge-completeness: KNOWN_BOOK_FIELDS === BOOK_FIELDS keys (every field has a decision)', () => {
     const known = [...KNOWN_BOOK_FIELDS].sort();
-    const registry = Object.keys(BOOK_FIELD_OWNERSHIP).sort();
-    assert.deepStrictEqual(known, registry,
+    const table = Object.keys(BOOK_FIELDS).sort();
+    assert.deepStrictEqual(known, table,
         'every book field must have exactly one explicit merge decision (no silent default)');
 });
 
-test('every registry field has a recognized merge class (catches class typos)', () => {
-    const bad = Object.entries(BOOK_FIELD_OWNERSHIP)
-        .filter(([, cls]) => !FIELD_MERGE_CLASSES.has(cls))
-        .map(([f, cls]) => `${f}:${cls}`);
+test('every table field has a recognized merge class (catches class typos)', () => {
+    const bad = Object.entries(BOOK_FIELDS)
+        .filter(([, spec]) => !FIELD_MERGE_CLASSES.has(spec.merge))
+        .map(([f, spec]) => `${f}:${spec.merge}`);
     assert.deepStrictEqual(bad, [],
-        `registry field(s) with an unrecognized class: ${bad.join(', ')}`);
+        `table field(s) with an unrecognized class: ${bad.join(', ')}`);
 });
 
 console.log(`\n${passed} bookMerge tests passed.`);

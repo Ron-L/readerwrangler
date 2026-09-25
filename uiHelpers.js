@@ -133,7 +133,7 @@ const formatRelativeTime = (dateString) => {
 };
 
 // Node export for unit tests / shared modules (no-op in the browser classic-script context,
-// where these are plain globals). v7.16.0 - added so serialization.js + its test can reach them.
+// where these are plain globals). v7.16.0 - added so bookFields.js (the wire packer/unpacker) + its test can reach them.
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         parsePrice, getAmazonUrl, isWishlisted, normalizeBook,
