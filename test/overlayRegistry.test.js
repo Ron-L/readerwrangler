@@ -91,6 +91,14 @@ test('subscribers are notified on push and on remove', () => {
     assert.strictEqual(n, 2, 'unsubscribed callback is not called');
 });
 
+test('pushLayer carries an optional nodeRef through to the layer record', () => {
+    const nodeRef = { current: 'PANEL_NODE' };
+    reg.pushLayer({ close: () => {}, kind: 'modal', nodeRef });
+    assert.strictEqual(reg.topLayer().nodeRef, nodeRef, 'topLayer exposes the nodeRef for scoped select-all');
+    const plain = reg.pushLayer({ close: () => {}, kind: 'popover' });
+    assert.strictEqual(reg.topLayer().nodeRef, undefined, 'nodeRef is optional');
+});
+
 test('a throwing subscriber does not break the stack', () => {
     reg.subscribe(() => { throw new Error('boom'); });
     assert.doesNotThrow(() => reg.pushLayer({ close: () => {}, kind: 'modal' }));

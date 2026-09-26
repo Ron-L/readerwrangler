@@ -10,11 +10,11 @@
         //
         // useOverlayLayer: registers { close, kind } for this overlay's lifetime. `close` is read through
         // a ref so the registry always calls the LATEST onClose without re-registering each render.
-        const useOverlayLayer = ({ close, kind }) => {
+        const useOverlayLayer = ({ close, kind, nodeRef }) => {
             const closeRef = useRef(close);
             closeRef.current = close;
             useEffect(() => {
-                const id = overlayRegistry.pushLayer({ close: () => closeRef.current && closeRef.current(), kind });
+                const id = overlayRegistry.pushLayer({ close: () => closeRef.current && closeRef.current(), kind, nodeRef });
                 return () => overlayRegistry.removeLayer(id);
             }, [kind]); // mount/unmount only — kind is fixed for a given overlay
         };
@@ -24,13 +24,14 @@
         // and released on the scrim does NOT dismiss), a baked-in ✕, an optional titled header, and
         // children. kind:'modal' means it raises the keystroke fence via hasModal().
         const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true }) => {
-            useOverlayLayer({ close: onClose, kind: 'modal' });
+            const panelRef = useRef(null);
+            useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef });
             const downOnScrimRef = useRef(false);
             return ReactDOM.createPortal(
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
                     onMouseDown={(e) => { downOnScrimRef.current = (e.target === e.currentTarget); }}
                     onClick={(e) => { if (e.target === e.currentTarget && downOnScrimRef.current && onClose) onClose(); downOnScrimRef.current = false; }}>
-                    <div className={panelClassName || `bg-white rounded-lg shadow-2xl ${maxWidthClassName} w-full mx-4`}
+                    <div ref={panelRef} className={panelClassName || `bg-white rounded-lg shadow-2xl ${maxWidthClassName} w-full mx-4`}
                         role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
                         {(title || showClose) && (
                             <div className="flex justify-between items-start p-4 border-b border-gray-200">
@@ -52,7 +53,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.3";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -4746,9 +4747,18 @@
 
                     // v5.0.0-alpha.102 - Ctrl+A: Select all visible books/folders
                     // v7.10.1-alpha.6 (audit sweep B) - not while a dialog is up: it silently selected
-                    // every explorer item UNDER the dialog (close + Delete = mass trash). Return without
-                    // preventDefault so native select-all still works on dialog text.
+                    // every explorer item UNDER the dialog (close + Delete = mass trash).
+                    // v7.18.0 - and scope select-all to the topmost overlay's OWN content instead of the
+                    // whole page behind the modal (native select-all highlighted the entire app). Only
+                    // registry <Dialog>s carry a node; legacy dialogs keep native behavior until migrated.
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a' && dialogUp()) {
+                        const top = overlayRegistry.topLayer();
+                        const node = top && top.nodeRef && top.nodeRef.current;
+                        if (node) {
+                            e.preventDefault();
+                            const sel = window.getSelection();
+                            if (sel) { sel.removeAllRanges(); sel.selectAllChildren(node); }
+                        }
                         return;
                     }
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {

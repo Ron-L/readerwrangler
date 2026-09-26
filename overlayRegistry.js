@@ -25,10 +25,11 @@ const _subs = new Set();       // subscribers notified on any change (React sync
 
 const _notify = () => { _subs.forEach(fn => { try { fn(); } catch (e) { /* a subscriber must not break the stack */ } }); };
 
-// Register an overlay; returns its id. kind: 'modal' | 'popover' | 'menu'.
-const pushLayer = ({ close, kind }) => {
+// Register an overlay; returns its id. kind: 'modal' | 'popover' | 'menu'. Optional nodeRef is a React
+// ref to the overlay's DOM node — used to scope select-all (Ctrl+A) to the overlay's own content.
+const pushLayer = ({ close, kind, nodeRef }) => {
     const id = ++_seq;
-    _layers.push({ id, close, kind });
+    _layers.push({ id, close, kind, nodeRef });
     _notify();
     return id;
 };
