@@ -1,6 +1,50 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useLayoutEffect, useRef, useMemo } = React;
 
+        // ===== Overlay system — the React half (v7.18.0; docs/design/DIALOG-DISMISSAL-AUDIT.md) =====
+        // The ordered stack lives in overlayRegistry.js (pure, Node-tested — global `overlayRegistry`).
+        // An overlay built with <Dialog> self-registers on mount / deregisters on unmount, so the
+        // keystroke fence (hasModal()), Esc-ordering, backdrop, ✕, and cascade-close are STRUCTURAL —
+        // it cannot be born unfenced/un-Esc-able/un-dismissable. Migrating outward-in, one family per
+        // alpha; the legacy anyDialogOpen OR-chain + handleModalEsc bridge until the last modal moves.
+        //
+        // useOverlayLayer: registers { close, kind } for this overlay's lifetime. `close` is read through
+        // a ref so the registry always calls the LATEST onClose without re-registering each render.
+        const useOverlayLayer = ({ close, kind }) => {
+            const closeRef = useRef(close);
+            closeRef.current = close;
+            useEffect(() => {
+                const id = overlayRegistry.pushLayer({ close: () => closeRef.current && closeRef.current(), kind });
+                return () => overlayRegistry.removeLayer(id);
+            }, [kind]); // mount/unmount only — kind is fixed for a given overlay
+        };
+
+        // <Dialog> — a modal overlay. Portals to <body> (escapes ancestor z-index/overflow traps),
+        // renders a scrim with a mousedown-guarded backdrop close (a drag that STARTED inside the panel
+        // and released on the scrim does NOT dismiss), a baked-in ✕, an optional titled header, and
+        // children. kind:'modal' means it raises the keystroke fence via hasModal().
+        const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true }) => {
+            useOverlayLayer({ close: onClose, kind: 'modal' });
+            const downOnScrimRef = useRef(false);
+            return ReactDOM.createPortal(
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                    onMouseDown={(e) => { downOnScrimRef.current = (e.target === e.currentTarget); }}
+                    onClick={(e) => { if (e.target === e.currentTarget && downOnScrimRef.current && onClose) onClose(); downOnScrimRef.current = false; }}>
+                    <div className={panelClassName || `bg-white rounded-lg shadow-2xl ${maxWidthClassName} w-full mx-4`}
+                        role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+                        {(title || showClose) && (
+                            <div className="flex justify-between items-start p-4 border-b border-gray-200">
+                                {title ? <h2 className="text-base font-semibold text-gray-900">{title}</h2> : <span />}
+                                {showClose && <button onClick={() => onClose && onClose()} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none" title="Close" aria-label="Close">×</button>}
+                            </div>
+                        )}
+                        {children}
+                    </div>
+                </div>,
+                document.body
+            );
+        };
+
         // APP_VERSION - Defined ONCE in readerwrangler.html, available in global scope
         // Single source of truth - no duplication!
         console.log(`✅ APP_VERSION: ${APP_VERSION} (from readerwrangler.html)`);
@@ -8,7 +52,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.17.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -875,6 +919,28 @@
             // plus the imperative overlays (confirm/input/progress...). Every global shortcut that acts
             // on the library consults this, not anyModalOpenRef directly.
             const dialogUp = () => anyModalOpenRef.current || imperativeDialogsUp();
+
+            // v7.18.0 - Overlay-registry bridge. A <Dialog> (overlayRegistry.js) isn't in the legacy
+            // anyDialogOpen OR-chain; it registers itself, and hasModal() feeds anyDialogOpen below so
+            // the keystroke fence + undo-fence treat it identically. This bridge stays until every modal
+            // is migrated and the OR-chain/handleModalEsc are deleted (DIALOG-DISMISSAL-AUDIT.md §7).
+            const [registryHasModal, setRegistryHasModal] = useState(false);
+            useEffect(() => {
+                const unsub = overlayRegistry.subscribe(() => setRegistryHasModal(overlayRegistry.hasModal()));
+                setRegistryHasModal(overlayRegistry.hasModal());
+                return unsub;
+            }, []);
+            // ONE keydown listener for the overlay stack: Esc closes the topmost registered layer
+            // (innermost-first). handleModalEsc (below) defers entirely when a registry layer is up, so
+            // there's no double-close; the two coexist correctly during migration.
+            useEffect(() => {
+                const onKey = (e) => {
+                    if (e.key !== 'Escape') return;
+                    if (overlayRegistry.topLayer()) { e.stopPropagation(); overlayRegistry.closeTop(); }
+                };
+                window.addEventListener('keydown', onKey);
+                return () => window.removeEventListener('keydown', onKey);
+            }, []);
             const autoOrgPreviewRef = useRef(null); // v6.16.0 - current auto-organize preview, for the keydown handler (which doesn't dep on it)
             const backdropMouseDownRef = useRef(null); // v5.2.0-alpha.15 - Track mousedown origin for backdrop close (prevents swipe-past-edge closing modals)
             const [contextMenu, setContextMenu] = useState(null); // {x, y, bookId, columnId}
@@ -6739,7 +6805,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || newFolderHiddenAlert || corruptionRecovery || restoreConfirm); // v7.14.2 - last three were unfenced
+            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || corruptionRecovery || restoreConfirm || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6768,6 +6834,10 @@
             useEffect(() => {
                 const handleModalEsc = (e) => {
                     if (e.key !== 'Escape') return;
+                    // v7.18.0 - a registry overlay (<Dialog>/<Popover>) is topmost → the overlay Esc
+                    // listener owns it; defer entirely so migrated + legacy overlays layer correctly with
+                    // no double-close. This whole handler retires when the last modal migrates.
+                    if (overlayRegistry.topLayer()) return;
                     // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - Status History popover closes on Esc
                     // (was click-outside only)
                     if (toastHistoryOpen) { setToastHistoryOpen(false); return; }
@@ -6798,7 +6868,7 @@
                     if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
                     // v7.14.2 - these three modals were entirely outside the Esc chain (and the fence)
                     if (restoreConfirm) { console.log('📋 Backup restore cancelled by user (Esc)'); setRestoreConfirm(null); return; }
-                    if (newFolderHiddenAlert) { setNewFolderHiddenAlert(null); return; }
+                    // v7.18.0 - newFolderHiddenAlert migrated to <Dialog>; its Esc is handled by the overlay listener (guarded out above).
                     if (corruptionRecovery) { setCorruptionRecovery(false); return; }
                     // Confirmations / info
                     if (lastCopyDialogData) { setLastCopyDialogData(null); return; }
@@ -6810,7 +6880,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice, restoreConfirm, newFolderHiddenAlert, corruptionRecovery]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice, restoreConfirm, corruptionRecovery]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - newFolderHiddenAlert migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -11349,41 +11419,37 @@
                     )}
 
                     {/* v6.8.0 - New folder hidden by active filters alert */}
+                    {/* v7.18.0 - first <Dialog> consumer (DIALOG-DISMISSAL-AUDIT.md Phase 1): scrim, panel,
+                        header, ✕, Esc, backdrop, and the keystroke fence are all provided by the primitive. */}
                     {newFolderHiddenAlert && (
-                        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" onClick={() => setNewFolderHiddenAlert(null)}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-sm w-full mx-4" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex justify-between items-start p-4 border-b border-gray-200">
-                                    <h2 className="text-base font-semibold text-gray-900">New folder is hidden</h2>
-                                    <button onClick={() => setNewFolderHiddenAlert(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none" title="Close" aria-label="Close">×</button>
-                                </div>
-                                <div className="p-4 space-y-3">
-                                    <p className="text-sm text-gray-700">Active filters are hiding folders with no matching books. <strong>"{newFolderHiddenAlert.folderName}"</strong> won't appear in the sidebar until filters change.</p>
-                                    <div className="flex flex-col gap-2 pt-1">
-                                        <button
-                                            onClick={() => {
-                                                setSearchTerm(''); setReadStatusFilter(''); setCollectionFilter(''); setRatingFilter('');
-                                                setOwnershipFilter(''); setSeriesFilter(''); setDateFrom(''); setDateTo('');
-                                                setTagFilter([]); setDealsFilterActive(false); setSelectedCollections([]);
-                                                setMinAmazonRating(''); setMinMyRating(''); setSelectedSeries([]);
-                                                setNewFolderHiddenAlert(null);
-                                            }}
-                                            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
-                                            Clear All Filters
-                                        </button>
-                                        <button
-                                            onClick={() => { setShowAllFoldersOverride(true); setNewFolderHiddenAlert(null); }}
-                                            className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium">
-                                            Show All Folders
-                                        </button>
-                                        <button
-                                            onClick={() => setNewFolderHiddenAlert(null)}
-                                            className="w-full px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">
-                                            Leave As Is
-                                        </button>
-                                    </div>
+                        <Dialog onClose={() => setNewFolderHiddenAlert(null)} title="New folder is hidden">
+                            <div className="p-4 space-y-3">
+                                <p className="text-sm text-gray-700">Active filters are hiding folders with no matching books. <strong>"{newFolderHiddenAlert.folderName}"</strong> won't appear in the sidebar until filters change.</p>
+                                <div className="flex flex-col gap-2 pt-1">
+                                    <button
+                                        onClick={() => {
+                                            setSearchTerm(''); setReadStatusFilter(''); setCollectionFilter(''); setRatingFilter('');
+                                            setOwnershipFilter(''); setSeriesFilter(''); setDateFrom(''); setDateTo('');
+                                            setTagFilter([]); setDealsFilterActive(false); setSelectedCollections([]);
+                                            setMinAmazonRating(''); setMinMyRating(''); setSelectedSeries([]);
+                                            setNewFolderHiddenAlert(null);
+                                        }}
+                                        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+                                        Clear All Filters
+                                    </button>
+                                    <button
+                                        onClick={() => { setShowAllFoldersOverride(true); setNewFolderHiddenAlert(null); }}
+                                        className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium">
+                                        Show All Folders
+                                    </button>
+                                    <button
+                                        onClick={() => setNewFolderHiddenAlert(null)}
+                                        className="w-full px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">
+                                        Leave As Is
+                                    </button>
                                 </div>
                             </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.0.0-alpha.175.2 - About Dialog */}
