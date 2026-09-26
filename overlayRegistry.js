@@ -65,6 +65,13 @@ const _reset = () => { _layers = []; _seq = 0; _subs.clear(); };
 const _count = () => _layers.length;
 const _kinds = () => _layers.map(l => l.kind);
 
+// Browser: expose ONE namespaced global — readerwrangler.js calls `overlayRegistry.X`. Unlike the
+// bare-const shared modules (uiHelpers/bookFields expose `packBook` etc. directly), the overlay API is
+// namespaced so generic names (pushLayer/topLayer/hasModal/…) don't pollute the global scope.
+if (typeof window !== 'undefined') {
+    window.overlayRegistry = { pushLayer, removeLayer, topLayer, closeTop, hasModal, subscribe };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         pushLayer, removeLayer, topLayer, closeTop, hasModal, subscribe,
