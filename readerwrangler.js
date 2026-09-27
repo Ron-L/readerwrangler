@@ -58,7 +58,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.7";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.8";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -830,8 +830,6 @@
             const [seriesDropdownOpen, setSeriesDropdownOpen] = useState(false);
             // v5.0.0-alpha.175.45 - Phase 5.6: Date dropdown
             const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
-            // v4.16.0.aq - State for "last copy" delete warning dialog
-            const [lastCopyDialogData, setLastCopyDialogData] = useState(null); // {lastCopyEntries: [...], deletableEntries: [...], deletedCount: number}
             const [showAllReviews, setShowAllReviews] = useState(false);
             const [customPriceInput, setCustomPriceInput] = useState(''); // v4.17.0 - custom price trigger input
             const [showCustomPriceInput, setShowCustomPriceInput] = useState(false); // v4.17.0
@@ -13330,130 +13328,9 @@
                         );
                     })()}
 
-                    {/* v4.16.0.aq - Last copy warning dialog */}
-                    {/* v4.16.0.ar - Handle already-hidden entries separately */}
-                    {lastCopyDialogData && (() => {
-                        // Partition entries into already-hidden vs can-hide
-                        const alreadyHidden = lastCopyDialogData.lastCopyEntries.filter(sel => {
-                            if (sel.instanceId) {
-                                return hiddenInstances.has(sel.instanceId);
-                            } else {
-                                const book = books.find(b => b.id === sel.bookId);
-                                return book?.isHidden;
-                            }
-                        });
-                        const canHide = lastCopyDialogData.lastCopyEntries.filter(sel => {
-                            if (sel.instanceId) {
-                                return !hiddenInstances.has(sel.instanceId);
-                            } else {
-                                const book = books.find(b => b.id === sel.bookId);
-                                return !book?.isHidden;
-                            }
-                        });
-                        const totalLastCopy = lastCopyDialogData.lastCopyEntries.length;
-
-                        return (
-                            <Dialog onClose={() => { setLastCopyDialogData(null); clearSelection(); }} showClose={false} panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-md">
-                                    <h2 id="modal-cannot-delete" className="text-xl font-bold text-gray-900 mb-4">Cannot Delete</h2>
-                                    <p className="text-sm text-gray-700 mb-4">
-                                        {totalLastCopy === 1 ? (
-                                            <>
-                                                <strong>"{books.find(b => b.id === lastCopyDialogData.lastCopyEntries[0].bookId)?.title || 'This book'}"</strong> is the only copy in your library and cannot be deleted.
-                                            </>
-                                        ) : (
-                                            <>
-                                                <strong>{totalLastCopy} books</strong> are the only copies in your library and cannot be deleted.
-                                            </>
-                                        )}
-                                    </p>
-                                    {lastCopyDialogData.deletedCount > 0 && (
-                                        <p className="text-sm text-gray-500 mb-4">
-                                            ({lastCopyDialogData.deletedCount} other book{lastCopyDialogData.deletedCount !== 1 ? 's were' : ' was'} deleted.)
-                                        </p>
-                                    )}
-                                    {/* v4.16.0.ar - Adaptive messaging based on hidden state */}
-                                    {/* v4.16.0.as - Improved wording with "These X books" */}
-                                    {alreadyHidden.length === totalLastCopy ? (
-                                        // All are already hidden
-                                        <p className="text-sm text-gray-700 mb-4">
-                                            {totalLastCopy === 1 ? 'This book is' : `These ${totalLastCopy} books are`} already hidden.
-                                        </p>
-                                    ) : alreadyHidden.length > 0 ? (
-                                        // Mixed: some hidden, some not
-                                        <p className="text-sm text-gray-700 mb-4">
-                                            {alreadyHidden.length === 1 ? '1 is' : `These ${alreadyHidden.length} are`} already hidden. Would you like to hide the other {canHide.length}?
-                                        </p>
-                                    ) : (
-                                        // None hidden
-                                        <p className="text-sm text-gray-700 mb-4">
-                                            Would you like to hide {totalLastCopy === 1 ? 'it' : 'them'} instead?
-                                        </p>
-                                    )}
-                                    <div className="flex gap-2 justify-end">
-                                        <button
-                                            onClick={() => {
-                                                setLastCopyDialogData(null);
-                                                clearSelection();
-                                            }}
-                                            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg">
-                                            {alreadyHidden.length === totalLastCopy ? 'OK' : 'Cancel'}
-                                        </button>
-                                        {canHide.length > 0 && (
-                                            <button
-                                                onClick={() => {
-                                                    // Hide only the canHide entries
-                                                    const guidEntries = canHide.filter(sel => sel.instanceId);
-                                                    const legacyEntries = canHide.filter(sel => !sel.instanceId);
-
-                                                    // v7.10.1-alpha.4 - undoable (audit gap) + named receipt
-                                                    {
-                                                        const legacyIds = legacyEntries.map(sel => sel.bookId);
-                                                        const previousStates = {};
-                                                        legacyIds.forEach(id => { const b = books.find(x => x.id === id); previousStates[id] = b ? (b.isHidden || false) : false; });
-                                                        const allIds = canHide.map(sel => sel.bookId);
-                                                        recordAction({
-                                                            type: 'HIDE_COPIES', instanceIds: guidEntries.map(sel => sel.instanceId),
-                                                            legacyBookIds: legacyIds, previousStates,
-                                                            label: `Hide ${bookCountLabel(allIds)}${canHide.length === 1 ? ' (this copy)' : ''}`
-                                                        });
-                                                        showToast(`Hid ${bookCountLabel(allIds)}${canHide.length === 1 ? ' (this copy)' : ''}`);
-                                                    }
-
-                                                    // Handle GUID entries: add to hiddenInstances
-                                                    if (guidEntries.length > 0) {
-                                                        setHiddenInstances(prev => {
-                                                            const next = new Set(prev);
-                                                            guidEntries.forEach(sel => next.add(sel.instanceId));
-                                                            return next;
-                                                        });
-                                                    }
-
-                                                    // Handle legacy entries: update book.isHidden
-                                                    if (legacyEntries.length > 0) {
-                                                        const legacyBookIds = legacyEntries.map(sel => sel.bookId);
-                                                        const updatedBooks = books.map(book => {
-                                                            if (legacyBookIds.includes(book.id)) {
-                                                                return { ...book, isHidden: true, userEdited: { ...(book.userEdited || {}), isHidden: true } }; // v6.12.0 - F4: protect hide from import overwrite
-                                                            }
-                                                            return book;
-                                                        });
-                                                        setBooks(updatedBooks);
-                                                        saveBooksToIndexedDB(updatedBooks);
-                                                    }
-
-                                                    console.log(`👁️ Hid ${canHide.length} last-copy book(s)`);
-                                                    setLastCopyDialogData(null);
-                                                    clearSelection();
-                                                }}
-                                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                                                Hide{canHide.length > 1 ? ` ${canHide.length}` : ''}
-                                            </button>
-                                        )}
-                                    </div>
-                        </Dialog>
-                        );
-                    })()}
-
+                    {/* v7.18.0 - Removed the dead "last copy / Cannot Delete" dialog (lastCopyDialogData):
+                        it had no opener left in the code — superseded by the ownership-aware delete flow
+                        (the "Owned Book" warning). Was v4.16.0-era; the archived v4/ copy still has it. */}
 
                     {modalBook && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) closeBookModal(); backdropMouseDownRef.current = null; }}>
