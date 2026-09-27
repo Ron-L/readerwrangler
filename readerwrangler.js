@@ -23,16 +23,21 @@
         // renders a scrim with a mousedown-guarded backdrop close (a drag that STARTED inside the panel
         // and released on the scrim does NOT dismiss), a baked-in ✕, an optional titled header, and
         // children. kind:'modal' means it raises the keystroke fence via hasModal().
-        const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true }) => {
+        // Optional props for the varied existing dialogs (all backward-compatible):
+        //   panelClassName — full override of the panel's classes (else bg-white rounded-lg shadow-2xl <maxW> w-full mx-4)
+        //   panelStyle     — inline style on the panel (e.g. a fixed max-width / max-height + flex column for a scroll body)
+        //   zIndexClass    — scrim z-index class (default z-50; high-priority notices use z-[100])
+        //   showClose/title — omit both to supply a fully custom header as children
+        const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true, zIndexClass = 'z-50', panelStyle }) => {
             const panelRef = useRef(null);
             useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef });
             const downOnScrimRef = useRef(false);
             return ReactDOM.createPortal(
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${zIndexClass}`}
                     onMouseDown={(e) => { downOnScrimRef.current = (e.target === e.currentTarget); }}
                     onClick={(e) => { if (e.target === e.currentTarget && downOnScrimRef.current && onClose) onClose(); downOnScrimRef.current = false; }}>
                     <div ref={panelRef} className={panelClassName || `bg-white rounded-lg shadow-2xl ${maxWidthClassName} w-full mx-4`}
-                        role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+                        style={panelStyle} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
                         {(title || showClose) && (
                             <div className="flex justify-between items-start p-4 border-b border-gray-200">
                                 {title ? <h2 className="text-base font-semibold text-gray-900">{title}</h2> : <span />}
@@ -53,7 +58,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.4";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.5";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6815,7 +6820,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || corruptionRecovery || restoreConfirm || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || statusModalOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || restoreConfirm || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6878,11 +6883,9 @@
                     if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
                     // v7.14.2 - these three modals were entirely outside the Esc chain (and the fence)
                     if (restoreConfirm) { console.log('📋 Backup restore cancelled by user (Esc)'); setRestoreConfirm(null); return; }
-                    // v7.18.0 - newFolderHiddenAlert migrated to <Dialog>; its Esc is handled by the overlay listener (guarded out above).
-                    if (corruptionRecovery) { setCorruptionRecovery(false); return; }
+                    // v7.18.0 - newFolderHiddenAlert / corruptionRecovery / resetConfirm migrated to <Dialog>; their Esc is handled by the overlay listener (guarded out above).
                     // Confirmations / info
                     if (lastCopyDialogData) { setLastCopyDialogData(null); return; }
-                    if (resetConfirmOpen) { setResetConfirmOpen(false); return; }
                     if (statusModalOpen) { setStatusModalOpen(false); return; }
                     if (relaySetupOpen && relayHelpOpen) { setRelayHelpOpen(false); return; }
                     if (relaySetupOpen && relayManualCreds) { setRelayManualCreds(false); return; }
@@ -6890,7 +6893,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice, restoreConfirm, corruptionRecovery]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - newFolderHiddenAlert migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice, restoreConfirm]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - newFolderHiddenAlert migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -11389,8 +11392,7 @@
                     )}
 
                     {resetConfirmOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setResetConfirmOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="modal-reset-confirm" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setResetConfirmOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-reset-confirm" className="text-xl font-bold text-gray-900">Reset App Confirmation</h2>
                                     <button onClick={() => setResetConfirmOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold" title="Close" aria-label="Close">×</button>
@@ -11424,8 +11426,7 @@
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v6.8.0 - New folder hidden by active filters alert */}
@@ -11986,8 +11987,8 @@
 
                     {/* v6.17.1 - Sync-corruption recovery: shown when Import from Relay hits a checksum mismatch. */}
                     {corruptionRecovery && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" onClick={() => setCorruptionRecovery(false)}>
-                            <div className="bg-white rounded-lg shadow-2xl w-full" style={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setCorruptionRecovery(false)} showClose={false} zIndexClass="z-[100]"
+                            panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
                                     <h2 className="text-lg font-bold text-gray-900">⚠️ Sync data check failed</h2>
                                 </div>
@@ -12000,8 +12001,7 @@
                                     <button onClick={() => { navigator.clipboard.writeText(window.RW_RECOVERY_STEPS || ''); showToast('Recovery steps copied'); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors">Copy instructions</button>
                                     <button onClick={() => setCorruptionRecovery(false)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">OK</button>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
                     {/* v7.4.0 - Informed restore confirm: backup age + exactly what restoring removes.
                         Restore is a pure time machine (no merge — RESTORE-SAFEGUARD.md); the safety
