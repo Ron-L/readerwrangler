@@ -53,7 +53,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.3";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.4";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -4515,10 +4515,10 @@
 
                 const handleEscKey = (e) => {
                     if (e.key === 'Escape') {
+                        // v7.18.0 - a registry overlay (<Dialog>/<Popover>) is topmost → its Esc is owned by
+                        // the overlay listener; defer entirely (About/Shortcuts/HowTo migrated to <Dialog>).
+                        if (overlayRegistry.topLayer()) return;
                         setOpenMenuBar(null);
-                        setAboutDialogOpen(false);
-                        setShortcutsDialogOpen(false);
-                        setHowToDialogOpen(false);
                         setStatusDropdownOpen(false);
                         setTagsDropdownOpen(false);
                         setTypesDropdownOpen(false);
@@ -6815,7 +6815,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || corruptionRecovery || restoreConfirm || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || corruptionRecovery || restoreConfirm || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -11464,8 +11464,7 @@
 
                     {/* v5.0.0-alpha.175.2 - About Dialog */}
                     {aboutDialogOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setAboutDialogOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="modal-about" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setAboutDialogOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-about" className="text-xl font-bold text-gray-900">About ReaderWrangler™</h2>
                                     <button onClick={() => setAboutDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
@@ -11484,14 +11483,12 @@
                                         <p>ReaderWrangler is a powerful organizer for your Kindle library. Import your library from Amazon, organize books into folders and collections, and filter by status/rating/tags.</p>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.0.0-alpha.175.2 - Keyboard Shortcuts Dialog */}
                     {shortcutsDialogOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setShortcutsDialogOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full" role="dialog" aria-modal="true" aria-labelledby="modal-shortcuts" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setShortcutsDialogOpen(false)} showClose={false} maxWidthClassName="max-w-lg">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-shortcuts" className="text-xl font-bold text-gray-900">Keyboard Shortcuts</h2>
                                     <button onClick={() => setShortcutsDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
@@ -11529,14 +11526,12 @@
                                         <div className="text-gray-600">Close dialogs / Clear selection</div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.0.0-alpha.175.2 - How To Use Dialog */}
                     {howToDialogOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setHowToDialogOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="modal-how-to" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setHowToDialogOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-how-to" className="text-xl font-bold text-gray-900">How To Use ReaderWrangler</h2>
                                     <button onClick={() => setHowToDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
@@ -11559,8 +11554,7 @@
                                     </div>
                                     <p className="text-xs" style={{ color: '#6b7280' }}>Repeat steps 2–3 occasionally to add newly purchased books.</p>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.1.0-alpha.3 - Auto-Organize Wizard Modal */}
