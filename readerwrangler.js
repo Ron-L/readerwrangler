@@ -58,7 +58,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.6";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.7";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6820,7 +6820,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || statusModalOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6881,17 +6881,15 @@
                     // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - these two were missing from the chain
                     if (dupReviewOpen) { setDupReviewOpen(false); return; }
                     if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
-                    // v7.18.0 - newFolderHiddenAlert / corruptionRecovery / resetConfirm / restoreConfirm migrated to <Dialog>; their Esc is handled by the overlay listener (guarded out above).
-                    // Confirmations / info
-                    if (lastCopyDialogData) { setLastCopyDialogData(null); return; }
-                    if (statusModalOpen) { setStatusModalOpen(false); return; }
+                    // v7.18.0 - migrated to <Dialog> (Esc handled by the overlay listener, guarded out above):
+                    // newFolderHiddenAlert / corruptionRecovery / resetConfirm / restoreConfirm / statusModal / lastCopyDialog.
                     if (relaySetupOpen && relayHelpOpen) { setRelayHelpOpen(false); return; }
                     if (relaySetupOpen && relayManualCreds) { setRelayManualCreds(false); return; }
                     if (relaySetupOpen) { setRelaySetupOpen(false); setRelaySetupSection(null); return; }
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - newFolderHiddenAlert migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - newFolderHiddenAlert migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -10652,8 +10650,7 @@
                         const duplicateCount = duplicateAsins.length;
 
                         return (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setStatusModalOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="modal-data-status" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setStatusModalOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 {/* Header */}
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-data-status" className="text-xl font-bold text-gray-900">Data Status</h2>
@@ -10831,8 +10828,7 @@
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                         );
                     })()}
 
@@ -13357,8 +13353,7 @@
                         const totalLastCopy = lastCopyDialogData.lastCopyEntries.length;
 
                         return (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                                <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md" role="dialog" aria-modal="true" aria-labelledby="modal-cannot-delete" onClick={(e) => e.stopPropagation()}>
+                            <Dialog onClose={() => { setLastCopyDialogData(null); clearSelection(); }} showClose={false} panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-md">
                                     <h2 id="modal-cannot-delete" className="text-xl font-bold text-gray-900 mb-4">Cannot Delete</h2>
                                     <p className="text-sm text-gray-700 mb-4">
                                         {totalLastCopy === 1 ? (
@@ -13455,8 +13450,7 @@
                                             </button>
                                         )}
                                     </div>
-                                </div>
-                            </div>
+                        </Dialog>
                         );
                     })()}
 
