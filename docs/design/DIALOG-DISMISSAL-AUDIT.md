@@ -351,9 +351,17 @@ wedged into a patch release. The stopgap removes all *live* harm; the primitive 
 
 Decisions on §9: **(1) portals — YES**; **(2) menus want Esc — yes, but ride migration, not Phase 1**;
 **(3) first cut = `<Dialog>` (modals); `<Popover>`/`<Menu>` added when a consumer needs them**;
-**(4) focus management — later**. Phasing: **P1** build the primitive + prove on one trivial leaf
-(`newFolderHiddenAlert`); **P2** build the orphan-cleanup dialog on `<Dialog>` (first real feature
-consumer); **P3** migrate the remaining overlays, one family per alpha.
+**(4) focus management — later**. Phasing (**re-sequenced 2026-09-27, Ron**): **P1** build the primitive + prove on one trivial leaf
+(`newFolderHiddenAlert`) — DONE (alpha.3). **P2** convert **ALL** remaining existing overlays, one
+family per alpha (incl. the nested/cascade families — autoOrg, wizard, relaySetup — and the
+light-dismiss menus, building `<Popover>`/`<Menu>`), then delete the legacy OR-chain + `handleModalEsc`
++ the modal half of `handleEscKey` and retire the CLAUDE.md dialog checklist. **Pure behavior-preserving
+refactor, no new user functionality → ships as 7.18.0.**
+**The orphan-cleanup dialog is REMOVED from this branch** (was P2): it's new functionality with no
+special dismissal properties, so it adds ~no verification the trivial leaf didn't — the real validation
+is the nested/cascade conversions. It gets its **OWN feature branch on the finished primitive, after
+7.18.0 ships** (Ron 2026-09-27: the mass conversion is where the primitive is truly proven; keep the
+refactor and the new feature as separate, independently-testable releases).
 
 **Module split (the RW-specific shape):**
 - **`overlayRegistry.js`** (NEW, pure JS, classic script before the app script; Node-tested by
