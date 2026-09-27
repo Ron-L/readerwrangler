@@ -58,7 +58,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.8";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.9";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6818,7 +6818,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6854,7 +6854,6 @@
                     // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - Status History popover closes on Esc
                     // (was click-outside only)
                     if (toastHistoryOpen) { setToastHistoryOpen(false); return; }
-                    if (shareEmailChoice) { setShareEmailChoice(null); return; } // v7.14.0
                     // v6.13.0-alpha.7/9 - Auto-Organize preview stack: the cover right-click menu, then the preview itself
                     if (autoOrgMenu) { setAutoOrgMenu(null); return; }
                     if (autoOrgPreview) { closeAutoOrgPreview(); return; } // v7.14.2 - was a partial clear that orphaned autoOrgSrcPopup/autoOrgFileUnder on Esc; delegate to the one closer
@@ -6872,7 +6871,6 @@
                     // v5.4.7 - Bulk edit series dropdown (innermost within bulk edit modal)
                     if (bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); return; }
                     if (showBulkEditModal) { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); return; }
-                    if (showBulkPriceModal) { setShowBulkPriceModal(false); return; }
                     if (tagManagementOpen) { setTagManagementOpen(false); return; }
                     if (wizardModalOpen) { setWizardModalOpen(false); return; }
                     if (folderPropertiesDialog) { setFolderPropertiesDialog(null); return; }
@@ -6887,7 +6885,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - newFolderHiddenAlert migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - newFolderHiddenAlert migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -13117,9 +13115,7 @@
 
                     {/* v4.20.0.a - Bulk price goal modal (v5.0.0-alpha.169.8 - use bulkPriceBookIds) */}
                     {showBulkPriceModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                             onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) { setShowBulkPriceModal(false); setBulkPriceInput(''); setBulkPriceBookIds([]); } backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl p-6 max-w-sm" role="dialog" aria-modal="true" aria-labelledby="modal-bulk-price" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => { setShowBulkPriceModal(false); setBulkPriceInput(''); setBulkPriceBookIds([]); }} showClose={false} panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm">
                                 <h2 id="modal-bulk-price" className="text-lg font-bold text-gray-900 mb-4">Set Custom Price Goal</h2>
                                 <p className="text-sm text-gray-600 mb-4">
                                     Set price goal for {bulkPriceBookIds.length} selected book{bulkPriceBookIds.length !== 1 ? 's' : ''}
@@ -13168,8 +13164,7 @@
                                         </button>
                                     </div>
                                 </form>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.4.7 - Bulk edit modal */}
@@ -20225,10 +20220,7 @@
 
                     {/* v6.10.0-alpha.13 - Share Email Fallback Dialog */}
                     {shareEmailChoice && (
-                        <>
-                            <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShareEmailChoice(null)} />
-                            <div className="fixed z-50 bg-white rounded-lg shadow-xl p-6 max-w-md"
-                                style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+                        <Dialog onClose={() => setShareEmailChoice(null)} showClose={false} panelClassName="relative bg-white rounded-lg shadow-xl p-6 max-w-md">
                                 <button onClick={() => setShareEmailChoice(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none" title="Close" aria-label="Close">×</button>
                                 <h3 className="text-lg font-bold text-gray-900 mb-2">Share by Email</h3>
                                 <p className="text-sm text-gray-600 mb-4">How would you like to send this?</p>
@@ -20294,8 +20286,7 @@
                                         Cancel
                                     </button>
                                 </div>
-                            </div>
-                        </>
+                        </Dialog>
                     )}
 
                     {/* Affiliate Disclosure Footer (v4.4.0) */}
