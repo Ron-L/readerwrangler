@@ -58,7 +58,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.5";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.6";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6820,7 +6820,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || statusModalOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || restoreConfirm || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || statusModalOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6881,9 +6881,7 @@
                     // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - these two were missing from the chain
                     if (dupReviewOpen) { setDupReviewOpen(false); return; }
                     if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
-                    // v7.14.2 - these three modals were entirely outside the Esc chain (and the fence)
-                    if (restoreConfirm) { console.log('📋 Backup restore cancelled by user (Esc)'); setRestoreConfirm(null); return; }
-                    // v7.18.0 - newFolderHiddenAlert / corruptionRecovery / resetConfirm migrated to <Dialog>; their Esc is handled by the overlay listener (guarded out above).
+                    // v7.18.0 - newFolderHiddenAlert / corruptionRecovery / resetConfirm / restoreConfirm migrated to <Dialog>; their Esc is handled by the overlay listener (guarded out above).
                     // Confirmations / info
                     if (lastCopyDialogData) { setLastCopyDialogData(null); return; }
                     if (statusModalOpen) { setStatusModalOpen(false); return; }
@@ -6893,7 +6891,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice, restoreConfirm]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - newFolderHiddenAlert migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - newFolderHiddenAlert migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -12017,8 +12015,8 @@
                         };
                         const losses = lostLists.length + lostSearches.length;
                         return (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" onClick={() => { console.log('📋 Backup restore cancelled by user (backdrop)'); setRestoreConfirm(null); }}>
-                            <div className="bg-white rounded-lg shadow-2xl w-full" style={{ maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => { console.log('📋 Backup restore cancelled by user'); setRestoreConfirm(null); }}
+                            showClose={false} zIndexClass="z-[100]" panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
                                     <h2 className="text-lg font-bold text-gray-900">Restore backup?</h2>
                                 </div>
@@ -12059,8 +12057,7 @@
                                         Restore
                                     </button>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                         );
                     })()}
                     {/* v6.13.0-alpha.7 (D1) - Auto-Organize confirm/preview: hierarchical Author→Series→covers before commit */}
