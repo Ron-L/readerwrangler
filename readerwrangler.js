@@ -1422,22 +1422,26 @@
                         ? book.description.substring(0, 150).trim() + '…'
                         : '';
 
+                    // v7.17.1 - the OS/web share (Share… → Gmail/…) now carries the SAME subject + body as
+                    // Email a Friend (was a terse snippet). Gmail ignores navigator.share `title`, so the subject
+                    // only shows in targets that honor it; the rich body (with the Amazon link) always comes
+                    // through. webShareUrl omitted so the link isn't duplicated (it's already in the body).
+                    const emailSubject = `You might like "${book.title}" by ${book.author}`;
+                    const emailBody = [
+                        'I came across this book and thought you might enjoy it:\n',
+                        `"${book.title}" by ${book.author}`,
+                        ratingText,
+                        descSnippet ? `\n${descSnippet}` : '',
+                        url ? `\nView on Amazon: ${url}` : '',
+                    ].filter(Boolean).join('\n');
                     return {
                         count: 1,
                         urls: url ? [url] : [],
-                        emailSubject: `You might like "${book.title}" by ${book.author}`,
-                        emailBody: [
-                            'I came across this book and thought you might enjoy it:\n',
-                            `"${book.title}" by ${book.author}`,
-                            ratingText,
-                            descSnippet ? `\n${descSnippet}` : '',
-                            url ? `\nView on Amazon: ${url}` : '',
-                        ].filter(Boolean).join('\n'),
-                        webShareTitle: `${book.title} by ${book.author}`,
-                        webShareText: book.rating
-                            ? `⭐ ${book.rating} on Amazon — ${descSnippet || book.title}`
-                            : descSnippet || book.title,
-                        webShareUrl: url,
+                        emailSubject,
+                        emailBody,
+                        webShareTitle: emailSubject,
+                        webShareText: emailBody,
+                        webShareUrl: null,
                     };
                 }
 
@@ -1449,14 +1453,17 @@
                     return `"${b.title}" by ${b.author}${rating}${link}`;
                 }).join('\n\n');
 
+                // v7.17.1 - web share matches Email a Friend (see the single-book note above)
+                const emailSubject = 'Check out these book recommendations';
+                const emailBody = `I came across these books and thought you might enjoy them:\n\n${bookLines}`;
                 return {
                     count,
                     urls,
-                    emailSubject: 'Check out these book recommendations',
-                    emailBody: `I came across these books and thought you might enjoy them:\n\n${bookLines}`,
-                    webShareTitle: 'Book recommendations',
-                    webShareText: `Check out: ${bookArray.map(b => b.title).join(', ')}`,
-                    webShareUrl: urls[0] || null,
+                    emailSubject,
+                    emailBody,
+                    webShareTitle: emailSubject,
+                    webShareText: emailBody,
+                    webShareUrl: null,
                 };
             };
 
