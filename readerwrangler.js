@@ -58,7 +58,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.10";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.11";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -3529,7 +3529,6 @@
             const lastClickedTagRef = useRef(null);
 
             // v6.10.0-alpha.20 - Tag Manager drag-to-view: hide modal during drag via direct DOM
-            const tagManagerBackdropRef = useRef(null); // modal backdrop for direct DOM visibility toggle
             const tagManagerScrollRef = useRef(null); // scrollable container for scroll position restore
 
             // v5.0.0-alpha.82 - Timeout for auto-expanding folder on drag hover
@@ -6825,7 +6824,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || relaySetupOpen || tagFromCollectionsOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || showBulkEditModal || wizardModalOpen || folderPropertiesDialog || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || relaySetupOpen || tagFromCollectionsOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6878,7 +6877,6 @@
                     // v5.4.7 - Bulk edit series dropdown (innermost within bulk edit modal)
                     if (bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); return; }
                     if (showBulkEditModal) { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); return; }
-                    if (tagManagementOpen) { setTagManagementOpen(false); return; }
                     if (wizardModalOpen) { setWizardModalOpen(false); return; }
                     if (folderPropertiesDialog) { setFolderPropertiesDialog(null); return; }
                     // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - tagFromCollections was missing from the chain
@@ -6891,7 +6889,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen, tagFromCollectionsOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, wizardModalOpen, folderPropertiesDialog, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen, tagFromCollectionsOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -17614,10 +17612,8 @@
 
                     {/* v4.27.0 Phase 3 - Tag Management Modal */}
                     {tagManagementOpen && (
-                        <div ref={tagManagerBackdropRef} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                             onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) { setTagManagementOpen(false); setEditingTagId(null); } backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col"
-                                 onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => { setTagManagementOpen(false); setEditingTagId(null); }} showClose={false}
+                            panelClassName="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
                                 <div className="flex items-center justify-between p-4 border-b border-gray-200">
                                     <h2 className="text-xl font-semibold">Manage Tags</h2>
                                     <button onClick={() => { setTagManagementOpen(false); setEditingTagId(null); }}
@@ -17911,8 +17907,7 @@
                                         onChange={(e) => setTagInputValue(e.target.value)}
                                     />
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v4.16.0.l - Toast notification that animates to footer */}
