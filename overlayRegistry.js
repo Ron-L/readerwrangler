@@ -50,9 +50,11 @@ const topLayer = () => _layers[_layers.length - 1] || null;
 
 // Close the topmost layer (what the Esc listener calls). The close() drives a React state change →
 // unmount → the effect cleanup calls removeLayer(id); we do NOT splice here (React owns removal).
-const closeTop = () => {
+// reason ('esc' | 'backdrop' | 'button' | undefined) is forwarded to the layer's close() so a
+// dialog can behave differently per source (e.g. Esc backs out an in-dialog sub-view; backdrop closes).
+const closeTop = (reason) => {
     const t = topLayer();
-    if (t && t.close) { try { t.close(); } catch (e) { /* no-op */ } }
+    if (t && t.close) { try { t.close(reason); } catch (e) { /* no-op */ } }
     return !!t;                                 // true if there was something to close
 };
 

@@ -14,7 +14,7 @@
             const closeRef = useRef(close);
             closeRef.current = close;
             useEffect(() => {
-                const id = overlayRegistry.pushLayer({ close: () => closeRef.current && closeRef.current(), kind, nodeRef });
+                const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef });
                 return () => overlayRegistry.removeLayer(id);
             }, [kind]); // mount/unmount only — kind is fixed for a given overlay
         };
@@ -37,14 +37,14 @@
             return ReactDOM.createPortal(
                 <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${zIndexClass}`}
                     onMouseDown={(e) => { downOnScrimRef.current = (e.target === e.currentTarget); }}
-                    onClick={(e) => { if (e.target === e.currentTarget && downOnScrimRef.current && onClose) onClose(); downOnScrimRef.current = false; }}>
+                    onClick={(e) => { if (e.target === e.currentTarget && downOnScrimRef.current && onClose) onClose('backdrop'); downOnScrimRef.current = false; }}>
                     <div ref={panelRef} className={_panelCls}
                         style={panelStyle} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-                        {closeButton && <button onClick={() => onClose && onClose()} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none z-10" title="Close" aria-label="Close">×</button>}
+                        {closeButton && <button onClick={() => onClose && onClose('button')} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none z-10" title="Close" aria-label="Close">×</button>}
                         {(title || showClose) && (
                             <div className="flex justify-between items-start p-4 border-b border-gray-200">
                                 {title ? <h2 className="text-base font-semibold text-gray-900">{title}</h2> : <span />}
-                                {showClose && <button onClick={() => onClose && onClose()} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none" title="Close" aria-label="Close">×</button>}
+                                {showClose && <button onClick={() => onClose && onClose('button')} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none" title="Close" aria-label="Close">×</button>}
                             </div>
                         )}
                         {children}
@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.14";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.15";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -943,7 +943,7 @@
             useEffect(() => {
                 const onKey = (e) => {
                     if (e.key !== 'Escape') return;
-                    if (overlayRegistry.topLayer()) { e.stopPropagation(); overlayRegistry.closeTop(); }
+                    if (overlayRegistry.topLayer()) { e.stopPropagation(); overlayRegistry.closeTop('esc'); }
                 };
                 window.addEventListener('keydown', onKey);
                 return () => window.removeEventListener('keydown', onKey);
@@ -6802,7 +6802,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkEditModal || wizardModalOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || relaySetupOpen || tagFromCollectionsOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || showBulkEditModal || wizardModalOpen || wizardHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || tagFromCollectionsOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6859,14 +6859,12 @@
                     // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - tagFromCollections was missing from the chain
                     if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
                     // v7.18.0 - migrated to <Dialog> (Esc handled by the overlay listener, guarded out above):
-                    // newFolderHiddenAlert / corruptionRecovery / resetConfirm / restoreConfirm / statusModal / lastCopyDialog.
-                    if (relaySetupOpen && relayHelpOpen) { setRelayHelpOpen(false); return; }
-                    if (relaySetupOpen && relayManualCreds) { setRelayManualCreds(false); return; }
-                    if (relaySetupOpen) { setRelaySetupOpen(false); setRelaySetupSection(null); return; }
+                    // newFolderHiddenAlert / corruptionRecovery / resetConfirm / restoreConfirm / statusModal /
+                    // lastCopyDialog / relaySetup (+ relayHelp; relayManualCreds back-out is in relaySetup's onClose reason==='esc').
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, wizardModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen, tagFromCollectionsOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, wizardModalOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen, tagFromCollectionsOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -10965,8 +10963,10 @@
 
                     {/* v6.0.0 - Relay Setup Modal */}
                     {relaySetupOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) { closeRelaySetup(); } backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full" role="dialog" aria-modal="true" aria-labelledby="modal-relay-setup" onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+                        // v7.18.0 - smart onClose: Esc backs out of the manual-creds sub-view first (one level); backdrop/✕ close the dialog.
+                        <Dialog onClose={(reason) => { if (reason === 'esc' && relayManualCreds) { setRelayManualCreds(false); } else { closeRelaySetup(); } }} showClose={false}
+                            panelClassName="bg-white rounded-lg shadow-2xl max-w-lg w-full"
+                            panelStyle={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-start p-4 rounded-t-lg border-b" style={{ background: 'var(--bg-chrome)', borderColor: 'var(--border-default)', flexShrink: 0 }}>
                                     <h2 id="modal-relay-setup" className="text-xl font-bold" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><img src="icons/sync-tower-neutral.svg" alt="" style={{ width: '14px', height: '22px' }} /> Relay Setup</h2>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -11294,14 +11294,14 @@
                                         );
                                     })()}
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v6.10.0 - Relay Setup Help Overlay */}
                     {relayHelpOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setRelayHelpOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="rounded-lg shadow-2xl max-w-lg w-full" role="dialog" aria-modal="true" aria-labelledby="modal-relay-help" onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+                        <Dialog onClose={() => setRelayHelpOpen(false)} showClose={false}
+                            panelClassName="rounded-lg shadow-2xl max-w-lg w-full"
+                            panelStyle={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-start p-4 rounded-t-lg border-b" style={{ background: 'var(--bg-chrome)', borderColor: 'var(--border-default)', flexShrink: 0 }}>
                                     <h2 id="modal-relay-help" className="text-lg font-bold">Understanding Relay Setup</h2>
                                     <button onClick={() => setRelayHelpOpen(false)} className="text-2xl leading-none" style={{ color: 'var(--text-muted)' }} title="Close" aria-label="Close">×</button>
@@ -11357,8 +11357,7 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {resetConfirmOpen && (

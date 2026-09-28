@@ -77,6 +77,18 @@ test('closeTop calls the topmost close() and reports whether one existed', () =>
     assert.strictEqual(reg.closeTop(), false, 'closeTop on an empty stack returns false');
 });
 
+test('closeTop forwards its reason to the top layer close()', () => {
+    let seen = 'none';
+    reg.pushLayer({ close: (reason) => { seen = reason; }, kind: 'modal' });
+    reg.closeTop('esc');
+    assert.strictEqual(seen, 'esc', 'reason is passed through to the layer close');
+    reg._reset();
+    let seen2 = 'none';
+    reg.pushLayer({ close: (reason) => { seen2 = reason; }, kind: 'modal' });
+    reg.closeTop();
+    assert.strictEqual(seen2, undefined, 'no reason → undefined (backward compatible)');
+});
+
 test('subscribers are notified on push and on remove', () => {
     let n = 0;
     const unsub = reg.subscribe(() => n++);
