@@ -58,7 +58,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.11";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.12";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1170,7 +1170,6 @@
             const [folderPropertiesDialog, setFolderPropertiesDialog] = useState(null); // v5.0.0-alpha.142 - Folder properties dialog { folderId }
             const [folderPropertiesEditedName, setFolderPropertiesEditedName] = useState(''); // v5.0.0-alpha.143 - Edited name in properties dialog
             const [folderPropertiesEditedDescription, setFolderPropertiesEditedDescription] = useState(''); // v6.5.0 - Description in properties dialog
-            const [dialogDrag, setDialogDrag] = useState(null); // v5.0.0-alpha.144 - Dragging state { isDragging, offsetX, offsetY, dialogX, dialogY }
             const [showAllFoldersOverride, setShowAllFoldersOverride] = useState(() => localStorage.getItem('readerwrangler-show-all-folders') === 'true'); // v5.0.0-alpha.169 - Override auto-hide when filter active; v6.12.0 - sticky persisted preference
             const springLoadTimerRef = useRef(null); // v6.8.0 - Spring-load timer for Show All drag hover
             const [springLoadActive, setSpringLoadActive] = useState(false); // v6.8.0 - True while spring-load countdown is running (drives pulse animation)
@@ -4988,30 +4987,6 @@
                 return () => window.removeEventListener('keydown', handleEsc);
             }, [folderClipboard]);
 
-            // v5.0.0-alpha.144 - Handle dialog dragging
-            useEffect(() => {
-                if (!dialogDrag?.isDragging) return;
-
-                const handleMouseMove = (e) => {
-                    setDialogDrag(prev => ({
-                        ...prev,
-                        dialogX: e.clientX - prev.offsetX,
-                        dialogY: e.clientY - prev.offsetY
-                    }));
-                };
-
-                const handleMouseUp = () => {
-                    setDialogDrag(prev => ({ ...prev, isDragging: false }));
-                };
-
-                window.addEventListener('mousemove', handleMouseMove);
-                window.addEventListener('mouseup', handleMouseUp);
-                return () => {
-                    window.removeEventListener('mousemove', handleMouseMove);
-                    window.removeEventListener('mouseup', handleMouseUp);
-                };
-            }, [dialogDrag?.isDragging]);
-
             // v5.0.0-alpha.133 - Close folder context menu on click outside
             useEffect(() => {
                 const handleClickOutside = (e) => {
@@ -6824,7 +6799,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkEditModal || wizardModalOpen || folderPropertiesDialog || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || relaySetupOpen || tagFromCollectionsOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || showBulkEditModal || wizardModalOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || relaySetupOpen || tagFromCollectionsOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6878,7 +6853,6 @@
                     if (bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); return; }
                     if (showBulkEditModal) { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); return; }
                     if (wizardModalOpen) { setWizardModalOpen(false); return; }
-                    if (folderPropertiesDialog) { setFolderPropertiesDialog(null); return; }
                     // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - tagFromCollections was missing from the chain
                     if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
                     // v7.18.0 - migrated to <Dialog> (Esc handled by the overlay listener, guarded out above):
@@ -6889,7 +6863,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, wizardModalOpen, folderPropertiesDialog, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen, tagFromCollectionsOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, wizardModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen, tagFromCollectionsOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -18706,14 +18680,6 @@
                                         setFolderPropertiesEditedName(folder.name); // v5.0.0-alpha.143 - Initialize edited name
                                         setFolderPropertiesEditedDescription(folder.description || ''); // v6.5.0
                                         setFolderPropertiesDialog({ folderId: folder.id });
-                                        // v5.0.0-alpha.144 - Initialize dialog position (centered)
-                                        setDialogDrag({
-                                            isDragging: false,
-                                            offsetX: 0,
-                                            offsetY: 0,
-                                            dialogX: window.innerWidth / 2 - 224, // 224 = half of max-w-md (448px)
-                                            dialogY: window.innerHeight / 2 - 200 // Approximate half height
-                                        });
                                         setFolderContextMenu(null);
                                     }}>
                                     <span>ℹ️</span>
@@ -20108,36 +20074,10 @@
                         };
 
                         return (
-                            <>
-                                {/* Backdrop */}
-                                <div
-                                    className="fixed inset-0 bg-black bg-opacity-50 z-50"
-                                    onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setFolderPropertiesDialog(null); backdropMouseDownRef.current = null; }}
-                                />
-
-                                {/* Dialog - v5.0.0-alpha.144: Draggable */}
-                                <div
-                                    className="bg-white rounded-lg shadow-xl w-full max-w-md pointer-events-auto fixed z-50"
-                                    role="dialog" aria-modal="true" aria-labelledby="modal-folder-properties"
-                                    style={{
-                                        left: `${dialogDrag?.dialogX || 0}px`,
-                                        top: `${dialogDrag?.dialogY || 0}px`,
-                                        cursor: dialogDrag?.isDragging ? 'grabbing' : 'default'
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}>
-                                    <h2
-                                        id="modal-folder-properties"
-                                        className="text-xl font-semibold mb-4 p-6 pb-0 cursor-grab active:cursor-grabbing select-none"
-                                        onMouseDown={(e) => {
-                                            const rect = e.currentTarget.parentElement.getBoundingClientRect();
-                                            setDialogDrag({
-                                                isDragging: true,
-                                                offsetX: e.clientX - rect.left,
-                                                offsetY: e.clientY - rect.top,
-                                                dialogX: rect.left,
-                                                dialogY: rect.top
-                                            });
-                                        }}>
+                            // v7.18.0 - converted to <Dialog>; drag (dialogDrag) dropped here, restored later by the draggable-dialogs feature (TODO)
+                            <Dialog onClose={() => setFolderPropertiesDialog(null)} showClose={false}
+                                panelClassName="bg-white rounded-lg shadow-xl w-full max-w-md">
+                                    <h2 id="modal-folder-properties" className="text-xl font-semibold mb-4 p-6 pb-0">
                                         Folder Properties
                                     </h2>
                                     <div className="px-6 pb-6">
@@ -20213,8 +20153,7 @@
                                             )}
                                         </div>
                                     </div>
-                                </div>
-                            </>
+                            </Dialog>
                         );
                     })()}
 
