@@ -58,7 +58,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.12";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.13";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -20076,7 +20076,8 @@
                         return (
                             // v7.18.0 - converted to <Dialog>; drag (dialogDrag) dropped here, restored later by the draggable-dialogs feature (TODO)
                             <Dialog onClose={() => setFolderPropertiesDialog(null)} showClose={false}
-                                panelClassName="bg-white rounded-lg shadow-xl w-full max-w-md">
+                                panelClassName="relative bg-white rounded-lg shadow-xl w-full max-w-md">
+                                    <button onClick={() => setFolderPropertiesDialog(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none" title="Close" aria-label="Close">×</button>
                                     <h2 id="modal-folder-properties" className="text-xl font-semibold mb-4 p-6 pb-0">
                                         Folder Properties
                                     </h2>
