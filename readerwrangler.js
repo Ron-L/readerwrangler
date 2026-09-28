@@ -28,16 +28,19 @@
         //   panelStyle     — inline style on the panel (e.g. a fixed max-width / max-height + flex column for a scroll body)
         //   zIndexClass    — scrim z-index class (default z-50; high-priority notices use z-[100])
         //   showClose/title — omit both to supply a fully custom header as children
-        const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true, zIndexClass = 'z-50', panelStyle }) => {
+        //   closeButton    — render a standard corner ✕ (for custom-header dialogs); auto-adds `relative` to the panel
+        const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true, zIndexClass = 'z-50', panelStyle, closeButton = false }) => {
             const panelRef = useRef(null);
             useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef });
             const downOnScrimRef = useRef(false);
+            const _panelCls = (panelClassName || `bg-white rounded-lg shadow-2xl ${maxWidthClassName} w-full mx-4`) + (closeButton ? ' relative' : '');
             return ReactDOM.createPortal(
                 <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${zIndexClass}`}
                     onMouseDown={(e) => { downOnScrimRef.current = (e.target === e.currentTarget); }}
                     onClick={(e) => { if (e.target === e.currentTarget && downOnScrimRef.current && onClose) onClose(); downOnScrimRef.current = false; }}>
-                    <div ref={panelRef} className={panelClassName || `bg-white rounded-lg shadow-2xl ${maxWidthClassName} w-full mx-4`}
+                    <div ref={panelRef} className={_panelCls}
                         style={panelStyle} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+                        {closeButton && <button onClick={() => onClose && onClose()} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none z-10" title="Close" aria-label="Close">×</button>}
                         {(title || showClose) && (
                             <div className="flex justify-between items-start p-4 border-b border-gray-200">
                                 {title ? <h2 className="text-base font-semibold text-gray-900">{title}</h2> : <span />}
@@ -58,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.13";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.14";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -11954,7 +11957,7 @@
 
                     {/* v6.17.1 - Sync-corruption recovery: shown when Import from Relay hits a checksum mismatch. */}
                     {corruptionRecovery && (
-                        <Dialog onClose={() => setCorruptionRecovery(false)} showClose={false} zIndexClass="z-[100]"
+                        <Dialog onClose={() => setCorruptionRecovery(false)} showClose={false} closeButton zIndexClass="z-[100]"
                             panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
                                     <h2 className="text-lg font-bold text-gray-900">⚠️ Sync data check failed</h2>
@@ -11985,7 +11988,7 @@
                         const losses = lostLists.length + lostSearches.length;
                         return (
                         <Dialog onClose={() => { console.log('📋 Backup restore cancelled by user'); setRestoreConfirm(null); }}
-                            showClose={false} zIndexClass="z-[100]" panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px' }}>
+                            showClose={false} closeButton zIndexClass="z-[100]" panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
                                     <h2 className="text-lg font-bold text-gray-900">Restore backup?</h2>
                                 </div>
@@ -13092,7 +13095,7 @@
 
                     {/* v4.20.0.a - Bulk price goal modal (v5.0.0-alpha.169.8 - use bulkPriceBookIds) */}
                     {showBulkPriceModal && (
-                        <Dialog onClose={() => { setShowBulkPriceModal(false); setBulkPriceInput(''); setBulkPriceBookIds([]); }} showClose={false} panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm">
+                        <Dialog onClose={() => { setShowBulkPriceModal(false); setBulkPriceInput(''); setBulkPriceBookIds([]); }} showClose={false} closeButton panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm">
                                 <h2 id="modal-bulk-price" className="text-lg font-bold text-gray-900 mb-4">Set Custom Price Goal</h2>
                                 <p className="text-sm text-gray-600 mb-4">
                                     Set price goal for {bulkPriceBookIds.length} selected book{bulkPriceBookIds.length !== 1 ? 's' : ''}
@@ -20075,9 +20078,8 @@
 
                         return (
                             // v7.18.0 - converted to <Dialog>; drag (dialogDrag) dropped here, restored later by the draggable-dialogs feature (TODO)
-                            <Dialog onClose={() => setFolderPropertiesDialog(null)} showClose={false}
-                                panelClassName="relative bg-white rounded-lg shadow-xl w-full max-w-md">
-                                    <button onClick={() => setFolderPropertiesDialog(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none" title="Close" aria-label="Close">×</button>
+                            <Dialog onClose={() => setFolderPropertiesDialog(null)} showClose={false} closeButton
+                                panelClassName="bg-white rounded-lg shadow-xl w-full max-w-md">
                                     <h2 id="modal-folder-properties" className="text-xl font-semibold mb-4 p-6 pb-0">
                                         Folder Properties
                                     </h2>
@@ -20160,8 +20162,7 @@
 
                     {/* v6.10.0-alpha.13 - Share Email Fallback Dialog */}
                     {shareEmailChoice && (
-                        <Dialog onClose={() => setShareEmailChoice(null)} showClose={false} panelClassName="relative bg-white rounded-lg shadow-xl p-6 max-w-md">
-                                <button onClick={() => setShareEmailChoice(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none" title="Close" aria-label="Close">×</button>
+                        <Dialog onClose={() => setShareEmailChoice(null)} showClose={false} closeButton panelClassName="bg-white rounded-lg shadow-xl p-6 max-w-md">
                                 <h3 className="text-lg font-bold text-gray-900 mb-2">Share by Email</h3>
                                 <p className="text-sm text-gray-600 mb-4">How would you like to send this?</p>
                                 <div className="flex flex-col gap-2">
