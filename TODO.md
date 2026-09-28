@@ -52,6 +52,36 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
    batch — item 6 first).
 
 
+- [ ] **New "Tools" menu — move non-appearance / non-I/O items out of File + View (Ron 2026-09-28; UX pass)**.
+  Principle: File = pure data I/O (Data Status, Import from Relay, Restore/Save Backup, Save Spreadsheet); View = pure
+  display (List/Cover View, Show Hidden, Goal Met, Theme). New **Tools** menu gets: **Manage Tags** (from View) +
+  **Tag from Collections** (from File) — adjacent, both tag ops (consider a "Tags ▶" submenu); **Auto-Organize**;
+  **Relay Setup** (really config — Tools for now, would go to a Settings menu if one ever exists); **Reset App** at the
+  BOTTOM behind a divider (danger zone, keep its red). Data Status stays in File. Menu-IA task — its own small release,
+  NOT part of the overlay migration.
+
+- [ ] **Draggable dialogs — bake drag into the `<Dialog>` primitive (Ron 2026-09-28; SEPARATE feature AFTER the overlay migration ships)**.
+  Ron often needs to move a dialog to see what's under it (Quicken habit). Add drag to `<Dialog>` so ALL dialogs become
+  draggable at once (retires the old per-dialog `dialogDrag`; **folderPropertiesDialog is being converted WITHOUT drag
+  during the migration — this feature restores it, universally**). Decisions (Ron 2026-09-28): (1) grab from **anywhere
+  on the panel except interactive controls** (input/textarea/button/a/select), with a `cursor:move` affordance;
+  (2) **bounds** default = keep a grabbable strip always on-screen (never lose a dialog), but support a
+  **`dragBounds:'free'` option to drag fully off-window** (Ron finds off-window useful in Quicken — Search Results /
+  Reconciliation; keep the capability even if most default to constrained) — prove free/off-window works with one test
+  dialog; (3) **position** = centered on each open, then draggable (not remember-last). New user functionality → its OWN
+  branch/release, keeping the overlay branch a pure refactor (Ron's Option A).
+
+- [ ] **relaySetup UX polish (Ron 2026-09-28, surfaced during the overlay migration; NOT part of the migration)**.
+  Relay Setup's internal accordion sections shove content up/down so hard the expansion reads as "a new
+  dialog appeared." Items: (1) **slow/animate the expansions** (a height transition) so the eye can track
+  Credentials/Enter-Manually and Bookmarklet/Pairing expanding rather than jumping; (2) **"Enter Credentials
+  Manually" isn't perceivable as a level** — users can't tell it from just expanding a section, so its special
+  "Esc backs out one level first" behavior (the smart onClose reason==='esc' branch) is invisible/confusing —
+  reconsider whether manual-creds should be a distinct level at all, or just have Esc close relaySetup like the
+  backdrop; (3) **stacked Help clarity** — Help covers relaySetup exactly so it reads as a replacement, not a
+  stack; the draggable-dialogs feature (drag Help aside) is the natural fix, or a slight offset. All relaySetup-
+  internal redesign, separate focused pass.
+
 - [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the transactional dialog):
   pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
   no second ordering system three inches from the first. List reorder already undoable (7.10.1-alpha.6); pin

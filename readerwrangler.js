@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.15";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.16";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6802,7 +6802,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkEditModal || wizardModalOpen || wizardHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || tagFromCollectionsOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || showBulkEditModal || wizardModalOpen || wizardHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6856,15 +6856,13 @@
                     if (bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); return; }
                     if (showBulkEditModal) { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); return; }
                     if (wizardModalOpen) { setWizardModalOpen(false); return; }
-                    // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - tagFromCollections was missing from the chain
-                    if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
                     // v7.18.0 - migrated to <Dialog> (Esc handled by the overlay listener, guarded out above):
                     // newFolderHiddenAlert / corruptionRecovery / resetConfirm / restoreConfirm / statusModal /
                     // lastCopyDialog / relaySetup (+ relayHelp; relayManualCreds back-out is in relaySetup's onClose reason==='esc').
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, wizardModalOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen, tagFromCollectionsOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, wizardModalOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -12686,8 +12684,8 @@
                         const hasChanges = totalNewTags > 0 || totalBooksToTag > 0 || totalBooksToUntag > 0;
 
                         return (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setTagFromCollectionsOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl w-full" style={{ maxWidth: '750px' }} role="dialog" aria-modal="true" aria-labelledby="modal-tfc" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setTagFromCollectionsOpen(false)} showClose={false}
+                            panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '750px' }}>
                                 {/* Header */}
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-tfc" className="text-xl font-bold text-gray-900">🏷️ Tag from Collections</h2>
@@ -13087,8 +13085,7 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                         );
                     })()}
 
