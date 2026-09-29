@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.19";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.20";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -13176,18 +13176,18 @@
                                                             setBulkEditSeriesDropdownOpen(true);
                                                         }}
                                                         onKeyDown={(e) => {
-                                                            e.stopPropagation();
+                                                            // Let Escape bubble to the overlay registry — the Dialog's smart
+                                                            // onClose backs out the open dropdown first, else closes the dialog.
+                                                            // (Swallowing Escape here left Esc unable to close Bulk Edit.)
+                                                            if (e.key !== 'Escape') e.stopPropagation();
                                                             if (e.key === 'Enter') { setBulkEditSeriesDropdownOpen(false); e.preventDefault(); saveBulkEdit(); }
-                                                            if (e.key === 'Escape') {
-                                                                if (bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); }
-                                                            }
                                                         }}
                                                         placeholder={placeholder || 'Type to filter series...'}
                                                         className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                         autoFocus />
                                                     <button type="button"
                                                         onClick={() => { bulkEditSeriesFilterRef.current = false; setBulkEditSeriesDropdownOpen(!bulkEditSeriesDropdownOpen); }}
-                                                        onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); if (bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); if (bulkEditSeriesInputRef.current) bulkEditSeriesInputRef.current.focus(); } } e.stopPropagation(); }}
+                                                        onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}
                                                         className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs focus:outline-none"
                                                         tabIndex={-1}>
                                                         ▼
