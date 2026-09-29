@@ -106,7 +106,7 @@ test('subscribers are notified on push and on remove', () => {
 test('pushLayer carries an optional nodeRef through to the layer record', () => {
     const nodeRef = { current: 'PANEL_NODE' };
     reg.pushLayer({ close: () => {}, kind: 'modal', nodeRef });
-    assert.strictEqual(reg.topLayer().nodeRef, nodeRef, 'topLayer exposes the nodeRef for the planned focus-trap/a11y pass');
+    assert.strictEqual(reg.topLayer().nodeRef, nodeRef, 'topLayer exposes the nodeRef for scoped Ctrl+A select-all (and the planned focus-trap pass)');
     const plain = reg.pushLayer({ close: () => {}, kind: 'popover' });
     assert.strictEqual(reg.topLayer().nodeRef, undefined, 'nodeRef is optional');
 });

@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.21";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.22";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -4759,15 +4759,21 @@
                     // v5.0.0-alpha.102 - Ctrl+A: Select all visible books/folders
                     // v7.10.1-alpha.6 (audit sweep B) - not while a dialog is up: it silently selected
                     // every explorer item UNDER the dialog (close + Delete = mass trash).
-                    // v7.18.0 - while ANY dialog is open, BLOCK the browser's native select-all outright so it
-                    // can never leak to the page behind (the backdrop is only visually faded — it does NOT stop
-                    // text selection). We deliberately do NOT select the dialog's own text either: in a modal
-                    // task Ctrl+A has no meaningful target, and selecting the dialog's chrome is just noise
-                    // (UX call, 2026-09-29 — suppress, don't scope-select). Text fields keep native Ctrl+A via
-                    // the isInputFocused guard above, so this only affects focus outside a text box.
-                    // (top.nodeRef is still carried on each layer for the planned focus-trap/a11y pass.)
+                    // v7.18.0 - Ctrl+A while ANY dialog is open. Focus-based (activeElement, NOT the mouse):
+                    //   • focus in a text field  → handled ABOVE by the isInputFocused guard (native field select),
+                    //   • focus anywhere else     → select ALL the dialog's text, scoped to the top layer's panel.
+                    // ALWAYS preventDefault first, so the browser's native whole-page select-all can NEVER leak to
+                    // the faded page behind (the backdrop doesn't block text selection) — even when there's no node
+                    // to scope to (e.g. an imperative dialog carries no registry node, so it simply suppresses).
+                    // (UX: Ron 2026-09-29 — copying computed dialog text is useful, so scope-select, don't suppress.)
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a' && dialogUp()) {
                         e.preventDefault();
+                        const top = overlayRegistry.topLayer();
+                        const node = top && top.nodeRef && top.nodeRef.current;
+                        if (node) {
+                            const sel = window.getSelection();
+                            if (sel) { sel.removeAllRanges(); sel.selectAllChildren(node); }
+                        }
                         return;
                     }
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
