@@ -6802,7 +6802,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || autoOrgPreview || toastHistoryOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6841,9 +6841,6 @@
                     // v6.13.0-alpha.7/9 - Auto-Organize preview stack: the cover right-click menu, then the preview itself
                     if (autoOrgMenu) { setAutoOrgMenu(null); return; }
                     if (autoOrgPreview) { closeAutoOrgPreview(); return; } // v7.14.2 - was a partial clear that orphaned autoOrgSrcPopup/autoOrgFileUnder on Esc; delegate to the one closer
-                    // Wizard sub-dialogs (innermost)
-                    if (wizardResultsOpen) { setWizardResultsOpen(false); return; }
-                    if (wizardPreviewMode) { setWizardPreviewMode(false); return; }
                     // v5.4.6 - Series dropdown inside edit mode (innermost)
                     if (editBookSeriesDropdownOpen) { setEditBookSeriesDropdownOpen(false); return; }
                     // v5.4.6 - Book edit mode (cancel without closing dialog)
@@ -6857,7 +6854,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, isEditingBook, editBookSeriesDropdownOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, isEditingBook, editBookSeriesDropdownOpen, toastHistoryOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -11792,8 +11789,8 @@
 
                     {/* v5.1.0-alpha.28 - Phase 3.1: Wizard Preview Dialog */}
                     {wizardPreviewMode && wizardPreviewData && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setWizardPreviewMode(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col" role="dialog" aria-modal="true" aria-labelledby="modal-wizard-preview" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setWizardPreviewMode(false)} showClose={false}
+                            panelClassName="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-wizard-preview" className="text-xl font-bold text-gray-900">✨ Preview - Folders to Create</h2>
                                     <button onClick={() => setWizardPreviewMode(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
@@ -11862,14 +11859,12 @@
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.1.0-alpha.29 - Phase 3.3: Wizard Results Summary Dialog */}
                     {wizardResultsOpen && wizardResultsData && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setWizardResultsOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="modal-wizard-results" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setWizardResultsOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-center p-4 bg-green-100 rounded-t-lg border-b border-green-300">
                                     <h2 id="modal-wizard-results" className="text-xl font-bold text-gray-900">✨ Organization Complete</h2>
                                     <button onClick={() => setWizardResultsOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
@@ -11939,8 +11934,7 @@
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v6.17.1 - Sync-corruption recovery: shown when Import from Relay hits a checksum mismatch. */}
