@@ -82,6 +82,24 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   stack; the draggable-dialogs feature (drag Help aside) is the natural fix, or a slight offset. All relaySetup-
   internal redesign, separate focused pass.
 
+- [ ] **Ctrl+A leak sweep — non-input controls that swallow select-all in modals (Ron 2026-09-29; two-pivot sweep)**.
+  A non-input focusable control inside a dialog that calls `stopPropagation()` on Ctrl+A bypasses the dialog-aware
+  select-all guard, so the browser's NATIVE select-all fires and highlights the whole page BEHIND the modal (the
+  faded backdrop doesn't stop text selection). Found + fixed in the bulkEdit Series field (▼ button + dropdown rows,
+  7.18.0-alpha.21), and the document handler always preventDefaults (never leaks) then scope-selects the top dialog's
+  text whenever any dialog is open (7.18.0-alpha.22) — but only when the key REACHES it, so any OTHER non-input control
+  that stopPropagations Ctrl+A can still leak. Sweep: TWO pivots — (1) grep `onKeyDown=...stopPropagation` (~19 inline
+  hits + multi-line) and classify by element: input/textarea = OK (native field-select), button/div/li/a = SUSPECT;
+  (2) walk each dialog's focusable non-text controls. Diff the two, post the file:line table, then fix (let Ctrl+A
+  bubble on non-input controls). STRUCTURAL alternative worth weighing: a CAPTURE-phase Ctrl+A guard at the document
+  (scope-select the top dialog's text when a dialog is up and focus isn't in a text field) — one chokepoint inner
+  stopPropagation can't defeat — folding in autoOrgPreview's book-select once it's converted to declare its own semantics.
+
+- [ ] **Arrow-key navigation in the bulkEdit Series dropdown (Ron 2026-09-29, minor a11y)**. The series-filter dropdown
+  rows are click-only — Up/Down arrows don't move a highlight through the options (and Enter picks the filter text, not
+  a highlighted row). Add roving keyboard nav (↑/↓ to move, Enter to select the highlighted row, Esc already backs out).
+  Small, isolated; likely folds into the eventual `<Popover>`/`<Menu>` primitive (these dropdowns are candidates for it).
+
 - [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the transactional dialog):
   pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
   no second ordering system three inches from the first. List reorder already undoable (7.10.1-alpha.6); pin
