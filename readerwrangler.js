@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.17";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.18";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6802,7 +6802,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || wizardModalOpen || wizardHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6844,7 +6844,6 @@
                     // Wizard sub-dialogs (innermost)
                     if (wizardResultsOpen) { setWizardResultsOpen(false); return; }
                     if (wizardPreviewMode) { setWizardPreviewMode(false); return; }
-                    if (wizardHelpOpen) { setWizardHelpOpen(false); return; }
                     // v5.4.6 - Series dropdown inside edit mode (innermost)
                     if (editBookSeriesDropdownOpen) { setEditBookSeriesDropdownOpen(false); return; }
                     // v5.4.6 - Book edit mode (cancel without closing dialog)
@@ -6852,14 +6851,13 @@
                     // Book modal
                     if (modalBook) { closeBookModal(); return; }
                     // Standalone modals
-                    if (wizardModalOpen) { setWizardModalOpen(false); return; }
                     // v7.18.0 - migrated to <Dialog> (Esc handled by the overlay listener, guarded out above):
                     // newFolderHiddenAlert / corruptionRecovery / resetConfirm / restoreConfirm / statusModal /
                     // lastCopyDialog / relaySetup (+ relayHelp; relayManualCreds back-out is in relaySetup's onClose reason==='esc').
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, isEditingBook, editBookSeriesDropdownOpen, wizardModalOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, isEditingBook, editBookSeriesDropdownOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -11524,8 +11522,7 @@
 
                     {/* v5.1.0-alpha.3 - Auto-Organize Wizard Modal */}
                     {wizardModalOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setWizardModalOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full" role="dialog" aria-modal="true" aria-labelledby="modal-wizard" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setWizardModalOpen(false)} showClose={false} maxWidthClassName="max-w-2xl">
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-wizard" className="text-xl font-bold text-gray-900">✨ Auto-Organize — Choose Authors</h2>
                                     <div className="flex items-center gap-2">
@@ -11733,14 +11730,12 @@
                                         );
                                     })()}
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.1.0-alpha.10 - Wizard Help Dialog */}
                     {wizardHelpOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setWizardHelpOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full" role="dialog" aria-modal="true" aria-labelledby="modal-wizard-help" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setWizardHelpOpen(false)} showClose={false} maxWidthClassName="max-w-lg">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-wizard-help" className="text-xl font-bold text-gray-900">📖 Auto-Organize Tips</h2>
                                     <button onClick={() => setWizardHelpOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
@@ -11792,8 +11787,7 @@
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.1.0-alpha.28 - Phase 3.1: Wizard Preview Dialog */}
