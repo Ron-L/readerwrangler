@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.20";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.21";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -4759,17 +4759,15 @@
                     // v5.0.0-alpha.102 - Ctrl+A: Select all visible books/folders
                     // v7.10.1-alpha.6 (audit sweep B) - not while a dialog is up: it silently selected
                     // every explorer item UNDER the dialog (close + Delete = mass trash).
-                    // v7.18.0 - and scope select-all to the topmost overlay's OWN content instead of the
-                    // whole page behind the modal (native select-all highlighted the entire app). Only
-                    // registry <Dialog>s carry a node; legacy dialogs keep native behavior until migrated.
+                    // v7.18.0 - while ANY dialog is open, BLOCK the browser's native select-all outright so it
+                    // can never leak to the page behind (the backdrop is only visually faded — it does NOT stop
+                    // text selection). We deliberately do NOT select the dialog's own text either: in a modal
+                    // task Ctrl+A has no meaningful target, and selecting the dialog's chrome is just noise
+                    // (UX call, 2026-09-29 — suppress, don't scope-select). Text fields keep native Ctrl+A via
+                    // the isInputFocused guard above, so this only affects focus outside a text box.
+                    // (top.nodeRef is still carried on each layer for the planned focus-trap/a11y pass.)
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a' && dialogUp()) {
-                        const top = overlayRegistry.topLayer();
-                        const node = top && top.nodeRef && top.nodeRef.current;
-                        if (node) {
-                            e.preventDefault();
-                            const sel = window.getSelection();
-                            if (sel) { sel.removeAllRanges(); sel.selectAllChildren(node); }
-                        }
+                        e.preventDefault();
                         return;
                     }
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
@@ -13187,7 +13185,9 @@
                                                         autoFocus />
                                                     <button type="button"
                                                         onClick={() => { bulkEditSeriesFilterRef.current = false; setBulkEditSeriesDropdownOpen(!bulkEditSeriesDropdownOpen); }}
-                                                        onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}
+                                                        // Let Escape (registry close) and Ctrl/Cmd+A (dialog-aware select-all guard)
+                                                        // reach the document handler; swallow other keys so app shortcuts don't fire.
+                                                        onKeyDown={(e) => { if (e.key !== 'Escape' && !((e.ctrlKey || e.metaKey) && e.key === 'a')) e.stopPropagation(); }}
                                                         className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs focus:outline-none"
                                                         tabIndex={-1}>
                                                         ▼
@@ -13204,7 +13204,7 @@
                                                                 <button key={s.name} type="button"
                                                                     ref={s.name === bulkEditInput ? (el) => { if (el) requestAnimationFrame(() => { const container = el.closest('.overflow-y-auto'); if (container) { const top = el.offsetTop - container.offsetTop; container.scrollTop = top; } }); } : null}
                                                                     onClick={() => { setBulkEditInput(s.name); setBulkEditSeriesDropdownOpen(false); }}
-                                                                    onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') { setBulkEditSeriesDropdownOpen(false); if (bulkEditSeriesInputRef.current) bulkEditSeriesInputRef.current.focus(); } }}
+                                                                    onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'a') return; e.stopPropagation(); if (e.key === 'Escape') { setBulkEditSeriesDropdownOpen(false); if (bulkEditSeriesInputRef.current) bulkEditSeriesInputRef.current.focus(); } }}
                                                                     className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex justify-between items-center ${s.name === bulkEditInput ? 'bg-blue-100 font-medium' : ''}`}>
                                                                     <span className="truncate">{s.name}</span>
                                                                     <span className="text-xs text-gray-400 ml-2 shrink-0">({s.count})</span>
