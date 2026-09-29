@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.16";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.17";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6802,7 +6802,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkEditModal || wizardModalOpen || wizardHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || wizardModalOpen || wizardHelpOpen || wizardPreviewMode || wizardResultsOpen || autoOrgPreview || toastHistoryOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6852,9 +6852,6 @@
                     // Book modal
                     if (modalBook) { closeBookModal(); return; }
                     // Standalone modals
-                    // v5.4.7 - Bulk edit series dropdown (innermost within bulk edit modal)
-                    if (bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); return; }
-                    if (showBulkEditModal) { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); return; }
                     if (wizardModalOpen) { setWizardModalOpen(false); return; }
                     // v7.18.0 - migrated to <Dialog> (Esc handled by the overlay listener, guarded out above):
                     // newFolderHiddenAlert / corruptionRecovery / resetConfirm / restoreConfirm / statusModal /
@@ -6862,7 +6859,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, wizardModalOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, isEditingBook, editBookSeriesDropdownOpen, wizardModalOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, toastHistoryOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -13165,10 +13162,9 @@
                             ? `Mixed (${uniqueValues.size} values)`
                             : (bulkEditField === 'position' ? 'e.g., 1, 1.5' : '');
                         return (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                                 onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }}
-                                 onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); } backdropMouseDownRef.current = null; }}>
-                                <div className="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-80" role="dialog" aria-modal="true" aria-labelledby="modal-bulk-edit" onClick={(e) => e.stopPropagation()}>
+                            // v7.18.0 - smart onClose: Esc backs out the in-modal series dropdown first; backdrop/✕ close the modal.
+                            <Dialog onClose={(reason) => { if (reason === 'esc' && bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); } else { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); } }} showClose={false} closeButton
+                                panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-80">
                                     <h2 id="modal-bulk-edit" className="text-lg font-bold text-gray-900 mb-2">{config.title}</h2>
                                     <p className="text-sm text-gray-600 mb-4">
                                         Apply to {bookCount} selected book{bookCount !== 1 ? 's' : ''}
@@ -13294,8 +13290,7 @@
                                             </button>
                                         </div>
                                     </form>
-                                </div>
-                            </div>
+                        </Dialog>
                         );
                     })()}
 
