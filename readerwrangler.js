@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.28";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.29";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -590,23 +590,17 @@
                 if (!open || !ref.current) return;
                 const { width, height } = ref.current.getBoundingClientRect();
                 const vw = window.innerWidth, vh = window.innerHeight;
-                // Prefer opening down-right from the cursor; if that overflows, flip to the other side of
-                // the cursor; then hard-clamp so a menu taller/wider than the cursor offset still fits.
-                let left = (x + width + margin > vw) ? x - width : x;
+                // v7.18.0 - HORIZONTAL: SLIDE, don't flip. Open right of the cursor and slide left only as far
+                // as needed to fit — so near the right edge the menu HUGS the border instead of jumping a full
+                // width to the LEFT of the cursor (which stranded it in empty space when the click was far from
+                // the window edge). Needs the correct (max-content) width above, or the clamp mis-shoots.
+                // (Ron 2026-09-30.) VERTICAL still flips up near the bottom (opens down from the cursor).
+                let left = x;
                 let top = (y + height + margin > vh) ? y - height : y;
                 left = Math.max(margin, Math.min(left, vw - width - margin));
                 top = Math.max(margin, Math.min(top, vh - height - margin));
-                // v7.18.0-alpha.26 TEMP DEBUG (remove after diagnosing the left-flip gap):
-                console.debug('📋 CursorPopup', { x, y, w: Math.round(width), h: Math.round(height), vw, vh, flipH: (x + width + margin > vw), left: Math.round(left), top: Math.round(top), rightEdge: Math.round(left + width), gapCursorToRightEdge: Math.round(x - (left + width)) });
                 setCoords({ left, top });
             }, [open, x, y, children, margin]);
-            // v7.18.0-alpha.27 TEMP DEBUG — the ACTUAL rendered rect AFTER coords apply (reveals the real
-            // displayed width once the menu has room, vs the squished measurement above):
-            useLayoutEffect(() => {
-                if (!open || !ref.current) return;
-                const r = ref.current.getBoundingClientRect();
-                console.debug('📋 CursorPopup FINAL', { x, left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width), top: Math.round(r.top), gapCursorToRight: Math.round(x - r.right) });
-            }, [coords, open, x]);
             if (!open) return null;
             // The `fixed` CSS class is REQUIRED, not just cosmetic: the context-menu close-on-outside-click
             // handler (mousedown) decides inside-vs-outside via `e.target.closest('.fixed')`. Position is set
