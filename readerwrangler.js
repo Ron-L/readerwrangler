@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.24";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.25";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -585,7 +585,12 @@
             // v7.18.0 - optional innerRef: the <Popover> primitive needs the positioned node to decide
             // outside-clicks (ref.contains). Mirror the measuring ref onto it via one callback ref.
             const setRefs = (node) => { ref.current = node; if (innerRef) innerRef.current = node; };
-            const [coords, setCoords] = useState({ left: x, top: y });
+            // v7.18.0 - START at a full-room spot (top-left), NOT at (x,y). A menu first-rendered jammed
+            // against the right border gets shrink-to-fit-narrowed (no fixed width → the browser squeezes
+            // it toward min-width), so measuring THERE returned a too-small width and the left-flip
+            // (left = x - width) landed too far left, leaving a gap. Measuring at full room yields the
+            // natural width; the layout-effect repositions before paint, so this spot is never seen.
+            const [coords, setCoords] = useState({ left: margin, top: margin });
             useLayoutEffect(() => {
                 if (!open || !ref.current) return;
                 const { width, height } = ref.current.getBoundingClientRect();
