@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.35";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.36";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -4757,11 +4757,9 @@
                         return; // Let browser copy selected text
                     }
 
-                    // v4.21.1.c - Disable Ctrl+A when modal is open (prevent selecting entire page)
-                    if (modalBookRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
-                        e.preventDefault(); // Don't select entire page or books
-                        return;
-                    }
+                    // v7.18.0-alpha.36 - Ctrl+A in the book dialog is now the standard dialog scope-select (below):
+                    // modalBook is a <Dialog>, so the dialogUp() branch selects ITS text (copyable book details),
+                    // never the page behind. (Was a hard block; Ron's call to allow copying details.)
 
                     // v6.16.0 - Ctrl+A inside the Auto-Organize preview selects THAT preview's books (was leaking to the Inbox behind it).
                     // v7.18.0-alpha.35 - ...only when the preview is the TOPMOST overlay: if a child (cover menu / source
@@ -6871,7 +6869,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || toastHistoryOpen || registryHasModal); // v7.14.2 - unfenced legacy modals; v7.18.0 - many migrated to <Dialog> (fence via registryHasModal), incl. autoOrgPreview + autoOrgFileUnder (alpha.33)
+            const anyDialogOpen = !!(toastHistoryOpen || registryHasModal); // v7.18.0 - migrated modals fence via registryHasModal (modalBook + autoOrgPreview + autoOrgFileUnder as of alpha.36); toastHistory is the last legacy holdout
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6910,12 +6908,9 @@
                     // v7.18.0-alpha.33 - Auto-Organize family migrated to <Dialog>/<Popover>: preview + File-under
                     // are <Dialog>s, the cover menu + source popup are <Popover>s, so their Esc (innermost-first)
                     // is owned by the overlay registry (guarded out at the top of this handler). Branches removed.
-                    // v5.4.6 - Series dropdown inside edit mode (innermost)
-                    if (editBookSeriesDropdownOpen) { setEditBookSeriesDropdownOpen(false); return; }
-                    // v5.4.6 - Book edit mode (cancel without closing dialog)
-                    if (isEditingBook) { cancelEditMode(); return; }
-                    // Book modal
-                    if (modalBook) { closeBookModal(); return; }
+                    // v7.18.0-alpha.36 - modalBook migrated to <Dialog>: its Esc (share dropdown → series dropdown →
+                    // edit-mode cancel → close, innermost-first) now lives in the Dialog's smart onClose, owned by the
+                    // overlay registry (guarded out at the top of this handler). Branches removed.
                     // Standalone modals
                     // v7.18.0 - migrated to <Dialog> (Esc handled by the overlay listener, guarded out above):
                     // newFolderHiddenAlert / corruptionRecovery / resetConfirm / restoreConfirm / statusModal /
@@ -13100,8 +13095,17 @@
                         (the "Owned Book" warning). Was v4.16.0-era; the archived v4/ copy still has it. */}
 
                     {modalBook && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) closeBookModal(); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Book details" onClick={(e) => { e.stopPropagation(); if (contextSubmenu === 'addTagModal') { setContextSubmenu(null); setTagInputValue(''); } }}>
+                        <Dialog showClose={false} panelClassName="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                            onClose={(reason) => {
+                                // Smart multi-level Esc (innermost-first). Backdrop/✕ ('button') always close the dialog.
+                                if (reason === 'esc') {
+                                    if (shareDropdownOpen) { setShareDropdownOpen(false); return; }
+                                    if (editBookSeriesDropdownOpen) { setEditBookSeriesDropdownOpen(false); return; }
+                                    if (isEditingBook) { cancelEditMode(); return; }
+                                }
+                                closeBookModal();
+                            }}>
+                            <div onClick={(e) => { if (contextSubmenu === 'addTagModal') { setContextSubmenu(null); setTagInputValue(''); } }}>
                                 <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-end gap-2">
                                     {/* v6.16.0 (#55) - Prev/next through the current view's books (circular). Counter is the
                                         wrap indicator (resets on loop); mr-auto keeps it left while the controls stay right. */}
@@ -17373,7 +17377,7 @@
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v4.16.0.n - Removed floating selection box, now shown in footer */}

@@ -95,6 +95,15 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   (scope-select the top dialog's text when a dialog is up and focus isn't in a text field) — one chokepoint inner
   stopPropagation can't defeat — folding in autoOrgPreview's book-select once it's converted to declare its own semantics.
 
+- [ ] **Anchored-`<Popover>` primitive for button dropdowns (Ron 2026-09-30, overlay migration)**.
+  WHAT / WHY: our `<Popover>` positions at a cursor POINT (x,y). Some overlays are **button-anchored dropdowns**
+  that open flush to a control — e.g., in the **Book detail dialog**: the 📤 **Share** dropdown and the edit-mode
+  **Series** dropdown; also the folder **Sort** menu, **Save-Results** menu, and the column-header **gear**. These
+  stay LEGACY (their own scrims + inline `absolute` positioning) until we add an anchored variant.
+  DO: add an **anchored `<Popover>`** (element-relative, reusing the existing `FlipToFitPopup` measured positioner)
+  that self-registers in the overlay registry (so Esc-order + light-dismiss become structural), then convert those
+  button dropdowns to it. Until then, the Book dialog routes its child dropdowns' Esc through its smart onClose.
+
 - [ ] **Arrow-key navigation in the bulkEdit Series dropdown (Ron 2026-09-29, minor a11y)**. The series-filter dropdown
   rows are click-only — Up/Down arrows don't move a highlight through the options (and Enter picks the filter text, not
   a highlighted row). Add roving keyboard nav (↑/↓ to move, Enter to select the highlighted row, Esc already backs out).
