@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.22";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.23";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -880,9 +880,6 @@
             const [wizardSortByPosition, setWizardSortByPosition] = useState(true); // v5.1.0-alpha.20 - Phase 2.1: Sort books by series position
             const [wizardCreateMiscellaneous, setWizardCreateMiscellaneous] = useState(true); // v5.1.0-alpha.20 - Phase 2.1: Create Miscellaneous folder
             const [wizardSeriesFolderMin, setWizardSeriesFolderMin] = useState(2); // v6.13.0-alpha.2 - min books before a series earns its own subfolder
-            const [wizardPreviewMode, setWizardPreviewMode] = useState(false); // v5.1.0-alpha.28 - Phase 3.1: Preview mode
-            const [wizardPreviewData, setWizardPreviewData] = useState(null); // v5.1.0-alpha.28 - Phase 3.1: Preview structure data
-            const [wizardResultsOpen, setWizardResultsOpen] = useState(false); // v5.1.0-alpha.29 - Phase 3.3: Results dialog visibility
             const [autoOrgPreview, setAutoOrgPreview] = useState(null); // v6.13.0-alpha.7 - Right-click Auto-Organize confirm/preview: { mode, authorGroups, opts, label, dryPlan } or null
             const [autoOrgSel, setAutoOrgSel] = useState(new Set());    // v6.13.0-alpha.9 (D2) - selected cover ids within the preview
             const [corruptionRecovery, setCorruptionRecovery] = useState(false); // v6.17.1 - show the sync-corruption recovery dialog
@@ -897,7 +894,6 @@
             // v6.16.0 - The preview has ONE selection (autoOrgSel): default all-in. The checkbox tree (section → author →
             // shelf) is just select-all/none over it; cover-clicks toggle individuals. Both the footer action AND
             // "Add to Book List" read this one set. (No separate include-flags — the selection IS the include set.)
-            const [wizardResultsData, setWizardResultsData] = useState(null); // v5.1.0-alpha.29 - Phase 3.3: Results summary data
             const [wizardSourceBooksCount, setWizardSourceBooksCount] = useState(0); // v5.1.0-alpha.30 - Phase 3.4: Track Inbox book count for validation
             const [syncStatus, setSyncStatusInternal] = useState('loading'); // 'loading', 'fresh', 'stale', 'none', 'unknown'
             const [lastSyncTime, setLastSyncTime] = useState(null);
@@ -8352,79 +8348,6 @@
                 return ballMap[urgency.text] || '⚪';
             };
 
-            // v5.1.0-alpha.25 - Phase 2.3: Group books by series for subfolder creation
-            // v6.13.0-alpha.1 - groupBooksBySeries moved to organizeEngine.js (pure, node-tested). It's a global
-            // from that classic <script>, so calculateWizardPreview + executeWizardOrganize use it directly.
-
-            // v5.1.0-alpha.28 - Phase 3.1: Calculate preview structure without modifying state
-            const calculateWizardPreview = (selectedAuthors) => {
-                const authorStructures = []; // Array of {authorName, totalBooks, series: [], standalone: N, subfolders: N}
-                let totalFolders = 0;
-                let totalSubfolders = 0;
-                let totalBooks = 0;
-
-                selectedAuthors.forEach(author => {
-                    const { seriesGroups, standaloneBooks } = groupBooksBySeries(author.books);
-
-                    const authorStructure = {
-                        authorName: author.displayName,
-                        totalBooks: author.books.length,
-                        series: [],
-                        standalone: 0,
-                        subfolders: 0
-                    };
-
-                    totalFolders++;
-                    totalBooks += author.books.length;
-
-                    if (wizardCreateSeriesFolders) {
-                        // Count series subfolders (>= threshold books only)
-                        seriesGroups.forEach((seriesData, normalizedName) => {
-                            if (seriesData.books.length >= wizardSeriesFolderMin) {
-                                authorStructure.series.push({
-                                    name: seriesData.originalName,
-                                    bookCount: seriesData.books.length
-                                });
-                                authorStructure.subfolders++;
-                                totalSubfolders++;
-                            }
-                        });
-
-                        // Count standalone books + below-threshold series (they fall to the author root)
-                        let standaloneCount = standaloneBooks.length;
-                        seriesGroups.forEach((seriesData, normalizedName) => {
-                            if (seriesData.books.length < wizardSeriesFolderMin) {
-                                standaloneCount += seriesData.books.length;
-                            }
-                        });
-
-                        // Miscellaneous subfolder
-                        if (wizardCreateMiscellaneous && standaloneCount > 0) {
-                            authorStructure.series.push({
-                                name: 'Miscellaneous',
-                                bookCount: standaloneCount
-                            });
-                            authorStructure.subfolders++;
-                            totalSubfolders++;
-                        } else {
-                            authorStructure.standalone = standaloneCount;
-                        }
-                    } else {
-                        // Flat structure - all books at author root
-                        authorStructure.standalone = author.books.length;
-                    }
-
-                    authorStructures.push(authorStructure);
-                });
-
-                return {
-                    authorStructures,
-                    totalFolders,
-                    totalSubfolders,
-                    totalBooks
-                };
-            };
-
             // v7.7.0-alpha.4 - Stamp REMOVE_BOOKS_FROM_FOLDER sub-actions with each book's index in the
             // PRE-plan source folder so undo restores positions instead of appending (an undone
             // Auto-Organize was landing the book at the BOTTOM of a 50+ Inbox, hidden below the
@@ -8911,36 +8834,6 @@
             useEffect(() => {
                 if (!modalBook && autoOrgPreview) refreshAutoOrgPreview();
             }, [modalBook]); // eslint-disable-line react-hooks/exhaustive-deps
-
-            // v6.13.0-alpha.4 - Wizard organize is now a thin caller of the shared applyOrganizePlan.
-            const executeWizardOrganize = () => {
-                const selectedAuthors = wizardActiveAuthors(); // v6.16.0 - shown-and-selected only
-
-                if (selectedAuthors.length === 0) {
-                    showInfoDialog('No Selection', 'Please select at least one listed author to organize.');
-                    return;
-                }
-
-                const opts = {
-                    createSeriesFolders: wizardCreateSeriesFolders,
-                    sortByPosition: wizardSortByPosition,
-                    createMiscellaneous: wizardCreateMiscellaneous,
-                    seriesFolderMinBooks: wizardSeriesFolderMin
-                };
-
-                const plan = applyOrganizePlan(selectedAuthors, opts, `Organized ${selectedAuthors.length} author${selectedAuthors.length !== 1 ? 's' : ''}`);
-
-                const subfoldersCreated = plan.subActions.filter(a => a.type === 'CREATE_FOLDER' && a.parentId !== null).length;
-                setWizardResultsData({
-                    foldersCreated: plan.createdFolders.length,
-                    foldersMerged: plan.mergedFolders.length,
-                    subfoldersCreated: subfoldersCreated,
-                    totalBooks: plan.totalBooksOrganized
-                });
-
-                setWizardModalOpen(false);
-                setWizardResultsOpen(true);
-            };
 
             return (
                 <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50 to-blue-100 text-gray-900"
@@ -11785,156 +11678,6 @@
                                             onClick={() => setWizardHelpOpen(false)}
                                             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
                                             Got it
-                                        </button>
-                                    </div>
-                                </div>
-                        </Dialog>
-                    )}
-
-                    {/* v5.1.0-alpha.28 - Phase 3.1: Wizard Preview Dialog */}
-                    {wizardPreviewMode && wizardPreviewData && (
-                        <Dialog onClose={() => setWizardPreviewMode(false)} showClose={false}
-                            panelClassName="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
-                                <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-wizard-preview" className="text-xl font-bold text-gray-900">✨ Preview - Folders to Create</h2>
-                                    <button onClick={() => setWizardPreviewMode(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
-                                </div>
-
-                                {/* Scrollable preview content */}
-                                <div className="flex-1 overflow-y-auto p-6 space-y-3">
-                                    {wizardPreviewData.authorStructures.map((author, idx) => (
-                                        <div key={idx} className="border border-gray-300 rounded-lg bg-white">
-                                            {/* Author folder header */}
-                                            <div className="px-4 py-3 bg-gray-50 border-b border-gray-300 flex items-center gap-2">
-                                                <span className="text-lg">📁</span>
-                                                <span className="font-bold text-gray-900">{author.authorName}</span>
-                                                <span className="text-sm text-gray-600">({author.totalBooks} books)</span>
-                                            </div>
-
-                                            {/* Series subfolders + standalone books */}
-                                            <div className="p-3 space-y-2">
-                                                {author.series.length > 0 ? (
-                                                    author.series.map((series, seriesIdx) => (
-                                                        <div key={seriesIdx} className="flex items-center gap-2 pl-6">
-                                                            <span className="text-base">📁</span>
-                                                            <span className="text-gray-800">{series.name}</span>
-                                                            <span className="text-sm text-gray-500">({series.bookCount} books)</span>
-                                                        </div>
-                                                    ))
-                                                ) : null}
-
-                                                {author.standalone > 0 && (
-                                                    <div className="flex items-center gap-2 pl-6">
-                                                        <span className="text-base">📄</span>
-                                                        <span className="text-gray-600 text-sm">{author.standalone} books at folder root</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Summary footer */}
-                                <div className="p-4 bg-gray-50 border-t-2 border-gray-300 rounded-b-lg">
-                                    <div className="text-sm text-gray-700 text-center space-y-1">
-                                        <div className="font-semibold">
-                                            Will create: {wizardPreviewData.totalFolders} author folder{wizardPreviewData.totalFolders !== 1 ? 's' : ''}
-                                            {wizardPreviewData.totalSubfolders > 0 && `, ${wizardPreviewData.totalSubfolders} subfolder${wizardPreviewData.totalSubfolders !== 1 ? 's' : ''}`}
-                                        </div>
-                                        <div className="text-gray-600">
-                                            Will move: {wizardPreviewData.totalBooks} books from Inbox
-                                        </div>
-                                    </div>
-
-                                    {/* Action buttons */}
-                                    <div className="flex justify-end gap-3 pt-4">
-                                        <button
-                                            onClick={() => setWizardPreviewMode(false)}
-                                            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors">
-                                            Back
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setWizardPreviewMode(false);
-                                                executeWizardOrganize();
-                                            }}
-                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                                            Organize Now
-                                        </button>
-                                    </div>
-                                </div>
-                        </Dialog>
-                    )}
-
-                    {/* v5.1.0-alpha.29 - Phase 3.3: Wizard Results Summary Dialog */}
-                    {wizardResultsOpen && wizardResultsData && (
-                        <Dialog onClose={() => setWizardResultsOpen(false)} showClose={false} maxWidthClassName="max-w-md">
-                                <div className="flex justify-between items-center p-4 bg-green-100 rounded-t-lg border-b border-green-300">
-                                    <h2 id="modal-wizard-results" className="text-xl font-bold text-gray-900">✨ Organization Complete</h2>
-                                    <button onClick={() => setWizardResultsOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
-                                </div>
-
-                                <div className="p-6">
-                                    <div className="space-y-3">
-                                        {/* Folders created */}
-                                        {wizardResultsData.foldersCreated > 0 && (
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">📁</span>
-                                                <div className="flex-1">
-                                                    <div className="font-semibold text-gray-900">
-                                                        Created {wizardResultsData.foldersCreated} author folder{wizardResultsData.foldersCreated !== 1 ? 's' : ''}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Folders merged */}
-                                        {wizardResultsData.foldersMerged > 0 && (
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">🔀</span>
-                                                <div className="flex-1">
-                                                    <div className="font-semibold text-gray-900">
-                                                        Merged into {wizardResultsData.foldersMerged} existing folder{wizardResultsData.foldersMerged !== 1 ? 's' : ''}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Subfolders created */}
-                                        {wizardResultsData.subfoldersCreated > 0 && (
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">📂</span>
-                                                <div className="flex-1">
-                                                    <div className="font-semibold text-gray-900">
-                                                        Created {wizardResultsData.subfoldersCreated} subfolder{wizardResultsData.subfoldersCreated !== 1 ? 's' : ''}
-                                                    </div>
-                                                    <div className="text-sm text-gray-600">
-                                                        Series and Miscellaneous folders
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Books moved */}
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-2xl">📚</span>
-                                            <div className="flex-1">
-                                                <div className="font-semibold text-gray-900">
-                                                    Moved {wizardResultsData.totalBooks} book{wizardResultsData.totalBooks !== 1 ? 's' : ''}
-                                                </div>
-                                                <div className="text-sm text-gray-600">
-                                                    Removed from Inbox
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Close button */}
-                                    <div className="flex justify-end pt-6">
-                                        <button
-                                            onClick={() => setWizardResultsOpen(false)}
-                                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
-                                            Done
                                         </button>
                                     </div>
                                 </div>
