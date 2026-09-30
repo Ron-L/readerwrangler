@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.30";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.31";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -599,6 +599,7 @@
                 let top = (y + height + margin > vh) ? y - height : y;
                 left = Math.max(margin, Math.min(left, vw - width - margin));
                 top = Math.max(margin, Math.min(top, vh - height - margin));
+                console.debug('📋 CursorPopup', { x, y, w: Math.round(width), vw, flipH: (x + width + margin > vw), left: Math.round(left), rightEdge: Math.round(left + width), gapCursorToRightEdge: Math.round(x - (left + width)) }); // TEMP alpha.31
                 setCoords({ left, top });
             }, [open, x, y, children, margin]);
             if (!open) return null;
@@ -607,11 +608,16 @@
             // inline, but the class must be present or a click inside the menu reads as "outside" and the menu
             // closes on mousedown before the item's onClick can fire (the 7.15.0 AO-won't-open regression).
             return (
-                <div ref={setRefs} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
-                    onClick={onClick} onContextMenu={onContextMenu}
-                    style={{ position: 'fixed', left: coords.left, top: coords.top, width: 'max-content', ...style }}>
-                    {children}
-                </div>
+                <>
+                    {/* TEMP alpha.31 DEBUG — magenta dot at the RAW (x,y) click point the code positions from,
+                        so a screenshot shows the true click vs the menu with zero cursor ambiguity. */}
+                    <div style={{ position: 'fixed', left: x - 4, top: y - 4, width: 8, height: 8, background: 'magenta', border: '1px solid white', borderRadius: '50%', zIndex: 99999, pointerEvents: 'none' }} />
+                    <div ref={setRefs} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
+                        onClick={onClick} onContextMenu={onContextMenu}
+                        style={{ position: 'fixed', left: coords.left, top: coords.top, width: 'max-content', ...style }}>
+                        {children}
+                    </div>
+                </>
             );
         }
 
