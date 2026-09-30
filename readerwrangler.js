@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.23";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.24";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -580,8 +580,11 @@
         // shrinks. Position only — NEVER add overflow here: menus with fly-out submenus (FlipToFitPopup
         // children) would get clipped by a scroll container. The measure-and-clamp core the future
         // <Popover>/<Menu> overlay primitive will reuse (not a throwaway).
-        function CursorPopup({ open, x, y, className, style, role, ariaLabel, onClick, onContextMenu, children, margin = 8 }) {
+        function CursorPopup({ open, x, y, className, style, role, ariaLabel, onClick, onContextMenu, children, margin = 8, innerRef }) {
             const ref = useRef(null);
+            // v7.18.0 - optional innerRef: the <Popover> primitive needs the positioned node to decide
+            // outside-clicks (ref.contains). Mirror the measuring ref onto it via one callback ref.
+            const setRefs = (node) => { ref.current = node; if (innerRef) innerRef.current = node; };
             const [coords, setCoords] = useState({ left: x, top: y });
             useLayoutEffect(() => {
                 if (!open || !ref.current) return;
@@ -601,13 +604,44 @@
             // inline, but the class must be present or a click inside the menu reads as "outside" and the menu
             // closes on mousedown before the item's onClick can fire (the 7.15.0 AO-won't-open regression).
             return (
-                <div ref={ref} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
+                <div ref={setRefs} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu}
                     style={{ position: 'fixed', left: coords.left, top: coords.top, ...style }}>
                     {children}
                 </div>
             );
         }
+
+        // v7.18.0 - <Popover> — the light-dismiss sibling of <Dialog> (docs/design/DIALOG-DISMISSAL-AUDIT.md).
+        // Wraps CursorPopup's measure-and-clamp positioner and adds what a bare popup lacks: registry
+        // membership + unified light-dismiss. Registers a layer of kind 'menu'|'popover' (NOT 'modal', so it
+        // does NOT raise the keystroke fence — matching how context menus behave today) → the ONE registry Esc
+        // listener closes the TOP layer first, so a menu opened OVER a dialog closes the menu, not the dialog
+        // (this is what lets a converted preview stack correctly with its child menus). Light-dismiss =
+        // Esc (via the registry) + outside mousedown decided by this popover's OWN node (ref.contains) —
+        // replacing the fragile `.closest('.fixed')` check and the scattered scrim <div>s. Parent renders it
+        // conditionally, so mount == open (same lifecycle as <Dialog>). onClose(reason): 'esc' | 'outside'.
+        const Popover = ({ x, y, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
+            const ref = useRef(null);
+            const closeRef = useRef(onClose);
+            closeRef.current = onClose; // always dismiss via the LATEST onClose (like useOverlayLayer)
+            useOverlayLayer({ close: onClose, kind, nodeRef: ref });
+            useEffect(() => {
+                // mousedown (not click): decide inside-vs-outside before an item's onClick fires. The
+                // listener is added AFTER this popover mounts, so the click/right-click that opened it
+                // never self-closes it.
+                const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) closeRef.current && closeRef.current('outside'); };
+                document.addEventListener('mousedown', onDown);
+                return () => document.removeEventListener('mousedown', onDown);
+            }, []);
+            return (
+                <CursorPopup open={true} x={x} y={y} innerRef={ref}
+                    className={className} style={style} role={role} ariaLabel={ariaLabel}
+                    onClick={onClick} onContextMenu={onContextMenu}>
+                    {children}
+                </CursorPopup>
+            );
+        };
 
         // v6.16.0 - Threshold stepper: ONE set of controls (the styled −/+ with press-and-hold; NO native number
         // spinners — type=text + inputMode=numeric). Its own edit state lets you backspace the field empty and retype
@@ -17767,25 +17801,23 @@
                         const currentName = inRealFolder ? (folders.find(f => f.id === selectedFolderId)?.name || 'this folder') : null;
                         const createHere = (parentId) => { createFolderHere(parentId); setRightPaneContextMenu(null); };
                         return (
-                            <>
-                                <div className="fixed inset-0 z-[59]" onClick={() => setRightPaneContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setRightPaneContextMenu(null); }} />
-                                <CursorPopup open={true} x={rightPaneContextMenu.x} y={rightPaneContextMenu.y}
-                                    className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] z-[60]"
-                                    role="menu" ariaLabel="Create folder"
-                                    onClick={(e) => e.stopPropagation()}>
-                                    {/* v6.12.0-alpha.68 (#8) - Single context-appropriate action: subfolder inside a folder,
-                                        else a root folder (a new root folder wouldn't appear in the current folder view). */}
-                                    {inRealFolder ? (
-                                        <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem" onClick={() => createHere(selectedFolderId)}>
-                                            <span>📂</span><span>New subfolder in "{currentName}"</span>
-                                        </div>
-                                    ) : (
-                                        <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem" onClick={() => createHere(null)}>
-                                            <span>📁</span><span>New folder</span>
-                                        </div>
-                                    )}
-                                </CursorPopup>
-                            </>
+                            <Popover x={rightPaneContextMenu.x} y={rightPaneContextMenu.y}
+                                onClose={() => setRightPaneContextMenu(null)}
+                                className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] z-[60]"
+                                role="menu" ariaLabel="Create folder"
+                                onClick={(e) => e.stopPropagation()}>
+                                {/* v6.12.0-alpha.68 (#8) - Single context-appropriate action: subfolder inside a folder,
+                                    else a root folder (a new root folder wouldn't appear in the current folder view). */}
+                                {inRealFolder ? (
+                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem" onClick={() => createHere(selectedFolderId)}>
+                                        <span>📂</span><span>New subfolder in "{currentName}"</span>
+                                    </div>
+                                ) : (
+                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem" onClick={() => createHere(null)}>
+                                        <span>📁</span><span>New folder</span>
+                                    </div>
+                                )}
+                            </Popover>
                         );
                     })()}
 
