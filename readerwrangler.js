@@ -14,7 +14,10 @@
             const closeRef = useRef(close);
             closeRef.current = close;
             const [isTopModal, setIsTopModal] = useState(true);
-            useEffect(() => {
+            // useLayoutEffect (not useEffect): push/subscribe + the isTopModal recompute must run BEFORE paint,
+            // so when a modal opens/closes the layer beneath flips its dim in the SAME frame — no one-frame
+            // double-dim flash (the reason we don't need a separate global "already dimmed" flag).
+            useLayoutEffect(() => {
                 const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef });
                 const sync = () => setIsTopModal(overlayRegistry.isTopmostModal(id));
                 sync();
@@ -68,7 +71,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.38";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.39";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
