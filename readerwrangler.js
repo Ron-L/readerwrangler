@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.27";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.28";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -615,7 +615,7 @@
             return (
                 <div ref={setRefs} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu}
-                    style={{ position: 'fixed', left: coords.left, top: coords.top, ...style }}>
+                    style={{ position: 'fixed', left: coords.left, top: coords.top, width: 'max-content', ...style }}>
                     {children}
                 </div>
             );
