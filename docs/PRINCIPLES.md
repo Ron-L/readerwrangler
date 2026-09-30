@@ -80,14 +80,24 @@ known-good test case — you cannot certify the fix. The collectionTags-wipe fix
 alone; Ron: *"It is ALWAYS worth verifying a bug before fixing so we KNOW we have a good test case."*
 Thereafter every fix ran **repro → fix → verify** with console probes against the real IndexedDB — and
 that discipline caught the `genresAsOf` slip before it could ship.
-**Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule.
+**7.18.0 reprise (the deepest cut):** instrumentation only tells the truth if it measures the SOURCE.
+Chasing a right-click-menu gap, I logged the coordinate the *component received* — but the trigger had
+already clamped it — so the probe "confirmed" the innocent layer for **five alphas**. Instrument the raw
+event/state, NOT a value handed downstream. And the tell that would have ended it on day one: **a logged
+input that stays CONSTANT while the real input varies means you're measuring downstream — go upstream.**
+(The click `x` read `1186` in every dump while Ron clicked all over the right edge.)
+**Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule; pre-build gate item 12.
 
 ### 4. After 3 iterations, question the abstraction
 Proposed 2025-11-11; ignored through 26 alphas (v3.14.0 drag-drop) and 9 alphas (v6.11.2 — where one
 question, "why aren't these just items?", replaced all nine). If each fix adds a special case instead of
 removing one, the design is wrong: stop, list the edge cases, ask "are these actually different things?",
-propose Plan Mode. 15 minutes of design beats 3 hours of patches, every measured time.
-**Enforcement**: `feedback_debugging` Rule 2.
+propose Plan Mode. 15 minutes of design beats 3 hours of patches, every measured time. **7.18.0: five
+alphas "fixing" CursorPopup for a menu-position gap while the bug was a hardcoded pre-clamp in the
+*trigger* — I never asked whether the component I kept patching was even the right layer.** The wider
+question ("is the bug here at all?") is the net; provenance-of-the-input is one thing it catches.
+**Enforcement**: `feedback_debugging` Rule 2; **pre-build gate item 12** (fires on every app-source edit —
+the wide net, because passive memory did NOT fire during those five alphas).
 
 ### 5. Enumerate ALL instances of a class — including copies, setters, and siblings
 Fixing only the reported instance is the default failure ("Claude doesn't naturally do this" — v3, 2025;
