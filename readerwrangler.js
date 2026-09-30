@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.36";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.37";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -13969,7 +13969,7 @@
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.0.0 - Book Explorer view (hidden when no books - welcome screen shown instead) */}
@@ -17377,7 +17377,7 @@
                                     )}
                                 </div>
                             </div>
-                        </Dialog>
+                        </div>
                     )}
 
                     {/* v4.16.0.n - Removed floating selection box, now shown in footer */}
