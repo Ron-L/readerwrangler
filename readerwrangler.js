@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.34";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.35";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -983,6 +983,7 @@
             }, []);
             const autoOrgPreviewRef = useRef(null); // v6.16.0 - current auto-organize preview, for the keydown handler (which doesn't dep on it)
             const wizardSelectAllRef = useRef(null); // v7.18.0-alpha.34 - current wizard "select all listed authors" action, for Ctrl+A (handler reads via ref, not state)
+            const autoOrgChildRef = useRef(false); // v7.18.0-alpha.35 - is an autoOrg CHILD overlay (cover menu / source popup / File-under) open OVER the preview? gates the preview/wizard Ctrl+A select-all so a child on top owns Ctrl+A instead
             const backdropMouseDownRef = useRef(null); // v5.2.0-alpha.15 - Track mousedown origin for backdrop close (prevents swipe-past-edge closing modals)
             const [contextMenu, setContextMenu] = useState(null); // {x, y, bookId, columnId}
             const [contextSubmenu, setContextSubmenu] = useState(null); // v4.16.0.ba - 'move' | 'copyTo' | 'priceGoal' | null for submenu hover
@@ -4763,7 +4764,9 @@
                     }
 
                     // v6.16.0 - Ctrl+A inside the Auto-Organize preview selects THAT preview's books (was leaking to the Inbox behind it).
-                    if (autoOrgPreviewRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    // v7.18.0-alpha.35 - ...only when the preview is the TOPMOST overlay: if a child (cover menu / source
+                    // popup / File-under) is open over it, that child owns Ctrl+A (handled by the generic scope-select below).
+                    if (autoOrgPreviewRef.current && !autoOrgChildRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
                         e.preventDefault();
                         setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreviewRef.current).map(b => b.id)));
                         return;
@@ -4771,7 +4774,8 @@
 
                     // v7.18.0-alpha.34 - Ctrl+A in the Auto-Organize wizard checks ALL listed authors (Ron's ask),
                     // mirroring the preview's select-all above (same action as the Select All button).
-                    if (wizardSelectAllRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    // v7.18.0-alpha.35 - only when the wizard is topmost: not while the preview (or a child) is over it.
+                    if (wizardSelectAllRef.current && !autoOrgPreviewRef.current && !autoOrgChildRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
                         e.preventDefault();
                         wizardSelectAllRef.current();
                         return;
@@ -6852,6 +6856,11 @@
                     ? () => setWizardSelectedAuthors(prev => new Set([...prev, ...wizardFilteredAuthors().map(a => a.normalizedName)]))
                     : null;
             });
+            // v7.18.0-alpha.35 - track whether an autoOrg CHILD overlay is on top of the preview, so the preview's
+            // (and wizard's) Ctrl+A select-all doesn't fire when a child popover/dialog should own Ctrl+A instead.
+            useEffect(() => {
+                autoOrgChildRef.current = !!(autoOrgMenu || autoOrgSrcPopup || autoOrgFileUnder);
+            }, [autoOrgMenu, autoOrgSrcPopup, autoOrgFileUnder]);
             // v7.10.1-alpha.6 (DIALOG_POLICY registry, audit sweeps B+C) - THE single list of dialogs.
             // Adding a dialog = adding it here (and to Esc dismissal); everything else derives:
             //   • anyModalOpenRef / dialogUp() — gates book cut/copy/paste/delete, Ctrl+A, Alt+nav,
