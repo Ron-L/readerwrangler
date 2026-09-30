@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.29";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.30";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -590,12 +590,12 @@
                 if (!open || !ref.current) return;
                 const { width, height } = ref.current.getBoundingClientRect();
                 const vw = window.innerWidth, vh = window.innerHeight;
-                // v7.18.0 - HORIZONTAL: SLIDE, don't flip. Open right of the cursor and slide left only as far
-                // as needed to fit — so near the right edge the menu HUGS the border instead of jumping a full
-                // width to the LEFT of the cursor (which stranded it in empty space when the click was far from
-                // the window edge). Needs the correct (max-content) width above, or the clamp mis-shoots.
+                // v7.18.0 - HORIZONTAL: open right of the cursor (left edge AT cursor); if that would overflow
+                // the right edge, FLIP so the RIGHT edge is at the cursor (VS Code-style) — Ron's call: near the
+                // border the menu's right edge should sit at the cursor, NOT get shoved to the border. Accurate
+                // only because max-content (below) fixed the width measurement. Then clamp to stay on-screen.
                 // (Ron 2026-09-30.) VERTICAL still flips up near the bottom (opens down from the cursor).
-                let left = x;
+                let left = (x + width + margin > vw) ? x - width : x;
                 let top = (y + height + margin > vh) ? y - height : y;
                 left = Math.max(margin, Math.min(left, vw - width - margin));
                 top = Math.max(margin, Math.min(top, vh - height - margin));
