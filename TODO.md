@@ -100,6 +100,16 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   a highlighted row). Add roving keyboard nav (↑/↓ to move, Enter to select the highlighted row, Esc already backs out).
   Small, isolated; likely folds into the eventual `<Popover>`/`<Menu>` primitive (these dropdowns are candidates for it).
 
+- [ ] **Right-click menu open + Ctrl+A selects the whole library behind it (Ron 2026-09-30)**.
+  WHAT YOU SEE: in the main right pane, right-click a **book** (or blank space) to open its context menu, then
+  press **Ctrl+A** — it selects ALL books in the library *behind* the menu (a "leak") instead of the menu owning
+  the keystroke. (Latent risk: Ctrl+A then **Delete** with a menu open could mass-delete the selection.)
+  WHY: context menus deliberately don't raise the keystroke fence (they never have), and the book / folder / sort
+  menus aren't converted to the overlay registry yet, so nothing captures Ctrl+A/Delete while they're open.
+  DO: fold into the **context-menu → `<Popover>` conversion** — once those menus are registry overlays, make the
+  Ctrl+A (and Delete) guards respect ANY open overlay (not just modals), so an open menu suppresses/scopes the
+  keystroke instead of leaking. Pre-existing — NOT a migration regression.
+
 - [ ] **AO / Preview / hover tooltip disappears when you move onto it (Ron 2026-09-30, UX polish)**.
   WHAT YOU SEE: open Auto-Organize → **Preview**, hover a book cover — a little popup appears listing where that
   book already lives (its folders / Book Lists). If you move the mouse toward that popup to read it, it **vanishes**.
