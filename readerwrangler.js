@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.26";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.27";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -600,6 +600,13 @@
                 console.debug('📋 CursorPopup', { x, y, w: Math.round(width), h: Math.round(height), vw, vh, flipH: (x + width + margin > vw), left: Math.round(left), top: Math.round(top), rightEdge: Math.round(left + width), gapCursorToRightEdge: Math.round(x - (left + width)) });
                 setCoords({ left, top });
             }, [open, x, y, children, margin]);
+            // v7.18.0-alpha.27 TEMP DEBUG — the ACTUAL rendered rect AFTER coords apply (reveals the real
+            // displayed width once the menu has room, vs the squished measurement above):
+            useLayoutEffect(() => {
+                if (!open || !ref.current) return;
+                const r = ref.current.getBoundingClientRect();
+                console.debug('📋 CursorPopup FINAL', { x, left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width), top: Math.round(r.top), gapCursorToRight: Math.round(x - r.right) });
+            }, [coords, open, x]);
             if (!open) return null;
             // The `fixed` CSS class is REQUIRED, not just cosmetic: the context-menu close-on-outside-click
             // handler (mousedown) decides inside-vs-outside via `e.target.closest('.fixed')`. Position is set
