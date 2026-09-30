@@ -87,11 +87,17 @@ particulars:
 ## RW session tooling (`.claude/`, local, gitignored)
 
 - **Pre-build gate** — a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the first edit of
-  `readerwrangler.js`/`mobile.js` each turn with an 11-point checklist (mechanism, not memory).
-  Consider the checklist, then re-issue the edit. `Stop`/`SessionStart` re-arm it per turn.
+  `readerwrangler.js`/`mobile.js` each turn with a checklist (mechanism, not memory). Consider it, then
+  re-issue the edit. `Stop`/`SessionStart` re-arm it per turn. The checklist is the **single source** in
+  `docs/PRINCIPLES.md` (the `GATE-CHECKLIST` block); the hook just pulls + prints it and **fails LOUD** if
+  it can't reach it. Full local tooling + the pattern: **`docs/design/SESSION-TOOLING.md`**.
 - **`/sitemap`** (`.claude/commands/sitemap.md`) — mechanizes the class-of-sites comb.
-- **Timestamp stamp hook** — a `UserPromptSubmit` hook (`.claude/hooks/stamp.py`) injects the live
-  time each turn so the `📋` response-start stamp stops depending on memory.
+- **Version-guard** — a `pre-commit` hook (`.claude/hooks/version-guard.py`) refuses a commit that stages
+  shipped code without moving its version stamp. Bypass: `git commit --no-verify`.
+- **Timestamp stamp hook is GLOBAL, not RW-local** — it is `C:/Users/Ron/Projects/stamp.py`, wired in
+  `~/.claude/settings.json` (`UserPromptSubmit`), injecting the live time each turn for **all** projects.
+  See the Projects-root **`CLAUDE-TOOLING.md`**. (Corrected 2026-09-30 — the old `.claude/hooks/stamp.py`
+  path was wrong and cost a chase; its absence there is *not* a sign it's missing.)
 
 ---
 
