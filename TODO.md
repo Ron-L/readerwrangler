@@ -100,11 +100,17 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   a highlighted row). Add roving keyboard nav (↑/↓ to move, Enter to select the highlighted row, Esc already backs out).
   Small, isolated; likely folds into the eventual `<Popover>`/`<Menu>` primitive (these dropdowns are candidates for it).
 
-- [ ] **Auto-Organize preview hover-tooltip inconsistency (Ron 2026-09-30, UX polish)**. In the AO preview, the
-  cover hover tooltip (`autoOrgHover`) is a lightweight `pointer-events:none` popup — moving the mouse onto it makes
-  it vanish (you leave the cover). The main right-pane "where this book lives" popup uses the richer **hover-intent**
-  mechanism (6.13.2) and persists. Make the preview's match: port the hover-intent popup into the preview so it stays
-  put and readable. NOT small (different mechanisms), pre-existing, unrelated to the overlay migration — own pass.
+- [ ] **AO / Preview / hover tooltip disappears when you move onto it (Ron 2026-09-30, UX polish)**.
+  WHAT YOU SEE: open Auto-Organize → **Preview**, hover a book cover — a little popup appears listing where that
+  book already lives (its folders / Book Lists). If you move the mouse toward that popup to read it, it **vanishes**.
+  COMPARE: in the normal **right pane**, hovering a cover shows the same kind of "where it lives" popup and it
+  **stays put** (you can move onto it). Goal: make the Preview's behave like the right pane's — stay open + readable.
+  WHY THEY DIFFER: two separate pieces of code. The Preview's is a bare tooltip that ignores the mouse (state
+  `autoOrgHover`, rendered `pointer-events:none`), so leaving the cover closes it. The right pane's is a smarter
+  "hover-intent" popup (built in 6.13.2) that persists.
+  DO: FIRST check whether the right pane's existing popup code can be **refactored into ONE shared component used by
+  BOTH** the right pane and the Preview (don't build a second copy); then use it in the Preview.
+  SIZE: not small (two mechanisms to reconcile), pre-existing, unrelated to the overlay migration — its own pass.
 
 - [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the transactional dialog):
   pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
