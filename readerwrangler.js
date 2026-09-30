@@ -13,10 +13,15 @@
         const useOverlayLayer = ({ close, kind, nodeRef }) => {
             const closeRef = useRef(close);
             closeRef.current = close;
+            const [isTopModal, setIsTopModal] = useState(true);
             useEffect(() => {
                 const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef });
-                return () => overlayRegistry.removeLayer(id);
+                const sync = () => setIsTopModal(overlayRegistry.isTopmostModal(id));
+                sync();
+                const unsub = overlayRegistry.subscribe(sync); // recompute when anything opens/closes above us
+                return () => { unsub(); overlayRegistry.removeLayer(id); };
             }, [kind]); // mount/unmount only — kind is fixed for a given overlay
+            return isTopModal; // <Dialog> dims its scrim ONLY when topmost modal, so stacked scrims don't compound
         };
 
         // <Dialog> — a modal overlay. Portals to <body> (escapes ancestor z-index/overflow traps),
@@ -31,11 +36,13 @@
         //   closeButton    — render a standard corner ✕ (for custom-header dialogs); auto-adds `relative` to the panel
         const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true, zIndexClass = 'z-50', panelStyle, closeButton = false }) => {
             const panelRef = useRef(null);
-            useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef });
+            const isTopModal = useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef });
             const downOnScrimRef = useRef(false);
             const _panelCls = (panelClassName || `bg-white rounded-lg shadow-2xl ${maxWidthClassName} w-full mx-4`) + (closeButton ? ' relative' : '');
             return ReactDOM.createPortal(
-                <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${zIndexClass}`}
+                // Dim only when this is the topmost modal — a modal beneath another goes transparent so
+                // stacked backdrops don't compound to near-black (popovers above don't count as modals).
+                <div className={`fixed inset-0 ${isTopModal ? 'bg-black bg-opacity-50' : 'bg-transparent'} flex items-center justify-center ${zIndexClass}`}
                     onMouseDown={(e) => { downOnScrimRef.current = (e.target === e.currentTarget); }}
                     onClick={(e) => { if (e.target === e.currentTarget && downOnScrimRef.current && onClose) onClose('backdrop'); downOnScrimRef.current = false; }}>
                     <div ref={panelRef} className={_panelCls}
@@ -61,7 +68,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.37";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.38";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -4764,7 +4771,7 @@
                     // v6.16.0 - Ctrl+A inside the Auto-Organize preview selects THAT preview's books (was leaking to the Inbox behind it).
                     // v7.18.0-alpha.35 - ...only when the preview is the TOPMOST overlay: if a child (cover menu / source
                     // popup / File-under) is open over it, that child owns Ctrl+A (handled by the generic scope-select below).
-                    if (autoOrgPreviewRef.current && !autoOrgChildRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    if (autoOrgPreviewRef.current && !autoOrgChildRef.current && !modalBookRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
                         e.preventDefault();
                         setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreviewRef.current).map(b => b.id)));
                         return;
@@ -4773,7 +4780,7 @@
                     // v7.18.0-alpha.34 - Ctrl+A in the Auto-Organize wizard checks ALL listed authors (Ron's ask),
                     // mirroring the preview's select-all above (same action as the Select All button).
                     // v7.18.0-alpha.35 - only when the wizard is topmost: not while the preview (or a child) is over it.
-                    if (wizardSelectAllRef.current && !autoOrgPreviewRef.current && !autoOrgChildRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    if (wizardSelectAllRef.current && !autoOrgPreviewRef.current && !autoOrgChildRef.current && !modalBookRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
                         e.preventDefault();
                         wizardSelectAllRef.current();
                         return;

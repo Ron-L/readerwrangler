@@ -60,6 +60,16 @@ const closeTop = (reason) => {
 
 const hasModal = () => _layers.some(l => l.kind === 'modal');
 
+// Is the layer `id` the topmost MODAL — i.e. no modal-kind layer sits above it? (Popovers/menus above
+// do NOT count.) v7.18.0-alpha.38: only the topmost modal paints its dimming scrim, so stacked dialogs
+// don't compound their backdrops to near-black; a popover over a dialog leaves the dialog's dimming.
+const isTopmostModal = (id) => {
+    const i = _layers.findIndex(l => l.id === id);
+    if (i < 0) return false;
+    for (let j = i + 1; j < _layers.length; j++) { if (_layers[j].kind === 'modal') return false; }
+    return true;
+};
+
 // Subscribe to stack changes; returns an unsubscribe fn.
 const subscribe = (fn) => { _subs.add(fn); return () => _subs.delete(fn); };
 
@@ -72,12 +82,12 @@ const _kinds = () => _layers.map(l => l.kind);
 // bare-const shared modules (uiHelpers/bookFields expose `packBook` etc. directly), the overlay API is
 // namespaced so generic names (pushLayer/topLayer/hasModal/…) don't pollute the global scope.
 if (typeof window !== 'undefined') {
-    window.overlayRegistry = { pushLayer, removeLayer, topLayer, closeTop, hasModal, subscribe };
+    window.overlayRegistry = { pushLayer, removeLayer, topLayer, closeTop, hasModal, isTopmostModal, subscribe };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        pushLayer, removeLayer, topLayer, closeTop, hasModal, subscribe,
+        pushLayer, removeLayer, topLayer, closeTop, hasModal, isTopmostModal, subscribe,
         _reset, _count, _kinds,
     };
 }

@@ -117,4 +117,15 @@ test('a throwing subscriber does not break the stack', () => {
     assert.strictEqual(reg._count(), 1);
 });
 
+test('isTopmostModal: top modal true; a modal above unseats it; popovers above do NOT', () => {
+    const m1 = reg.pushLayer({ close: () => {}, kind: 'modal' });
+    assert.strictEqual(reg.isTopmostModal(m1), true, 'lone modal is the topmost modal');
+    reg.pushLayer({ close: () => {}, kind: 'popover' });
+    assert.strictEqual(reg.isTopmostModal(m1), true, 'a popover above does NOT unseat the top modal');
+    const m2 = reg.pushLayer({ close: () => {}, kind: 'modal' });
+    assert.strictEqual(reg.isTopmostModal(m1), false, 'a modal above unseats it');
+    assert.strictEqual(reg.isTopmostModal(m2), true, 'the upper modal is now topmost');
+    assert.strictEqual(reg.isTopmostModal(99999), false, 'unknown id is not topmost');
+});
+
 console.log(`\n${passed} overlayRegistry tests passed.`);
