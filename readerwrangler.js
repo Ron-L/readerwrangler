@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.32";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.33";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6839,7 +6839,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || autoOrgPreview || toastHistoryOpen || registryHasModal); // v7.14.2 - three unfenced; v7.18.0 - newFolderHiddenAlert moved to <Dialog>, now fences via the overlay registry (registryHasModal)
+            const anyDialogOpen = !!(modalBook || toastHistoryOpen || registryHasModal); // v7.14.2 - unfenced legacy modals; v7.18.0 - many migrated to <Dialog> (fence via registryHasModal), incl. autoOrgPreview + autoOrgFileUnder (alpha.33)
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6875,9 +6875,9 @@
                     // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - Status History popover closes on Esc
                     // (was click-outside only)
                     if (toastHistoryOpen) { setToastHistoryOpen(false); return; }
-                    // v6.13.0-alpha.7/9 - Auto-Organize preview stack: the cover right-click menu, then the preview itself
-                    if (autoOrgMenu) { setAutoOrgMenu(null); return; }
-                    if (autoOrgPreview) { closeAutoOrgPreview(); return; } // v7.14.2 - was a partial clear that orphaned autoOrgSrcPopup/autoOrgFileUnder on Esc; delegate to the one closer
+                    // v7.18.0-alpha.33 - Auto-Organize family migrated to <Dialog>/<Popover>: preview + File-under
+                    // are <Dialog>s, the cover menu + source popup are <Popover>s, so their Esc (innermost-first)
+                    // is owned by the overlay registry (guarded out at the top of this handler). Branches removed.
                     // v5.4.6 - Series dropdown inside edit mode (innermost)
                     if (editBookSeriesDropdownOpen) { setEditBookSeriesDropdownOpen(false); return; }
                     // v5.4.6 - Book edit mode (cancel without closing dialog)
@@ -11968,8 +11968,9 @@
                             );
                         };
                         return (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) closeAutoOrgPreview(); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl w-full" role="dialog" aria-modal="true" aria-labelledby="modal-autoorg-preview" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+                        <Dialog onClose={closeAutoOrgPreview} showClose={false}
+                            panelClassName="bg-white rounded-lg shadow-2xl w-full"
+                            panelStyle={{ maxWidth: '640px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 {/* Header — the mode is a live segmented toggle (recomputes the preview in place). */}
                                 <div className="flex justify-between items-start gap-3 p-4 bg-indigo-100 rounded-t-lg border-b border-indigo-300">
                                     <div className="flex flex-col gap-1.5 min-w-0">
@@ -12210,8 +12211,7 @@
                                         </div>
                                     );
                                 })()}
-                            </div>
-                        </div>
+                        </Dialog>
                         );
                     })()}
 
@@ -12231,8 +12231,8 @@
                         const n = autoOrgFileUnder.bookIds.length;
                         const pick = (name) => { const ids = autoOrgFileUnder.bookIds; setAutoOrgFileUnder(null); retargetPreviewBooks(ids, name); };
                         return (
-                            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[80]" onClick={() => setAutoOrgFileUnder(null)}>
-                                <div className="bg-white rounded-lg shadow-2xl w-full" style={{ maxWidth: '380px' }} onClick={(e) => e.stopPropagation()}>
+                            <Dialog onClose={() => setAutoOrgFileUnder(null)} showClose={false} zIndexClass="z-[80]"
+                                panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '380px' }}>
                                     <div className="p-3 border-b border-gray-200">
                                         <div className="text-sm font-semibold text-gray-900 mb-2">File {n} book{n !== 1 ? 's' : ''} under…</div>
                                         <input autoFocus value={raw}
@@ -12266,8 +12266,7 @@
                                         {matches.length === 0 && q.length > 0 && <div className="px-4 py-2 text-gray-400 text-xs">No folder matches — use the Create row above if you mean a new one</div>}
                                     </div>
                                     <div className="px-4 py-2 border-t border-gray-100 text-[10px] text-gray-400">Enter picks the exact or top match. Creating a folder is always the explicit ➕ choice — never a typo.</div>
-                                </div>
-                            </div>
+                            </Dialog>
                         );
                     })()}
 
@@ -12281,10 +12280,9 @@
                         // checkboxes for a book that isn't moving (they were inert theater).
                         const popupIsMover = new Set((autoOrgPreview && autoOrgPreview.dryPlan && autoOrgPreview.dryPlan.allBookIdsToOrganize) || []).has(b.id);
                         return (
-                            <div className="fixed inset-0 z-[75]" onClick={() => setAutoOrgSrcPopup(null)} onContextMenu={(e) => { e.preventDefault(); setAutoOrgSrcPopup(null); }}>
-                                <CursorPopup open={true} x={autoOrgSrcPopup.x} y={autoOrgSrcPopup.y}
-                                    className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-w-[300px]"
-                                    onClick={(e) => e.stopPropagation()}>
+                            <Popover x={autoOrgSrcPopup.x} y={autoOrgSrcPopup.y} onClose={() => setAutoOrgSrcPopup(null)}
+                                className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-w-[300px] z-[75]"
+                                onClick={(e) => e.stopPropagation()}>
                                     {!popupIsMover ? (
                                         <>
                                             <div className="px-3 py-1.5 text-xs text-gray-600 border-b border-gray-100 truncate" title={b.title}>“{b.title || 'Untitled'}” is already where it belongs</div>
@@ -12317,17 +12315,15 @@
                                     <div className="px-3 py-1.5 text-[10px] text-gray-400 border-t border-gray-100">Its new home folder is always added. Unchecked copies are kept.</div>
                                     </>
                                     )}
-                                </CursorPopup>
-                            </div>
+                            </Popover>
                         );
                     })()}
 
                     {/* v6.13.0-alpha.9 (D2) - Preview cover right-click: add the selection to a Book List (flat menu; the only action here) */}
                     {autoOrgMenu && (
-                        <div className="fixed inset-0 z-[75]" onClick={() => setAutoOrgMenu(null)} onContextMenu={(e) => { e.preventDefault(); setAutoOrgMenu(null); }}>
-                            <CursorPopup open={true} x={autoOrgMenu.x} y={autoOrgMenu.y}
-                                className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-h-[360px] overflow-y-auto"
-                                onClick={(e) => e.stopPropagation()}>
+                        <Popover x={autoOrgMenu.x} y={autoOrgMenu.y} onClose={() => setAutoOrgMenu(null)}
+                            className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-h-[360px] overflow-y-auto z-[75]"
+                            onClick={(e) => e.stopPropagation()}>
                                 <div className="px-4 py-1.5 text-xs text-gray-500 border-b border-gray-100">Add {autoOrgMenu.bookIds.length} book{autoOrgMenu.bookIds.length !== 1 ? 's' : ''} to a Book List</div>
                                 <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 font-medium text-blue-700"
                                     role="menuitem" onClick={() => addPreviewSelToNewBookList(autoOrgMenu.bookIds)}>
@@ -12358,8 +12354,7 @@
                                         </div>
                                     </>
                                 )}
-                            </CursorPopup>
-                        </div>
+                        </Popover>
                     )}
 
                     {/* v6.13.0-alpha.9 (D2) - Preview cover hover: where this book already lives (folders + Book Lists) */}
