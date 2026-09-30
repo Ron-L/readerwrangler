@@ -100,6 +100,12 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   a highlighted row). Add roving keyboard nav (↑/↓ to move, Enter to select the highlighted row, Esc already backs out).
   Small, isolated; likely folds into the eventual `<Popover>`/`<Menu>` primitive (these dropdowns are candidates for it).
 
+- [ ] **Auto-Organize preview hover-tooltip inconsistency (Ron 2026-09-30, UX polish)**. In the AO preview, the
+  cover hover tooltip (`autoOrgHover`) is a lightweight `pointer-events:none` popup — moving the mouse onto it makes
+  it vanish (you leave the cover). The main right-pane "where this book lives" popup uses the richer **hover-intent**
+  mechanism (6.13.2) and persists. Make the preview's match: port the hover-intent popup into the preview so it stays
+  put and readable. NOT small (different mechanisms), pre-existing, unrelated to the overlay migration — own pass.
+
 - [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the transactional dialog):
   pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
   no second ordering system three inches from the first. List reorder already undoable (7.10.1-alpha.6); pin

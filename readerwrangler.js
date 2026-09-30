@@ -61,7 +61,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.33";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.34";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -982,6 +982,7 @@
                 return () => window.removeEventListener('keydown', onKey);
             }, []);
             const autoOrgPreviewRef = useRef(null); // v6.16.0 - current auto-organize preview, for the keydown handler (which doesn't dep on it)
+            const wizardSelectAllRef = useRef(null); // v7.18.0-alpha.34 - current wizard "select all listed authors" action, for Ctrl+A (handler reads via ref, not state)
             const backdropMouseDownRef = useRef(null); // v5.2.0-alpha.15 - Track mousedown origin for backdrop close (prevents swipe-past-edge closing modals)
             const [contextMenu, setContextMenu] = useState(null); // {x, y, bookId, columnId}
             const [contextSubmenu, setContextSubmenu] = useState(null); // v4.16.0.ba - 'move' | 'copyTo' | 'priceGoal' | null for submenu hover
@@ -4728,9 +4729,15 @@
                     }
 
                     // v4.21.1.a - Let browser handle Ctrl+A/C/X natively when input/textarea focused
-                    const isInputFocused = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
-                    if (isInputFocused && (e.ctrlKey || e.metaKey) && ['a', 'c', 'x'].includes(e.key)) {
-                        return; // Don't preventDefault, let browser handle
+                    const ae = document.activeElement;
+                    const isInputFocused = ['INPUT', 'TEXTAREA'].includes(ae?.tagName);
+                    // v7.18.0-alpha.34 - a checkbox/radio/button is an <input> but NOT text: native Ctrl+A there
+                    // selects the WHOLE PAGE (leak). Hand Ctrl+A/C/X to the browser only for text-editable fields;
+                    // a focused checkbox then falls through to the dialog-aware guards below (never leaks).
+                    const isTextEntry = ae?.tagName === 'TEXTAREA' || ae?.isContentEditable ||
+                        (ae?.tagName === 'INPUT' && ['text', 'search', 'url', 'tel', 'email', 'password', 'number', ''].includes((ae.type || 'text').toLowerCase()));
+                    if (isTextEntry && (e.ctrlKey || e.metaKey) && ['a', 'c', 'x'].includes(e.key)) {
+                        return; // Don't preventDefault, let browser handle text ops in the field
                     }
 
                     // v5.2.0-alpha.15 - Skip DEL/arrow keys when input/textarea focused (prevent book deletion, navigation)
@@ -4759,6 +4766,14 @@
                     if (autoOrgPreviewRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
                         e.preventDefault();
                         setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreviewRef.current).map(b => b.id)));
+                        return;
+                    }
+
+                    // v7.18.0-alpha.34 - Ctrl+A in the Auto-Organize wizard checks ALL listed authors (Ron's ask),
+                    // mirroring the preview's select-all above (same action as the Select All button).
+                    if (wizardSelectAllRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
+                        e.preventDefault();
+                        wizardSelectAllRef.current();
                         return;
                     }
 
@@ -6829,6 +6844,14 @@
             useEffect(() => {
                 autoOrgPreviewRef.current = autoOrgPreview;
             }, [autoOrgPreview]);
+            // v7.18.0-alpha.34 - keep a ref to the wizard's "select all listed authors" action (same as the
+            // Select All button) so Ctrl+A can check-all without the keydown handler depending on wizard state.
+            // No deps: refresh the closure every render so it always sees the current authors/filter.
+            useEffect(() => {
+                wizardSelectAllRef.current = wizardModalOpen
+                    ? () => setWizardSelectedAuthors(prev => new Set([...prev, ...wizardFilteredAuthors().map(a => a.normalizedName)]))
+                    : null;
+            });
             // v7.10.1-alpha.6 (DIALOG_POLICY registry, audit sweeps B+C) - THE single list of dialogs.
             // Adding a dialog = adding it here (and to Esc dismissal); everything else derives:
             //   • anyModalOpenRef / dialogUp() — gates book cut/copy/paste/delete, Ctrl+A, Alt+nav,
