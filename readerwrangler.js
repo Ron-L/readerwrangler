@@ -4,13 +4,15 @@
         // ===== Overlay system — the React half (v7.18.0; docs/design/DIALOG-DISMISSAL-AUDIT.md) =====
         // The ordered stack lives in overlayRegistry.js (pure, Node-tested — global `overlayRegistry`).
         // An overlay built with <Dialog> self-registers on mount / deregisters on unmount, so the
-        // keystroke fence (hasModal()), Esc-ordering, backdrop, ✕, and cascade-close are STRUCTURAL —
+        // keystroke fence (hasFence()), Esc-ordering, backdrop, ✕, and cascade-close are STRUCTURAL —
         // it cannot be born unfenced/un-Esc-able/un-dismissable. Migrating outward-in, one family per
         // alpha; the legacy anyDialogOpen OR-chain + handleModalEsc bridge until the last modal moves.
         //
         // useOverlayLayer: registers { close, kind } for this overlay's lifetime. `close` is read through
         // a ref so the registry always calls the LATEST onClose without re-registering each render.
-        const useOverlayLayer = ({ close, kind, nodeRef }) => {
+        // fence (optional, v7.18.0-alpha.40): raise the keystroke fence. Undefined = the registry default
+        // (modal fences, popover/menu doesn't); a popover passes true to block library keys while open.
+        const useOverlayLayer = ({ close, kind, nodeRef, fence }) => {
             const closeRef = useRef(close);
             closeRef.current = close;
             const [isTopModal, setIsTopModal] = useState(true);
@@ -18,7 +20,7 @@
             // so when a modal opens/closes the layer beneath flips its dim in the SAME frame — no one-frame
             // double-dim flash (the reason we don't need a separate global "already dimmed" flag).
             useLayoutEffect(() => {
-                const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef });
+                const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef, fence });
                 const sync = () => setIsTopModal(overlayRegistry.isTopmostModal(id));
                 sync();
                 const unsub = overlayRegistry.subscribe(sync); // recompute when anything opens/closes above us
@@ -30,7 +32,7 @@
         // <Dialog> — a modal overlay. Portals to <body> (escapes ancestor z-index/overflow traps),
         // renders a scrim with a mousedown-guarded backdrop close (a drag that STARTED inside the panel
         // and released on the scrim does NOT dismiss), a baked-in ✕, an optional titled header, and
-        // children. kind:'modal' means it raises the keystroke fence via hasModal().
+        // children. kind:'modal' means it raises the keystroke fence (a modal layer fences by default → hasFence()).
         // Optional props for the varied existing dialogs (all backward-compatible):
         //   panelClassName — full override of the panel's classes (else bg-white rounded-lg shadow-2xl <maxW> w-full mx-4)
         //   panelStyle     — inline style on the panel (e.g. a fixed max-width / max-height + flex column for a scroll body)
@@ -71,7 +73,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.39";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.40";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -590,16 +592,30 @@
         // shrinks. Position only — NEVER add overflow here: menus with fly-out submenus (FlipToFitPopup
         // children) would get clipped by a scroll container. The measure-and-clamp core the future
         // <Popover>/<Menu> overlay primitive will reuse (not a throwaway).
-        function CursorPopup({ open, x, y, className, style, role, ariaLabel, onClick, onContextMenu, children, margin = 8, innerRef }) {
+        // v7.18.0-alpha.40 - ANCHORED mode: pass `anchorRect` (a trigger element's getBoundingClientRect())
+        // instead of (x, y) and the popup opens as a DROPDOWN — flush below the trigger, left edges aligned —
+        // flipping ABOVE the trigger when there's no room below (e.g. the footer 🕐 button) and right-aligning
+        // to the trigger when it would overflow the right edge. Same fixed + measure-and-clamp core, so it
+        // escapes overflow/scroll containers (why not FlipToFitPopup: that is the SIDE-flyout geometry,
+        // absolute against its parent, and clips inside a scrolling dialog panel).
+        function CursorPopup({ open, x, y, anchorRect, className, style, role, ariaLabel, onClick, onContextMenu, children, margin = 8, innerRef }) {
             const ref = useRef(null);
             // v7.18.0 - optional innerRef: the <Popover> primitive needs the positioned node to decide
             // outside-clicks (ref.contains). Mirror the measuring ref onto it via one callback ref.
             const setRefs = (node) => { ref.current = node; if (innerRef) innerRef.current = node; };
-            const [coords, setCoords] = useState({ left: x, top: y });
+            const [coords, setCoords] = useState(anchorRect ? { left: anchorRect.left, top: anchorRect.bottom } : { left: x, top: y });
             useLayoutEffect(() => {
                 if (!open || !ref.current) return;
                 const { width, height } = ref.current.getBoundingClientRect();
                 const vw = window.innerWidth, vh = window.innerHeight;
+                if (anchorRect) {
+                    let left = (anchorRect.left + width + margin > vw) ? anchorRect.right - width : anchorRect.left;
+                    let top = (anchorRect.bottom + height + margin > vh) ? anchorRect.top - height : anchorRect.bottom;
+                    left = Math.max(margin, Math.min(left, vw - width - margin));
+                    top = Math.max(margin, Math.min(top, vh - height - margin));
+                    setCoords({ left, top });
+                    return;
+                }
                 // v7.18.0 - HORIZONTAL: open right of the cursor (left edge AT cursor); if that would overflow
                 // the right edge, FLIP so the RIGHT edge is at the cursor (VS Code-style) — Ron's call: near the
                 // border the menu's right edge should sit at the cursor, NOT get shoved to the border. Accurate
@@ -610,7 +626,7 @@
                 left = Math.max(margin, Math.min(left, vw - width - margin));
                 top = Math.max(margin, Math.min(top, vh - height - margin));
                 setCoords({ left, top });
-            }, [open, x, y, children, margin]);
+            }, [open, x, y, anchorRect, children, margin]);
             if (!open) return null;
             // The `fixed` CSS class is REQUIRED, not just cosmetic: the context-menu close-on-outside-click
             // handler (mousedown) decides inside-vs-outside via `e.target.closest('.fixed')`. Position is set
@@ -634,21 +650,32 @@
         // Esc (via the registry) + outside mousedown decided by this popover's OWN node (ref.contains) —
         // replacing the fragile `.closest('.fixed')` check and the scattered scrim <div>s. Parent renders it
         // conditionally, so mount == open (same lifecycle as <Dialog>). onClose(reason): 'esc' | 'outside'.
-        const Popover = ({ x, y, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
+        // v7.18.0-alpha.40 - two opt-ins for button dropdowns:
+        //   anchorRef — a ref to the trigger element: open ANCHORED to it (dropdown, flips above when needed)
+        //               instead of at (x, y). The trigger counts as INSIDE for light-dismiss, so clicking the
+        //               toggle button closes via its own onClick toggle (no close-then-reopen race).
+        //   fence     — raise the keystroke fence while open (library cut/paste/delete/select-all/undo blocked).
+        const Popover = ({ x, y, anchorRef, fence, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
             const ref = useRef(null);
             const closeRef = useRef(onClose);
             closeRef.current = onClose; // always dismiss via the LATEST onClose (like useOverlayLayer)
-            useOverlayLayer({ close: onClose, kind, nodeRef: ref });
+            // Measured once at open (mount == open): the trigger's position when the dropdown appeared.
+            const [anchorRect] = useState(() => (anchorRef && anchorRef.current) ? anchorRef.current.getBoundingClientRect() : null);
+            useOverlayLayer({ close: onClose, kind, nodeRef: ref, fence });
             useEffect(() => {
                 // mousedown (not click): decide inside-vs-outside before an item's onClick fires. The
                 // listener is added AFTER this popover mounts, so the click/right-click that opened it
                 // never self-closes it.
-                const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) closeRef.current && closeRef.current('outside'); };
+                const onDown = (e) => {
+                    if (ref.current && ref.current.contains(e.target)) return;
+                    if (anchorRef && anchorRef.current && anchorRef.current.contains(e.target)) return; // the toggle owns it
+                    closeRef.current && closeRef.current('outside');
+                };
                 document.addEventListener('mousedown', onDown);
                 return () => document.removeEventListener('mousedown', onDown);
             }, []);
             return (
-                <CursorPopup open={true} x={x} y={y} innerRef={ref}
+                <CursorPopup open={true} x={x} y={y} anchorRect={anchorRect} innerRef={ref}
                     className={className} style={style} role={role} ariaLabel={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu}>
                     {children}
@@ -971,13 +998,13 @@
             const dialogUp = () => anyModalOpenRef.current || imperativeDialogsUp();
 
             // v7.18.0 - Overlay-registry bridge. A <Dialog> (overlayRegistry.js) isn't in the legacy
-            // anyDialogOpen OR-chain; it registers itself, and hasModal() feeds anyDialogOpen below so
-            // the keystroke fence + undo-fence treat it identically. This bridge stays until every modal
-            // is migrated and the OR-chain/handleModalEsc are deleted (DIALOG-DISMISSAL-AUDIT.md §7).
-            const [registryHasModal, setRegistryHasModal] = useState(false);
+            // anyDialogOpen OR-chain; it registers itself, and hasFence() feeds anyDialogOpen below so
+            // the keystroke fence + undo-fence treat it identically. v7.18.0-alpha.40: hasFence (not
+            // hasModal) — every modal fences by default, and a popover can opt in (toast history).
+            const [registryHasFence, setRegistryHasFence] = useState(false);
             useEffect(() => {
-                const unsub = overlayRegistry.subscribe(() => setRegistryHasModal(overlayRegistry.hasModal()));
-                setRegistryHasModal(overlayRegistry.hasModal());
+                const unsub = overlayRegistry.subscribe(() => setRegistryHasFence(overlayRegistry.hasFence()));
+                setRegistryHasFence(overlayRegistry.hasFence());
                 return unsub;
             }, []);
             // ONE keydown listener for the overlay stack: Esc closes the topmost registered layer
@@ -1111,6 +1138,7 @@
             const draggedFoldersAllPinnedRef = useRef(false); // v7.6.0-alpha.15 - right-pane reorder gate: pin-zone drags are allowed in sorted modes (dragover can't read the payload, so dragstart records this)
             const toastHistoryRef = useRef([]); // v7.6.2-alpha.2 - session toast receipts (ring buffer of 50)
             const [toastHistoryOpen, setToastHistoryOpen] = useState(false); // v7.6.2-alpha.2
+            const toastHistoryBtnRef = useRef(null); // v7.18.0-alpha.40 - anchor for the toast-history <Popover>
             // v5.5.4-alpha.23 - Drag virtualization refs (hide off-screen rows during drag)
             const dragVirtScrollRef = useRef(null);    // Scroll container element
             const dragVirtContainerRef = useRef(null);  // tbody (list) or grid div
@@ -6879,7 +6907,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(toastHistoryOpen || registryHasModal); // v7.18.0 - migrated modals fence via registryHasModal (modalBook + autoOrgPreview + autoOrgFileUnder as of alpha.36); toastHistory is the last legacy holdout
+            const anyDialogOpen = !!registryHasFence; // v7.18.0-alpha.40 - the OR-chain is EMPTY: every fencing overlay is a registry layer (toastHistory, the last holdout, is now a fencing <Popover>). This bridge + handleModalEsc retire next.
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6912,9 +6940,8 @@
                     // listener owns it; defer entirely so migrated + legacy overlays layer correctly with
                     // no double-close. This whole handler retires when the last modal migrates.
                     if (overlayRegistry.topLayer()) return;
-                    // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - Status History popover closes on Esc
-                    // (was click-outside only)
-                    if (toastHistoryOpen) { setToastHistoryOpen(false); return; }
+                    // v7.18.0-alpha.40 - toast history migrated to a fencing <Popover>: its Esc is owned by the
+                    // overlay registry (guarded out above). Branch removed — this handler now has NO branches left.
                     // v7.18.0-alpha.33 - Auto-Organize family migrated to <Dialog>/<Popover>: preview + File-under
                     // are <Dialog>s, the cover menu + source popup are <Popover>s, so their Esc (innermost-first)
                     // is owned by the overlay registry (guarded out at the top of this handler). Branches removed.
@@ -6928,7 +6955,7 @@
                 };
                 window.addEventListener('keydown', handleModalEsc);
                 return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, isEditingBook, editBookSeriesDropdownOpen, toastHistoryOpen]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
+            }, [autoOrgPreview, autoOrgMenu, modalBook, isEditingBook, editBookSeriesDropdownOpen]); // v7.18.0-alpha.40 - toastHistoryOpen dropped (migrated); v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -20043,27 +20070,33 @@
                                 message that evaporated before it was read */}
                             <span className="relative">
                                 <button
+                                    ref={toastHistoryBtnRef}
                                     onClick={() => setToastHistoryOpen(o => !o)}
                                     className="text-gray-400 hover:text-gray-600 px-1"
                                     title="Recent messages (this session)"
                                     aria-label="Recent messages"
                                     style={{ fontSize: '13px', lineHeight: '1' }}>🕐</button>
+                                {/* v7.18.0-alpha.40 - anchored, FENCING <Popover> (was a legacy scrim + absolute panel on the
+                                    anyDialogOpen OR-chain): opens flush above the 🕐 button (flips — no room below), Esc +
+                                    outside-click close via the registry, and library keys stay blocked while it's open.
+                                    width is inline because CursorPopup's inline max-content would beat a w-[…] class. */}
                                 {toastHistoryOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-[69]" onClick={() => setToastHistoryOpen(false)} />
-                                        <div className="absolute bottom-6 left-0 bg-white border border-gray-300 shadow-lg rounded z-[70] w-[420px] max-h-[320px] overflow-y-auto py-1">
-                                            {toastHistoryRef.current.length === 0 ? (
-                                                <div className="px-3 py-2 text-gray-400">No messages yet this session</div>
-                                            ) : (
-                                                [...toastHistoryRef.current].reverse().map((t, i) => (
-                                                    <div key={i} className={`px-3 py-1.5 border-b border-gray-100 last:border-0 ${t.level === 'error' ? 'text-red-600' : 'text-gray-700'}`}>
-                                                        <span className="text-gray-400 mr-2">{new Date(t.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</span>
-                                                        {t.message}
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    </>
+                                    <Popover anchorRef={toastHistoryBtnRef} kind="popover" fence
+                                        onClose={() => setToastHistoryOpen(false)}
+                                        role="dialog" ariaLabel="Recent messages"
+                                        className="bg-white border border-gray-300 shadow-lg rounded z-[70] max-h-[320px] overflow-y-auto py-1"
+                                        style={{ width: 420 }}>
+                                        {toastHistoryRef.current.length === 0 ? (
+                                            <div className="px-3 py-2 text-gray-400">No messages yet this session</div>
+                                        ) : (
+                                            [...toastHistoryRef.current].reverse().map((t, i) => (
+                                                <div key={i} className={`px-3 py-1.5 border-b border-gray-100 last:border-0 ${t.level === 'error' ? 'text-red-600' : 'text-gray-700'}`}>
+                                                    <span className="text-gray-400 mr-2">{new Date(t.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</span>
+                                                    {t.message}
+                                                </div>
+                                            ))
+                                        )}
+                                    </Popover>
                                 )}
                             </span>
                             {/* Clipboard (always leftmost for toast animation target) */}

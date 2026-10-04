@@ -19,7 +19,7 @@
 // parent→child hierarchy — "containment is a stack"), a belt-and-suspenders partner to React
 // unmounting nested children automatically.
 
-let _layers = [];              // [{ id, close, kind }] — [0] outermost, [n-1] topmost
+let _layers = [];              // [{ id, close, kind, nodeRef, fence }] — [0] outermost, [n-1] topmost
 let _seq = 0;                  // monotonic id source
 const _subs = new Set();       // subscribers notified on any change (React syncs hasModal() from this)
 
@@ -27,9 +27,13 @@ const _notify = () => { _subs.forEach(fn => { try { fn(); } catch (e) { /* a sub
 
 // Register an overlay; returns its id. kind: 'modal' | 'popover' | 'menu'. Optional nodeRef is a React
 // ref to the overlay's DOM node — used to scope select-all (Ctrl+A) to the overlay's own content.
-const pushLayer = ({ close, kind, nodeRef }) => {
+// fence (v7.18.0-alpha.40): does this layer raise the KEYSTROKE fence (library shortcuts — cut/copy/
+// paste/delete/select-all/undo — must not reach the page beneath)? Defaults to true for a modal, false
+// otherwise; a popover opts in (toast history does — a Ctrl+X in it once cut a selected book). Kept
+// separate from `kind` because "dims like a dialog" and "blocks library keys" are different facts.
+const pushLayer = ({ close, kind, nodeRef, fence }) => {
     const id = ++_seq;
-    _layers.push({ id, close, kind, nodeRef });
+    _layers.push({ id, close, kind, nodeRef, fence: fence === undefined ? kind === 'modal' : !!fence });
     _notify();
     return id;
 };
@@ -60,6 +64,10 @@ const closeTop = (reason) => {
 
 const hasModal = () => _layers.some(l => l.kind === 'modal');
 
+// Is ANY open layer fencing library keystrokes? (A modal by default; a popover only if it opted in.)
+// This — not hasModal — is what the app's keystroke/undo fence consults.
+const hasFence = () => _layers.some(l => l.fence);
+
 // Is the layer `id` the topmost MODAL — i.e. no modal-kind layer sits above it? (Popovers/menus above
 // do NOT count.) v7.18.0-alpha.38: only the topmost modal paints its dimming scrim, so stacked dialogs
 // don't compound their backdrops to near-black; a popover over a dialog leaves the dialog's dimming.
@@ -82,12 +90,12 @@ const _kinds = () => _layers.map(l => l.kind);
 // bare-const shared modules (uiHelpers/bookFields expose `packBook` etc. directly), the overlay API is
 // namespaced so generic names (pushLayer/topLayer/hasModal/…) don't pollute the global scope.
 if (typeof window !== 'undefined') {
-    window.overlayRegistry = { pushLayer, removeLayer, topLayer, closeTop, hasModal, isTopmostModal, subscribe };
+    window.overlayRegistry = { pushLayer, removeLayer, topLayer, closeTop, hasModal, hasFence, isTopmostModal, subscribe };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        pushLayer, removeLayer, topLayer, closeTop, hasModal, isTopmostModal, subscribe,
+        pushLayer, removeLayer, topLayer, closeTop, hasModal, hasFence, isTopmostModal, subscribe,
         _reset, _count, _kinds,
     };
 }
