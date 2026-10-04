@@ -73,7 +73,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.40";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.41";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -666,13 +666,40 @@
                 // mousedown (not click): decide inside-vs-outside before an item's onClick fires. The
                 // listener is added AFTER this popover mounts, so the click/right-click that opened it
                 // never self-closes it.
+                // v7.18.0-alpha.41 - a LEFT-click outside is CONSUMED (desktop-menu convention, Ron 2026-10-04):
+                // it only dismisses — no selection change / button press / drag start underneath, so a
+                // carefully built multi-selection survives "never mind". CAPTURE phase so it runs before React's
+                // root handlers; the follow-up mouseup + click of the same gesture are swallowed too (one-shot,
+                // cleared right after that click so a LATER click is never eaten). Right/middle-click outside
+                // dismisses but passes through, so right-clicking elsewhere opens that item's menu in one click.
+                const eat = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
                 const onDown = (e) => {
                     if (ref.current && ref.current.contains(e.target)) return;
                     if (anchorRef && anchorRef.current && anchorRef.current.contains(e.target)) return; // the toggle owns it
+                    if (e.button === 0) {
+                        eat(e);
+                        const stop = () => {
+                            document.removeEventListener('mouseup', onUpOrClick, true);
+                            document.removeEventListener('click', onUpOrClick, true);
+                            document.removeEventListener('mousedown', stop, true);
+                        };
+                        const onUpOrClick = (ev) => {
+                            eat(ev);
+                            if (ev.type === 'mouseup') setTimeout(stop, 0); // the click (if any) dispatches before this runs
+                        };
+                        document.addEventListener('mouseup', onUpOrClick, true);
+                        document.addEventListener('click', onUpOrClick, true);
+                        // safety: released outside the window = no mouseup here → the NEXT gesture clears the swallow
+                        setTimeout(() => document.addEventListener('mousedown', stop, true), 0);
+                    }
                     closeRef.current && closeRef.current('outside');
                 };
-                document.addEventListener('mousedown', onDown);
-                return () => document.removeEventListener('mousedown', onDown);
+                document.addEventListener('mousedown', onDown, true);
+                return () => {
+                    document.removeEventListener('mousedown', onDown, true);
+                    // the swallow outlives this popover's unmount on purpose (the gesture's click comes AFTER the
+                    // close re-renders); it removes itself after that click — never leave it to eat a later one.
+                };
             }, []);
             return (
                 <CursorPopup open={true} x={x} y={y} anchorRect={anchorRect} innerRef={ref}
@@ -1010,10 +1037,21 @@
             // ONE keydown listener for the overlay stack: Esc closes the topmost registered layer
             // (innermost-first). handleModalEsc (below) defers entirely when a registry layer is up, so
             // there's no double-close; the two coexist correctly during migration.
+            // v7.18.0-alpha.41 - the Esc that closes an overlay is CONSUMED: nothing else on the page sees it
+            // (desktop convention — closing a menu must not also clear your selection / cut clipboard). It
+            // must be stopIMMEDIATEPropagation: the main keydown handler is ALSO a window listener, and
+            // React unmounts the closed overlay in the microtask BETWEEN listeners — so by the time that
+            // handler ran, nothing looked open and it cleared the selection (Ron, 2026-10-04). This listener
+            // is mount-only and declared early, so it's registered first and runs first on window; the Esc
+            // branches below also skip when e.defaultPrevented (order-independent belt).
             useEffect(() => {
                 const onKey = (e) => {
                     if (e.key !== 'Escape') return;
-                    if (overlayRegistry.topLayer()) { e.stopPropagation(); overlayRegistry.closeTop('esc'); }
+                    if (overlayRegistry.topLayer()) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        overlayRegistry.closeTop('esc');
+                    }
                 };
                 window.addEventListener('keydown', onKey);
                 return () => window.removeEventListener('keydown', onKey);
@@ -4747,7 +4785,9 @@
             // ESC key to clear selection, Ctrl+A to select all in active column
             useEffect(() => {
                 const handleKeyDown = async (e) => {
-                    if (e.key === 'Escape') {
+                    // v7.18.0-alpha.41 - an Esc an overlay consumed (registry listener preventDefaults) or that
+                    // arrives while a registry layer is still up is the OVERLAY's — skip every main-view Esc effect.
+                    if (e.key === 'Escape' && !e.defaultPrevented && !overlayRegistry.topLayer()) {
                         setContextMenu(null);
                         // v4.16.0.l - Clear toast state on Escape
                         setToastVisible(false);
@@ -5073,7 +5113,8 @@
             // v5.0.0-alpha.141 - Clear clipboard on Esc
             useEffect(() => {
                 const handleEsc = (e) => {
-                    if (e.key === 'Escape' && folderClipboard.items.length > 0) {
+                    // v7.18.0-alpha.41 - not the Esc that closed an overlay (see the registry Esc listener)
+                    if (e.key === 'Escape' && !e.defaultPrevented && !overlayRegistry.topLayer() && folderClipboard.items.length > 0) {
                         setFolderClipboard({ items: [], operation: null });
                         console.log('📋 Clipboard cleared');
                     }
