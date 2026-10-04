@@ -6,7 +6,8 @@
         // An overlay built with <Dialog> self-registers on mount / deregisters on unmount, so the
         // keystroke fence (hasFence()), Esc-ordering, backdrop, ✕, and cascade-close are STRUCTURAL —
         // it cannot be born unfenced/un-Esc-able/un-dismissable. Migrating outward-in, one family per
-        // alpha; the legacy anyDialogOpen OR-chain + handleModalEsc bridge until the last modal moves.
+        // alpha. As of alpha.43 the legacy anyDialogOpen OR-chain + handleModalEsc are gone (every modal migrated);
+        // remaining legacy overlays: the book/folder/sort context menus, anchored dropdowns, imperative dialogs.
         //
         // useOverlayLayer: registers { close, kind } for this overlay's lifetime. `close` is read through
         // a ref so the registry always calls the LATEST onClose without re-registering each render.
@@ -73,7 +74,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.42";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.43";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1024,9 +1025,8 @@
             // on the library consults this, not anyModalOpenRef directly.
             const dialogUp = () => anyModalOpenRef.current || imperativeDialogsUp();
 
-            // v7.18.0 - Overlay-registry bridge. A <Dialog> (overlayRegistry.js) isn't in the legacy
-            // anyDialogOpen OR-chain; it registers itself, and hasFence() feeds anyDialogOpen below so
-            // the keystroke fence + undo-fence treat it identically. v7.18.0-alpha.40: hasFence (not
+            // v7.18.0 - Overlay-registry bridge: hasFence() feeds anyDialogOpen below, so the keystroke fence +
+            // undo-fence follow whatever fencing overlays are registered. v7.18.0-alpha.40: hasFence (not
             // hasModal) — every modal fences by default, and a popover can opt in (toast history).
             const [registryHasFence, setRegistryHasFence] = useState(false);
             useEffect(() => {
@@ -1035,8 +1035,7 @@
                 return unsub;
             }, []);
             // ONE keydown listener for the overlay stack: Esc closes the topmost registered layer
-            // (innermost-first). handleModalEsc (below) defers entirely when a registry layer is up, so
-            // there's no double-close; the two coexist correctly during migration.
+            // (innermost-first). (The legacy handleModalEsc it once coexisted with was deleted in alpha.43.)
             // v7.18.0-alpha.41 - the Esc that closes an overlay is CONSUMED: nothing else on the page sees it
             // (desktop convention — closing a menu must not also clear your selection / cut clipboard). It
             // must be stopIMMEDIATEPropagation: the main keydown handler is ALSO a window listener, and
@@ -6938,8 +6937,10 @@
             useEffect(() => {
                 autoOrgChildRef.current = !!(autoOrgMenu || autoOrgSrcPopup || autoOrgFileUnder);
             }, [autoOrgMenu, autoOrgSrcPopup, autoOrgFileUnder]);
-            // v7.10.1-alpha.6 (DIALOG_POLICY registry, audit sweeps B+C) - THE single list of dialogs.
-            // Adding a dialog = adding it here (and to Esc dismissal); everything else derives:
+            // v7.10.1-alpha.6 (DIALOG_POLICY, audit sweeps B+C) - "is any fencing overlay open" drives everything below.
+            // v7.18.0-alpha.43: there is NO hand-maintained list any more — build a dialog with <Dialog> (or a
+            // keystroke-blocking popover with <Popover fence>) and it self-registers; the overlay registry's
+            // hasFence() IS the answer (via registryHasFence). Everything else derives:
             //   • anyModalOpenRef / dialogUp() — gates book cut/copy/paste/delete, Ctrl+A, Alt+nav,
             //     and Esc's selection/clipboard clearing
             //   • the UNIVERSAL undo fence — stamped when the first dialog opens (rising edge below).
@@ -6948,7 +6949,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!registryHasFence; // v7.18.0-alpha.40 - the OR-chain is EMPTY: every fencing overlay is a registry layer (toastHistory, the last holdout, is now a fencing <Popover>). This bridge + handleModalEsc retire next.
+            const anyDialogOpen = !!registryHasFence; // v7.18.0-alpha.40/43 - the legacy OR-chain is gone; every fencing overlay is a registry layer
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6972,31 +6973,10 @@
                 return () => window.removeEventListener('keydown', handleArrowNav);
             }, [modalBook, isEditingBook, explorerSortedBooks, autoOrgPreview, modalNavOverride]);
 
-            // v5.4.2 - ESC closes innermost modal (layered dismissal)
-            // aboutDialogOpen, shortcutsDialogOpen, howToDialogOpen handled separately in handleEscKey
-            useEffect(() => {
-                const handleModalEsc = (e) => {
-                    if (e.key !== 'Escape') return;
-                    // v7.18.0 - a registry overlay (<Dialog>/<Popover>) is topmost → the overlay Esc
-                    // listener owns it; defer entirely so migrated + legacy overlays layer correctly with
-                    // no double-close. This whole handler retires when the last modal migrates.
-                    if (overlayRegistry.topLayer()) return;
-                    // v7.18.0-alpha.40 - toast history migrated to a fencing <Popover>: its Esc is owned by the
-                    // overlay registry (guarded out above). Branch removed — this handler now has NO branches left.
-                    // v7.18.0-alpha.33 - Auto-Organize family migrated to <Dialog>/<Popover>: preview + File-under
-                    // are <Dialog>s, the cover menu + source popup are <Popover>s, so their Esc (innermost-first)
-                    // is owned by the overlay registry (guarded out at the top of this handler). Branches removed.
-                    // v7.18.0-alpha.36 - modalBook migrated to <Dialog>: its Esc (share dropdown → series dropdown →
-                    // edit-mode cancel → close, innermost-first) now lives in the Dialog's smart onClose, owned by the
-                    // overlay registry (guarded out at the top of this handler). Branches removed.
-                    // Standalone modals
-                    // v7.18.0 - migrated to <Dialog> (Esc handled by the overlay listener, guarded out above):
-                    // newFolderHiddenAlert / corruptionRecovery / resetConfirm / restoreConfirm / statusModal /
-                    // lastCopyDialog / relaySetup (+ relayHelp; relayManualCreds back-out is in relaySetup's onClose reason==='esc').
-                };
-                window.addEventListener('keydown', handleModalEsc);
-                return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, isEditingBook, editBookSeriesDropdownOpen]); // v7.18.0-alpha.40 - toastHistoryOpen dropped (migrated); v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals; v7.18.0 - several migrated to <Dialog>
+            // v7.18.0-alpha.43 - handleModalEsc (the v5.4.2 hand-maintained "Esc closes innermost modal" list)
+            // DELETED: every modal/popover is a registry layer, so the ONE overlay Esc listener closes the
+            // topmost (innermost-first) — a new overlay can't be born un-Esc-able. (Imperative overlays —
+            // showConfirmDialog etc. — keep their own capture-phase Esc until they migrate.)
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
