@@ -7,19 +7,19 @@
 
 ---
 
-## New dialog/modal → the checklist (RW mechanism)
+## New dialog/modal/popup → build it on the overlay primitive (RW mechanism)
 
-Every new dialog/modal, without exception:
-1. Register in `anyDialogOpen` (the keystroke-guard + undo-fence registry — else Ctrl+X/Delete leak
-   to the library beneath).
-2. Add to `handleModalEsc` (Esc closes it, innermost-first).
-3. A ✕ close button.
-4. Backdrop-click close.
+**Every new dialog, modal, menu or popup is built with `<Dialog>` (modal) or `<Popover>` (menu/popup;
+add `fence` if it must block library keys; `anchorRef` for a button dropdown).** Esc (innermost-first,
+consumed), the ✕ / backdrop / outside-click dismissal, the keystroke + undo fence, and stacking are then
+STRUCTURAL — the overlay self-registers in `overlayRegistry.js`. **Never hand-roll a scrim, an Esc
+listener, or a fence flag.** Remaining exception until they migrate: the imperative `showConfirmDialog`-
+style overlays (own capture-phase Esc, detected by `imperativeDialogsUp()`).
 
-(Earned 2026-09-16: the Share dialog shipped with only Cancel+backdrop — the exact class the 7.10.1
-audit fixed but never made a *rule*.) **Durable chokepoint (in progress):** the self-registering
-`<Dialog>`/`<Popover>` primitive in `docs/design/DIALOG-DISMISSAL-AUDIT.md` will make this checklist
-structural (and unnecessary) — until it ships, follow the four steps by hand.
+(History: earned 2026-09-16 when the Share dialog shipped with only Cancel+backdrop. The old hand-run
+4-step checklist — register in `anyDialogOpen`, add to `handleModalEsc`, ✕, backdrop — was retired in
+7.18.0-alpha.43 when both of those lists were deleted; design of record:
+`docs/design/DIALOG-DISMISSAL-AUDIT.md`.)
 
 ---
 
