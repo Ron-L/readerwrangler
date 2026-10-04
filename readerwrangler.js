@@ -73,7 +73,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.41";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.42";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -15905,6 +15905,16 @@
                                     </div>
                                 </div>
                                 <div ref={dragVirtScrollRef} className="flex-1 overflow-auto px-4 pb-16" style={{ contain: 'layout style paint' }}
+                                    onClick={(e) => {
+                                        // v7.18.0-alpha.42 - a PLAIN left-click on EMPTY space clears the selection (Explorer/
+                                        // Finder convention, Ron 2026-10-04). Empty = this scroll area itself (right of the list
+                                        // table / below the last row / padding) or a surface marked data-rw-blank (the grid's
+                                        // gaps). Items, headers, group toggles and "Show all" are children → never count.
+                                        // Ctrl/Shift-click keeps the selection (still building it). An open <Popover> swallows
+                                        // the click (alpha.41), so the first click only closes the menu.
+                                        if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+                                        if (e.target === e.currentTarget || (e.target.dataset && e.target.dataset.rwBlank !== undefined)) clearSelection();
+                                    }}
                                     onContextMenu={(e) => { // v6.12.0-alpha.67 (#8) - blank-space menu; rows call preventDefault, so defaultPrevented => a row handled it
                                         if (e.defaultPrevented) return;
                                         e.preventDefault();
@@ -16906,7 +16916,7 @@
                                             );
                                         })()
                                     ) : (
-                                        <div ref={explorerView !== 'list' ? dragVirtContainerRef : undefined} className="grid gap-4 pt-1" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${explorerCoverCols}px, 1fr))` }}>
+                                        <div ref={explorerView !== 'list' ? dragVirtContainerRef : undefined} data-rw-blank className="grid gap-4 pt-1" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${explorerCoverCols}px, 1fr))` }}>
                                             {/* v5.0.0-alpha.54 - Folder tiles (before books) */}
                                             {(() => {
                                                 if (selectedFolderId === '__all__') return null;
