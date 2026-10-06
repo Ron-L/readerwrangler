@@ -28,12 +28,14 @@ const _notify = () => { _subs.forEach(fn => { try { fn(); } catch (e) { /* a sub
 // Register an overlay; returns its id. kind: 'modal' | 'popover' | 'menu'. Optional nodeRef is a React
 // ref to the overlay's DOM node — used to scope select-all (Ctrl+A) to the overlay's own content.
 // fence (v7.18.0-alpha.40): does this layer raise the KEYSTROKE fence (library shortcuts — cut/copy/
-// paste/delete/select-all/undo — must not reach the page beneath)? Defaults to true for a modal, false
-// otherwise; a popover opts in (toast history does — a Ctrl+X in it once cut a selected book). Kept
-// separate from `kind` because "dims like a dialog" and "blocks library keys" are different facts.
+// paste/delete/select-all/undo — must not reach the page beneath)? Default: a modal AND a menu fence
+// (v7.18.0-alpha.44, Ron: an open right-click menu must not let Ctrl+A/Delete hit the library behind
+// it); a plain popover doesn't unless it opts in (toast history does — a Ctrl+X in it once cut a
+// selected book). Kept separate from `kind` because "dims like a dialog" and "blocks library keys"
+// are different facts.
 const pushLayer = ({ close, kind, nodeRef, fence }) => {
     const id = ++_seq;
-    _layers.push({ id, close, kind, nodeRef, fence: fence === undefined ? kind === 'modal' : !!fence });
+    _layers.push({ id, close, kind, nodeRef, fence: fence === undefined ? kind !== 'popover' : !!fence });
     _notify();
     return id;
 };

@@ -74,7 +74,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.43";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.44";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -599,7 +599,10 @@
         // to the trigger when it would overflow the right edge. Same fixed + measure-and-clamp core, so it
         // escapes overflow/scroll containers (why not FlipToFitPopup: that is the SIDE-flyout geometry,
         // absolute against its parent, and clips inside a scrolling dialog panel).
-        function CursorPopup({ open, x, y, anchorRect, className, style, role, ariaLabel, onClick, onContextMenu, children, margin = 8, innerRef }) {
+        // anchorAlign (alpha.44): 'start' (default) = left edges aligned; 'end' = RIGHT edges aligned (a dropdown
+        // whose trigger sits at the right of its header, e.g. the FOLDERS sort menu) — each falls back to the other
+        // when it would leave the viewport.
+        function CursorPopup({ open, x, y, anchorRect, anchorAlign = 'start', className, style, role, ariaLabel, onClick, onContextMenu, children, margin = 8, innerRef }) {
             const ref = useRef(null);
             // v7.18.0 - optional innerRef: the <Popover> primitive needs the positioned node to decide
             // outside-clicks (ref.contains). Mirror the measuring ref onto it via one callback ref.
@@ -610,7 +613,9 @@
                 const { width, height } = ref.current.getBoundingClientRect();
                 const vw = window.innerWidth, vh = window.innerHeight;
                 if (anchorRect) {
-                    let left = (anchorRect.left + width + margin > vw) ? anchorRect.right - width : anchorRect.left;
+                    let left = anchorAlign === 'end'
+                        ? ((anchorRect.right - width < margin) ? anchorRect.left : anchorRect.right - width)
+                        : ((anchorRect.left + width + margin > vw) ? anchorRect.right - width : anchorRect.left);
                     let top = (anchorRect.bottom + height + margin > vh) ? anchorRect.top - height : anchorRect.bottom;
                     left = Math.max(margin, Math.min(left, vw - width - margin));
                     top = Math.max(margin, Math.min(top, vh - height - margin));
@@ -627,12 +632,12 @@
                 left = Math.max(margin, Math.min(left, vw - width - margin));
                 top = Math.max(margin, Math.min(top, vh - height - margin));
                 setCoords({ left, top });
-            }, [open, x, y, anchorRect, children, margin]);
+            }, [open, x, y, anchorRect, anchorAlign, children, margin]);
             if (!open) return null;
-            // The `fixed` CSS class is REQUIRED, not just cosmetic: the context-menu close-on-outside-click
-            // handler (mousedown) decides inside-vs-outside via `e.target.closest('.fixed')`. Position is set
-            // inline, but the class must be present or a click inside the menu reads as "outside" and the menu
-            // closes on mousedown before the item's onClick can fire (the 7.15.0 AO-won't-open regression).
+            // The `fixed` CSS class: from 7.15.0 the legacy context-menu outside-click handler decided inside-vs-
+            // outside via `e.target.closest('.fixed')` (dropping the class broke every menu click — the 7.15.0
+            // regression). That handler was deleted in 7.18.0-alpha.44 (all its menus are <Popover>s, which use
+            // ref.contains); grep showed no other consumer. The class is kept — harmless, and position is fixed.
             return (
                 <div ref={setRefs} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu}
@@ -656,13 +661,16 @@
         //               instead of at (x, y). The trigger counts as INSIDE for light-dismiss, so clicking the
         //               toggle button closes via its own onClick toggle (no close-then-reopen race).
         //   fence     — raise the keystroke fence while open (library cut/paste/delete/select-all/undo blocked).
-        const Popover = ({ x, y, anchorRef, fence, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
+        // v7.18.0-alpha.44 - a MENU (kind 'menu', the default) fences library keys by default (registry default) and
+        //   registers NO text node, so Ctrl+A inside an open menu does nothing (Ron: selecting a menu's item labels
+        //   is useless); dialogs and popovers keep scope-selecting their own text. anchorAlign: see CursorPopup.
+        const Popover = ({ x, y, anchorRef, anchorAlign, fence, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
             const ref = useRef(null);
             const closeRef = useRef(onClose);
             closeRef.current = onClose; // always dismiss via the LATEST onClose (like useOverlayLayer)
             // Measured once at open (mount == open): the trigger's position when the dropdown appeared.
             const [anchorRect] = useState(() => (anchorRef && anchorRef.current) ? anchorRef.current.getBoundingClientRect() : null);
-            useOverlayLayer({ close: onClose, kind, nodeRef: ref, fence });
+            useOverlayLayer({ close: onClose, kind, nodeRef: kind === 'menu' ? undefined : ref, fence });
             useEffect(() => {
                 // mousedown (not click): decide inside-vs-outside before an item's onClick fires. The
                 // listener is added AFTER this popover mounts, so the click/right-click that opened it
@@ -703,7 +711,7 @@
                 };
             }, []);
             return (
-                <CursorPopup open={true} x={x} y={y} anchorRect={anchorRect} innerRef={ref}
+                <CursorPopup open={true} x={x} y={y} anchorRect={anchorRect} anchorAlign={anchorAlign} innerRef={ref}
                     className={className} style={style} role={role} ariaLabel={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu}>
                     {children}
@@ -1059,7 +1067,6 @@
             const wizardSelectAllRef = useRef(null); // v7.18.0-alpha.34 - current wizard "select all listed authors" action, for Ctrl+A (handler reads via ref, not state)
             const autoOrgChildRef = useRef(false); // v7.18.0-alpha.35 - is an autoOrg CHILD overlay (cover menu / source popup / File-under) open OVER the preview? gates the preview/wizard Ctrl+A select-all so a child on top owns Ctrl+A instead
             const backdropMouseDownRef = useRef(null); // v5.2.0-alpha.15 - Track mousedown origin for backdrop close (prevents swipe-past-edge closing modals)
-            const [contextMenu, setContextMenu] = useState(null); // {x, y, bookId, columnId}
             const [contextSubmenu, setContextSubmenu] = useState(null); // v4.16.0.ba - 'move' | 'copyTo' | 'priceGoal' | null for submenu hover
             const [readStatusFilter, setReadStatusFilter] = useState(''); // Filter by READ/UNREAD/UNKNOWN
             const [ratingFilter, setRatingFilter] = useState(''); // Filter by minimum rating (NEW v3.8.0)
@@ -1176,6 +1183,8 @@
             const toastHistoryRef = useRef([]); // v7.6.2-alpha.2 - session toast receipts (ring buffer of 50)
             const [toastHistoryOpen, setToastHistoryOpen] = useState(false); // v7.6.2-alpha.2
             const toastHistoryBtnRef = useRef(null); // v7.18.0-alpha.40 - anchor for the toast-history <Popover>
+            const folderSortBtnRef = useRef(null); // v7.18.0-alpha.44 - anchor for the FOLDERS-header sort <Popover>
+            const folderSortPickerBtnRef = useRef(null); // v7.18.0-alpha.44 - anchor for the right-pane "Sort:" folder picker <Popover>
             // v5.5.4-alpha.23 - Drag virtualization refs (hide off-screen rows during drag)
             const dragVirtScrollRef = useRef(null);    // Scroll container element
             const dragVirtContainerRef = useRef(null);  // tbody (list) or grid div
@@ -1281,6 +1290,11 @@
             const [submenuFilter, setSubmenuFilter] = useState(''); // v6.17.0 - filter/search box in Move to / Copy to / Add to Book List submenus
             const [folderClipboard, setFolderClipboard] = useState({ items: [], operation: null }); // v5.0.0-alpha.141 - Clipboard for cut/copy/paste
             const [folderPropertiesDialog, setFolderPropertiesDialog] = useState(null); // v5.0.0-alpha.142 - Folder properties dialog { folderId }
+            // v7.18.0-alpha.44 - THE closers for the folder / book right-click menus (the <Popover> onClose for Esc +
+            // outside-click): close the menu AND reset its hover-submenu state + filter, so a reopened menu never
+            // shows a stale Move-to/Copy-to flyout. Item actions inside the menus still close inline (unchanged).
+            const closeFolderMenu = () => { setFolderContextMenu(null); setContextSubmenu(null); setSubmenuFilter(''); };
+            const closeBookMenu = () => { setExplorerBookContextMenu(null); setContextSubmenu(null); setSubmenuFilter(''); };
             const [folderPropertiesEditedName, setFolderPropertiesEditedName] = useState(''); // v5.0.0-alpha.143 - Edited name in properties dialog
             const [folderPropertiesEditedDescription, setFolderPropertiesEditedDescription] = useState(''); // v6.5.0 - Description in properties dialog
             const [showAllFoldersOverride, setShowAllFoldersOverride] = useState(() => localStorage.getItem('readerwrangler-show-all-folders') === 'true'); // v5.0.0-alpha.169 - Override auto-hide when filter active; v6.12.0 - sticky persisted preference
@@ -4787,7 +4801,6 @@
                     // v7.18.0-alpha.41 - an Esc an overlay consumed (registry listener preventDefaults) or that
                     // arrives while a registry layer is still up is the OVERLAY's — skip every main-view Esc effect.
                     if (e.key === 'Escape' && !e.defaultPrevented && !overlayRegistry.topLayer()) {
-                        setContextMenu(null);
                         // v4.16.0.l - Clear toast state on Escape
                         setToastVisible(false);
                         setToastAnimating(false);
@@ -5080,34 +5093,9 @@
             }, [hiddenInstances, explorerSelectedItems, selectedFolderId, folders]);
 
 
-            // Close context menu on click
-            // v4.16.0.az - Also clear submenu state
-            useEffect(() => {
-                const handleClick = () => {
-                    setContextMenu(null);
-                    setContextSubmenu(null);
-                };
-                if (contextMenu) {
-                    window.addEventListener('click', handleClick);
-                    return () => window.removeEventListener('click', handleClick);
-                }
-            }, [contextMenu]);
-
-
-            // v5.0.0-alpha.133 - Close folder context menu on Esc key
-            useEffect(() => {
-                const handleEsc = (e) => {
-                    if (e.key === 'Escape' && folderContextMenu) {
-                        setFolderContextMenu(null);
-                    }
-                    // v5.0.0-alpha.165 - Close Explorer book context menu on Esc
-                    if (e.key === 'Escape' && explorerBookContextMenu) {
-                        setExplorerBookContextMenu(null);
-                    }
-                };
-                window.addEventListener('keydown', handleEsc);
-                return () => window.removeEventListener('keydown', handleEsc);
-            }, [folderContextMenu, explorerBookContextMenu]);
+            // v7.18.0-alpha.44 - DELETED: the dead `contextMenu` click-closer (that state, from the retired Columns
+            // view, was never set non-null) and the hand-rolled folder/book context-menu Esc + outside-mousedown
+            // closers — both menus are now <Popover>s (Esc + light-dismiss via the overlay registry).
 
             // v5.0.0-alpha.141 - Clear clipboard on Esc
             useEffect(() => {
@@ -5122,23 +5110,6 @@
                 return () => window.removeEventListener('keydown', handleEsc);
             }, [folderClipboard]);
 
-            // v5.0.0-alpha.133 - Close folder context menu on click outside
-            useEffect(() => {
-                const handleClickOutside = (e) => {
-                    if (folderContextMenu && !e.target.closest('.fixed')) {
-                        setFolderContextMenu(null);
-                    }
-                    // v5.0.0-alpha.165 - Close Explorer book context menu when clicking outside
-                    if (explorerBookContextMenu && !e.target.closest('.fixed')) {
-                        setExplorerBookContextMenu(null);
-                    }
-                };
-                if (folderContextMenu || explorerBookContextMenu) {
-                    document.addEventListener('mousedown', handleClickOutside);
-                    return () => document.removeEventListener('mousedown', handleClickOutside);
-                }
-            }, [folderContextMenu, explorerBookContextMenu]);
-
             // v5.0.0-alpha.145 - Keyboard shortcuts for folder operations (Phase 6)
             useEffect(() => {
                 const handleKeyboard = async (e) => {
@@ -5146,7 +5117,7 @@
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
                     // Skip if any modal/dialog or context menu is open
-                    if (folderContextMenu || folderPropertiesDialog || dialogUp()) return; // v7.10.1-alpha.6 - imperative overlays too
+                    if (folderPropertiesDialog || dialogUp()) return; // v7.10.1-alpha.6 - imperative overlays too; v7.18.0-alpha.44 - folderContextMenu dropped: the menu is a fencing <Popover>, so dialogUp() covers it
 
                     const currentFolder = folders.find(f => f.id === selectedFolderId);
                     if (!currentFolder) return;
@@ -5278,7 +5249,7 @@
 
                 window.addEventListener('keydown', handleKeyboard);
                 return () => window.removeEventListener('keydown', handleKeyboard);
-            }, [selectedFolderId, folders, folderClipboard, folderContextMenu, folderPropertiesDialog, explorerSelectedItems, explorerSelectedItems]); // v5.0.0-alpha.157 - Added explorerSelectedItems for F2
+            }, [selectedFolderId, folders, folderClipboard, folderPropertiesDialog, explorerSelectedItems, explorerSelectedItems]); // v5.0.0-alpha.157 - Added explorerSelectedItems for F2
 
             // v5.0.0-alpha.175.48 - Removed saveSettings function (dead code)
 
@@ -14540,6 +14511,7 @@
                                                     Menu re-click and column headers still flip too. */}
                                                 <span className="inline-flex items-center whitespace-nowrap">
                                                     <button
+                                                        ref={folderSortBtnRef}
                                                         onClick={(e) => { e.stopPropagation(); setFolderSortMenuOpen(o => !o); }}
                                                         className={`text-xs px-1 hover:bg-gray-200 rounded ${folderListSort.column !== 'custom' ? 'text-blue-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
                                                         title="Change folder sort"
@@ -14554,10 +14526,14 @@
                                                             {folderListSort.direction === 'asc' ? '▲' : '▼'}</button>
                                                     )}
                                                 </span>
+                                                {/* v7.18.0-alpha.44 - anchored <Popover> menu (was a scrim + absolute panel; had no Esc):
+                                                    right-aligned under its ▾ button like before; Esc / outside-click via the registry. */}
                                                 {folderSortMenuOpen && (
-                                                    <>
-                                                        <div className="fixed inset-0 z-[59]" onClick={(e) => { e.stopPropagation(); setFolderSortMenuOpen(false); }} />
-                                                        <div className="absolute right-0 mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] min-w-[170px] normal-case tracking-normal font-normal" onClick={(e) => e.stopPropagation()}>
+                                                    <Popover anchorRef={folderSortBtnRef} anchorAlign="end"
+                                                        onClose={() => setFolderSortMenuOpen(false)}
+                                                        role="menu" ariaLabel="Folder sort"
+                                                        className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] min-w-[170px] normal-case tracking-normal font-normal"
+                                                        onClick={(e) => e.stopPropagation()}>
                                                             {[{ label: 'Manual (drag to arrange)', col: 'custom', dir: 'asc' }, { label: 'Name', col: 'title', dir: 'asc' }, { label: 'Count (most first)', col: 'count', dir: 'desc' }].map(opt => {
                                                                 const active = folderListSort.column === opt.col;
                                                                 return (
@@ -14577,8 +14553,7 @@
                                                                     </div>
                                                                 </>
                                                             )}
-                                                        </div>
-                                                    </>
+                                                    </Popover>
                                                 )}
                                             </div>
                                             {/* Collapse all button */}
@@ -15557,6 +15532,7 @@
                                                     full-size direction triangle flips (the tiny gray caret runt is gone). */}
                                                 <span className="flex items-center" style={{ fontSize: '13px' }}>
                                                     <button
+                                                        ref={folderSortPickerBtnRef}
                                                         onClick={() => setFolderSortPickerOpen(o => !o)}
                                                         className="flex items-center gap-1 hover:bg-gray-100 rounded px-1 py-0.5"
                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}
@@ -15575,10 +15551,12 @@
                                                         </button>
                                                     )}
                                                 </span>
+                                                {/* v7.18.0-alpha.44 - anchored <Popover> menu (was a scrim + absolute panel; had no Esc) */}
                                                 {folderSortPickerOpen && (
-                                                    <>
-                                                        <div className="fixed inset-0 z-[59]" onClick={() => setFolderSortPickerOpen(false)} />
-                                                        <div className="absolute left-0 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] min-w-[170px]" style={{ top: '28px' }}>
+                                                    <Popover anchorRef={folderSortPickerBtnRef}
+                                                        onClose={() => setFolderSortPickerOpen(false)}
+                                                        role="menu" ariaLabel="Folder sort"
+                                                        className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] min-w-[170px]">
                                                             {/* v7.6.0-alpha.14 (wave D) - One entry per key; direction via the column headers */}
                                                             {[{ label: 'Manual Order', col: 'custom', dir: 'asc' }, { label: 'Name', col: 'title', dir: 'asc' }, { label: 'Count (most first)', col: 'count', dir: 'desc' }].map(opt => {
                                                                 const active = folderListSort.column === opt.col;
@@ -15599,8 +15577,7 @@
                                                                     </div>
                                                                 </>
                                                             )}
-                                                        </div>
-                                                    </>
+                                                    </Popover>
                                                 )}
                                             </div>
                                         )}
@@ -17931,8 +17908,7 @@
                             const bl = bookLists.find(b => b.id === blId);
                             return (
                                 <>
-                                    <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                    <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
                                         className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
                                         role="menu" ariaLabel="Book List options"
                                         onClick={(e) => e.stopPropagation()}>
@@ -17958,7 +17934,7 @@
                                             <span>🗑️</span>
                                             <span>Delete</span>
                                         </div>
-                                    </CursorPopup>
+                                    </Popover>
                                 </>
                             );
                         }
@@ -17967,8 +17943,7 @@
                         if (folderContextMenu.folderId === '__trash__') {
                             return (
                                 <>
-                                    <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                    <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
                                         className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
                                         role="menu" ariaLabel="Trash options"
                                         onClick={(e) => e.stopPropagation()}>
@@ -17991,7 +17966,7 @@
                                                 <span>Trash is empty</span>
                                             </div>
                                         )}
-                                    </CursorPopup>
+                                    </Popover>
                                 </>
                             );
                         }
@@ -18000,8 +17975,7 @@
                         if (folderContextMenu.folderId === '__all__') {
                             return (
                                 <>
-                                    <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                    <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
                                         className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
                                         role="menu" ariaLabel="All Books options"
                                         onClick={(e) => e.stopPropagation()}>
@@ -18020,7 +17994,7 @@
                                             }}>
                                             <span>☑️</span><span>Select All</span>
                                         </div>
-                                    </CursorPopup>
+                                    </Popover>
                                 </>
                             );
                         }
@@ -18029,8 +18003,7 @@
                         if (folderContextMenu.folderId === '__inbox__') {
                             return (
                                 <>
-                                    <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                    <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
                                         className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
                                         role="menu" ariaLabel="Inbox options"
                                         onClick={(e) => e.stopPropagation()}>
@@ -18060,7 +18033,7 @@
                                             }}>
                                             <span>☑️</span><span>Select All</span>
                                         </div>
-                                    </CursorPopup>
+                                    </Popover>
                                 </>
                             );
                         }
@@ -18069,8 +18042,7 @@
                         if (folderContextMenu.folderId === '__library__') {
                             return (
                                 <>
-                                    <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                                    <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
                                         className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
                                         role="menu" ariaLabel="My Library options"
                                         onClick={(e) => e.stopPropagation()}>
@@ -18103,7 +18075,7 @@
                                             }}>
                                             <span>📁</span><span>New Folder</span>
                                         </div>
-                                    </CursorPopup>
+                                    </Popover>
                                 </>
                             );
                         }
@@ -18135,10 +18107,10 @@
                         };
 
                         // v7.15.0 - Positioned via CursorPopup (measured; the old menuHeight=400 guess
-                        // under-shot and clipped the bottom for a tall folder menu). No backdrop here — the
-                        // document mousedown handler closes this menu (folderContextMenu, see ~4899).
+                        // under-shot and clipped the bottom for a tall folder menu). v7.18.0-alpha.44 - now a
+                        // <Popover>: Esc + outside-click close it via the overlay registry (closeFolderMenu).
                         return (
-                            <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                            <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
                                 className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[200px]"
                                 role="menu" ariaLabel="Folder options"
                                 onClick={(e) => e.stopPropagation()}>
@@ -18550,7 +18522,7 @@
                                     <span>ℹ️</span>
                                     <span>Folder Properties</span>
                                 </div>
-                            </CursorPopup>
+                            </Popover>
                         );
                     })()}
 
@@ -18565,9 +18537,9 @@
                         const searchLabel = isNamedSearch ? view.name : filterChipsLabel(view.filters);
 
                         // Viewport-aware positioning
-                        // v7.15.0 - Positioned via CursorPopup (measured). No backdrop — document mousedown closes it.
+                        // v7.15.0 - Positioned via CursorPopup (measured). v7.18.0-alpha.44 - a <Popover> (registry Esc + outside-click).
                         return (
-                            <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
+                            <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
                                 className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[200px]"
                                 role="menu" ariaLabel="Search options"
                                 onClick={(e) => e.stopPropagation()}>
@@ -18618,7 +18590,7 @@
                                     <span>🗑️</span>
                                     <span>Delete Search</span>
                                 </div>
-                            </CursorPopup>
+                            </Popover>
                         );
                     })()}
 
@@ -18845,7 +18817,7 @@
                         );
 
                         return (
-                            <CursorPopup open={true}
+                            <Popover onClose={closeBookMenu}
                                 x={explorerBookContextMenu.x} y={explorerBookContextMenu.y}
                                 className="bg-white border border-gray-300 rounded-lg shadow-xl z-[60] py-1 min-w-[200px]"
                                 role="menu" ariaLabel="Book options"
@@ -19873,7 +19845,7 @@
                                                     <span className="ml-auto text-xs text-gray-400">Del</span>
                                                 </div>
                                             )}
-                            </CursorPopup>
+                            </Popover>
                         );
                     })()}
 

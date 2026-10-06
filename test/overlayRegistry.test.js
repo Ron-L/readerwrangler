@@ -128,18 +128,26 @@ test('isTopmostModal: top modal true; a modal above unseats it; popovers above d
     assert.strictEqual(reg.isTopmostModal(99999), false, 'unknown id is not topmost');
 });
 
-test('fence: a modal fences by default; a popover does not unless it opts in', () => {
+test('fence: modals and menus fence by default; a popover does not unless it opts in', () => {
     assert.strictEqual(reg.hasFence(), false, 'empty stack fences nothing');
-    const menu = reg.pushLayer({ close: () => {}, kind: 'menu' });
-    assert.strictEqual(reg.hasFence(), false, 'a plain menu does NOT fence (context menus today)');
+    const pop = reg.pushLayer({ close: () => {}, kind: 'popover' });
+    assert.strictEqual(reg.hasFence(), false, 'a plain popover does NOT fence');
     const hist = reg.pushLayer({ close: () => {}, kind: 'popover', fence: true });
     assert.strictEqual(reg.hasFence(), true, 'an opted-in popover fences (toast history)');
     assert.strictEqual(reg.hasModal(), false, 'opting a popover into the fence does NOT make it a modal (no dimming effects)');
     reg.removeLayer(hist);
     assert.strictEqual(reg.hasFence(), false, 'fence lifts when the fencing popover closes');
+    reg.removeLayer(pop);
+    const menu = reg.pushLayer({ close: () => {}, kind: 'menu' });
+    assert.strictEqual(reg.hasFence(), true, 'a menu fences by default (alpha.44 — right-click menus block library keys)');
     reg.removeLayer(menu);
     reg.pushLayer({ close: () => {}, kind: 'modal' });
     assert.strictEqual(reg.hasFence(), true, 'a modal fences by default');
+});
+
+test('fence: a menu can opt OUT explicitly (fence:false)', () => {
+    reg.pushLayer({ close: () => {}, kind: 'menu', fence: false });
+    assert.strictEqual(reg.hasFence(), false);
 });
 
 test('fence: a modal can opt OUT explicitly (fence:false)', () => {
