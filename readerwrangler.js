@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.55";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.56";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -610,7 +610,9 @@
             // outside-clicks (ref.contains). Mirror the measuring ref onto it via one callback ref.
             const setRefs = (node) => { ref.current = node; if (innerRef) innerRef.current = node; };
             const [coords, setCoords] = useState(anchorRect ? { left: anchorRect.left, top: anchorRect.bottom } : { left: x, top: y });
-            useLayoutEffect(() => {
+            // Measure the popup and place it. Kept in a ref (always the LATEST props) so the size watcher below can call it.
+            const placeRef = useRef(null);
+            placeRef.current = () => {
                 if (!open || !ref.current) return;
                 const { width, height } = ref.current.getBoundingClientRect();
                 const vw = window.innerWidth, vh = window.innerHeight;
@@ -621,7 +623,7 @@
                     let top = (anchorRect.bottom + height + margin > vh) ? anchorRect.top - height : anchorRect.bottom;
                     left = Math.max(margin, Math.min(left, vw - width - margin));
                     top = Math.max(margin, Math.min(top, vh - height - margin));
-                    setCoords({ left, top });
+                    setCoords(c => (c.left === left && c.top === top) ? c : { left, top });
                     return;
                 }
                 // v7.18.0 - HORIZONTAL: open right of the cursor (left edge AT cursor); if that would overflow
@@ -633,8 +635,21 @@
                 let top = (y + height + margin > vh) ? y - height : y;
                 left = Math.max(margin, Math.min(left, vw - width - margin));
                 top = Math.max(margin, Math.min(top, vh - height - margin));
-                setCoords({ left, top });
-            }, [open, x, y, anchorRect, anchorAlign, children, margin]);
+                setCoords(c => (c.left === left && c.top === top) ? c : { left, top });
+            };
+            useLayoutEffect(() => { placeRef.current(); }, [open, x, y, anchorRect, anchorAlign, children, margin]);
+            // v7.18.0-alpha.56 - ALSO re-place whenever the popup's own SIZE changes. Why: Tailwind runs in-browser
+            // (cdn.tailwindcss.com) and generates a class's CSS the first time it appears — a moment AFTER the measurement
+            // above. The Series lists' `max-h-48` is used nowhere else, so on the first open after a page load the list
+            // measured at its FULL height (every series), flipped above and clamped to the top of the screen, then shrank
+            // when the style arrived — and nothing re-placed it until an unrelated re-render (Ron, 2026-10-06 screenshot;
+            // likely also the Save menu's odd first-open spot). Also covers late fonts and a list filtering as you type.
+            useLayoutEffect(() => {
+                if (!open || !ref.current || typeof ResizeObserver === 'undefined') return;
+                const ro = new ResizeObserver(() => placeRef.current && placeRef.current());
+                ro.observe(ref.current);
+                return () => ro.disconnect();
+            }, [open]);
             if (!open) return null;
             // The `fixed` CSS class: from 7.15.0 the legacy context-menu outside-click handler decided inside-vs-
             // outside via `e.target.closest('.fixed')` (dropping the class broke every menu click — the 7.15.0
