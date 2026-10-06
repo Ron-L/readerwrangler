@@ -94,6 +94,11 @@ particulars:
 - **`/sitemap`** (`.claude/commands/sitemap.md`) — mechanizes the class-of-sites comb.
 - **Version-guard** — a `pre-commit` hook (`.claude/hooks/version-guard.py`) refuses a commit that stages
   shipped code without moving its version stamp. Bypass: `git commit --no-verify`.
+- **Name check** — the same `pre-commit` hook runs **`scripts/check-names.js`** (versioned) whenever a `.js`/`.html`
+  is staged: refuses app code that uses a name nothing defines (a syntax check can't see that — 7.18.0-alpha.55's
+  "shareBtnRef is not defined" crash), and any `readerwrangler.html` inline script that doesn't parse. Page-level
+  names are derived from `readerwrangler.html`'s scripts, so new modules need no upkeep. Needs
+  `npm i --no-save @babel/core @babel/preset-react` (fails loud if missing).
 - **Timestamp stamp hook is GLOBAL, not RW-local** — it is `C:/Users/Ron/Projects/stamp.py`, wired in
   `~/.claude/settings.json` (`UserPromptSubmit`), injecting the live time each turn for **all** projects.
   See the Projects-root **`CLAUDE-TOOLING.md`**. (Corrected 2026-09-30 — the old `.claude/hooks/stamp.py`

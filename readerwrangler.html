@@ -156,8 +156,7 @@
         window.addEventListener('error', function(e) {
             if (window._lastLoadError) return; // first error is the story
             if (e && e.message) {
-                window._lastLoadError = e.message + (e.filename ? '
-' + e.filename.split('/').pop() + ':' + e.lineno : '');
+                window._lastLoadError = e.message + (e.filename ? '\n' + e.filename.split('/').pop() + ':' + e.lineno : '');
             } else if (e && e.target && e.target.src) {
                 window._lastLoadError = 'Failed to load: ' + e.target.src.split('/').pop().split('?')[0];
             }

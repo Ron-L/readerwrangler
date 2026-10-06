@@ -28,6 +28,14 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
   shipped code without moving its version stamp: `readerwrangler.js`→`ORGANIZER_VERSION`,
   `mobile.js`→`MOBILE_VERSION`, and the module `.js` files + `readerwrangler.css` → their `?v=` cache-buster
   in `readerwrangler.html`. Bypass (Ron's call): `git commit --no-verify`.
+- **`scripts/check-names.js`** (pre-commit, called from `.git/hooks/pre-commit` when any `.js`/`.html` is staged;
+  the script itself is VERSIONED in the repo — the hook is the thin caller) — Babel scope analysis of
+  `readerwrangler.js` + `mobile.js`: refuses any identifier that is neither bound in scope, a browser/CDN global, nor
+  defined by `readerwrangler.html` (its inline scripts + every local `<script src>`, derived automatically). Also
+  refuses an inline script that doesn't parse. Earned 2026-10-06: an edit joined `const shareBtnRef = …` into a `//`
+  comment — it parsed, then crashed the book details window; the first run also found a `readerwrangler.html` inline
+  script broken since 7.4.0 (raw line break in a string — the load-error capture had never run). Needs
+  `npm i --no-save @babel/core @babel/preset-react`; exits 2 (loud) if missing.
 - **`/sitemap`** (`.claude/commands/`) — mechanizes the class-of-sites comb (two independent pivots).
 
 ## Related
