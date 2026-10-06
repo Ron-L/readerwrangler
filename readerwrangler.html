@@ -216,7 +216,13 @@
             window._appTimeout = isMobile ? 45000 : 15000; // Mobile Babel compile is slow on phones
             var script = document.createElement('script');
             script.type = 'text/babel';
-            script.src = (isMobile ? 'mobile.js' : 'readerwrangler.js') + '?v=' + APP_VERSION;
+            // v7.18.0-alpha.53 - On a LOCAL dev server (this PC, or a phone on the home LAN hitting it) use a fresh
+            // stamp per load: APP_VERSION doesn't move between alphas, so the browser could reuse a stale copy and a
+            // hard refresh sometimes didn't fetch the new one (2026-10-06 stale-page false bug). Harmless for anyone
+            // self-hosting (only skips caching of their own local file); production keeps the version-based cache.
+            var _h = location.hostname;
+            var _isLocalServer = _h === 'localhost' || _h === '127.0.0.1' || /^(10|192\.168)\./.test(_h);
+            script.src = (isMobile ? 'mobile.js' : 'readerwrangler.js') + '?v=' + (_isLocalServer ? Date.now() : APP_VERSION);
             document.body.appendChild(script);
 
             // Dev-only mode indicator (localhost / file:// only — never ships to users). The desktop/mobile

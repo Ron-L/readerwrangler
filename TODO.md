@@ -43,6 +43,13 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
    library, organization, relay credentials; plus breaks root-relative paths + phone testing). Do NOT
    add `--bind 127.0.0.1` (phone tests over the LAN). Option 2 (scheduled task at logon) = headless
    alternative if a console window isn't wanted.
+   **Updates (Ron 2026-10-06):** (a) the server must run in a **VISIBLE window** (not minimized/headless) — so
+   Option 2 is out and the shortcut opens normal. (b) **Security finding:** plain `python -m http.server` serves the
+   WHOLE project folder — including `.private/` (API key notes, the private repo's own `.git`) and `.git/` — to any
+   device on the home network that can reach port 8000. Since `--bind 127.0.0.1` would break phone testing, the
+   fix is a tiny versioned **`serve.py`** in the repo (stdlib `http.server` + a handler that refuses `/.private/…` and
+   `/.git/…` with 404), launched by the `.bat`. Same port and origin, phone still works, secrets never served.
+   Then update CONTRIBUTING.md's server lines (and drop its Python 2 `SimpleHTTPServer` line — EOL since 2020).
 2. **Transactional book-dialog enumeration pass** — the field-vs-command classification table for
    every book-dialog control, published for Ron's red pen BEFORE any transactional surgery (the
    copy-chips work that opened its branch shipped as 7.13.0; transactional gets a fresh branch).
@@ -437,6 +444,24 @@ Reply to the user still owed (Ron's channel).
 - [ ] **Left-pane jump-to-top/bottom placement** — both chevrons now ship, but they sit at the **bottom-left**, not at the two **scrollbar ends** as originally intended (Ron expected top-at-top / bottom-at-bottom). Scroll affordances conventionally live by the scrollbar (right). Reconsider: move the pair to the right near the scrollbar (spatial mapping), or adopt the single context-aware "back to top" that appears on scroll-down. **Per-section jump** (Searches / Book Lists / Folders): skip — the collapsible sections already handle that navigation.
 
 ## 🗄️ Backlog (post-launch)
+
+**Self-hosting safety**
+- [ ] **Someone running ReaderWrangler on their OWN localhost silently uses Ron's DEV relay** (analysis 2026-10-06).
+  WHAT HAPPENS: the app treats "localhost" as "Ron's dev machine". For a (rare) self-hoster that means (1) their sync
+  goes to Ron's **DEV** relay storage (Ron's lab: untested worker deploys land there first, it may be wiped, it isn't
+  monitored, and it counts against Ron's storage) — readerwrangler.js ~87 + mobile.js ~24; (2) their phone-pairing
+  QR code sends the phone to Ron's **dev GitHub site** (~11255); (3) if they install the PROD bookmarklet but run the
+  app on localhost, fetches land in PROD while the app reads DEV → "No library data found". Harmless localhost checks
+  (LOCAL badge, mode indicator, mobile chip, restore wrong-instance guard, LOCAL bookmarklet option, load-error display,
+  the per-load cache-buster) need no change; the two dev self-check POP-UPS (book-field self-check ~4256, unknown-field
+  alert storage.js ~234) only fire when data is already wrong — optional.
+  DO: a one-time per-browser **"this is Ron's dev machine" switch** — visit `localhost:8000/?rwdev=on` once; the page
+  saves a flag in that browser's Local Storage (per origin, so per port) and strips the parameter; code reads it
+  instantly. Gate (1) and (2) on localhost AND the flag. FAIL-SAFE: if the flag is ever lost on Ron's machine, the app
+  must NOT quietly start using PROD during alpha testing — show the LOCAL badge as "LOCAL · DEV RELAY" when on, and a
+  warning before any relay use on localhost when off. (Rejected: IP address / project path — break silently; a
+  marker file in .private — browsers can't see folders, it'd need a request on every load for every user, and it
+  depends on the server exposing .private.)
 
 **Responsiveness**
 - [ ] **Clicking a different book feels slightly laggy while a filter or search is active** (Ron 2026-10-06). WHAT YOU
