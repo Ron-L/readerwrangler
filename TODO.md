@@ -116,10 +116,16 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   that self-registers in the overlay registry (so Esc-order + light-dismiss become structural), then convert those
   button dropdowns to it. Until then, the Book dialog routes its child dropdowns' Esc through its smart onClose.
 
-- [ ] **Arrow-key navigation in the bulkEdit Series dropdown (Ron 2026-09-29, minor a11y)**. The series-filter dropdown
-  rows are click-only — Up/Down arrows don't move a highlight through the options (and Enter picks the filter text, not
-  a highlighted row). Add roving keyboard nav (↑/↓ to move, Enter to select the highlighted row, Esc already backs out).
-  Small, isolated; likely folds into the eventual `<Popover>`/`<Menu>` primitive (these dropdowns are candidates for it).
+- [ ] **Arrow keys do nothing in the Series suggestion lists (Ron 2026-09-29; re-confirmed 2026-10-06, minor a11y)**.
+  WHAT YOU SEE: in BOTH Series fields — the book details window's edit mode (✏️) and Bulk Edit → Series… — open the
+  list (type a letter or click ▼) and press Down arrow: nothing moves through the list. In the book details window the
+  Down arrow instead SCROLLS THE WHOLE WINDOW (that window scrolls; Bulk Edit doesn't, so there it does nothing). Enter
+  takes the typed text, not a highlighted row.
+  DO (standard combobox pattern): Down/Up move a highlight through the list while the cursor STAYS IN THE TEXT FIELD
+  (so you can keep typing); Enter picks the highlighted series; Esc closes the list (already works); a list that's
+  open consumes Down/Up so the window no longer scrolls. Build it ONCE in the shared `<Popover kind="list">` (both
+  lists became that in 7.18.0-alpha.54) — not per field. Deferred by Ron 2026-10-06 (after the overlay branch's
+  remaining groups).
 
 - [x] **Right-click menu open + Ctrl+A selects the whole library behind it (Ron 2026-09-30)** — DONE 7.18.0-alpha.44:
   menus are `<Popover>`s and a menu fences library keys by default (Ctrl+A/Delete/Ctrl+X do nothing while one is open).
@@ -139,6 +145,12 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   DO: give it a max height + scrolling, and — past ~10 lists — the same filter box the book right-click menu's
   "Move to" submenu already has (reuse that, don't build a second one). Check the other menus that list user items
   (Book Lists, folders) for the same problem while there. Not overlay-branch work.
+  PREFERRED MECHANISM (designed 2026-10-06): an opt-in `<Popover>` option for BUTTON dropdowns — when the menu can't
+  fit below its button, open on whichever side (above/below) has MORE room, cap its height to that space, and scroll
+  (the standard "size to fit" approach of modern menu libraries). Today it pins to the top of the window and hangs off
+  the bottom. Must NOT apply to the right-click menus with fly-out submenus (Move to / Copy to) — a scrolling menu would
+  clip its own fly-outs (CursorPopup's "never add overflow" rule). The filter box stays a useful extra. Deferred by Ron
+  2026-10-06 (wait in TODO).
 
 - [ ] **AO / Preview / hover tooltip disappears when you move onto it (Ron 2026-09-30, UX polish)** — FOLDED INTO
   the overlay branch's `bookTooltip` step (Ron 2026-10-06): build ONE shared hover popup for the right pane + Preview.
