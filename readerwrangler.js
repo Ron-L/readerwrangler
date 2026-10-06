@@ -12,8 +12,9 @@
         // useOverlayLayer: registers { close, kind } for this overlay's lifetime. `close` is read through
         // a ref so the registry always calls the LATEST onClose without re-registering each render.
         // fence (optional, v7.18.0-alpha.40): raise the keystroke fence. Undefined = the registry default
-        // (modal fences, popover/menu doesn't); a popover passes true to block library keys while open.
-        const useOverlayLayer = ({ close, kind, nodeRef, fence }) => {
+        // (modal + menu fence, popover doesn't — alpha.44); a popover passes true to block library keys while open.
+        // idRef (optional, alpha.45): receives this layer's registry id, so a <Popover> can ask "am I topmost?".
+        const useOverlayLayer = ({ close, kind, nodeRef, fence, idRef }) => {
             const closeRef = useRef(close);
             closeRef.current = close;
             const [isTopModal, setIsTopModal] = useState(true);
@@ -22,6 +23,7 @@
             // double-dim flash (the reason we don't need a separate global "already dimmed" flag).
             useLayoutEffect(() => {
                 const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef, fence });
+                if (idRef) idRef.current = id;
                 const sync = () => setIsTopModal(overlayRegistry.isTopmostModal(id));
                 sync();
                 const unsub = overlayRegistry.subscribe(sync); // recompute when anything opens/closes above us
@@ -74,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.44";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.45";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -670,7 +672,8 @@
             closeRef.current = onClose; // always dismiss via the LATEST onClose (like useOverlayLayer)
             // Measured once at open (mount == open): the trigger's position when the dropdown appeared.
             const [anchorRect] = useState(() => (anchorRef && anchorRef.current) ? anchorRef.current.getBoundingClientRect() : null);
-            useOverlayLayer({ close: onClose, kind, nodeRef: kind === 'menu' ? undefined : ref, fence });
+            const layerIdRef = useRef(null);
+            useOverlayLayer({ close: onClose, kind, nodeRef: kind === 'menu' ? undefined : ref, fence, idRef: layerIdRef });
             useEffect(() => {
                 // mousedown (not click): decide inside-vs-outside before an item's onClick fires. The
                 // listener is added AFTER this popover mounts, so the click/right-click that opened it
@@ -685,6 +688,12 @@
                 const onDown = (e) => {
                     if (ref.current && ref.current.contains(e.target)) return;
                     if (anchorRef && anchorRef.current && anchorRef.current.contains(e.target)) return; // the toggle owns it
+                    // v7.18.0-alpha.45 - only the TOPMOST overlay light-dismisses. If something sits above this popover —
+                    // a <Dialog> or an imperative confirm a menu item opened while the menu stays up (folder "Move to"
+                    // awaits a large-move confirm) — the click belongs to THAT overlay: don't close, and never swallow
+                    // (alpha.44 would have eaten the confirm's OK mousedown).
+                    const top = overlayRegistry.topLayer();
+                    if ((top && top.id !== layerIdRef.current) || imperativeDialogsUp()) return;
                     if (e.button === 0) {
                         eat(e);
                         const stop = () => {
