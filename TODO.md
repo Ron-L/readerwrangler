@@ -122,6 +122,14 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   Ctrl+A (and Delete) guards respect ANY open overlay (not just modals), so an open menu suppresses/scopes the
   keystroke instead of leaking. Pre-existing — NOT a migration regression.
 
+- [ ] **"💾 N results · Save ▾" menu runs off the screen when you have many Book Lists (Ron 2026-10-06)**.
+  WHAT YOU SEE: with a search or filter active, click the "💾 N results · Save ▾" button in the bar above the books.
+  The menu lists every Book List; with ~20+ lists it's taller than the window, so the lower lists are cut off at the
+  bottom with no way to scroll to them (and a long flat list is slow to scan).
+  DO: give it a max height + scrolling, and — past ~10 lists — the same filter box the book right-click menu's
+  "Move to" submenu already has (reuse that, don't build a second one). Check the other menus that list user items
+  (Book Lists, folders) for the same problem while there. Not overlay-branch work.
+
 - [ ] **AO / Preview / hover tooltip disappears when you move onto it (Ron 2026-09-30, UX polish)** — FOLDED INTO
   the overlay branch's `bookTooltip` step (Ron 2026-10-06): build ONE shared hover popup for the right pane + Preview.
   WHAT YOU SEE: open Auto-Organize → **Preview**, hover a book cover — a little popup appears listing where that
@@ -429,6 +437,19 @@ Reply to the user still owed (Ron's channel).
 - [ ] **Left-pane jump-to-top/bottom placement** — both chevrons now ship, but they sit at the **bottom-left**, not at the two **scrollbar ends** as originally intended (Ron expected top-at-top / bottom-at-bottom). Scroll affordances conventionally live by the scrollbar (right). Reconsider: move the pair to the right near the scrollbar (spatial mapping), or adopt the single context-aware "back to top" that appears on scroll-down. **Per-section jump** (Searches / Book Lists / Folders): skip — the collapsible sections already handle that navigation.
 
 ## 🗄️ Backlog (post-launch)
+
+**Responsiveness**
+- [ ] **Clicking a different book feels slightly laggy while a filter or search is active** (Ron 2026-10-06). WHAT YOU
+  SEE: with any filter/search active — even inside a small folder — click from one book to another; there's a small
+  but noticeable delay before the old book un-highlights and the new one highlights. With NO filter active it's
+  instant. Chrome's DevTools Console sometimes shows `[Violation] 'click' handler took ~270ms` (couldn't reproduce on
+  demand after a refresh). Severity: mild; "live with it on All Books" is acceptable. LIKELY CAUSE (hypothesis, not
+  verified): the filtered book list itself is already cached (`explorerDisplayItems` useMemo — it does NOT re-filter
+  on a selection change), so the extra per-click cost is probably the ACTIVE-FILTER BANNER, which re-renders on every
+  click and recomputes the "💾 N results · Save ▾" count, the "✓ Search: …" match check and the chips. DO: profile one
+  click with DevTools Performance (filter on vs off), then cache whatever the banner recomputes. (Ron's first theory —
+  "filter the current folder, not the whole library" — can't explain a SELECTION-click lag, since filtering isn't
+  re-run on selection; still worth checking for the initial filter cost.)
 
 **Relay / data robustness**
 - [ ] Relay write redesign (atomic commit-pointer + app-owned key + wishlist-delta) → see docs/design/RELAY-WRITE-REDESIGN.md (spec)

@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.51";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.52";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1072,8 +1072,6 @@
             useEffect(() => {
                 const onKey = (e) => {
                     if (e.key !== 'Escape') return;
-                    // TODO-REVERT (alpha.50 Esc probe — "Save ▾" menu won't close on Esc, Ron 2026-10-06): remove this log
-                    { const t = overlayRegistry.topLayer(); console.log(`[RW-ESC 2/2 bubble] reached overlay listener; top=${t ? t.kind + '#' + t.id : 'none'} defaultPrevented=${e.defaultPrevented}`); }
                     if (overlayRegistry.topLayer()) {
                         e.preventDefault();
                         e.stopImmediatePropagation();
@@ -1081,14 +1079,7 @@
                     }
                 };
                 window.addEventListener('keydown', onKey);
-                // TODO-REVERT (alpha.50 Esc probe): capture-phase spy — logs EVERY Esc before anything can stop it.
-                const probe = (e) => {
-                    if (e.key !== 'Escape') return;
-                    const a = document.activeElement, t = overlayRegistry.topLayer();
-                    console.log(`[RW-ESC 1/2 capture] focus=<${a && a.tagName}${a && a.getAttribute && a.getAttribute('aria-label') ? ' "' + a.getAttribute('aria-label') + '"' : ''}${a && a.title ? ' title="' + a.title.slice(0, 40) + '"' : ''}> top=${t ? t.kind + '#' + t.id : 'none'}`);
-                };
-                window.addEventListener('keydown', probe, true);
-                return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keydown', probe, true); };
+                return () => window.removeEventListener('keydown', onKey);
             }, []);
             const autoOrgPreviewRef = useRef(null); // v6.16.0 - current auto-organize preview, for the keydown handler (which doesn't dep on it)
             const wizardSelectAllRef = useRef(null); // v7.18.0-alpha.34 - current wizard "select all listed authors" action, for Ctrl+A (handler reads via ref, not state)
@@ -1353,10 +1344,7 @@
             const [explorerColumnMenuOpen, setExplorerColumnMenuOpen] = useState(false); // v5.0.0-alpha.104 - Explorer column chooser menu
             const [explorerColumnMenuPos, setExplorerColumnMenuPos] = useState(null); // v5.0.0-alpha.107 - Context menu position { x, y } or null
             const columnChooserBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (⚙ gear) for the column-chooser <Popover>
-            const saveResultsBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor ("💾 N results · Save ▾") for its <Popover>
-            // TODO-REVERT (alpha.51 Esc probe): log every open/closed flip of the Save ▾ menu, with a stack for "true"
-            useEffect(() => { console.log(`[RW-ESC 3] saveResultsMenuOpen -> ${saveResultsMenuOpen}`); }, [saveResultsMenuOpen]);
-            const shareBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (book dialog 📤) for the Share <Popover>
+            const saveResultsBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor ("💾 N results · Save ▾") for its <Popover>            const shareBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (book dialog 📤) for the Share <Popover>
             const closeColumnChooser = () => { setExplorerColumnMenuOpen(false); setExplorerColumnMenuPos(null); }; // v7.18.0-alpha.49 - THE closer
             const [columnWidths, setColumnWidths] = useState({ // v5.0.0-alpha.109 - Column widths (px)
                 title: 200,
@@ -10518,8 +10506,8 @@
                                     <div className="relative" style={{ marginLeft: '8px' }}>
                                         <button
                                             ref={saveResultsBtnRef}
-                                            title="Save the filter as a Search (live filter), or save the results to a Book List (snapshot)"
-                                            onClick={(e) => { console.log(`[RW-ESC 4] Save ▾ button click fired — ${e.detail === 0 ? 'KEYBOARD-synthesized (detail=0)' : 'mouse (detail=' + e.detail + ')'}`); /* TODO-REVERT alpha.51 probe */ setSaveResultsMenuOpen(o => !o); }}
+                                            title="Save the filter as a Search (stays up to date), or save these books to a Book List (fixed set)"
+                                            onClick={() => setSaveResultsMenuOpen(o => !o)}
                                             className="text-blue-700 hover:text-white hover:bg-blue-600 font-semibold text-sm whitespace-nowrap px-2 py-1 rounded border border-blue-400 bg-white">
                                             💾 {count} result{count !== 1 ? 's' : ''} · Save ▾
                                         </button>
@@ -10531,10 +10519,14 @@
                                                     <button
                                                         className="block w-full text-left px-3 py-1.5 hover:bg-gray-100"
                                                         onClick={() => { setSaveResultsMenuOpen(false); saveFiltersAsSearch(buildCurrentFilters()); }}>
-                                                        Save filter as a <b>Search</b> <span className="text-gray-400">(live filter)</span>
+                                                        Save filter as a <b>Search</b> <span className="text-gray-400">(stays up to date)</span>
                                                     </button>
                                                     <div className="border-t border-gray-200 my-1" />
-                                                    <div className="px-3 py-1 text-xs text-gray-400">Save results to a Book List</div>
+                                                    {/* v7.18.0-alpha.52 (Ron + UX pass) - "Save filter…" vs "Save these N books…": parallel verbs
+                                                        naming DIFFERENT objects (a live rule vs a fixed set); the count confirms what gets saved. */}
+                                                    <div className="px-3 py-1 text-xs text-gray-400">
+                                                        {count === 0 ? 'Save results to a Book List' : `Save ${count === 1 ? 'this book' : `these ${count.toLocaleString()} books`} to a Book List`} <span className="text-gray-300">(fixed set)</span>
+                                                    </div>
                                                     {/* ＋ New list… on top, existing lists below — the familiar "Add to playlist" pattern */}
                                                     <button
                                                         disabled={count === 0}
