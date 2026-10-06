@@ -35,7 +35,9 @@ const _notify = () => { _subs.forEach(fn => { try { fn(); } catch (e) { /* a sub
 // are different facts.
 const pushLayer = ({ close, kind, nodeRef, fence }) => {
     const id = ++_seq;
-    _layers.push({ id, close, kind, nodeRef, fence: fence === undefined ? kind !== 'popover' : !!fence });
+    // alpha.54: a 'list' (type-ahead suggestions under a field) doesn't fence by default either — it lives inside a
+    // dialog that already does.
+    _layers.push({ id, close, kind, nodeRef, fence: fence === undefined ? (kind === 'modal' || kind === 'menu') : !!fence });
     _notify();
     return id;
 };

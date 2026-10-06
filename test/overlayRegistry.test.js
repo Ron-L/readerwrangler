@@ -145,6 +145,14 @@ test('fence: modals and menus fence by default; a popover does not unless it opt
     assert.strictEqual(reg.hasFence(), true, 'a modal fences by default');
 });
 
+test('fence: a type-ahead list does NOT fence by default (its dialog already does); can opt in', () => {
+    const l = reg.pushLayer({ close: () => {}, kind: 'list' });
+    assert.strictEqual(reg.hasFence(), false, 'a list does not fence by default');
+    reg.removeLayer(l);
+    reg.pushLayer({ close: () => {}, kind: 'list', fence: true });
+    assert.strictEqual(reg.hasFence(), true, 'explicit fence:true still honoured');
+});
+
 test('fence: a menu can opt OUT explicitly (fence:false)', () => {
     reg.pushLayer({ close: () => {}, kind: 'menu', fence: false });
     assert.strictEqual(reg.hasFence(), false);

@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.53";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.54";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -666,14 +666,34 @@
         // v7.18.0-alpha.44 - a MENU (kind 'menu', the default) fences library keys by default (registry default) and
         //   registers NO text node, so Ctrl+A inside an open menu does nothing (Ron: selecting a menu's item labels
         //   is useless); dialogs and popovers keep scope-selecting their own text. anchorAlign: see CursorPopup.
-        const Popover = ({ x, y, anchorRef, anchorAlign, fence, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
+        // v7.18.0-alpha.54 - kind 'list' = a TYPE-AHEAD suggestion list under a text field (combobox; Ron-approved
+        //   exception): Esc closes it (registry), a click outside closes it but is NOT swallowed — the click goes
+        //   through, so clicking straight into another field works (browser-autocomplete convention). Doesn't fence
+        //   (the dialog around it already does) and, like a menu, registers no Ctrl+A text node.
+        //   matchAnchorWidth: the popup takes the anchor's width (a list under its field).
+        //   Anchored popovers now FOLLOW their anchor: re-measured on any scroll (outside the popup itself) or resize,
+        //   so a dropdown inside a scrolling dialog (book details: Share, Series) moves with its button/field.
+        const Popover = ({ x, y, anchorRef, anchorAlign, matchAnchorWidth, fence, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
             const ref = useRef(null);
             const closeRef = useRef(onClose);
             closeRef.current = onClose; // always dismiss via the LATEST onClose (like useOverlayLayer)
-            // Measured once at open (mount == open): the trigger's position when the dropdown appeared.
-            const [anchorRect] = useState(() => (anchorRef && anchorRef.current) ? anchorRef.current.getBoundingClientRect() : null);
+            // Measured at open (mount == open), then re-measured whenever the page scrolls or resizes (below).
+            const measureAnchor = () => (anchorRef && anchorRef.current) ? anchorRef.current.getBoundingClientRect() : null;
+            const [anchorRect, setAnchorRect] = useState(measureAnchor);
+            useEffect(() => {
+                if (!anchorRef) return;
+                const follow = (e) => {
+                    if (e && e.type === 'scroll' && ref.current && e.target instanceof Node && ref.current.contains(e.target)) return; // scrolling the popup's own list
+                    const r = measureAnchor();
+                    if (r) setAnchorRect(r);
+                };
+                window.addEventListener('scroll', follow, true); // capture: catches scrolls of ANY container (e.g. a dialog panel)
+                window.addEventListener('resize', follow);
+                return () => { window.removeEventListener('scroll', follow, true); window.removeEventListener('resize', follow); };
+            }, []);
             const layerIdRef = useRef(null);
-            useOverlayLayer({ close: onClose, kind, nodeRef: kind === 'menu' ? undefined : ref, fence, idRef: layerIdRef });
+            const noTextNode = kind === 'menu' || kind === 'list';
+            useOverlayLayer({ close: onClose, kind, nodeRef: noTextNode ? undefined : ref, fence, idRef: layerIdRef });
             useEffect(() => {
                 // mousedown (not click): decide inside-vs-outside before an item's onClick fires. The
                 // listener is added AFTER this popover mounts, so the click/right-click that opened it
@@ -697,7 +717,7 @@
                     // (alpha.44 would have eaten the confirm's OK mousedown).
                     const top = overlayRegistry.topLayer();
                     if ((top && top.id !== layerIdRef.current) || imperativeDialogsUp()) return;
-                    if (e.button === 0) {
+                    if (e.button === 0 && kind !== 'list') { // a type-ahead list never swallows: the click goes through (alpha.54)
                         eat(e);
                         const stop = () => {
                             document.removeEventListener('mouseup', onUpOrClick, true);
@@ -729,7 +749,8 @@
             // React events still bubble through the React tree, so item onClick/stopPropagation behave as before.
             return ReactDOM.createPortal(
                 <CursorPopup open={true} x={x} y={y} anchorRect={anchorRect} anchorAlign={anchorAlign} innerRef={ref}
-                    className={className} style={style} role={role} ariaLabel={ariaLabel}
+                    className={className} style={(matchAnchorWidth && anchorRect) ? { width: anchorRect.width, ...style } : style}
+                    role={role} ariaLabel={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu}>
                     {children}
                 </CursorPopup>,
@@ -988,6 +1009,7 @@
             const [editBookSeriesDropdownOpen, setEditBookSeriesDropdownOpen] = useState(false);
             const editBookSeriesFilterRef = useRef(false); // true = filter by typed text, false = show all
             const editBookSeriesInputRef = useRef(null); // ref to series input for focus management
+            const editBookSeriesAnchorRef = useRef(null); // v7.18.0-alpha.54 - field + ▼ wrapper: anchor of the Series <Popover kind="list">
             // v5.4.7 - Bulk edit via context menu
             const [showBulkEditModal, setShowBulkEditModal] = useState(false);
             const [bulkEditField, setBulkEditField] = useState(null); // 'author' | 'series' | 'position'
@@ -996,6 +1018,7 @@
             const [bulkEditSeriesDropdownOpen, setBulkEditSeriesDropdownOpen] = useState(false);
             const bulkEditSeriesFilterRef = useRef(false);
             const bulkEditSeriesInputRef = useRef(null);
+            const bulkEditSeriesAnchorRef = useRef(null); // v7.18.0-alpha.54 - field + ▼ wrapper: anchor of the Bulk Edit Series <Popover kind="list">
             const [wizardModalOpen, setWizardModalOpen] = useState(false); // v5.1.0 - Auto-organize wizard modal
             const [wizardMinBooksSlider, setWizardMinBooksSlider] = useState(5); // v5.1.0-alpha.10 - Slider value (immediate)
             const [wizardMinBooks, setWizardMinBooks] = useState(5); // v5.1.0-alpha.10 - Debounced threshold for detection
@@ -4654,14 +4677,8 @@
                     if (dateDropdownOpen && !e.target.closest('[data-date-dropdown]')) {
                         setDateDropdownOpen(false);
                     }
-                    // v5.4.6 - Close inline series dropdown in book edit mode
-                    if (editBookSeriesDropdownOpen && !e.target.closest('[data-edit-series-dropdown]')) {
-                        setEditBookSeriesDropdownOpen(false);
-                    }
-                    // v5.4.7 - Close bulk edit series dropdown
-                    if (bulkEditSeriesDropdownOpen && !e.target.closest('[data-bulk-edit-series-dropdown]')) {
-                        setBulkEditSeriesDropdownOpen(false);
-                    }
+                    // v7.18.0-alpha.54 - the two Series type-ahead lists (book edit + Bulk Edit) close themselves now
+                    // (<Popover kind="list">); their branches here were removed.
                     // v5.4.9 - Search history dropdown now handled by SearchInput component
                     // v5.5.0 - Close sort picker dropdown
                     if (sortPickerOpen && !e.target.closest('[data-sort-picker]')) {
@@ -12998,8 +13015,9 @@
                             ? `Mixed (${uniqueValues.size} values)`
                             : (bulkEditField === 'position' ? 'e.g., 1, 1.5' : '');
                         return (
-                            // v7.18.0 - smart onClose: Esc backs out the in-modal series dropdown first; backdrop/✕ close the modal.
-                            <Dialog onClose={(reason) => { if (reason === 'esc' && bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); } else { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); } }} showClose={false} closeButton
+                            // v7.18.0-alpha.54 - the series list is a <Popover kind="list"> layer ABOVE this dialog, so the registry
+                            // closes it first on Esc — the old "Esc backs out the dropdown first" branch here is gone.
+                            <Dialog onClose={() => { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); }} showClose={false} closeButton
                                 panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-80">
                                     <h2 id="modal-bulk-edit" className="text-lg font-bold text-gray-900 mb-2">{config.title}</h2>
                                     <p className="text-sm text-gray-600 mb-4">
@@ -13015,8 +13033,8 @@
                                                 autoFocus />
                                         )}
                                         {bulkEditField === 'series' && (
-                                            <div className="relative" data-bulk-edit-series-dropdown="">
-                                                <div className="relative">
+                                            <div className="relative">
+                                                <div className="relative" ref={bulkEditSeriesAnchorRef}>
                                                     <input ref={bulkEditSeriesInputRef} type="text" value={bulkEditInput}
                                                         onChange={(e) => {
                                                             setBulkEditInput(e.target.value);
@@ -13024,8 +13042,8 @@
                                                             setBulkEditSeriesDropdownOpen(true);
                                                         }}
                                                         onKeyDown={(e) => {
-                                                            // Let Escape bubble to the overlay registry — the Dialog's smart
-                                                            // onClose backs out the open dropdown first, else closes the dialog.
+                                                            // Let Escape bubble to the overlay registry — it closes the topmost layer:
+                                                            // the series list if open (a <Popover kind="list">), else the dialog.
                                                             // (Swallowing Escape here left Esc unable to close Bulk Edit.)
                                                             if (e.key !== 'Escape') e.stopPropagation();
                                                             if (e.key === 'Enter') { setBulkEditSeriesDropdownOpen(false); e.preventDefault(); saveBulkEdit(); }
@@ -13048,11 +13066,16 @@
                                                     const filtered = (bulkEditSeriesFilterRef.current && bulkEditInput.trim())
                                                         ? allSeries.filter(s => s.name.toLowerCase().startsWith(bulkEditInput.toLowerCase()))
                                                         : allSeries;
+                                                    // v7.18.0-alpha.54 - a type-ahead <Popover kind="list"> anchored to the field (+ ▼): Esc closes it,
+                                                    // a click elsewhere closes it AND goes through (no double-click into the next field).
                                                     return filtered.length > 0 ? (
-                                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                                        <Popover kind="list" anchorRef={bulkEditSeriesAnchorRef} matchAnchorWidth
+                                                            onClose={() => setBulkEditSeriesDropdownOpen(false)}
+                                                            role="listbox" ariaLabel="Series"
+                                                            className="mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-[60]">
                                                             {filtered.map(s => (
                                                                 <button key={s.name} type="button"
-                                                                    ref={s.name === bulkEditInput ? (el) => { if (el) requestAnimationFrame(() => { const container = el.closest('.overflow-y-auto'); if (container) { const top = el.offsetTop - container.offsetTop; container.scrollTop = top; } }); } : null}
+                                                                    ref={s.name === bulkEditInput ? (el) => { if (el) requestAnimationFrame(() => { const container = el.offsetParent; if (container) container.scrollTop = el.offsetTop; }); } : null}
                                                                     onClick={() => { setBulkEditInput(s.name); setBulkEditSeriesDropdownOpen(false); }}
                                                                     onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'a') return; e.stopPropagation(); if (e.key === 'Escape') { setBulkEditSeriesDropdownOpen(false); if (bulkEditSeriesInputRef.current) bulkEditSeriesInputRef.current.focus(); } }}
                                                                     className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex justify-between items-center ${s.name === bulkEditInput ? 'bg-blue-100 font-medium' : ''}`}>
@@ -13060,7 +13083,7 @@
                                                                     <span className="text-xs text-gray-400 ml-2 shrink-0">({s.count})</span>
                                                                 </button>
                                                             ))}
-                                                        </div>
+                                                        </Popover>
                                                     ) : null;
                                                 })()}
                                             </div>
@@ -13140,10 +13163,9 @@
                         <Dialog showClose={false} panelClassName="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
                             onClose={(reason) => {
                                 // Smart multi-level Esc (innermost-first). Backdrop/✕ ('button') always close the dialog.
-                                // (v7.18.0-alpha.49 - the Share dropdown is a <Popover> layer above this dialog now, so the
-                                // registry closes IT first on Esc — its branch here was removed.)
+                                // (v7.18.0-alpha.49/54 - the Share menu and the Series list are <Popover> layers above this dialog,
+                                // so the registry closes THEM first on Esc — their branches here were removed.)
                                 if (reason === 'esc') {
-                                    if (editBookSeriesDropdownOpen) { setEditBookSeriesDropdownOpen(false); return; }
                                     if (isEditingBook) { cancelEditMode(); return; }
                                 }
                                 closeBookModal();
@@ -13413,9 +13435,9 @@
 
                                             {isEditingBook ? (
                                                 <div className="mb-3 space-y-3">
-                                                    <div className="relative" data-edit-series-dropdown="">
+                                                    <div className="relative">
                                                         <label className="block text-sm font-medium text-gray-700 mb-1">Series</label>
-                                                        <div className="relative">
+                                                        <div className="relative" ref={editBookSeriesAnchorRef}>
                                                             <input
                                                                 ref={editBookSeriesInputRef}
                                                                 type="text"
@@ -13444,12 +13466,17 @@
                                                             const filtered = (editBookSeriesFilterRef.current && editBookFields.series.trim())
                                                                 ? allSeries.filter(s => s.name.toLowerCase().startsWith(editBookFields.series.toLowerCase()))
                                                                 : allSeries;
+                                                            // v7.18.0-alpha.54 - a type-ahead <Popover kind="list"> anchored to the field (+ ▼); follows the
+                                                            // field when the book window scrolls; a click elsewhere closes it AND goes through.
                                                             return filtered.length > 0 ? (
-                                                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                                                <Popover kind="list" anchorRef={editBookSeriesAnchorRef} matchAnchorWidth
+                                                                    onClose={() => setEditBookSeriesDropdownOpen(false)}
+                                                                    role="listbox" ariaLabel="Series"
+                                                                    className="mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-[60]">
                                                                     {filtered.map(s => (
                                                                         <button
                                                                             key={s.name}
-                                                                            ref={s.name === (editBookFields.series || modalBook?.series) ? (el) => { if (el) requestAnimationFrame(() => { const container = el.closest('.overflow-y-auto'); if (container) { const top = el.offsetTop - container.offsetTop; container.scrollTop = top; } }); } : null}
+                                                                            ref={s.name === (editBookFields.series || modalBook?.series) ? (el) => { if (el) requestAnimationFrame(() => { const container = el.offsetParent; if (container) container.scrollTop = el.offsetTop; }); } : null}
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 setEditBookFields(prev => ({ ...prev, series: s.name }));
@@ -13463,7 +13490,7 @@
                                                                             <span className="text-xs text-gray-400 ml-2 shrink-0">({s.count})</span>
                                                                         </button>
                                                                     ))}
-                                                                </div>
+                                                                </Popover>
                                                             ) : null;
                                                         })()}
                                                     </div>
