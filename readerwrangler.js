@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.45";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.46";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -3261,7 +3261,9 @@
                 if (opts.confirmLarge) {
                     const countDesc = (fid) => folders.filter(f => f.parentId === fid).reduce((n, k) => n + 1 + countDesc(k.id), 0);
                     const descCount = folderIds.reduce((n, id) => n + countDesc(id), 0);
-                    if (descCount > 20 && !(await showConfirmDialog('Move Folder', `Move folder with ${descCount} subfolders?`))) return false;
+                    // TODO-REVERT before 7.18.0 release: threshold lowered 20 → 3 TEMPORARILY (Ron, 2026-10-06) to test
+                    // the menu-stays-open-under-a-confirm path (alpha.45). Restore `descCount > 20`.
+                    if (descCount > 3 && !(await showConfirmDialog('Move Folder', `Move folder with ${descCount} subfolders?`))) return false;
                 }
 
                 // Save old parentIds for undo
