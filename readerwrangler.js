@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.48";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.49";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1343,6 +1343,10 @@
             const [saveResultsMenuOpen, setSaveResultsMenuOpen] = useState(false); // v6.12.0 - "Save these results…" dropdown (Phase 4)
             const [explorerColumnMenuOpen, setExplorerColumnMenuOpen] = useState(false); // v5.0.0-alpha.104 - Explorer column chooser menu
             const [explorerColumnMenuPos, setExplorerColumnMenuPos] = useState(null); // v5.0.0-alpha.107 - Context menu position { x, y } or null
+            const columnChooserBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (⚙ gear) for the column-chooser <Popover>
+            const saveResultsBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor ("💾 N results · Save ▾") for its <Popover>
+            const shareBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (book dialog 📤) for the Share <Popover>
+            const closeColumnChooser = () => { setExplorerColumnMenuOpen(false); setExplorerColumnMenuPos(null); }; // v7.18.0-alpha.49 - THE closer
             const [columnWidths, setColumnWidths] = useState({ // v5.0.0-alpha.109 - Column widths (px)
                 title: 200,
                 author: 150,
@@ -4752,21 +4756,8 @@
                 }
             }, [explorerSort]);
 
-            // v5.0.0-alpha.104 - Close Explorer column menu when clicking outside
-            useEffect(() => {
-                if (!explorerColumnMenuOpen) return;
-
-                const handleClickOutside = (e) => {
-                    // Close menu if clicking outside (not on the gear button or menu)
-                    if (!e.target.closest('.column-chooser-menu') && !e.target.closest('.column-chooser-button')) {
-                        setExplorerColumnMenuOpen(false);
-                        setExplorerColumnMenuPos(null); // v5.0.0-alpha.107 - Clear context menu position
-                    }
-                };
-
-                document.addEventListener('mousedown', handleClickOutside);
-                return () => document.removeEventListener('mousedown', handleClickOutside);
-            }, [explorerColumnMenuOpen]);
+            // v7.18.0-alpha.49 - DELETED: the column chooser's hand-rolled outside-click closer (`.column-chooser-*` class
+            // check; grep: no other consumer of those classes). The chooser is a <Popover> now (closeColumnChooser).
 
             // v5.0.0-alpha.82 - Auto-expand tree to show selected folder
             useEffect(() => {
@@ -10515,15 +10506,17 @@
                                 return (
                                     <div className="relative" style={{ marginLeft: '8px' }}>
                                         <button
+                                            ref={saveResultsBtnRef}
                                             title="Save these results as a Search (live filter) or a Book List (snapshot)"
                                             onClick={() => setSaveResultsMenuOpen(o => !o)}
                                             className="text-blue-700 hover:text-white hover:bg-blue-600 font-semibold text-sm whitespace-nowrap px-2 py-1 rounded border border-blue-400 bg-white">
                                             💾 {count} result{count !== 1 ? 's' : ''} · Save ▾
                                         </button>
+                                        {/* v7.18.0-alpha.49 - anchored <Popover> menu (was a scrim + absolute panel; had no Esc) */}
                                         {saveResultsMenuOpen && (
-                                            <>
-                                                <div className="fixed inset-0 z-40" onClick={() => setSaveResultsMenuOpen(false)} />
-                                                <div className="absolute left-0 mt-1 z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[230px] text-sm text-gray-700">
+                                                <Popover anchorRef={saveResultsBtnRef} onClose={() => setSaveResultsMenuOpen(false)}
+                                                    role="menu" ariaLabel="Save these results"
+                                                    className="mt-1 z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[230px] text-sm text-gray-700">
                                                     <button
                                                         className="block w-full text-left px-3 py-1.5 hover:bg-gray-100"
                                                         onClick={() => { setSaveResultsMenuOpen(false); saveFiltersAsSearch(buildCurrentFilters()); }}>
@@ -10578,8 +10571,7 @@
                                                             {bl.name}
                                                         </button>
                                                     ))}
-                                                </div>
-                                            </>
+                                                </Popover>
                                         )}
                                     </div>
                                 );
@@ -13145,8 +13137,9 @@
                         <Dialog showClose={false} panelClassName="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
                             onClose={(reason) => {
                                 // Smart multi-level Esc (innermost-first). Backdrop/✕ ('button') always close the dialog.
+                                // (v7.18.0-alpha.49 - the Share dropdown is a <Popover> layer above this dialog now, so the
+                                // registry closes IT first on Esc — its branch here was removed.)
                                 if (reason === 'esc') {
-                                    if (shareDropdownOpen) { setShareDropdownOpen(false); return; }
                                     if (editBookSeriesDropdownOpen) { setEditBookSeriesDropdownOpen(false); return; }
                                     if (isEditingBook) { cancelEditMode(); return; }
                                 }
@@ -13179,17 +13172,18 @@
                                     )}
                                     {/* v6.10.0-alpha.9 - Share button with dropdown */}
                                     <div className="relative">
-                                        <button onClick={(e) => {
+                                        <button ref={shareBtnRef} onClick={(e) => {
                                             e.stopPropagation();
                                             setShareDropdownOpen(prev => !prev);
                                         }} className="text-gray-400 hover:text-gray-600 text-lg transition-colors" title="Share this book" aria-label="Share this book">
                                             📤
                                         </button>
+                                        {/* v7.18.0-alpha.49 - anchored <Popover> menu (was a scrim + absolute panel), right-aligned under
+                                            📤 as before; z-[60] keeps it above the book dialog (z-50) it opens from. */}
                                         {shareDropdownOpen && (
-                                            <>
-                                                <div className="fixed inset-0 z-40" onClick={() => setShareDropdownOpen(false)} />
-                                                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
-                                                    role="menu" aria-label="Share options"
+                                                <Popover anchorRef={shareBtnRef} anchorAlign="end" onClose={() => setShareDropdownOpen(false)}
+                                                    className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-[60]"
+                                                    role="menu" ariaLabel="Share options"
                                                     onClick={(e) => e.stopPropagation()}>
                                                     <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
                                                         onClick={() => {
@@ -13225,8 +13219,7 @@
                                                             <span>📤</span><span>Share…</span>
                                                         </div>
                                                     )}
-                                                </div>
-                                            </>
+                                                </Popover>
                                         )}
                                     </div>
                                     <button onClick={closeBookModal} className="text-gray-500 hover:text-gray-700 text-2xl" title="Close" aria-label="Close">×</button>
@@ -15794,28 +15787,30 @@
                                         {explorerView === 'list' && (
                                             <div className="relative ml-4">
                                                 <button
+                                                    ref={columnChooserBtnRef}
                                                     onClick={() => {
-                                                        setExplorerColumnMenuOpen(!explorerColumnMenuOpen);
-                                                        setExplorerColumnMenuPos(null); // v5.0.0-alpha.107 - Clear context menu position when using gear
+                                                        if (explorerColumnMenuOpen) { closeColumnChooser(); return; }
+                                                        setExplorerColumnMenuPos(null); // gear = anchored mode (no cursor point)
+                                                        setExplorerColumnMenuOpen(true);
                                                     }}
-                                                    className="column-chooser-button text-gray-500 hover:text-gray-700 text-lg"
+                                                    className="text-gray-500 hover:text-gray-700 text-lg"
                                                     title="Choose columns" aria-label="Choose columns">
                                                     ⚙️
                                                 </button>
-                                                {/* Column chooser dropdown */}
+                                                {/* v7.18.0-alpha.49 - Column chooser = ONE <Popover> with two openings: from the ⚙ gear it's
+                                                    anchored under the gear, right-aligned (as before); from a column-header right-click it
+                                                    opens at the cursor (measured, no size guess). Esc / outside-click via the registry. */}
                                                 {explorerColumnMenuOpen && (
-                                                    <div
-                                                        className={`column-chooser-menu bg-white border border-gray-300 rounded shadow-lg p-3 z-50 min-w-[200px] ${
-                                                            explorerColumnMenuPos ? 'fixed' : 'absolute right-0 mt-2'
-                                                        }`}
-                                                        style={explorerColumnMenuPos ? { left: `${explorerColumnMenuPos.x}px`, top: `${explorerColumnMenuPos.y}px` } : {}}>
+                                                    <Popover onClose={closeColumnChooser} key={explorerColumnMenuPos ? 'at-cursor' : 'at-gear'}
+                                                        {...(explorerColumnMenuPos
+                                                            ? { x: explorerColumnMenuPos.x, y: explorerColumnMenuPos.y }
+                                                            : { anchorRef: columnChooserBtnRef, anchorAlign: 'end' })}
+                                                        role="dialog" ariaLabel="Show Columns"
+                                                        className={`bg-white border border-gray-300 rounded shadow-lg p-3 z-50 min-w-[200px] ${explorerColumnMenuPos ? '' : 'mt-2'}`}>
                                                         <div className="flex justify-between items-center mb-2">
                                                             <div className="text-sm font-semibold text-gray-700">Show Columns</div>
                                                             <button
-                                                                onClick={() => {
-                                                                    setExplorerColumnMenuOpen(false);
-                                                                    setExplorerColumnMenuPos(null); // v5.0.0-alpha.107
-                                                                }}
+                                                                onClick={closeColumnChooser}
                                                                 className="text-gray-500 hover:text-gray-700 font-bold text-lg leading-none"
                                                                 title="Close">
                                                                 ✕
@@ -15873,7 +15868,7 @@
                                                                 Show All
                                                             </button>
                                                         </div>
-                                                    </div>
+                                                    </Popover>
                                                 )}
                                             </div>
                                         )}
@@ -15994,23 +15989,9 @@
                                                 <tr className="text-left text-gray-600"
                                                     onContextMenu={(e) => {
                                                         e.preventDefault();
-                                                        // v5.0.0-alpha.108 - Smart positioning to avoid viewport overflow
-                                                        const menuWidth = 200;
-                                                        const menuHeight = 300;
-                                                        let x = e.clientX;
-                                                        let y = e.clientY;
-
-                                                        // Adjust if menu would overflow right edge
-                                                        if (x + menuWidth > window.innerWidth) {
-                                                            x = e.clientX - menuWidth;
-                                                        }
-
-                                                        // Adjust if menu would overflow bottom edge
-                                                        if (y + menuHeight > window.innerHeight) {
-                                                            y = e.clientY - menuHeight;
-                                                        }
-
-                                                        setExplorerColumnMenuPos({ x, y });
+                                                        // v7.18.0-alpha.49 - pass the TRUE click point; the <Popover> measures the real chooser and
+                                                        // flips/clamps to fit (the old 200×300 size guess is gone — the 7.15.0 bug class).
+                                                        setExplorerColumnMenuPos({ x: e.clientX, y: e.clientY });
                                                         setExplorerColumnMenuOpen(true);
                                                     }}>
                                                     {/* v5.0.0-alpha.121 - Checkbox column (styled div, not input) */}

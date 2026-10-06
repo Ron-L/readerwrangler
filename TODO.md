@@ -95,7 +95,9 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   (scope-select the top dialog's text when a dialog is up and focus isn't in a text field) — one chokepoint inner
   stopPropagation can't defeat — folding in autoOrgPreview's book-select once it's converted to declare its own semantics.
 
-- [ ] **Anchored-`<Popover>` primitive for button dropdowns (Ron 2026-09-30, overlay migration)**.
+- [ ] **Anchored-`<Popover>` primitive for button dropdowns (Ron 2026-09-30, overlay migration)** — PRIMITIVE BUILT
+  7.18.0-alpha.40 (`<Popover anchorRef anchorAlign>`, portaled since alpha.48; used by toast history + both folder sort
+  menus). REMAINING = convert the other button dropdowns (the overlay branch's next group).
   WHAT / WHY: our `<Popover>` positions at a cursor POINT (x,y). Some overlays are **button-anchored dropdowns**
   that open flush to a control — e.g., in the **Book detail dialog**: the 📤 **Share** dropdown and the edit-mode
   **Series** dropdown; also the folder **Sort** menu, **Save-Results** menu, and the column-header **gear**. These
@@ -109,7 +111,8 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   a highlighted row). Add roving keyboard nav (↑/↓ to move, Enter to select the highlighted row, Esc already backs out).
   Small, isolated; likely folds into the eventual `<Popover>`/`<Menu>` primitive (these dropdowns are candidates for it).
 
-- [ ] **Right-click menu open + Ctrl+A selects the whole library behind it (Ron 2026-09-30)**.
+- [x] **Right-click menu open + Ctrl+A selects the whole library behind it (Ron 2026-09-30)** — DONE 7.18.0-alpha.44:
+  menus are `<Popover>`s and a menu fences library keys by default (Ctrl+A/Delete/Ctrl+X do nothing while one is open).
   WHAT YOU SEE: in the main right pane, right-click a **book** (or blank space) to open its context menu, then
   press **Ctrl+A** — it selects ALL books in the library *behind* the menu (a "leak") instead of the menu owning
   the keystroke. (Latent risk: Ctrl+A then **Delete** with a menu open could mass-delete the selection.)
@@ -119,7 +122,8 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   Ctrl+A (and Delete) guards respect ANY open overlay (not just modals), so an open menu suppresses/scopes the
   keystroke instead of leaking. Pre-existing — NOT a migration regression.
 
-- [ ] **AO / Preview / hover tooltip disappears when you move onto it (Ron 2026-09-30, UX polish)**.
+- [ ] **AO / Preview / hover tooltip disappears when you move onto it (Ron 2026-09-30, UX polish)** — FOLDED INTO
+  the overlay branch's `bookTooltip` step (Ron 2026-10-06): build ONE shared hover popup for the right pane + Preview.
   WHAT YOU SEE: open Auto-Organize → **Preview**, hover a book cover — a little popup appears listing where that
   book already lives (its folders / Book Lists). If you move the mouse toward that popup to read it, it **vanishes**.
   COMPARE: in the normal **right pane**, hovering a cover shows the same kind of "where it lives" popup and it
