@@ -458,23 +458,40 @@ Reply to the user still owed (Ron's channel).
   (LOCAL badge, mode indicator, mobile chip, restore wrong-instance guard, LOCAL bookmarklet option, load-error display,
   the per-load cache-buster) need no change; the two dev self-check POP-UPS (book-field self-check ~4256, unknown-field
   alert storage.js ~234) only fire when data is already wrong — optional.
-  TWO KINDS of localhost users (Ron 2026-10-06): **self-hosters** (privacy-minded etc.) must get PRODUCTION behavior;
-  **contributors** (Ron, and any future contributor) need ALL of Ron's dev behavior. So the switch is a DEVELOPER switch,
-  not a Ron-only one — document it in CONTRIBUTING.md ("visit ?rwdev=on once").
-  DO: ONE function decides it — the single chokepoint (Ron): every dev-only branch calls it; nothing else re-derives
-  "is this a dev". Name: Ron proposed `isDev()`; I'd use **`isDevMachine()`** because "DEV" already means the
-  readerwranglerdev GitHub site + DEV relay (there's an `isDevRepo` and a storage.js `isDevEnv`), and `isDev()` would
-  blur the two — Ron to decide. Define it ONCE in readerwrangler.html's inline script (runs before both the desktop
-  app and mobile.js, and before storage.js uses it), exposed on window. Mechanism: a one-time per-browser switch —
-  visit `localhost:8000/?rwdev=on` once (`?rwdev=off` to clear); the page saves a flag in that browser's Local Storage
-  (per origin, so per port) and strips the parameter; the function reads it instantly. Then COMB every existing
-  localhost / isLocal / isDevEnv check (sitemap 2026-10-06: readerwrangler.js ~87, ~157, ~4256, ~5431, ~9002, ~10692,
-  ~10983/11229/11255; mobile.js ~11-26; storage.js ~234; readerwrangler.html ~222/~296) and route the dev-only ones
-  through the function. Gate (1) and (2) on it. FAIL-SAFE: if the flag is ever lost on Ron's machine, the app
-  must NOT quietly start using PROD during alpha testing — show the LOCAL badge as "LOCAL · DEV RELAY" when on, and a
-  warning before any relay use on localhost when off. (Rejected: IP address / project path — break silently; a
-  marker file in .private — browsers can't see folders, it'd need a request on every load for every user, and it
-  depends on the server exposing .private.)
+  ALSO FOUND: a phone opening the app from Ron's PC dev server over home Wi-Fi (`http://192.168.86.35:8000/…`) reads
+  the PRODUCTION relay today, while the desktop on localhost reads DEV — mobile.js ~24 only recognizes "localhost".
+  The spec below fixes this (a home-network address counts as a local server).
+
+  **DECIDED SPEC (Ron 2026-10-06):**
+  - TWO KINDS of local-server users: **self-hosters** (privacy-minded etc.) get PRODUCTION behavior, silently — no
+    nagging; **contributors** (Ron + any future contributor) get ALL dev behavior. It's a contributor switch, not
+    Ron-only.
+  - **ONE function decides: `isContributor()`** — the single chokepoint; every dev-only branch calls it, nothing else
+    re-derives it. (Named for the ROLE; `isDev()` rejected — "DEV" already means the readerwranglerdev site + DEV relay,
+    cf. `isDevRepo` / storage.js `isDevEnv`.) Defined ONCE in readerwrangler.html's inline script (runs before the
+    desktop app, mobile.js and storage.js), exposed on window.
+  - **Both conditions required:** running on a LOCAL SERVER (localhost / 127.0.0.1 / home-network 10.x or 192.168.x)
+    **AND** the browser's contributor flag is on. On readerwrangler.com or the DEV site it is always false and the
+    switch is ignored (Ron: "I would have gotten burnt when I tested Prod").
+  - **The switch:** visit the app with `?contributor=on` (or `?contributor=off`) once per browser; the page saves
+    `readerwrangler-contributor = on` in that browser's Local Storage (per address+port) and removes the parameter from
+    the address bar. A phone needs it only if it opens the app FROM the PC's dev server (each browser/address is
+    separate). Document in CONTRIBUTING.md.
+  - **Fail-safe = the badge, impossible to miss:** "LOCAL · CONTRIBUTOR" in a distinct color when on; plain "LOCAL"
+    when off. No warnings/pop-ups (don't harass self-hosters). Relay Setup's existing "which relay storage" line backs it up.
+  - SYMPTOMS if Ron's flag is ever lost (for the CONTRIBUTING.md troubleshooting note): badge loses "CONTRIBUTOR";
+    fetches from the LOCAL/DEV bookmarklets seem to vanish (they still go to DEV; the app now reads PROD) → "No library
+    data found"/nothing new on Import; Import shows production data instead of dev test data; **local testing changes
+    and test Restores sync to the PRODUCTION relay** (shows up on the phone's readerwrangler.com view); Relay Setup
+    shows production storage; pairing QR points at readerwrangler.com; dev self-check pop-ups go silent.
+  - The per-load fresh-code cache-buster (alpha.53) stays tied to "local server" only, NOT to contributor mode.
+  - IMPLEMENTATION: COMB every existing localhost / isLocal / isDevEnv check (sitemap 2026-10-06: readerwrangler.js ~87,
+    ~157, ~4256, ~5431, ~9002, ~10692, ~10983/11229/11255; mobile.js ~11-26; storage.js ~234; readerwrangler.html
+    ~222/~296), classify each (dev-only → `isContributor()`; harmless label → leave on "local server"), route the
+    dev-only ones through the function.
+  - Rejected mechanisms: IP address / project path (break silently); a marker file in .private (browsers can't see
+    folders — a request on every load for every user, and it needs the server to expose .private).
+  - Deferred by Ron 2026-10-06 — do after the overlay branch.
 
 **Responsiveness**
 - [ ] **Clicking a different book feels slightly laggy while a filter or search is active** (Ron 2026-10-06). WHAT YOU
