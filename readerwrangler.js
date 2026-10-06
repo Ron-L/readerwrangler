@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.47";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.48";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -722,12 +722,18 @@
                     // close re-renders); it removes itself after that click — never leave it to eat a later one.
                 };
             }, []);
-            return (
+            // v7.18.0-alpha.48 - PORTALED to <body> (like <Dialog>). A `position: fixed` element is positioned relative
+            // to the nearest ancestor with CSS containment / transform — the left pane's scroll area has
+            // `contain: layout style paint`, so the FOLDERS "Name ▾" menu rendered inside it landed a whole header-height
+            // too low (and paint containment would also clip it). At <body> no ancestor can trap or clip a popover.
+            // React events still bubble through the React tree, so item onClick/stopPropagation behave as before.
+            return ReactDOM.createPortal(
                 <CursorPopup open={true} x={x} y={y} anchorRect={anchorRect} anchorAlign={anchorAlign} innerRef={ref}
                     className={className} style={style} role={role} ariaLabel={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu}>
                     {children}
-                </CursorPopup>
+                </CursorPopup>,
+                document.body
             );
         };
 
