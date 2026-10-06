@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.49";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.50";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1072,6 +1072,8 @@
             useEffect(() => {
                 const onKey = (e) => {
                     if (e.key !== 'Escape') return;
+                    // TODO-REVERT (alpha.50 Esc probe — "Save ▾" menu won't close on Esc, Ron 2026-10-06): remove this log
+                    { const t = overlayRegistry.topLayer(); console.log(`[RW-ESC 2/2 bubble] reached overlay listener; top=${t ? t.kind + '#' + t.id : 'none'} defaultPrevented=${e.defaultPrevented}`); }
                     if (overlayRegistry.topLayer()) {
                         e.preventDefault();
                         e.stopImmediatePropagation();
@@ -1079,7 +1081,14 @@
                     }
                 };
                 window.addEventListener('keydown', onKey);
-                return () => window.removeEventListener('keydown', onKey);
+                // TODO-REVERT (alpha.50 Esc probe): capture-phase spy — logs EVERY Esc before anything can stop it.
+                const probe = (e) => {
+                    if (e.key !== 'Escape') return;
+                    const a = document.activeElement, t = overlayRegistry.topLayer();
+                    console.log(`[RW-ESC 1/2 capture] focus=<${a && a.tagName}${a && a.getAttribute && a.getAttribute('aria-label') ? ' "' + a.getAttribute('aria-label') + '"' : ''}${a && a.title ? ' title="' + a.title.slice(0, 40) + '"' : ''}> top=${t ? t.kind + '#' + t.id : 'none'}`);
+                };
+                window.addEventListener('keydown', probe, true);
+                return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keydown', probe, true); };
             }, []);
             const autoOrgPreviewRef = useRef(null); // v6.16.0 - current auto-organize preview, for the keydown handler (which doesn't dep on it)
             const wizardSelectAllRef = useRef(null); // v7.18.0-alpha.34 - current wizard "select all listed authors" action, for Ctrl+A (handler reads via ref, not state)
@@ -10507,7 +10516,7 @@
                                     <div className="relative" style={{ marginLeft: '8px' }}>
                                         <button
                                             ref={saveResultsBtnRef}
-                                            title="Save these results as a Search (live filter) or a Book List (snapshot)"
+                                            title="Save the filter as a Search (live filter), or save the results to a Book List (snapshot)"
                                             onClick={() => setSaveResultsMenuOpen(o => !o)}
                                             className="text-blue-700 hover:text-white hover:bg-blue-600 font-semibold text-sm whitespace-nowrap px-2 py-1 rounded border border-blue-400 bg-white">
                                             💾 {count} result{count !== 1 ? 's' : ''} · Save ▾
@@ -10520,10 +10529,10 @@
                                                     <button
                                                         className="block w-full text-left px-3 py-1.5 hover:bg-gray-100"
                                                         onClick={() => { setSaveResultsMenuOpen(false); saveFiltersAsSearch(buildCurrentFilters()); }}>
-                                                        Save as a <b>Search</b> <span className="text-gray-400">(live filter)</span>
+                                                        Save filter as a <b>Search</b> <span className="text-gray-400">(live filter)</span>
                                                     </button>
                                                     <div className="border-t border-gray-200 my-1" />
-                                                    <div className="px-3 py-1 text-xs text-gray-400">Save to a Book List</div>
+                                                    <div className="px-3 py-1 text-xs text-gray-400">Save results to a Book List</div>
                                                     {/* ＋ New list… on top, existing lists below — the familiar "Add to playlist" pattern */}
                                                     <button
                                                         disabled={count === 0}
