@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.56";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.57";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -705,6 +705,20 @@
                 window.addEventListener('scroll', follow, true); // capture: catches scrolls of ANY container (e.g. a dialog panel)
                 window.addEventListener('resize', follow);
                 return () => { window.removeEventListener('scroll', follow, true); window.removeEventListener('resize', follow); };
+            }, []);
+            // v7.18.0-alpha.57 - a type-ahead list closes when keyboard focus LEAVES its field (Tab to the next field),
+            // the combobox convention (Ron 2026-10-06: Tab moved the cursor into Position / Number but the list stayed
+            // open on top of it). Focus inside the field (+ its ▼) or inside the list itself keeps it open.
+            useEffect(() => {
+                if (kind !== 'list') return;
+                const onFocusIn = (e) => {
+                    const t = e.target;
+                    if (ref.current && ref.current.contains(t)) return;
+                    if (anchorRef && anchorRef.current && anchorRef.current.contains(t)) return;
+                    closeRef.current && closeRef.current('blur');
+                };
+                document.addEventListener('focusin', onFocusIn);
+                return () => document.removeEventListener('focusin', onFocusIn);
             }, []);
             const layerIdRef = useRef(null);
             const noTextNode = kind === 'menu' || kind === 'list';
