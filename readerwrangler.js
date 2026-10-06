@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.54";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.55";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1367,7 +1367,8 @@
             const [explorerColumnMenuOpen, setExplorerColumnMenuOpen] = useState(false); // v5.0.0-alpha.104 - Explorer column chooser menu
             const [explorerColumnMenuPos, setExplorerColumnMenuPos] = useState(null); // v5.0.0-alpha.107 - Context menu position { x, y } or null
             const columnChooserBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (⚙ gear) for the column-chooser <Popover>
-            const saveResultsBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor ("💾 N results · Save ▾") for its <Popover>            const shareBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (book dialog 📤) for the Share <Popover>
+            const saveResultsBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor ("💾 N results · Save ▾") for its <Popover>
+            const shareBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (book dialog 📤) for the Share <Popover> (alpha.55: restored — alpha.52's probe removal had joined this line into the comment above)
             const closeColumnChooser = () => { setExplorerColumnMenuOpen(false); setExplorerColumnMenuPos(null); }; // v7.18.0-alpha.49 - THE closer
             const [columnWidths, setColumnWidths] = useState({ // v5.0.0-alpha.109 - Column widths (px)
                 title: 200,
