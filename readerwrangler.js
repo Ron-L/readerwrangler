@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.50";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.51";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1354,6 +1354,8 @@
             const [explorerColumnMenuPos, setExplorerColumnMenuPos] = useState(null); // v5.0.0-alpha.107 - Context menu position { x, y } or null
             const columnChooserBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (⚙ gear) for the column-chooser <Popover>
             const saveResultsBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor ("💾 N results · Save ▾") for its <Popover>
+            // TODO-REVERT (alpha.51 Esc probe): log every open/closed flip of the Save ▾ menu, with a stack for "true"
+            useEffect(() => { console.log(`[RW-ESC 3] saveResultsMenuOpen -> ${saveResultsMenuOpen}`); }, [saveResultsMenuOpen]);
             const shareBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (book dialog 📤) for the Share <Popover>
             const closeColumnChooser = () => { setExplorerColumnMenuOpen(false); setExplorerColumnMenuPos(null); }; // v7.18.0-alpha.49 - THE closer
             const [columnWidths, setColumnWidths] = useState({ // v5.0.0-alpha.109 - Column widths (px)
@@ -10517,7 +10519,7 @@
                                         <button
                                             ref={saveResultsBtnRef}
                                             title="Save the filter as a Search (live filter), or save the results to a Book List (snapshot)"
-                                            onClick={() => setSaveResultsMenuOpen(o => !o)}
+                                            onClick={(e) => { console.log(`[RW-ESC 4] Save ▾ button click fired — ${e.detail === 0 ? 'KEYBOARD-synthesized (detail=0)' : 'mouse (detail=' + e.detail + ')'}`); /* TODO-REVERT alpha.51 probe */ setSaveResultsMenuOpen(o => !o); }}
                                             className="text-blue-700 hover:text-white hover:bg-blue-600 font-semibold text-sm whitespace-nowrap px-2 py-1 rounded border border-blue-400 bg-white">
                                             💾 {count} result{count !== 1 ? 's' : ''} · Save ▾
                                         </button>
