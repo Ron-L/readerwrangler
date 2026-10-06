@@ -50,6 +50,9 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
    fix is a tiny versioned **`serve.py`** in the repo (stdlib `http.server` + a handler that refuses `/.private/…` and
    `/.git/…` with 404), launched by the `.bat`. Same port and origin, phone still works, secrets never served.
    Then update CONTRIBUTING.md's server lines (and drop its Python 2 `SimpleHTTPServer` line — EOL since 2020).
+   (c) Use **`py`**, not `python`, in the .bat and docs: since Python 3.14 the new Python Install Manager provides
+   `py` (Ron's habit). On Ron's PC 2026-10-06: `py` → 3.14.7, but `python` → 3.13 (older install first on PATH).
+   (d) Deferred by Ron 2026-10-06 ("save the fixes for later") — do after the overlay branch.
 2. **Transactional book-dialog enumeration pass** — the field-vs-command classification table for
    every book-dialog control, published for Ron's red pen BEFORE any transactional surgery (the
    copy-chips work that opened its branch shipped as 7.13.0; transactional gets a fresh branch).
@@ -455,9 +458,19 @@ Reply to the user still owed (Ron's channel).
   (LOCAL badge, mode indicator, mobile chip, restore wrong-instance guard, LOCAL bookmarklet option, load-error display,
   the per-load cache-buster) need no change; the two dev self-check POP-UPS (book-field self-check ~4256, unknown-field
   alert storage.js ~234) only fire when data is already wrong — optional.
-  DO: a one-time per-browser **"this is Ron's dev machine" switch** — visit `localhost:8000/?rwdev=on` once; the page
-  saves a flag in that browser's Local Storage (per origin, so per port) and strips the parameter; code reads it
-  instantly. Gate (1) and (2) on localhost AND the flag. FAIL-SAFE: if the flag is ever lost on Ron's machine, the app
+  TWO KINDS of localhost users (Ron 2026-10-06): **self-hosters** (privacy-minded etc.) must get PRODUCTION behavior;
+  **contributors** (Ron, and any future contributor) need ALL of Ron's dev behavior. So the switch is a DEVELOPER switch,
+  not a Ron-only one — document it in CONTRIBUTING.md ("visit ?rwdev=on once").
+  DO: ONE function decides it — the single chokepoint (Ron): every dev-only branch calls it; nothing else re-derives
+  "is this a dev". Name: Ron proposed `isDev()`; I'd use **`isDevMachine()`** because "DEV" already means the
+  readerwranglerdev GitHub site + DEV relay (there's an `isDevRepo` and a storage.js `isDevEnv`), and `isDev()` would
+  blur the two — Ron to decide. Define it ONCE in readerwrangler.html's inline script (runs before both the desktop
+  app and mobile.js, and before storage.js uses it), exposed on window. Mechanism: a one-time per-browser switch —
+  visit `localhost:8000/?rwdev=on` once (`?rwdev=off` to clear); the page saves a flag in that browser's Local Storage
+  (per origin, so per port) and strips the parameter; the function reads it instantly. Then COMB every existing
+  localhost / isLocal / isDevEnv check (sitemap 2026-10-06: readerwrangler.js ~87, ~157, ~4256, ~5431, ~9002, ~10692,
+  ~10983/11229/11255; mobile.js ~11-26; storage.js ~234; readerwrangler.html ~222/~296) and route the dev-only ones
+  through the function. Gate (1) and (2) on it. FAIL-SAFE: if the flag is ever lost on Ron's machine, the app
   must NOT quietly start using PROD during alpha testing — show the LOCAL badge as "LOCAL · DEV RELAY" when on, and a
   warning before any relay use on localhost when off. (Rejected: IP address / project path — break silently; a
   marker file in .private — browsers can't see folders, it'd need a request on every load for every user, and it
