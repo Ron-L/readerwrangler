@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.46";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.47";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -687,7 +687,10 @@
                 const eat = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
                 const onDown = (e) => {
                     if (ref.current && ref.current.contains(e.target)) return;
-                    if (anchorRef && anchorRef.current && anchorRef.current.contains(e.target)) return; // the toggle owns it
+                    // A LEFT-click on the trigger belongs to its toggle (closes via onClick). A right-click there is NOT the
+                    // toggle — treat it as outside (close + pass through), else the dropdown stayed open under the trigger's
+                    // own right-click menu: two menus at once (Ron, 2026-10-06, FOLDERS "Name ▾" button; alpha.47).
+                    if (e.button === 0 && anchorRef && anchorRef.current && anchorRef.current.contains(e.target)) return;
                     // v7.18.0-alpha.45 - only the TOPMOST overlay light-dismisses. If something sits above this popover —
                     // a <Dialog> or an imperative confirm a menu item opened while the menu stays up (folder "Move to"
                     // awaits a large-move confirm) — the click belongs to THAT overlay: don't close, and never swallow
@@ -3261,9 +3264,7 @@
                 if (opts.confirmLarge) {
                     const countDesc = (fid) => folders.filter(f => f.parentId === fid).reduce((n, k) => n + 1 + countDesc(k.id), 0);
                     const descCount = folderIds.reduce((n, id) => n + countDesc(id), 0);
-                    // TODO-REVERT before 7.18.0 release: threshold lowered 20 → 3 TEMPORARILY (Ron, 2026-10-06) to test
-                    // the menu-stays-open-under-a-confirm path (alpha.45). Restore `descCount > 20`.
-                    if (descCount > 3 && !(await showConfirmDialog('Move Folder', `Move folder with ${descCount} subfolders?`))) return false;
+                    if (descCount > 20 && !(await showConfirmDialog('Move Folder', `Move folder with ${descCount} subfolders?`))) return false;
                 }
 
                 // Save old parentIds for undo
