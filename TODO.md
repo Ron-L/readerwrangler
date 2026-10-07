@@ -126,6 +126,11 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   open consumes Down/Up so the window no longer scrolls. Build it ONCE in the shared `<Popover kind="list">` (both
   lists became that in 7.18.0-alpha.54) — not per field. Deferred by Ron 2026-10-06 (after the overlay branch's
   remaining groups).
+  THE MODEL ALREADY EXISTS (found 2026-10-07): the search box's recent-searches list — the `SearchInput` component's
+  Down/Up/Enter/Esc handling (highlight index, keeps typing in the field) — is exactly this pattern, working today.
+  EXTRACT that into the shared list popup and use the ONE implementation for all three type-ahead lists (both Series
+  fields AND the search box). Stable reference for "as it was": commit 46a0cf6 (`git show 46a0cf6:readerwrangler.js`,
+  search for `const SearchInput`).
 
 - [x] **Right-click menu open + Ctrl+A selects the whole library behind it (Ron 2026-09-30)** — DONE 7.18.0-alpha.44:
   menus are `<Popover>`s and a menu fences library keys by default (Ctrl+A/Delete/Ctrl+X do nothing while one is open).

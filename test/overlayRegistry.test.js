@@ -170,4 +170,33 @@ test('fence: a fencing popover above a modal does not unseat the modal as topmos
     assert.strictEqual(reg.isTopmostModal(m), true);
 });
 
+// --- outsideClickAction: the Popover outside-click policy, one case per earned rule ---
+const base = { insidePopup: false, onOwnTrigger: false, button: 0, kind: 'menu', isTopmost: true, imperativeUp: false, onSiblingTrigger: false };
+const act = (over) => reg.outsideClickAction({ ...base, ...over });
+
+test('outside-click: a click inside the popup is ignored', () => {
+    assert.strictEqual(act({ insidePopup: true }), 'ignore');
+});
+test('outside-click: LEFT-click on its own trigger is ignored (the toggle closes it); RIGHT-click there closes + passes through', () => {
+    assert.strictEqual(act({ onOwnTrigger: true, button: 0 }), 'ignore');
+    assert.strictEqual(act({ onOwnTrigger: true, button: 2 }), 'close', 'alpha.47: no second menu on top of a still-open dropdown');
+});
+test('outside-click: not the topmost overlay, or a confirm dialog is up → ignore (that overlay owns the click)', () => {
+    assert.strictEqual(act({ isTopmost: false }), 'ignore');
+    assert.strictEqual(act({ imperativeUp: true }), 'ignore', 'alpha.45: never eat a confirm dialog\'s OK');
+});
+test('outside-click: a SIBLING trigger closes and passes through (switch in one click)', () => {
+    assert.strictEqual(act({ onSiblingTrigger: true }), 'close');
+    assert.strictEqual(act({ onSiblingTrigger: true, isTopmost: false }), 'ignore', 'the topmost rule still wins');
+});
+test('outside-click: right/middle-click anywhere closes and passes through', () => {
+    assert.strictEqual(act({ button: 2 }), 'close');
+    assert.strictEqual(act({ button: 1 }), 'close');
+});
+test('outside-click: a type-ahead list never swallows; a menu/popover left-click swallows', () => {
+    assert.strictEqual(act({ kind: 'list' }), 'close');
+    assert.strictEqual(act({ kind: 'menu' }), 'close-swallow');
+    assert.strictEqual(act({ kind: 'popover' }), 'close-swallow');
+});
+
 console.log(`\n${passed} overlayRegistry tests passed.`);

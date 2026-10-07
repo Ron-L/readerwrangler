@@ -15,6 +15,9 @@ consumed), the ✕ / backdrop / outside-click dismissal, the keystroke + undo fe
 STRUCTURAL — the overlay self-registers in `overlayRegistry.js`. **Never hand-roll a scrim, an Esc
 listener, or a fence flag.** Remaining exception until they migrate: the imperative `showConfirmDialog`-
 style overlays (own capture-phase Esc, detected by `imperativeDialogsUp()`).
+**Siblings:** if a popup's button sits among OTHER popup buttons (a menu bar, a filter bar, a toolbar of dropdowns),
+give them a shared group — `<Popover group="…">` + `data-popover-group="…"` on each button — so a click on a sibling
+switches popups in ONE click instead of the usual "outside click only closes" (Ron, 2026-10-07).
 
 (History: earned 2026-09-16 when the Share dialog shipped with only Cancel+backdrop. The old hand-run
 4-step checklist — register in `anyDialogOpen`, add to `handleModalEsc`, ✕, backdrop — was retired in

@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.57";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.58";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -688,7 +688,10 @@
         //   matchAnchorWidth: the popup takes the anchor's width (a list under its field).
         //   Anchored popovers now FOLLOW their anchor: re-measured on any scroll (outside the popup itself) or resize,
         //   so a dropdown inside a scrolling dialog (book details: Share, Series) moves with its button/field.
-        const Popover = ({ x, y, anchorRef, anchorAlign, matchAnchorWidth, fence, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
+        // v7.18.0-alpha.58 - group: the popup's SIBLING group (menu bar, filter bar, a toolbar of dropdowns). Its trigger and
+        //   its siblings' triggers carry data-popover-group="<same name>"; a click on a sibling trigger closes this popup
+        //   WITHOUT swallowing the click, so the sibling opens in one click (Ron, 2026-10-07).
+        const Popover = ({ x, y, anchorRef, anchorAlign, matchAnchorWidth, group, fence, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
             const ref = useRef(null);
             const closeRef = useRef(onClose);
             closeRef.current = onClose; // always dismiss via the LATEST onClose (like useOverlayLayer)
@@ -735,18 +738,23 @@
                 // dismisses but passes through, so right-clicking elsewhere opens that item's menu in one click.
                 const eat = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
                 const onDown = (e) => {
-                    if (ref.current && ref.current.contains(e.target)) return;
-                    // A LEFT-click on the trigger belongs to its toggle (closes via onClick). A right-click there is NOT the
-                    // toggle — treat it as outside (close + pass through), else the dropdown stayed open under the trigger's
-                    // own right-click menu: two menus at once (Ron, 2026-10-06, FOLDERS "Name ▾" button; alpha.47).
-                    if (e.button === 0 && anchorRef && anchorRef.current && anchorRef.current.contains(e.target)) return;
-                    // v7.18.0-alpha.45 - only the TOPMOST overlay light-dismisses. If something sits above this popover —
-                    // a <Dialog> or an imperative confirm a menu item opened while the menu stays up (folder "Move to"
-                    // awaits a large-move confirm) — the click belongs to THAT overlay: don't close, and never swallow
-                    // (alpha.44 would have eaten the confirm's OK mousedown).
+                    // v7.18.0-alpha.58 - the decision lives in ONE pure, tested place: overlayRegistry.outsideClickAction
+                    // (rules: inside / own-trigger toggle / not-topmost / SIBLING / right-click / list / swallow). This
+                    // handler only gathers the facts and carries out the answer.
+                    const t = e.target;
                     const top = overlayRegistry.topLayer();
-                    if ((top && top.id !== layerIdRef.current) || imperativeDialogsUp()) return;
-                    if (e.button === 0 && kind !== 'list') { // a type-ahead list never swallows: the click goes through (alpha.54)
+                    const sib = (group && t && t.closest) ? t.closest('[data-popover-group]') : null;
+                    const action = overlayRegistry.outsideClickAction({
+                        insidePopup: !!(ref.current && ref.current.contains(t)),
+                        onOwnTrigger: !!(anchorRef && anchorRef.current && anchorRef.current.contains(t)),
+                        button: e.button,
+                        kind,
+                        isTopmost: !top || top.id === layerIdRef.current,
+                        imperativeUp: imperativeDialogsUp(),
+                        onSiblingTrigger: !!(sib && sib.getAttribute('data-popover-group') === group),
+                    });
+                    if (action === 'ignore') return;
+                    if (action === 'close-swallow') {
                         eat(e);
                         const stop = () => {
                             document.removeEventListener('mouseup', onUpOrClick, true);
@@ -976,6 +984,7 @@
             const [blankImageBooks, setBlankImageBooks] = useState(new Set());
             // v5.0.0-alpha.175.1 - Menu bar state
             const [openMenuBar, setOpenMenuBar] = useState(null); // 'file' | 'view' | 'help' | null
+            const menuBarRefs = { file: useRef(null), view: useRef(null), help: useRef(null) }; // v7.18.0-alpha.58 - title anchors for the menu-bar <Popover>s
             const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
             const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
             const [howToDialogOpen, setHowToDialogOpen] = useState(false);
@@ -4669,10 +4678,7 @@
             // v5.0.0-alpha.175.40 - Extended to close More panel
             useEffect(() => {
                 const handleClickOutside = (e) => {
-                    // Close menus if clicking outside (not on menu button or dropdown)
-                    if (openMenuBar && !e.target.closest('[data-menu-area]')) {
-                        setOpenMenuBar(null);
-                    }
+                    // (v7.18.0-alpha.58 - File/View/Help are <Popover>s now; their branch here was removed.)
                     // Close filter dropdowns if clicking outside
                     if (statusDropdownOpen && !e.target.closest('[data-status-dropdown]')) {
                         setStatusDropdownOpen(false);
@@ -4721,7 +4727,6 @@
                         // v7.18.0 - a registry overlay (<Dialog>/<Popover>) is topmost → its Esc is owned by
                         // the overlay listener; defer entirely (About/Shortcuts/HowTo migrated to <Dialog>).
                         if (overlayRegistry.topLayer()) return;
-                        setOpenMenuBar(null);
                         setStatusDropdownOpen(false);
                         setTagsDropdownOpen(false);
                         setTypesDropdownOpen(false);
@@ -4743,7 +4748,7 @@
                     document.removeEventListener('mousedown', handleClickOutside);
                     document.removeEventListener('keydown', handleEscKey);
                 };
-            }, [openMenuBar, statusDropdownOpen, tagsDropdownOpen, typesDropdownOpen, morePanelOpen, collectionsDropdownOpen, amazonRatingDropdownOpen, myRatingDropdownOpen, seriesDropdownOpen, dateDropdownOpen, sortPickerOpen]);
+            }, [statusDropdownOpen, tagsDropdownOpen, typesDropdownOpen, morePanelOpen, collectionsDropdownOpen, amazonRatingDropdownOpen, myRatingDropdownOpen, seriesDropdownOpen, dateDropdownOpen, sortPickerOpen]);
 
             // v5.0.0-alpha.100 - Restore per-folder sort when folder changes
             useEffect(() => {
@@ -9043,9 +9048,13 @@
                         </a>
                         {/* v5.0.0-alpha.175.2 - File/View/Help menus */}
                         {['File', 'View', 'Help'].map(menuName => (
-                            <div key={menuName} style={{ position: 'relative' }} data-menu-area="true">
+                            <div key={menuName} style={{ position: 'relative' }}>
+                                {/* v7.18.0-alpha.58 - menu-bar title: anchor of its <Popover>; File/View/Help are SIBLINGS
+                                    (data-popover-group="menubar") so a click on another title switches in one click; hovering
+                                    another title while one is open still switches (classic menu-bar behavior, unchanged). */}
                                 <button
-                                    data-menu-area="true"
+                                    ref={menuBarRefs[menuName.toLowerCase()]}
+                                    data-popover-group="menubar"
                                     onMouseDown={() => setOpenMenuBar(openMenuBar === menuName.toLowerCase() ? null : menuName.toLowerCase())}
                                     onMouseEnter={() => openMenuBar && setOpenMenuBar(menuName.toLowerCase())}
                                     style={{
@@ -9067,10 +9076,10 @@
                                     ) : menuName}
                                 </button>
                                 {openMenuBar === menuName.toLowerCase() && (
-                                    <div data-menu-area="true" style={{
-                                        position: 'absolute',
-                                        top: '100%',
-                                        left: 0,
+                                    <Popover anchorRef={menuBarRefs[menuName.toLowerCase()]} group="menubar"
+                                        onClose={() => setOpenMenuBar(null)}
+                                        role="menu" ariaLabel={menuName}
+                                        style={{
                                         marginTop: '2px',
                                         minWidth: '200px',
                                         background: 'var(--bg-elevated)',
@@ -9339,7 +9348,7 @@
                                                 </button>
                                             </>
                                         )}
-                                    </div>
+                                    </Popover>
                                 )}
                             </div>
                         ))}
