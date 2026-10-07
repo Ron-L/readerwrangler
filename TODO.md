@@ -157,6 +157,23 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   clip its own fly-outs (CursorPopup's "never add overflow" rule). The filter box stays a useful extra. Deferred by Ron
   2026-10-06 (wait in TODO).
 
+- [ ] **Dark theme: unreadable "New library data available" bar + light strips around the filter area (Ron 2026-10-07)**.
+  WHAT YOU SEE (View → Theme → Dark): (1) the bar under the menu bar reading "📡 New library data available (uploaded …)"
+  keeps its LIGHT blue/purple background while its text turns near-white — unreadable; (2) a light strip shows under
+  the "🔍 Active: Search …" bar (and anywhere there's a gap between sections).
+  WHY (verified): dark mode works by REMAPPING specific Tailwind color classes in readerwrangler.css
+  (`[data-theme="dark"] .bg-white {…}` etc.); anything colored outside that list stays light. (1) the relay bar's
+  background is a hard-coded inline gradient `linear-gradient(135deg, #dbeafe, #ede9fe)` (readerwrangler.js ~9360) with
+  `color: var(--text-primary)` text; (2) the app's outermost container uses `bg-gradient-to-br from-blue-50 to-blue-100`
+  (~8992) — the GRADIENT classes aren't remapped (only plain bg-blue-50/100 are), and the Active bar's `mb-4` gap shows it.
+  ALSO FOUND (same class, not yet seen by Ron): hard-coded light boxes in the Auto-Organize Preview (`#f1f3f5`, `#fafafa`,
+  `#e5e7eb` ~12009/12018/12046), and likely more.
+  DO: a COMB, not two spot fixes — grep every hard-coded light color in JSX (inline `background: '#…'` / light
+  `linear-gradient`, `from-*/to-*` gradient classes, unmapped Tailwind colors) and move each onto the theme (CSS
+  variables like `var(--bg-surface)`, or add the class to the dark remap). Check each in Dark after. MECHANISM idea:
+  add a "no hard-coded light backgrounds in JSX" check to scripts/check-names.js's sibling tooling so new ones get
+  flagged at commit time.
+
 - [ ] **AO / Preview / hover tooltip disappears when you move onto it (Ron 2026-09-30, UX polish)** — FOLDED INTO
   the overlay branch's `bookTooltip` step (Ron 2026-10-06): build ONE shared hover popup for the right pane + Preview.
   WHAT YOU SEE: open Auto-Organize → **Preview**, hover a book cover — a little popup appears listing where that
