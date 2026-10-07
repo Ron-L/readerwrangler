@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.62";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.63";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -656,7 +656,7 @@
             // regression). That handler was deleted in 7.18.0-alpha.44 (all its menus are <Popover>s, which use
             // ref.contains); grep showed no other consumer. The class is kept — harmless, and position is fixed.
             return (
-                <div ref={setRefs} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
+                <div ref={setRefs} className={`fixed rw-popup ${className || ''}`} role={role} aria-label={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu} onMouseDown={onMouseDown}
                     style={{ position: 'fixed', left: coords.left, top: coords.top, width: 'max-content', ...style }}>
                     {children}
