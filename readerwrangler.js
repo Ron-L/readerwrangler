@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.59";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.60";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -823,6 +823,7 @@
             const [inputValue, setInputValue] = useState(value);
             const [historyOpen, setHistoryOpen] = useState(false);
             const [historyIndex, setHistoryIndex] = useState(-1);
+            const boxRef = useRef(null); // v7.18.0-alpha.60 - the search box: anchor of the recents <Popover kind="list">
             const debounceRef = useRef(null);
             const lastSentRef = useRef(value); // Track what we last sent to parent
 
@@ -855,18 +856,13 @@
                 ? recents.filter(r => `${r.text} ${r.label}`.toLowerCase().includes(inputValue.toLowerCase()))
                 : recents;
 
-            // Click-outside to close recents dropdown
-            useEffect(() => {
-                if (!historyOpen) return;
-                const handler = (e) => {
-                    if (!e.target.closest('[data-search-history-dropdown]')) setHistoryOpen(false);
-                };
-                document.addEventListener('mousedown', handler);
-                return () => document.removeEventListener('mousedown', handler);
-            }, [historyOpen]);
+            // v7.18.0-alpha.60 - the recents list is a <Popover kind="list"> (below): outside click / focus leaving the box
+            // close it via the overlay system; its hand-rolled click-outside listener was removed. The box's own
+            // Down/Up/Enter/Esc handling (onKeyDown below) is unchanged — the model for the Series-list arrow-key TODO.
+            const closeHistory = () => { setHistoryOpen(false); setHistoryIndex(-1); };
 
             return (
-                <div style={{ position: 'relative', flex: '0 0 300px' }} data-search-history-dropdown="">
+                <div ref={boxRef} style={{ position: 'relative', flex: '0 0 300px' }}>
                     <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '14px' }}>🔍</span>
                     <input
                         type="text"
@@ -924,8 +920,10 @@
                         >×</button>
                     )}
                     {historyOpen && visibleRecents.length > 0 && (
-                        <div style={{
-                            position: 'absolute', top: '32px', left: 0, right: 0,
+                        <Popover kind="list" anchorRef={boxRef} matchAnchorWidth onClose={closeHistory}
+                            role="listbox" ariaLabel="Recent searches"
+                            style={{
+                            marginTop: '4px',
                             background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)',
                             borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                             zIndex: 1000, maxHeight: '240px', overflowY: 'auto'
@@ -968,7 +966,7 @@
                                 onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
                                 onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                             >Clear recents</div>
-                        </div>
+                        </Popover>
                     )}
                 </div>
             );
@@ -1268,6 +1266,7 @@
             const toastHistoryBtnRef = useRef(null); // v7.18.0-alpha.40 - anchor for the toast-history <Popover>
             const folderSortBtnRef = useRef(null); // v7.18.0-alpha.44 - anchor for the FOLDERS-header sort <Popover>
             const folderSortPickerBtnRef = useRef(null); // v7.18.0-alpha.44 - anchor for the right-pane "Sort:" folder picker <Popover>
+            const sortPickerBtnRef = useRef(null); // v7.18.0-alpha.60 - anchor for the right-pane "Sort:" BOOK picker <Popover>
             // v5.5.4-alpha.23 - Drag virtualization refs (hide off-screen rows during drag)
             const dragVirtScrollRef = useRef(null);    // Scroll container element
             const dragVirtContainerRef = useRef(null);  // tbody (list) or grid div
@@ -4677,41 +4676,10 @@
             // FOLDERS_KEY's writer was the last unguarded mount-stamper of the Book-List-killer class —
             // and the double store was the fog behind the folder-order scrambler diagnosis.
 
-            // v5.0.0-alpha.175.2 - Close menus on outside click, close dialogs on ESC
-            // v5.0.0-alpha.175.4 - Extended to close filter dropdowns
-            // v5.0.0-alpha.175.40 - Extended to close More panel
-            useEffect(() => {
-                const handleClickOutside = (e) => {
-                    // (v7.18.0-alpha.58/59 - File/View/Help, Read Status / Tags / Ownership, the More panel and its five
-                    // dropdowns are <Popover>s now; their branches here were removed. Only the sort picker remains → alpha.60.)
-                    // v7.18.0-alpha.54 - the two Series type-ahead lists (book edit + Bulk Edit) close themselves now
-                    // (<Popover kind="list">); their branches here were removed.
-                    // v5.4.9 - Search history dropdown now handled by SearchInput component
-                    // v5.5.0 - Close sort picker dropdown
-                    if (sortPickerOpen && !e.target.closest('[data-sort-picker]')) {
-                        setSortPickerOpen(false);
-                    }
-                };
-
-                const handleEscKey = (e) => {
-                    if (e.key === 'Escape') {
-                        // v7.18.0 - a registry overlay (<Dialog>/<Popover>) is topmost → its Esc is owned by
-                        // the overlay listener; defer entirely (About/Shortcuts/HowTo migrated to <Dialog>).
-                        if (overlayRegistry.topLayer()) return;
-                        // (v7.18.0-alpha.58/59 - the menu bar, filter-bar dropdowns and More panel close via the overlay registry now.)
-                        // v5.4.9 - Search history dropdown now handled by SearchInput component
-                        setSortPickerOpen(false); // v5.5.0 - Close sort picker dropdown
-                    }
-                };
-
-                document.addEventListener('mousedown', handleClickOutside);
-                document.addEventListener('keydown', handleEscKey);
-
-                return () => {
-                    document.removeEventListener('mousedown', handleClickOutside);
-                    document.removeEventListener('keydown', handleEscKey);
-                };
-            }, [sortPickerOpen]); // v7.18.0-alpha.59 - only the sort picker still uses these page-wide handlers (→ alpha.60)
+            // v7.18.0-alpha.60 - DELETED: the page-wide outside-click + Esc handlers (v5.0.0-alpha.175.2 →) that hand-closed
+            // the menu bar, the filter dropdowns, the More panel, the Series lists and the sort picker by `data-*` attribute.
+            // Every one of those is a <Popover> now (Esc + light-dismiss via the overlay registry). Nothing hand-closes
+            // a popup any more, except the imperative confirm-style dialogs (own Esc until they migrate).
 
             // v5.0.0-alpha.100 - Restore per-folder sort when folder changes
             useEffect(() => {
@@ -9461,7 +9429,7 @@
                         {/* v5.0.0-alpha.175.4 - Toolbar Tier 1 Filters */}
 
                         {/* Status Filter */}
-                        <div style={{ position: 'relative' }} data-status-dropdown="">
+                        <div style={{ position: 'relative' }}>
                             <button ref={filterBtnRefs.status} data-popover-group="filterbar"
                                 onClick={() => { setStatusDropdownOpen(!statusDropdownOpen); setTagsDropdownOpen(false); setTypesDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by read status"
@@ -9554,7 +9522,7 @@
                         </div>
 
                         {/* Tags Filter */}
-                        <div style={{ position: 'relative' }} data-tags-dropdown="">
+                        <div style={{ position: 'relative' }}>
                             <button ref={filterBtnRefs.tags} data-popover-group="filterbar"
                                 onClick={() => { setTagsDropdownOpen(!tagsDropdownOpen); setStatusDropdownOpen(false); setTypesDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by tags"
@@ -9696,7 +9664,7 @@
                         </div>
 
                         {/* Types Filter */}
-                        <div style={{ position: 'relative' }} data-types-dropdown="">
+                        <div style={{ position: 'relative' }}>
                             <button ref={filterBtnRefs.types} data-popover-group="filterbar"
                                 onClick={() => { setTypesDropdownOpen(!typesDropdownOpen); setStatusDropdownOpen(false); setTagsDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by ownership type"
@@ -10022,7 +9990,7 @@
                                 gap: '16px'
                             }}>
                                 {/* v5.0.0-alpha.175.41 - Phase 5.2: Collections Filter */}
-                                <div style={{ position: 'relative' }} data-collections-dropdown="">
+                                <div style={{ position: 'relative' }}>
                                     <button ref={filterBtnRefs.collections} data-popover-group="morepanel"
                                         onClick={() => { setCollectionsDropdownOpen(!collectionsDropdownOpen); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         aria-expanded={collectionsDropdownOpen} aria-haspopup="listbox"
@@ -10121,7 +10089,7 @@
                                 </div>
 
                                 {/* v5.0.0-alpha.175.42 - Phase 5.3: Amazon Rating Filter */}
-                                <div style={{ position: 'relative' }} data-amazon-rating-dropdown="">
+                                <div style={{ position: 'relative' }}>
                                     <button ref={filterBtnRefs.amazonRating} data-popover-group="morepanel"
                                         onClick={() => { setAmazonRatingDropdownOpen(!amazonRatingDropdownOpen); setCollectionsDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by Amazon rating"
@@ -10168,7 +10136,7 @@
                                 </div>
 
                                 {/* v5.0.0-alpha.175.43 - Phase 5.4: My Rating Filter */}
-                                <div style={{ position: 'relative' }} data-my-rating-dropdown="">
+                                <div style={{ position: 'relative' }}>
                                     <button ref={filterBtnRefs.myRating} data-popover-group="morepanel"
                                         onClick={() => { setMyRatingDropdownOpen(!myRatingDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by your rating"
@@ -10233,7 +10201,7 @@
                                 </div>
 
                                 {/* v5.0.0-alpha.175.44 - Phase 5.5: Series Filter (column 1, row 2) */}
-                                <div style={{ position: 'relative' }} data-series-dropdown="">
+                                <div style={{ position: 'relative' }}>
                                     <button ref={filterBtnRefs.series} data-popover-group="morepanel"
                                         onClick={() => { setSeriesDropdownOpen(!seriesDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by series"
@@ -10329,7 +10297,7 @@
                                 </div>
 
                                 {/* v5.0.0-alpha.175.45 - Phase 5.6: Date Filter (spans columns 2-3, row 2) */}
-                                <div style={{ position: 'relative', gridColumn: '2 / 4' }} data-date-dropdown="">
+                                <div style={{ position: 'relative', gridColumn: '2 / 4' }}>
                                     <button ref={filterBtnRefs.date} data-popover-group="morepanel"
                                         onClick={() => { setDateDropdownOpen(!dateDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); }}
                                         aria-expanded={dateDropdownOpen} aria-haspopup="listbox"
@@ -15566,7 +15534,7 @@
                                                     full-size direction triangle flips (the tiny gray caret runt is gone). */}
                                                 <span className="flex items-center" style={{ fontSize: '13px' }}>
                                                     <button
-                                                        ref={folderSortPickerBtnRef}
+                                                        ref={folderSortPickerBtnRef} data-popover-group="rightpane-toolbar"
                                                         onClick={() => setFolderSortPickerOpen(o => !o)}
                                                         className="flex items-center gap-1 hover:bg-gray-100 rounded px-1 py-0.5"
                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}
@@ -15587,7 +15555,7 @@
                                                 </span>
                                                 {/* v7.18.0-alpha.44 - anchored <Popover> menu (was a scrim + absolute panel; had no Esc) */}
                                                 {folderSortPickerOpen && (
-                                                    <Popover anchorRef={folderSortPickerBtnRef}
+                                                    <Popover anchorRef={folderSortPickerBtnRef} group="rightpane-toolbar"
                                                         onClose={() => setFolderSortPickerOpen(false)}
                                                         role="menu" ariaLabel="Folder sort"
                                                         className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] min-w-[170px]">
@@ -15617,8 +15585,8 @@
                                         )}
                                         {/* Sort status display with picker dropdown (v5.5.0) */}
                                         {/* v6.12.0-alpha.75 - Hide the book-sort picker in the Folders view; folders sort via the ⇅ header control + Name column (folderListSort). The book picker's columns don't apply to folders and it desynced from those. */}
-                                        <div className={`flex items-center gap-1 border-l pl-4 text-sm ${selectedFolderId === '__library__' ? 'hidden' : ''}`} style={{ position: 'relative' }} data-sort-picker="">
-                                            <button
+                                        <div className={`flex items-center gap-1 border-l pl-4 text-sm ${selectedFolderId === '__library__' ? 'hidden' : ''}`} style={{ position: 'relative' }}>
+                                            <button ref={sortPickerBtnRef} data-popover-group="rightpane-toolbar"
                                                 onClick={() => setSortPickerOpen(!sortPickerOpen)}
                                                 className="flex items-center gap-1 hover:bg-gray-100 rounded px-1 py-0.5 -mx-1"
                                                 style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '13px' }}
@@ -15676,9 +15644,12 @@
                                                         key: c.sortKey, label: c.label, defaultDir: c.defaultDir
                                                     }))
                                                 ];
+                                                // v7.18.0-alpha.60 - anchored <Popover> in the "rightpane-toolbar" sibling group (with ⚙ Show
+                                                // Columns and the Library view's folder "Sort:" picker)
                                                 return (
-                                                    <div style={{
-                                                        position: 'absolute', top: '28px', left: 0,
+                                                    <Popover anchorRef={sortPickerBtnRef} group="rightpane-toolbar" onClose={() => setSortPickerOpen(false)}
+                                                        role="menu" ariaLabel="Sort" style={{
+                                                        marginTop: '4px',
                                                         background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)',
                                                         borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                                                         zIndex: 1000, minWidth: '180px', whiteSpace: 'nowrap'
@@ -15743,7 +15714,7 @@
                                                         <div style={{ borderTop: '1px solid var(--border-default)', padding: '5px 12px', fontSize: '11px', color: 'var(--text-muted)' }}>
                                                             Shift+click for secondary sort
                                                         </div>
-                                                    </div>
+                                                    </Popover>
                                                 );
                                             })()}
                                         </div>
@@ -15810,7 +15781,7 @@
                                         {explorerView === 'list' && (
                                             <div className="relative ml-4">
                                                 <button
-                                                    ref={columnChooserBtnRef}
+                                                    ref={columnChooserBtnRef} data-popover-group="rightpane-toolbar"
                                                     onClick={() => {
                                                         if (explorerColumnMenuOpen) { closeColumnChooser(); return; }
                                                         setExplorerColumnMenuPos(null); // gear = anchored mode (no cursor point)
@@ -15824,7 +15795,7 @@
                                                     anchored under the gear, right-aligned (as before); from a column-header right-click it
                                                     opens at the cursor (measured, no size guess). Esc / outside-click via the registry. */}
                                                 {explorerColumnMenuOpen && (
-                                                    <Popover onClose={closeColumnChooser} key={explorerColumnMenuPos ? 'at-cursor' : 'at-gear'}
+                                                    <Popover onClose={closeColumnChooser} key={explorerColumnMenuPos ? 'at-cursor' : 'at-gear'} group="rightpane-toolbar"
                                                         {...(explorerColumnMenuPos
                                                             ? { x: explorerColumnMenuPos.x, y: explorerColumnMenuPos.y }
                                                             : { anchorRef: columnChooserBtnRef, anchorAlign: 'end' })}
