@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.58";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.59";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -985,6 +985,10 @@
             // v5.0.0-alpha.175.1 - Menu bar state
             const [openMenuBar, setOpenMenuBar] = useState(null); // 'file' | 'view' | 'help' | null
             const menuBarRefs = { file: useRef(null), view: useRef(null), help: useRef(null) }; // v7.18.0-alpha.58 - title anchors for the menu-bar <Popover>s
+            // v7.18.0-alpha.59 - button anchors for the filter-bar <Popover>s ("filterbar" siblings) and the dropdowns
+            // inside the More panel ("morepanel" siblings).
+            const filterBtnRefs = { status: useRef(null), tags: useRef(null), types: useRef(null), more: useRef(null),
+                collections: useRef(null), amazonRating: useRef(null), myRating: useRef(null), series: useRef(null), date: useRef(null) };
             const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
             const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
             const [howToDialogOpen, setHowToDialogOpen] = useState(false);
@@ -4678,41 +4682,8 @@
             // v5.0.0-alpha.175.40 - Extended to close More panel
             useEffect(() => {
                 const handleClickOutside = (e) => {
-                    // (v7.18.0-alpha.58 - File/View/Help are <Popover>s now; their branch here was removed.)
-                    // Close filter dropdowns if clicking outside
-                    if (statusDropdownOpen && !e.target.closest('[data-status-dropdown]')) {
-                        setStatusDropdownOpen(false);
-                    }
-                    if (tagsDropdownOpen && !e.target.closest('[data-tags-dropdown]')) {
-                        setTagsDropdownOpen(false);
-                    }
-                    if (typesDropdownOpen && !e.target.closest('[data-types-dropdown]')) {
-                        setTypesDropdownOpen(false);
-                    }
-                    // Close More panel if clicking outside (v5.0.0-alpha.175.47.2 - Fixed to close when clicking Tier 1 filters)
-                    if (morePanelOpen && !e.target.closest('[data-morepanel]')) {
-                        setMorePanelOpen(false);
-                    }
-                    // v5.0.0-alpha.175.41 - Phase 5.2: Close Collections dropdown
-                    if (collectionsDropdownOpen && !e.target.closest('[data-collections-dropdown]')) {
-                        setCollectionsDropdownOpen(false);
-                    }
-                    // v5.0.0-alpha.175.42 - Phase 5.3: Close Amazon Rating dropdown
-                    if (amazonRatingDropdownOpen && !e.target.closest('[data-amazon-rating-dropdown]')) {
-                        setAmazonRatingDropdownOpen(false);
-                    }
-                    // v5.0.0-alpha.175.43 - Phase 5.4: Close My Rating dropdown
-                    if (myRatingDropdownOpen && !e.target.closest('[data-my-rating-dropdown]')) {
-                        setMyRatingDropdownOpen(false);
-                    }
-                    // v5.0.0-alpha.175.44 - Phase 5.5: Close Series dropdown
-                    if (seriesDropdownOpen && !e.target.closest('[data-series-dropdown]')) {
-                        setSeriesDropdownOpen(false);
-                    }
-                    // v5.0.0-alpha.175.45 - Phase 5.6: Close Date dropdown
-                    if (dateDropdownOpen && !e.target.closest('[data-date-dropdown]')) {
-                        setDateDropdownOpen(false);
-                    }
+                    // (v7.18.0-alpha.58/59 - File/View/Help, Read Status / Tags / Ownership, the More panel and its five
+                    // dropdowns are <Popover>s now; their branches here were removed. Only the sort picker remains → alpha.60.)
                     // v7.18.0-alpha.54 - the two Series type-ahead lists (book edit + Bulk Edit) close themselves now
                     // (<Popover kind="list">); their branches here were removed.
                     // v5.4.9 - Search history dropdown now handled by SearchInput component
@@ -4727,15 +4698,7 @@
                         // v7.18.0 - a registry overlay (<Dialog>/<Popover>) is topmost → its Esc is owned by
                         // the overlay listener; defer entirely (About/Shortcuts/HowTo migrated to <Dialog>).
                         if (overlayRegistry.topLayer()) return;
-                        setStatusDropdownOpen(false);
-                        setTagsDropdownOpen(false);
-                        setTypesDropdownOpen(false);
-                        setMorePanelOpen(false);
-                        setCollectionsDropdownOpen(false);
-                        setAmazonRatingDropdownOpen(false); // v5.0.0-alpha.175.42 - Phase 5.3: Close Amazon Rating dropdown
-                        setMyRatingDropdownOpen(false); // v5.0.0-alpha.175.43 - Phase 5.4: Close My Rating dropdown
-                        setSeriesDropdownOpen(false); // v5.0.0-alpha.175.44 - Phase 5.5: Close Series dropdown
-                        setDateDropdownOpen(false); // v5.0.0-alpha.175.45 - Phase 5.6: Close Date dropdown
+                        // (v7.18.0-alpha.58/59 - the menu bar, filter-bar dropdowns and More panel close via the overlay registry now.)
                         // v5.4.9 - Search history dropdown now handled by SearchInput component
                         setSortPickerOpen(false); // v5.5.0 - Close sort picker dropdown
                     }
@@ -4748,7 +4711,7 @@
                     document.removeEventListener('mousedown', handleClickOutside);
                     document.removeEventListener('keydown', handleEscKey);
                 };
-            }, [statusDropdownOpen, tagsDropdownOpen, typesDropdownOpen, morePanelOpen, collectionsDropdownOpen, amazonRatingDropdownOpen, myRatingDropdownOpen, seriesDropdownOpen, dateDropdownOpen, sortPickerOpen]);
+            }, [sortPickerOpen]); // v7.18.0-alpha.59 - only the sort picker still uses these page-wide handlers (→ alpha.60)
 
             // v5.0.0-alpha.100 - Restore per-folder sort when folder changes
             useEffect(() => {
@@ -9499,7 +9462,7 @@
 
                         {/* Status Filter */}
                         <div style={{ position: 'relative' }} data-status-dropdown="">
-                            <button
+                            <button ref={filterBtnRefs.status} data-popover-group="filterbar"
                                 onClick={() => { setStatusDropdownOpen(!statusDropdownOpen); setTagsDropdownOpen(false); setTypesDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by read status"
                                 aria-expanded={statusDropdownOpen} aria-haspopup="listbox"
@@ -9522,11 +9485,11 @@
                                 {readStatusFilter === 'UNKNOWN' && '? Unknown'}
                                 {!readStatusFilter && 'Read Status'}
                             </button>
+                            {/* v7.18.0-alpha.59 - filter-bar dropdowns are anchored <Popover>s in the "filterbar" sibling group */}
                             {statusDropdownOpen && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '32px',
-                                    left: 0,
+                                <Popover anchorRef={filterBtnRefs.status} group="filterbar" onClose={() => setStatusDropdownOpen(false)}
+                                    role="menu" ariaLabel="Read Status" style={{
+                                    marginTop: '4px',
                                     background: 'var(--bg-elevated)',
                                     border: '1px solid var(--border-strong)',
                                     borderRadius: '4px',
@@ -9586,13 +9549,13 @@
                                     >
                                         ? Unknown
                                     </div>
-                                </div>
+                                </Popover>
                             )}
                         </div>
 
                         {/* Tags Filter */}
                         <div style={{ position: 'relative' }} data-tags-dropdown="">
-                            <button
+                            <button ref={filterBtnRefs.tags} data-popover-group="filterbar"
                                 onClick={() => { setTagsDropdownOpen(!tagsDropdownOpen); setStatusDropdownOpen(false); setTypesDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by tags"
                                 aria-expanded={tagsDropdownOpen} aria-haspopup="listbox"
@@ -9613,10 +9576,9 @@
                                 {tagFilter.length > 0 ? `Tags (${tagFilter.length})` : 'Tags'}
                             </button>
                             {tagsDropdownOpen && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '32px',
-                                    left: 0,
+                                <Popover anchorRef={filterBtnRefs.tags} group="filterbar" onClose={() => setTagsDropdownOpen(false)}
+                                    role="menu" ariaLabel="Tags" style={{
+                                    marginTop: '4px',
                                     background: 'var(--bg-elevated)',
                                     border: '1px solid var(--border-strong)',
                                     borderRadius: '4px',
@@ -9729,13 +9691,13 @@
                                             </div>
                                         </>
                                     )}
-                                </div>
+                                </Popover>
                             )}
                         </div>
 
                         {/* Types Filter */}
                         <div style={{ position: 'relative' }} data-types-dropdown="">
-                            <button
+                            <button ref={filterBtnRefs.types} data-popover-group="filterbar"
                                 onClick={() => { setTypesDropdownOpen(!typesDropdownOpen); setStatusDropdownOpen(false); setTagsDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by ownership type"
                                 aria-expanded={typesDropdownOpen} aria-haspopup="listbox"
@@ -9774,10 +9736,9 @@
                                 }
                             </button>
                             {typesDropdownOpen && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '32px',
-                                    left: 0,
+                                <Popover anchorRef={filterBtnRefs.types} group="filterbar" onClose={() => setTypesDropdownOpen(false)}
+                                    role="menu" ariaLabel="Ownership" style={{
+                                    marginTop: '4px',
                                     background: 'var(--bg-elevated)',
                                     border: '1px solid var(--border-strong)',
                                     borderRadius: '4px',
@@ -9827,13 +9788,12 @@
                                             {type.label}
                                         </div>
                                     ))}
-                                </div>
+                                </Popover>
                             )}
                         </div>
 
                         {/* v5.0.0-alpha.175.40 - Phase 5.1: More button */}
-                        <button
-                            data-morepanel="true"
+                        <button ref={filterBtnRefs.more} data-popover-group="filterbar"
                             onClick={() => { setMorePanelOpen(!morePanelOpen); setStatusDropdownOpen(false); setTagsDropdownOpen(false); setTypesDropdownOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                             title={morePanelOpen ? 'Hide additional filters' : 'Show additional filters'}
                             aria-expanded={morePanelOpen}
@@ -10038,13 +9998,16 @@
                     </div>
 
                     {/* v5.0.0-alpha.175.40 - Phase 5.1: More panel (Tier 2 filters) */}
+                    {/* v7.18.0-alpha.59 - the More filters PANEL is a fencing <Popover kind="popover"> anchored under the
+                        More ▼ button (was pinned to the page's left edge under the toolbar); a "filterbar" sibling, so a
+                        click on Read Status / Tags / Ownership switches straight to that dropdown. Its five dropdowns are
+                        Popovers layered above it. */}
                     {morePanelOpen && (
-                        <div
-                            data-morepanel="true"
+                        <Popover anchorRef={filterBtnRefs.more} group="filterbar" kind="popover" fence
+                            onClose={() => setMorePanelOpen(false)}
+                            role="dialog" ariaLabel="More filters"
                             style={{
-                                position: 'absolute',
-                                top: '64px',  // Below toolbar (32px menu + 36px toolbar - 4px overlap)
-                                left: '16px',
+                                marginTop: '4px',
                                 minWidth: '500px',
                                 background: 'var(--bg-elevated)',
                                 border: '1px solid var(--border-strong)',
@@ -10060,7 +10023,7 @@
                             }}>
                                 {/* v5.0.0-alpha.175.41 - Phase 5.2: Collections Filter */}
                                 <div style={{ position: 'relative' }} data-collections-dropdown="">
-                                    <button
+                                    <button ref={filterBtnRefs.collections} data-popover-group="morepanel"
                                         onClick={() => { setCollectionsDropdownOpen(!collectionsDropdownOpen); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         aria-expanded={collectionsDropdownOpen} aria-haspopup="listbox"
                                         title={"Filter by Kindle Collection.\nThese come from Amazon and can't be edited here.\nUse File › Tag from Collections to convert them into editable tags."}
@@ -10077,13 +10040,13 @@
                                         <span>{collectionsDropdownOpen ? '▲' : '▼'}</span>
                                     </button>
 
+                                    {/* v7.18.0-alpha.59 - dropdowns INSIDE the More panel: anchored <Popover>s in the "morepanel"
+                                        sibling group, layered above the panel (Esc / outside-click close the innermost first) */}
                                     {collectionsDropdownOpen && (
-                                        <div
-                                            data-morepanel="true"
+                                        <Popover anchorRef={filterBtnRefs.collections} group="morepanel" onClose={() => setCollectionsDropdownOpen(false)}
+                                            role="menu" ariaLabel="Collections"
                                             style={{
-                                                position: 'absolute',
-                                                top: '32px',
-                                                left: 0,
+                                                marginTop: '4px',
                                                 minWidth: '200px',
                                                 maxHeight: '300px',
                                                 overflowY: 'auto',
@@ -10153,13 +10116,13 @@
                                                     {collection}
                                                 </label>
                                             ))}
-                                        </div>
+                                        </Popover>
                                     )}
                                 </div>
 
                                 {/* v5.0.0-alpha.175.42 - Phase 5.3: Amazon Rating Filter */}
                                 <div style={{ position: 'relative' }} data-amazon-rating-dropdown="">
-                                    <button
+                                    <button ref={filterBtnRefs.amazonRating} data-popover-group="morepanel"
                                         onClick={() => { setAmazonRatingDropdownOpen(!amazonRatingDropdownOpen); setCollectionsDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by Amazon rating"
                                         aria-expanded={amazonRatingDropdownOpen} aria-haspopup="listbox"
@@ -10176,12 +10139,10 @@
                                     </button>
 
                                     {amazonRatingDropdownOpen && (
-                                        <div
-                                            data-morepanel="true"
+                                        <Popover anchorRef={filterBtnRefs.amazonRating} group="morepanel" onClose={() => setAmazonRatingDropdownOpen(false)}
+                                            role="menu" ariaLabel="Amazon Rating"
                                             style={{
-                                                position: 'absolute',
-                                                top: '32px',
-                                                left: 0,
+                                                marginTop: '4px',
                                                 minWidth: '160px',
                                                 background: 'var(--bg-elevated)',
                                                 border: '1px solid var(--border-strong)',
@@ -10202,13 +10163,13 @@
                                                     {rating ? `${rating}+ Stars` : 'All Ratings'}
                                                 </button>
                                             ))}
-                                        </div>
+                                        </Popover>
                                     )}
                                 </div>
 
                                 {/* v5.0.0-alpha.175.43 - Phase 5.4: My Rating Filter */}
                                 <div style={{ position: 'relative' }} data-my-rating-dropdown="">
-                                    <button
+                                    <button ref={filterBtnRefs.myRating} data-popover-group="morepanel"
                                         onClick={() => { setMyRatingDropdownOpen(!myRatingDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by your rating"
                                         aria-expanded={myRatingDropdownOpen} aria-haspopup="listbox"
@@ -10225,12 +10186,10 @@
                                     </button>
 
                                     {myRatingDropdownOpen && (
-                                        <div
-                                            data-morepanel="true"
+                                        <Popover anchorRef={filterBtnRefs.myRating} group="morepanel" onClose={() => setMyRatingDropdownOpen(false)}
+                                            role="menu" ariaLabel="My Rating"
                                             style={{
-                                                position: 'absolute',
-                                                top: '32px',
-                                                left: 0,
+                                                marginTop: '4px',
                                                 minWidth: '160px',
                                                 background: 'var(--bg-elevated)',
                                                 border: '1px solid var(--border-strong)',
@@ -10269,13 +10228,13 @@
                                                 style={{ fontSize: '13px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
                                                 Unrated
                                             </button>
-                                        </div>
+                                        </Popover>
                                     )}
                                 </div>
 
                                 {/* v5.0.0-alpha.175.44 - Phase 5.5: Series Filter (column 1, row 2) */}
                                 <div style={{ position: 'relative' }} data-series-dropdown="">
-                                    <button
+                                    <button ref={filterBtnRefs.series} data-popover-group="morepanel"
                                         onClick={() => { setSeriesDropdownOpen(!seriesDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by series"
                                         aria-expanded={seriesDropdownOpen} aria-haspopup="listbox"
@@ -10292,12 +10251,10 @@
                                     </button>
 
                                     {seriesDropdownOpen && (
-                                        <div
-                                            data-morepanel="true"
+                                        <Popover anchorRef={filterBtnRefs.series} group="morepanel" onClose={() => setSeriesDropdownOpen(false)}
+                                            role="menu" ariaLabel="Series"
                                             style={{
-                                                position: 'absolute',
-                                                top: '32px',
-                                                left: 0,
+                                                marginTop: '4px',
                                                 minWidth: '250px',
                                                 maxHeight: '300px',
                                                 overflowY: 'auto',
@@ -10367,13 +10324,13 @@
                                                     {series}
                                                 </label>
                                             ))}
-                                        </div>
+                                        </Popover>
                                     )}
                                 </div>
 
                                 {/* v5.0.0-alpha.175.45 - Phase 5.6: Date Filter (spans columns 2-3, row 2) */}
                                 <div style={{ position: 'relative', gridColumn: '2 / 4' }} data-date-dropdown="">
-                                    <button
+                                    <button ref={filterBtnRefs.date} data-popover-group="morepanel"
                                         onClick={() => { setDateDropdownOpen(!dateDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); }}
                                         aria-expanded={dateDropdownOpen} aria-haspopup="listbox"
                                         title="Filter by date book was added to your Amazon library"
@@ -10399,13 +10356,10 @@
                                     </button>
 
                                     {dateDropdownOpen && (
-                                        <div
-                                            data-morepanel="true"
+                                        <Popover anchorRef={filterBtnRefs.date} group="morepanel" matchAnchorWidth onClose={() => setDateDropdownOpen(false)}
+                                            role="dialog" ariaLabel="Date Added"
                                             style={{
-                                                position: 'absolute',
-                                                top: '32px',
-                                                left: 0,
-                                                right: 0,
+                                                marginTop: '4px',
                                                 background: 'var(--bg-elevated)',
                                                 border: '1px solid var(--border-strong)',
                                                 borderRadius: '4px',
@@ -10500,11 +10454,11 @@
                                                     </div>
                                                 </div>
                                             )}
-                                        </div>
+                                        </Popover>
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        </Popover>
                     )}
 
                     {/* v5.0.0-alpha.175.47 - Phase 7: Old filter panel removed (replaced by toolbar in Phases 3-6) */}
