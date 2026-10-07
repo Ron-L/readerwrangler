@@ -157,6 +157,18 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   clip its own fly-outs (CursorPopup's "never add overflow" rule). The filter box stays a useful extra. Deferred by Ron
   2026-10-06 (wait in TODO).
 
+- [ ] **"⭐ Add Bibliography to Wishlist" button is greyed out on an author's "All Books" tab (Ron 2026-10-07)**.
+  WHAT YOU SEE: on Amazon, click an author's name (e.g. John Marrs), open the author page's **All Books** tab, filter
+  English + Kindle, then click the ReaderWrangler bookmarklet — the "⭐ Add Bibliography to Wishlist" button is
+  disabled. Example URL: `https://www.amazon.com/stores/author/B00F1CRG9U/allbooks?…`.
+  LIKELY CAUSE (verified in code, not yet live-tested): the nav hub's author-page check
+  (bookmarklet-nav-hub.js ~68: `/\/stores\/[^/]+\/author\/[A-Z0-9]{10}/i`) requires an author-NAME segment —
+  `/stores/John-Marrs/author/B00F1CRG9U` — but the All Books tab uses `/stores/author/B00F1CRG9U/allbooks` (no name
+  segment, extra `/allbooks`), so the page isn't recognized. DO: accept both URL shapes (name segment optional), then
+  TEST the bibliography fetcher itself on the All Books page — its page structure may differ from the author home
+  page, and the English/Kindle filters Ron applies may change what's on screen. Fetcher/nav-hub change → bump their
+  versions; DEV bookmarklet first (navigator change), then PROD.
+
 - [ ] **Dark theme: unreadable "New library data available" bar + light strips around the filter area (Ron 2026-10-07)**.
   WHAT YOU SEE (View → Theme → Dark): (1) the bar under the menu bar reading "📡 New library data available (uploaded …)"
   keeps its LIGHT blue/purple background while its text turns near-white — unreadable; (2) a light strip shows under
