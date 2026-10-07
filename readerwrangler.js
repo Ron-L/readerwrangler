@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.64";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.65";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -10211,8 +10211,10 @@
                                     )}
                                 </div>
 
-                                {/* v5.0.0-alpha.175.44 - Phase 5.5: Series Filter (column 1, row 2) */}
-                                <div style={{ position: 'relative' }}>
+                                {/* v5.0.0-alpha.175.44 - Phase 5.5: Series Filter (row 2). v7.18.0-alpha.65 - spans columns 1–2: series
+                                    names are long (its list sizes to them), while Date Added's From/To fields stack and need only one
+                                    column (Ron + UX pass, 2026-10-07). */}
+                                <div style={{ position: 'relative', gridColumn: '1 / 3' }}>
                                     <button ref={filterBtnRefs.series} data-popover-trigger
                                         onClick={() => { setSeriesDropdownOpen(!seriesDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by series"
@@ -10307,7 +10309,7 @@
                                 </div>
 
                                 {/* v5.0.0-alpha.175.45 - Phase 5.6: Date Filter (spans columns 2-3, row 2) */}
-                                <div style={{ position: 'relative', gridColumn: '2 / 4' }}>
+                                <div style={{ position: 'relative', gridColumn: '3 / 4' }}>{/* v7.18.0-alpha.65 - Date Added: column 3 (was 2–3) */}
                                     <button ref={filterBtnRefs.date} data-popover-trigger
                                         onClick={() => { setDateDropdownOpen(!dateDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); }}
                                         aria-expanded={dateDropdownOpen} aria-haspopup="listbox"
@@ -10334,7 +10336,7 @@
                                     </button>
 
                                     {dateDropdownOpen && (
-                                        <Popover anchorRef={filterBtnRefs.date} matchAnchorWidth onClose={() => setDateDropdownOpen(false)}
+                                        <Popover anchorRef={filterBtnRefs.date} onClose={() => setDateDropdownOpen(false)}
                                             role="dialog" ariaLabel="Date Added"
                                             style={{
                                                 marginTop: '4px',
