@@ -91,15 +91,18 @@ const isTopmostModal = (id) => {
 //   1. inside the popup itself                                → ignore
 //   2. LEFT-click on its own trigger button (the toggle owns it) → ignore                         (alpha.40/47)
 //   3. another overlay is above it, or a confirm-style dialog is up → ignore (that overlay owns it) (alpha.45)
-//   4. a SIBLING trigger (same group — menu bar, filter bar…)  → close, pass through: switch in one click (alpha.58)
+//   4. ANY other popup's trigger button (data-popover-trigger) → close, pass through: it opens in one click.
+//      (alpha.58 limited this to "siblings" in the same named group; alpha.61 broadened it — Ron: a click on a popup
+//      button is unmistakable intent and protects nothing by being eaten; group bookkeeping was easy to miss, e.g.
+//      "💾 … Save ▾" sits in a different row from the filter buttons yet reads as part of the same filter area.)
 //   5. right/middle-click anywhere                             → close, pass through               (alpha.41/47)
 //   6. a type-ahead 'list'                                     → close, pass through (click into the next field) (alpha.54)
 //   7. any other left-click                                    → close-swallow (protects your selection)        (alpha.41)
-const outsideClickAction = ({ insidePopup, onOwnTrigger, button, kind, isTopmost, imperativeUp, onSiblingTrigger }) => {
+const outsideClickAction = ({ insidePopup, onOwnTrigger, button, kind, isTopmost, imperativeUp, onPopupTrigger }) => {
     if (insidePopup) return 'ignore';
     if (onOwnTrigger && button === 0) return 'ignore';
     if (!isTopmost || imperativeUp) return 'ignore';
-    if (onSiblingTrigger) return 'close';
+    if (onPopupTrigger) return 'close';
     if (button !== 0) return 'close';
     if (kind === 'list') return 'close';
     return 'close-swallow';

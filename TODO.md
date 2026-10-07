@@ -157,6 +157,16 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   clip its own fly-outs (CursorPopup's "never add overflow" rule). The filter box stays a useful extra. Deferred by Ron
   2026-10-06 (wait in TODO).
 
+- [ ] **Removing a recent search (the × on a row) can't be undone and leaves no trace (Ron 2026-10-07)**.
+  WHAT YOU SEE: click into the search box so "Recent searches" appears, click the × on a row — it's gone instantly,
+  with no toast, no Undo, and nothing in the 🕐 message history. Deleting a SAVED Search (left pane → SEARCHES →
+  right-click → Delete Search) does confirm, toast and undo.
+  DECIDED (Ron + UX pass): give recents removal the same treatment MINUS the confirmation — remove immediately, show a
+  toast with Undo, record it in the 🕐 history (a recent is automatic history; "Are you sure?" per row would nag —
+  standard "Removed · Undo" pattern). Route it through the shared undo/toast operation path, not a one-off. Related:
+  memory notes "tag/search delete" was left off the shared undo system in the 6.13.1 operations refactor — check what
+  else is still outside it while there.
+
 - [ ] **"⭐ Add Bibliography to Wishlist" button is greyed out on an author's "All Books" tab (Ron 2026-10-07)**.
   WHAT YOU SEE: on Amazon, click an author's name (e.g. John Marrs), open the author page's **All Books** tab, filter
   English + Kindle, then click the ReaderWrangler bookmarklet — the "⭐ Add Bibliography to Wishlist" button is

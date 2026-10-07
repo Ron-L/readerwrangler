@@ -171,7 +171,7 @@ test('fence: a fencing popover above a modal does not unseat the modal as topmos
 });
 
 // --- outsideClickAction: the Popover outside-click policy, one case per earned rule ---
-const base = { insidePopup: false, onOwnTrigger: false, button: 0, kind: 'menu', isTopmost: true, imperativeUp: false, onSiblingTrigger: false };
+const base = { insidePopup: false, onOwnTrigger: false, button: 0, kind: 'menu', isTopmost: true, imperativeUp: false, onPopupTrigger: false };
 const act = (over) => reg.outsideClickAction({ ...base, ...over });
 
 test('outside-click: a click inside the popup is ignored', () => {
@@ -185,9 +185,14 @@ test('outside-click: not the topmost overlay, or a confirm dialog is up → igno
     assert.strictEqual(act({ isTopmost: false }), 'ignore');
     assert.strictEqual(act({ imperativeUp: true }), 'ignore', 'alpha.45: never eat a confirm dialog\'s OK');
 });
-test('outside-click: a SIBLING trigger closes and passes through (switch in one click)', () => {
-    assert.strictEqual(act({ onSiblingTrigger: true }), 'close');
-    assert.strictEqual(act({ onSiblingTrigger: true, isTopmost: false }), 'ignore', 'the topmost rule still wins');
+test('outside-click: ANY other popup button closes and passes through (it opens in one click)', () => {
+    assert.strictEqual(act({ onPopupTrigger: true }), 'close');
+    assert.strictEqual(act({ onPopupTrigger: true, kind: 'popover' }), 'close', 'a panel too (e.g. More)');
+    assert.strictEqual(act({ onPopupTrigger: true, isTopmost: false }), 'ignore', 'the topmost rule still wins');
+    assert.strictEqual(act({ onPopupTrigger: true, onOwnTrigger: true }), 'ignore', 'its OWN button is still the toggle');
+});
+test('outside-click: an ordinary left-click (a book, empty space) is still swallowed — selections stay protected', () => {
+    assert.strictEqual(act({}), 'close-swallow');
 });
 test('outside-click: right/middle-click anywhere closes and passes through', () => {
     assert.strictEqual(act({ button: 2 }), 'close');

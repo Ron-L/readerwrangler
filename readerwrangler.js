@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.60";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.61";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -604,7 +604,7 @@
         // anchorAlign (alpha.44): 'start' (default) = left edges aligned; 'end' = RIGHT edges aligned (a dropdown
         // whose trigger sits at the right of its header, e.g. the FOLDERS sort menu) — each falls back to the other
         // when it would leave the viewport.
-        function CursorPopup({ open, x, y, anchorRect, anchorAlign = 'start', className, style, role, ariaLabel, onClick, onContextMenu, children, margin = 8, innerRef }) {
+        function CursorPopup({ open, x, y, anchorRect, anchorAlign = 'start', className, style, role, ariaLabel, onClick, onContextMenu, onMouseDown, children, margin = 8, innerRef }) {
             const ref = useRef(null);
             // v7.18.0 - optional innerRef: the <Popover> primitive needs the positioned node to decide
             // outside-clicks (ref.contains). Mirror the measuring ref onto it via one callback ref.
@@ -657,7 +657,7 @@
             // ref.contains); grep showed no other consumer. The class is kept — harmless, and position is fixed.
             return (
                 <div ref={setRefs} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
-                    onClick={onClick} onContextMenu={onContextMenu}
+                    onClick={onClick} onContextMenu={onContextMenu} onMouseDown={onMouseDown}
                     style={{ position: 'fixed', left: coords.left, top: coords.top, width: 'max-content', ...style }}>
                     {children}
                 </div>
@@ -688,10 +688,11 @@
         //   matchAnchorWidth: the popup takes the anchor's width (a list under its field).
         //   Anchored popovers now FOLLOW their anchor: re-measured on any scroll (outside the popup itself) or resize,
         //   so a dropdown inside a scrolling dialog (book details: Share, Series) moves with its button/field.
-        // v7.18.0-alpha.58 - group: the popup's SIBLING group (menu bar, filter bar, a toolbar of dropdowns). Its trigger and
-        //   its siblings' triggers carry data-popover-group="<same name>"; a click on a sibling trigger closes this popup
-        //   WITHOUT swallowing the click, so the sibling opens in one click (Ron, 2026-10-07).
-        const Popover = ({ x, y, anchorRef, anchorAlign, matchAnchorWidth, group, fence, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
+        // v7.18.0-alpha.61 - every popup BUTTON carries `data-popover-trigger`. A click on ANY popup button while this popup is
+        //   open closes it WITHOUT swallowing the click, so that button's popup opens in one click (Ron, 2026-10-07 — this
+        //   replaced alpha.58's named sibling groups; see overlayRegistry.outsideClickAction rule 4). On a local dev server an
+        //   anchored popup whose button lacks the marker warns in the console, so a new button can't silently miss it.
+        const Popover = ({ x, y, anchorRef, anchorAlign, matchAnchorWidth, fence, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
             const ref = useRef(null);
             const closeRef = useRef(onClose);
             closeRef.current = onClose; // always dismiss via the LATEST onClose (like useOverlayLayer)
@@ -726,6 +727,25 @@
             const layerIdRef = useRef(null);
             const noTextNode = kind === 'menu' || kind === 'list';
             useOverlayLayer({ close: onClose, kind, nodeRef: noTextNode ? undefined : ref, fence, idRef: layerIdRef });
+            // Safety net (alpha.61): a popup BUTTON without the marker would make "click another popup's button" take two
+            // clicks again. Lists are exempt (they pass every click through anyway). Dev-server only; never shown to users.
+            useEffect(() => {
+                const h = location.hostname;
+                if (kind === 'list' || !anchorRef || !anchorRef.current) return;
+                if (!(h === 'localhost' || h === '127.0.0.1' || /^(10|192\.168)\./.test(h))) return;
+                if (!anchorRef.current.closest('[data-popover-trigger]')) {
+                    console.warn('[Popover] this popup\'s button lacks data-popover-trigger — add it so other popups switch to it in one click:', anchorRef.current);
+                }
+            }, []);
+            // v7.18.0-alpha.61 - Shift+click inside a popup never starts a TEXT selection (Ron: Shift+click on the Sort menu
+            // for a secondary sort also highlighted the text between the two clicks — Shift+click is the browser's
+            // "extend selection" gesture). Text fields inside a popup keep their normal Shift+click behavior.
+            const onPopupMouseDown = (e) => {
+                if (!e.shiftKey) return;
+                const tag = (e.target.tagName || '').toLowerCase();
+                if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+                e.preventDefault(); // stops the selection from starting; the click (and its shiftKey) still fires
+            };
             useEffect(() => {
                 // mousedown (not click): decide inside-vs-outside before an item's onClick fires. The
                 // listener is added AFTER this popover mounts, so the click/right-click that opened it
@@ -739,11 +759,10 @@
                 const eat = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
                 const onDown = (e) => {
                     // v7.18.0-alpha.58 - the decision lives in ONE pure, tested place: overlayRegistry.outsideClickAction
-                    // (rules: inside / own-trigger toggle / not-topmost / SIBLING / right-click / list / swallow). This
+                    // (rules: inside / own-trigger toggle / not-topmost / ANY popup button / right-click / list / swallow). This
                     // handler only gathers the facts and carries out the answer.
                     const t = e.target;
                     const top = overlayRegistry.topLayer();
-                    const sib = (group && t && t.closest) ? t.closest('[data-popover-group]') : null;
                     const action = overlayRegistry.outsideClickAction({
                         insidePopup: !!(ref.current && ref.current.contains(t)),
                         onOwnTrigger: !!(anchorRef && anchorRef.current && anchorRef.current.contains(t)),
@@ -751,7 +770,7 @@
                         kind,
                         isTopmost: !top || top.id === layerIdRef.current,
                         imperativeUp: imperativeDialogsUp(),
-                        onSiblingTrigger: !!(sib && sib.getAttribute('data-popover-group') === group),
+                        onPopupTrigger: !!(t && t.closest && t.closest('[data-popover-trigger]')),
                     });
                     if (action === 'ignore') return;
                     if (action === 'close-swallow') {
@@ -788,7 +807,7 @@
                 <CursorPopup open={true} x={x} y={y} anchorRect={anchorRect} anchorAlign={anchorAlign} innerRef={ref}
                     className={className} style={(matchAnchorWidth && anchorRect) ? { width: anchorRect.width, ...style } : style}
                     role={role} ariaLabel={ariaLabel}
-                    onClick={onClick} onContextMenu={onContextMenu}>
+                    onClick={onClick} onContextMenu={onContextMenu} onMouseDown={onPopupMouseDown}>
                     {children}
                 </CursorPopup>,
                 document.body
@@ -8981,11 +9000,11 @@
                         {['File', 'View', 'Help'].map(menuName => (
                             <div key={menuName} style={{ position: 'relative' }}>
                                 {/* v7.18.0-alpha.58 - menu-bar title: anchor of its <Popover>; File/View/Help are SIBLINGS
-                                    (data-popover-group="menubar") so a click on another title switches in one click; hovering
+                                    (data-popover-trigger) so a click on another title switches in one click; hovering
                                     another title while one is open still switches (classic menu-bar behavior, unchanged). */}
                                 <button
                                     ref={menuBarRefs[menuName.toLowerCase()]}
-                                    data-popover-group="menubar"
+                                    data-popover-trigger
                                     onMouseDown={() => setOpenMenuBar(openMenuBar === menuName.toLowerCase() ? null : menuName.toLowerCase())}
                                     onMouseEnter={() => openMenuBar && setOpenMenuBar(menuName.toLowerCase())}
                                     style={{
@@ -9007,8 +9026,7 @@
                                     ) : menuName}
                                 </button>
                                 {openMenuBar === menuName.toLowerCase() && (
-                                    <Popover anchorRef={menuBarRefs[menuName.toLowerCase()]} group="menubar"
-                                        onClose={() => setOpenMenuBar(null)}
+                                    <Popover anchorRef={menuBarRefs[menuName.toLowerCase()]}                                        onClose={() => setOpenMenuBar(null)}
                                         role="menu" ariaLabel={menuName}
                                         style={{
                                         marginTop: '2px',
@@ -9430,7 +9448,7 @@
 
                         {/* Status Filter */}
                         <div style={{ position: 'relative' }}>
-                            <button ref={filterBtnRefs.status} data-popover-group="filterbar"
+                            <button ref={filterBtnRefs.status} data-popover-trigger
                                 onClick={() => { setStatusDropdownOpen(!statusDropdownOpen); setTagsDropdownOpen(false); setTypesDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by read status"
                                 aria-expanded={statusDropdownOpen} aria-haspopup="listbox"
@@ -9455,7 +9473,7 @@
                             </button>
                             {/* v7.18.0-alpha.59 - filter-bar dropdowns are anchored <Popover>s in the "filterbar" sibling group */}
                             {statusDropdownOpen && (
-                                <Popover anchorRef={filterBtnRefs.status} group="filterbar" onClose={() => setStatusDropdownOpen(false)}
+                                <Popover anchorRef={filterBtnRefs.status} onClose={() => setStatusDropdownOpen(false)}
                                     role="menu" ariaLabel="Read Status" style={{
                                     marginTop: '4px',
                                     background: 'var(--bg-elevated)',
@@ -9523,7 +9541,7 @@
 
                         {/* Tags Filter */}
                         <div style={{ position: 'relative' }}>
-                            <button ref={filterBtnRefs.tags} data-popover-group="filterbar"
+                            <button ref={filterBtnRefs.tags} data-popover-trigger
                                 onClick={() => { setTagsDropdownOpen(!tagsDropdownOpen); setStatusDropdownOpen(false); setTypesDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by tags"
                                 aria-expanded={tagsDropdownOpen} aria-haspopup="listbox"
@@ -9544,7 +9562,7 @@
                                 {tagFilter.length > 0 ? `Tags (${tagFilter.length})` : 'Tags'}
                             </button>
                             {tagsDropdownOpen && (
-                                <Popover anchorRef={filterBtnRefs.tags} group="filterbar" onClose={() => setTagsDropdownOpen(false)}
+                                <Popover anchorRef={filterBtnRefs.tags} onClose={() => setTagsDropdownOpen(false)}
                                     role="menu" ariaLabel="Tags" style={{
                                     marginTop: '4px',
                                     background: 'var(--bg-elevated)',
@@ -9665,7 +9683,7 @@
 
                         {/* Types Filter */}
                         <div style={{ position: 'relative' }}>
-                            <button ref={filterBtnRefs.types} data-popover-group="filterbar"
+                            <button ref={filterBtnRefs.types} data-popover-trigger
                                 onClick={() => { setTypesDropdownOpen(!typesDropdownOpen); setStatusDropdownOpen(false); setTagsDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by ownership type"
                                 aria-expanded={typesDropdownOpen} aria-haspopup="listbox"
@@ -9704,7 +9722,7 @@
                                 }
                             </button>
                             {typesDropdownOpen && (
-                                <Popover anchorRef={filterBtnRefs.types} group="filterbar" onClose={() => setTypesDropdownOpen(false)}
+                                <Popover anchorRef={filterBtnRefs.types} onClose={() => setTypesDropdownOpen(false)}
                                     role="menu" ariaLabel="Ownership" style={{
                                     marginTop: '4px',
                                     background: 'var(--bg-elevated)',
@@ -9761,7 +9779,7 @@
                         </div>
 
                         {/* v5.0.0-alpha.175.40 - Phase 5.1: More button */}
-                        <button ref={filterBtnRefs.more} data-popover-group="filterbar"
+                        <button ref={filterBtnRefs.more} data-popover-trigger
                             onClick={() => { setMorePanelOpen(!morePanelOpen); setStatusDropdownOpen(false); setTagsDropdownOpen(false); setTypesDropdownOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                             title={morePanelOpen ? 'Hide additional filters' : 'Show additional filters'}
                             aria-expanded={morePanelOpen}
@@ -9971,7 +9989,7 @@
                         click on Read Status / Tags / Ownership switches straight to that dropdown. Its five dropdowns are
                         Popovers layered above it. */}
                     {morePanelOpen && (
-                        <Popover anchorRef={filterBtnRefs.more} group="filterbar" kind="popover" fence
+                        <Popover anchorRef={filterBtnRefs.more} kind="popover" fence
                             onClose={() => setMorePanelOpen(false)}
                             role="dialog" ariaLabel="More filters"
                             style={{
@@ -9991,7 +10009,7 @@
                             }}>
                                 {/* v5.0.0-alpha.175.41 - Phase 5.2: Collections Filter */}
                                 <div style={{ position: 'relative' }}>
-                                    <button ref={filterBtnRefs.collections} data-popover-group="morepanel"
+                                    <button ref={filterBtnRefs.collections} data-popover-trigger
                                         onClick={() => { setCollectionsDropdownOpen(!collectionsDropdownOpen); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         aria-expanded={collectionsDropdownOpen} aria-haspopup="listbox"
                                         title={"Filter by Kindle Collection.\nThese come from Amazon and can't be edited here.\nUse File › Tag from Collections to convert them into editable tags."}
@@ -10011,7 +10029,7 @@
                                     {/* v7.18.0-alpha.59 - dropdowns INSIDE the More panel: anchored <Popover>s in the "morepanel"
                                         sibling group, layered above the panel (Esc / outside-click close the innermost first) */}
                                     {collectionsDropdownOpen && (
-                                        <Popover anchorRef={filterBtnRefs.collections} group="morepanel" onClose={() => setCollectionsDropdownOpen(false)}
+                                        <Popover anchorRef={filterBtnRefs.collections} onClose={() => setCollectionsDropdownOpen(false)}
                                             role="menu" ariaLabel="Collections"
                                             style={{
                                                 marginTop: '4px',
@@ -10090,7 +10108,7 @@
 
                                 {/* v5.0.0-alpha.175.42 - Phase 5.3: Amazon Rating Filter */}
                                 <div style={{ position: 'relative' }}>
-                                    <button ref={filterBtnRefs.amazonRating} data-popover-group="morepanel"
+                                    <button ref={filterBtnRefs.amazonRating} data-popover-trigger
                                         onClick={() => { setAmazonRatingDropdownOpen(!amazonRatingDropdownOpen); setCollectionsDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by Amazon rating"
                                         aria-expanded={amazonRatingDropdownOpen} aria-haspopup="listbox"
@@ -10107,7 +10125,7 @@
                                     </button>
 
                                     {amazonRatingDropdownOpen && (
-                                        <Popover anchorRef={filterBtnRefs.amazonRating} group="morepanel" onClose={() => setAmazonRatingDropdownOpen(false)}
+                                        <Popover anchorRef={filterBtnRefs.amazonRating} onClose={() => setAmazonRatingDropdownOpen(false)}
                                             role="menu" ariaLabel="Amazon Rating"
                                             style={{
                                                 marginTop: '4px',
@@ -10137,7 +10155,7 @@
 
                                 {/* v5.0.0-alpha.175.43 - Phase 5.4: My Rating Filter */}
                                 <div style={{ position: 'relative' }}>
-                                    <button ref={filterBtnRefs.myRating} data-popover-group="morepanel"
+                                    <button ref={filterBtnRefs.myRating} data-popover-trigger
                                         onClick={() => { setMyRatingDropdownOpen(!myRatingDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by your rating"
                                         aria-expanded={myRatingDropdownOpen} aria-haspopup="listbox"
@@ -10154,7 +10172,7 @@
                                     </button>
 
                                     {myRatingDropdownOpen && (
-                                        <Popover anchorRef={filterBtnRefs.myRating} group="morepanel" onClose={() => setMyRatingDropdownOpen(false)}
+                                        <Popover anchorRef={filterBtnRefs.myRating} onClose={() => setMyRatingDropdownOpen(false)}
                                             role="menu" ariaLabel="My Rating"
                                             style={{
                                                 marginTop: '4px',
@@ -10202,7 +10220,7 @@
 
                                 {/* v5.0.0-alpha.175.44 - Phase 5.5: Series Filter (column 1, row 2) */}
                                 <div style={{ position: 'relative' }}>
-                                    <button ref={filterBtnRefs.series} data-popover-group="morepanel"
+                                    <button ref={filterBtnRefs.series} data-popover-trigger
                                         onClick={() => { setSeriesDropdownOpen(!seriesDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by series"
                                         aria-expanded={seriesDropdownOpen} aria-haspopup="listbox"
@@ -10219,7 +10237,7 @@
                                     </button>
 
                                     {seriesDropdownOpen && (
-                                        <Popover anchorRef={filterBtnRefs.series} group="morepanel" onClose={() => setSeriesDropdownOpen(false)}
+                                        <Popover anchorRef={filterBtnRefs.series} onClose={() => setSeriesDropdownOpen(false)}
                                             role="menu" ariaLabel="Series"
                                             style={{
                                                 marginTop: '4px',
@@ -10298,7 +10316,7 @@
 
                                 {/* v5.0.0-alpha.175.45 - Phase 5.6: Date Filter (spans columns 2-3, row 2) */}
                                 <div style={{ position: 'relative', gridColumn: '2 / 4' }}>
-                                    <button ref={filterBtnRefs.date} data-popover-group="morepanel"
+                                    <button ref={filterBtnRefs.date} data-popover-trigger
                                         onClick={() => { setDateDropdownOpen(!dateDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); }}
                                         aria-expanded={dateDropdownOpen} aria-haspopup="listbox"
                                         title="Filter by date book was added to your Amazon library"
@@ -10324,7 +10342,7 @@
                                     </button>
 
                                     {dateDropdownOpen && (
-                                        <Popover anchorRef={filterBtnRefs.date} group="morepanel" matchAnchorWidth onClose={() => setDateDropdownOpen(false)}
+                                        <Popover anchorRef={filterBtnRefs.date} matchAnchorWidth onClose={() => setDateDropdownOpen(false)}
                                             role="dialog" ariaLabel="Date Added"
                                             style={{
                                                 marginTop: '4px',
@@ -10483,7 +10501,7 @@
                                 return (
                                     <div className="relative" style={{ marginLeft: '8px' }}>
                                         <button
-                                            ref={saveResultsBtnRef}
+                                            ref={saveResultsBtnRef} data-popover-trigger
                                             title="Save the filter as a Search (stays up to date), or save these books to a Book List (fixed set)"
                                             onClick={() => setSaveResultsMenuOpen(o => !o)}
                                             className="text-blue-700 hover:text-white hover:bg-blue-600 font-semibold text-sm whitespace-nowrap px-2 py-1 rounded border border-blue-400 bg-white">
@@ -13158,7 +13176,7 @@
                                     )}
                                     {/* v6.10.0-alpha.9 - Share button with dropdown */}
                                     <div className="relative">
-                                        <button ref={shareBtnRef} onClick={(e) => {
+                                        <button ref={shareBtnRef} data-popover-trigger onClick={(e) => {
                                             e.stopPropagation();
                                             setShareDropdownOpen(prev => !prev);
                                         }} className="text-gray-400 hover:text-gray-600 text-lg transition-colors" title="Share this book" aria-label="Share this book">
@@ -14513,7 +14531,7 @@
                                                     Menu re-click and column headers still flip too. */}
                                                 <span className="inline-flex items-center whitespace-nowrap">
                                                     <button
-                                                        ref={folderSortBtnRef}
+                                                        ref={folderSortBtnRef} data-popover-trigger
                                                         onClick={(e) => { e.stopPropagation(); setFolderSortMenuOpen(o => !o); }}
                                                         className={`text-xs px-1 hover:bg-gray-200 rounded ${folderListSort.column !== 'custom' ? 'text-blue-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
                                                         title="Change folder sort"
@@ -15534,7 +15552,7 @@
                                                     full-size direction triangle flips (the tiny gray caret runt is gone). */}
                                                 <span className="flex items-center" style={{ fontSize: '13px' }}>
                                                     <button
-                                                        ref={folderSortPickerBtnRef} data-popover-group="rightpane-toolbar"
+                                                        ref={folderSortPickerBtnRef} data-popover-trigger
                                                         onClick={() => setFolderSortPickerOpen(o => !o)}
                                                         className="flex items-center gap-1 hover:bg-gray-100 rounded px-1 py-0.5"
                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}
@@ -15555,8 +15573,7 @@
                                                 </span>
                                                 {/* v7.18.0-alpha.44 - anchored <Popover> menu (was a scrim + absolute panel; had no Esc) */}
                                                 {folderSortPickerOpen && (
-                                                    <Popover anchorRef={folderSortPickerBtnRef} group="rightpane-toolbar"
-                                                        onClose={() => setFolderSortPickerOpen(false)}
+                                                    <Popover anchorRef={folderSortPickerBtnRef}                                                        onClose={() => setFolderSortPickerOpen(false)}
                                                         role="menu" ariaLabel="Folder sort"
                                                         className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] min-w-[170px]">
                                                             {/* v7.6.0-alpha.14 (wave D) - One entry per key; direction via the column headers */}
@@ -15586,7 +15603,7 @@
                                         {/* Sort status display with picker dropdown (v5.5.0) */}
                                         {/* v6.12.0-alpha.75 - Hide the book-sort picker in the Folders view; folders sort via the ⇅ header control + Name column (folderListSort). The book picker's columns don't apply to folders and it desynced from those. */}
                                         <div className={`flex items-center gap-1 border-l pl-4 text-sm ${selectedFolderId === '__library__' ? 'hidden' : ''}`} style={{ position: 'relative' }}>
-                                            <button ref={sortPickerBtnRef} data-popover-group="rightpane-toolbar"
+                                            <button ref={sortPickerBtnRef} data-popover-trigger
                                                 onClick={() => setSortPickerOpen(!sortPickerOpen)}
                                                 className="flex items-center gap-1 hover:bg-gray-100 rounded px-1 py-0.5 -mx-1"
                                                 style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '13px' }}
@@ -15647,7 +15664,7 @@
                                                 // v7.18.0-alpha.60 - anchored <Popover> in the "rightpane-toolbar" sibling group (with ⚙ Show
                                                 // Columns and the Library view's folder "Sort:" picker)
                                                 return (
-                                                    <Popover anchorRef={sortPickerBtnRef} group="rightpane-toolbar" onClose={() => setSortPickerOpen(false)}
+                                                    <Popover anchorRef={sortPickerBtnRef} onClose={() => setSortPickerOpen(false)}
                                                         role="menu" ariaLabel="Sort" style={{
                                                         marginTop: '4px',
                                                         background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)',
@@ -15781,7 +15798,7 @@
                                         {explorerView === 'list' && (
                                             <div className="relative ml-4">
                                                 <button
-                                                    ref={columnChooserBtnRef} data-popover-group="rightpane-toolbar"
+                                                    ref={columnChooserBtnRef} data-popover-trigger
                                                     onClick={() => {
                                                         if (explorerColumnMenuOpen) { closeColumnChooser(); return; }
                                                         setExplorerColumnMenuPos(null); // gear = anchored mode (no cursor point)
@@ -15795,8 +15812,7 @@
                                                     anchored under the gear, right-aligned (as before); from a column-header right-click it
                                                     opens at the cursor (measured, no size guess). Esc / outside-click via the registry. */}
                                                 {explorerColumnMenuOpen && (
-                                                    <Popover onClose={closeColumnChooser} key={explorerColumnMenuPos ? 'at-cursor' : 'at-gear'} group="rightpane-toolbar"
-                                                        {...(explorerColumnMenuPos
+                                                    <Popover onClose={closeColumnChooser} key={explorerColumnMenuPos ? 'at-cursor' : 'at-gear'}                                                        {...(explorerColumnMenuPos
                                                             ? { x: explorerColumnMenuPos.x, y: explorerColumnMenuPos.y }
                                                             : { anchorRef: columnChooserBtnRef, anchorAlign: 'end' })}
                                                         role="dialog" ariaLabel="Show Columns"
@@ -20066,7 +20082,7 @@
                                 message that evaporated before it was read */}
                             <span className="relative">
                                 <button
-                                    ref={toastHistoryBtnRef}
+                                    ref={toastHistoryBtnRef} data-popover-trigger
                                     onClick={() => setToastHistoryOpen(o => !o)}
                                     className="text-gray-400 hover:text-gray-600 px-1"
                                     title="Recent messages (this session)"
