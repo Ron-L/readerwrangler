@@ -939,3 +939,10 @@ tr.rw-cut-pending {
     0%, 100% { box-shadow: 0 0 4px 1px rgba(59, 130, 246, 0.25); }
     50%      { box-shadow: 0 0 10px 3px rgba(59, 130, 246, 0.55); }
 }
+
+/* v7.18.0-alpha.62 - A plain <button> DIRECTLY inside a popup (<Popover>/CursorPopup, class rw-popup) is a full-width ROW.
+   Buttons are inline-block by default, and a popup sizes itself to its content (width: max-content) — so consecutive
+   buttons were MEASURED side by side, like words on one line: the File menu came out ~3 buttons wide (484px:
+   Restore Backup + Save Backup + Save Spreadsheet). Ron, 2026-10-07. Direct children only, so a row of buttons
+   nested in a div (e.g. an action bar inside a popup) is unaffected. */
+.rw-popup > button { display: block; }
