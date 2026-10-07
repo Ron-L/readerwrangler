@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.63";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.64";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -658,7 +658,7 @@
             return (
                 <div ref={setRefs} className={`fixed rw-popup ${className || ''}`} role={role} aria-label={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu} onMouseDown={onMouseDown}
-                    style={{ position: 'fixed', left: coords.left, top: coords.top, width: 'max-content', ...style }}>
+                    style={{ position: 'fixed', left: coords.left, top: coords.top, width: 'max-content', minWidth: 160, ...style }}>
                     {children}
                 </div>
             );
@@ -9030,7 +9030,6 @@
                                         role="menu" ariaLabel={menuName}
                                         style={{
                                         marginTop: '2px',
-                                        minWidth: '200px',
                                         background: 'var(--bg-elevated)',
                                         border: '1px solid var(--border-strong)',
                                         borderRadius: '6px',
@@ -9481,7 +9480,6 @@
                                     borderRadius: '4px',
                                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                                     zIndex: 1000,
-                                    minWidth: '140px'
                                 }}>
                                     <div
                                         onClick={() => { setReadStatusFilter(''); setStatusDropdownOpen(false); }}
@@ -9570,7 +9568,6 @@
                                     borderRadius: '4px',
                                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                                     zIndex: 1000,
-                                    minWidth: '200px',
                                     maxHeight: '300px',
                                     overflowY: 'auto'
                                 }}>
@@ -9730,7 +9727,6 @@
                                     borderRadius: '4px',
                                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                                     zIndex: 1000,
-                                    minWidth: '160px'
                                 }}>
                                     <div
                                         onClick={() => { setOwnershipFilter(''); setTypesDropdownOpen(false); }}
@@ -10033,7 +10029,6 @@
                                             role="menu" ariaLabel="Collections"
                                             style={{
                                                 marginTop: '4px',
-                                                minWidth: '200px',
                                                 maxHeight: '300px',
                                                 overflowY: 'auto',
                                                 background: 'var(--bg-elevated)',
@@ -10129,7 +10124,6 @@
                                             role="menu" ariaLabel="Amazon Rating"
                                             style={{
                                                 marginTop: '4px',
-                                                minWidth: '160px',
                                                 background: 'var(--bg-elevated)',
                                                 border: '1px solid var(--border-strong)',
                                                 borderRadius: '4px',
@@ -10176,7 +10170,6 @@
                                             role="menu" ariaLabel="My Rating"
                                             style={{
                                                 marginTop: '4px',
-                                                minWidth: '160px',
                                                 background: 'var(--bg-elevated)',
                                                 border: '1px solid var(--border-strong)',
                                                 borderRadius: '4px',
@@ -10241,7 +10234,6 @@
                                             role="menu" ariaLabel="Series"
                                             style={{
                                                 marginTop: '4px',
-                                                minWidth: '250px',
                                                 maxHeight: '300px',
                                                 overflowY: 'auto',
                                                 background: 'var(--bg-elevated)',
@@ -10511,7 +10503,7 @@
                                         {saveResultsMenuOpen && (
                                                 <Popover anchorRef={saveResultsBtnRef} onClose={() => setSaveResultsMenuOpen(false)}
                                                     role="menu" ariaLabel="Save these results"
-                                                    className="mt-1 z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[230px] text-sm text-gray-700">
+                                                    className="mt-1 z-50 bg-white border border-gray-300 rounded shadow-lg py-1 text-sm text-gray-700">
                                                     <button
                                                         className="block w-full text-left px-3 py-1.5 hover:bg-gray-100"
                                                         onClick={() => { setSaveResultsMenuOpen(false); saveFiltersAsSearch(buildCurrentFilters()); }}>
@@ -12346,7 +12338,7 @@
                         const popupIsMover = new Set((autoOrgPreview && autoOrgPreview.dryPlan && autoOrgPreview.dryPlan.allBookIdsToOrganize) || []).has(b.id);
                         return (
                             <Popover x={autoOrgSrcPopup.x} y={autoOrgSrcPopup.y} onClose={() => setAutoOrgSrcPopup(null)}
-                                className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-w-[300px] z-[75]"
+                                className="bg-white border border-gray-300 shadow-lg rounded py-1 max-w-[300px] z-[75]"
                                 onClick={(e) => e.stopPropagation()}>
                                     {!popupIsMover ? (
                                         <>
@@ -12387,7 +12379,7 @@
                     {/* v6.13.0-alpha.9 (D2) - Preview cover right-click: add the selection to a Book List (flat menu; the only action here) */}
                     {autoOrgMenu && (
                         <Popover x={autoOrgMenu.x} y={autoOrgMenu.y} onClose={() => setAutoOrgMenu(null)}
-                            className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-h-[360px] overflow-y-auto z-[75]"
+                            className="bg-white border border-gray-300 shadow-lg rounded py-1 max-h-[360px] overflow-y-auto z-[75]"
                             onClick={(e) => e.stopPropagation()}>
                                 <div className="px-4 py-1.5 text-xs text-gray-500 border-b border-gray-100">Add {autoOrgMenu.bookIds.length} book{autoOrgMenu.bookIds.length !== 1 ? 's' : ''} to a Book List</div>
                                 <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 font-medium text-blue-700"
@@ -13186,7 +13178,7 @@
                                             📤 as before; z-[60] keeps it above the book dialog (z-50) it opens from. */}
                                         {shareDropdownOpen && (
                                                 <Popover anchorRef={shareBtnRef} anchorAlign="end" onClose={() => setShareDropdownOpen(false)}
-                                                    className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-[60]"
+                                                    className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60]"
                                                     role="menu" ariaLabel="Share options"
                                                     onClick={(e) => e.stopPropagation()}>
                                                     <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
@@ -14552,7 +14544,7 @@
                                                     <Popover anchorRef={folderSortBtnRef} anchorAlign="end"
                                                         onClose={() => setFolderSortMenuOpen(false)}
                                                         role="menu" ariaLabel="Folder sort"
-                                                        className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] min-w-[170px] normal-case tracking-normal font-normal"
+                                                        className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] normal-case tracking-normal font-normal"
                                                         onClick={(e) => e.stopPropagation()}>
                                                             {[{ label: 'Manual (drag to arrange)', col: 'custom', dir: 'asc' }, { label: 'Name', col: 'title', dir: 'asc' }, { label: 'Count (most first)', col: 'count', dir: 'desc' }].map(opt => {
                                                                 const active = folderListSort.column === opt.col;
@@ -15575,7 +15567,7 @@
                                                 {folderSortPickerOpen && (
                                                     <Popover anchorRef={folderSortPickerBtnRef}                                                        onClose={() => setFolderSortPickerOpen(false)}
                                                         role="menu" ariaLabel="Folder sort"
-                                                        className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] min-w-[170px]">
+                                                        className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60]">
                                                             {/* v7.6.0-alpha.14 (wave D) - One entry per key; direction via the column headers */}
                                                             {[{ label: 'Manual Order', col: 'custom', dir: 'asc' }, { label: 'Name', col: 'title', dir: 'asc' }, { label: 'Count (most first)', col: 'count', dir: 'desc' }].map(opt => {
                                                                 const active = folderListSort.column === opt.col;
@@ -15669,7 +15661,7 @@
                                                         marginTop: '4px',
                                                         background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)',
                                                         borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                                                        zIndex: 1000, minWidth: '180px', whiteSpace: 'nowrap'
+                                                        zIndex: 1000, whiteSpace: 'nowrap'
                                                     }}>
                                                         {sortOptions.map(opt => {
                                                             const sortIndex = explorerSort.findIndex(s => s.column === opt.key);
@@ -15816,7 +15808,7 @@
                                                             ? { x: explorerColumnMenuPos.x, y: explorerColumnMenuPos.y }
                                                             : { anchorRef: columnChooserBtnRef, anchorAlign: 'end' })}
                                                         role="dialog" ariaLabel="Show Columns"
-                                                        className={`bg-white border border-gray-300 rounded shadow-lg p-3 z-50 min-w-[200px] ${explorerColumnMenuPos ? '' : 'mt-2'}`}>
+                                                        className={`bg-white border border-gray-300 rounded shadow-lg p-3 z-50 ${explorerColumnMenuPos ? '' : 'mt-2'}`}>
                                                         <div className="flex justify-between items-center mb-2">
                                                             <div className="text-sm font-semibold text-gray-700">Show Columns</div>
                                                             <button
@@ -17891,7 +17883,7 @@
                         return (
                             <Popover x={rightPaneContextMenu.x} y={rightPaneContextMenu.y}
                                 onClose={() => setRightPaneContextMenu(null)}
-                                className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] z-[60]"
+                                className="bg-white border border-gray-300 shadow-lg rounded py-1 z-[60]"
                                 role="menu" ariaLabel="Create folder"
                                 onClick={(e) => e.stopPropagation()}>
                                 {/* v6.12.0-alpha.68 (#8) - Single context-appropriate action: subfolder inside a folder,
@@ -17918,7 +17910,7 @@
                             return (
                                 <>
                                     <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
-                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 z-50"
                                         role="menu" ariaLabel="Book List options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
@@ -17953,7 +17945,7 @@
                             return (
                                 <>
                                     <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
-                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 z-50"
                                         role="menu" ariaLabel="Trash options"
                                         onClick={(e) => e.stopPropagation()}>
                                         {trashCount > 0 ? (
@@ -17985,7 +17977,7 @@
                             return (
                                 <>
                                     <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
-                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 z-50"
                                         role="menu" ariaLabel="All Books options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
@@ -18013,7 +18005,7 @@
                             return (
                                 <>
                                     <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
-                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 z-50"
                                         role="menu" ariaLabel="Inbox options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
@@ -18052,7 +18044,7 @@
                             return (
                                 <>
                                     <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
-                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 z-50"
                                         role="menu" ariaLabel="My Library options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
@@ -18120,7 +18112,7 @@
                         // <Popover>: Esc + outside-click close it via the overlay registry (closeFolderMenu).
                         return (
                             <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
-                                className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[200px]"
+                                className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1"
                                 role="menu" ariaLabel="Folder options"
                                 onClick={(e) => e.stopPropagation()}>
 
@@ -18549,7 +18541,7 @@
                         // v7.15.0 - Positioned via CursorPopup (measured). v7.18.0-alpha.44 - a <Popover> (registry Esc + outside-click).
                         return (
                             <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
-                                className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[200px]"
+                                className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1"
                                 role="menu" ariaLabel="Search options"
                                 onClick={(e) => e.stopPropagation()}>
 
@@ -18828,7 +18820,7 @@
                         return (
                             <Popover onClose={closeBookMenu}
                                 x={explorerBookContextMenu.x} y={explorerBookContextMenu.y}
-                                className="bg-white border border-gray-300 rounded-lg shadow-xl z-[60] py-1 min-w-[200px]"
+                                className="bg-white border border-gray-300 rounded-lg shadow-xl z-[60] py-1"
                                 role="menu" ariaLabel="Book options"
                                 onClick={(e) => e.stopPropagation()}>
                                 {/* Header */}
