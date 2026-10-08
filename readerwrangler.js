@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.69";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.70";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -200,7 +200,21 @@
             x.onclick = () => close(cancelValue);
             dialog.style.position = 'relative';
             dialog.appendChild(x);
+            onBackdropClick(overlay, layerId, () => close(cancelValue));
             return close;
+        }
+
+        // v7.18.0-alpha.70 (Ron) - a click on the dimmed background closes an imperative dialog, as it does every React
+        // <Dialog> (only "Name already in use" did, via its own handler). Same guard as <Dialog>: the press must START on
+        // the background, so a text drag that ends outside the box doesn't close it; and only the TOPMOST layer reacts.
+        function onBackdropClick(overlay, layerId, onBackdrop) {
+            let downOnScrim = false;
+            overlay.addEventListener('mousedown', (e) => { downOnScrim = e.target === overlay; });
+            overlay.addEventListener('click', (e) => {
+                const top = overlayRegistry.topLayer();
+                if (e.target === overlay && downOnScrim && top && top.id === layerId) onBackdrop();
+                downOnScrim = false;
+            });
         }
 
         function showInfoDialog(title, message) {
@@ -307,6 +321,7 @@
             let onEscAfterFinish = null;
             const layerId = overlayRegistry.pushLayer({ close: () => { if (onEscAfterFinish) onEscAfterFinish(); }, kind: 'modal', nodeRef: { current: dialog }, detached: true }); // alpha.69 - see attachDialogDismiss
             const remove = () => { overlayRegistry.removeLayer(layerId); if (overlay.parentNode) document.body.removeChild(overlay); };
+            onBackdropClick(overlay, layerId, () => { if (onEscAfterFinish) onEscAfterFinish(); }); // alpha.70 - like Esc: nothing while running, OK after
 
             return {
                 update(msg) {
@@ -419,9 +434,8 @@
                 messageEl.textContent = message;
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = `display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;`;
-                // v7.10.1-alpha.9 - Esc + ✕ dismiss (shared chrome); backdrop click kept
+                // v7.10.1-alpha.9 - Esc + ✕ dismiss (shared chrome); alpha.70 - backdrop click now comes from the shared chrome too
                 const close = attachDialogDismiss(overlay, dialog, (val) => { if (overlay.parentNode) document.body.removeChild(overlay); resolve(val); }, null);
-                overlay.onclick = (e) => { if (e.target === overlay) close(null); };
                 choices.forEach((c) => {
                     const btn = document.createElement('button');
                     btn.textContent = c.label;
@@ -10591,7 +10605,9 @@
                                                     {/* v7.18.0-alpha.52 (Ron + UX pass) - "Save filter…" vs "Save these N books…": parallel verbs
                                                         naming DIFFERENT objects (a live rule vs a fixed set); the count confirms what gets saved. */}
                                                     <div className="px-3 py-1 text-xs text-gray-400">
-                                                        {count === 0 ? 'Save results to a Book List' : `Save ${count === 1 ? 'this book' : `these ${count.toLocaleString()} books`} to a Book List`} <span className="text-gray-300">(fixed set)</span>
+                                                        {/* v7.18.0-alpha.70 (Ron + UX) - at 0 the grey items explain themselves and point UP to the
+                                                            option that does follow future matches (a Book List is a fixed set; a Search re-runs). */}
+                                                        {count === 0 ? 'No books to save — a Search will catch future matches' : <>{`Save ${count === 1 ? 'this book' : `these ${count.toLocaleString()} books`} to a Book List`} <span className="text-gray-300">(fixed set)</span></>}
                                                     </div>
                                                     {/* ＋ New list… on top, existing lists below — the familiar "Add to playlist" pattern */}
                                                     <button
