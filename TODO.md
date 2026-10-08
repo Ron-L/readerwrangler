@@ -109,7 +109,7 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   7.18.0-alpha.40 (`<Popover anchorRef anchorAlign>`, portaled since alpha.48; used by toast history + both folder sort
   menus). REMAINING = convert the other button dropdowns (the overlay branch's next group).
   WHAT / WHY: our `<Popover>` positions at a cursor POINT (x,y). Some overlays are **button-anchored dropdowns**
-  that open flush to a control — e.g., in the **Book detail dialog**: the 📤 **Share** dropdown and the edit-mode
+  that open flush to a control — e.g., in the **Book detail dialog**: the **Share ▾** dropdown and the edit-mode
   **Series** dropdown; also the folder **Sort** menu, **Save-Results** menu, and the column-header **gear**. These
   stay LEGACY (their own scrims + inline `absolute` positioning) until we add an anchored variant.
   DO: add an **anchored `<Popover>`** (element-relative, reusing the existing `FlipToFitPopup` measured positioner)

@@ -1,5 +1,12 @@
 # Share Book Feature — Design Plan
 
+> **Update 2026-10-08 (7.18.0-alpha.67):** the book window's share control is no longer an icon-only 📤 in the
+> top-right corner beside ✏️ and × (as specified below). Ron skimmed past it twice, reading it as "save" — that
+> corner is the window-control zone. It's now a labeled **"Share ▾"** button next to **"View on Amazon"** (the
+> window's other outward action). The 📤 emoji is replaced EVERYWHERE (book window menu, right-click "Share ▸" row
+> and its "Share…" item) by one shared drawn icon: the Android/Material "three connected dots" share glyph. The
+> menu's contents are unchanged. The 📤 references below are historical.
+
 ## Overview
 
 Let users share book recommendations with friends via link, email, or native share. Every shared link includes the Amazon affiliate tag, creating a revenue channel from organic word-of-mouth recommendations.

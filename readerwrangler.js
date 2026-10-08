@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.66";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.67";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -695,6 +695,16 @@
         //   Building a popup button = spreading this; the marker can't be forgotten separately (a dev-server console
         //   warning still flags an anchored popup whose button lacks it).
         const popupTrigger = (open, haspopup = 'menu') => ({ 'data-popover-trigger': '', 'aria-haspopup': haspopup, 'aria-expanded': !!open });
+
+        // v7.18.0-alpha.67 - THE share icon: the Android/Material "three connected dots" glyph (Material Icons "share", Apache
+        //   2.0), drawn as SVG so it looks the same on every device and follows the text colour. Replaced the 📤 emoji, which
+        //   reads as upload/export/save on Windows (Ron, 2026-10-08). ONE definition, used by every Share entry point.
+        const ShareIcon = ({ size = 14 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+                style={{ display: 'inline-block', verticalAlign: '-2px', flexShrink: 0 }}>
+                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z" />
+            </svg>
+        );
 
         // v7.18.0-alpha.61 - every popup BUTTON carries `data-popover-trigger`. A click on ANY popup button while this popup is
         //   open closes it WITHOUT swallowing the click, so that button's popup opens in one click (Ron, 2026-10-07 — this
@@ -1436,7 +1446,7 @@
             const [explorerColumnMenuPos, setExplorerColumnMenuPos] = useState(null); // v5.0.0-alpha.107 - Context menu position { x, y } or null
             const columnChooserBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (⚙ gear) for the column-chooser <Popover>
             const saveResultsBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor ("💾 N results · Save ▾") for its <Popover>
-            const shareBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (book dialog 📤) for the Share <Popover> (alpha.55: restored — alpha.52's probe removal had joined this line into the comment above)
+            const shareBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (book window "Share ▾" button, alpha.67) for the Share <Popover> (alpha.55: restored — alpha.52's probe removal had joined this line into the comment above)
             const closeColumnChooser = () => { setExplorerColumnMenuOpen(false); setExplorerColumnMenuPos(null); }; // v7.18.0-alpha.49 - THE closer
             const [columnWidths, setColumnWidths] = useState({ // v5.0.0-alpha.109 - Column widths (px)
                 title: 200,
@@ -6667,6 +6677,63 @@
                 const next = modalNavList[(modalNavIdx + delta + n) % n];
                 if (next) openBookModal(next, null, modalNavOverride); // keep the same list while cycling
             };
+
+            // v7.18.0-alpha.67 - the book window's Share control: a labeled "Share ▾" button next to "View on Amazon" (the
+            // window's other outward action), opening the Share menu as an anchored <Popover>. ONE render function, called
+            // from both the edit-mode and normal rows (only one shows at a time, so it's one control and one ref).
+            // Moved out of the window's top-right corner (Ron + UX pass, 2026-10-08).
+            const renderBookShareControl = () => (
+                <div className="relative">
+                    <button ref={shareBtnRef} {...popupTrigger(shareDropdownOpen)} onClick={(e) => {
+                        e.stopPropagation();
+                        setShareDropdownOpen(prev => !prev);
+                    }} className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm inline-flex items-center gap-1.5"
+                        title="Share this book">
+                        <ShareIcon /> Share ▾
+                    </button>
+                    {shareDropdownOpen && (
+                        <Popover anchorRef={shareBtnRef} onClose={() => setShareDropdownOpen(false)}
+                            className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60]"
+                            role="menu" ariaLabel="Share options"
+                            onClick={(e) => e.stopPropagation()}>
+                            <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
+                                onClick={() => {
+                                    if (!modalBook.asin) {
+                                        showToast('No Amazon link available for this book');
+                                    } else {
+                                        navigator.clipboard.writeText(getAmazonUrl(modalBook.asin));
+                                        showToast('Link copied!');
+                                    }
+                                    setShareDropdownOpen(false);
+                                }}>
+                                <span>🔗</span><span>Copy Amazon Link</span>
+                            </div>
+                            <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
+                                onClick={() => {
+                                    const shareData = getShareData(modalBook);
+                                    openShareEmail(shareData);
+                                    setShareDropdownOpen(false);
+                                }}>
+                                <span>✉️</span><span>Email to a Friend</span>
+                            </div>
+                            {navigator.share && (
+                                <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
+                                    onClick={() => {
+                                        const shareData = getShareData(modalBook);
+                                        navigator.share({
+                                            title: shareData.webShareTitle,
+                                            text: shareData.webShareText,
+                                            url: shareData.webShareUrl || undefined
+                                        }).catch(() => {});
+                                        setShareDropdownOpen(false);
+                                    }}>
+                                    <ShareIcon /><span>Share…</span>
+                                </div>
+                            )}
+                        </Popover>
+                    )}
+                </div>
+            );
 
             const closeBookModal = () => {
                 setModalBook(null);
@@ -13167,58 +13234,9 @@
                                             ✏️
                                         </button>
                                     )}
-                                    {/* v6.10.0-alpha.9 - Share button with dropdown */}
-                                    <div className="relative">
-                                        <button ref={shareBtnRef} {...popupTrigger(shareDropdownOpen)} onClick={(e) => {
-                                            e.stopPropagation();
-                                            setShareDropdownOpen(prev => !prev);
-                                        }} className="text-gray-400 hover:text-gray-600 text-lg transition-colors" title="Share this book" aria-label="Share this book">
-                                            📤
-                                        </button>
-                                        {/* v7.18.0-alpha.49 - anchored <Popover> menu (was a scrim + absolute panel), right-aligned under
-                                            📤 as before; z-[60] keeps it above the book dialog (z-50) it opens from. */}
-                                        {shareDropdownOpen && (
-                                                <Popover anchorRef={shareBtnRef} anchorAlign="end" onClose={() => setShareDropdownOpen(false)}
-                                                    className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60]"
-                                                    role="menu" ariaLabel="Share options"
-                                                    onClick={(e) => e.stopPropagation()}>
-                                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
-                                                        onClick={() => {
-                                                            if (!modalBook.asin) {
-                                                                showToast('No Amazon link available for this book');
-                                                            } else {
-                                                                navigator.clipboard.writeText(getAmazonUrl(modalBook.asin));
-                                                                showToast('Link copied!');
-                                                            }
-                                                            setShareDropdownOpen(false);
-                                                        }}>
-                                                        <span>🔗</span><span>Copy Amazon Link</span>
-                                                    </div>
-                                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
-                                                        onClick={() => {
-                                                            const shareData = getShareData(modalBook);
-                                                            openShareEmail(shareData);
-                                                            setShareDropdownOpen(false);
-                                                        }}>
-                                                        <span>✉️</span><span>Email to a Friend</span>
-                                                    </div>
-                                                    {navigator.share && (
-                                                        <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
-                                                            onClick={() => {
-                                                                const shareData = getShareData(modalBook);
-                                                                navigator.share({
-                                                                    title: shareData.webShareTitle,
-                                                                    text: shareData.webShareText,
-                                                                    url: shareData.webShareUrl || undefined
-                                                                }).catch(() => {});
-                                                                setShareDropdownOpen(false);
-                                                            }}>
-                                                            <span>📤</span><span>Share…</span>
-                                                        </div>
-                                                    )}
-                                                </Popover>
-                                        )}
-                                    </div>
+                                    {/* v7.18.0-alpha.67 - the Share control MOVED out of this corner (Ron + UX pass: the top-right is
+                                        the window-control zone — edit + close — and an icon-only 📤 there was skimmed past as "save").
+                                        It's now a labeled "Share ▾" button next to "View on Amazon" (renderBookShareControl). */}
                                     <button onClick={closeBookModal} className="text-gray-500 hover:text-gray-700 text-2xl" title="Close" aria-label="Close">×</button>
                                 </div>
 
@@ -13289,6 +13307,7 @@
                                                             </button>
                                                         );
                                                     })()}
+                                                    {renderBookShareControl()}
                                                 </div>
                                             ) : (
                                                 /* v5.6.6 - View on Amazon shown for all books, not just wishlist */
@@ -13309,6 +13328,7 @@
                                                             </button>
                                                         );
                                                     })()}
+                                                    {renderBookShareControl()}
                                                 </div>
                                             )}
                                             {isEditingBook ? (
@@ -19150,7 +19170,7 @@
                                                         }
                                                     }, 600);
                                                 }}>
-                                                <span>📤</span>
+                                                <ShareIcon />
                                                 <span>Share</span>
                                                 <span className="ml-auto">▶</span>
 
@@ -19210,7 +19230,7 @@
                                                                     setExplorerBookContextMenu(null);
                                                                     setContextSubmenu(null);
                                                                 }}>
-                                                                <span>📤</span>
+                                                                <ShareIcon />
                                                                 <span>Share…</span>
                                                             </div>
                                                         )}
