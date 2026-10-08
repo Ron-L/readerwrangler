@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.73";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.74";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -628,7 +628,7 @@
         // anchorAlign (alpha.44): 'start' (default) = left edges aligned; 'end' = RIGHT edges aligned (a dropdown
         // whose trigger sits at the right of its header, e.g. the FOLDERS sort menu) — each falls back to the other
         // when it would leave the viewport.
-        function CursorPopup({ open, x, y, anchorRect, anchorAlign = 'start', className, style, role, ariaLabel, onClick, onContextMenu, onMouseDown, onMouseEnter, onMouseLeave, children, margin = 8, innerRef }) {
+        function CursorPopup({ open, x, y, anchorRect, anchorAlign = 'start', className, style, role, ariaLabel, onClick, onContextMenu, onMouseDown, onMouseEnter, onMouseLeave, tabIndex, children, margin = 8, innerRef }) {
             const ref = useRef(null);
             // v7.18.0 - optional innerRef: the <Popover> primitive needs the positioned node to decide
             // outside-clicks (ref.contains). Mirror the measuring ref onto it via one callback ref.
@@ -682,7 +682,7 @@
             return (
                 <div ref={setRefs} className={`fixed rw-popup ${className || ''}`} role={role} aria-label={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu} onMouseDown={onMouseDown}
-                    onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
+                    onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} tabIndex={tabIndex}
                     style={{ position: 'fixed', left: coords.left, top: coords.top, width: 'max-content', minWidth: 160, ...style }}>
                     {children}
                 </div>
@@ -750,9 +750,13 @@
                 setMeasuredH(cur => cur === h ? cur : h);
             });
             if (!t) return null;
+            // alpha.74 - marked (rw-hover-popup) + focusable on click (tabIndex -1, no outline) so Ctrl+A can tell you're
+            // working IN it — see hoverPopupInUse.
+            const cls = `rw-hover-popup ${className || ''}`;
+            const st = { outline: 'none', ...style };
             if (placement === 'beside') {
                 return (
-                    <CursorPopup open={true} x={t.right + 8} y={t.y} className={className} style={style}
+                    <CursorPopup open={true} x={t.right + 8} y={t.y} className={cls} style={st} tabIndex={-1}
                         onMouseEnter={hover.hold} onMouseLeave={hover.close}>
                         {children}
                     </CursorPopup>
@@ -769,17 +773,26 @@
             if (hLeft && cx < 140) hLeft = false; else if (!hLeft && (vw - cx) < 140) hLeft = true;
             const maxW = Math.max(140, Math.min(300, hLeft ? (cx - 8) : (vw - cx - 8)));
             return (
-                <div ref={ref} className={`fixed ${className || ''}`}
+                <div ref={ref} className={`fixed ${cls}`} tabIndex={-1}
                     onMouseEnter={hover.hold} onMouseLeave={hover.close}
                     style={{
                         ...(hLeft ? { right: `${Math.max(8, vw - cx)}px` } : { left: `${Math.max(8, cx)}px` }),
                         ...(vUp ? { bottom: `${Math.max(8, vh - cy)}px` } : { top: `${Math.max(8, cy)}px` }),
-                        maxWidth: `${maxW}px`, maxHeight: '70vh', overflowY: 'auto', ...style
+                        maxWidth: `${maxW}px`, maxHeight: '70vh', overflowY: 'auto', ...st
                     }}>
                     {children}
                 </div>
             );
         }
+
+        // v7.18.0-alpha.74 (Ron) - the hover popup you're working IN, or null: you clicked in it (keyboard focus is inside)
+        // or your text selection — even a collapsed click point — sits in it. Then Ctrl+A selects ITS text. Not the mouse
+        // position: merely resting on a popup still leaves Ctrl+A with the window/library (the focus-not-mouse rule).
+        const hoverPopupInUse = () => {
+            const inPopup = (n) => { const el = n && (n.nodeType === 1 ? n : n.parentElement); const p = (el && el.closest) ? el.closest('.rw-hover-popup') : null; return (p && p.isConnected) ? p : null; }; // a just-closed popup never counts
+            const s = window.getSelection();
+            return inPopup(document.activeElement) || inPopup(s && s.anchorNode) || null;
+        };
 
         // v7.18.0 - <Popover> — the light-dismiss sibling of <Dialog> (docs/design/DIALOG-DISMISSAL-AUDIT.md).
         // Wraps CursorPopup's measure-and-clamp positioner and adds what a bare popup lacks: registry
@@ -4966,6 +4979,18 @@
                     const hasTextSelection = window.getSelection()?.toString().length > 0;
                     if (hasTextSelection && (e.ctrlKey || e.metaKey) && e.key === 'c') {
                         return; // Let browser copy selected text
+                    }
+
+                    // v7.18.0-alpha.74 (Ron) - Ctrl+A while you're working in a hover popup (clicked or selected text in
+                    // it) selects that popup's text — checked FIRST, before the Preview's / library's select-all-books.
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                        const hp = hoverPopupInUse();
+                        if (hp) {
+                            e.preventDefault();
+                            const s = window.getSelection();
+                            if (s) { s.removeAllRanges(); s.selectAllChildren(hp); }
+                            return;
+                        }
                     }
 
                     // v7.18.0-alpha.36 - Ctrl+A in the book dialog is now the standard dialog scope-select (below):
