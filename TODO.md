@@ -549,6 +549,15 @@ Reply to the user still owed (Ron's channel).
     folders — a request on every load for every user, and it needs the server to expose .private).
   - Deferred by Ron 2026-10-06 — do after the overlay branch.
 
+**Dialog look (LOW priority — Ron 2026-10-08)**
+- [ ] **The confirm-style dialogs are hand-built page elements, not React `<Dialog>`s** — the message / OK-Cancel /
+  type-a-name / progress / choice / "Owned Book" boxes (showInfoDialog, showConfirmDialog, showInputDialog,
+  showProgressDialog, showChoiceDialog, showDeleteWarningDialog; ~45 call sites). 7.18.0 plugged them into the overlay
+  system (Esc, ✕, key blocking all shared) but kept their hand-built look. OPTION A (deferred): one React "dialog
+  service" rendering each request as a `<Dialog>`, call sites unchanged (`await showConfirmDialog(…)`) — removes ~300
+  lines of hand-built DOM and gives every dialog one look; costs a visual check of all ~45. Only worth it if a dialog
+  redesign is wanted.
+
 **Responsiveness**
 - [ ] **Clicking a different book feels slightly laggy while a filter or search is active** (Ron 2026-10-06). WHAT YOU
   SEE: with any filter/search active — even inside a small folder — click from one book to another; there's a small

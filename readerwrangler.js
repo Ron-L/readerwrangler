@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.67";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.68";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -174,23 +174,21 @@
         // stack, only the TOPMOST overlay responds. showProgressDialog deliberately opts out (a running
         // import must not be Esc-dismissed). Every exit path must use the returned close() — it detaches
         // the listener exactly once and is idempotent.
+        // v7.18.0-alpha.68 - the imperative dialogs are now LAYERS in the one overlay stack (overlayRegistry) instead of a
+        // parallel system with its own Esc listener: registering on open gives them the shared innermost-first Esc (the
+        // registry listener closes the TOP layer and consumes the key), the keystroke + undo fence (hasFence), Ctrl+A scoped
+        // to the dialog's text (nodeRef), and correct stacking with React <Dialog>s/<Popover>s (a popup under one of these
+        // ignores clicks — it isn't topmost). Their look is unchanged (Ron: keep them as they are; only how they close).
         function attachDialogDismiss(overlay, dialog, closeRaw, cancelValue) {
             let closed = false;
+            let layerId = null;
             const close = (val) => {
                 if (closed) return;
                 closed = true;
-                window.removeEventListener('keydown', onKey, true);
+                if (layerId != null) overlayRegistry.removeLayer(layerId);
                 closeRaw(val);
             };
-            const onKey = (e) => {
-                if (e.key !== 'Escape') return;
-                const stack = document.querySelectorAll('.rw-imperative-overlay');
-                if (stack[stack.length - 1] !== overlay) return; // not topmost — the newer dialog handles it
-                e.stopPropagation();
-                e.preventDefault();
-                close(cancelValue);
-            };
-            window.addEventListener('keydown', onKey, true);
+            layerId = overlayRegistry.pushLayer({ close: () => close(cancelValue), kind: 'modal', nodeRef: { current: dialog } });
             const x = document.createElement('button');
             x.textContent = '✕';
             x.setAttribute('aria-label', 'Close');
@@ -302,6 +300,13 @@
             overlay.appendChild(dialog);
             document.body.appendChild(overlay);
 
+            // v7.18.0-alpha.68 - a layer in the one overlay stack (key + undo fence, correct stacking). Esc does NOTHING while
+            // the work runs (a running import must not be Esc-dismissed — the long-standing rule); once finish() shows OK,
+            // Esc acts as OK. `remove` is the single exit: drops the layer and the overlay (idempotent).
+            let onEscAfterFinish = null;
+            const layerId = overlayRegistry.pushLayer({ close: () => { if (onEscAfterFinish) onEscAfterFinish(); }, kind: 'modal', nodeRef: { current: dialog } });
+            const remove = () => { overlayRegistry.removeLayer(layerId); if (overlay.parentNode) document.body.removeChild(overlay); };
+
             return {
                 update(msg) {
                     messageEl.textContent = msg;
@@ -319,13 +324,15 @@
                         `;
                         button.onmouseover = () => button.style.background = 'var(--bg-accent-hover)';
                         button.onmouseout = () => button.style.background = 'var(--bg-accent)';
-                        button.onclick = () => { document.body.removeChild(overlay); resolve(); };
+                        const ok = () => { remove(); resolve(); };
+                        button.onclick = ok;
+                        onEscAfterFinish = ok; // from here on, Esc = OK
                         buttonContainer.appendChild(button);
                         button.focus();
                     });
                 },
                 close() {
-                    if (overlay.parentNode) document.body.removeChild(overlay);
+                    remove();
                 }
             };
         }
@@ -467,7 +474,9 @@
                 confirmBtn.textContent = confirmText;
                 confirmBtn.style.cssText = `background: var(--bg-accent); color: var(--text-on-accent); border: none; border-radius: 4px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer;`;
                 confirmBtn.onclick = () => close(input.value);
-                input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); close(input.value); } else if (e.key === 'Escape') { e.preventDefault(); close(null); } };
+                // v7.18.0-alpha.68 - Enter submits. Esc is NOT handled here any more: the shared overlay Esc closes the top layer
+                // (this dialog) — handling it here too would close this box AND then the dialog beneath it.
+                input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); close(input.value); } };
                 btnRow.appendChild(cancelBtn); btnRow.appendChild(confirmBtn);
                 dialog.appendChild(titleEl); dialog.appendChild(messageEl); dialog.appendChild(input); dialog.appendChild(btnRow);
                 overlay.appendChild(dialog); document.body.appendChild(overlay);
