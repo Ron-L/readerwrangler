@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.68";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.69";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -188,7 +188,8 @@
                 if (layerId != null) overlayRegistry.removeLayer(layerId);
                 closeRaw(val);
             };
-            layerId = overlayRegistry.pushLayer({ close: () => close(cancelValue), kind: 'modal', nodeRef: { current: dialog } });
+            // alpha.69 - detached: opened from a menu item, it sits ABOVE that menu; the menu closing must not take it along.
+            layerId = overlayRegistry.pushLayer({ close: () => close(cancelValue), kind: 'modal', nodeRef: { current: dialog }, detached: true });
             const x = document.createElement('button');
             x.textContent = '✕';
             x.setAttribute('aria-label', 'Close');
@@ -304,7 +305,7 @@
             // the work runs (a running import must not be Esc-dismissed — the long-standing rule); once finish() shows OK,
             // Esc acts as OK. `remove` is the single exit: drops the layer and the overlay (idempotent).
             let onEscAfterFinish = null;
-            const layerId = overlayRegistry.pushLayer({ close: () => { if (onEscAfterFinish) onEscAfterFinish(); }, kind: 'modal', nodeRef: { current: dialog } });
+            const layerId = overlayRegistry.pushLayer({ close: () => { if (onEscAfterFinish) onEscAfterFinish(); }, kind: 'modal', nodeRef: { current: dialog }, detached: true }); // alpha.69 - see attachDialogDismiss
             const remove = () => { overlayRegistry.removeLayer(layerId); if (overlay.parentNode) document.body.removeChild(overlay); };
 
             return {

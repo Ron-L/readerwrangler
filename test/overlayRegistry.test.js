@@ -171,6 +171,29 @@ test('fence: a fencing popover above a modal does not unseat the modal as topmos
 });
 
 // --- outsideClickAction: the Popover outside-click policy, one case per earned rule ---
+test('detached: a confirm opened from a menu SURVIVES the menu closing; normal children above still cascade', () => {
+    // alpha.69 - Bake / New list: the menu item pushes a confirm above the still-open menu, then the menu unmounts.
+    let confirmClosed = 0, childClosed = 0;
+    const menu = reg.pushLayer({ close: () => {}, kind: 'menu' });
+    reg.pushLayer({ close: () => { childClosed++; }, kind: 'popover' });          // the menu's own child
+    const confirm = reg.pushLayer({ close: () => { confirmClosed++; }, kind: 'modal', detached: true });
+    reg.removeLayer(menu);
+    assert.strictEqual(confirmClosed, 0, 'the detached confirm is NOT closed');
+    assert.strictEqual(childClosed, 1, 'the menu child still cascade-closes');
+    assert.strictEqual(reg._count(), 1);
+    assert.strictEqual(reg.topLayer().id, confirm, 'the confirm is still on the stack (and topmost — Esc reaches it)');
+    assert.strictEqual(reg.hasFence(), true, 'and still fences library keys');
+});
+test('detached layers keep their order when a layer below them is removed', () => {
+    const a = reg.pushLayer({ close: () => {}, kind: 'menu' });
+    const d1 = reg.pushLayer({ close: () => {}, kind: 'modal', detached: true });
+    const d2 = reg.pushLayer({ close: () => {}, kind: 'modal', detached: true });
+    reg.removeLayer(a);
+    assert.deepStrictEqual([reg._count(), reg.topLayer().id], [2, d2]);
+    reg.removeLayer(d2);
+    assert.strictEqual(reg.topLayer().id, d1);
+});
+
 const base = { insidePopup: false, onOwnTrigger: false, button: 0, kind: 'menu', isTopmost: true, imperativeUp: false, onPopupTrigger: false };
 const act = (over) => reg.outsideClickAction({ ...base, ...over });
 

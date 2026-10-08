@@ -19,7 +19,7 @@
 // parent→child hierarchy — "containment is a stack"), a belt-and-suspenders partner to React
 // unmounting nested children automatically.
 
-let _layers = [];              // [{ id, close, kind, nodeRef, fence }] — [0] outermost, [n-1] topmost
+let _layers = [];              // [{ id, close, kind, nodeRef, fence, detached }] — [0] outermost, [n-1] topmost
 let _seq = 0;                  // monotonic id source
 const _subs = new Set();       // subscribers notified on any change (React syncs hasModal() from this)
 
@@ -33,23 +33,30 @@ const _notify = () => { _subs.forEach(fn => { try { fn(); } catch (e) { /* a sub
 // it); a plain popover doesn't unless it opts in (toast history does — a Ctrl+X in it once cut a
 // selected book). Kept separate from `kind` because "dims like a dialog" and "blocks library keys"
 // are different facts.
-const pushLayer = ({ close, kind, nodeRef, fence }) => {
+// detached (alpha.69): an INDEPENDENT overlay — never cascade-closed when a layer beneath it is removed (see removeLayer).
+const pushLayer = ({ close, kind, nodeRef, fence, detached }) => {
     const id = ++_seq;
     // alpha.54: a 'list' (type-ahead suggestions under a field) doesn't fence by default either — it lives inside a
     // dialog that already does.
-    _layers.push({ id, close, kind, nodeRef, fence: fence === undefined ? (kind === 'modal' || kind === 'menu') : !!fence });
+    _layers.push({ id, close, kind, nodeRef, fence: fence === undefined ? (kind === 'modal' || kind === 'menu') : !!fence, detached: !!detached });
     _notify();
     return id;
 };
 
 // Remove a layer AND everything above it, closing those above (cascade). Idempotent: removing an
 // id that's already gone is a no-op (so React unmount-after-cascade doesn't double-fire or throw).
+// v7.18.0-alpha.69 - EXCEPT layers marked `detached`: an independent overlay that merely happens to sit above (the
+// imperative confirm-style dialogs). A menu item that opens a confirm pushes the confirm ABOVE the still-open menu in the
+// same click; the menu's React unmount then removed "it and everything above" — closing the confirm before it was ever
+// seen (Ron: "Bake Order" / "New Book List" never appeared, alpha.68). A detached layer is nobody's child, so it survives.
 const removeLayer = (id) => {
     const i = _layers.findIndex(l => l.id === id);
     if (i < 0) return;                          // already gone — no-op, no notify
-    const removed = _layers.splice(i);          // remove id and everything above it, synchronously
-    for (const l of removed) {
-        if (l.id !== id && l.close) { try { l.close(); } catch (e) { /* keep tearing down */ } }
+    const above = _layers.slice(i + 1);
+    const closing = above.filter(l => !l.detached);
+    _layers = _layers.slice(0, i).concat(above.filter(l => l.detached)); // drop id + its (non-detached) children
+    for (const l of closing) {
+        if (l.close) { try { l.close(); } catch (e) { /* keep tearing down */ } }
     }
     _notify();
 };
