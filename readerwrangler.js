@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.71";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.72";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -699,6 +699,11 @@
         // Deliberately NOT an overlay-stack layer (Ron + UX, alpha.71): you never "opened" it, so Esc must not spend a
         // press on it — Esc goes straight to the window/menu beneath, and the popup goes with that.
         // tip = null | { bookId, x, y, right, bottom, width, height, cursorX, cursorY } (the cover's box + the cursor).
+        // alpha.72 (Ron + UX) - QUIET while a click-opened popup (menu / panel / list) is up: hover popups must not pop over
+        // the panel you're working in (the Preview's source panel opens right under its covers). A WINDOW on top (the
+        // Preview itself) doesn't count — you hover covers inside it. Read from the overlay stack, so every menu and panel
+        // anywhere counts with no list to keep: a hover can't start (show) and one already up closes (subscribe).
+        const clickPopupUp = () => { const t = overlayRegistry.topLayer(); return !!t && t.kind !== 'modal'; };
         function useHoverTip({ delay = 280, grace = 150 } = {}) {
             const [tip, setTip] = useState(null);
             const showTimer = useRef(null);
@@ -706,10 +711,15 @@
             const pending = useRef(null);
             const clearShow = () => { if (showTimer.current) { clearTimeout(showTimer.current); showTimer.current = null; } };
             const clearHide = () => { if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; } };
-            useEffect(() => () => { clearShow(); clearHide(); }, []);
+            const close = () => { pending.current = null; clearShow(); clearHide(); setTip(null); };
+            useEffect(() => {
+                const unsub = overlayRegistry.subscribe(() => { if (clickPopupUp()) close(); });
+                return () => { unsub(); clearShow(); clearHide(); };
+            }, []);
             return {
                 tip,
                 show: (el, bookId, clientX, clientY) => {
+                    if (clickPopupUp()) return;
                     clearHide();
                     const r = el.getBoundingClientRect();
                     pending.current = { bookId, x: r.left, y: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height, cursorX: clientX, cursorY: clientY };
@@ -719,7 +729,7 @@
                 leave: () => { pending.current = null; clearShow(); clearHide(); hideTimer.current = setTimeout(() => setTip(null), grace); },
                 hold: clearHide,
                 // close: hide NOW and cancel anything pending (a right-click menu / click elsewhere took over)
-                close: () => { pending.current = null; clearShow(); clearHide(); setTip(null); },
+                close,
             };
         }
 
@@ -12036,7 +12046,6 @@
                             const sel = autoOrgSel.has(b.id);
                             return (
                             <div key={b.id}
-                                title={`${b.title || 'Untitled'}${b.series ? ` — ${b.series}${b.seriesPosition ? ' #' + b.seriesPosition : ''}` : ''}`}
                                 style={{ width: '46px', flex: '0 0 auto', position: 'relative', cursor: 'pointer', borderRadius: '4px', outline: sel ? '2px solid #4f46e5' : '2px solid transparent', outlineOffset: '1px' }}
                                 onClick={(e) => handlePreviewCoverClick(e, b)}
                                 onDoubleClick={(e) => { e.stopPropagation(); openBookModal(b, null, navList); }}
@@ -12574,10 +12583,14 @@
                     {previewTip.tip && !autoOrgMenu && (() => {
                         const flds = getFoldersContainingBook(previewTip.tip.bookId).filter(f => f.id !== '__inbox__' && f.id !== '__all__' && f.id !== '__library__');
                         const lists = getBookListsContainingBook(previewTip.tip.bookId);
+                        const tb = books.find(x => x.id === previewTip.tip.bookId);
                         return (
                             <HoverPopup hover={previewTip} placement="beside"
                                 className="bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-xs z-[76]"
                                 style={{ maxWidth: '260px', maxHeight: '60vh', overflowY: 'auto' }}>
+                                {/* alpha.72 (Ron + UX) - the title heads the popup; the cover's own browser tooltip (which showed
+                                    it as a SECOND popup on top of this one) was removed. Preview covers print no title. */}
+                                {tb && <div className="font-semibold text-gray-800 mb-1">{tb.title || 'Untitled'}{tb.series ? ` — ${tb.series}${tb.seriesPosition ? ' #' + tb.seriesPosition : ''}` : ''}</div>}
                                 {(flds.length === 0 && lists.length === 0)
                                     ? <div className="text-gray-400 italic">Only in Inbox — not filed or listed yet</div>
                                     : <>
