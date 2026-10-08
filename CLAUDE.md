@@ -13,8 +13,13 @@
 add `fence` if it must block library keys; `anchorRef` for a button dropdown).** Esc (innermost-first,
 consumed), the ✕ / backdrop / outside-click dismissal, the keystroke + undo fence, and stacking are then
 STRUCTURAL — the overlay self-registers in `overlayRegistry.js`. **Never hand-roll a scrim, an Esc
-listener, or a fence flag.** Remaining exception until they migrate: the imperative `showConfirmDialog`-
-style overlays (own capture-phase Esc, detected by `imperativeDialogsUp()`).
+listener, or a fence flag.** The imperative `showConfirmDialog`-style boxes (confirm / info / input / choice /
+delete-warning / progress) keep their hand-built look but are layers in the SAME stack (since 7.18.0-alpha.68):
+Esc, ✕, background click (press must start on it) and the fence come from their shared chrome
+**`attachDialogDismiss`** (the progress box calls `pushLayer` + `onBackdropClick` itself). They register
+**`detached: true`** — a box opened from a menu item sits above that menu and must survive the menu closing
+(alpha.69). A new imperative box MUST go through `attachDialogDismiss`; better, build it as a `<Dialog>`
+(rebuilding these as `<Dialog>`s is a low-priority TODO). `imperativeDialogsUp()` still detects them by DOM class.
 **Popup buttons:** every button that opens a popup spreads **`{...popupTrigger(isOpen)}`** (optionally
 `popupTrigger(isOpen, 'listbox' | 'dialog')`) — one bundle carrying the `data-popover-trigger` marker (a click on it
 while ANY other popup is open switches in ONE click instead of the usual "an outside click only closes") plus the
