@@ -17,7 +17,7 @@ sharper form of the meta-principle, paid for the same week it was written: **inv
 running it.** A "new dialog checklist" added to CLAUDE.md was skipped the same session it was authored, and a
 class-of-sites "comb" was performed *by eye* (missing a 5th broken overlay) while its name was invoked — the
 mechanical two-pivot grep found what the impression missed. A written rule gets *performed*; a gate *fires*
-whether it's remembered or not. The 11 points (source of truth: `gate-check.py`): (1) extending a spaghetti
+whether it's remembered or not. The points (live source: the **GATE-CHECKLIST block** just below, which the hook now prints verbatim — edit it there and the gate auto-syncs): (1) extending a spaghetti
 section → restructure; (2) adding state → represent *legal* states (FSM / cooperating FSMs / reducer), not
 loose flags [Law 17]; (3) reinventing a React/DOM wheel?; (4) can the relationship live in a *structure*
 (containment) not a hand-synced list?; (5) call the existing closer/accessor, don't hand-roll a partial;
@@ -27,6 +27,60 @@ asked → name + FILE the gap; (10) build-grade or explore-quality?; (11) did Ro
 1]. It is a trial (`.claude/settings.local.json`); the design of the *structural* version that would retire
 it — a self-registering `<Dialog>`/`<Popover>` layer registry — is in **DIALOG-DISMISSAL-AUDIT.md** (deferred
 to its own branch).
+
+<!-- The block below is the SINGLE SOURCE for .claude/hooks/gate-check.py. The hook prints everything
+between the two checklist markers, verbatim, on the first app-source edit of a turn. Edit the checklist
+HERE and the gate auto-syncs — no duplication to drift. If the hook cannot read this block (file moved,
+markers removed, path broken) it prints a LOUD failure instead, so a broken reference announces itself
+rather than silently degrading. Keep each marker on its own line. -->
+<!-- GATE-CHECKLIST-START -->
+[PRE-BUILD GATE] (not a real denial -- a once-per-turn checkpoint).
+This is your first app-source edit this turn. Run the checklist; if the edit still
+stands, immediately RE-ISSUE the identical edit -- it will proceed (the flag is now cleared).
+
+STRUCTURE -- is this the right shape?
+ 1. Extending a spaghetti section? Adding another flag/branch/case to a pile of
+    conditionals or a hand-written dispatch means the STRUCTURE is missing -- restructure,
+    don't pile on.
+ 2. Adding state? Model the cluster's LEGAL states (FSM / cooperating FSMs / reducer) so
+    illegal combinations are unrepresentable and each new state is enumerable -- not loose
+    booleans that fail open the moment you add the next flag. [Law 17]
+ 3. Reinventing a wheel React/the DOM already turns? Reach for the component tree, context,
+    event bubbling, refs, portals before hand-rolling registries/listeners/coordination.
+ 4. Can the relationship live in a STRUCTURE, not a procedure? Prefer containment (nest/chain
+    so the tree carries parent<->child) over an external list/stack you sync by hand.
+ 5. Is there already a function/accessor for this? Call the encapsulated closer/accessor;
+    don't hand-roll a partial copy (that is exactly how the Esc close-drift orphan happened).
+    Don't scatter raw state access.
+ 6. Is the elegant version LESS code, not cleverer code? If you're adding machinery, ask
+    whether the right move deletes machinery instead.
+
+COMPLETENESS -- did you get all of it?
+ 7. Changing a class of sites? (the same edit in 2+ places, or a task worded
+    all/every/everywhere/always) -> run /sitemap: two independent pivots, diff them, post the
+    file:line table BEFORE claiming coverage. Then ask whether the N sites collapse to one
+    chokepoint. [Law 5]
+
+HONESTY -- are you being straight about it?
+ 8. NEVER ASSUME -- verified in the actual source, or leaning on a fragment of memory/context?
+    A belief you have not checked (a compaction fragment, "just cosmetic", "redundant", "should be
+    fine", "safe to remove", "I'm sure") is NOT a fact. Re-read the source / grep the consumers /
+    run the probe, or ask Ron -- don't reconstruct from recall. Over-confirm: that cost is always
+    smaller than a mistake built on incomplete memory. (Your assumptions, docs, vendor semantics
+    all count. 7.15.0: "just cosmetic" dropped a CSS class a live handler depended on.) [Law 2]
+ 9. Quietly delivering less than the words asked? Name the gap and FILE the remainder in the
+    same breath -- never silent scope narrowing.
+10. Build-grade, or explore-quality you shouldn't ship? Say which phase you're in.
+11. Did Ron approve THIS specific change? Discussion is not approval. [Law 1]
+
+DEBUGGING -- are you chasing it in the right place?
+12. Fixing a reported bug and this is the 3rd+ change chasing the SAME symptom? STOP -- question the
+    abstraction: is the bug even IN the layer you keep patching? Re-derive from a different angle -- go
+    to the TRUE source (the raw event/state/inputs, not a value handed downstream); try a second pivot.
+    Tell: a logged value that stays CONSTANT while the input varies means you're measuring downstream.
+    (Earned 7.18.0: 5 alphas "fixing" CursorPopup while the bug was a hardcoded pre-clamp in the trigger
+    -- the click x never changed as Ron clicked different spots, and that tell sat in every debug dump.) [Laws 3, 4]
+<!-- GATE-CHECKLIST-END -->
 
 **Era note (Ron, 2026-09-04)**: some recurrence counts below are partly artifacts of earlier AI model
 generations, not process gaps — early models fought the versioning rules, couldn't reliably evaluate the
@@ -80,14 +134,24 @@ known-good test case — you cannot certify the fix. The collectionTags-wipe fix
 alone; Ron: *"It is ALWAYS worth verifying a bug before fixing so we KNOW we have a good test case."*
 Thereafter every fix ran **repro → fix → verify** with console probes against the real IndexedDB — and
 that discipline caught the `genresAsOf` slip before it could ship.
-**Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule.
+**7.18.0 reprise (the deepest cut):** instrumentation only tells the truth if it measures the SOURCE.
+Chasing a right-click-menu gap, I logged the coordinate the *component received* — but the trigger had
+already clamped it — so the probe "confirmed" the innocent layer for **five alphas**. Instrument the raw
+event/state, NOT a value handed downstream. And the tell that would have ended it on day one: **a logged
+input that stays CONSTANT while the real input varies means you're measuring downstream — go upstream.**
+(The click `x` read `1186` in every dump while Ron clicked all over the right edge.)
+**Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule; pre-build gate item 12.
 
 ### 4. After 3 iterations, question the abstraction
 Proposed 2025-11-11; ignored through 26 alphas (v3.14.0 drag-drop) and 9 alphas (v6.11.2 — where one
 question, "why aren't these just items?", replaced all nine). If each fix adds a special case instead of
 removing one, the design is wrong: stop, list the edge cases, ask "are these actually different things?",
-propose Plan Mode. 15 minutes of design beats 3 hours of patches, every measured time.
-**Enforcement**: `feedback_debugging` Rule 2.
+propose Plan Mode. 15 minutes of design beats 3 hours of patches, every measured time. **7.18.0: five
+alphas "fixing" CursorPopup for a menu-position gap while the bug was a hardcoded pre-clamp in the
+*trigger* — I never asked whether the component I kept patching was even the right layer.** The wider
+question ("is the bug here at all?") is the net; provenance-of-the-input is one thing it catches.
+**Enforcement**: `feedback_debugging` Rule 2; **pre-build gate item 12** (fires on every app-source edit —
+the wide net, because passive memory did NOT fire during those five alphas).
 
 ### 5. Enumerate ALL instances of a class — including copies, setters, and siblings
 Fixing only the reported instance is the default failure ("Claude doesn't naturally do this" — v3, 2025;

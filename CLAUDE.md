@@ -7,19 +7,29 @@
 
 ---
 
-## New dialog/modal → the checklist (RW mechanism)
+## New dialog/modal/popup → build it on the overlay primitive (RW mechanism)
 
-Every new dialog/modal, without exception:
-1. Register in `anyDialogOpen` (the keystroke-guard + undo-fence registry — else Ctrl+X/Delete leak
-   to the library beneath).
-2. Add to `handleModalEsc` (Esc closes it, innermost-first).
-3. A ✕ close button.
-4. Backdrop-click close.
+**Every new dialog, modal, menu or popup is built with `<Dialog>` (modal) or `<Popover>` (menu/popup;
+add `fence` if it must block library keys; `anchorRef` for a button dropdown).** Esc (innermost-first,
+consumed), the ✕ / backdrop / outside-click dismissal, the keystroke + undo fence, and stacking are then
+STRUCTURAL — the overlay self-registers in `overlayRegistry.js`. **Never hand-roll a scrim, an Esc
+listener, or a fence flag.** The imperative `showConfirmDialog`-style boxes (confirm / info / input / choice /
+delete-warning / progress) keep their hand-built look but are layers in the SAME stack (since 7.18.0-alpha.68):
+Esc, ✕, background click (press must start on it) and the fence come from their shared chrome
+**`attachDialogDismiss`** (the progress box calls `pushLayer` + `onBackdropClick` itself). They register
+**`detached: true`** — a box opened from a menu item sits above that menu and must survive the menu closing
+(alpha.69). A new imperative box MUST go through `attachDialogDismiss`; better, build it as a `<Dialog>`
+(rebuilding these as `<Dialog>`s is a low-priority TODO). `imperativeDialogsUp()` still detects them by DOM class.
+**Popup buttons:** every button that opens a popup spreads **`{...popupTrigger(isOpen)}`** (optionally
+`popupTrigger(isOpen, 'listbox' | 'dialog')`) — one bundle carrying the `data-popover-trigger` marker (a click on it
+while ANY other popup is open switches in ONE click instead of the usual "an outside click only closes") plus the
+accessibility pair (aria-haspopup / aria-expanded). Never hand-write those attributes. Ron, 2026-10-07/08; a dev-server
+console warning flags an anchored popup whose button lacks it.
 
-(Earned 2026-09-16: the Share dialog shipped with only Cancel+backdrop — the exact class the 7.10.1
-audit fixed but never made a *rule*.) **Durable chokepoint (in progress):** the self-registering
-`<Dialog>`/`<Popover>` primitive in `docs/design/DIALOG-DISMISSAL-AUDIT.md` will make this checklist
-structural (and unnecessary) — until it ships, follow the four steps by hand.
+(History: earned 2026-09-16 when the Share dialog shipped with only Cancel+backdrop. The old hand-run
+4-step checklist — register in `anyDialogOpen`, add to `handleModalEsc`, ✕, backdrop — was retired in
+7.18.0-alpha.43 when both of those lists were deleted; design of record:
+`docs/design/DIALOG-DISMISSAL-AUDIT.md`.)
 
 ---
 
@@ -87,11 +97,22 @@ particulars:
 ## RW session tooling (`.claude/`, local, gitignored)
 
 - **Pre-build gate** — a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the first edit of
-  `readerwrangler.js`/`mobile.js` each turn with an 11-point checklist (mechanism, not memory).
-  Consider the checklist, then re-issue the edit. `Stop`/`SessionStart` re-arm it per turn.
+  `readerwrangler.js`/`mobile.js` each turn with a checklist (mechanism, not memory). Consider it, then
+  re-issue the edit. `Stop`/`SessionStart` re-arm it per turn. The checklist is the **single source** in
+  `docs/PRINCIPLES.md` (the `GATE-CHECKLIST` block); the hook just pulls + prints it and **fails LOUD** if
+  it can't reach it. Full local tooling + the pattern: **`docs/design/SESSION-TOOLING.md`**.
 - **`/sitemap`** (`.claude/commands/sitemap.md`) — mechanizes the class-of-sites comb.
-- **Timestamp stamp hook** — a `UserPromptSubmit` hook (`.claude/hooks/stamp.py`) injects the live
-  time each turn so the `📋` response-start stamp stops depending on memory.
+- **Version-guard** — a `pre-commit` hook (`.claude/hooks/version-guard.py`) refuses a commit that stages
+  shipped code without moving its version stamp. Bypass: `git commit --no-verify`.
+- **Name check** — the same `pre-commit` hook runs **`scripts/check-names.js`** (versioned) whenever a `.js`/`.html`
+  is staged: refuses app code that uses a name nothing defines (a syntax check can't see that — 7.18.0-alpha.55's
+  "shareBtnRef is not defined" crash), and any `readerwrangler.html` inline script that doesn't parse. Page-level
+  names are derived from `readerwrangler.html`'s scripts, so new modules need no upkeep. Needs
+  `npm i --no-save @babel/core @babel/preset-react` (fails loud if missing).
+- **Timestamp stamp hook is GLOBAL, not RW-local** — it is `C:/Users/Ron/Projects/stamp.py`, wired in
+  `~/.claude/settings.json` (`UserPromptSubmit`), injecting the live time each turn for **all** projects.
+  See the Projects-root **`CLAUDE-TOOLING.md`**. (Corrected 2026-09-30 — the old `.claude/hooks/stamp.py`
+  path was wrong and cost a chase; its absence there is *not* a sign it's missing.)
 
 ---
 

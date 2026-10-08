@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.18.0] - 2026-10-08
+
+### Windows, menus and popups all behave the same way
+- **Esc, ✕, and clicking outside now work everywhere, the same way.** Every window, menu, dropdown and confirmation box in ReaderWrangler now runs on one shared system. **Esc** closes the innermost thing first: a menu inside a window closes before the window does. Windows and confirmation boxes close with their **✕** or a click on the dimmed background, and menus close when you click anywhere else. A few places that used to ignore Esc (Bulk Edit, the **💾 Save ▾** menu) now respond to it, and Folder Properties gained a ✕.
+- **Closing a menu never costs you your selection.** Pressing Esc or clicking away to dismiss a right-click menu or dropdown used to clear your selected books, or click whatever was underneath. Now the click only closes the menu; your selection stays put.
+- **One click switches between dropdowns.** With one toolbar dropdown open, clicking another dropdown's button opens it straight away. You no longer need one click to close and a second to open.
+- **Keyboard shortcuts can't reach the books behind an open menu or window.** With a menu or window open, Ctrl+A, Delete, Ctrl+X and similar shortcuts no longer act on the library behind it. Inside a window, **Ctrl+A** selects that window's text (handy for copying), never the whole page.
+- **Confirmation boxes close like everything else.** The small yes/no boxes (Bake Order, naming a new Book List, error messages, and so on) now close on a background click, the same as Esc and ✕, and always count it as **Cancel**.
+- **Stacked windows no longer darken the screen twice.** A window opened on top of another, such as Relay Setup's help, keeps the dimming at its normal level.
+
+### Hover popups you can actually use
+- **The "where does this book live" popup in Auto-Organize's Preview stays open.** Before, it vanished the moment you moved toward it. Now it waits until your mouse rests on a cover, stays open while you're on it, and scrolls if the list is long. It's headed by the book's title, replacing the second tooltip that used to pile on top. The smaller covers in the grey "already here" tray show it too.
+- **Hover popups stay out of the way while a menu or panel is open,** so they never cover the thing you're working in.
+- **Ctrl+A in a hover popup selects its text,** once you've clicked or selected text in it.
+
+### Smaller improvements
+- **Book window: a labeled "Share ▾" button** now sits next to **View on Amazon**, instead of an easy-to-miss icon. Share now uses the familiar three-connected-dots icon everywhere.
+- **Clicking empty space in the book list clears your selection.**
+- **Ctrl+A in the Auto-Organize wizard checks every author**, the same as its Select All button.
+- **Save ▾ with no matching books** now explains itself: *"No books to save — a Search will catch future matches."*
+- **Series suggestion lists** (book editing, Bulk Edit) close when you Tab to the next field, and stay attached to their field when you scroll.
+- **More panel:** the Series filter gets a wider column.
+
+### Changed
+- **Folder Properties can no longer be dragged around the screen.** Moving windows is coming back as a feature for *every* window at once, instead of just this one.
+
 ## [7.17.1] - 2026-09-28
 
 ### Fixed

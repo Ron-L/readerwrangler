@@ -8,9 +8,10 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-09-25 (through release 7.17.0)** — all sections human-reviewed (§1–21).
-7.17.0 was an under-the-hood release (Save/Restore + sync + merge unified onto one shared field
-definition; no user-facing label, behavior, or UI change), so no section content changed.
+_**Up to date as of 2026-10-08 (through release 7.18.0)** — all sections human-reviewed (§1–21).
+7.18.0 (one shared system for every window/menu/popup): comb hits updated — Preview hover popup
+(§Auto-Organize), zero-match Save (§10), book-window Share ▾ (Share), Esc/Ctrl+A rows + hover
+(§18). 7.17.0 was under-the-hood (no section content changed).
 Earlier passes: feature-surface (140 UI strings, all menus/dialogs/pages walked) + transcript/
 post-mortem mining. Scrub rule (public repo): no channel IDs, tokens, cookies, emails, or
 user-identifying data — facts only._
@@ -242,6 +243,11 @@ field to match. For co-author books, right-click in the preview → **File under
 to another group or pick any folder by name — creating a new folder is always an explicit
 ➕ choice in the picker, never the accident of a typo.
 
+**Where does a book already live?** Rest the mouse on any cover in the preview (the grey "already
+here" tray too): a popup shows its title and the folders / Book Lists it's in, and stays open while
+you move onto it to read. Click the caption *under* the cover to change which copies move.
+(7.18.0)
+
 **Handy inside the preview**: multi-select covers (Ctrl/Shift/Ctrl+A) and right-click → Add
 to Book List (e.g. select the unread ones → `<Series> - To Read` — the suggested name knows
 the series); double-click a cover to open its book dialog; group headers take File under…
@@ -324,6 +330,8 @@ until you clear it.
 **Live, not snapshot.** A Search's results change as your library does ("Wishlist" always
 means *current* wishlist). Want the frozen version? Save the results as a **Book List**
 instead — the results bar offers both: *Search (live filter) or Book List (snapshot)*.
+**Zero matches?** Only the Search option is available — a Book List is a fixed set of books, and
+there are none to save; the menu says *"No books to save — a Search will catch future matches."* (7.18.0)
 
 **How do I make one?** Set up filters, then Save via the results bar (name optional — an
 unnamed Search shows its filter chips as its label). Hand-building the same filters later
@@ -364,7 +372,8 @@ the chip is the intended path). Outside the dialog: right-click → **Copy Title
 **Copy Author(s)** work in every view — authors dedupe across a selection.
 
 **What's Share?** Copy the Amazon link (affiliate-tagged), or email a friend about a book
-(up to 20 selected). "Email a friend" opens a **Share by Email** dialog with three choices:
+(up to 20 selected). In the book window it's the **Share ▾** button next to **View on Amazon**
+(7.18.0; was an easy-to-miss icon); elsewhere, right-click a book. "Email a friend" opens a **Share by Email** dialog with three choices:
 **Open in email app** (opens your default mail client — Outlook, etc. — prefilled), **Copy to
 clipboard** (always works — paste anywhere), and **Open in Gmail (web)**. See §19 if the Gmail
 option shows a "redirect error."
@@ -607,17 +616,17 @@ The app's own list: Help → **Keyboard Shortcuts**. The core set:
 | Keys | Action |
 |---|---|
 | Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) | Undo / Redo (toasts name the target) |
-| Ctrl+A | Select all in the current view |
+| Ctrl+A | Select all in the current view · in a window: select its text · in the Auto-Organize preview: check all its books · in a hover popup you've clicked: select its text |
 | Ctrl+X / Ctrl+C / Ctrl+V | Cut (marks) / Copy / Paste books into the current folder |
 | Ctrl+Click / Shift+Click | Multi-select / range-select |
 | DEL | Delete selection (context-aware — see §12) |
-| Esc | Close dialog · cancel pending cut · clear selection |
+| Esc | Close the innermost menu or window (one press per layer — closing a menu keeps your selection) · otherwise cancel pending cut · clear selection |
 | ← → (book dialog) | Previous / next book |
 | Alt+← / Alt+→ | Back / Forward through your navigation history |
 | F2 | Rename the selected folder |
 
 Mouse tricks worth knowing: **Ctrl+drag = copy**; Shift+Click a column header = secondary
-sort key; hover a cover = a "where does this book live" popup whose folders and Book Lists are **clickable — click one to jump straight there**; double-click = open the book;
+sort key; rest on a cover = a "where does this book live" popup (it stays while you move onto it) whose folders and Book Lists are **clickable — click one to jump straight there**; double-click = open the book;
 right-click *everything* — books, folders, lists, Searches, tags, blank space, even the Trash
 row — the menus are where the power hides.
 

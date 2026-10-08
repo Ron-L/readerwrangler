@@ -1,6 +1,6 @@
 # Relay Write Redesign — Atomic, Mailbox-Delivered, Deterministically Merged Sync
 
-**Status:** Phase 1 IMPLEMENTED and released in 7.0.0 (2026-08-17) — worker endpoints, client commit pattern (`relay-client.js`), all 5 fetchers on mailbox letters, app merge-on-import/tombstones/reset runs, bulk-run GC. Verified by `relay/test-phase1.mjs` (39 checks) + a full live pass on the dev worker. Phases 1b (device-state journal) and 2 (Durable Object/quotas) remain design-only.
+**Status:** Phase 1 IMPLEMENTED and released in 7.0.0 (2026-08-17) — worker endpoints, client commit pattern (`relay-client.js`), all 5 fetchers on mailbox letters, app merge-on-import/tombstones/reset runs, bulk-run GC. Verified by `relay/test-phase1.mjs` (39 checks) + a full live pass on the dev worker. Phases 1b (device-state journal) and 2 (Durable Object/quotas) remain design-only. **2026-10-04: storage-leak audit — see §14a** (Restore never reclaims its absorbed run; leftovers are only swept by the next save; the usage email reports one bucket, not the total). Fixes designed, not built.
 **Date:** 2026-08-13 (design v2, post external review — 2 critical, 4 high, 5 medium findings incorporated; see revision note at end)
 **Scope:** The Cloudflare relay write path (the chunked library store and device-state store). Does **not** change local storage, the UI, or the Amazon scrapers themselves.
 
@@ -266,7 +266,64 @@ device-state must be **planned for chunking** — do not assume 25 MB holds for 
 
 **Lists (1,000/day shared, hard-fail):** every mailbox enumeration is ≥1 list (4,000 keys would be 4+ paginated calls — another reason the H3 batching rule is load-bearing). Design keeps lists off hot paths: pointer-GET discovery (no list), one list per fetcher run (skip-hint) and per app import (shared with trigger evaluation), mobile reads pointer only. Phase 2 meters lists in the DO alongside writes.
 
-**Storage (1 GB shared):** the arithmetic that makes this the possible *earlier* cliff: a ~50 MB encrypted library × keep-2 generations (~100 MB) + up to 90 d of letters + 2 generations of device-state (~100 MB) ⇒ **~250+ MB per heavy user** — 3–4 such users saturate free-tier storage before write quota binds. Mitigations, in order: (a) **explicit early GC of absorbed bulk runs** (delete a full-fetch run's letters after absorption + grace — the 90 d TTL is for *unabsorbed* letters; deletes pool is idle); (b) keep-2 already bounds generations; (c) fold storage into the DO's Phase-2 accounting and the paid-tier decision.
+**Storage (1 GB shared):** the arithmetic that makes this the possible *earlier* cliff: a ~50 MB encrypted library × keep-2 generations (~100 MB) + up to 90 d of letters + 2 generations of device-state (~100 MB) ⇒ **~250+ MB per heavy user** — 3–4 such users saturate free-tier storage before write quota binds. Mitigations, in order: (a) **explicit early GC of absorbed bulk runs** (delete a full-fetch run's letters after absorption + grace — the 90 d TTL is for *unabsorbed* letters; deletes pool is idle); (b) keep-2 already bounds generations; (c) fold storage into the DO's Phase-2 accounting and the paid-tier decision. **Update 2026-10-04:** mitigation (a) shipped for Import but not for Restore, and a large library's device-state alone is ~100–120 MB (keep-2 × 40–60 MB) — see §14a.
+
+---
+
+## 14a. Storage leak audit (2026-10-03/04)
+
+**Trigger.** A worker alert (2026-10-03) reported KV storage at 326 MB (31.8%) after four idle days, against 219.7 MB in the previous evening's summary. Investigation was read-only: key inventories via `npx wrangler kv key list --namespace-id <id> --remote`, summarized by `.private/analyze-relay-keys.js` (handles PowerShell's UTF-16 `>` output; prints key types, per-channel counts, generations per channel, and every gen/mail/device-state key with its expiry), plus one generation manifest read with `wrangler kv key get`, and the Cloudflare dashboard.
+
+### Findings
+
+**F1 — Restore never reclaims its reset run [verified in code + data].** `sendRestoreToRelay` (readerwrangler.js ~5423) writes the restored library as a multi-part `reset` run (~18 MB, 90 d TTL) and commits a generation that absorbs it, but never calls `deleteAbsorbedBulkRuns`. Import does (readerwrangler.js ~5315) and retries on every later import (~5324); Restore has neither. Proof: dev generation `…70ae`'s manifest lists `…df86` (written 36 s before the commit) and eight Sep 21–23 restore runs in `absorbedRuns`; all nine were still stored (~160 MB). **Every Restore leaks ~18 MB for 90 days** — test restores during alpha work are frequent. The worker's `DELETE /mail` route was ruled out (present since `cbc2899`, 2026-08-14; dev deployed 2026-09-01).
+
+**F2 — Leftovers are swept only by the next successful save [verified in code].** Keep-2, the 1 h grace, and the v7.5.1 orphan sweep all live at the end of `commitGeneration` (relay-client.js ~812–835) and the device-state twin (~405–425) — client discipline (relay-worker.js ~626). Two ordinary failures defeat it:
+- *Torn save.* Prod, Sep 9: a DEV→PROD restore wrote reset run `…3560`, then its commit died after the chunk (gen `…21fc`: chunk, no manifest, no TTL). The run was never absorbed.
+- *Quiet channel / grace window.* Dev, Sep 30: four device-state generations saved within 54 minutes; when the last committed, the older three were inside the 1 h grace, so GC kept them; no save since → 4 gens where keep-2 expects 2.
+
+**F3 — `absorbedRuns` is not deduplicated [verified in data].** The same manifest lists `…df86` twice. `pruneAbsorbedRuns` drops expired entries but doesn't dedupe; the set semantics of §9d are violated (harmless today).
+
+**F4 — The usage email reports one bucket, not the account total [verified].** `fetchUsage` (relay-worker.js ~904–918) queries `kvStorageAdaptiveGroups` for the account with no `namespaceId` filter or dimension and keeps the first row — a single namespace's daily max. The dashboard settled it: prod 230.38 MB / 53 keys, dev 341.79 MB / 296 keys (key counts match the inventories exactly). The worker divides by 1024², so prod = **219.7** and dev = **326.0** in email units. Email history Sep 20 → Oct 3: 219.7 ×4, 273.4 ×2, 0, 291.3 (Sep 28 alert), 219.7 ×2, 0, 219.7, 326 — i.e. prod (unchanged since Sep 9, hence the exact repeats), dev as it grew, and days with no row. **The email has never shown the true total (≈572 MB, 56% of 1 GB).** (The earlier "Cloudflare serves stale readings" theory was wrong.)
+
+**F5 — "No data" is reported as 0 [verified in code].** relay-worker.js ~916–917 maps an empty result to 0 bytes. A level like storage should never read 0; the email must say "no data".
+
+**F6 — The email's "MB" is MiB.** It divides by 1024² while the dashboard uses decimal MB; the two disagree by ~5% for the same bytes.
+
+### Where the 572 MB is (2026-10-04)
+
+| Bucket | Item | Approx. | Leftover? |
+|---|---|---|---|
+| Dev | 9 absorbed Restore runs (Ron's channel) | ~160 MB | **yes** (F1) |
+| Dev | 2 extra device-state generations | ~34 MB | **yes** (F2) |
+| Dev | legacy single-key `device-state` (pre-7.5.0) | ~17 MB | yes — expires Nov 26 |
+| Dev | 2 unabsorbed Sep 27 fetch runs | ~36 MB | no — pending import (orphan-feature test data) |
+| Dev | 2 library generations | ~36 MB | no |
+| Dev | test-harness channel `22222222-…` | rest | self-expires Nov 12–30 |
+| Prod | torn chunk `…21fc` | ~18 MB | **yes** (F2) |
+| Prod | legacy single-key `device-state` | ~17 MB | yes — expires Nov 26 |
+| Prod | unabsorbed Sep 9 reset run `…3560` | ~18 MB | reclaimable after the next prod save absorbs it |
+| Prod | 2 library generations + 2 device-state generations | ~70 MB | no |
+| Prod | channel `58c1bfd7…` device-state (2 gens × 3 chunks) | ~80–120 MB | no — another user's live data (see note) |
+
+**≈265 MB is recoverable** by fixing F1/F2 and sweeping once.
+
+**Note — channel `58c1bfd7…`.** First recorded 2026-09-07 (v7.7.1 PM: "mystery prod channel … no library"); re-saved Sep 8 20:33/20:52 UTC by device `dc6e0a03b` (not one of Ron's), now expiring Dec 7. Owner confirmed it isn't his (no other browsers/machines; the only stress test was Feb 2026). Treated as a real user's live data: **left alone**, and not leftover by any sweep rule.
+
+**Capacity note.** That channel's device-state needs 3 × 20 MB chunks per generation — a large library costs ~100–120 MB of device-state alone under keep-2, before library generations and letters. §14's "~250 MB per heavy user" understates a big library; storage, not writes, is the likely first free-tier ceiling (one Ron-sized user ≈ 250 MB; three is past 1 GB once leftovers accumulate).
+
+### Fix design [proposed — not built]
+
+**1. Reclaim inside the commit (one chokepoint).** After a successful `commitGeneration`, delete every multi-letter mailbox run listed in the new manifest's `absorbedRuns` (one mailbox `list` to count letters per run), and dedupe `absorbedRuns` before writing the manifest (fixes F3). Import, Restore and the fetchers' age-cap fallback all get it; the import-side `deleteAbsorbedBulkRuns` calls become redundant and are removed. The clearing invariant (§10) is unchanged — only runs a *committed* generation absorbed are deleted.
+
+**2. Usage monitoring that reports the truth.**
+- Query storage **per namespace** (prod + dev IDs in config), `date_geq` two days back, `dimensions { date }`, `orderBy: [date_DESC]`, taking the newest row for each — Cloudflare's own documented shape — and report each bucket plus the **sum**.
+- Missing row ⇒ "no data", never 0 (F5). Label units honestly or use decimal MB to match the dashboard (F6).
+- **Cross-check with `keyCount`.** Cloudflare returns `max.keyCount` alongside `byteCount`. The worker lists its own bucket's key names (one or two `list` calls a day) and compares counts; the email marks the figure "verified current" or "stale". Exact per-key size tracking (KV metadata) is unnecessary while the counts agree.
+
+**3. A worker-side daily sweep (the mechanism F2 lacks).** For each channel: delete absorbed multi-letter runs; manifest-less generations older than 1 h; generations beyond keep-2 that are not pointed-to and older than 1 h; the same for device-state. **Never** unabsorbed letters (they may be the only copy of a wishlist add) and never the pointed generation. Manifests and `absorbedRuns` are plaintext, so no decryption is needed; cost is a few dozen `list`s and a handful of deletes a day. **Ships report-only first** (an env flag): the summary email lists what it *would* delete until its output has matched the hand inventory for about a week, then deletion is switched on. Afterwards any sweep hit means a client bug or torn save, so the email doubles as an alarm. Open: dev has no crons today (to avoid duplicate alert mail) — either give dev a sweep-only cron or bind the dev namespace to the prod worker.
+
+**Existing leftovers** are cleared by the first save on each channel after fix 1 ships, or by the sweep once deletion is enabled. Never Import from Relay on dev to "test" this while the Sep 27 orphan test runs are pending.
 
 ---
 
@@ -277,6 +334,8 @@ device-state must be **planned for chunking** — do not assume 25 MB holds for 
 - **[decide]** exact numbers: age cap (3 d?), letter TTL (90 d?), staleness window (24 h?), grace age (1 h?), letter batch size (5 MB?).
 - **[decide]** tombstone revival policy (fetch re-finds a permanently-deleted owned book) — owned by `TOMBSTONE-DELETE.md`; this design only requires that tombstones exist and are honored by merges.
 - **[decide]** worker API shape: new endpoints for mail/pointer/generations vs. generalizing the existing chunk/manifest endpoints. (Implementation detail, but affects Phase 0 testing.)
+- **[verify]** (§14a) Cloudflare documents no update cadence or lag for `kvStorageAdaptiveGroups` ("adaptive sampling"). Confirm with the per-namespace query + `keyCount` check that the newest daily row is current, before trusting byte counts without per-key size tracking.
+- **[decide]** (§14a) how the sweep reaches dev: a sweep-only dev cron vs. binding the dev namespace to the prod worker.
 
 ---
 

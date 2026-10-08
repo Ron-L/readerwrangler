@@ -34,7 +34,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="readerwrangler.css?v=7.11.0">
+    <link rel="stylesheet" href="readerwrangler.css?v=7.18.0">
     <!-- v5.5.11 - Splash screen styles (no Tailwind dependency) -->
     <style>
         @keyframes splash-spin {
@@ -140,8 +140,10 @@
     <!-- v7.17.0 - Book-merge implementation (reads the table above); node-unit-tested; loads before storage.js -->
     <script src="bookMerge.js?v=7.17.0"></script>
     <script src="storage.js?v=7.17.0"></script>
+    <!-- v7.18.0 - Overlay layer registry (pure JS; the ordered dialog/popover stack); node-unit-tested; loads before the app script -->
+    <script src="overlayRegistry.js?v=7.18.0"></script>
     <!-- v6.3.0 - Data integrity checks -->
-    <script src="integrity.js?v=6.3.0-alpha.6"></script>
+    <script src="integrity.js?v=6.3.0"></script>
     <!-- v6.13.0-alpha.1 - Pure Auto-Organize engine (shared by the wizard + the right-click; node-unit-tested) -->
     <script src="organizeEngine.js?v=6.13.0"></script>
     <!-- v6.0.0 - Relay modules (encrypt, compress, client) -->
@@ -154,8 +156,7 @@
         window.addEventListener('error', function(e) {
             if (window._lastLoadError) return; // first error is the story
             if (e && e.message) {
-                window._lastLoadError = e.message + (e.filename ? '
-' + e.filename.split('/').pop() + ':' + e.lineno : '');
+                window._lastLoadError = e.message + (e.filename ? '\n' + e.filename.split('/').pop() + ':' + e.lineno : '');
             } else if (e && e.target && e.target.src) {
                 window._lastLoadError = 'Failed to load: ' + e.target.src.split('/').pop().split('?')[0];
             }
@@ -168,7 +169,7 @@
     <script>
         // APP_VERSION - Single source of truth for cache busting
         // Update this on each release to force browsers to fetch new code
-        const APP_VERSION = "7.17.1";
+        const APP_VERSION = "7.18.0";
 
         // Viewport detection: load mobile.js on phone-width screens
         // Session guard: once desktop loads in a tab, it stays desktop for that session
@@ -214,7 +215,13 @@
             window._appTimeout = isMobile ? 45000 : 15000; // Mobile Babel compile is slow on phones
             var script = document.createElement('script');
             script.type = 'text/babel';
-            script.src = (isMobile ? 'mobile.js' : 'readerwrangler.js') + '?v=' + APP_VERSION;
+            // v7.18.0-alpha.53 - On a LOCAL dev server (this PC, or a phone on the home LAN hitting it) use a fresh
+            // stamp per load: APP_VERSION doesn't move between alphas, so the browser could reuse a stale copy and a
+            // hard refresh sometimes didn't fetch the new one (2026-10-06 stale-page false bug). Harmless for anyone
+            // self-hosting (only skips caching of their own local file); production keeps the version-based cache.
+            var _h = location.hostname;
+            var _isLocalServer = _h === 'localhost' || _h === '127.0.0.1' || /^(10|192\.168)\./.test(_h);
+            script.src = (isMobile ? 'mobile.js' : 'readerwrangler.js') + '?v=' + (_isLocalServer ? Date.now() : APP_VERSION);
             document.body.appendChild(script);
 
             // Dev-only mode indicator (localhost / file:// only — never ships to users). The desktop/mobile

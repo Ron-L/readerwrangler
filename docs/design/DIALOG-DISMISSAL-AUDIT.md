@@ -344,3 +344,46 @@ wedged into a patch release. The stopgap removes all *live* harm; the primitive 
 5. **`shareEmailChoice`'s dual parentage** (child of the book-dialog share dropdown vs. top-level
    from a multi-select) — fine under the registry (it just registers wherever it mounts), but worth
    noting the nesting isn't fixed.
+
+---
+
+## 10. Implementation structure (RATIFIED 2026-09-26 — Ron; branch `feature/overlay-system`)
+
+Decisions on §9: **(1) portals — YES**; **(2) menus want Esc — yes, but ride migration, not Phase 1**;
+**(3) first cut = `<Dialog>` (modals); `<Popover>`/`<Menu>` added when a consumer needs them**;
+**(4) focus management — later**. Phasing (**re-sequenced 2026-09-27, Ron**): **P1** build the primitive + prove on one trivial leaf
+(`newFolderHiddenAlert`) — DONE (alpha.3). **P2** convert **ALL** remaining existing overlays, one
+family per alpha (incl. the nested/cascade families — autoOrg, wizard, relaySetup — and the
+light-dismiss menus, building `<Popover>`/`<Menu>`), then delete the legacy OR-chain + `handleModalEsc`
++ the modal half of `handleEscKey` and retire the CLAUDE.md dialog checklist. **Pure behavior-preserving
+refactor, no new user functionality → ships as 7.18.0.**
+**The orphan-cleanup dialog is REMOVED from this branch** (was P2): it's new functionality with no
+special dismissal properties, so it adds ~no verification the trivial leaf didn't — the real validation
+is the nested/cascade conversions. It gets its **OWN feature branch on the finished primitive, after
+7.18.0 ships** (Ron 2026-09-27: the mass conversion is where the primitive is truly proven; keep the
+refactor and the new feature as separate, independently-testable releases).
+
+**Module split (the RW-specific shape):**
+- **`overlayRegistry.js`** (NEW, pure JS, classic script before the app script; Node-tested by
+  `test/overlayRegistry.test.js`, 9 cases) — the ordered stack + `pushLayer`/`removeLayer` (cascade)/
+  `topLayer`/`closeTop`/`hasModal`/`subscribe`. No React, no DOM, **no window listener** — so the
+  bug-prone ordering/cascade logic is unit-tested in isolation (answers §8's "no automated tests" risk).
+- **The React half lives in `readerwrangler.js`** (needs React/JSX/ReactDOM): `useOverlayLayer({close,
+  kind})` (registers for the overlay's lifetime; `close` read through a ref so the registry always calls
+  the latest `onClose` without re-registering — StrictMode-safe, idempotent removal by id) and `<Dialog>`
+  (portals to `<body>`, mousedown-guarded scrim close, baked-in ✕, optional titled header).
+- **The single Esc listener is installed in `readerwrangler.js` via a `useEffect`** (calls
+  `overlayRegistry.closeTop()`), so its lifecycle is React-managed and the registry module stays pure.
+
+**Fence bridge (coexistence during migration):** a `<Dialog>` is NOT added to the legacy
+`anyDialogOpen` OR-chain. Instead `readerwrangler.js` subscribes to the registry and folds
+`registryHasModal` into `anyDialogOpen`, so the keystroke fence (`dialogUp()`) and the universal
+undo-fence treat registry modals identically. `handleModalEsc` gets one guard at the top —
+`if (overlayRegistry.topLayer()) return;` — so it defers entirely whenever a registry overlay is up:
+migrated and legacy overlays then layer correctly (innermost-first across the boundary) with **no
+double-close**. The OR-chain, `handleModalEsc`, and the modal half of `handleEscKey` are deleted only
+when the last modal has migrated (P3).
+
+**P1 shipped in this branch:** registry + test, `useOverlayLayer` + `<Dialog>`, the fence/Esc bridge,
+and `newFolderHiddenAlert` converted to `<Dialog>` (dropped from the OR-chain and the `handleModalEsc`
+chain — proving the fence/Esc/backdrop/✕/cascade all work structurally).

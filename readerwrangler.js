@@ -1,6 +1,74 @@
         // ARCHITECTURE: See docs/design/ARCHITECTURE.md for Version Management, Status Icons, Cache-Busting patterns
         const { useState, useEffect, useLayoutEffect, useRef, useMemo } = React;
 
+        // ===== Overlay system — the React half (v7.18.0; docs/design/DIALOG-DISMISSAL-AUDIT.md) =====
+        // The ordered stack lives in overlayRegistry.js (pure, Node-tested — global `overlayRegistry`).
+        // An overlay built with <Dialog> self-registers on mount / deregisters on unmount, so the
+        // keystroke fence (hasFence()), Esc-ordering, backdrop, ✕, and cascade-close are STRUCTURAL —
+        // it cannot be born unfenced/un-Esc-able/un-dismissable. Migrating outward-in, one family per
+        // alpha. As of alpha.43 the legacy anyDialogOpen OR-chain + handleModalEsc are gone (every modal migrated);
+        // remaining legacy overlays: the book/folder/sort context menus, anchored dropdowns, imperative dialogs.
+        //
+        // useOverlayLayer: registers { close, kind } for this overlay's lifetime. `close` is read through
+        // a ref so the registry always calls the LATEST onClose without re-registering each render.
+        // fence (optional, v7.18.0-alpha.40): raise the keystroke fence. Undefined = the registry default
+        // (modal + menu fence, popover doesn't — alpha.44); a popover passes true to block library keys while open.
+        // idRef (optional, alpha.45): receives this layer's registry id, so a <Popover> can ask "am I topmost?".
+        const useOverlayLayer = ({ close, kind, nodeRef, fence, idRef }) => {
+            const closeRef = useRef(close);
+            closeRef.current = close;
+            const [isTopModal, setIsTopModal] = useState(true);
+            // useLayoutEffect (not useEffect): push/subscribe + the isTopModal recompute must run BEFORE paint,
+            // so when a modal opens/closes the layer beneath flips its dim in the SAME frame — no one-frame
+            // double-dim flash (the reason we don't need a separate global "already dimmed" flag).
+            useLayoutEffect(() => {
+                const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef, fence });
+                if (idRef) idRef.current = id;
+                const sync = () => setIsTopModal(overlayRegistry.isTopmostModal(id));
+                sync();
+                const unsub = overlayRegistry.subscribe(sync); // recompute when anything opens/closes above us
+                return () => { unsub(); overlayRegistry.removeLayer(id); };
+            }, [kind]); // mount/unmount only — kind is fixed for a given overlay
+            return isTopModal; // <Dialog> dims its scrim ONLY when topmost modal, so stacked scrims don't compound
+        };
+
+        // <Dialog> — a modal overlay. Portals to <body> (escapes ancestor z-index/overflow traps),
+        // renders a scrim with a mousedown-guarded backdrop close (a drag that STARTED inside the panel
+        // and released on the scrim does NOT dismiss), a baked-in ✕, an optional titled header, and
+        // children. kind:'modal' means it raises the keystroke fence (a modal layer fences by default → hasFence()).
+        // Optional props for the varied existing dialogs (all backward-compatible):
+        //   panelClassName — full override of the panel's classes (else bg-white rounded-lg shadow-2xl <maxW> w-full mx-4)
+        //   panelStyle     — inline style on the panel (e.g. a fixed max-width / max-height + flex column for a scroll body)
+        //   zIndexClass    — scrim z-index class (default z-50; high-priority notices use z-[100])
+        //   showClose/title — omit both to supply a fully custom header as children
+        //   closeButton    — render a standard corner ✕ (for custom-header dialogs); auto-adds `relative` to the panel
+        const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true, zIndexClass = 'z-50', panelStyle, closeButton = false }) => {
+            const panelRef = useRef(null);
+            const isTopModal = useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef });
+            const downOnScrimRef = useRef(false);
+            const _panelCls = (panelClassName || `bg-white rounded-lg shadow-2xl ${maxWidthClassName} w-full mx-4`) + (closeButton ? ' relative' : '');
+            return ReactDOM.createPortal(
+                // Dim only when this is the topmost modal — a modal beneath another goes transparent so
+                // stacked backdrops don't compound to near-black (popovers above don't count as modals).
+                <div className={`fixed inset-0 ${isTopModal ? 'bg-black bg-opacity-50' : 'bg-transparent'} flex items-center justify-center ${zIndexClass}`}
+                    onMouseDown={(e) => { downOnScrimRef.current = (e.target === e.currentTarget); }}
+                    onClick={(e) => { if (e.target === e.currentTarget && downOnScrimRef.current && onClose) onClose('backdrop'); downOnScrimRef.current = false; }}>
+                    <div ref={panelRef} className={_panelCls}
+                        style={panelStyle} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+                        {closeButton && <button onClick={() => onClose && onClose('button')} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none z-10" title="Close" aria-label="Close">×</button>}
+                        {(title || showClose) && (
+                            <div className="flex justify-between items-start p-4 border-b border-gray-200">
+                                {title ? <h2 className="text-base font-semibold text-gray-900">{title}</h2> : <span />}
+                                {showClose && <button onClick={() => onClose && onClose('button')} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none" title="Close" aria-label="Close">×</button>}
+                            </div>
+                        )}
+                        {children}
+                    </div>
+                </div>,
+                document.body
+            );
+        };
+
         // APP_VERSION - Defined ONCE in readerwrangler.html, available in global scope
         // Single source of truth - no duplication!
         console.log(`✅ APP_VERSION: ${APP_VERSION} (from readerwrangler.html)`);
@@ -8,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.17.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -106,23 +174,22 @@
         // stack, only the TOPMOST overlay responds. showProgressDialog deliberately opts out (a running
         // import must not be Esc-dismissed). Every exit path must use the returned close() — it detaches
         // the listener exactly once and is idempotent.
+        // v7.18.0-alpha.68 - the imperative dialogs are now LAYERS in the one overlay stack (overlayRegistry) instead of a
+        // parallel system with its own Esc listener: registering on open gives them the shared innermost-first Esc (the
+        // registry listener closes the TOP layer and consumes the key), the keystroke + undo fence (hasFence), Ctrl+A scoped
+        // to the dialog's text (nodeRef), and correct stacking with React <Dialog>s/<Popover>s (a popup under one of these
+        // ignores clicks — it isn't topmost). Their look is unchanged (Ron: keep them as they are; only how they close).
         function attachDialogDismiss(overlay, dialog, closeRaw, cancelValue) {
             let closed = false;
+            let layerId = null;
             const close = (val) => {
                 if (closed) return;
                 closed = true;
-                window.removeEventListener('keydown', onKey, true);
+                if (layerId != null) overlayRegistry.removeLayer(layerId);
                 closeRaw(val);
             };
-            const onKey = (e) => {
-                if (e.key !== 'Escape') return;
-                const stack = document.querySelectorAll('.rw-imperative-overlay');
-                if (stack[stack.length - 1] !== overlay) return; // not topmost — the newer dialog handles it
-                e.stopPropagation();
-                e.preventDefault();
-                close(cancelValue);
-            };
-            window.addEventListener('keydown', onKey, true);
+            // alpha.69 - detached: opened from a menu item, it sits ABOVE that menu; the menu closing must not take it along.
+            layerId = overlayRegistry.pushLayer({ close: () => close(cancelValue), kind: 'modal', nodeRef: { current: dialog }, detached: true });
             const x = document.createElement('button');
             x.textContent = '✕';
             x.setAttribute('aria-label', 'Close');
@@ -133,7 +200,21 @@
             x.onclick = () => close(cancelValue);
             dialog.style.position = 'relative';
             dialog.appendChild(x);
+            onBackdropClick(overlay, layerId, () => close(cancelValue));
             return close;
+        }
+
+        // v7.18.0-alpha.70 (Ron) - a click on the dimmed background closes an imperative dialog, as it does every React
+        // <Dialog> (only "Name already in use" did, via its own handler). Same guard as <Dialog>: the press must START on
+        // the background, so a text drag that ends outside the box doesn't close it; and only the TOPMOST layer reacts.
+        function onBackdropClick(overlay, layerId, onBackdrop) {
+            let downOnScrim = false;
+            overlay.addEventListener('mousedown', (e) => { downOnScrim = e.target === overlay; });
+            overlay.addEventListener('click', (e) => {
+                const top = overlayRegistry.topLayer();
+                if (e.target === overlay && downOnScrim && top && top.id === layerId) onBackdrop();
+                downOnScrim = false;
+            });
         }
 
         function showInfoDialog(title, message) {
@@ -234,6 +315,14 @@
             overlay.appendChild(dialog);
             document.body.appendChild(overlay);
 
+            // v7.18.0-alpha.68 - a layer in the one overlay stack (key + undo fence, correct stacking). Esc does NOTHING while
+            // the work runs (a running import must not be Esc-dismissed — the long-standing rule); once finish() shows OK,
+            // Esc acts as OK. `remove` is the single exit: drops the layer and the overlay (idempotent).
+            let onEscAfterFinish = null;
+            const layerId = overlayRegistry.pushLayer({ close: () => { if (onEscAfterFinish) onEscAfterFinish(); }, kind: 'modal', nodeRef: { current: dialog }, detached: true }); // alpha.69 - see attachDialogDismiss
+            const remove = () => { overlayRegistry.removeLayer(layerId); if (overlay.parentNode) document.body.removeChild(overlay); };
+            onBackdropClick(overlay, layerId, () => { if (onEscAfterFinish) onEscAfterFinish(); }); // alpha.70 - like Esc: nothing while running, OK after
+
             return {
                 update(msg) {
                     messageEl.textContent = msg;
@@ -251,13 +340,15 @@
                         `;
                         button.onmouseover = () => button.style.background = 'var(--bg-accent-hover)';
                         button.onmouseout = () => button.style.background = 'var(--bg-accent)';
-                        button.onclick = () => { document.body.removeChild(overlay); resolve(); };
+                        const ok = () => { remove(); resolve(); };
+                        button.onclick = ok;
+                        onEscAfterFinish = ok; // from here on, Esc = OK
                         buttonContainer.appendChild(button);
                         button.focus();
                     });
                 },
                 close() {
-                    if (overlay.parentNode) document.body.removeChild(overlay);
+                    remove();
                 }
             };
         }
@@ -343,9 +434,8 @@
                 messageEl.textContent = message;
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = `display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;`;
-                // v7.10.1-alpha.9 - Esc + ✕ dismiss (shared chrome); backdrop click kept
+                // v7.10.1-alpha.9 - Esc + ✕ dismiss (shared chrome); alpha.70 - backdrop click now comes from the shared chrome too
                 const close = attachDialogDismiss(overlay, dialog, (val) => { if (overlay.parentNode) document.body.removeChild(overlay); resolve(val); }, null);
-                overlay.onclick = (e) => { if (e.target === overlay) close(null); };
                 choices.forEach((c) => {
                     const btn = document.createElement('button');
                     btn.textContent = c.label;
@@ -399,7 +489,9 @@
                 confirmBtn.textContent = confirmText;
                 confirmBtn.style.cssText = `background: var(--bg-accent); color: var(--text-on-accent); border: none; border-radius: 4px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer;`;
                 confirmBtn.onclick = () => close(input.value);
-                input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); close(input.value); } else if (e.key === 'Escape') { e.preventDefault(); close(null); } };
+                // v7.18.0-alpha.68 - Enter submits. Esc is NOT handled here any more: the shared overlay Esc closes the top layer
+                // (this dialog) — handling it here too would close this box AND then the dialog beneath it.
+                input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); close(input.value); } };
                 btnRow.appendChild(cancelBtn); btnRow.appendChild(confirmBtn);
                 dialog.appendChild(titleEl); dialog.appendChild(messageEl); dialog.appendChild(input); dialog.appendChild(btnRow);
                 overlay.appendChild(dialog); document.body.appendChild(overlay);
@@ -527,34 +619,348 @@
         // shrinks. Position only — NEVER add overflow here: menus with fly-out submenus (FlipToFitPopup
         // children) would get clipped by a scroll container. The measure-and-clamp core the future
         // <Popover>/<Menu> overlay primitive will reuse (not a throwaway).
-        function CursorPopup({ open, x, y, className, style, role, ariaLabel, onClick, onContextMenu, children, margin = 8 }) {
+        // v7.18.0-alpha.40 - ANCHORED mode: pass `anchorRect` (a trigger element's getBoundingClientRect())
+        // instead of (x, y) and the popup opens as a DROPDOWN — flush below the trigger, left edges aligned —
+        // flipping ABOVE the trigger when there's no room below (e.g. the footer 🕐 button) and right-aligning
+        // to the trigger when it would overflow the right edge. Same fixed + measure-and-clamp core, so it
+        // escapes overflow/scroll containers (why not FlipToFitPopup: that is the SIDE-flyout geometry,
+        // absolute against its parent, and clips inside a scrolling dialog panel).
+        // anchorAlign (alpha.44): 'start' (default) = left edges aligned; 'end' = RIGHT edges aligned (a dropdown
+        // whose trigger sits at the right of its header, e.g. the FOLDERS sort menu) — each falls back to the other
+        // when it would leave the viewport.
+        function CursorPopup({ open, x, y, anchorRect, anchorAlign = 'start', className, style, role, ariaLabel, onClick, onContextMenu, onMouseDown, onMouseEnter, onMouseLeave, tabIndex, children, margin = 8, innerRef }) {
             const ref = useRef(null);
-            const [coords, setCoords] = useState({ left: x, top: y });
-            useLayoutEffect(() => {
+            // v7.18.0 - optional innerRef: the <Popover> primitive needs the positioned node to decide
+            // outside-clicks (ref.contains). Mirror the measuring ref onto it via one callback ref.
+            const setRefs = (node) => { ref.current = node; if (innerRef) innerRef.current = node; };
+            const [coords, setCoords] = useState(anchorRect ? { left: anchorRect.left, top: anchorRect.bottom } : { left: x, top: y });
+            // Measure the popup and place it. Kept in a ref (always the LATEST props) so the size watcher below can call it.
+            const placeRef = useRef(null);
+            placeRef.current = () => {
                 if (!open || !ref.current) return;
                 const { width, height } = ref.current.getBoundingClientRect();
                 const vw = window.innerWidth, vh = window.innerHeight;
-                // Prefer opening down-right from the cursor; if that overflows, flip to the other side of
-                // the cursor; then hard-clamp so a menu taller/wider than the cursor offset still fits.
+                if (anchorRect) {
+                    let left = anchorAlign === 'end'
+                        ? ((anchorRect.right - width < margin) ? anchorRect.left : anchorRect.right - width)
+                        : ((anchorRect.left + width + margin > vw) ? anchorRect.right - width : anchorRect.left);
+                    let top = (anchorRect.bottom + height + margin > vh) ? anchorRect.top - height : anchorRect.bottom;
+                    left = Math.max(margin, Math.min(left, vw - width - margin));
+                    top = Math.max(margin, Math.min(top, vh - height - margin));
+                    setCoords(c => (c.left === left && c.top === top) ? c : { left, top });
+                    return;
+                }
+                // v7.18.0 - HORIZONTAL: open right of the cursor (left edge AT cursor); if that would overflow
+                // the right edge, FLIP so the RIGHT edge is at the cursor (VS Code-style) — Ron's call: near the
+                // border the menu's right edge should sit at the cursor, NOT get shoved to the border. Accurate
+                // only because max-content (below) fixed the width measurement. Then clamp to stay on-screen.
+                // (Ron 2026-09-30.) VERTICAL still flips up near the bottom (opens down from the cursor).
                 let left = (x + width + margin > vw) ? x - width : x;
                 let top = (y + height + margin > vh) ? y - height : y;
                 left = Math.max(margin, Math.min(left, vw - width - margin));
                 top = Math.max(margin, Math.min(top, vh - height - margin));
-                setCoords({ left, top });
-            }, [open, x, y, children, margin]);
+                setCoords(c => (c.left === left && c.top === top) ? c : { left, top });
+            };
+            useLayoutEffect(() => { placeRef.current(); }, [open, x, y, anchorRect, anchorAlign, children, margin]);
+            // v7.18.0-alpha.56 - ALSO re-place whenever the popup's own SIZE changes. Why: Tailwind runs in-browser
+            // (cdn.tailwindcss.com) and generates a class's CSS the first time it appears — a moment AFTER the measurement
+            // above. The Series lists' `max-h-48` is used nowhere else, so on the first open after a page load the list
+            // measured at its FULL height (every series), flipped above and clamped to the top of the screen, then shrank
+            // when the style arrived — and nothing re-placed it until an unrelated re-render (Ron, 2026-10-06 screenshot;
+            // likely also the Save menu's odd first-open spot). Also covers late fonts and a list filtering as you type.
+            useLayoutEffect(() => {
+                if (!open || !ref.current || typeof ResizeObserver === 'undefined') return;
+                const ro = new ResizeObserver(() => placeRef.current && placeRef.current());
+                ro.observe(ref.current);
+                return () => ro.disconnect();
+            }, [open]);
             if (!open) return null;
-            // The `fixed` CSS class is REQUIRED, not just cosmetic: the context-menu close-on-outside-click
-            // handler (mousedown) decides inside-vs-outside via `e.target.closest('.fixed')`. Position is set
-            // inline, but the class must be present or a click inside the menu reads as "outside" and the menu
-            // closes on mousedown before the item's onClick can fire (the 7.15.0 AO-won't-open regression).
+            // The `fixed` CSS class: from 7.15.0 the legacy context-menu outside-click handler decided inside-vs-
+            // outside via `e.target.closest('.fixed')` (dropping the class broke every menu click — the 7.15.0
+            // regression). That handler was deleted in 7.18.0-alpha.44 (all its menus are <Popover>s, which use
+            // ref.contains); grep showed no other consumer. The class is kept — harmless, and position is fixed.
             return (
-                <div ref={ref} className={`fixed ${className || ''}`} role={role} aria-label={ariaLabel}
-                    onClick={onClick} onContextMenu={onContextMenu}
-                    style={{ position: 'fixed', left: coords.left, top: coords.top, ...style }}>
+                <div ref={setRefs} className={`fixed rw-popup ${className || ''}`} role={role} aria-label={ariaLabel}
+                    onClick={onClick} onContextMenu={onContextMenu} onMouseDown={onMouseDown}
+                    onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} tabIndex={tabIndex}
+                    style={{ position: 'fixed', left: coords.left, top: coords.top, width: 'max-content', minWidth: 160, ...style }}>
                     {children}
                 </div>
             );
         }
+
+        // v7.18.0-alpha.71 - THE hover popup ("where this book lives" on a cover): ONE behavior for the right pane and the
+        // Auto-Organize Preview, which had two unrelated copies (the Preview's ignored the mouse, so it vanished as you
+        // moved onto it — Ron 2026-09-30). useHoverTip owns the timing; <HoverPopup> owns the box.
+        //   rest delay — it pops only after the mouse SETTLES on a cover (~280ms); every move restarts the wait, so
+        //                sweeping across covers never flickers popups. (Cover handlers call show() on enter AND move.)
+        //   grace      — leaving the cover waits 150ms before hiding, long enough to cross onto the popup;
+        //   stays      — while the mouse is on the popup it stays (hold); leaving the popup hides it at once.
+        // Deliberately NOT an overlay-stack layer (Ron + UX, alpha.71): you never "opened" it, so Esc must not spend a
+        // press on it — Esc goes straight to the window/menu beneath, and the popup goes with that.
+        // tip = null | { bookId, x, y, right, bottom, width, height, cursorX, cursorY } (the cover's box + the cursor).
+        // alpha.72 (Ron + UX) - QUIET while a click-opened popup (menu / panel / list) is up: hover popups must not pop over
+        // the panel you're working in (the Preview's source panel opens right under its covers). A WINDOW on top (the
+        // Preview itself) doesn't count — you hover covers inside it. Read from the overlay stack, so every menu and panel
+        // anywhere counts with no list to keep: a hover can't start (show) and one already up closes (subscribe).
+        const clickPopupUp = () => { const t = overlayRegistry.topLayer(); return !!t && t.kind !== 'modal'; };
+        function useHoverTip({ delay = 280, grace = 150 } = {}) {
+            const [tip, setTip] = useState(null);
+            const showTimer = useRef(null);
+            const hideTimer = useRef(null);
+            const pending = useRef(null);
+            const clearShow = () => { if (showTimer.current) { clearTimeout(showTimer.current); showTimer.current = null; } };
+            const clearHide = () => { if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; } };
+            const close = () => { pending.current = null; clearShow(); clearHide(); setTip(null); };
+            useEffect(() => {
+                const unsub = overlayRegistry.subscribe(() => { if (clickPopupUp()) close(); });
+                return () => { unsub(); clearShow(); clearHide(); };
+            }, []);
+            return {
+                tip,
+                // extra (alpha.73): optional fields carried on the tip for the popup to read (e.g. { tray: true }).
+                show: (el, bookId, clientX, clientY, extra) => {
+                    if (clickPopupUp()) return;
+                    clearHide();
+                    const r = el.getBoundingClientRect();
+                    pending.current = { ...extra, bookId, x: r.left, y: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height, cursorX: clientX, cursorY: clientY };
+                    clearShow();
+                    showTimer.current = setTimeout(() => { if (pending.current) setTip(pending.current); }, delay);
+                },
+                leave: () => { pending.current = null; clearShow(); clearHide(); hideTimer.current = setTimeout(() => setTip(null), grace); },
+                hold: clearHide,
+                // close: hide NOW and cancel anything pending (a right-click menu / click elsewhere took over)
+                close,
+            };
+        }
+
+        // The hover popup's box. placement:
+        //   'beside' — to the right of the cover, top-aligned (flips left at the screen edge). The Preview: its covers
+        //              are small and dense, and the clickable source label sits UNDER each cover — keep that clear.
+        //   'cursor' — (v6.13.2) grows AWAY from where you entered the cover: the cursor (held ≤90% from the cover's
+        //              center, so ~10% overlap bridges cover→popup) is the popup's inner corner. Flips a side that lacks
+        //              room. alpha.71: the room check uses the popup's MEASURED height (was a guess from its line count).
+        function HoverPopup({ hover, placement, className, style, children }) {
+            const t = hover.tip;
+            const ref = useRef(null);
+            const [measuredH, setMeasuredH] = useState(0);
+            useLayoutEffect(() => {
+                if (placement !== 'cursor' || !ref.current) return;
+                const h = ref.current.getBoundingClientRect().height;
+                setMeasuredH(cur => cur === h ? cur : h);
+            });
+            if (!t) return null;
+            // alpha.74 - marked (rw-hover-popup) + focusable on click (tabIndex -1, no outline) so Ctrl+A can tell you're
+            // working IN it — see hoverPopupInUse.
+            const cls = `rw-hover-popup ${className || ''}`;
+            const st = { outline: 'none', ...style };
+            if (placement === 'beside') {
+                return (
+                    <CursorPopup open={true} x={t.right + 8} y={t.y} className={cls} style={st} tabIndex={-1}
+                        onMouseEnter={hover.hold} onMouseLeave={hover.close}>
+                        {children}
+                    </CursorPopup>
+                );
+            }
+            const vw = window.innerWidth, vh = window.innerHeight;
+            const cw = t.width ?? 120, ch = t.height ?? 160;
+            const mx = t.x + cw / 2, my = t.y + ch / 2;
+            const cx = Math.max(mx - 0.45 * cw, Math.min(t.cursorX ?? mx, mx + 0.45 * cw)); // ≤90% from center
+            const cy = Math.max(my - 0.45 * ch, Math.min(t.cursorY ?? my, my + 0.45 * ch));
+            let vUp = cy < my;   // cursor above center → extend up (popup bottom edge at the cursor)
+            let hLeft = cx < mx; // cursor left of center → extend left (popup right edge at the cursor)
+            if (vUp && cy < measuredH + 8) vUp = false; else if (!vUp && (vh - cy) < measuredH + 8) vUp = true;
+            if (hLeft && cx < 140) hLeft = false; else if (!hLeft && (vw - cx) < 140) hLeft = true;
+            const maxW = Math.max(140, Math.min(300, hLeft ? (cx - 8) : (vw - cx - 8)));
+            return (
+                <div ref={ref} className={`fixed ${cls}`} tabIndex={-1}
+                    onMouseEnter={hover.hold} onMouseLeave={hover.close}
+                    style={{
+                        ...(hLeft ? { right: `${Math.max(8, vw - cx)}px` } : { left: `${Math.max(8, cx)}px` }),
+                        ...(vUp ? { bottom: `${Math.max(8, vh - cy)}px` } : { top: `${Math.max(8, cy)}px` }),
+                        maxWidth: `${maxW}px`, maxHeight: '70vh', overflowY: 'auto', ...st
+                    }}>
+                    {children}
+                </div>
+            );
+        }
+
+        // v7.18.0-alpha.74 (Ron) - the hover popup you're working IN, or null: you clicked in it (keyboard focus is inside)
+        // or your text selection — even a collapsed click point — sits in it. Then Ctrl+A selects ITS text. Not the mouse
+        // position: merely resting on a popup still leaves Ctrl+A with the window/library (the focus-not-mouse rule).
+        const hoverPopupInUse = () => {
+            const inPopup = (n) => { const el = n && (n.nodeType === 1 ? n : n.parentElement); const p = (el && el.closest) ? el.closest('.rw-hover-popup') : null; return (p && p.isConnected) ? p : null; }; // a just-closed popup never counts
+            const s = window.getSelection();
+            return inPopup(document.activeElement) || inPopup(s && s.anchorNode) || null;
+        };
+
+        // v7.18.0 - <Popover> — the light-dismiss sibling of <Dialog> (docs/design/DIALOG-DISMISSAL-AUDIT.md).
+        // Wraps CursorPopup's measure-and-clamp positioner and adds what a bare popup lacks: registry
+        // membership + unified light-dismiss. Registers a layer of kind 'menu'|'popover' (NOT 'modal', so it
+        // does NOT raise the keystroke fence — matching how context menus behave today) → the ONE registry Esc
+        // listener closes the TOP layer first, so a menu opened OVER a dialog closes the menu, not the dialog
+        // (this is what lets a converted preview stack correctly with its child menus). Light-dismiss =
+        // Esc (via the registry) + outside mousedown decided by this popover's OWN node (ref.contains) —
+        // replacing the fragile `.closest('.fixed')` check and the scattered scrim <div>s. Parent renders it
+        // conditionally, so mount == open (same lifecycle as <Dialog>). onClose(reason): 'esc' | 'outside'.
+        // v7.18.0-alpha.40 - two opt-ins for button dropdowns:
+        //   anchorRef — a ref to the trigger element: open ANCHORED to it (dropdown, flips above when needed)
+        //               instead of at (x, y). The trigger counts as INSIDE for light-dismiss, so clicking the
+        //               toggle button closes via its own onClick toggle (no close-then-reopen race).
+        //   fence     — raise the keystroke fence while open (library cut/paste/delete/select-all/undo blocked).
+        // v7.18.0-alpha.44 - a MENU (kind 'menu', the default) fences library keys by default (registry default) and
+        //   registers NO text node, so Ctrl+A inside an open menu does nothing (Ron: selecting a menu's item labels
+        //   is useless); dialogs and popovers keep scope-selecting their own text. anchorAlign: see CursorPopup.
+        // v7.18.0-alpha.54 - kind 'list' = a TYPE-AHEAD suggestion list under a text field (combobox; Ron-approved
+        //   exception): Esc closes it (registry), a click outside closes it but is NOT swallowed — the click goes
+        //   through, so clicking straight into another field works (browser-autocomplete convention). Doesn't fence
+        //   (the dialog around it already does) and, like a menu, registers no Ctrl+A text node.
+        //   matchAnchorWidth: the popup takes the anchor's width (a list under its field).
+        //   Anchored popovers now FOLLOW their anchor: re-measured on any scroll (outside the popup itself) or resize,
+        //   so a dropdown inside a scrolling dialog (book details: Share, Series) moves with its button/field.
+        // v7.18.0-alpha.66 - THE popup-button attributes, from ONE place: spread onto every button that opens a popup —
+        //   `<button ref={x} {...popupTrigger(isOpen)} …>`. It carries the `data-popover-trigger` marker (so a click on it
+        //   while another popup is open switches in one click — outsideClickAction rule 4) plus the standard accessibility
+        //   pair screen readers announce ("menu button, expanded"). haspopup: 'menu' (default) | 'listbox' | 'dialog'.
+        //   Building a popup button = spreading this; the marker can't be forgotten separately (a dev-server console
+        //   warning still flags an anchored popup whose button lacks it).
+        const popupTrigger = (open, haspopup = 'menu') => ({ 'data-popover-trigger': '', 'aria-haspopup': haspopup, 'aria-expanded': !!open });
+
+        // v7.18.0-alpha.67 - THE share icon: the Android/Material "three connected dots" glyph (Material Icons "share", Apache
+        //   2.0), drawn as SVG so it looks the same on every device and follows the text colour. Replaced the 📤 emoji, which
+        //   reads as upload/export/save on Windows (Ron, 2026-10-08). ONE definition, used by every Share entry point.
+        const ShareIcon = ({ size = 14 }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+                style={{ display: 'inline-block', verticalAlign: '-2px', flexShrink: 0 }}>
+                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z" />
+            </svg>
+        );
+
+        // v7.18.0-alpha.61 - every popup BUTTON carries `data-popover-trigger`. A click on ANY popup button while this popup is
+        //   open closes it WITHOUT swallowing the click, so that button's popup opens in one click (Ron, 2026-10-07 — this
+        //   replaced alpha.58's named sibling groups; see overlayRegistry.outsideClickAction rule 4). On a local dev server an
+        //   anchored popup whose button lacks the marker warns in the console, so a new button can't silently miss it.
+        const Popover = ({ x, y, anchorRef, anchorAlign, matchAnchorWidth, fence, onClose, kind = 'menu', className, style, role, ariaLabel, onClick, onContextMenu, children }) => {
+            const ref = useRef(null);
+            const closeRef = useRef(onClose);
+            closeRef.current = onClose; // always dismiss via the LATEST onClose (like useOverlayLayer)
+            // Measured at open (mount == open), then re-measured whenever the page scrolls or resizes (below).
+            const measureAnchor = () => (anchorRef && anchorRef.current) ? anchorRef.current.getBoundingClientRect() : null;
+            const [anchorRect, setAnchorRect] = useState(measureAnchor);
+            useEffect(() => {
+                if (!anchorRef) return;
+                const follow = (e) => {
+                    if (e && e.type === 'scroll' && ref.current && e.target instanceof Node && ref.current.contains(e.target)) return; // scrolling the popup's own list
+                    const r = measureAnchor();
+                    if (r) setAnchorRect(r);
+                };
+                window.addEventListener('scroll', follow, true); // capture: catches scrolls of ANY container (e.g. a dialog panel)
+                window.addEventListener('resize', follow);
+                return () => { window.removeEventListener('scroll', follow, true); window.removeEventListener('resize', follow); };
+            }, []);
+            // v7.18.0-alpha.57 - a type-ahead list closes when keyboard focus LEAVES its field (Tab to the next field),
+            // the combobox convention (Ron 2026-10-06: Tab moved the cursor into Position / Number but the list stayed
+            // open on top of it). Focus inside the field (+ its ▼) or inside the list itself keeps it open.
+            useEffect(() => {
+                if (kind !== 'list') return;
+                const onFocusIn = (e) => {
+                    const t = e.target;
+                    if (ref.current && ref.current.contains(t)) return;
+                    if (anchorRef && anchorRef.current && anchorRef.current.contains(t)) return;
+                    closeRef.current && closeRef.current('blur');
+                };
+                document.addEventListener('focusin', onFocusIn);
+                return () => document.removeEventListener('focusin', onFocusIn);
+            }, []);
+            const layerIdRef = useRef(null);
+            const noTextNode = kind === 'menu' || kind === 'list';
+            useOverlayLayer({ close: onClose, kind, nodeRef: noTextNode ? undefined : ref, fence, idRef: layerIdRef });
+            // Safety net (alpha.61): a popup BUTTON without the marker would make "click another popup's button" take two
+            // clicks again. Lists are exempt (they pass every click through anyway). Dev-server only; never shown to users.
+            useEffect(() => {
+                const h = location.hostname;
+                if (kind === 'list' || !anchorRef || !anchorRef.current) return;
+                if (!(h === 'localhost' || h === '127.0.0.1' || /^(10|192\.168)\./.test(h))) return;
+                if (!anchorRef.current.closest('[data-popover-trigger]')) {
+                    console.warn('[Popover] this popup\'s button is missing {...popupTrigger(isOpen)} — spread it onto the button so other popups switch to it in one click:', anchorRef.current);
+                }
+            }, []);
+            // v7.18.0-alpha.61 - Shift+click inside a popup never starts a TEXT selection (Ron: Shift+click on the Sort menu
+            // for a secondary sort also highlighted the text between the two clicks — Shift+click is the browser's
+            // "extend selection" gesture). Text fields inside a popup keep their normal Shift+click behavior.
+            const onPopupMouseDown = (e) => {
+                if (!e.shiftKey) return;
+                const tag = (e.target.tagName || '').toLowerCase();
+                if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+                e.preventDefault(); // stops the selection from starting; the click (and its shiftKey) still fires
+            };
+            useEffect(() => {
+                // mousedown (not click): decide inside-vs-outside before an item's onClick fires. The
+                // listener is added AFTER this popover mounts, so the click/right-click that opened it
+                // never self-closes it.
+                // v7.18.0-alpha.41 - a LEFT-click outside is CONSUMED (desktop-menu convention, Ron 2026-10-04):
+                // it only dismisses — no selection change / button press / drag start underneath, so a
+                // carefully built multi-selection survives "never mind". CAPTURE phase so it runs before React's
+                // root handlers; the follow-up mouseup + click of the same gesture are swallowed too (one-shot,
+                // cleared right after that click so a LATER click is never eaten). Right/middle-click outside
+                // dismisses but passes through, so right-clicking elsewhere opens that item's menu in one click.
+                const eat = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
+                const onDown = (e) => {
+                    // v7.18.0-alpha.58 - the decision lives in ONE pure, tested place: overlayRegistry.outsideClickAction
+                    // (rules: inside / own-trigger toggle / not-topmost / ANY popup button / right-click / list / swallow). This
+                    // handler only gathers the facts and carries out the answer.
+                    const t = e.target;
+                    const top = overlayRegistry.topLayer();
+                    const action = overlayRegistry.outsideClickAction({
+                        insidePopup: !!(ref.current && ref.current.contains(t)),
+                        onOwnTrigger: !!(anchorRef && anchorRef.current && anchorRef.current.contains(t)),
+                        button: e.button,
+                        kind,
+                        isTopmost: !top || top.id === layerIdRef.current,
+                        imperativeUp: imperativeDialogsUp(),
+                        onPopupTrigger: !!(t && t.closest && t.closest('[data-popover-trigger]')),
+                    });
+                    if (action === 'ignore') return;
+                    if (action === 'close-swallow') {
+                        eat(e);
+                        const stop = () => {
+                            document.removeEventListener('mouseup', onUpOrClick, true);
+                            document.removeEventListener('click', onUpOrClick, true);
+                            document.removeEventListener('mousedown', stop, true);
+                        };
+                        const onUpOrClick = (ev) => {
+                            eat(ev);
+                            if (ev.type === 'mouseup') setTimeout(stop, 0); // the click (if any) dispatches before this runs
+                        };
+                        document.addEventListener('mouseup', onUpOrClick, true);
+                        document.addEventListener('click', onUpOrClick, true);
+                        // safety: released outside the window = no mouseup here → the NEXT gesture clears the swallow
+                        setTimeout(() => document.addEventListener('mousedown', stop, true), 0);
+                    }
+                    closeRef.current && closeRef.current('outside');
+                };
+                document.addEventListener('mousedown', onDown, true);
+                return () => {
+                    document.removeEventListener('mousedown', onDown, true);
+                    // the swallow outlives this popover's unmount on purpose (the gesture's click comes AFTER the
+                    // close re-renders); it removes itself after that click — never leave it to eat a later one.
+                };
+            }, []);
+            // v7.18.0-alpha.48 - PORTALED to <body> (like <Dialog>). A `position: fixed` element is positioned relative
+            // to the nearest ancestor with CSS containment / transform — the left pane's scroll area has
+            // `contain: layout style paint`, so the FOLDERS "Name ▾" menu rendered inside it landed a whole header-height
+            // too low (and paint containment would also clip it). At <body> no ancestor can trap or clip a popover.
+            // React events still bubble through the React tree, so item onClick/stopPropagation behave as before.
+            return ReactDOM.createPortal(
+                <CursorPopup open={true} x={x} y={y} anchorRect={anchorRect} anchorAlign={anchorAlign} innerRef={ref}
+                    className={className} style={(matchAnchorWidth && anchorRect) ? { width: anchorRect.width, ...style } : style}
+                    role={role} ariaLabel={ariaLabel}
+                    onClick={onClick} onContextMenu={onContextMenu} onMouseDown={onPopupMouseDown}>
+                    {children}
+                </CursorPopup>,
+                document.body
+            );
+        };
 
         // v6.16.0 - Threshold stepper: ONE set of controls (the styled −/+ with press-and-hold; NO native number
         // spinners — type=text + inputMode=numeric). Its own edit state lets you backspace the field empty and retype
@@ -584,6 +990,7 @@
             const [inputValue, setInputValue] = useState(value);
             const [historyOpen, setHistoryOpen] = useState(false);
             const [historyIndex, setHistoryIndex] = useState(-1);
+            const boxRef = useRef(null); // v7.18.0-alpha.60 - the search box: anchor of the recents <Popover kind="list">
             const debounceRef = useRef(null);
             const lastSentRef = useRef(value); // Track what we last sent to parent
 
@@ -616,18 +1023,13 @@
                 ? recents.filter(r => `${r.text} ${r.label}`.toLowerCase().includes(inputValue.toLowerCase()))
                 : recents;
 
-            // Click-outside to close recents dropdown
-            useEffect(() => {
-                if (!historyOpen) return;
-                const handler = (e) => {
-                    if (!e.target.closest('[data-search-history-dropdown]')) setHistoryOpen(false);
-                };
-                document.addEventListener('mousedown', handler);
-                return () => document.removeEventListener('mousedown', handler);
-            }, [historyOpen]);
+            // v7.18.0-alpha.60 - the recents list is a <Popover kind="list"> (below): outside click / focus leaving the box
+            // close it via the overlay system; its hand-rolled click-outside listener was removed. The box's own
+            // Down/Up/Enter/Esc handling (onKeyDown below) is unchanged — the model for the Series-list arrow-key TODO.
+            const closeHistory = () => { setHistoryOpen(false); setHistoryIndex(-1); };
 
             return (
-                <div style={{ position: 'relative', flex: '0 0 300px' }} data-search-history-dropdown="">
+                <div ref={boxRef} style={{ position: 'relative', flex: '0 0 300px' }}>
                     <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '14px' }}>🔍</span>
                     <input
                         type="text"
@@ -685,8 +1087,10 @@
                         >×</button>
                     )}
                     {historyOpen && visibleRecents.length > 0 && (
-                        <div style={{
-                            position: 'absolute', top: '32px', left: 0, right: 0,
+                        <Popover kind="list" anchorRef={boxRef} matchAnchorWidth onClose={closeHistory}
+                            role="listbox" ariaLabel="Recent searches"
+                            style={{
+                            marginTop: '4px',
                             background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)',
                             borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                             zIndex: 1000, maxHeight: '240px', overflowY: 'auto'
@@ -729,7 +1133,7 @@
                                 onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
                                 onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                             >Clear recents</div>
-                        </div>
+                        </Popover>
                     )}
                 </div>
             );
@@ -745,6 +1149,11 @@
             const [blankImageBooks, setBlankImageBooks] = useState(new Set());
             // v5.0.0-alpha.175.1 - Menu bar state
             const [openMenuBar, setOpenMenuBar] = useState(null); // 'file' | 'view' | 'help' | null
+            const menuBarRefs = { file: useRef(null), view: useRef(null), help: useRef(null) }; // v7.18.0-alpha.58 - title anchors for the menu-bar <Popover>s
+            // v7.18.0-alpha.59 - button anchors for the filter-bar <Popover>s ("filterbar" siblings) and the dropdowns
+            // inside the More panel ("morepanel" siblings).
+            const filterBtnRefs = { status: useRef(null), tags: useRef(null), types: useRef(null), more: useRef(null),
+                collections: useRef(null), amazonRating: useRef(null), myRating: useRef(null), series: useRef(null), date: useRef(null) };
             const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
             const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
             const [howToDialogOpen, setHowToDialogOpen] = useState(false);
@@ -780,8 +1189,6 @@
             const [seriesDropdownOpen, setSeriesDropdownOpen] = useState(false);
             // v5.0.0-alpha.175.45 - Phase 5.6: Date dropdown
             const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
-            // v4.16.0.aq - State for "last copy" delete warning dialog
-            const [lastCopyDialogData, setLastCopyDialogData] = useState(null); // {lastCopyEntries: [...], deletableEntries: [...], deletedCount: number}
             const [showAllReviews, setShowAllReviews] = useState(false);
             const [customPriceInput, setCustomPriceInput] = useState(''); // v4.17.0 - custom price trigger input
             const [showCustomPriceInput, setShowCustomPriceInput] = useState(false); // v4.17.0
@@ -809,6 +1216,7 @@
             const [editBookSeriesDropdownOpen, setEditBookSeriesDropdownOpen] = useState(false);
             const editBookSeriesFilterRef = useRef(false); // true = filter by typed text, false = show all
             const editBookSeriesInputRef = useRef(null); // ref to series input for focus management
+            const editBookSeriesAnchorRef = useRef(null); // v7.18.0-alpha.54 - field + ▼ wrapper: anchor of the Series <Popover kind="list">
             // v5.4.7 - Bulk edit via context menu
             const [showBulkEditModal, setShowBulkEditModal] = useState(false);
             const [bulkEditField, setBulkEditField] = useState(null); // 'author' | 'series' | 'position'
@@ -817,6 +1225,7 @@
             const [bulkEditSeriesDropdownOpen, setBulkEditSeriesDropdownOpen] = useState(false);
             const bulkEditSeriesFilterRef = useRef(false);
             const bulkEditSeriesInputRef = useRef(null);
+            const bulkEditSeriesAnchorRef = useRef(null); // v7.18.0-alpha.54 - field + ▼ wrapper: anchor of the Bulk Edit Series <Popover kind="list">
             const [wizardModalOpen, setWizardModalOpen] = useState(false); // v5.1.0 - Auto-organize wizard modal
             const [wizardMinBooksSlider, setWizardMinBooksSlider] = useState(5); // v5.1.0-alpha.10 - Slider value (immediate)
             const [wizardMinBooks, setWizardMinBooks] = useState(5); // v5.1.0-alpha.10 - Debounced threshold for detection
@@ -829,9 +1238,6 @@
             const [wizardSortByPosition, setWizardSortByPosition] = useState(true); // v5.1.0-alpha.20 - Phase 2.1: Sort books by series position
             const [wizardCreateMiscellaneous, setWizardCreateMiscellaneous] = useState(true); // v5.1.0-alpha.20 - Phase 2.1: Create Miscellaneous folder
             const [wizardSeriesFolderMin, setWizardSeriesFolderMin] = useState(2); // v6.13.0-alpha.2 - min books before a series earns its own subfolder
-            const [wizardPreviewMode, setWizardPreviewMode] = useState(false); // v5.1.0-alpha.28 - Phase 3.1: Preview mode
-            const [wizardPreviewData, setWizardPreviewData] = useState(null); // v5.1.0-alpha.28 - Phase 3.1: Preview structure data
-            const [wizardResultsOpen, setWizardResultsOpen] = useState(false); // v5.1.0-alpha.29 - Phase 3.3: Results dialog visibility
             const [autoOrgPreview, setAutoOrgPreview] = useState(null); // v6.13.0-alpha.7 - Right-click Auto-Organize confirm/preview: { mode, authorGroups, opts, label, dryPlan } or null
             const [autoOrgSel, setAutoOrgSel] = useState(new Set());    // v6.13.0-alpha.9 (D2) - selected cover ids within the preview
             const [corruptionRecovery, setCorruptionRecovery] = useState(false); // v6.17.1 - show the sync-corruption recovery dialog
@@ -839,14 +1245,13 @@
             const [autoOrgExcludedMembers, setAutoOrgExcludedMembers] = useState(new Set()); // v6.17.0 (B) - consolidate: deselected "folderId::bookId" copies (default all-in) for a multi-folder book
             const [autoOrgAnchor, setAutoOrgAnchor] = useState(null);  // v6.16.0 - shift-range pivot (last plain/ctrl-clicked cover) in the preview
             const [autoOrgMenu, setAutoOrgMenu] = useState(null);       // v6.13.0-alpha.9 (D2) - preview cover right-click menu: { x, y, bookIds } or null
-            const [autoOrgHover, setAutoOrgHover] = useState(null);     // v6.13.0-alpha.9 (D2) - preview cover hover "In" popup: { bookId, x, y } or null
+            const previewTip = useHoverTip();     // v6.13.0-alpha.9 (D2) - preview cover hover "In" popup; alpha.71 - the shared hover popup (was autoOrgHover)
             const [autoOrgSrcPopup, setAutoOrgSrcPopup] = useState(null); // v7.9.0-alpha.2 (UNIFIED §3) - origin popup: { bookId, x, y } — per-source moves/stays checkboxes
             const [autoOrgFileUnder, setAutoOrgFileUnder] = useState(null); // v7.9.0-alpha.8 (UNIFIED §9) - File-under folder picker: { bookIds, filter } — combobox, creation always explicit
             const [autoOrgOptionsOpen, setAutoOrgOptionsOpen] = useState(false); // v6.16.0 (Stage 2) - collapsible By-Series Options strip in the preview
             // v6.16.0 - The preview has ONE selection (autoOrgSel): default all-in. The checkbox tree (section → author →
             // shelf) is just select-all/none over it; cover-clicks toggle individuals. Both the footer action AND
             // "Add to Book List" read this one set. (No separate include-flags — the selection IS the include set.)
-            const [wizardResultsData, setWizardResultsData] = useState(null); // v5.1.0-alpha.29 - Phase 3.3: Results summary data
             const [wizardSourceBooksCount, setWizardSourceBooksCount] = useState(0); // v5.1.0-alpha.30 - Phase 3.4: Track Inbox book count for validation
             const [syncStatus, setSyncStatusInternal] = useState('loading'); // 'loading', 'fresh', 'stale', 'none', 'unknown'
             const [lastSyncTime, setLastSyncTime] = useState(null);
@@ -875,9 +1280,41 @@
             // plus the imperative overlays (confirm/input/progress...). Every global shortcut that acts
             // on the library consults this, not anyModalOpenRef directly.
             const dialogUp = () => anyModalOpenRef.current || imperativeDialogsUp();
+
+            // v7.18.0 - Overlay-registry bridge: hasFence() feeds anyDialogOpen below, so the keystroke fence +
+            // undo-fence follow whatever fencing overlays are registered. v7.18.0-alpha.40: hasFence (not
+            // hasModal) — every modal fences by default, and a popover can opt in (toast history).
+            const [registryHasFence, setRegistryHasFence] = useState(false);
+            useEffect(() => {
+                const unsub = overlayRegistry.subscribe(() => setRegistryHasFence(overlayRegistry.hasFence()));
+                setRegistryHasFence(overlayRegistry.hasFence());
+                return unsub;
+            }, []);
+            // ONE keydown listener for the overlay stack: Esc closes the topmost registered layer
+            // (innermost-first). (The legacy handleModalEsc it once coexisted with was deleted in alpha.43.)
+            // v7.18.0-alpha.41 - the Esc that closes an overlay is CONSUMED: nothing else on the page sees it
+            // (desktop convention — closing a menu must not also clear your selection / cut clipboard). It
+            // must be stopIMMEDIATEPropagation: the main keydown handler is ALSO a window listener, and
+            // React unmounts the closed overlay in the microtask BETWEEN listeners — so by the time that
+            // handler ran, nothing looked open and it cleared the selection (Ron, 2026-10-04). This listener
+            // is mount-only and declared early, so it's registered first and runs first on window; the Esc
+            // branches below also skip when e.defaultPrevented (order-independent belt).
+            useEffect(() => {
+                const onKey = (e) => {
+                    if (e.key !== 'Escape') return;
+                    if (overlayRegistry.topLayer()) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        overlayRegistry.closeTop('esc');
+                    }
+                };
+                window.addEventListener('keydown', onKey);
+                return () => window.removeEventListener('keydown', onKey);
+            }, []);
             const autoOrgPreviewRef = useRef(null); // v6.16.0 - current auto-organize preview, for the keydown handler (which doesn't dep on it)
+            const wizardSelectAllRef = useRef(null); // v7.18.0-alpha.34 - current wizard "select all listed authors" action, for Ctrl+A (handler reads via ref, not state)
+            const autoOrgChildRef = useRef(false); // v7.18.0-alpha.35 - is an autoOrg CHILD overlay (cover menu / source popup / File-under) open OVER the preview? gates the preview/wizard Ctrl+A select-all so a child on top owns Ctrl+A instead
             const backdropMouseDownRef = useRef(null); // v5.2.0-alpha.15 - Track mousedown origin for backdrop close (prevents swipe-past-edge closing modals)
-            const [contextMenu, setContextMenu] = useState(null); // {x, y, bookId, columnId}
             const [contextSubmenu, setContextSubmenu] = useState(null); // v4.16.0.ba - 'move' | 'copyTo' | 'priceGoal' | null for submenu hover
             const [readStatusFilter, setReadStatusFilter] = useState(''); // Filter by READ/UNREAD/UNKNOWN
             const [ratingFilter, setRatingFilter] = useState(''); // Filter by minimum rating (NEW v3.8.0)
@@ -993,6 +1430,10 @@
             const draggedFoldersAllPinnedRef = useRef(false); // v7.6.0-alpha.15 - right-pane reorder gate: pin-zone drags are allowed in sorted modes (dragover can't read the payload, so dragstart records this)
             const toastHistoryRef = useRef([]); // v7.6.2-alpha.2 - session toast receipts (ring buffer of 50)
             const [toastHistoryOpen, setToastHistoryOpen] = useState(false); // v7.6.2-alpha.2
+            const toastHistoryBtnRef = useRef(null); // v7.18.0-alpha.40 - anchor for the toast-history <Popover>
+            const folderSortBtnRef = useRef(null); // v7.18.0-alpha.44 - anchor for the FOLDERS-header sort <Popover>
+            const folderSortPickerBtnRef = useRef(null); // v7.18.0-alpha.44 - anchor for the right-pane "Sort:" folder picker <Popover>
+            const sortPickerBtnRef = useRef(null); // v7.18.0-alpha.60 - anchor for the right-pane "Sort:" BOOK picker <Popover>
             // v5.5.4-alpha.23 - Drag virtualization refs (hide off-screen rows during drag)
             const dragVirtScrollRef = useRef(null);    // Scroll container element
             const dragVirtContainerRef = useRef(null);  // tbody (list) or grid div
@@ -1092,15 +1533,19 @@
             const [isResizingPane, setIsResizingPane] = useState(false); // v5.0.0-alpha.91 - Pane resize in progress
             const [navHistory, setNavHistory] = useState(['__all__']); // v5.0.0-alpha.92 - Navigation history stack
             const [navHistoryIndex, setNavHistoryIndex] = useState(0); // v5.0.0-alpha.92 - Current position in history
-            const [bookTooltip, setBookTooltip] = useState(null); // v5.0.0-alpha.98 - Tooltip for All Books view { bookId, x, y }
+            const coverTip = useHoverTip(); // v5.0.0-alpha.98 - "Found in" popup on a right-pane cover; alpha.71 - the shared hover popup (was bookTooltip)
             const [folderContextMenu, setFolderContextMenu] = useState(null); // v5.0.0-alpha.133 - Folder context menu { folderId, x, y }
             const [submenuExpandedFolders, setSubmenuExpandedFolders] = useState(new Set()); // v5.0.0-alpha.138 - Expanded folders in Move to submenu
             const [submenuFilter, setSubmenuFilter] = useState(''); // v6.17.0 - filter/search box in Move to / Copy to / Add to Book List submenus
             const [folderClipboard, setFolderClipboard] = useState({ items: [], operation: null }); // v5.0.0-alpha.141 - Clipboard for cut/copy/paste
             const [folderPropertiesDialog, setFolderPropertiesDialog] = useState(null); // v5.0.0-alpha.142 - Folder properties dialog { folderId }
+            // v7.18.0-alpha.44 - THE closers for the folder / book right-click menus (the <Popover> onClose for Esc +
+            // outside-click): close the menu AND reset its hover-submenu state + filter, so a reopened menu never
+            // shows a stale Move-to/Copy-to flyout. Item actions inside the menus still close inline (unchanged).
+            const closeFolderMenu = () => { setFolderContextMenu(null); setContextSubmenu(null); setSubmenuFilter(''); };
+            const closeBookMenu = () => { setExplorerBookContextMenu(null); setContextSubmenu(null); setSubmenuFilter(''); };
             const [folderPropertiesEditedName, setFolderPropertiesEditedName] = useState(''); // v5.0.0-alpha.143 - Edited name in properties dialog
             const [folderPropertiesEditedDescription, setFolderPropertiesEditedDescription] = useState(''); // v6.5.0 - Description in properties dialog
-            const [dialogDrag, setDialogDrag] = useState(null); // v5.0.0-alpha.144 - Dragging state { isDragging, offsetX, offsetY, dialogX, dialogY }
             const [showAllFoldersOverride, setShowAllFoldersOverride] = useState(() => localStorage.getItem('readerwrangler-show-all-folders') === 'true'); // v5.0.0-alpha.169 - Override auto-hide when filter active; v6.12.0 - sticky persisted preference
             const springLoadTimerRef = useRef(null); // v6.8.0 - Spring-load timer for Show All drag hover
             const [springLoadActive, setSpringLoadActive] = useState(false); // v6.8.0 - True while spring-load countdown is running (drives pulse animation)
@@ -1129,6 +1574,10 @@
             const [saveResultsMenuOpen, setSaveResultsMenuOpen] = useState(false); // v6.12.0 - "Save these results…" dropdown (Phase 4)
             const [explorerColumnMenuOpen, setExplorerColumnMenuOpen] = useState(false); // v5.0.0-alpha.104 - Explorer column chooser menu
             const [explorerColumnMenuPos, setExplorerColumnMenuPos] = useState(null); // v5.0.0-alpha.107 - Context menu position { x, y } or null
+            const columnChooserBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (⚙ gear) for the column-chooser <Popover>
+            const saveResultsBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor ("💾 N results · Save ▾") for its <Popover>
+            const shareBtnRef = useRef(null); // v7.18.0-alpha.49 - anchor (book window "Share ▾" button, alpha.67) for the Share <Popover> (alpha.55: restored — alpha.52's probe removal had joined this line into the comment above)
+            const closeColumnChooser = () => { setExplorerColumnMenuOpen(false); setExplorerColumnMenuPos(null); }; // v7.18.0-alpha.49 - THE closer
             const [columnWidths, setColumnWidths] = useState({ // v5.0.0-alpha.109 - Column widths (px)
                 title: 200,
                 author: 150,
@@ -3320,32 +3769,15 @@
                 return true;
             };
 
-            // v5.0.0-alpha.132 - Tooltip hide delay (prevents tooltip from disappearing when moving cursor to it)
-            const tooltipHideTimeoutRef = useRef(null);
-            // v6.13.2-alpha.5 - "In" popup hover-intent + cursor tracking. Only pop after the cursor SETTLES on a cover
-            // (~280ms of stillness); remember the cursor position (used as the popup's inner corner). Movement resets
-            // the timer, so scanning across covers never flickers a popup. Shared by both cover-render paths.
-            const coverTipTimerRef = useRef(null);
-            const coverTipPendingRef = useRef(null);
-            const showCoverTipSoon = (el, bookId, clientX, clientY) => {
-                if (tooltipHideTimeoutRef.current) { clearTimeout(tooltipHideTimeoutRef.current); tooltipHideTimeoutRef.current = null; }
-                const rect = el.getBoundingClientRect();
-                coverTipPendingRef.current = { bookId, x: rect.left, y: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height, cursorX: clientX, cursorY: clientY };
-                if (coverTipTimerRef.current) clearTimeout(coverTipTimerRef.current);
-                coverTipTimerRef.current = setTimeout(() => { if (coverTipPendingRef.current) setBookTooltip(coverTipPendingRef.current); }, 280);
-            };
+            // v6.13.2-alpha.5 - "In" popup hover-intent + cursor tracking — alpha.71: the timing now lives in the shared
+            // useHoverTip (coverTip); these two handlers are the right pane's cover wiring, used by both cover-render paths.
             // v6.13.2-alpha.6 - The "In" popup shows in cover view for every content view (All Books, Inbox, Library,
             // any folder, any Book List) — everywhere except the Views/Searches list. "See where a book lives."
             // v7.10.1-alpha.7 (Ron) - Trash included: a trashed book shows its FORMER homes ("Was in:"),
             // exactly the question you ask before restoring.
             const bookTipViewOk = (fid) => fid !== '__views__';
-            const handleCoverTip = (e, bookId) => { if (bookTipViewOk(selectedFolderId)) showCoverTipSoon(e.currentTarget, bookId, e.clientX, e.clientY); };
-            const handleCoverTipLeave = () => {
-                coverTipPendingRef.current = null;
-                if (coverTipTimerRef.current) { clearTimeout(coverTipTimerRef.current); coverTipTimerRef.current = null; }
-                if (tooltipHideTimeoutRef.current) clearTimeout(tooltipHideTimeoutRef.current);
-                tooltipHideTimeoutRef.current = setTimeout(() => setBookTooltip(null), 150);
-            };
+            const handleCoverTip = (e, bookId) => { if (bookTipViewOk(selectedFolderId)) coverTip.show(e.currentTarget, bookId, e.clientX, e.clientY); };
+            const handleCoverTipLeave = coverTip.leave;
 
             // Status bar state (v3.9.0 - Load-state-only, 4 states)
             const [libraryStatus, setLibraryStatus] = useState({
@@ -3459,7 +3891,6 @@
             const lastClickedTagRef = useRef(null);
 
             // v6.10.0-alpha.20 - Tag Manager drag-to-view: hide modal during drag via direct DOM
-            const tagManagerBackdropRef = useRef(null); // modal backdrop for direct DOM visibility toggle
             const tagManagerScrollRef = useRef(null); // scrollable container for scroll position restore
 
             // v5.0.0-alpha.82 - Timeout for auto-expanding folder on drag hover
@@ -4078,14 +4509,7 @@
 
 
 
-            // v5.0.0-alpha.132 - Cleanup tooltip timeout on unmount
-            useEffect(() => {
-                return () => {
-                    if (tooltipHideTimeoutRef.current) {
-                        clearTimeout(tooltipHideTimeoutRef.current);
-                    }
-                };
-            }, []);
+            // (v5.0.0-alpha.132's tooltip-timer cleanup on unmount now lives in useHoverTip — alpha.71)
 
             // Auto-save organization — THE single folder/organization store (F1 consolidation)
             // v7.7.0-alpha.1 - Explicit load-complete gate replaces the old books.length proxy: a
@@ -4395,92 +4819,10 @@
             // FOLDERS_KEY's writer was the last unguarded mount-stamper of the Book-List-killer class —
             // and the double store was the fog behind the folder-order scrambler diagnosis.
 
-            // v5.0.0-alpha.175.2 - Close menus on outside click, close dialogs on ESC
-            // v5.0.0-alpha.175.4 - Extended to close filter dropdowns
-            // v5.0.0-alpha.175.40 - Extended to close More panel
-            useEffect(() => {
-                const handleClickOutside = (e) => {
-                    // Close menus if clicking outside (not on menu button or dropdown)
-                    if (openMenuBar && !e.target.closest('[data-menu-area]')) {
-                        setOpenMenuBar(null);
-                    }
-                    // Close filter dropdowns if clicking outside
-                    if (statusDropdownOpen && !e.target.closest('[data-status-dropdown]')) {
-                        setStatusDropdownOpen(false);
-                    }
-                    if (tagsDropdownOpen && !e.target.closest('[data-tags-dropdown]')) {
-                        setTagsDropdownOpen(false);
-                    }
-                    if (typesDropdownOpen && !e.target.closest('[data-types-dropdown]')) {
-                        setTypesDropdownOpen(false);
-                    }
-                    // Close More panel if clicking outside (v5.0.0-alpha.175.47.2 - Fixed to close when clicking Tier 1 filters)
-                    if (morePanelOpen && !e.target.closest('[data-morepanel]')) {
-                        setMorePanelOpen(false);
-                    }
-                    // v5.0.0-alpha.175.41 - Phase 5.2: Close Collections dropdown
-                    if (collectionsDropdownOpen && !e.target.closest('[data-collections-dropdown]')) {
-                        setCollectionsDropdownOpen(false);
-                    }
-                    // v5.0.0-alpha.175.42 - Phase 5.3: Close Amazon Rating dropdown
-                    if (amazonRatingDropdownOpen && !e.target.closest('[data-amazon-rating-dropdown]')) {
-                        setAmazonRatingDropdownOpen(false);
-                    }
-                    // v5.0.0-alpha.175.43 - Phase 5.4: Close My Rating dropdown
-                    if (myRatingDropdownOpen && !e.target.closest('[data-my-rating-dropdown]')) {
-                        setMyRatingDropdownOpen(false);
-                    }
-                    // v5.0.0-alpha.175.44 - Phase 5.5: Close Series dropdown
-                    if (seriesDropdownOpen && !e.target.closest('[data-series-dropdown]')) {
-                        setSeriesDropdownOpen(false);
-                    }
-                    // v5.0.0-alpha.175.45 - Phase 5.6: Close Date dropdown
-                    if (dateDropdownOpen && !e.target.closest('[data-date-dropdown]')) {
-                        setDateDropdownOpen(false);
-                    }
-                    // v5.4.6 - Close inline series dropdown in book edit mode
-                    if (editBookSeriesDropdownOpen && !e.target.closest('[data-edit-series-dropdown]')) {
-                        setEditBookSeriesDropdownOpen(false);
-                    }
-                    // v5.4.7 - Close bulk edit series dropdown
-                    if (bulkEditSeriesDropdownOpen && !e.target.closest('[data-bulk-edit-series-dropdown]')) {
-                        setBulkEditSeriesDropdownOpen(false);
-                    }
-                    // v5.4.9 - Search history dropdown now handled by SearchInput component
-                    // v5.5.0 - Close sort picker dropdown
-                    if (sortPickerOpen && !e.target.closest('[data-sort-picker]')) {
-                        setSortPickerOpen(false);
-                    }
-                };
-
-                const handleEscKey = (e) => {
-                    if (e.key === 'Escape') {
-                        setOpenMenuBar(null);
-                        setAboutDialogOpen(false);
-                        setShortcutsDialogOpen(false);
-                        setHowToDialogOpen(false);
-                        setStatusDropdownOpen(false);
-                        setTagsDropdownOpen(false);
-                        setTypesDropdownOpen(false);
-                        setMorePanelOpen(false);
-                        setCollectionsDropdownOpen(false);
-                        setAmazonRatingDropdownOpen(false); // v5.0.0-alpha.175.42 - Phase 5.3: Close Amazon Rating dropdown
-                        setMyRatingDropdownOpen(false); // v5.0.0-alpha.175.43 - Phase 5.4: Close My Rating dropdown
-                        setSeriesDropdownOpen(false); // v5.0.0-alpha.175.44 - Phase 5.5: Close Series dropdown
-                        setDateDropdownOpen(false); // v5.0.0-alpha.175.45 - Phase 5.6: Close Date dropdown
-                        // v5.4.9 - Search history dropdown now handled by SearchInput component
-                        setSortPickerOpen(false); // v5.5.0 - Close sort picker dropdown
-                    }
-                };
-
-                document.addEventListener('mousedown', handleClickOutside);
-                document.addEventListener('keydown', handleEscKey);
-
-                return () => {
-                    document.removeEventListener('mousedown', handleClickOutside);
-                    document.removeEventListener('keydown', handleEscKey);
-                };
-            }, [openMenuBar, statusDropdownOpen, tagsDropdownOpen, typesDropdownOpen, morePanelOpen, collectionsDropdownOpen, amazonRatingDropdownOpen, myRatingDropdownOpen, seriesDropdownOpen, dateDropdownOpen, sortPickerOpen]);
+            // v7.18.0-alpha.60 - DELETED: the page-wide outside-click + Esc handlers (v5.0.0-alpha.175.2 →) that hand-closed
+            // the menu bar, the filter dropdowns, the More panel, the Series lists and the sort picker by `data-*` attribute.
+            // Every one of those is a <Popover> now (Esc + light-dismiss via the overlay registry). Nothing hand-closes
+            // a popup any more, except the imperative confirm-style dialogs (own Esc until they migrate).
 
             // v5.0.0-alpha.100 - Restore per-folder sort when folder changes
             useEffect(() => {
@@ -4539,21 +4881,8 @@
                 }
             }, [explorerSort]);
 
-            // v5.0.0-alpha.104 - Close Explorer column menu when clicking outside
-            useEffect(() => {
-                if (!explorerColumnMenuOpen) return;
-
-                const handleClickOutside = (e) => {
-                    // Close menu if clicking outside (not on the gear button or menu)
-                    if (!e.target.closest('.column-chooser-menu') && !e.target.closest('.column-chooser-button')) {
-                        setExplorerColumnMenuOpen(false);
-                        setExplorerColumnMenuPos(null); // v5.0.0-alpha.107 - Clear context menu position
-                    }
-                };
-
-                document.addEventListener('mousedown', handleClickOutside);
-                return () => document.removeEventListener('mousedown', handleClickOutside);
-            }, [explorerColumnMenuOpen]);
+            // v7.18.0-alpha.49 - DELETED: the column chooser's hand-rolled outside-click closer (`.column-chooser-*` class
+            // check; grep: no other consumer of those classes). The chooser is a <Popover> now (closeColumnChooser).
 
             // v5.0.0-alpha.82 - Auto-expand tree to show selected folder
             useEffect(() => {
@@ -4603,8 +4932,9 @@
             // ESC key to clear selection, Ctrl+A to select all in active column
             useEffect(() => {
                 const handleKeyDown = async (e) => {
-                    if (e.key === 'Escape') {
-                        setContextMenu(null);
+                    // v7.18.0-alpha.41 - an Esc an overlay consumed (registry listener preventDefaults) or that
+                    // arrives while a registry layer is still up is the OVERLAY's — skip every main-view Esc effect.
+                    if (e.key === 'Escape' && !e.defaultPrevented && !overlayRegistry.topLayer()) {
                         // v4.16.0.l - Clear toast state on Escape
                         setToastVisible(false);
                         setToastAnimating(false);
@@ -4624,9 +4954,15 @@
                     }
 
                     // v4.21.1.a - Let browser handle Ctrl+A/C/X natively when input/textarea focused
-                    const isInputFocused = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
-                    if (isInputFocused && (e.ctrlKey || e.metaKey) && ['a', 'c', 'x'].includes(e.key)) {
-                        return; // Don't preventDefault, let browser handle
+                    const ae = document.activeElement;
+                    const isInputFocused = ['INPUT', 'TEXTAREA'].includes(ae?.tagName);
+                    // v7.18.0-alpha.34 - a checkbox/radio/button is an <input> but NOT text: native Ctrl+A there
+                    // selects the WHOLE PAGE (leak). Hand Ctrl+A/C/X to the browser only for text-editable fields;
+                    // a focused checkbox then falls through to the dialog-aware guards below (never leaks).
+                    const isTextEntry = ae?.tagName === 'TEXTAREA' || ae?.isContentEditable ||
+                        (ae?.tagName === 'INPUT' && ['text', 'search', 'url', 'tel', 'email', 'password', 'number', ''].includes((ae.type || 'text').toLowerCase()));
+                    if (isTextEntry && (e.ctrlKey || e.metaKey) && ['a', 'c', 'x'].includes(e.key)) {
+                        return; // Don't preventDefault, let browser handle text ops in the field
                     }
 
                     // v5.2.0-alpha.15 - Skip DEL/arrow keys when input/textarea focused (prevent book deletion, navigation)
@@ -4645,16 +4981,37 @@
                         return; // Let browser copy selected text
                     }
 
-                    // v4.21.1.c - Disable Ctrl+A when modal is open (prevent selecting entire page)
-                    if (modalBookRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
-                        e.preventDefault(); // Don't select entire page or books
+                    // v7.18.0-alpha.74 (Ron) - Ctrl+A while you're working in a hover popup (clicked or selected text in
+                    // it) selects that popup's text — checked FIRST, before the Preview's / library's select-all-books.
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                        const hp = hoverPopupInUse();
+                        if (hp) {
+                            e.preventDefault();
+                            const s = window.getSelection();
+                            if (s) { s.removeAllRanges(); s.selectAllChildren(hp); }
+                            return;
+                        }
+                    }
+
+                    // v7.18.0-alpha.36 - Ctrl+A in the book dialog is now the standard dialog scope-select (below):
+                    // modalBook is a <Dialog>, so the dialogUp() branch selects ITS text (copyable book details),
+                    // never the page behind. (Was a hard block; Ron's call to allow copying details.)
+
+                    // v6.16.0 - Ctrl+A inside the Auto-Organize preview selects THAT preview's books (was leaking to the Inbox behind it).
+                    // v7.18.0-alpha.35 - ...only when the preview is the TOPMOST overlay: if a child (cover menu / source
+                    // popup / File-under) is open over it, that child owns Ctrl+A (handled by the generic scope-select below).
+                    if (autoOrgPreviewRef.current && !autoOrgChildRef.current && !modalBookRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
+                        e.preventDefault();
+                        setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreviewRef.current).map(b => b.id)));
                         return;
                     }
 
-                    // v6.16.0 - Ctrl+A inside the Auto-Organize preview selects THAT preview's books (was leaking to the Inbox behind it).
-                    if (autoOrgPreviewRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    // v7.18.0-alpha.34 - Ctrl+A in the Auto-Organize wizard checks ALL listed authors (Ron's ask),
+                    // mirroring the preview's select-all above (same action as the Select All button).
+                    // v7.18.0-alpha.35 - only when the wizard is topmost: not while the preview (or a child) is over it.
+                    if (wizardSelectAllRef.current && !autoOrgPreviewRef.current && !autoOrgChildRef.current && !modalBookRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
                         e.preventDefault();
-                        setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreviewRef.current).map(b => b.id)));
+                        wizardSelectAllRef.current();
                         return;
                     }
 
@@ -4687,9 +5044,22 @@
 
                     // v5.0.0-alpha.102 - Ctrl+A: Select all visible books/folders
                     // v7.10.1-alpha.6 (audit sweep B) - not while a dialog is up: it silently selected
-                    // every explorer item UNDER the dialog (close + Delete = mass trash). Return without
-                    // preventDefault so native select-all still works on dialog text.
+                    // every explorer item UNDER the dialog (close + Delete = mass trash).
+                    // v7.18.0 - Ctrl+A while ANY dialog is open. Focus-based (activeElement, NOT the mouse):
+                    //   • focus in a text field  → handled ABOVE by the isInputFocused guard (native field select),
+                    //   • focus anywhere else     → select ALL the dialog's text, scoped to the top layer's panel.
+                    // ALWAYS preventDefault first, so the browser's native whole-page select-all can NEVER leak to
+                    // the faded page behind (the backdrop doesn't block text selection) — even when there's no node
+                    // to scope to (e.g. an imperative dialog carries no registry node, so it simply suppresses).
+                    // (UX: Ron 2026-09-29 — copying computed dialog text is useful, so scope-select, don't suppress.)
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a' && dialogUp()) {
+                        e.preventDefault();
+                        const top = overlayRegistry.topLayer();
+                        const node = top && top.nodeRef && top.nodeRef.current;
+                        if (node) {
+                            const sel = window.getSelection();
+                            if (sel) { sel.removeAllRanges(); sel.selectAllChildren(node); }
+                        }
                         return;
                     }
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
@@ -4869,39 +5239,15 @@
             }, [hiddenInstances, explorerSelectedItems, selectedFolderId, folders]);
 
 
-            // Close context menu on click
-            // v4.16.0.az - Also clear submenu state
-            useEffect(() => {
-                const handleClick = () => {
-                    setContextMenu(null);
-                    setContextSubmenu(null);
-                };
-                if (contextMenu) {
-                    window.addEventListener('click', handleClick);
-                    return () => window.removeEventListener('click', handleClick);
-                }
-            }, [contextMenu]);
-
-
-            // v5.0.0-alpha.133 - Close folder context menu on Esc key
-            useEffect(() => {
-                const handleEsc = (e) => {
-                    if (e.key === 'Escape' && folderContextMenu) {
-                        setFolderContextMenu(null);
-                    }
-                    // v5.0.0-alpha.165 - Close Explorer book context menu on Esc
-                    if (e.key === 'Escape' && explorerBookContextMenu) {
-                        setExplorerBookContextMenu(null);
-                    }
-                };
-                window.addEventListener('keydown', handleEsc);
-                return () => window.removeEventListener('keydown', handleEsc);
-            }, [folderContextMenu, explorerBookContextMenu]);
+            // v7.18.0-alpha.44 - DELETED: the dead `contextMenu` click-closer (that state, from the retired Columns
+            // view, was never set non-null) and the hand-rolled folder/book context-menu Esc + outside-mousedown
+            // closers — both menus are now <Popover>s (Esc + light-dismiss via the overlay registry).
 
             // v5.0.0-alpha.141 - Clear clipboard on Esc
             useEffect(() => {
                 const handleEsc = (e) => {
-                    if (e.key === 'Escape' && folderClipboard.items.length > 0) {
+                    // v7.18.0-alpha.41 - not the Esc that closed an overlay (see the registry Esc listener)
+                    if (e.key === 'Escape' && !e.defaultPrevented && !overlayRegistry.topLayer() && folderClipboard.items.length > 0) {
                         setFolderClipboard({ items: [], operation: null });
                         console.log('📋 Clipboard cleared');
                     }
@@ -4910,47 +5256,6 @@
                 return () => window.removeEventListener('keydown', handleEsc);
             }, [folderClipboard]);
 
-            // v5.0.0-alpha.144 - Handle dialog dragging
-            useEffect(() => {
-                if (!dialogDrag?.isDragging) return;
-
-                const handleMouseMove = (e) => {
-                    setDialogDrag(prev => ({
-                        ...prev,
-                        dialogX: e.clientX - prev.offsetX,
-                        dialogY: e.clientY - prev.offsetY
-                    }));
-                };
-
-                const handleMouseUp = () => {
-                    setDialogDrag(prev => ({ ...prev, isDragging: false }));
-                };
-
-                window.addEventListener('mousemove', handleMouseMove);
-                window.addEventListener('mouseup', handleMouseUp);
-                return () => {
-                    window.removeEventListener('mousemove', handleMouseMove);
-                    window.removeEventListener('mouseup', handleMouseUp);
-                };
-            }, [dialogDrag?.isDragging]);
-
-            // v5.0.0-alpha.133 - Close folder context menu on click outside
-            useEffect(() => {
-                const handleClickOutside = (e) => {
-                    if (folderContextMenu && !e.target.closest('.fixed')) {
-                        setFolderContextMenu(null);
-                    }
-                    // v5.0.0-alpha.165 - Close Explorer book context menu when clicking outside
-                    if (explorerBookContextMenu && !e.target.closest('.fixed')) {
-                        setExplorerBookContextMenu(null);
-                    }
-                };
-                if (folderContextMenu || explorerBookContextMenu) {
-                    document.addEventListener('mousedown', handleClickOutside);
-                    return () => document.removeEventListener('mousedown', handleClickOutside);
-                }
-            }, [folderContextMenu, explorerBookContextMenu]);
-
             // v5.0.0-alpha.145 - Keyboard shortcuts for folder operations (Phase 6)
             useEffect(() => {
                 const handleKeyboard = async (e) => {
@@ -4958,7 +5263,7 @@
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
                     // Skip if any modal/dialog or context menu is open
-                    if (folderContextMenu || folderPropertiesDialog || dialogUp()) return; // v7.10.1-alpha.6 - imperative overlays too
+                    if (folderPropertiesDialog || dialogUp()) return; // v7.10.1-alpha.6 - imperative overlays too; v7.18.0-alpha.44 - folderContextMenu dropped: the menu is a fencing <Popover>, so dialogUp() covers it
 
                     const currentFolder = folders.find(f => f.id === selectedFolderId);
                     if (!currentFolder) return;
@@ -5090,7 +5395,7 @@
 
                 window.addEventListener('keydown', handleKeyboard);
                 return () => window.removeEventListener('keydown', handleKeyboard);
-            }, [selectedFolderId, folders, folderClipboard, folderContextMenu, folderPropertiesDialog, explorerSelectedItems, explorerSelectedItems]); // v5.0.0-alpha.157 - Added explorerSelectedItems for F2
+            }, [selectedFolderId, folders, folderClipboard, folderPropertiesDialog, explorerSelectedItems, explorerSelectedItems]); // v5.0.0-alpha.157 - Added explorerSelectedItems for F2
 
             // v5.0.0-alpha.175.48 - Removed saveSettings function (dead code)
 
@@ -6491,6 +6796,63 @@
                 if (next) openBookModal(next, null, modalNavOverride); // keep the same list while cycling
             };
 
+            // v7.18.0-alpha.67 - the book window's Share control: a labeled "Share ▾" button next to "View on Amazon" (the
+            // window's other outward action), opening the Share menu as an anchored <Popover>. ONE render function, called
+            // from both the edit-mode and normal rows (only one shows at a time, so it's one control and one ref).
+            // Moved out of the window's top-right corner (Ron + UX pass, 2026-10-08).
+            const renderBookShareControl = () => (
+                <div className="relative">
+                    <button ref={shareBtnRef} {...popupTrigger(shareDropdownOpen)} onClick={(e) => {
+                        e.stopPropagation();
+                        setShareDropdownOpen(prev => !prev);
+                    }} className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm inline-flex items-center gap-1.5"
+                        title="Share this book">
+                        <ShareIcon /> Share ▾
+                    </button>
+                    {shareDropdownOpen && (
+                        <Popover anchorRef={shareBtnRef} onClose={() => setShareDropdownOpen(false)}
+                            className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60]"
+                            role="menu" ariaLabel="Share options"
+                            onClick={(e) => e.stopPropagation()}>
+                            <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
+                                onClick={() => {
+                                    if (!modalBook.asin) {
+                                        showToast('No Amazon link available for this book');
+                                    } else {
+                                        navigator.clipboard.writeText(getAmazonUrl(modalBook.asin));
+                                        showToast('Link copied!');
+                                    }
+                                    setShareDropdownOpen(false);
+                                }}>
+                                <span>🔗</span><span>Copy Amazon Link</span>
+                            </div>
+                            <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
+                                onClick={() => {
+                                    const shareData = getShareData(modalBook);
+                                    openShareEmail(shareData);
+                                    setShareDropdownOpen(false);
+                                }}>
+                                <span>✉️</span><span>Email to a Friend</span>
+                            </div>
+                            {navigator.share && (
+                                <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
+                                    onClick={() => {
+                                        const shareData = getShareData(modalBook);
+                                        navigator.share({
+                                            title: shareData.webShareTitle,
+                                            text: shareData.webShareText,
+                                            url: shareData.webShareUrl || undefined
+                                        }).catch(() => {});
+                                        setShareDropdownOpen(false);
+                                    }}>
+                                    <ShareIcon /><span>Share…</span>
+                                </div>
+                            )}
+                        </Popover>
+                    )}
+                </div>
+            );
+
             const closeBookModal = () => {
                 setModalBook(null);
                 setModalNavOverride(null);
@@ -6736,8 +7098,23 @@
             useEffect(() => {
                 autoOrgPreviewRef.current = autoOrgPreview;
             }, [autoOrgPreview]);
-            // v7.10.1-alpha.6 (DIALOG_POLICY registry, audit sweeps B+C) - THE single list of dialogs.
-            // Adding a dialog = adding it here (and to Esc dismissal); everything else derives:
+            // v7.18.0-alpha.34 - keep a ref to the wizard's "select all listed authors" action (same as the
+            // Select All button) so Ctrl+A can check-all without the keydown handler depending on wizard state.
+            // No deps: refresh the closure every render so it always sees the current authors/filter.
+            useEffect(() => {
+                wizardSelectAllRef.current = wizardModalOpen
+                    ? () => setWizardSelectedAuthors(prev => new Set([...prev, ...wizardFilteredAuthors().map(a => a.normalizedName)]))
+                    : null;
+            });
+            // v7.18.0-alpha.35 - track whether an autoOrg CHILD overlay is on top of the preview, so the preview's
+            // (and wizard's) Ctrl+A select-all doesn't fire when a child popover/dialog should own Ctrl+A instead.
+            useEffect(() => {
+                autoOrgChildRef.current = !!(autoOrgMenu || autoOrgSrcPopup || autoOrgFileUnder);
+            }, [autoOrgMenu, autoOrgSrcPopup, autoOrgFileUnder]);
+            // v7.10.1-alpha.6 (DIALOG_POLICY, audit sweeps B+C) - "is any fencing overlay open" drives everything below.
+            // v7.18.0-alpha.43: there is NO hand-maintained list any more — build a dialog with <Dialog> (or a
+            // keystroke-blocking popover with <Popover fence>) and it self-registers; the overlay registry's
+            // hasFence() IS the answer (via registryHasFence). Everything else derives:
             //   • anyModalOpenRef / dialogUp() — gates book cut/copy/paste/delete, Ctrl+A, Alt+nav,
             //     and Esc's selection/clipboard clearing
             //   • the UNIVERSAL undo fence — stamped when the first dialog opens (rising edge below).
@@ -6746,7 +7123,7 @@
             //     undo; the rest get the "close it to undo" info toast. One rule, no categories —
             //     keystroke scope consistency (Ron, 2026-09-09): keys apply to the dialog or to nothing.
             // relaySetupOpen / dupReviewOpen / tagFromCollectionsOpen were MISSING pre-audit (leaked keys).
-            const anyDialogOpen = !!(modalBook || showBulkPriceModal || showBulkEditModal || tagManagementOpen || wizardModalOpen || folderPropertiesDialog || resetConfirmOpen || statusModalOpen || aboutDialogOpen || shortcutsDialogOpen || howToDialogOpen || wizardHelpOpen || relayHelpOpen || wizardPreviewMode || wizardResultsOpen || lastCopyDialogData || autoOrgPreview || toastHistoryOpen || relaySetupOpen || dupReviewOpen || tagFromCollectionsOpen || shareEmailChoice || newFolderHiddenAlert || corruptionRecovery || restoreConfirm); // v7.14.2 - last three were unfenced
+            const anyDialogOpen = !!registryHasFence; // v7.18.0-alpha.40/43 - the legacy OR-chain is gone; every fencing overlay is a registry layer
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
@@ -6770,54 +7147,10 @@
                 return () => window.removeEventListener('keydown', handleArrowNav);
             }, [modalBook, isEditingBook, explorerSortedBooks, autoOrgPreview, modalNavOverride]);
 
-            // v5.4.2 - ESC closes innermost modal (layered dismissal)
-            // aboutDialogOpen, shortcutsDialogOpen, howToDialogOpen handled separately in handleEscKey
-            useEffect(() => {
-                const handleModalEsc = (e) => {
-                    if (e.key !== 'Escape') return;
-                    // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - Status History popover closes on Esc
-                    // (was click-outside only)
-                    if (toastHistoryOpen) { setToastHistoryOpen(false); return; }
-                    if (shareEmailChoice) { setShareEmailChoice(null); return; } // v7.14.0
-                    // v6.13.0-alpha.7/9 - Auto-Organize preview stack: the cover right-click menu, then the preview itself
-                    if (autoOrgMenu) { setAutoOrgMenu(null); return; }
-                    if (autoOrgPreview) { closeAutoOrgPreview(); return; } // v7.14.2 - was a partial clear that orphaned autoOrgSrcPopup/autoOrgFileUnder on Esc; delegate to the one closer
-                    // Wizard sub-dialogs (innermost)
-                    if (wizardResultsOpen) { setWizardResultsOpen(false); return; }
-                    if (wizardPreviewMode) { setWizardPreviewMode(false); return; }
-                    if (wizardHelpOpen) { setWizardHelpOpen(false); return; }
-                    // v5.4.6 - Series dropdown inside edit mode (innermost)
-                    if (editBookSeriesDropdownOpen) { setEditBookSeriesDropdownOpen(false); return; }
-                    // v5.4.6 - Book edit mode (cancel without closing dialog)
-                    if (isEditingBook) { cancelEditMode(); return; }
-                    // Book modal
-                    if (modalBook) { closeBookModal(); return; }
-                    // Standalone modals
-                    // v5.4.7 - Bulk edit series dropdown (innermost within bulk edit modal)
-                    if (bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); return; }
-                    if (showBulkEditModal) { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); return; }
-                    if (showBulkPriceModal) { setShowBulkPriceModal(false); return; }
-                    if (tagManagementOpen) { setTagManagementOpen(false); return; }
-                    if (wizardModalOpen) { setWizardModalOpen(false); return; }
-                    if (folderPropertiesDialog) { setFolderPropertiesDialog(null); return; }
-                    // v7.10.1-alpha.9 (Ron dialog-dismissal audit) - these two were missing from the chain
-                    if (dupReviewOpen) { setDupReviewOpen(false); return; }
-                    if (tagFromCollectionsOpen) { setTagFromCollectionsOpen(false); return; }
-                    // v7.14.2 - these three modals were entirely outside the Esc chain (and the fence)
-                    if (restoreConfirm) { console.log('📋 Backup restore cancelled by user (Esc)'); setRestoreConfirm(null); return; }
-                    if (newFolderHiddenAlert) { setNewFolderHiddenAlert(null); return; }
-                    if (corruptionRecovery) { setCorruptionRecovery(false); return; }
-                    // Confirmations / info
-                    if (lastCopyDialogData) { setLastCopyDialogData(null); return; }
-                    if (resetConfirmOpen) { setResetConfirmOpen(false); return; }
-                    if (statusModalOpen) { setStatusModalOpen(false); return; }
-                    if (relaySetupOpen && relayHelpOpen) { setRelayHelpOpen(false); return; }
-                    if (relaySetupOpen && relayManualCreds) { setRelayManualCreds(false); return; }
-                    if (relaySetupOpen) { setRelaySetupOpen(false); setRelaySetupSection(null); return; }
-                };
-                window.addEventListener('keydown', handleModalEsc);
-                return () => window.removeEventListener('keydown', handleModalEsc);
-            }, [autoOrgPreview, autoOrgMenu, modalBook, showBulkPriceModal, showBulkEditModal, bulkEditSeriesDropdownOpen, isEditingBook, editBookSeriesDropdownOpen, tagManagementOpen, wizardModalOpen, folderPropertiesDialog, resetConfirmOpen, statusModalOpen, relaySetupOpen, relayManualCreds, relayHelpOpen, wizardHelpOpen, wizardPreviewMode, wizardResultsOpen, lastCopyDialogData, toastHistoryOpen, dupReviewOpen, tagFromCollectionsOpen, shareEmailChoice, restoreConfirm, newFolderHiddenAlert, corruptionRecovery]); // v7.10.1-alpha.9 - three added; v7.14.0 - shareEmailChoice; v7.14.2 - three unfenced modals
+            // v7.18.0-alpha.43 - handleModalEsc (the v5.4.2 hand-maintained "Esc closes innermost modal" list)
+            // DELETED: every modal/popover is a registry layer, so the ONE overlay Esc listener closes the
+            // topmost (innermost-first) — a new overlay can't be born un-Esc-able. (Imperative overlays —
+            // showConfirmDialog etc. — keep their own capture-phase Esc until they migrate.)
 
             // v5.4.6 - ENTER saves edit mode when no input is focused
             useEffect(() => {
@@ -8311,79 +8644,6 @@
                 return ballMap[urgency.text] || '⚪';
             };
 
-            // v5.1.0-alpha.25 - Phase 2.3: Group books by series for subfolder creation
-            // v6.13.0-alpha.1 - groupBooksBySeries moved to organizeEngine.js (pure, node-tested). It's a global
-            // from that classic <script>, so calculateWizardPreview + executeWizardOrganize use it directly.
-
-            // v5.1.0-alpha.28 - Phase 3.1: Calculate preview structure without modifying state
-            const calculateWizardPreview = (selectedAuthors) => {
-                const authorStructures = []; // Array of {authorName, totalBooks, series: [], standalone: N, subfolders: N}
-                let totalFolders = 0;
-                let totalSubfolders = 0;
-                let totalBooks = 0;
-
-                selectedAuthors.forEach(author => {
-                    const { seriesGroups, standaloneBooks } = groupBooksBySeries(author.books);
-
-                    const authorStructure = {
-                        authorName: author.displayName,
-                        totalBooks: author.books.length,
-                        series: [],
-                        standalone: 0,
-                        subfolders: 0
-                    };
-
-                    totalFolders++;
-                    totalBooks += author.books.length;
-
-                    if (wizardCreateSeriesFolders) {
-                        // Count series subfolders (>= threshold books only)
-                        seriesGroups.forEach((seriesData, normalizedName) => {
-                            if (seriesData.books.length >= wizardSeriesFolderMin) {
-                                authorStructure.series.push({
-                                    name: seriesData.originalName,
-                                    bookCount: seriesData.books.length
-                                });
-                                authorStructure.subfolders++;
-                                totalSubfolders++;
-                            }
-                        });
-
-                        // Count standalone books + below-threshold series (they fall to the author root)
-                        let standaloneCount = standaloneBooks.length;
-                        seriesGroups.forEach((seriesData, normalizedName) => {
-                            if (seriesData.books.length < wizardSeriesFolderMin) {
-                                standaloneCount += seriesData.books.length;
-                            }
-                        });
-
-                        // Miscellaneous subfolder
-                        if (wizardCreateMiscellaneous && standaloneCount > 0) {
-                            authorStructure.series.push({
-                                name: 'Miscellaneous',
-                                bookCount: standaloneCount
-                            });
-                            authorStructure.subfolders++;
-                            totalSubfolders++;
-                        } else {
-                            authorStructure.standalone = standaloneCount;
-                        }
-                    } else {
-                        // Flat structure - all books at author root
-                        authorStructure.standalone = author.books.length;
-                    }
-
-                    authorStructures.push(authorStructure);
-                });
-
-                return {
-                    authorStructures,
-                    totalFolders,
-                    totalSubfolders,
-                    totalBooks
-                };
-            };
-
             // v7.7.0-alpha.4 - Stamp REMOVE_BOOKS_FROM_FOLDER sub-actions with each book's index in the
             // PRE-plan source folder so undo restores positions instead of appending (an undone
             // Auto-Organize was landing the book at the BOTTOM of a 50+ Inbox, hidden below the
@@ -8567,7 +8827,7 @@
                         defaultExcluded.add(`${f.id}::${b.id}`);
                     });
                 }));
-                setAutoOrgSel(new Set(initialIds)); setAutoOrgExcludedMembers(defaultExcluded); setAutoOrgAnchor(null); setAutoOrgMenu(null); setAutoOrgHover(null);
+                setAutoOrgSel(new Set(initialIds)); setAutoOrgExcludedMembers(defaultExcluded); setAutoOrgAnchor(null); setAutoOrgMenu(null); previewTip.close();
                 setAutoOrgPreview({ mode, authorGroups, opts: scopedOpts, label, dryPlan, sourceName, sourceFolderId: '__all__', alreadyFiled, isConsolidate: true, scopeAuthorNames: authorNames, narrowSourceId: srcId });
                 return true;
             };
@@ -8603,7 +8863,7 @@
                 { createSeriesFolders: true, seriesFolderMinBooks: wizardSeriesFolderMin, createMiscellaneous: wizardCreateMiscellaneous, sortByPosition: wizardSortByPosition },
                 (ags) => ags.length === 1 ? `Auto-Organized ${ags[0].displayName} by series` : `Auto-Organized ${ags.length} authors by series`);
 
-            const closeAutoOrgPreview = () => { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgExcludedMembers(new Set()); setAutoOrgAnchor(null); setAutoOrgMenu(null); setAutoOrgHover(null); setAutoOrgSrcPopup(null); setAutoOrgFileUnder(null); };
+            const closeAutoOrgPreview = () => { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgExcludedMembers(new Set()); setAutoOrgAnchor(null); setAutoOrgMenu(null); previewTip.close(); setAutoOrgSrcPopup(null); setAutoOrgFileUnder(null); };
             // v7.14.3 - single closer for Relay Setup: X / backdrop / Done reset sub-state too, so
             // closing from manual-entry mode no longer leaves it stuck for the next open.
             const closeRelaySetup = () => { setRelaySetupOpen(false); setRelaySetupSection(null); setRelayManualCreds(false); setRelayHelpOpen(false); };
@@ -8871,36 +9131,6 @@
                 if (!modalBook && autoOrgPreview) refreshAutoOrgPreview();
             }, [modalBook]); // eslint-disable-line react-hooks/exhaustive-deps
 
-            // v6.13.0-alpha.4 - Wizard organize is now a thin caller of the shared applyOrganizePlan.
-            const executeWizardOrganize = () => {
-                const selectedAuthors = wizardActiveAuthors(); // v6.16.0 - shown-and-selected only
-
-                if (selectedAuthors.length === 0) {
-                    showInfoDialog('No Selection', 'Please select at least one listed author to organize.');
-                    return;
-                }
-
-                const opts = {
-                    createSeriesFolders: wizardCreateSeriesFolders,
-                    sortByPosition: wizardSortByPosition,
-                    createMiscellaneous: wizardCreateMiscellaneous,
-                    seriesFolderMinBooks: wizardSeriesFolderMin
-                };
-
-                const plan = applyOrganizePlan(selectedAuthors, opts, `Organized ${selectedAuthors.length} author${selectedAuthors.length !== 1 ? 's' : ''}`);
-
-                const subfoldersCreated = plan.subActions.filter(a => a.type === 'CREATE_FOLDER' && a.parentId !== null).length;
-                setWizardResultsData({
-                    foldersCreated: plan.createdFolders.length,
-                    foldersMerged: plan.mergedFolders.length,
-                    subfoldersCreated: subfoldersCreated,
-                    totalBooks: plan.totalBooksOrganized
-                });
-
-                setWizardModalOpen(false);
-                setWizardResultsOpen(true);
-            };
-
             return (
                 <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50 to-blue-100 text-gray-900"
                      onMouseMove={handleMouseMove}
@@ -8961,9 +9191,13 @@
                         </a>
                         {/* v5.0.0-alpha.175.2 - File/View/Help menus */}
                         {['File', 'View', 'Help'].map(menuName => (
-                            <div key={menuName} style={{ position: 'relative' }} data-menu-area="true">
+                            <div key={menuName} style={{ position: 'relative' }}>
+                                {/* v7.18.0-alpha.58 - menu-bar title: anchor of its <Popover>; File/View/Help are SIBLINGS
+                                    (data-popover-trigger) so a click on another title switches in one click; hovering
+                                    another title while one is open still switches (classic menu-bar behavior, unchanged). */}
                                 <button
-                                    data-menu-area="true"
+                                    ref={menuBarRefs[menuName.toLowerCase()]}
+                                    {...popupTrigger(openMenuBar === menuName.toLowerCase())}
                                     onMouseDown={() => setOpenMenuBar(openMenuBar === menuName.toLowerCase() ? null : menuName.toLowerCase())}
                                     onMouseEnter={() => openMenuBar && setOpenMenuBar(menuName.toLowerCase())}
                                     style={{
@@ -8985,12 +9219,10 @@
                                     ) : menuName}
                                 </button>
                                 {openMenuBar === menuName.toLowerCase() && (
-                                    <div data-menu-area="true" style={{
-                                        position: 'absolute',
-                                        top: '100%',
-                                        left: 0,
+                                    <Popover anchorRef={menuBarRefs[menuName.toLowerCase()]}                                        onClose={() => setOpenMenuBar(null)}
+                                        role="menu" ariaLabel={menuName}
+                                        style={{
                                         marginTop: '2px',
-                                        minWidth: '200px',
                                         background: 'var(--bg-elevated)',
                                         border: '1px solid var(--border-strong)',
                                         borderRadius: '6px',
@@ -9257,7 +9489,7 @@
                                                 </button>
                                             </>
                                         )}
-                                    </div>
+                                    </Popover>
                                 )}
                             </div>
                         ))}
@@ -9407,11 +9639,10 @@
                         {/* v5.0.0-alpha.175.4 - Toolbar Tier 1 Filters */}
 
                         {/* Status Filter */}
-                        <div style={{ position: 'relative' }} data-status-dropdown="">
-                            <button
+                        <div style={{ position: 'relative' }}>
+                            <button ref={filterBtnRefs.status} {...popupTrigger(statusDropdownOpen, 'listbox')}
                                 onClick={() => { setStatusDropdownOpen(!statusDropdownOpen); setTagsDropdownOpen(false); setTypesDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by read status"
-                                aria-expanded={statusDropdownOpen} aria-haspopup="listbox"
                                 style={{
                                     height: '28px',
                                     padding: '0 10px',
@@ -9431,17 +9662,16 @@
                                 {readStatusFilter === 'UNKNOWN' && '? Unknown'}
                                 {!readStatusFilter && 'Read Status'}
                             </button>
+                            {/* v7.18.0-alpha.59 - filter-bar dropdowns are anchored <Popover>s in the "filterbar" sibling group */}
                             {statusDropdownOpen && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '32px',
-                                    left: 0,
+                                <Popover anchorRef={filterBtnRefs.status} onClose={() => setStatusDropdownOpen(false)}
+                                    role="menu" ariaLabel="Read Status" style={{
+                                    marginTop: '4px',
                                     background: 'var(--bg-elevated)',
                                     border: '1px solid var(--border-strong)',
                                     borderRadius: '4px',
                                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                                     zIndex: 1000,
-                                    minWidth: '140px'
                                 }}>
                                     <div
                                         onClick={() => { setReadStatusFilter(''); setStatusDropdownOpen(false); }}
@@ -9495,16 +9725,15 @@
                                     >
                                         ? Unknown
                                     </div>
-                                </div>
+                                </Popover>
                             )}
                         </div>
 
                         {/* Tags Filter */}
-                        <div style={{ position: 'relative' }} data-tags-dropdown="">
-                            <button
+                        <div style={{ position: 'relative' }}>
+                            <button ref={filterBtnRefs.tags} {...popupTrigger(tagsDropdownOpen, 'listbox')}
                                 onClick={() => { setTagsDropdownOpen(!tagsDropdownOpen); setStatusDropdownOpen(false); setTypesDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by tags"
-                                aria-expanded={tagsDropdownOpen} aria-haspopup="listbox"
                                 style={{
                                     height: '28px',
                                     padding: '0 10px',
@@ -9522,16 +9751,14 @@
                                 {tagFilter.length > 0 ? `Tags (${tagFilter.length})` : 'Tags'}
                             </button>
                             {tagsDropdownOpen && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '32px',
-                                    left: 0,
+                                <Popover anchorRef={filterBtnRefs.tags} onClose={() => setTagsDropdownOpen(false)}
+                                    role="menu" ariaLabel="Tags" style={{
+                                    marginTop: '4px',
                                     background: 'var(--bg-elevated)',
                                     border: '1px solid var(--border-strong)',
                                     borderRadius: '4px',
                                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                                     zIndex: 1000,
-                                    minWidth: '200px',
                                     maxHeight: '300px',
                                     overflowY: 'auto'
                                 }}>
@@ -9638,16 +9865,15 @@
                                             </div>
                                         </>
                                     )}
-                                </div>
+                                </Popover>
                             )}
                         </div>
 
                         {/* Types Filter */}
-                        <div style={{ position: 'relative' }} data-types-dropdown="">
-                            <button
+                        <div style={{ position: 'relative' }}>
+                            <button ref={filterBtnRefs.types} {...popupTrigger(typesDropdownOpen, 'listbox')}
                                 onClick={() => { setTypesDropdownOpen(!typesDropdownOpen); setStatusDropdownOpen(false); setTagsDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by ownership type"
-                                aria-expanded={typesDropdownOpen} aria-haspopup="listbox"
                                 style={{
                                     height: '28px',
                                     padding: '0 10px',
@@ -9683,16 +9909,14 @@
                                 }
                             </button>
                             {typesDropdownOpen && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '32px',
-                                    left: 0,
+                                <Popover anchorRef={filterBtnRefs.types} onClose={() => setTypesDropdownOpen(false)}
+                                    role="menu" ariaLabel="Ownership" style={{
+                                    marginTop: '4px',
                                     background: 'var(--bg-elevated)',
                                     border: '1px solid var(--border-strong)',
                                     borderRadius: '4px',
                                     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                                     zIndex: 1000,
-                                    minWidth: '160px'
                                 }}>
                                     <div
                                         onClick={() => { setOwnershipFilter(''); setTypesDropdownOpen(false); }}
@@ -9736,16 +9960,14 @@
                                             {type.label}
                                         </div>
                                     ))}
-                                </div>
+                                </Popover>
                             )}
                         </div>
 
                         {/* v5.0.0-alpha.175.40 - Phase 5.1: More button */}
-                        <button
-                            data-morepanel="true"
+                        <button ref={filterBtnRefs.more} {...popupTrigger(morePanelOpen, 'dialog')}
                             onClick={() => { setMorePanelOpen(!morePanelOpen); setStatusDropdownOpen(false); setTagsDropdownOpen(false); setTypesDropdownOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                             title={morePanelOpen ? 'Hide additional filters' : 'Show additional filters'}
-                            aria-expanded={morePanelOpen}
                             className={`px-3 py-1.5 rounded border ${morePanelOpen
                                 ? 'bg-blue-50 border-blue-300 text-blue-700'
                                 : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
@@ -9947,13 +10169,16 @@
                     </div>
 
                     {/* v5.0.0-alpha.175.40 - Phase 5.1: More panel (Tier 2 filters) */}
+                    {/* v7.18.0-alpha.59 - the More filters PANEL is a fencing <Popover kind="popover"> anchored under the
+                        More ▼ button (was pinned to the page's left edge under the toolbar); a "filterbar" sibling, so a
+                        click on Read Status / Tags / Ownership switches straight to that dropdown. Its five dropdowns are
+                        Popovers layered above it. */}
                     {morePanelOpen && (
-                        <div
-                            data-morepanel="true"
+                        <Popover anchorRef={filterBtnRefs.more} kind="popover" fence
+                            onClose={() => setMorePanelOpen(false)}
+                            role="dialog" ariaLabel="More filters"
                             style={{
-                                position: 'absolute',
-                                top: '64px',  // Below toolbar (32px menu + 36px toolbar - 4px overlap)
-                                left: '16px',
+                                marginTop: '4px',
                                 minWidth: '500px',
                                 background: 'var(--bg-elevated)',
                                 border: '1px solid var(--border-strong)',
@@ -9968,10 +10193,9 @@
                                 gap: '16px'
                             }}>
                                 {/* v5.0.0-alpha.175.41 - Phase 5.2: Collections Filter */}
-                                <div style={{ position: 'relative' }} data-collections-dropdown="">
-                                    <button
+                                <div style={{ position: 'relative' }}>
+                                    <button ref={filterBtnRefs.collections} {...popupTrigger(collectionsDropdownOpen, 'listbox')}
                                         onClick={() => { setCollectionsDropdownOpen(!collectionsDropdownOpen); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
-                                        aria-expanded={collectionsDropdownOpen} aria-haspopup="listbox"
                                         title={"Filter by Kindle Collection.\nThese come from Amazon and can't be edited here.\nUse File › Tag from Collections to convert them into editable tags."}
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             selectedCollections.length > 0
@@ -9986,14 +10210,13 @@
                                         <span>{collectionsDropdownOpen ? '▲' : '▼'}</span>
                                     </button>
 
+                                    {/* v7.18.0-alpha.59 - dropdowns INSIDE the More panel: anchored <Popover>s in the "morepanel"
+                                        sibling group, layered above the panel (Esc / outside-click close the innermost first) */}
                                     {collectionsDropdownOpen && (
-                                        <div
-                                            data-morepanel="true"
+                                        <Popover anchorRef={filterBtnRefs.collections} onClose={() => setCollectionsDropdownOpen(false)}
+                                            role="menu" ariaLabel="Collections"
                                             style={{
-                                                position: 'absolute',
-                                                top: '32px',
-                                                left: 0,
-                                                minWidth: '200px',
+                                                marginTop: '4px',
                                                 maxHeight: '300px',
                                                 overflowY: 'auto',
                                                 background: 'var(--bg-elevated)',
@@ -10062,16 +10285,15 @@
                                                     {collection}
                                                 </label>
                                             ))}
-                                        </div>
+                                        </Popover>
                                     )}
                                 </div>
 
                                 {/* v5.0.0-alpha.175.42 - Phase 5.3: Amazon Rating Filter */}
-                                <div style={{ position: 'relative' }} data-amazon-rating-dropdown="">
-                                    <button
+                                <div style={{ position: 'relative' }}>
+                                    <button ref={filterBtnRefs.amazonRating} {...popupTrigger(amazonRatingDropdownOpen, 'listbox')}
                                         onClick={() => { setAmazonRatingDropdownOpen(!amazonRatingDropdownOpen); setCollectionsDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by Amazon rating"
-                                        aria-expanded={amazonRatingDropdownOpen} aria-haspopup="listbox"
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             minAmazonRating
                                                 ? 'bg-blue-50 border-blue-300 text-blue-700'
@@ -10085,13 +10307,10 @@
                                     </button>
 
                                     {amazonRatingDropdownOpen && (
-                                        <div
-                                            data-morepanel="true"
+                                        <Popover anchorRef={filterBtnRefs.amazonRating} onClose={() => setAmazonRatingDropdownOpen(false)}
+                                            role="menu" ariaLabel="Amazon Rating"
                                             style={{
-                                                position: 'absolute',
-                                                top: '32px',
-                                                left: 0,
-                                                minWidth: '160px',
+                                                marginTop: '4px',
                                                 background: 'var(--bg-elevated)',
                                                 border: '1px solid var(--border-strong)',
                                                 borderRadius: '4px',
@@ -10111,16 +10330,15 @@
                                                     {rating ? `${rating}+ Stars` : 'All Ratings'}
                                                 </button>
                                             ))}
-                                        </div>
+                                        </Popover>
                                     )}
                                 </div>
 
                                 {/* v5.0.0-alpha.175.43 - Phase 5.4: My Rating Filter */}
-                                <div style={{ position: 'relative' }} data-my-rating-dropdown="">
-                                    <button
+                                <div style={{ position: 'relative' }}>
+                                    <button ref={filterBtnRefs.myRating} {...popupTrigger(myRatingDropdownOpen, 'listbox')}
                                         onClick={() => { setMyRatingDropdownOpen(!myRatingDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by your rating"
-                                        aria-expanded={myRatingDropdownOpen} aria-haspopup="listbox"
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             minMyRating
                                                 ? 'bg-blue-50 border-blue-300 text-blue-700'
@@ -10134,13 +10352,10 @@
                                     </button>
 
                                     {myRatingDropdownOpen && (
-                                        <div
-                                            data-morepanel="true"
+                                        <Popover anchorRef={filterBtnRefs.myRating} onClose={() => setMyRatingDropdownOpen(false)}
+                                            role="menu" ariaLabel="My Rating"
                                             style={{
-                                                position: 'absolute',
-                                                top: '32px',
-                                                left: 0,
-                                                minWidth: '160px',
+                                                marginTop: '4px',
                                                 background: 'var(--bg-elevated)',
                                                 border: '1px solid var(--border-strong)',
                                                 borderRadius: '4px',
@@ -10178,16 +10393,17 @@
                                                 style={{ fontSize: '13px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
                                                 Unrated
                                             </button>
-                                        </div>
+                                        </Popover>
                                     )}
                                 </div>
 
-                                {/* v5.0.0-alpha.175.44 - Phase 5.5: Series Filter (column 1, row 2) */}
-                                <div style={{ position: 'relative' }} data-series-dropdown="">
-                                    <button
+                                {/* v5.0.0-alpha.175.44 - Phase 5.5: Series Filter (row 2). v7.18.0-alpha.65 - spans columns 1–2: series
+                                    names are long (its list sizes to them), while Date Added's From/To fields stack and need only one
+                                    column (Ron + UX pass, 2026-10-07). */}
+                                <div style={{ position: 'relative', gridColumn: '1 / 3' }}>
+                                    <button ref={filterBtnRefs.series} {...popupTrigger(seriesDropdownOpen, 'listbox')}
                                         onClick={() => { setSeriesDropdownOpen(!seriesDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by series"
-                                        aria-expanded={seriesDropdownOpen} aria-haspopup="listbox"
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             selectedSeries.length > 0
                                                 ? 'bg-blue-50 border-blue-300 text-blue-700'
@@ -10201,13 +10417,10 @@
                                     </button>
 
                                     {seriesDropdownOpen && (
-                                        <div
-                                            data-morepanel="true"
+                                        <Popover anchorRef={filterBtnRefs.series} onClose={() => setSeriesDropdownOpen(false)}
+                                            role="menu" ariaLabel="Series"
                                             style={{
-                                                position: 'absolute',
-                                                top: '32px',
-                                                left: 0,
-                                                minWidth: '250px',
+                                                marginTop: '4px',
                                                 maxHeight: '300px',
                                                 overflowY: 'auto',
                                                 background: 'var(--bg-elevated)',
@@ -10276,15 +10489,14 @@
                                                     {series}
                                                 </label>
                                             ))}
-                                        </div>
+                                        </Popover>
                                     )}
                                 </div>
 
                                 {/* v5.0.0-alpha.175.45 - Phase 5.6: Date Filter (spans columns 2-3, row 2) */}
-                                <div style={{ position: 'relative', gridColumn: '2 / 4' }} data-date-dropdown="">
-                                    <button
+                                <div style={{ position: 'relative', gridColumn: '3 / 4' }}>{/* v7.18.0-alpha.65 - Date Added: column 3 (was 2–3) */}
+                                    <button ref={filterBtnRefs.date} {...popupTrigger(dateDropdownOpen, 'dialog')}
                                         onClick={() => { setDateDropdownOpen(!dateDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); }}
-                                        aria-expanded={dateDropdownOpen} aria-haspopup="listbox"
                                         title="Filter by date book was added to your Amazon library"
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             datePreset
@@ -10308,13 +10520,10 @@
                                     </button>
 
                                     {dateDropdownOpen && (
-                                        <div
-                                            data-morepanel="true"
+                                        <Popover anchorRef={filterBtnRefs.date} onClose={() => setDateDropdownOpen(false)}
+                                            role="dialog" ariaLabel="Date Added"
                                             style={{
-                                                position: 'absolute',
-                                                top: '32px',
-                                                left: 0,
-                                                right: 0,
+                                                marginTop: '4px',
                                                 background: 'var(--bg-elevated)',
                                                 border: '1px solid var(--border-strong)',
                                                 borderRadius: '4px',
@@ -10409,11 +10618,11 @@
                                                     </div>
                                                 </div>
                                             )}
-                                        </div>
+                                        </Popover>
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        </Popover>
                     )}
 
                     {/* v5.0.0-alpha.175.47 - Phase 7: Old filter panel removed (replaced by toolbar in Phases 3-6) */}
@@ -10470,22 +10679,30 @@
                                 return (
                                     <div className="relative" style={{ marginLeft: '8px' }}>
                                         <button
-                                            title="Save these results as a Search (live filter) or a Book List (snapshot)"
+                                            ref={saveResultsBtnRef} {...popupTrigger(saveResultsMenuOpen)}
+                                            title="Save the filter as a Search (stays up to date), or save these books to a Book List (fixed set)"
                                             onClick={() => setSaveResultsMenuOpen(o => !o)}
                                             className="text-blue-700 hover:text-white hover:bg-blue-600 font-semibold text-sm whitespace-nowrap px-2 py-1 rounded border border-blue-400 bg-white">
                                             💾 {count} result{count !== 1 ? 's' : ''} · Save ▾
                                         </button>
+                                        {/* v7.18.0-alpha.49 - anchored <Popover> menu (was a scrim + absolute panel; had no Esc) */}
                                         {saveResultsMenuOpen && (
-                                            <>
-                                                <div className="fixed inset-0 z-40" onClick={() => setSaveResultsMenuOpen(false)} />
-                                                <div className="absolute left-0 mt-1 z-50 bg-white border border-gray-300 rounded shadow-lg py-1 min-w-[230px] text-sm text-gray-700">
+                                                <Popover anchorRef={saveResultsBtnRef} onClose={() => setSaveResultsMenuOpen(false)}
+                                                    role="menu" ariaLabel="Save these results"
+                                                    className="mt-1 z-50 bg-white border border-gray-300 rounded shadow-lg py-1 text-sm text-gray-700">
                                                     <button
                                                         className="block w-full text-left px-3 py-1.5 hover:bg-gray-100"
                                                         onClick={() => { setSaveResultsMenuOpen(false); saveFiltersAsSearch(buildCurrentFilters()); }}>
-                                                        Save as a <b>Search</b> <span className="text-gray-400">(live filter)</span>
+                                                        Save filter as a <b>Search</b> <span className="text-gray-400">(stays up to date)</span>
                                                     </button>
                                                     <div className="border-t border-gray-200 my-1" />
-                                                    <div className="px-3 py-1 text-xs text-gray-400">Save to a Book List</div>
+                                                    {/* v7.18.0-alpha.52 (Ron + UX pass) - "Save filter…" vs "Save these N books…": parallel verbs
+                                                        naming DIFFERENT objects (a live rule vs a fixed set); the count confirms what gets saved. */}
+                                                    <div className="px-3 py-1 text-xs text-gray-400">
+                                                        {/* v7.18.0-alpha.70 (Ron + UX) - at 0 the grey items explain themselves and point UP to the
+                                                            option that does follow future matches (a Book List is a fixed set; a Search re-runs). */}
+                                                        {count === 0 ? 'No books to save — a Search will catch future matches' : <>{`Save ${count === 1 ? 'this book' : `these ${count.toLocaleString()} books`} to a Book List`} <span className="text-gray-300">(fixed set)</span></>}
+                                                    </div>
                                                     {/* ＋ New list… on top, existing lists below — the familiar "Add to playlist" pattern */}
                                                     <button
                                                         disabled={count === 0}
@@ -10533,8 +10750,7 @@
                                                             {bl.name}
                                                         </button>
                                                     ))}
-                                                </div>
-                                            </>
+                                                </Popover>
                                         )}
                                     </div>
                                 );
@@ -10578,8 +10794,7 @@
                         const duplicateCount = duplicateAsins.length;
 
                         return (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setStatusModalOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="modal-data-status" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setStatusModalOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 {/* Header */}
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-data-status" className="text-xl font-bold text-gray-900">Data Status</h2>
@@ -10757,8 +10972,7 @@
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                         );
                     })()}
 
@@ -10850,8 +11064,8 @@
                         });
 
                         return (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setDupReviewOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl w-full" role="dialog" aria-modal="true" aria-labelledby="modal-duplicate-review" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                        <Dialog onClose={() => setDupReviewOpen(false)} showClose={false}
+                            panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
                                 {/* Header */}
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-duplicate-review" className="text-xl font-bold text-gray-900">Review Duplicates</h2>
@@ -10912,15 +11126,16 @@
                                         Resolve {dupGroups.length} duplicate{dupGroups.length !== 1 ? 's' : ''}
                                     </button>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                         );
                     })()}
 
                     {/* v6.0.0 - Relay Setup Modal */}
                     {relaySetupOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) { closeRelaySetup(); } backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full" role="dialog" aria-modal="true" aria-labelledby="modal-relay-setup" onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+                        // v7.18.0 - smart onClose: Esc backs out of the manual-creds sub-view first (one level); backdrop/✕ close the dialog.
+                        <Dialog onClose={(reason) => { if (reason === 'esc' && relayManualCreds) { setRelayManualCreds(false); } else { closeRelaySetup(); } }} showClose={false}
+                            panelClassName="bg-white rounded-lg shadow-2xl max-w-lg w-full"
+                            panelStyle={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-start p-4 rounded-t-lg border-b" style={{ background: 'var(--bg-chrome)', borderColor: 'var(--border-default)', flexShrink: 0 }}>
                                     <h2 id="modal-relay-setup" className="text-xl font-bold" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><img src="icons/sync-tower-neutral.svg" alt="" style={{ width: '14px', height: '22px' }} /> Relay Setup</h2>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -11248,14 +11463,14 @@
                                         );
                                     })()}
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v6.10.0 - Relay Setup Help Overlay */}
                     {relayHelpOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setRelayHelpOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="rounded-lg shadow-2xl max-w-lg w-full" role="dialog" aria-modal="true" aria-labelledby="modal-relay-help" onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+                        <Dialog onClose={() => setRelayHelpOpen(false)} showClose={false}
+                            panelClassName="rounded-lg shadow-2xl max-w-lg w-full"
+                            panelStyle={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-start p-4 rounded-t-lg border-b" style={{ background: 'var(--bg-chrome)', borderColor: 'var(--border-default)', flexShrink: 0 }}>
                                     <h2 id="modal-relay-help" className="text-lg font-bold">Understanding Relay Setup</h2>
                                     <button onClick={() => setRelayHelpOpen(false)} className="text-2xl leading-none" style={{ color: 'var(--text-muted)' }} title="Close" aria-label="Close">×</button>
@@ -11311,13 +11526,11 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {resetConfirmOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setResetConfirmOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="modal-reset-confirm" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setResetConfirmOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-reset-confirm" className="text-xl font-bold text-gray-900">Reset App Confirmation</h2>
                                     <button onClick={() => setResetConfirmOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold" title="Close" aria-label="Close">×</button>
@@ -11351,52 +11564,46 @@
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v6.8.0 - New folder hidden by active filters alert */}
+                    {/* v7.18.0 - first <Dialog> consumer (DIALOG-DISMISSAL-AUDIT.md Phase 1): scrim, panel,
+                        header, ✕, Esc, backdrop, and the keystroke fence are all provided by the primitive. */}
                     {newFolderHiddenAlert && (
-                        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" onClick={() => setNewFolderHiddenAlert(null)}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-sm w-full mx-4" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex justify-between items-start p-4 border-b border-gray-200">
-                                    <h2 className="text-base font-semibold text-gray-900">New folder is hidden</h2>
-                                    <button onClick={() => setNewFolderHiddenAlert(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none" title="Close" aria-label="Close">×</button>
-                                </div>
-                                <div className="p-4 space-y-3">
-                                    <p className="text-sm text-gray-700">Active filters are hiding folders with no matching books. <strong>"{newFolderHiddenAlert.folderName}"</strong> won't appear in the sidebar until filters change.</p>
-                                    <div className="flex flex-col gap-2 pt-1">
-                                        <button
-                                            onClick={() => {
-                                                setSearchTerm(''); setReadStatusFilter(''); setCollectionFilter(''); setRatingFilter('');
-                                                setOwnershipFilter(''); setSeriesFilter(''); setDateFrom(''); setDateTo('');
-                                                setTagFilter([]); setDealsFilterActive(false); setSelectedCollections([]);
-                                                setMinAmazonRating(''); setMinMyRating(''); setSelectedSeries([]);
-                                                setNewFolderHiddenAlert(null);
-                                            }}
-                                            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
-                                            Clear All Filters
-                                        </button>
-                                        <button
-                                            onClick={() => { setShowAllFoldersOverride(true); setNewFolderHiddenAlert(null); }}
-                                            className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium">
-                                            Show All Folders
-                                        </button>
-                                        <button
-                                            onClick={() => setNewFolderHiddenAlert(null)}
-                                            className="w-full px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">
-                                            Leave As Is
-                                        </button>
-                                    </div>
+                        <Dialog onClose={() => setNewFolderHiddenAlert(null)} title="New folder is hidden">
+                            <div className="p-4 space-y-3">
+                                <p className="text-sm text-gray-700">Active filters are hiding folders with no matching books. <strong>"{newFolderHiddenAlert.folderName}"</strong> won't appear in the sidebar until filters change.</p>
+                                <div className="flex flex-col gap-2 pt-1">
+                                    <button
+                                        onClick={() => {
+                                            setSearchTerm(''); setReadStatusFilter(''); setCollectionFilter(''); setRatingFilter('');
+                                            setOwnershipFilter(''); setSeriesFilter(''); setDateFrom(''); setDateTo('');
+                                            setTagFilter([]); setDealsFilterActive(false); setSelectedCollections([]);
+                                            setMinAmazonRating(''); setMinMyRating(''); setSelectedSeries([]);
+                                            setNewFolderHiddenAlert(null);
+                                        }}
+                                        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+                                        Clear All Filters
+                                    </button>
+                                    <button
+                                        onClick={() => { setShowAllFoldersOverride(true); setNewFolderHiddenAlert(null); }}
+                                        className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium">
+                                        Show All Folders
+                                    </button>
+                                    <button
+                                        onClick={() => setNewFolderHiddenAlert(null)}
+                                        className="w-full px-4 py-2 text-gray-500 hover:text-gray-700 text-sm">
+                                        Leave As Is
+                                    </button>
                                 </div>
                             </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.0.0-alpha.175.2 - About Dialog */}
                     {aboutDialogOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setAboutDialogOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="modal-about" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setAboutDialogOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-about" className="text-xl font-bold text-gray-900">About ReaderWrangler™</h2>
                                     <button onClick={() => setAboutDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
@@ -11415,14 +11622,12 @@
                                         <p>ReaderWrangler is a powerful organizer for your Kindle library. Import your library from Amazon, organize books into folders and collections, and filter by status/rating/tags.</p>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.0.0-alpha.175.2 - Keyboard Shortcuts Dialog */}
                     {shortcutsDialogOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setShortcutsDialogOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full" role="dialog" aria-modal="true" aria-labelledby="modal-shortcuts" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setShortcutsDialogOpen(false)} showClose={false} maxWidthClassName="max-w-lg">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-shortcuts" className="text-xl font-bold text-gray-900">Keyboard Shortcuts</h2>
                                     <button onClick={() => setShortcutsDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
@@ -11460,14 +11665,12 @@
                                         <div className="text-gray-600">Close dialogs / Clear selection</div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.0.0-alpha.175.2 - How To Use Dialog */}
                     {howToDialogOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setHowToDialogOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="modal-how-to" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setHowToDialogOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-how-to" className="text-xl font-bold text-gray-900">How To Use ReaderWrangler</h2>
                                     <button onClick={() => setHowToDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
@@ -11490,14 +11693,12 @@
                                     </div>
                                     <p className="text-xs" style={{ color: '#6b7280' }}>Repeat steps 2–3 occasionally to add newly purchased books.</p>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.1.0-alpha.3 - Auto-Organize Wizard Modal */}
                     {wizardModalOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setWizardModalOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full" role="dialog" aria-modal="true" aria-labelledby="modal-wizard" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setWizardModalOpen(false)} showClose={false} maxWidthClassName="max-w-2xl">
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-wizard" className="text-xl font-bold text-gray-900">✨ Auto-Organize — Choose Authors</h2>
                                     <div className="flex items-center gap-2">
@@ -11705,14 +11906,12 @@
                                         );
                                     })()}
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.1.0-alpha.10 - Wizard Help Dialog */}
                     {wizardHelpOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setWizardHelpOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full" role="dialog" aria-modal="true" aria-labelledby="modal-wizard-help" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setWizardHelpOpen(false)} showClose={false} maxWidthClassName="max-w-lg">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-wizard-help" className="text-xl font-bold text-gray-900">📖 Auto-Organize Tips</h2>
                                     <button onClick={() => setWizardHelpOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
@@ -11764,167 +11963,13 @@
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* v5.1.0-alpha.28 - Phase 3.1: Wizard Preview Dialog */}
-                    {wizardPreviewMode && wizardPreviewData && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setWizardPreviewMode(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col" role="dialog" aria-modal="true" aria-labelledby="modal-wizard-preview" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-wizard-preview" className="text-xl font-bold text-gray-900">✨ Preview - Folders to Create</h2>
-                                    <button onClick={() => setWizardPreviewMode(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
-                                </div>
-
-                                {/* Scrollable preview content */}
-                                <div className="flex-1 overflow-y-auto p-6 space-y-3">
-                                    {wizardPreviewData.authorStructures.map((author, idx) => (
-                                        <div key={idx} className="border border-gray-300 rounded-lg bg-white">
-                                            {/* Author folder header */}
-                                            <div className="px-4 py-3 bg-gray-50 border-b border-gray-300 flex items-center gap-2">
-                                                <span className="text-lg">📁</span>
-                                                <span className="font-bold text-gray-900">{author.authorName}</span>
-                                                <span className="text-sm text-gray-600">({author.totalBooks} books)</span>
-                                            </div>
-
-                                            {/* Series subfolders + standalone books */}
-                                            <div className="p-3 space-y-2">
-                                                {author.series.length > 0 ? (
-                                                    author.series.map((series, seriesIdx) => (
-                                                        <div key={seriesIdx} className="flex items-center gap-2 pl-6">
-                                                            <span className="text-base">📁</span>
-                                                            <span className="text-gray-800">{series.name}</span>
-                                                            <span className="text-sm text-gray-500">({series.bookCount} books)</span>
-                                                        </div>
-                                                    ))
-                                                ) : null}
-
-                                                {author.standalone > 0 && (
-                                                    <div className="flex items-center gap-2 pl-6">
-                                                        <span className="text-base">📄</span>
-                                                        <span className="text-gray-600 text-sm">{author.standalone} books at folder root</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Summary footer */}
-                                <div className="p-4 bg-gray-50 border-t-2 border-gray-300 rounded-b-lg">
-                                    <div className="text-sm text-gray-700 text-center space-y-1">
-                                        <div className="font-semibold">
-                                            Will create: {wizardPreviewData.totalFolders} author folder{wizardPreviewData.totalFolders !== 1 ? 's' : ''}
-                                            {wizardPreviewData.totalSubfolders > 0 && `, ${wizardPreviewData.totalSubfolders} subfolder${wizardPreviewData.totalSubfolders !== 1 ? 's' : ''}`}
-                                        </div>
-                                        <div className="text-gray-600">
-                                            Will move: {wizardPreviewData.totalBooks} books from Inbox
-                                        </div>
-                                    </div>
-
-                                    {/* Action buttons */}
-                                    <div className="flex justify-end gap-3 pt-4">
-                                        <button
-                                            onClick={() => setWizardPreviewMode(false)}
-                                            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors">
-                                            Back
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setWizardPreviewMode(false);
-                                                executeWizardOrganize();
-                                            }}
-                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                                            Organize Now
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* v5.1.0-alpha.29 - Phase 3.3: Wizard Results Summary Dialog */}
-                    {wizardResultsOpen && wizardResultsData && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setWizardResultsOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="modal-wizard-results" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex justify-between items-center p-4 bg-green-100 rounded-t-lg border-b border-green-300">
-                                    <h2 id="modal-wizard-results" className="text-xl font-bold text-gray-900">✨ Organization Complete</h2>
-                                    <button onClick={() => setWizardResultsOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
-                                </div>
-
-                                <div className="p-6">
-                                    <div className="space-y-3">
-                                        {/* Folders created */}
-                                        {wizardResultsData.foldersCreated > 0 && (
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">📁</span>
-                                                <div className="flex-1">
-                                                    <div className="font-semibold text-gray-900">
-                                                        Created {wizardResultsData.foldersCreated} author folder{wizardResultsData.foldersCreated !== 1 ? 's' : ''}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Folders merged */}
-                                        {wizardResultsData.foldersMerged > 0 && (
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">🔀</span>
-                                                <div className="flex-1">
-                                                    <div className="font-semibold text-gray-900">
-                                                        Merged into {wizardResultsData.foldersMerged} existing folder{wizardResultsData.foldersMerged !== 1 ? 's' : ''}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Subfolders created */}
-                                        {wizardResultsData.subfoldersCreated > 0 && (
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">📂</span>
-                                                <div className="flex-1">
-                                                    <div className="font-semibold text-gray-900">
-                                                        Created {wizardResultsData.subfoldersCreated} subfolder{wizardResultsData.subfoldersCreated !== 1 ? 's' : ''}
-                                                    </div>
-                                                    <div className="text-sm text-gray-600">
-                                                        Series and Miscellaneous folders
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Books moved */}
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-2xl">📚</span>
-                                            <div className="flex-1">
-                                                <div className="font-semibold text-gray-900">
-                                                    Moved {wizardResultsData.totalBooks} book{wizardResultsData.totalBooks !== 1 ? 's' : ''}
-                                                </div>
-                                                <div className="text-sm text-gray-600">
-                                                    Removed from Inbox
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Close button */}
-                                    <div className="flex justify-end pt-6">
-                                        <button
-                                            onClick={() => setWizardResultsOpen(false)}
-                                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
-                                            Done
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v6.17.1 - Sync-corruption recovery: shown when Import from Relay hits a checksum mismatch. */}
                     {corruptionRecovery && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" onClick={() => setCorruptionRecovery(false)}>
-                            <div className="bg-white rounded-lg shadow-2xl w-full" style={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setCorruptionRecovery(false)} showClose={false} closeButton zIndexClass="z-[100]"
+                            panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
                                     <h2 className="text-lg font-bold text-gray-900">⚠️ Sync data check failed</h2>
                                 </div>
@@ -11937,8 +11982,7 @@
                                     <button onClick={() => { navigator.clipboard.writeText(window.RW_RECOVERY_STEPS || ''); showToast('Recovery steps copied'); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors">Copy instructions</button>
                                     <button onClick={() => setCorruptionRecovery(false)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">OK</button>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
                     {/* v7.4.0 - Informed restore confirm: backup age + exactly what restoring removes.
                         Restore is a pure time machine (no merge — RESTORE-SAFEGUARD.md); the safety
@@ -11954,8 +11998,8 @@
                         };
                         const losses = lostLists.length + lostSearches.length;
                         return (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" onClick={() => { console.log('📋 Backup restore cancelled by user (backdrop)'); setRestoreConfirm(null); }}>
-                            <div className="bg-white rounded-lg shadow-2xl w-full" style={{ maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => { console.log('📋 Backup restore cancelled by user'); setRestoreConfirm(null); }}
+                            showClose={false} closeButton zIndexClass="z-[100]" panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
                                     <h2 className="text-lg font-bold text-gray-900">Restore backup?</h2>
                                 </div>
@@ -11996,8 +12040,7 @@
                                         Restore
                                     </button>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                         );
                     })()}
                     {/* v6.13.0-alpha.7 (D1) - Auto-Organize confirm/preview: hierarchical Author→Series→covers before commit */}
@@ -12029,7 +12072,6 @@
                             const sel = autoOrgSel.has(b.id);
                             return (
                             <div key={b.id}
-                                title={`${b.title || 'Untitled'}${b.series ? ` — ${b.series}${b.seriesPosition ? ' #' + b.seriesPosition : ''}` : ''}`}
                                 style={{ width: '46px', flex: '0 0 auto', position: 'relative', cursor: 'pointer', borderRadius: '4px', outline: sel ? '2px solid #4f46e5' : '2px solid transparent', outlineOffset: '1px' }}
                                 onClick={(e) => handlePreviewCoverClick(e, b)}
                                 onDoubleClick={(e) => { e.stopPropagation(); openBookModal(b, null, navList); }}
@@ -12037,11 +12079,12 @@
                                     e.preventDefault(); e.stopPropagation();
                                     // Add-to-Book-List reads the current selection (don't disturb it); fall back to this cover if empty.
                                     const ids = autoOrgSel.size > 0 ? [...autoOrgSel] : [b.id];
-                                    setAutoOrgHover(null);
+                                    previewTip.close();
                                     setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ids });
                                 }}
-                                onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setAutoOrgHover({ bookId: b.id, x: r.right + 8, y: r.top }); }}
-                                onMouseLeave={() => setAutoOrgHover(cur => (cur && cur.bookId === b.id) ? null : cur)}>
+                                onMouseEnter={(e) => previewTip.show(e.currentTarget, b.id, e.clientX, e.clientY)}
+                                onMouseMove={(e) => previewTip.show(e.currentTarget, b.id, e.clientX, e.clientY)}
+                                onMouseLeave={previewTip.leave}>
                                 {b.coverUrl
                                     ? <img src={b.coverUrl} alt="" style={{ width: '46px', height: '69px', objectFit: 'cover', borderRadius: '3px', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
                                     : <div style={{ width: '46px', height: '69px', borderRadius: '3px', background: 'var(--bg-hover, #e5e7eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', lineHeight: 1.1, textAlign: 'center', padding: '3px', overflow: 'hidden', color: 'var(--text-secondary, #6b7280)' }}>{b.title || 'Untitled'}</div>}
@@ -12074,13 +12117,16 @@
                         // the selection to a list. They're not in moverGroups, so selecting one never organizes it.
                         const contextCover = (b, navList) => {
                             const sel = autoOrgSel.has(b.id);
+                            // alpha.73 (Ron: consistency) - the same shared hover popup as the main covers (was only a browser
+                            // tooltip); { tray } makes the popup add the tray's click hint as its last line.
+                            const showTip = (e) => previewTip.show(e.currentTarget, b.id, e.clientX, e.clientY, { tray: true });
                             return (
                             <div key={'ctx-' + b.id}
-                                title={`${sel ? '✓ On the list · ' : ''}${b.title || 'Untitled'}${b.series ? ` — ${b.series}${b.seriesPosition ? ' #' + b.seriesPosition : ''}` : ''} — click to add to a Book List (won't move)`}
                                 style={{ width: '38px', flex: '0 0 auto', position: 'relative', cursor: 'pointer', borderRadius: '4px', outline: sel ? '2px solid #4f46e5' : '2px solid transparent', outlineOffset: '1px' }}
                                 onClick={(e) => handlePreviewCoverClick(e, b)}
                                 onDoubleClick={(e) => { e.stopPropagation(); openBookModal(b, null, navList); }}
-                                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); const ids = autoOrgSel.size > 0 ? [...autoOrgSel] : [b.id]; setAutoOrgHover(null); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ids }); }}>
+                                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); const ids = autoOrgSel.size > 0 ? [...autoOrgSel] : [b.id]; previewTip.close(); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ids }); }}
+                                onMouseEnter={showTip} onMouseMove={showTip} onMouseLeave={previewTip.leave}>
                                 {b.coverUrl
                                     ? <img src={b.coverUrl} alt="" style={{ width: '38px', height: '57px', objectFit: 'cover', borderRadius: '3px' }} />
                                     : <div style={{ width: '38px', height: '57px', borderRadius: '3px', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', lineHeight: 1.1, textAlign: 'center', padding: '2px', overflow: 'hidden', color: '#6b7280' }}>{b.title || 'Untitled'}</div>}
@@ -12147,7 +12193,7 @@
                                 ? `Already where it belongs — in ${srcs.map(f => f.id === '__inbox__' ? 'Inbox' : f.name).join(', ')}. Organizing won't move it.`
                                 : `In: ${srcs.map(f => f.id === '__inbox__' ? 'Inbox' : f.name).join(', ')}${stays.length > 0 ? ` — stays in ${stays.map(f => f.name).join(', ')}` : ''}. Click to choose which copies move when organized.`;
                             return (
-                                <div onClick={(e) => { e.stopPropagation(); setAutoOrgHover(null); setAutoOrgSrcPopup({ bookId: b.id, x: e.clientX, y: e.clientY }); }}
+                                <div onClick={(e) => { e.stopPropagation(); previewTip.close(); setAutoOrgSrcPopup({ bookId: b.id, x: e.clientX, y: e.clientY }); }}
                                     title={tip}
                                     style={{ fontSize: '9px', color: !isMover ? '#16a34a' : stays.length > 0 ? '#b45309' : '#64748b', textAlign: 'center', marginTop: '2px', width: `${width}px`, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'underline dotted' }}>
                                     {capText}
@@ -12170,8 +12216,9 @@
                             );
                         };
                         return (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) closeAutoOrgPreview(); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl w-full" role="dialog" aria-modal="true" aria-labelledby="modal-autoorg-preview" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+                        <Dialog onClose={closeAutoOrgPreview} showClose={false}
+                            panelClassName="bg-white rounded-lg shadow-2xl w-full"
+                            panelStyle={{ maxWidth: '640px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 {/* Header — the mode is a live segmented toggle (recomputes the preview in place). */}
                                 <div className="flex justify-between items-start gap-3 p-4 bg-indigo-100 rounded-t-lg border-b border-indigo-300">
                                     <div className="flex flex-col gap-1.5 min-w-0">
@@ -12347,7 +12394,7 @@
                                                     <div key={ag.displayName} className="mb-4">
                                                         {/* v7.9.0-alpha.3 (UNIFIED §9) - right-click the group header = act on the whole group */}
                                                         <div className="font-semibold text-gray-900 flex items-center gap-2"
-                                                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setAutoOrgHover(null); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ag.books.map(b => b.id) }); }}
+                                                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); previewTip.close(); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ag.books.map(b => b.id) }); }}
                                                             title="Right-click: add this group to a Book List or file it under a different folder">
                                                             {multiAuthor && triCheck(ag.books.map(b => b.id))}
                                                             📁 {ag.displayName}
@@ -12412,8 +12459,7 @@
                                         </div>
                                     );
                                 })()}
-                            </div>
-                        </div>
+                        </Dialog>
                         );
                     })()}
 
@@ -12433,8 +12479,8 @@
                         const n = autoOrgFileUnder.bookIds.length;
                         const pick = (name) => { const ids = autoOrgFileUnder.bookIds; setAutoOrgFileUnder(null); retargetPreviewBooks(ids, name); };
                         return (
-                            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[80]" onClick={() => setAutoOrgFileUnder(null)}>
-                                <div className="bg-white rounded-lg shadow-2xl w-full" style={{ maxWidth: '380px' }} onClick={(e) => e.stopPropagation()}>
+                            <Dialog onClose={() => setAutoOrgFileUnder(null)} showClose={false} zIndexClass="z-[80]"
+                                panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '380px' }}>
                                     <div className="p-3 border-b border-gray-200">
                                         <div className="text-sm font-semibold text-gray-900 mb-2">File {n} book{n !== 1 ? 's' : ''} under…</div>
                                         <input autoFocus value={raw}
@@ -12468,8 +12514,7 @@
                                         {matches.length === 0 && q.length > 0 && <div className="px-4 py-2 text-gray-400 text-xs">No folder matches — use the Create row above if you mean a new one</div>}
                                     </div>
                                     <div className="px-4 py-2 border-t border-gray-100 text-[10px] text-gray-400">Enter picks the exact or top match. Creating a folder is always the explicit ➕ choice — never a typo.</div>
-                                </div>
-                            </div>
+                            </Dialog>
                         );
                     })()}
 
@@ -12483,10 +12528,9 @@
                         // checkboxes for a book that isn't moving (they were inert theater).
                         const popupIsMover = new Set((autoOrgPreview && autoOrgPreview.dryPlan && autoOrgPreview.dryPlan.allBookIdsToOrganize) || []).has(b.id);
                         return (
-                            <div className="fixed inset-0 z-[75]" onClick={() => setAutoOrgSrcPopup(null)} onContextMenu={(e) => { e.preventDefault(); setAutoOrgSrcPopup(null); }}>
-                                <CursorPopup open={true} x={autoOrgSrcPopup.x} y={autoOrgSrcPopup.y}
-                                    className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-w-[300px]"
-                                    onClick={(e) => e.stopPropagation()}>
+                            <Popover x={autoOrgSrcPopup.x} y={autoOrgSrcPopup.y} onClose={() => setAutoOrgSrcPopup(null)}
+                                className="bg-white border border-gray-300 shadow-lg rounded py-1 max-w-[300px] z-[75]"
+                                onClick={(e) => e.stopPropagation()}>
                                     {!popupIsMover ? (
                                         <>
                                             <div className="px-3 py-1.5 text-xs text-gray-600 border-b border-gray-100 truncate" title={b.title}>“{b.title || 'Untitled'}” is already where it belongs</div>
@@ -12519,17 +12563,15 @@
                                     <div className="px-3 py-1.5 text-[10px] text-gray-400 border-t border-gray-100">Its new home folder is always added. Unchecked copies are kept.</div>
                                     </>
                                     )}
-                                </CursorPopup>
-                            </div>
+                            </Popover>
                         );
                     })()}
 
                     {/* v6.13.0-alpha.9 (D2) - Preview cover right-click: add the selection to a Book List (flat menu; the only action here) */}
                     {autoOrgMenu && (
-                        <div className="fixed inset-0 z-[75]" onClick={() => setAutoOrgMenu(null)} onContextMenu={(e) => { e.preventDefault(); setAutoOrgMenu(null); }}>
-                            <CursorPopup open={true} x={autoOrgMenu.x} y={autoOrgMenu.y}
-                                className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] max-h-[360px] overflow-y-auto"
-                                onClick={(e) => e.stopPropagation()}>
+                        <Popover x={autoOrgMenu.x} y={autoOrgMenu.y} onClose={() => setAutoOrgMenu(null)}
+                            className="bg-white border border-gray-300 shadow-lg rounded py-1 max-h-[360px] overflow-y-auto z-[75]"
+                            onClick={(e) => e.stopPropagation()}>
                                 <div className="px-4 py-1.5 text-xs text-gray-500 border-b border-gray-100">Add {autoOrgMenu.bookIds.length} book{autoOrgMenu.bookIds.length !== 1 ? 's' : ''} to a Book List</div>
                                 <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2 font-medium text-blue-700"
                                     role="menuitem" onClick={() => addPreviewSelToNewBookList(autoOrgMenu.bookIds)}>
@@ -12560,27 +12602,35 @@
                                         </div>
                                     </>
                                 )}
-                            </CursorPopup>
-                        </div>
+                        </Popover>
                     )}
 
                     {/* v6.13.0-alpha.9 (D2) - Preview cover hover: where this book already lives (folders + Book Lists) */}
-                    {autoOrgHover && !autoOrgMenu && (() => {
-                        const flds = getFoldersContainingBook(autoOrgHover.bookId).filter(f => f.id !== '__inbox__' && f.id !== '__all__' && f.id !== '__library__');
-                        const lists = getBookListsContainingBook(autoOrgHover.bookId);
+                    {/* alpha.71 - the shared <HoverPopup> ('beside': keeps the clickable label under each cover clear). It now
+                        STAYS while the mouse is on it (was pointer-events:none → vanished as you moved toward it); names stay
+                        plain text (Ron + UX: hover = look; the label under the cover = act). Long lists scroll. */}
+                    {previewTip.tip && !autoOrgMenu && (() => {
+                        const flds = getFoldersContainingBook(previewTip.tip.bookId).filter(f => f.id !== '__inbox__' && f.id !== '__all__' && f.id !== '__library__');
+                        const lists = getBookListsContainingBook(previewTip.tip.bookId);
+                        const tb = books.find(x => x.id === previewTip.tip.bookId);
                         return (
-                            <CursorPopup open={true} x={autoOrgHover.x} y={autoOrgHover.y}
+                            <HoverPopup hover={previewTip} placement="beside"
                                 className="bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-xs z-[76]"
-                                style={{ maxWidth: '260px', pointerEvents: 'none' }}>
+                                style={{ maxWidth: '260px', maxHeight: '60vh', overflowY: 'auto' }}>
+                                {/* alpha.72 (Ron + UX) - the title heads the popup; the cover's own browser tooltip (which showed
+                                    it as a SECOND popup on top of this one) was removed. Preview covers print no title. */}
+                                {tb && <div className="font-semibold text-gray-800 mb-1">{tb.title || 'Untitled'}{tb.series ? ` — ${tb.series}${tb.seriesPosition ? ' #' + tb.seriesPosition : ''}` : ''}</div>}
                                 {(flds.length === 0 && lists.length === 0)
                                     ? <div className="text-gray-400 italic">Only in Inbox — not filed or listed yet</div>
                                     : <>
                                         {flds.length > 0 && <div className="text-gray-500 mb-0.5">In folders:</div>}
-                                        {flds.map(f => <div key={f.id} className="text-gray-700 truncate">📁 {f.name}</div>)}
+                                        {flds.map(f => <div key={f.id} className="text-gray-700 truncate" title={f.name}>📁 {f.name}</div>)}
                                         {lists.length > 0 && <div className={`text-gray-500 mb-0.5 ${flds.length > 0 ? 'mt-1' : ''}`}>On Book Lists:</div>}
-                                        {lists.map(bl => <div key={bl.id} className="text-gray-700 truncate">📗 {bl.name}</div>)}
+                                        {lists.map(bl => <div key={bl.id} className="text-gray-700 truncate" title={bl.name}>📗 {bl.name}</div>)}
                                       </>}
-                            </CursorPopup>
+                                {/* alpha.73 - an "already here" tray cover: the old tooltip's click hint, read LIVE (a click toggles ✓) */}
+                                {previewTip.tip.tray && <div className="text-gray-400 mt-1 pt-1 border-t border-gray-200">{autoOrgSel.has(previewTip.tip.bookId) ? '✓ On the list · ' : ''}Click to add to a Book List (won't move)</div>}
+                            </HoverPopup>
                         );
                     })()}
 
@@ -12655,8 +12705,8 @@
                         const hasChanges = totalNewTags > 0 || totalBooksToTag > 0 || totalBooksToUntag > 0;
 
                         return (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setTagFromCollectionsOpen(false); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl w-full" style={{ maxWidth: '750px' }} role="dialog" aria-modal="true" aria-labelledby="modal-tfc" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => setTagFromCollectionsOpen(false)} showClose={false}
+                            panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '750px' }}>
                                 {/* Header */}
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-tfc" className="text-xl font-bold text-gray-900">🏷️ Tag from Collections</h2>
@@ -13056,16 +13106,13 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                         );
                     })()}
 
                     {/* v4.20.0.a - Bulk price goal modal (v5.0.0-alpha.169.8 - use bulkPriceBookIds) */}
                     {showBulkPriceModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                             onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) { setShowBulkPriceModal(false); setBulkPriceInput(''); setBulkPriceBookIds([]); } backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl p-6 max-w-sm" role="dialog" aria-modal="true" aria-labelledby="modal-bulk-price" onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => { setShowBulkPriceModal(false); setBulkPriceInput(''); setBulkPriceBookIds([]); }} showClose={false} closeButton panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm">
                                 <h2 id="modal-bulk-price" className="text-lg font-bold text-gray-900 mb-4">Set Custom Price Goal</h2>
                                 <p className="text-sm text-gray-600 mb-4">
                                     Set price goal for {bulkPriceBookIds.length} selected book{bulkPriceBookIds.length !== 1 ? 's' : ''}
@@ -13114,8 +13161,7 @@
                                         </button>
                                     </div>
                                 </form>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.4.7 - Bulk edit modal */}
@@ -13140,10 +13186,10 @@
                             ? `Mixed (${uniqueValues.size} values)`
                             : (bulkEditField === 'position' ? 'e.g., 1, 1.5' : '');
                         return (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                                 onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }}
-                                 onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); } backdropMouseDownRef.current = null; }}>
-                                <div className="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-80" role="dialog" aria-modal="true" aria-labelledby="modal-bulk-edit" onClick={(e) => e.stopPropagation()}>
+                            // v7.18.0-alpha.54 - the series list is a <Popover kind="list"> layer ABOVE this dialog, so the registry
+                            // closes it first on Esc — the old "Esc backs out the dropdown first" branch here is gone.
+                            <Dialog onClose={() => { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); }} showClose={false} closeButton
+                                panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-80">
                                     <h2 id="modal-bulk-edit" className="text-lg font-bold text-gray-900 mb-2">{config.title}</h2>
                                     <p className="text-sm text-gray-600 mb-4">
                                         Apply to {bookCount} selected book{bookCount !== 1 ? 's' : ''}
@@ -13158,8 +13204,8 @@
                                                 autoFocus />
                                         )}
                                         {bulkEditField === 'series' && (
-                                            <div className="relative" data-bulk-edit-series-dropdown="">
-                                                <div className="relative">
+                                            <div className="relative">
+                                                <div className="relative" ref={bulkEditSeriesAnchorRef}>
                                                     <input ref={bulkEditSeriesInputRef} type="text" value={bulkEditInput}
                                                         onChange={(e) => {
                                                             setBulkEditInput(e.target.value);
@@ -13167,18 +13213,20 @@
                                                             setBulkEditSeriesDropdownOpen(true);
                                                         }}
                                                         onKeyDown={(e) => {
-                                                            e.stopPropagation();
+                                                            // Let Escape bubble to the overlay registry — it closes the topmost layer:
+                                                            // the series list if open (a <Popover kind="list">), else the dialog.
+                                                            // (Swallowing Escape here left Esc unable to close Bulk Edit.)
+                                                            if (e.key !== 'Escape') e.stopPropagation();
                                                             if (e.key === 'Enter') { setBulkEditSeriesDropdownOpen(false); e.preventDefault(); saveBulkEdit(); }
-                                                            if (e.key === 'Escape') {
-                                                                if (bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); }
-                                                            }
                                                         }}
                                                         placeholder={placeholder || 'Type to filter series...'}
                                                         className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                         autoFocus />
-                                                    <button type="button"
+                                                    <button type="button" {...popupTrigger(bulkEditSeriesDropdownOpen, 'listbox')}
                                                         onClick={() => { bulkEditSeriesFilterRef.current = false; setBulkEditSeriesDropdownOpen(!bulkEditSeriesDropdownOpen); }}
-                                                        onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); if (bulkEditSeriesDropdownOpen) { setBulkEditSeriesDropdownOpen(false); if (bulkEditSeriesInputRef.current) bulkEditSeriesInputRef.current.focus(); } } e.stopPropagation(); }}
+                                                        // Let Escape (registry close) and Ctrl/Cmd+A (dialog-aware select-all guard)
+                                                        // reach the document handler; swallow other keys so app shortcuts don't fire.
+                                                        onKeyDown={(e) => { if (e.key !== 'Escape' && !((e.ctrlKey || e.metaKey) && e.key === 'a')) e.stopPropagation(); }}
                                                         className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs focus:outline-none"
                                                         tabIndex={-1}>
                                                         ▼
@@ -13189,19 +13237,24 @@
                                                     const filtered = (bulkEditSeriesFilterRef.current && bulkEditInput.trim())
                                                         ? allSeries.filter(s => s.name.toLowerCase().startsWith(bulkEditInput.toLowerCase()))
                                                         : allSeries;
+                                                    // v7.18.0-alpha.54 - a type-ahead <Popover kind="list"> anchored to the field (+ ▼): Esc closes it,
+                                                    // a click elsewhere closes it AND goes through (no double-click into the next field).
                                                     return filtered.length > 0 ? (
-                                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                                        <Popover kind="list" anchorRef={bulkEditSeriesAnchorRef} matchAnchorWidth
+                                                            onClose={() => setBulkEditSeriesDropdownOpen(false)}
+                                                            role="listbox" ariaLabel="Series"
+                                                            className="mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-[60]">
                                                             {filtered.map(s => (
                                                                 <button key={s.name} type="button"
-                                                                    ref={s.name === bulkEditInput ? (el) => { if (el) requestAnimationFrame(() => { const container = el.closest('.overflow-y-auto'); if (container) { const top = el.offsetTop - container.offsetTop; container.scrollTop = top; } }); } : null}
+                                                                    ref={s.name === bulkEditInput ? (el) => { if (el) requestAnimationFrame(() => { const container = el.offsetParent; if (container) container.scrollTop = el.offsetTop; }); } : null}
                                                                     onClick={() => { setBulkEditInput(s.name); setBulkEditSeriesDropdownOpen(false); }}
-                                                                    onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') { setBulkEditSeriesDropdownOpen(false); if (bulkEditSeriesInputRef.current) bulkEditSeriesInputRef.current.focus(); } }}
+                                                                    onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'a') return; e.stopPropagation(); if (e.key === 'Escape') { setBulkEditSeriesDropdownOpen(false); if (bulkEditSeriesInputRef.current) bulkEditSeriesInputRef.current.focus(); } }}
                                                                     className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex justify-between items-center ${s.name === bulkEditInput ? 'bg-blue-100 font-medium' : ''}`}>
                                                                     <span className="truncate">{s.name}</span>
                                                                     <span className="text-xs text-gray-400 ml-2 shrink-0">({s.count})</span>
                                                                 </button>
                                                             ))}
-                                                        </div>
+                                                        </Popover>
                                                     ) : null;
                                                 })()}
                                             </div>
@@ -13269,141 +13322,26 @@
                                             </button>
                                         </div>
                                     </form>
-                                </div>
-                            </div>
+                        </Dialog>
                         );
                     })()}
 
-                    {/* v4.16.0.aq - Last copy warning dialog */}
-                    {/* v4.16.0.ar - Handle already-hidden entries separately */}
-                    {lastCopyDialogData && (() => {
-                        // Partition entries into already-hidden vs can-hide
-                        const alreadyHidden = lastCopyDialogData.lastCopyEntries.filter(sel => {
-                            if (sel.instanceId) {
-                                return hiddenInstances.has(sel.instanceId);
-                            } else {
-                                const book = books.find(b => b.id === sel.bookId);
-                                return book?.isHidden;
-                            }
-                        });
-                        const canHide = lastCopyDialogData.lastCopyEntries.filter(sel => {
-                            if (sel.instanceId) {
-                                return !hiddenInstances.has(sel.instanceId);
-                            } else {
-                                const book = books.find(b => b.id === sel.bookId);
-                                return !book?.isHidden;
-                            }
-                        });
-                        const totalLastCopy = lastCopyDialogData.lastCopyEntries.length;
-
-                        return (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                                <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md" role="dialog" aria-modal="true" aria-labelledby="modal-cannot-delete" onClick={(e) => e.stopPropagation()}>
-                                    <h2 id="modal-cannot-delete" className="text-xl font-bold text-gray-900 mb-4">Cannot Delete</h2>
-                                    <p className="text-sm text-gray-700 mb-4">
-                                        {totalLastCopy === 1 ? (
-                                            <>
-                                                <strong>"{books.find(b => b.id === lastCopyDialogData.lastCopyEntries[0].bookId)?.title || 'This book'}"</strong> is the only copy in your library and cannot be deleted.
-                                            </>
-                                        ) : (
-                                            <>
-                                                <strong>{totalLastCopy} books</strong> are the only copies in your library and cannot be deleted.
-                                            </>
-                                        )}
-                                    </p>
-                                    {lastCopyDialogData.deletedCount > 0 && (
-                                        <p className="text-sm text-gray-500 mb-4">
-                                            ({lastCopyDialogData.deletedCount} other book{lastCopyDialogData.deletedCount !== 1 ? 's were' : ' was'} deleted.)
-                                        </p>
-                                    )}
-                                    {/* v4.16.0.ar - Adaptive messaging based on hidden state */}
-                                    {/* v4.16.0.as - Improved wording with "These X books" */}
-                                    {alreadyHidden.length === totalLastCopy ? (
-                                        // All are already hidden
-                                        <p className="text-sm text-gray-700 mb-4">
-                                            {totalLastCopy === 1 ? 'This book is' : `These ${totalLastCopy} books are`} already hidden.
-                                        </p>
-                                    ) : alreadyHidden.length > 0 ? (
-                                        // Mixed: some hidden, some not
-                                        <p className="text-sm text-gray-700 mb-4">
-                                            {alreadyHidden.length === 1 ? '1 is' : `These ${alreadyHidden.length} are`} already hidden. Would you like to hide the other {canHide.length}?
-                                        </p>
-                                    ) : (
-                                        // None hidden
-                                        <p className="text-sm text-gray-700 mb-4">
-                                            Would you like to hide {totalLastCopy === 1 ? 'it' : 'them'} instead?
-                                        </p>
-                                    )}
-                                    <div className="flex gap-2 justify-end">
-                                        <button
-                                            onClick={() => {
-                                                setLastCopyDialogData(null);
-                                                clearSelection();
-                                            }}
-                                            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg">
-                                            {alreadyHidden.length === totalLastCopy ? 'OK' : 'Cancel'}
-                                        </button>
-                                        {canHide.length > 0 && (
-                                            <button
-                                                onClick={() => {
-                                                    // Hide only the canHide entries
-                                                    const guidEntries = canHide.filter(sel => sel.instanceId);
-                                                    const legacyEntries = canHide.filter(sel => !sel.instanceId);
-
-                                                    // v7.10.1-alpha.4 - undoable (audit gap) + named receipt
-                                                    {
-                                                        const legacyIds = legacyEntries.map(sel => sel.bookId);
-                                                        const previousStates = {};
-                                                        legacyIds.forEach(id => { const b = books.find(x => x.id === id); previousStates[id] = b ? (b.isHidden || false) : false; });
-                                                        const allIds = canHide.map(sel => sel.bookId);
-                                                        recordAction({
-                                                            type: 'HIDE_COPIES', instanceIds: guidEntries.map(sel => sel.instanceId),
-                                                            legacyBookIds: legacyIds, previousStates,
-                                                            label: `Hide ${bookCountLabel(allIds)}${canHide.length === 1 ? ' (this copy)' : ''}`
-                                                        });
-                                                        showToast(`Hid ${bookCountLabel(allIds)}${canHide.length === 1 ? ' (this copy)' : ''}`);
-                                                    }
-
-                                                    // Handle GUID entries: add to hiddenInstances
-                                                    if (guidEntries.length > 0) {
-                                                        setHiddenInstances(prev => {
-                                                            const next = new Set(prev);
-                                                            guidEntries.forEach(sel => next.add(sel.instanceId));
-                                                            return next;
-                                                        });
-                                                    }
-
-                                                    // Handle legacy entries: update book.isHidden
-                                                    if (legacyEntries.length > 0) {
-                                                        const legacyBookIds = legacyEntries.map(sel => sel.bookId);
-                                                        const updatedBooks = books.map(book => {
-                                                            if (legacyBookIds.includes(book.id)) {
-                                                                return { ...book, isHidden: true, userEdited: { ...(book.userEdited || {}), isHidden: true } }; // v6.12.0 - F4: protect hide from import overwrite
-                                                            }
-                                                            return book;
-                                                        });
-                                                        setBooks(updatedBooks);
-                                                        saveBooksToIndexedDB(updatedBooks);
-                                                    }
-
-                                                    console.log(`👁️ Hid ${canHide.length} last-copy book(s)`);
-                                                    setLastCopyDialogData(null);
-                                                    clearSelection();
-                                                }}
-                                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                                                Hide{canHide.length > 1 ? ` ${canHide.length}` : ''}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })()}
-
+                    {/* v7.18.0 - Removed the dead "last copy / Cannot Delete" dialog (lastCopyDialogData):
+                        it had no opener left in the code — superseded by the ownership-aware delete flow
+                        (the "Owned Book" warning). Was v4.16.0-era; the archived v4/ copy still has it. */}
 
                     {modalBook && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) closeBookModal(); backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-label="Book details" onClick={(e) => { e.stopPropagation(); if (contextSubmenu === 'addTagModal') { setContextSubmenu(null); setTagInputValue(''); } }}>
+                        <Dialog showClose={false} panelClassName="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                            onClose={(reason) => {
+                                // Smart multi-level Esc (innermost-first). Backdrop/✕ ('button') always close the dialog.
+                                // (v7.18.0-alpha.49/54 - the Share menu and the Series list are <Popover> layers above this dialog,
+                                // so the registry closes THEM first on Esc — their branches here were removed.)
+                                if (reason === 'esc') {
+                                    if (isEditingBook) { cancelEditMode(); return; }
+                                }
+                                closeBookModal();
+                            }}>
+                            <div onClick={(e) => { if (contextSubmenu === 'addTagModal') { setContextSubmenu(null); setTagInputValue(''); } }}>
                                 <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-end gap-2">
                                     {/* v6.16.0 (#55) - Prev/next through the current view's books (circular). Counter is the
                                         wrap indicator (resets on loop); mr-auto keeps it left while the controls stay right. */}
@@ -13428,58 +13366,9 @@
                                             ✏️
                                         </button>
                                     )}
-                                    {/* v6.10.0-alpha.9 - Share button with dropdown */}
-                                    <div className="relative">
-                                        <button onClick={(e) => {
-                                            e.stopPropagation();
-                                            setShareDropdownOpen(prev => !prev);
-                                        }} className="text-gray-400 hover:text-gray-600 text-lg transition-colors" title="Share this book" aria-label="Share this book">
-                                            📤
-                                        </button>
-                                        {shareDropdownOpen && (
-                                            <>
-                                                <div className="fixed inset-0 z-40" onClick={() => setShareDropdownOpen(false)} />
-                                                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
-                                                    role="menu" aria-label="Share options"
-                                                    onClick={(e) => e.stopPropagation()}>
-                                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
-                                                        onClick={() => {
-                                                            if (!modalBook.asin) {
-                                                                showToast('No Amazon link available for this book');
-                                                            } else {
-                                                                navigator.clipboard.writeText(getAmazonUrl(modalBook.asin));
-                                                                showToast('Link copied!');
-                                                            }
-                                                            setShareDropdownOpen(false);
-                                                        }}>
-                                                        <span>🔗</span><span>Copy Amazon Link</span>
-                                                    </div>
-                                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
-                                                        onClick={() => {
-                                                            const shareData = getShareData(modalBook);
-                                                            openShareEmail(shareData);
-                                                            setShareDropdownOpen(false);
-                                                        }}>
-                                                        <span>✉️</span><span>Email to a Friend</span>
-                                                    </div>
-                                                    {navigator.share && (
-                                                        <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
-                                                            onClick={() => {
-                                                                const shareData = getShareData(modalBook);
-                                                                navigator.share({
-                                                                    title: shareData.webShareTitle,
-                                                                    text: shareData.webShareText,
-                                                                    url: shareData.webShareUrl || undefined
-                                                                }).catch(() => {});
-                                                                setShareDropdownOpen(false);
-                                                            }}>
-                                                            <span>📤</span><span>Share…</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
+                                    {/* v7.18.0-alpha.67 - the Share control MOVED out of this corner (Ron + UX pass: the top-right is
+                                        the window-control zone — edit + close — and an icon-only 📤 there was skimmed past as "save").
+                                        It's now a labeled "Share ▾" button next to "View on Amazon" (renderBookShareControl). */}
                                     <button onClick={closeBookModal} className="text-gray-500 hover:text-gray-700 text-2xl" title="Close" aria-label="Close">×</button>
                                 </div>
 
@@ -13550,6 +13439,7 @@
                                                             </button>
                                                         );
                                                     })()}
+                                                    {renderBookShareControl()}
                                                 </div>
                                             ) : (
                                                 /* v5.6.6 - View on Amazon shown for all books, not just wishlist */
@@ -13570,6 +13460,7 @@
                                                             </button>
                                                         );
                                                     })()}
+                                                    {renderBookShareControl()}
                                                 </div>
                                             )}
                                             {isEditingBook ? (
@@ -13668,9 +13559,9 @@
 
                                             {isEditingBook ? (
                                                 <div className="mb-3 space-y-3">
-                                                    <div className="relative" data-edit-series-dropdown="">
+                                                    <div className="relative">
                                                         <label className="block text-sm font-medium text-gray-700 mb-1">Series</label>
-                                                        <div className="relative">
+                                                        <div className="relative" ref={editBookSeriesAnchorRef}>
                                                             <input
                                                                 ref={editBookSeriesInputRef}
                                                                 type="text"
@@ -13685,7 +13576,7 @@
                                                                 className="w-full px-3 py-2 pr-8 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                                                             />
                                                             <button
-                                                                type="button"
+                                                                type="button" {...popupTrigger(editBookSeriesDropdownOpen, 'listbox')}
                                                                 onClick={() => { editBookSeriesFilterRef.current = false; setEditBookSeriesDropdownOpen(!editBookSeriesDropdownOpen); }}
                                                                 onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); if (editBookSeriesDropdownOpen) { setEditBookSeriesDropdownOpen(false); if (editBookSeriesInputRef.current) editBookSeriesInputRef.current.focus(); } else { e.target.blur(); } return; } e.stopPropagation(); }}
                                                                 title="Show all series"
@@ -13699,12 +13590,17 @@
                                                             const filtered = (editBookSeriesFilterRef.current && editBookFields.series.trim())
                                                                 ? allSeries.filter(s => s.name.toLowerCase().startsWith(editBookFields.series.toLowerCase()))
                                                                 : allSeries;
+                                                            // v7.18.0-alpha.54 - a type-ahead <Popover kind="list"> anchored to the field (+ ▼); follows the
+                                                            // field when the book window scrolls; a click elsewhere closes it AND goes through.
                                                             return filtered.length > 0 ? (
-                                                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                                                <Popover kind="list" anchorRef={editBookSeriesAnchorRef} matchAnchorWidth
+                                                                    onClose={() => setEditBookSeriesDropdownOpen(false)}
+                                                                    role="listbox" ariaLabel="Series"
+                                                                    className="mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-[60]">
                                                                     {filtered.map(s => (
                                                                         <button
                                                                             key={s.name}
-                                                                            ref={s.name === (editBookFields.series || modalBook?.series) ? (el) => { if (el) requestAnimationFrame(() => { const container = el.closest('.overflow-y-auto'); if (container) { const top = el.offsetTop - container.offsetTop; container.scrollTop = top; } }); } : null}
+                                                                            ref={s.name === (editBookFields.series || modalBook?.series) ? (el) => { if (el) requestAnimationFrame(() => { const container = el.offsetParent; if (container) container.scrollTop = el.offsetTop; }); } : null}
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 setEditBookFields(prev => ({ ...prev, series: s.name }));
@@ -13718,7 +13614,7 @@
                                                                             <span className="text-xs text-gray-400 ml-2 shrink-0">({s.count})</span>
                                                                         </button>
                                                                     ))}
-                                                                </div>
+                                                                </Popover>
                                                             ) : null;
                                                         })()}
                                                     </div>
@@ -14267,7 +14163,7 @@
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v5.0.0 - Book Explorer view (hidden when no books - welcome screen shown instead) */}
@@ -14780,6 +14676,7 @@
                                                     Menu re-click and column headers still flip too. */}
                                                 <span className="inline-flex items-center whitespace-nowrap">
                                                     <button
+                                                        ref={folderSortBtnRef} {...popupTrigger(folderSortMenuOpen)}
                                                         onClick={(e) => { e.stopPropagation(); setFolderSortMenuOpen(o => !o); }}
                                                         className={`text-xs px-1 hover:bg-gray-200 rounded ${folderListSort.column !== 'custom' ? 'text-blue-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
                                                         title="Change folder sort"
@@ -14794,10 +14691,14 @@
                                                             {folderListSort.direction === 'asc' ? '▲' : '▼'}</button>
                                                     )}
                                                 </span>
+                                                {/* v7.18.0-alpha.44 - anchored <Popover> menu (was a scrim + absolute panel; had no Esc):
+                                                    right-aligned under its ▾ button like before; Esc / outside-click via the registry. */}
                                                 {folderSortMenuOpen && (
-                                                    <>
-                                                        <div className="fixed inset-0 z-[59]" onClick={(e) => { e.stopPropagation(); setFolderSortMenuOpen(false); }} />
-                                                        <div className="absolute right-0 mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] min-w-[170px] normal-case tracking-normal font-normal" onClick={(e) => e.stopPropagation()}>
+                                                    <Popover anchorRef={folderSortBtnRef} anchorAlign="end"
+                                                        onClose={() => setFolderSortMenuOpen(false)}
+                                                        role="menu" ariaLabel="Folder sort"
+                                                        className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] normal-case tracking-normal font-normal"
+                                                        onClick={(e) => e.stopPropagation()}>
                                                             {[{ label: 'Manual (drag to arrange)', col: 'custom', dir: 'asc' }, { label: 'Name', col: 'title', dir: 'asc' }, { label: 'Count (most first)', col: 'count', dir: 'desc' }].map(opt => {
                                                                 const active = folderListSort.column === opt.col;
                                                                 return (
@@ -14817,8 +14718,7 @@
                                                                     </div>
                                                                 </>
                                                             )}
-                                                        </div>
-                                                    </>
+                                                    </Popover>
                                                 )}
                                             </div>
                                             {/* Collapse all button */}
@@ -15797,6 +15697,7 @@
                                                     full-size direction triangle flips (the tiny gray caret runt is gone). */}
                                                 <span className="flex items-center" style={{ fontSize: '13px' }}>
                                                     <button
+                                                        ref={folderSortPickerBtnRef} {...popupTrigger(folderSortPickerOpen)}
                                                         onClick={() => setFolderSortPickerOpen(o => !o)}
                                                         className="flex items-center gap-1 hover:bg-gray-100 rounded px-1 py-0.5"
                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}
@@ -15815,10 +15716,11 @@
                                                         </button>
                                                     )}
                                                 </span>
+                                                {/* v7.18.0-alpha.44 - anchored <Popover> menu (was a scrim + absolute panel; had no Esc) */}
                                                 {folderSortPickerOpen && (
-                                                    <>
-                                                        <div className="fixed inset-0 z-[59]" onClick={() => setFolderSortPickerOpen(false)} />
-                                                        <div className="absolute left-0 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60] min-w-[170px]" style={{ top: '28px' }}>
+                                                    <Popover anchorRef={folderSortPickerBtnRef}                                                        onClose={() => setFolderSortPickerOpen(false)}
+                                                        role="menu" ariaLabel="Folder sort"
+                                                        className="mt-1 bg-white border border-gray-300 shadow-lg rounded py-1 z-[60]">
                                                             {/* v7.6.0-alpha.14 (wave D) - One entry per key; direction via the column headers */}
                                                             {[{ label: 'Manual Order', col: 'custom', dir: 'asc' }, { label: 'Name', col: 'title', dir: 'asc' }, { label: 'Count (most first)', col: 'count', dir: 'desc' }].map(opt => {
                                                                 const active = folderListSort.column === opt.col;
@@ -15839,15 +15741,14 @@
                                                                     </div>
                                                                 </>
                                                             )}
-                                                        </div>
-                                                    </>
+                                                    </Popover>
                                                 )}
                                             </div>
                                         )}
                                         {/* Sort status display with picker dropdown (v5.5.0) */}
                                         {/* v6.12.0-alpha.75 - Hide the book-sort picker in the Folders view; folders sort via the ⇅ header control + Name column (folderListSort). The book picker's columns don't apply to folders and it desynced from those. */}
-                                        <div className={`flex items-center gap-1 border-l pl-4 text-sm ${selectedFolderId === '__library__' ? 'hidden' : ''}`} style={{ position: 'relative' }} data-sort-picker="">
-                                            <button
+                                        <div className={`flex items-center gap-1 border-l pl-4 text-sm ${selectedFolderId === '__library__' ? 'hidden' : ''}`} style={{ position: 'relative' }}>
+                                            <button ref={sortPickerBtnRef} {...popupTrigger(sortPickerOpen)}
                                                 onClick={() => setSortPickerOpen(!sortPickerOpen)}
                                                 className="flex items-center gap-1 hover:bg-gray-100 rounded px-1 py-0.5 -mx-1"
                                                 style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '13px' }}
@@ -15905,12 +15806,15 @@
                                                         key: c.sortKey, label: c.label, defaultDir: c.defaultDir
                                                     }))
                                                 ];
+                                                // v7.18.0-alpha.60 - anchored <Popover> in the "rightpane-toolbar" sibling group (with ⚙ Show
+                                                // Columns and the Library view's folder "Sort:" picker)
                                                 return (
-                                                    <div style={{
-                                                        position: 'absolute', top: '28px', left: 0,
+                                                    <Popover anchorRef={sortPickerBtnRef} onClose={() => setSortPickerOpen(false)}
+                                                        role="menu" ariaLabel="Sort" style={{
+                                                        marginTop: '4px',
                                                         background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)',
                                                         borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                                                        zIndex: 1000, minWidth: '180px', whiteSpace: 'nowrap'
+                                                        zIndex: 1000, whiteSpace: 'nowrap'
                                                     }}>
                                                         {sortOptions.map(opt => {
                                                             const sortIndex = explorerSort.findIndex(s => s.column === opt.key);
@@ -15972,7 +15876,7 @@
                                                         <div style={{ borderTop: '1px solid var(--border-default)', padding: '5px 12px', fontSize: '11px', color: 'var(--text-muted)' }}>
                                                             Shift+click for secondary sort
                                                         </div>
-                                                    </div>
+                                                    </Popover>
                                                 );
                                             })()}
                                         </div>
@@ -16039,28 +15943,29 @@
                                         {explorerView === 'list' && (
                                             <div className="relative ml-4">
                                                 <button
+                                                    ref={columnChooserBtnRef} {...popupTrigger(explorerColumnMenuOpen, 'dialog')}
                                                     onClick={() => {
-                                                        setExplorerColumnMenuOpen(!explorerColumnMenuOpen);
-                                                        setExplorerColumnMenuPos(null); // v5.0.0-alpha.107 - Clear context menu position when using gear
+                                                        if (explorerColumnMenuOpen) { closeColumnChooser(); return; }
+                                                        setExplorerColumnMenuPos(null); // gear = anchored mode (no cursor point)
+                                                        setExplorerColumnMenuOpen(true);
                                                     }}
-                                                    className="column-chooser-button text-gray-500 hover:text-gray-700 text-lg"
+                                                    className="text-gray-500 hover:text-gray-700 text-lg"
                                                     title="Choose columns" aria-label="Choose columns">
                                                     ⚙️
                                                 </button>
-                                                {/* Column chooser dropdown */}
+                                                {/* v7.18.0-alpha.49 - Column chooser = ONE <Popover> with two openings: from the ⚙ gear it's
+                                                    anchored under the gear, right-aligned (as before); from a column-header right-click it
+                                                    opens at the cursor (measured, no size guess). Esc / outside-click via the registry. */}
                                                 {explorerColumnMenuOpen && (
-                                                    <div
-                                                        className={`column-chooser-menu bg-white border border-gray-300 rounded shadow-lg p-3 z-50 min-w-[200px] ${
-                                                            explorerColumnMenuPos ? 'fixed' : 'absolute right-0 mt-2'
-                                                        }`}
-                                                        style={explorerColumnMenuPos ? { left: `${explorerColumnMenuPos.x}px`, top: `${explorerColumnMenuPos.y}px` } : {}}>
+                                                    <Popover onClose={closeColumnChooser} key={explorerColumnMenuPos ? 'at-cursor' : 'at-gear'}                                                        {...(explorerColumnMenuPos
+                                                            ? { x: explorerColumnMenuPos.x, y: explorerColumnMenuPos.y }
+                                                            : { anchorRef: columnChooserBtnRef, anchorAlign: 'end' })}
+                                                        role="dialog" ariaLabel="Show Columns"
+                                                        className={`bg-white border border-gray-300 rounded shadow-lg p-3 z-50 ${explorerColumnMenuPos ? '' : 'mt-2'}`}>
                                                         <div className="flex justify-between items-center mb-2">
                                                             <div className="text-sm font-semibold text-gray-700">Show Columns</div>
                                                             <button
-                                                                onClick={() => {
-                                                                    setExplorerColumnMenuOpen(false);
-                                                                    setExplorerColumnMenuPos(null); // v5.0.0-alpha.107
-                                                                }}
+                                                                onClick={closeColumnChooser}
                                                                 className="text-gray-500 hover:text-gray-700 font-bold text-lg leading-none"
                                                                 title="Close">
                                                                 ✕
@@ -16118,24 +16023,34 @@
                                                                 Show All
                                                             </button>
                                                         </div>
-                                                    </div>
+                                                    </Popover>
                                                 )}
                                             </div>
                                         )}
                                     </div>
                                 </div>
                                 <div ref={dragVirtScrollRef} className="flex-1 overflow-auto px-4 pb-16" style={{ contain: 'layout style paint' }}
+                                    onClick={(e) => {
+                                        // v7.18.0-alpha.42 - a PLAIN left-click on EMPTY space clears the selection (Explorer/
+                                        // Finder convention, Ron 2026-10-04). Empty = this scroll area itself (right of the list
+                                        // table / below the last row / padding) or a surface marked data-rw-blank (the grid's
+                                        // gaps). Items, headers, group toggles and "Show all" are children → never count.
+                                        // Ctrl/Shift-click keeps the selection (still building it). An open <Popover> swallows
+                                        // the click (alpha.41), so the first click only closes the menu.
+                                        if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+                                        if (e.target === e.currentTarget || (e.target.dataset && e.target.dataset.rwBlank !== undefined)) clearSelection();
+                                    }}
                                     onContextMenu={(e) => { // v6.12.0-alpha.67 (#8) - blank-space menu; rows call preventDefault, so defaultPrevented => a row handled it
                                         if (e.defaultPrevented) return;
                                         e.preventDefault();
                                         // v6.12.0-alpha.69 (#8) - only offer folder creation where a new folder would actually appear (2A: pb-16 guarantees a strip)
                                         const inRealFolder = selectedFolderId && !selectedFolderId.startsWith('__');
                                         if (!inRealFolder && !['__library__', '__all__', '__inbox__'].includes(selectedFolderId)) return;
-                                        const mw = 240, mh = 96;
-                                        let x = e.clientX, y = e.clientY;
-                                        if (x + mw > window.innerWidth) x = window.innerWidth - mw - 8;
-                                        if (y + mh > window.innerHeight) y = window.innerHeight - mh - 8;
-                                        setRightPaneContextMenu({ x, y });
+                                        // v7.18.0 - pass the TRUE click point; CursorPopup measures the real menu
+                                        // size and flips/clamps to fit. The old hardcoded 240px pre-clamp PINNED x
+                                        // to (innerWidth - 248) for any click in the right ~240px, decoupling the
+                                        // menu from the cursor — that was the whole "gap near the right edge" bug.
+                                        setRightPaneContextMenu({ x: e.clientX, y: e.clientY });
                                     }}>
                                     {explorerView === 'list' ? (
                                         (() => {
@@ -16229,23 +16144,9 @@
                                                 <tr className="text-left text-gray-600"
                                                     onContextMenu={(e) => {
                                                         e.preventDefault();
-                                                        // v5.0.0-alpha.108 - Smart positioning to avoid viewport overflow
-                                                        const menuWidth = 200;
-                                                        const menuHeight = 300;
-                                                        let x = e.clientX;
-                                                        let y = e.clientY;
-
-                                                        // Adjust if menu would overflow right edge
-                                                        if (x + menuWidth > window.innerWidth) {
-                                                            x = e.clientX - menuWidth;
-                                                        }
-
-                                                        // Adjust if menu would overflow bottom edge
-                                                        if (y + menuHeight > window.innerHeight) {
-                                                            y = e.clientY - menuHeight;
-                                                        }
-
-                                                        setExplorerColumnMenuPos({ x, y });
+                                                        // v7.18.0-alpha.49 - pass the TRUE click point; the <Popover> measures the real chooser and
+                                                        // flips/clamps to fit (the old 200×300 size guess is gone — the 7.15.0 bug class).
+                                                        setExplorerColumnMenuPos({ x: e.clientX, y: e.clientY });
                                                         setExplorerColumnMenuOpen(true);
                                                     }}>
                                                     {/* v5.0.0-alpha.121 - Checkbox column (styled div, not input) */}
@@ -16935,7 +16836,7 @@
                                                                     setExplorerSelectedItems(new Set([book.id]));
                                                                     setExplorerSelectionAnchor(index);
                                                                 }
-                                                                setBookTooltip(null);
+                                                                coverTip.close();
                                                                 setExplorerBookContextMenu({
                                                                     x: e.clientX,
                                                                     y: e.clientY
@@ -17126,7 +17027,7 @@
                                             );
                                         })()
                                     ) : (
-                                        <div ref={explorerView !== 'list' ? dragVirtContainerRef : undefined} className="grid gap-4 pt-1" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${explorerCoverCols}px, 1fr))` }}>
+                                        <div ref={explorerView !== 'list' ? dragVirtContainerRef : undefined} data-rw-blank className="grid gap-4 pt-1" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${explorerCoverCols}px, 1fr))` }}>
                                             {/* v5.0.0-alpha.54 - Folder tiles (before books) */}
                                             {(() => {
                                                 if (selectedFolderId === '__all__') return null;
@@ -17558,7 +17459,7 @@
                                                                 setExplorerSelectedItems(new Set([book.id]));
                                                                 setExplorerSelectionAnchor(explorerVisibleFolders.length + index);
                                                             }
-                                                            setBookTooltip(null);
+                                                            coverTip.close();
                                                             setExplorerBookContextMenu({
                                                                 x: e.clientX,
                                                                 y: e.clientY
@@ -17683,10 +17584,8 @@
 
                     {/* v4.27.0 Phase 3 - Tag Management Modal */}
                     {tagManagementOpen && (
-                        <div ref={tagManagerBackdropRef} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                             onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) { setTagManagementOpen(false); setEditingTagId(null); } backdropMouseDownRef.current = null; }}>
-                            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col"
-                                 onClick={(e) => e.stopPropagation()}>
+                        <Dialog onClose={() => { setTagManagementOpen(false); setEditingTagId(null); }} showClose={false}
+                            panelClassName="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
                                 <div className="flex items-center justify-between p-4 border-b border-gray-200">
                                     <h2 className="text-xl font-semibold">Manage Tags</h2>
                                     <button onClick={() => { setTagManagementOpen(false); setEditingTagId(null); }}
@@ -17980,8 +17879,7 @@
                                         onChange={(e) => setTagInputValue(e.target.value)}
                                     />
                                 </div>
-                            </div>
-                        </div>
+                        </Dialog>
                     )}
 
                     {/* v4.16.0.l - Toast notification that animates to footer */}
@@ -18014,73 +17912,23 @@
                             className="w-6 h-6 flex items-center justify-center rounded bg-white/90 border border-gray-300 shadow-sm text-gray-500 hover:bg-gray-100 hover:text-gray-800 text-sm leading-none">⤓</button>
                     </div>
 
-                    {bookTooltip && bookTipViewOk(selectedFolderId) && (() => {
-                        const containingFolders = getFoldersContainingBook(bookTooltip.bookId);
-                        const containingLists = getBookListsContainingBook(bookTooltip.bookId); // v6.12.0-alpha.56 (A)
+                    {coverTip.tip && bookTipViewOk(selectedFolderId) && (() => {
+                        const containingFolders = getFoldersContainingBook(coverTip.tip.bookId);
+                        const containingLists = getBookListsContainingBook(coverTip.tip.bookId); // v6.12.0-alpha.56 (A)
                         // v7.10.1-alpha.7 (Ron) - trashed book: former homes from deletedFromFolderIds
-                        const tipBook = books.find(b => b.id === bookTooltip.bookId);
+                        const tipBook = books.find(b => b.id === coverTip.tip.bookId);
                         const formerHomes = (tipBook?.isDeleted)
                             ? (tipBook.deletedFromFolderIds || []).map(normFolderMembership)
                                 .map(m => folders.find(f => f.id === m.folderId)).filter(Boolean)
                             : [];
                         if (containingFolders.length === 0 && containingLists.length === 0 && formerHomes.length === 0) return null;
 
-                        // v6.13.2-alpha.3 - Cursor-aware placement: the popup extends AWAY from where you entered the
-                        // cover — up if you came in high, down if low — overlapping the cover by only ~10% (enough to
-                        // bridge cover→popup for reachability, without burying the cover). Re-enter from the other half
-                        // to flip sides. Clamped to the viewport, with room-checks so it never runs off an edge.
-                        const PW = 300;
-                        const estH = 20
-                            + (containingFolders.length > 0 ? 24 + containingFolders.length * 26 : 0)
-                            + (formerHomes.length > 0 ? 24 + formerHomes.length * 26 : 0) // v7.10.1-alpha.7
-                            + (containingLists.length > 0 ? 28 + containingLists.length * 26 : 0);
-                        const vw = (typeof window !== 'undefined' ? window.innerWidth : 1200);
-                        const vh = (typeof window !== 'undefined' ? window.innerHeight : 800);
-                        // v6.13.2-alpha.5 - Cursor = the popup's INNER corner (the one nearest the cover center); the
-                        // popup fills the quadrant AWAY from center. NW cursor → popup up-left, its SE corner at the
-                        // cursor. Cursor is clamped to ≤90% from center so there's always ≥10% overlap, and it sits on
-                        // the cover IMAGE (where you hover) not the title below. Room-checks flip a side that would overrun.
-                        const cw = bookTooltip.width ?? 120;
-                        const ch = bookTooltip.height ?? 160;
-                        const mx = bookTooltip.x + cw / 2;
-                        const my = bookTooltip.y + ch / 2;
-                        const cx = Math.max(mx - 0.45 * cw, Math.min(bookTooltip.cursorX ?? mx, mx + 0.45 * cw)); // ≤90% from center
-                        const cy = Math.max(my - 0.45 * ch, Math.min(bookTooltip.cursorY ?? my, my + 0.45 * ch));
-                        let vUp = cy < my;   // cursor above center → extend up (popup bottom edge at the cursor)
-                        let hLeft = cx < mx; // cursor left of center → extend left (popup right edge at the cursor)
-                        if (vUp && cy < estH + 8) vUp = false; else if (!vUp && (vh - cy) < estH + 8) vUp = true;
-                        if (hLeft && cx < 140) hLeft = false; else if (!hLeft && (vw - cx) < 140) hLeft = true;
-                        const maxW = Math.max(140, Math.min(PW, hLeft ? (cx - 8) : (vw - cx - 8)));
-
+                        // v6.13.2-alpha.3/5 - Cursor-aware placement (grows AWAY from where you entered the cover, ~10%
+                        // overlap bridges cover→popup) — alpha.71: now the shared <HoverPopup placement="cursor">, which
+                        // measures the popup instead of guessing its height from the line count.
                         return (
-                            <div
-                                className="fixed bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-sm z-50"
-                                style={{
-                                    ...(hLeft
-                                        ? { right: `${Math.max(8, vw - cx)}px` }
-                                        : { left: `${Math.max(8, cx)}px` }),
-                                    ...(vUp
-                                        ? { bottom: `${Math.max(8, vh - cy)}px` }
-                                        : { top: `${Math.max(8, cy)}px` }),
-                                    maxWidth: `${maxW}px`,
-                                    maxHeight: '70vh',
-                                    overflowY: 'auto'
-                                }}
-                                onMouseEnter={() => {
-                                    // v5.0.0-alpha.132 - Cancel hide timeout when cursor enters tooltip
-                                    if (tooltipHideTimeoutRef.current) {
-                                        clearTimeout(tooltipHideTimeoutRef.current);
-                                        tooltipHideTimeoutRef.current = null;
-                                    }
-                                }}
-                                onMouseLeave={() => {
-                                    // v5.0.0-alpha.132 - Hide immediately when leaving tooltip
-                                    if (tooltipHideTimeoutRef.current) {
-                                        clearTimeout(tooltipHideTimeoutRef.current);
-                                        tooltipHideTimeoutRef.current = null;
-                                    }
-                                    setBookTooltip(null);
-                                }}>
+                            <HoverPopup hover={coverTip} placement="cursor"
+                                className="bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-sm z-50">
                                 {/* v7.10.1-alpha.7 (Ron) - trashed book: where it lived before Trash (plain text —
                                     navigating there wouldn't show the book, so no links) */}
                                 {formerHomes.length > 0 && (<>
@@ -18101,7 +17949,7 @@
                                             key={folder.id}
                                             onClick={() => {
                                                 navigateToFolder(folder.id);
-                                                setBookTooltip(null);
+                                                coverTip.close();
                                             }}
                                             className="text-left text-blue-600 hover:text-blue-800 hover:underline">
                                             {folder.id === '__trash__' ? '🗑️ ' : folder.id === '__inbox__' ? '📥 ' : '📁 '}{folder.name}
@@ -18118,7 +17966,7 @@
                                             key={bl.id}
                                             onClick={() => {
                                                 navigateToFolder(`__booklist_${bl.id}__`);
-                                                setBookTooltip(null);
+                                                coverTip.close();
                                             }}
                                             className="text-left text-blue-600 hover:text-blue-800 hover:underline">
                                             📗 {bl.name}
@@ -18126,7 +17974,7 @@
                                     ))}
                                 </div>
                                 </>)}
-                            </div>
+                            </HoverPopup>
                         );
                     })()}
 
@@ -18136,25 +17984,23 @@
                         const currentName = inRealFolder ? (folders.find(f => f.id === selectedFolderId)?.name || 'this folder') : null;
                         const createHere = (parentId) => { createFolderHere(parentId); setRightPaneContextMenu(null); };
                         return (
-                            <>
-                                <div className="fixed inset-0 z-[59]" onClick={() => setRightPaneContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setRightPaneContextMenu(null); }} />
-                                <CursorPopup open={true} x={rightPaneContextMenu.x} y={rightPaneContextMenu.y}
-                                    className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[220px] z-[60]"
-                                    role="menu" ariaLabel="Create folder"
-                                    onClick={(e) => e.stopPropagation()}>
-                                    {/* v6.12.0-alpha.68 (#8) - Single context-appropriate action: subfolder inside a folder,
-                                        else a root folder (a new root folder wouldn't appear in the current folder view). */}
-                                    {inRealFolder ? (
-                                        <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem" onClick={() => createHere(selectedFolderId)}>
-                                            <span>📂</span><span>New subfolder in "{currentName}"</span>
-                                        </div>
-                                    ) : (
-                                        <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem" onClick={() => createHere(null)}>
-                                            <span>📁</span><span>New folder</span>
-                                        </div>
-                                    )}
-                                </CursorPopup>
-                            </>
+                            <Popover x={rightPaneContextMenu.x} y={rightPaneContextMenu.y}
+                                onClose={() => setRightPaneContextMenu(null)}
+                                className="bg-white border border-gray-300 shadow-lg rounded py-1 z-[60]"
+                                role="menu" ariaLabel="Create folder"
+                                onClick={(e) => e.stopPropagation()}>
+                                {/* v6.12.0-alpha.68 (#8) - Single context-appropriate action: subfolder inside a folder,
+                                    else a root folder (a new root folder wouldn't appear in the current folder view). */}
+                                {inRealFolder ? (
+                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem" onClick={() => createHere(selectedFolderId)}>
+                                        <span>📂</span><span>New subfolder in "{currentName}"</span>
+                                    </div>
+                                ) : (
+                                    <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem" onClick={() => createHere(null)}>
+                                        <span>📁</span><span>New folder</span>
+                                    </div>
+                                )}
+                            </Popover>
                         );
                     })()}
 
@@ -18166,9 +18012,8 @@
                             const bl = bookLists.find(b => b.id === blId);
                             return (
                                 <>
-                                    <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
-                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                    <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 z-50"
                                         role="menu" ariaLabel="Book List options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
@@ -18193,7 +18038,7 @@
                                             <span>🗑️</span>
                                             <span>Delete</span>
                                         </div>
-                                    </CursorPopup>
+                                    </Popover>
                                 </>
                             );
                         }
@@ -18202,9 +18047,8 @@
                         if (folderContextMenu.folderId === '__trash__') {
                             return (
                                 <>
-                                    <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
-                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                    <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 z-50"
                                         role="menu" ariaLabel="Trash options"
                                         onClick={(e) => e.stopPropagation()}>
                                         {trashCount > 0 ? (
@@ -18226,7 +18070,7 @@
                                                 <span>Trash is empty</span>
                                             </div>
                                         )}
-                                    </CursorPopup>
+                                    </Popover>
                                 </>
                             );
                         }
@@ -18235,9 +18079,8 @@
                         if (folderContextMenu.folderId === '__all__') {
                             return (
                                 <>
-                                    <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
-                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                    <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 z-50"
                                         role="menu" ariaLabel="All Books options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
@@ -18255,7 +18098,7 @@
                                             }}>
                                             <span>☑️</span><span>Select All</span>
                                         </div>
-                                    </CursorPopup>
+                                    </Popover>
                                 </>
                             );
                         }
@@ -18264,9 +18107,8 @@
                         if (folderContextMenu.folderId === '__inbox__') {
                             return (
                                 <>
-                                    <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
-                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                    <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 z-50"
                                         role="menu" ariaLabel="Inbox options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
@@ -18295,7 +18137,7 @@
                                             }}>
                                             <span>☑️</span><span>Select All</span>
                                         </div>
-                                    </CursorPopup>
+                                    </Popover>
                                 </>
                             );
                         }
@@ -18304,9 +18146,8 @@
                         if (folderContextMenu.folderId === '__library__') {
                             return (
                                 <>
-                                    <div className="fixed inset-0 z-50" onClick={() => setFolderContextMenu(null)} />
-                                    <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
-                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 min-w-[180px] z-50"
+                                    <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
+                                        className="bg-white border border-gray-300 shadow-lg rounded py-1 z-50"
                                         role="menu" ariaLabel="My Library options"
                                         onClick={(e) => e.stopPropagation()}>
                                         <div
@@ -18338,7 +18179,7 @@
                                             }}>
                                             <span>📁</span><span>New Folder</span>
                                         </div>
-                                    </CursorPopup>
+                                    </Popover>
                                 </>
                             );
                         }
@@ -18370,11 +18211,11 @@
                         };
 
                         // v7.15.0 - Positioned via CursorPopup (measured; the old menuHeight=400 guess
-                        // under-shot and clipped the bottom for a tall folder menu). No backdrop here — the
-                        // document mousedown handler closes this menu (folderContextMenu, see ~4899).
+                        // under-shot and clipped the bottom for a tall folder menu). v7.18.0-alpha.44 - now a
+                        // <Popover>: Esc + outside-click close it via the overlay registry (closeFolderMenu).
                         return (
-                            <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
-                                className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[200px]"
+                            <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
+                                className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1"
                                 role="menu" ariaLabel="Folder options"
                                 onClick={(e) => e.stopPropagation()}>
 
@@ -18780,20 +18621,12 @@
                                         setFolderPropertiesEditedName(folder.name); // v5.0.0-alpha.143 - Initialize edited name
                                         setFolderPropertiesEditedDescription(folder.description || ''); // v6.5.0
                                         setFolderPropertiesDialog({ folderId: folder.id });
-                                        // v5.0.0-alpha.144 - Initialize dialog position (centered)
-                                        setDialogDrag({
-                                            isDragging: false,
-                                            offsetX: 0,
-                                            offsetY: 0,
-                                            dialogX: window.innerWidth / 2 - 224, // 224 = half of max-w-md (448px)
-                                            dialogY: window.innerHeight / 2 - 200 // Approximate half height
-                                        });
                                         setFolderContextMenu(null);
                                     }}>
                                     <span>ℹ️</span>
                                     <span>Folder Properties</span>
                                 </div>
-                            </CursorPopup>
+                            </Popover>
                         );
                     })()}
 
@@ -18808,10 +18641,10 @@
                         const searchLabel = isNamedSearch ? view.name : filterChipsLabel(view.filters);
 
                         // Viewport-aware positioning
-                        // v7.15.0 - Positioned via CursorPopup (measured). No backdrop — document mousedown closes it.
+                        // v7.15.0 - Positioned via CursorPopup (measured). v7.18.0-alpha.44 - a <Popover> (registry Esc + outside-click).
                         return (
-                            <CursorPopup open={true} x={folderContextMenu.x} y={folderContextMenu.y}
-                                className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[200px]"
+                            <Popover x={folderContextMenu.x} y={folderContextMenu.y} onClose={closeFolderMenu}
+                                className="bg-white border border-gray-300 shadow-lg rounded z-50 py-1"
                                 role="menu" ariaLabel="Search options"
                                 onClick={(e) => e.stopPropagation()}>
 
@@ -18861,7 +18694,7 @@
                                     <span>🗑️</span>
                                     <span>Delete Search</span>
                                 </div>
-                            </CursorPopup>
+                            </Popover>
                         );
                     })()}
 
@@ -19088,9 +18921,9 @@
                         );
 
                         return (
-                            <CursorPopup open={true}
+                            <Popover onClose={closeBookMenu}
                                 x={explorerBookContextMenu.x} y={explorerBookContextMenu.y}
-                                className="bg-white border border-gray-300 rounded-lg shadow-xl z-[60] py-1 min-w-[200px]"
+                                className="bg-white border border-gray-300 rounded-lg shadow-xl z-[60] py-1"
                                 role="menu" ariaLabel="Book options"
                                 onClick={(e) => e.stopPropagation()}>
                                 {/* Header */}
@@ -19419,7 +19252,7 @@
                                                         }
                                                     }, 600);
                                                 }}>
-                                                <span>📤</span>
+                                                <ShareIcon />
                                                 <span>Share</span>
                                                 <span className="ml-auto">▶</span>
 
@@ -19479,7 +19312,7 @@
                                                                     setExplorerBookContextMenu(null);
                                                                     setContextSubmenu(null);
                                                                 }}>
-                                                                <span>📤</span>
+                                                                <ShareIcon />
                                                                 <span>Share…</span>
                                                             </div>
                                                         )}
@@ -20116,7 +19949,7 @@
                                                     <span className="ml-auto text-xs text-gray-400">Del</span>
                                                 </div>
                                             )}
-                            </CursorPopup>
+                            </Popover>
                         );
                     })()}
 
@@ -20182,36 +20015,10 @@
                         };
 
                         return (
-                            <>
-                                {/* Backdrop */}
-                                <div
-                                    className="fixed inset-0 bg-black bg-opacity-50 z-50"
-                                    onMouseDown={(e) => { backdropMouseDownRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current === e.currentTarget) setFolderPropertiesDialog(null); backdropMouseDownRef.current = null; }}
-                                />
-
-                                {/* Dialog - v5.0.0-alpha.144: Draggable */}
-                                <div
-                                    className="bg-white rounded-lg shadow-xl w-full max-w-md pointer-events-auto fixed z-50"
-                                    role="dialog" aria-modal="true" aria-labelledby="modal-folder-properties"
-                                    style={{
-                                        left: `${dialogDrag?.dialogX || 0}px`,
-                                        top: `${dialogDrag?.dialogY || 0}px`,
-                                        cursor: dialogDrag?.isDragging ? 'grabbing' : 'default'
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}>
-                                    <h2
-                                        id="modal-folder-properties"
-                                        className="text-xl font-semibold mb-4 p-6 pb-0 cursor-grab active:cursor-grabbing select-none"
-                                        onMouseDown={(e) => {
-                                            const rect = e.currentTarget.parentElement.getBoundingClientRect();
-                                            setDialogDrag({
-                                                isDragging: true,
-                                                offsetX: e.clientX - rect.left,
-                                                offsetY: e.clientY - rect.top,
-                                                dialogX: rect.left,
-                                                dialogY: rect.top
-                                            });
-                                        }}>
+                            // v7.18.0 - converted to <Dialog>; drag (dialogDrag) dropped here, restored later by the draggable-dialogs feature (TODO)
+                            <Dialog onClose={() => setFolderPropertiesDialog(null)} showClose={false} closeButton
+                                panelClassName="bg-white rounded-lg shadow-xl w-full max-w-md">
+                                    <h2 id="modal-folder-properties" className="text-xl font-semibold mb-4 p-6 pb-0">
                                         Folder Properties
                                     </h2>
                                     <div className="px-6 pb-6">
@@ -20287,18 +20094,13 @@
                                             )}
                                         </div>
                                     </div>
-                                </div>
-                            </>
+                            </Dialog>
                         );
                     })()}
 
                     {/* v6.10.0-alpha.13 - Share Email Fallback Dialog */}
                     {shareEmailChoice && (
-                        <>
-                            <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShareEmailChoice(null)} />
-                            <div className="fixed z-50 bg-white rounded-lg shadow-xl p-6 max-w-md"
-                                style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                                <button onClick={() => setShareEmailChoice(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none" title="Close" aria-label="Close">×</button>
+                        <Dialog onClose={() => setShareEmailChoice(null)} showClose={false} closeButton panelClassName="bg-white rounded-lg shadow-xl p-6 max-w-md">
                                 <h3 className="text-lg font-bold text-gray-900 mb-2">Share by Email</h3>
                                 <p className="text-sm text-gray-600 mb-4">How would you like to send this?</p>
                                 <div className="flex flex-col gap-2">
@@ -20363,8 +20165,7 @@
                                         Cancel
                                     </button>
                                 </div>
-                            </div>
-                        </>
+                        </Dialog>
                     )}
 
                     {/* Affiliate Disclosure Footer (v4.4.0) */}
@@ -20376,27 +20177,33 @@
                                 message that evaporated before it was read */}
                             <span className="relative">
                                 <button
+                                    ref={toastHistoryBtnRef} {...popupTrigger(toastHistoryOpen, 'dialog')}
                                     onClick={() => setToastHistoryOpen(o => !o)}
                                     className="text-gray-400 hover:text-gray-600 px-1"
                                     title="Recent messages (this session)"
                                     aria-label="Recent messages"
                                     style={{ fontSize: '13px', lineHeight: '1' }}>🕐</button>
+                                {/* v7.18.0-alpha.40 - anchored, FENCING <Popover> (was a legacy scrim + absolute panel on the
+                                    anyDialogOpen OR-chain): opens flush above the 🕐 button (flips — no room below), Esc +
+                                    outside-click close via the registry, and library keys stay blocked while it's open.
+                                    width is inline because CursorPopup's inline max-content would beat a w-[…] class. */}
                                 {toastHistoryOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-[69]" onClick={() => setToastHistoryOpen(false)} />
-                                        <div className="absolute bottom-6 left-0 bg-white border border-gray-300 shadow-lg rounded z-[70] w-[420px] max-h-[320px] overflow-y-auto py-1">
-                                            {toastHistoryRef.current.length === 0 ? (
-                                                <div className="px-3 py-2 text-gray-400">No messages yet this session</div>
-                                            ) : (
-                                                [...toastHistoryRef.current].reverse().map((t, i) => (
-                                                    <div key={i} className={`px-3 py-1.5 border-b border-gray-100 last:border-0 ${t.level === 'error' ? 'text-red-600' : 'text-gray-700'}`}>
-                                                        <span className="text-gray-400 mr-2">{new Date(t.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</span>
-                                                        {t.message}
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    </>
+                                    <Popover anchorRef={toastHistoryBtnRef} kind="popover" fence
+                                        onClose={() => setToastHistoryOpen(false)}
+                                        role="dialog" ariaLabel="Recent messages"
+                                        className="bg-white border border-gray-300 shadow-lg rounded z-[70] max-h-[320px] overflow-y-auto py-1"
+                                        style={{ width: 420 }}>
+                                        {toastHistoryRef.current.length === 0 ? (
+                                            <div className="px-3 py-2 text-gray-400">No messages yet this session</div>
+                                        ) : (
+                                            [...toastHistoryRef.current].reverse().map((t, i) => (
+                                                <div key={i} className={`px-3 py-1.5 border-b border-gray-100 last:border-0 ${t.level === 'error' ? 'text-red-600' : 'text-gray-700'}`}>
+                                                    <span className="text-gray-400 mr-2">{new Date(t.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}</span>
+                                                    {t.message}
+                                                </div>
+                                            ))
+                                        )}
+                                    </Popover>
                                 )}
                             </span>
                             {/* Clipboard (always leftmost for toast animation target) */}

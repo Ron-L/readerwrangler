@@ -15,18 +15,6 @@ _(Done 2026-09-16: 7.13.1 mobile dev-relay-worker fix + 7.13.2 relay worker+stor
 both shipped to prod; dev confirmed, prod verify in progress.)_
 
 **THE CURRENT STACK (pop in this order):**
-0. **DIALOG DISMISSAL — stopgap SHIPPED as 7.14.2 (2026-09-17); overlay primitive still pending.**
-   A true mechanical comb found the defect is a *class*, not 4 dialogs. Full audit + system design in
-   **docs/design/DIALOG-DISMISSAL-AUDIT.md** (committed).
-   - **DONE (7.14.2):** orphan one-liner (`autoOrgPreview` Esc → `closeAutoOrgPreview()`) + fenced the
-     3 unfenced modals (`restoreConfirm`, `newFolderHiddenAlert`, `corruptionRecovery`) with Esc +
-     backdrop. Tested by Ron.
-   - **STILL PENDING — overlay primitive on its own branch** (`feature/overlay-system`): a minimal
-     layer registry + `<Dialog>`/`<Popover>` that self-register (fence + Esc-order + backdrop + ✕ +
-     cascade become STRUCTURAL; the CLAUDE.md checklist becomes unnecessary). Radix/React-Aria shape,
-     hand-rolled ~100-150 lines. Incremental, one family per alpha. Also mops up the DEFERRED items:
-     the 6 no-Esc menus and the latent wizard/relaySetup close-drift. Doc §9 open Qs (portals?
-     menus-Esc? first-cut scope? focus mgmt later?).
 1. **New-folder "discard on cancel" (Option A) — its own small release (~7.14.3).** Discovered during
    7.14.2 testing (unrelated). `newFolderHiddenAlert` should get 4 buttons: Clear All Filters / Show
    All Folders / Leave As Is (keep hidden) / **Cancel** (discard). Cancel + Esc + ✕ + backdrop →
@@ -43,8 +31,16 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
    library, organization, relay credentials; plus breaks root-relative paths + phone testing). Do NOT
    add `--bind 127.0.0.1` (phone tests over the LAN). Option 2 (scheduled task at logon) = headless
    alternative if a console window isn't wanted.
-2. **Finish the SUPPORT-KB human review** — in progress (§1–14 done incl. incidental §1/§2/§17;
-   currently in **§15**; §16 re-review pending since its 7.12.0 rewrite). Doc-only, lands on main.
+   **Updates (Ron 2026-10-06):** (a) the server must run in a **VISIBLE window** (not minimized/headless) — so
+   Option 2 is out and the shortcut opens normal. (b) **Security finding:** plain `python -m http.server` serves the
+   WHOLE project folder — including `.private/` (API key notes, the private repo's own `.git`) and `.git/` — to any
+   device on the home network that can reach port 8000. Since `--bind 127.0.0.1` would break phone testing, the
+   fix is a tiny versioned **`serve.py`** in the repo (stdlib `http.server` + a handler that refuses `/.private/…` and
+   `/.git/…` with 404), launched by the `.bat`. Same port and origin, phone still works, secrets never served.
+   Then update CONTRIBUTING.md's server lines (and drop its Python 2 `SimpleHTTPServer` line — EOL since 2020).
+   (c) Use **`py`**, not `python`, in the .bat and docs: since Python 3.14 the new Python Install Manager provides
+   `py` (Ron's habit). On Ron's PC 2026-10-06: `py` → 3.14.7, but `python` → 3.13 (older install first on PATH).
+   (d) Deferred by Ron 2026-10-06 ("save the fixes for later") — do after the overlay branch.
 2. **Transactional book-dialog enumeration pass** — the field-vs-command classification table for
    every book-dialog control, published for Ron's red pen BEFORE any transactional surgery (the
    copy-chips work that opened its branch shipped as 7.13.0; transactional gets a fresh branch).
@@ -53,6 +49,118 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
 4. Then the queued items below (left-pane parity, filter box, Ctrl+X-from-list fix, ownership
    batch — item 6 first).
 
+
+- [ ] **New "Tools" menu — move non-appearance / non-I/O items out of File + View (Ron 2026-09-28; UX pass)**.
+  Principle: File = pure data I/O (Data Status, Import from Relay, Restore/Save Backup, Save Spreadsheet); View = pure
+  display (List/Cover View, Show Hidden, Goal Met, Theme). New **Tools** menu gets: **Manage Tags** (from View) +
+  **Tag from Collections** (from File) — adjacent, both tag ops (consider a "Tags ▶" submenu); **Auto-Organize**;
+  **Relay Setup** (really config — Tools for now, would go to a Settings menu if one ever exists); **Reset App** at the
+  BOTTOM behind a divider (danger zone, keep its red). Data Status stays in File. Menu-IA task — its own small release,
+  NOT part of the overlay migration.
+
+- [ ] **Draggable dialogs — bake drag into the `<Dialog>` primitive (Ron 2026-09-28; SEPARATE feature AFTER the overlay migration ships)**.
+  Ron often needs to move a dialog to see what's under it (Quicken habit). Add drag to `<Dialog>` so ALL dialogs become
+  draggable at once (retires the old per-dialog `dialogDrag`; **folderPropertiesDialog is being converted WITHOUT drag
+  during the migration — this feature restores it, universally**). Decisions (Ron 2026-09-28): (1) grab from **anywhere
+  on the panel except interactive controls** (input/textarea/button/a/select), with a `cursor:move` affordance;
+  (2) **bounds** default = keep a grabbable strip always on-screen (never lose a dialog), but support a
+  **`dragBounds:'free'` option to drag fully off-window** (Ron finds off-window useful in Quicken — Search Results /
+  Reconciliation; keep the capability even if most default to constrained) — prove free/off-window works with one test
+  dialog; (3) **position** = centered on each open, then draggable (not remember-last). New user functionality → its OWN
+  branch/release, keeping the overlay branch a pure refactor (Ron's Option A).
+
+- [ ] **relaySetup UX polish (Ron 2026-09-28, surfaced during the overlay migration; NOT part of the migration)**.
+  Relay Setup's internal accordion sections shove content up/down so hard the expansion reads as "a new
+  dialog appeared." Items: (1) **slow/animate the expansions** (a height transition) so the eye can track
+  Credentials/Enter-Manually and Bookmarklet/Pairing expanding rather than jumping; (2) **"Enter Credentials
+  Manually" isn't perceivable as a level** — users can't tell it from just expanding a section, so its special
+  "Esc backs out one level first" behavior (the smart onClose reason==='esc' branch) is invisible/confusing —
+  reconsider whether manual-creds should be a distinct level at all, or just have Esc close relaySetup like the
+  backdrop; (3) **stacked Help clarity** — Help covers relaySetup exactly so it reads as a replacement, not a
+  stack; the draggable-dialogs feature (drag Help aside) is the natural fix, or a slight offset. All relaySetup-
+  internal redesign, separate focused pass.
+
+- [ ] **Ctrl+A leak sweep — non-input controls that swallow select-all in modals (Ron 2026-09-29; two-pivot sweep)**.
+  A non-input focusable control inside a dialog that calls `stopPropagation()` on Ctrl+A bypasses the dialog-aware
+  select-all guard, so the browser's NATIVE select-all fires and highlights the whole page BEHIND the modal (the
+  faded backdrop doesn't stop text selection). Found + fixed in the bulkEdit Series field (▼ button + dropdown rows,
+  7.18.0-alpha.21), and the document handler always preventDefaults (never leaks) then scope-selects the top dialog's
+  text whenever any dialog is open (7.18.0-alpha.22) — but only when the key REACHES it, so any OTHER non-input control
+  that stopPropagations Ctrl+A can still leak. Sweep: TWO pivots — (1) grep `onKeyDown=...stopPropagation` (~19 inline
+  hits + multi-line) and classify by element: input/textarea = OK (native field-select), button/div/li/a = SUSPECT;
+  (2) walk each dialog's focusable non-text controls. Diff the two, post the file:line table, then fix (let Ctrl+A
+  bubble on non-input controls). STRUCTURAL alternative worth weighing: a CAPTURE-phase Ctrl+A guard at the document
+  (scope-select the top dialog's text when a dialog is up and focus isn't in a text field) — one chokepoint inner
+  stopPropagation can't defeat — folding in autoOrgPreview's book-select once it's converted to declare its own semantics.
+
+- [ ] **Arrow keys do nothing in the Series suggestion lists (Ron 2026-09-29; re-confirmed 2026-10-06, minor a11y)**.
+  WHAT YOU SEE: in BOTH Series fields — the book details window's edit mode (✏️) and Bulk Edit → Series… — open the
+  list (type a letter or click ▼) and press Down arrow: nothing moves through the list. In the book details window the
+  Down arrow instead SCROLLS THE WHOLE WINDOW (that window scrolls; Bulk Edit doesn't, so there it does nothing). Enter
+  takes the typed text, not a highlighted row.
+  DO (standard combobox pattern): Down/Up move a highlight through the list while the cursor STAYS IN THE TEXT FIELD
+  (so you can keep typing); Enter picks the highlighted series; Esc closes the list (already works); a list that's
+  open consumes Down/Up so the window no longer scrolls. Build it ONCE in the shared `<Popover kind="list">` (both
+  lists became that in 7.18.0-alpha.54) — not per field. Deferred by Ron 2026-10-06 (after the overlay branch's
+  remaining groups).
+  THE MODEL ALREADY EXISTS (found 2026-10-07): the search box's recent-searches list — the `SearchInput` component's
+  Down/Up/Enter/Esc handling (highlight index, keeps typing in the field) — is exactly this pattern, working today.
+  EXTRACT that into the shared list popup and use the ONE implementation for all three type-ahead lists (both Series
+  fields AND the search box). Stable reference for "as it was": commit 46a0cf6 (`git show 46a0cf6:readerwrangler.js`,
+  search for `const SearchInput`).
+
+- [ ] **"💾 N results · Save ▾" menu runs off the screen when you have many Book Lists (Ron 2026-10-06)**.
+  WHAT YOU SEE: with a search or filter active, click the "💾 N results · Save ▾" button in the bar above the books.
+  The menu lists every Book List; with ~20+ lists it's taller than the window, so the lower lists are cut off at the
+  bottom with no way to scroll to them (and a long flat list is slow to scan).
+  DO: give it a max height + scrolling, and — past ~10 lists — the same filter box the book right-click menu's
+  "Move to" submenu already has (reuse that, don't build a second one). Check the other menus that list user items
+  (Book Lists, folders) for the same problem while there. Not overlay-branch work.
+  PREFERRED MECHANISM (designed 2026-10-06): an opt-in `<Popover>` option for BUTTON dropdowns — when the menu can't
+  fit below its button, open on whichever side (above/below) has MORE room, cap its height to that space, and scroll
+  (the standard "size to fit" approach of modern menu libraries). Today it pins to the top of the window and hangs off
+  the bottom. Must NOT apply to the right-click menus with fly-out submenus (Move to / Copy to) — a scrolling menu would
+  clip its own fly-outs (CursorPopup's "never add overflow" rule). The filter box stays a useful extra. Deferred by Ron
+  2026-10-06 (wait in TODO).
+
+- [ ] **Removing a recent search (the × on a row) can't be undone and leaves no trace (Ron 2026-10-07)**.
+  WHAT YOU SEE: click into the search box so "Recent searches" appears, click the × on a row — it's gone instantly,
+  with no toast, no Undo, and nothing in the 🕐 message history. Deleting a SAVED Search (left pane → SEARCHES →
+  right-click → Delete Search) does confirm, toast and undo.
+  DECIDED (Ron + UX pass): give recents removal the same treatment MINUS the confirmation — remove immediately, show a
+  toast with Undo, record it in the 🕐 history (a recent is automatic history; "Are you sure?" per row would nag —
+  standard "Removed · Undo" pattern). Route it through the shared undo/toast operation path, not a one-off. Related:
+  memory notes "tag/search delete" was left off the shared undo system in the 6.13.1 operations refactor — check what
+  else is still outside it while there.
+
+- [ ] **"⭐ Add Bibliography to Wishlist" button is greyed out on an author's "All Books" tab (Ron 2026-10-07)**.
+  WHAT YOU SEE: on Amazon, click an author's name (e.g. John Marrs), open the author page's **All Books** tab, filter
+  English + Kindle, then click the ReaderWrangler bookmarklet — the "⭐ Add Bibliography to Wishlist" button is
+  disabled. Example URL: `https://www.amazon.com/stores/author/B00F1CRG9U/allbooks?…`.
+  LIKELY CAUSE (verified in code, not yet live-tested): the nav hub's author-page check
+  (bookmarklet-nav-hub.js ~68: `/\/stores\/[^/]+\/author\/[A-Z0-9]{10}/i`) requires an author-NAME segment —
+  `/stores/John-Marrs/author/B00F1CRG9U` — but the All Books tab uses `/stores/author/B00F1CRG9U/allbooks` (no name
+  segment, extra `/allbooks`), so the page isn't recognized. DO: accept both URL shapes (name segment optional), then
+  TEST the bibliography fetcher itself on the All Books page — its page structure may differ from the author home
+  page, and the English/Kindle filters Ron applies may change what's on screen. Fetcher/nav-hub change → bump their
+  versions; DEV bookmarklet first (navigator change), then PROD.
+
+- [ ] **Dark theme: unreadable "New library data available" bar + light strips around the filter area (Ron 2026-10-07)**.
+  WHAT YOU SEE (View → Theme → Dark): (1) the bar under the menu bar reading "📡 New library data available (uploaded …)"
+  keeps its LIGHT blue/purple background while its text turns near-white — unreadable; (2) a light strip shows under
+  the "🔍 Active: Search …" bar (and anywhere there's a gap between sections).
+  WHY (verified): dark mode works by REMAPPING specific Tailwind color classes in readerwrangler.css
+  (`[data-theme="dark"] .bg-white {…}` etc.); anything colored outside that list stays light. (1) the relay bar's
+  background is a hard-coded inline gradient `linear-gradient(135deg, #dbeafe, #ede9fe)` (readerwrangler.js ~9360) with
+  `color: var(--text-primary)` text; (2) the app's outermost container uses `bg-gradient-to-br from-blue-50 to-blue-100`
+  (~8992) — the GRADIENT classes aren't remapped (only plain bg-blue-50/100 are), and the Active bar's `mb-4` gap shows it.
+  ALSO FOUND (same class, not yet seen by Ron): hard-coded light boxes in the Auto-Organize Preview (`#f1f3f5`, `#fafafa`,
+  `#e5e7eb` ~12009/12018/12046), and likely more.
+  DO: a COMB, not two spot fixes — grep every hard-coded light color in JSX (inline `background: '#…'` / light
+  `linear-gradient`, `from-*/to-*` gradient classes, unmapped Tailwind colors) and move each onto the theme (CSS
+  variables like `var(--bg-surface)`, or add the class to the dark remap). Check each in Dark after. MECHANISM idea:
+  add a "no hard-coded light backgrounds in JSX" check to scripts/check-names.js's sibling tooling so new ones get
+  flagged at commit time.
 
 - [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the transactional dialog):
   pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
@@ -255,6 +363,8 @@ Reply to the user still owed (Ron's channel).
 
 ## 🔧 7.0.0 follow-ups (relay)
 
+- [ ] **Relay storage keeps climbing ~18 MB per Restore, and the daily usage email shows the wrong number** (found 2026-10-03/04; full write-up + fix design in **docs/design/RELAY-WRITE-REDESIGN.md §14a**). Real total ≈572 MB (56% of the 1 GB free tier) while emails showed 219.7/326/0 — each email reports ONE bucket (prod or dev), never the sum, and "no data" prints as 0. ~265 MB is recoverable leftovers. Three fixes, one "relay storage" side-fix branch (Ron: after the overlay branch unless urgency changes): (1) Restore never deletes the package it absorbs → move cleanup INTO `commitGeneration` (+ dedupe `absorbedRuns`); (2) usage email: per-bucket query + sum, "no data" not 0, `keyCount` cross-check; (3) worker-side daily sweep for torn/extra/absorbed leftovers, report-only first, then deleting. Leave prod channel `58c1bfd7…` alone (another user; expires Dec 7). Don't Import from Relay on dev while the Sep 27 orphan test runs are pending. Inventory tool: `.private/analyze-relay-keys.js`.
+
 - [ ] **Checkpoint the cold (first-time) fetch** — a ~3,000-book initial enrichment has no resume; die at book 2,800, start over. 7.0 makes it natural: send enrichment progress as mailbox letters in stages so a resumed run's skip-hint already knows what's done. Bites each user exactly once — low priority, pre-launch nice-to-have. (From the 2026-08-21 external sync review, item 1's salvageable kernel.)
 
 - [ ] **Worker/client protocol-constant drift note** — `LETTER_TTL` (worker, seconds) and `LETTER_TTL_MS` (client) are mirrored by hand; same for the minted-id format. Fine at 2 constants with cross-reference comments; revisit a shared protocol-constants module if a third appears. (Worker is the same language — JS — different runtime; sharing is possible, low value today.)
@@ -346,6 +456,73 @@ Reply to the user still owed (Ron's channel).
 - [ ] **Left-pane jump-to-top/bottom placement** — both chevrons now ship, but they sit at the **bottom-left**, not at the two **scrollbar ends** as originally intended (Ron expected top-at-top / bottom-at-bottom). Scroll affordances conventionally live by the scrollbar (right). Reconsider: move the pair to the right near the scrollbar (spatial mapping), or adopt the single context-aware "back to top" that appears on scroll-down. **Per-section jump** (Searches / Book Lists / Folders): skip — the collapsible sections already handle that navigation.
 
 ## 🗄️ Backlog (post-launch)
+
+**Self-hosting safety**
+- [ ] **Someone running ReaderWrangler on their OWN localhost silently uses Ron's DEV relay** (analysis 2026-10-06).
+  WHAT HAPPENS: the app treats "localhost" as "Ron's dev machine". For a (rare) self-hoster that means (1) their sync
+  goes to Ron's **DEV** relay storage (Ron's lab: untested worker deploys land there first, it may be wiped, it isn't
+  monitored, and it counts against Ron's storage) — readerwrangler.js ~87 + mobile.js ~24; (2) their phone-pairing
+  QR code sends the phone to Ron's **dev GitHub site** (~11255); (3) if they install the PROD bookmarklet but run the
+  app on localhost, fetches land in PROD while the app reads DEV → "No library data found". Harmless localhost checks
+  (LOCAL badge, mode indicator, mobile chip, restore wrong-instance guard, LOCAL bookmarklet option, load-error display,
+  the per-load cache-buster) need no change; the two dev self-check POP-UPS (book-field self-check ~4256, unknown-field
+  alert storage.js ~234) only fire when data is already wrong — optional.
+  ALSO FOUND: a phone opening the app from Ron's PC dev server over home Wi-Fi (`http://192.168.86.35:8000/…`) reads
+  the PRODUCTION relay today, while the desktop on localhost reads DEV — mobile.js ~24 only recognizes "localhost".
+  The spec below fixes this (a home-network address counts as a local server).
+
+  **DECIDED SPEC (Ron 2026-10-06):**
+  - TWO KINDS of local-server users: **self-hosters** (privacy-minded etc.) get PRODUCTION behavior, silently — no
+    nagging; **contributors** (Ron + any future contributor) get ALL dev behavior. It's a contributor switch, not
+    Ron-only.
+  - **ONE function decides: `isContributor()`** — the single chokepoint; every dev-only branch calls it, nothing else
+    re-derives it. (Named for the ROLE; `isDev()` rejected — "DEV" already means the readerwranglerdev site + DEV relay,
+    cf. `isDevRepo` / storage.js `isDevEnv`.) Defined ONCE in readerwrangler.html's inline script (runs before the
+    desktop app, mobile.js and storage.js), exposed on window.
+  - **Both conditions required:** running on a LOCAL SERVER (localhost / 127.0.0.1 / home-network 10.x or 192.168.x)
+    **AND** the browser's contributor flag is on. On readerwrangler.com or the DEV site it is always false and the
+    switch is ignored (Ron: "I would have gotten burnt when I tested Prod").
+  - **The switch:** visit the app with `?contributor=on` (or `?contributor=off`) once per browser; the page saves
+    `readerwrangler-contributor = on` in that browser's Local Storage (per address+port) and removes the parameter from
+    the address bar. A phone needs it only if it opens the app FROM the PC's dev server (each browser/address is
+    separate). Document in CONTRIBUTING.md.
+  - **Fail-safe = the badge, impossible to miss:** "LOCAL · CONTRIBUTOR" in a distinct color when on; plain "LOCAL"
+    when off. No warnings/pop-ups (don't harass self-hosters). Relay Setup's existing "which relay storage" line backs it up.
+  - SYMPTOMS if Ron's flag is ever lost (for the CONTRIBUTING.md troubleshooting note): badge loses "CONTRIBUTOR";
+    fetches from the LOCAL/DEV bookmarklets seem to vanish (they still go to DEV; the app now reads PROD) → "No library
+    data found"/nothing new on Import; Import shows production data instead of dev test data; **local testing changes
+    and test Restores sync to the PRODUCTION relay** (shows up on the phone's readerwrangler.com view); Relay Setup
+    shows production storage; pairing QR points at readerwrangler.com; dev self-check pop-ups go silent.
+  - The per-load fresh-code cache-buster (alpha.53) stays tied to "local server" only, NOT to contributor mode.
+  - IMPLEMENTATION: COMB every existing localhost / isLocal / isDevEnv check (sitemap 2026-10-06: readerwrangler.js ~87,
+    ~157, ~4256, ~5431, ~9002, ~10692, ~10983/11229/11255; mobile.js ~11-26; storage.js ~234; readerwrangler.html
+    ~222/~296), classify each (dev-only → `isContributor()`; harmless label → leave on "local server"), route the
+    dev-only ones through the function.
+  - Rejected mechanisms: IP address / project path (break silently); a marker file in .private (browsers can't see
+    folders — a request on every load for every user, and it needs the server to expose .private).
+  - Deferred by Ron 2026-10-06 — do after the overlay branch.
+
+**Dialog look (LOW priority — Ron 2026-10-08)**
+- [ ] **The confirm-style dialogs are hand-built page elements, not React `<Dialog>`s** — the message / OK-Cancel /
+  type-a-name / progress / choice / "Owned Book" boxes (showInfoDialog, showConfirmDialog, showInputDialog,
+  showProgressDialog, showChoiceDialog, showDeleteWarningDialog; ~45 call sites). 7.18.0 plugged them into the overlay
+  system (Esc, ✕, key blocking all shared) but kept their hand-built look. OPTION A (deferred): one React "dialog
+  service" rendering each request as a `<Dialog>`, call sites unchanged (`await showConfirmDialog(…)`) — removes ~300
+  lines of hand-built DOM and gives every dialog one look; costs a visual check of all ~45. Only worth it if a dialog
+  redesign is wanted.
+
+**Responsiveness**
+- [ ] **Clicking a different book feels slightly laggy while a filter or search is active** (Ron 2026-10-06). WHAT YOU
+  SEE: with any filter/search active — even inside a small folder — click from one book to another; there's a small
+  but noticeable delay before the old book un-highlights and the new one highlights. With NO filter active it's
+  instant. Chrome's DevTools Console sometimes shows `[Violation] 'click' handler took ~270ms` (couldn't reproduce on
+  demand after a refresh). Severity: mild; "live with it on All Books" is acceptable. LIKELY CAUSE (hypothesis, not
+  verified): the filtered book list itself is already cached (`explorerDisplayItems` useMemo — it does NOT re-filter
+  on a selection change), so the extra per-click cost is probably the ACTIVE-FILTER BANNER, which re-renders on every
+  click and recomputes the "💾 N results · Save ▾" count, the "✓ Search: …" match check and the chips. DO: profile one
+  click with DevTools Performance (filter on vs off), then cache whatever the banner recomputes. (Ron's first theory —
+  "filter the current folder, not the whole library" — can't explain a SELECTION-click lag, since filtering isn't
+  re-run on selection; still worth checking for the initial filter cost.)
 
 **Relay / data robustness**
 - [ ] Relay write redesign (atomic commit-pointer + app-owned key + wishlist-delta) → see docs/design/RELAY-WRITE-REDESIGN.md (spec)
