@@ -15,18 +15,6 @@ _(Done 2026-09-16: 7.13.1 mobile dev-relay-worker fix + 7.13.2 relay worker+stor
 both shipped to prod; dev confirmed, prod verify in progress.)_
 
 **THE CURRENT STACK (pop in this order):**
-0. **DIALOG DISMISSAL — stopgap SHIPPED as 7.14.2 (2026-09-17); overlay primitive still pending.**
-   A true mechanical comb found the defect is a *class*, not 4 dialogs. Full audit + system design in
-   **docs/design/DIALOG-DISMISSAL-AUDIT.md** (committed).
-   - **DONE (7.14.2):** orphan one-liner (`autoOrgPreview` Esc → `closeAutoOrgPreview()`) + fenced the
-     3 unfenced modals (`restoreConfirm`, `newFolderHiddenAlert`, `corruptionRecovery`) with Esc +
-     backdrop. Tested by Ron.
-   - **STILL PENDING — overlay primitive on its own branch** (`feature/overlay-system`): a minimal
-     layer registry + `<Dialog>`/`<Popover>` that self-register (fence + Esc-order + backdrop + ✕ +
-     cascade become STRUCTURAL; the CLAUDE.md checklist becomes unnecessary). Radix/React-Aria shape,
-     hand-rolled ~100-150 lines. Incremental, one family per alpha. Also mops up the DEFERRED items:
-     the 6 no-Esc menus and the latent wizard/relaySetup close-drift. Doc §9 open Qs (portals?
-     menus-Esc? first-cut scope? focus mgmt later?).
 1. **New-folder "discard on cancel" (Option A) — its own small release (~7.14.3).** Discovered during
    7.14.2 testing (unrelated). `newFolderHiddenAlert` should get 4 buttons: Clear All Filters / Show
    All Folders / Leave As Is (keep hidden) / **Cancel** (discard). Cancel + Esc + ✕ + backdrop →
@@ -105,17 +93,6 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   (scope-select the top dialog's text when a dialog is up and focus isn't in a text field) — one chokepoint inner
   stopPropagation can't defeat — folding in autoOrgPreview's book-select once it's converted to declare its own semantics.
 
-- [ ] **Anchored-`<Popover>` primitive for button dropdowns (Ron 2026-09-30, overlay migration)** — PRIMITIVE BUILT
-  7.18.0-alpha.40 (`<Popover anchorRef anchorAlign>`, portaled since alpha.48; used by toast history + both folder sort
-  menus). REMAINING = convert the other button dropdowns (the overlay branch's next group).
-  WHAT / WHY: our `<Popover>` positions at a cursor POINT (x,y). Some overlays are **button-anchored dropdowns**
-  that open flush to a control — e.g., in the **Book detail dialog**: the **Share ▾** dropdown and the edit-mode
-  **Series** dropdown; also the folder **Sort** menu, **Save-Results** menu, and the column-header **gear**. These
-  stay LEGACY (their own scrims + inline `absolute` positioning) until we add an anchored variant.
-  DO: add an **anchored `<Popover>`** (element-relative, reusing the existing `FlipToFitPopup` measured positioner)
-  that self-registers in the overlay registry (so Esc-order + light-dismiss become structural), then convert those
-  button dropdowns to it. Until then, the Book dialog routes its child dropdowns' Esc through its smart onClose.
-
 - [ ] **Arrow keys do nothing in the Series suggestion lists (Ron 2026-09-29; re-confirmed 2026-10-06, minor a11y)**.
   WHAT YOU SEE: in BOTH Series fields — the book details window's edit mode (✏️) and Bulk Edit → Series… — open the
   list (type a letter or click ▼) and press Down arrow: nothing moves through the list. In the book details window the
@@ -131,17 +108,6 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   EXTRACT that into the shared list popup and use the ONE implementation for all three type-ahead lists (both Series
   fields AND the search box). Stable reference for "as it was": commit 46a0cf6 (`git show 46a0cf6:readerwrangler.js`,
   search for `const SearchInput`).
-
-- [x] **Right-click menu open + Ctrl+A selects the whole library behind it (Ron 2026-09-30)** — DONE 7.18.0-alpha.44:
-  menus are `<Popover>`s and a menu fences library keys by default (Ctrl+A/Delete/Ctrl+X do nothing while one is open).
-  WHAT YOU SEE: in the main right pane, right-click a **book** (or blank space) to open its context menu, then
-  press **Ctrl+A** — it selects ALL books in the library *behind* the menu (a "leak") instead of the menu owning
-  the keystroke. (Latent risk: Ctrl+A then **Delete** with a menu open could mass-delete the selection.)
-  WHY: context menus deliberately don't raise the keystroke fence (they never have), and the book / folder / sort
-  menus aren't converted to the overlay registry yet, so nothing captures Ctrl+A/Delete while they're open.
-  DO: fold into the **context-menu → `<Popover>` conversion** — once those menus are registry overlays, make the
-  Ctrl+A (and Delete) guards respect ANY open overlay (not just modals), so an open menu suppresses/scopes the
-  keystroke instead of leaking. Pre-existing — NOT a migration regression.
 
 - [ ] **"💾 N results · Save ▾" menu runs off the screen when you have many Book Lists (Ron 2026-10-06)**.
   WHAT YOU SEE: with a search or filter active, click the "💾 N results · Save ▾" button in the bar above the books.
@@ -195,21 +161,6 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   variables like `var(--bg-surface)`, or add the class to the dark remap). Check each in Dark after. MECHANISM idea:
   add a "no hard-coded light backgrounds in JSX" check to scripts/check-names.js's sibling tooling so new ones get
   flagged at commit time.
-
-- [x] **DONE 7.18.0-alpha.71** — one shared hover popup (`useHoverTip` + `<HoverPopup>`) for the right pane + the
-  Preview; the Preview's now stays, waits for the mouse to rest, keeps plain-text names, sits beside the cover.
-  **AO / Preview / hover tooltip disappears when you move onto it (Ron 2026-09-30, UX polish)** — FOLDED INTO
-  the overlay branch's `bookTooltip` step (Ron 2026-10-06): build ONE shared hover popup for the right pane + Preview.
-  WHAT YOU SEE: open Auto-Organize → **Preview**, hover a book cover — a little popup appears listing where that
-  book already lives (its folders / Book Lists). If you move the mouse toward that popup to read it, it **vanishes**.
-  COMPARE: in the normal **right pane**, hovering a cover shows the same kind of "where it lives" popup and it
-  **stays put** (you can move onto it). Goal: make the Preview's behave like the right pane's — stay open + readable.
-  WHY THEY DIFFER: two separate pieces of code. The Preview's is a bare tooltip that ignores the mouse (state
-  `autoOrgHover`, rendered `pointer-events:none`), so leaving the cover closes it. The right pane's is a smarter
-  "hover-intent" popup (built in 6.13.2) that persists.
-  DO: FIRST check whether the right pane's existing popup code can be **refactored into ONE shared component used by
-  BOTH** the right pane and the Preview (don't build a second copy); then use it in the Preview.
-  SIZE: not small (two mechanisms to reconcile), pre-existing, unrelated to the overlay migration — its own pass.
 
 - [ ] **Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the transactional dialog):
   pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
