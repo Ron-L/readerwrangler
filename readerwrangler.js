@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.65";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.66";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -688,6 +688,14 @@
         //   matchAnchorWidth: the popup takes the anchor's width (a list under its field).
         //   Anchored popovers now FOLLOW their anchor: re-measured on any scroll (outside the popup itself) or resize,
         //   so a dropdown inside a scrolling dialog (book details: Share, Series) moves with its button/field.
+        // v7.18.0-alpha.66 - THE popup-button attributes, from ONE place: spread onto every button that opens a popup —
+        //   `<button ref={x} {...popupTrigger(isOpen)} …>`. It carries the `data-popover-trigger` marker (so a click on it
+        //   while another popup is open switches in one click — outsideClickAction rule 4) plus the standard accessibility
+        //   pair screen readers announce ("menu button, expanded"). haspopup: 'menu' (default) | 'listbox' | 'dialog'.
+        //   Building a popup button = spreading this; the marker can't be forgotten separately (a dev-server console
+        //   warning still flags an anchored popup whose button lacks it).
+        const popupTrigger = (open, haspopup = 'menu') => ({ 'data-popover-trigger': '', 'aria-haspopup': haspopup, 'aria-expanded': !!open });
+
         // v7.18.0-alpha.61 - every popup BUTTON carries `data-popover-trigger`. A click on ANY popup button while this popup is
         //   open closes it WITHOUT swallowing the click, so that button's popup opens in one click (Ron, 2026-10-07 — this
         //   replaced alpha.58's named sibling groups; see overlayRegistry.outsideClickAction rule 4). On a local dev server an
@@ -734,7 +742,7 @@
                 if (kind === 'list' || !anchorRef || !anchorRef.current) return;
                 if (!(h === 'localhost' || h === '127.0.0.1' || /^(10|192\.168)\./.test(h))) return;
                 if (!anchorRef.current.closest('[data-popover-trigger]')) {
-                    console.warn('[Popover] this popup\'s button lacks data-popover-trigger — add it so other popups switch to it in one click:', anchorRef.current);
+                    console.warn('[Popover] this popup\'s button is missing {...popupTrigger(isOpen)} — spread it onto the button so other popups switch to it in one click:', anchorRef.current);
                 }
             }, []);
             // v7.18.0-alpha.61 - Shift+click inside a popup never starts a TEXT selection (Ron: Shift+click on the Sort menu
@@ -9004,7 +9012,7 @@
                                     another title while one is open still switches (classic menu-bar behavior, unchanged). */}
                                 <button
                                     ref={menuBarRefs[menuName.toLowerCase()]}
-                                    data-popover-trigger
+                                    {...popupTrigger(openMenuBar === menuName.toLowerCase())}
                                     onMouseDown={() => setOpenMenuBar(openMenuBar === menuName.toLowerCase() ? null : menuName.toLowerCase())}
                                     onMouseEnter={() => openMenuBar && setOpenMenuBar(menuName.toLowerCase())}
                                     style={{
@@ -9447,10 +9455,9 @@
 
                         {/* Status Filter */}
                         <div style={{ position: 'relative' }}>
-                            <button ref={filterBtnRefs.status} data-popover-trigger
+                            <button ref={filterBtnRefs.status} {...popupTrigger(statusDropdownOpen, 'listbox')}
                                 onClick={() => { setStatusDropdownOpen(!statusDropdownOpen); setTagsDropdownOpen(false); setTypesDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by read status"
-                                aria-expanded={statusDropdownOpen} aria-haspopup="listbox"
                                 style={{
                                     height: '28px',
                                     padding: '0 10px',
@@ -9539,10 +9546,9 @@
 
                         {/* Tags Filter */}
                         <div style={{ position: 'relative' }}>
-                            <button ref={filterBtnRefs.tags} data-popover-trigger
+                            <button ref={filterBtnRefs.tags} {...popupTrigger(tagsDropdownOpen, 'listbox')}
                                 onClick={() => { setTagsDropdownOpen(!tagsDropdownOpen); setStatusDropdownOpen(false); setTypesDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by tags"
-                                aria-expanded={tagsDropdownOpen} aria-haspopup="listbox"
                                 style={{
                                     height: '28px',
                                     padding: '0 10px',
@@ -9680,10 +9686,9 @@
 
                         {/* Types Filter */}
                         <div style={{ position: 'relative' }}>
-                            <button ref={filterBtnRefs.types} data-popover-trigger
+                            <button ref={filterBtnRefs.types} {...popupTrigger(typesDropdownOpen, 'listbox')}
                                 onClick={() => { setTypesDropdownOpen(!typesDropdownOpen); setStatusDropdownOpen(false); setTagsDropdownOpen(false); setMorePanelOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                 title="Filter by ownership type"
-                                aria-expanded={typesDropdownOpen} aria-haspopup="listbox"
                                 style={{
                                     height: '28px',
                                     padding: '0 10px',
@@ -9775,10 +9780,9 @@
                         </div>
 
                         {/* v5.0.0-alpha.175.40 - Phase 5.1: More button */}
-                        <button ref={filterBtnRefs.more} data-popover-trigger
+                        <button ref={filterBtnRefs.more} {...popupTrigger(morePanelOpen, 'dialog')}
                             onClick={() => { setMorePanelOpen(!morePanelOpen); setStatusDropdownOpen(false); setTagsDropdownOpen(false); setTypesDropdownOpen(false); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                             title={morePanelOpen ? 'Hide additional filters' : 'Show additional filters'}
-                            aria-expanded={morePanelOpen}
                             className={`px-3 py-1.5 rounded border ${morePanelOpen
                                 ? 'bg-blue-50 border-blue-300 text-blue-700'
                                 : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
@@ -10005,9 +10009,8 @@
                             }}>
                                 {/* v5.0.0-alpha.175.41 - Phase 5.2: Collections Filter */}
                                 <div style={{ position: 'relative' }}>
-                                    <button ref={filterBtnRefs.collections} data-popover-trigger
+                                    <button ref={filterBtnRefs.collections} {...popupTrigger(collectionsDropdownOpen, 'listbox')}
                                         onClick={() => { setCollectionsDropdownOpen(!collectionsDropdownOpen); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
-                                        aria-expanded={collectionsDropdownOpen} aria-haspopup="listbox"
                                         title={"Filter by Kindle Collection.\nThese come from Amazon and can't be edited here.\nUse File › Tag from Collections to convert them into editable tags."}
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             selectedCollections.length > 0
@@ -10103,10 +10106,9 @@
 
                                 {/* v5.0.0-alpha.175.42 - Phase 5.3: Amazon Rating Filter */}
                                 <div style={{ position: 'relative' }}>
-                                    <button ref={filterBtnRefs.amazonRating} data-popover-trigger
+                                    <button ref={filterBtnRefs.amazonRating} {...popupTrigger(amazonRatingDropdownOpen, 'listbox')}
                                         onClick={() => { setAmazonRatingDropdownOpen(!amazonRatingDropdownOpen); setCollectionsDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by Amazon rating"
-                                        aria-expanded={amazonRatingDropdownOpen} aria-haspopup="listbox"
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             minAmazonRating
                                                 ? 'bg-blue-50 border-blue-300 text-blue-700'
@@ -10149,10 +10151,9 @@
 
                                 {/* v5.0.0-alpha.175.43 - Phase 5.4: My Rating Filter */}
                                 <div style={{ position: 'relative' }}>
-                                    <button ref={filterBtnRefs.myRating} data-popover-trigger
+                                    <button ref={filterBtnRefs.myRating} {...popupTrigger(myRatingDropdownOpen, 'listbox')}
                                         onClick={() => { setMyRatingDropdownOpen(!myRatingDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by your rating"
-                                        aria-expanded={myRatingDropdownOpen} aria-haspopup="listbox"
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             minMyRating
                                                 ? 'bg-blue-50 border-blue-300 text-blue-700'
@@ -10215,10 +10216,9 @@
                                     names are long (its list sizes to them), while Date Added's From/To fields stack and need only one
                                     column (Ron + UX pass, 2026-10-07). */}
                                 <div style={{ position: 'relative', gridColumn: '1 / 3' }}>
-                                    <button ref={filterBtnRefs.series} data-popover-trigger
+                                    <button ref={filterBtnRefs.series} {...popupTrigger(seriesDropdownOpen, 'listbox')}
                                         onClick={() => { setSeriesDropdownOpen(!seriesDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setDateDropdownOpen(false); }}
                                         title="Filter by series"
-                                        aria-expanded={seriesDropdownOpen} aria-haspopup="listbox"
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             selectedSeries.length > 0
                                                 ? 'bg-blue-50 border-blue-300 text-blue-700'
@@ -10310,9 +10310,8 @@
 
                                 {/* v5.0.0-alpha.175.45 - Phase 5.6: Date Filter (spans columns 2-3, row 2) */}
                                 <div style={{ position: 'relative', gridColumn: '3 / 4' }}>{/* v7.18.0-alpha.65 - Date Added: column 3 (was 2–3) */}
-                                    <button ref={filterBtnRefs.date} data-popover-trigger
+                                    <button ref={filterBtnRefs.date} {...popupTrigger(dateDropdownOpen, 'dialog')}
                                         onClick={() => { setDateDropdownOpen(!dateDropdownOpen); setCollectionsDropdownOpen(false); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); }}
-                                        aria-expanded={dateDropdownOpen} aria-haspopup="listbox"
                                         title="Filter by date book was added to your Amazon library"
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             datePreset
@@ -10495,7 +10494,7 @@
                                 return (
                                     <div className="relative" style={{ marginLeft: '8px' }}>
                                         <button
-                                            ref={saveResultsBtnRef} data-popover-trigger
+                                            ref={saveResultsBtnRef} {...popupTrigger(saveResultsMenuOpen)}
                                             title="Save the filter as a Search (stays up to date), or save these books to a Book List (fixed set)"
                                             onClick={() => setSaveResultsMenuOpen(o => !o)}
                                             className="text-blue-700 hover:text-white hover:bg-blue-600 font-semibold text-sm whitespace-nowrap px-2 py-1 rounded border border-blue-400 bg-white">
@@ -13024,7 +13023,7 @@
                                                         placeholder={placeholder || 'Type to filter series...'}
                                                         className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                         autoFocus />
-                                                    <button type="button"
+                                                    <button type="button" {...popupTrigger(bulkEditSeriesDropdownOpen, 'listbox')}
                                                         onClick={() => { bulkEditSeriesFilterRef.current = false; setBulkEditSeriesDropdownOpen(!bulkEditSeriesDropdownOpen); }}
                                                         // Let Escape (registry close) and Ctrl/Cmd+A (dialog-aware select-all guard)
                                                         // reach the document handler; swallow other keys so app shortcuts don't fire.
@@ -13170,7 +13169,7 @@
                                     )}
                                     {/* v6.10.0-alpha.9 - Share button with dropdown */}
                                     <div className="relative">
-                                        <button ref={shareBtnRef} data-popover-trigger onClick={(e) => {
+                                        <button ref={shareBtnRef} {...popupTrigger(shareDropdownOpen)} onClick={(e) => {
                                             e.stopPropagation();
                                             setShareDropdownOpen(prev => !prev);
                                         }} className="text-gray-400 hover:text-gray-600 text-lg transition-colors" title="Share this book" aria-label="Share this book">
@@ -13425,7 +13424,7 @@
                                                                 className="w-full px-3 py-2 pr-8 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                                                             />
                                                             <button
-                                                                type="button"
+                                                                type="button" {...popupTrigger(editBookSeriesDropdownOpen, 'listbox')}
                                                                 onClick={() => { editBookSeriesFilterRef.current = false; setEditBookSeriesDropdownOpen(!editBookSeriesDropdownOpen); }}
                                                                 onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); if (editBookSeriesDropdownOpen) { setEditBookSeriesDropdownOpen(false); if (editBookSeriesInputRef.current) editBookSeriesInputRef.current.focus(); } else { e.target.blur(); } return; } e.stopPropagation(); }}
                                                                 title="Show all series"
@@ -14525,7 +14524,7 @@
                                                     Menu re-click and column headers still flip too. */}
                                                 <span className="inline-flex items-center whitespace-nowrap">
                                                     <button
-                                                        ref={folderSortBtnRef} data-popover-trigger
+                                                        ref={folderSortBtnRef} {...popupTrigger(folderSortMenuOpen)}
                                                         onClick={(e) => { e.stopPropagation(); setFolderSortMenuOpen(o => !o); }}
                                                         className={`text-xs px-1 hover:bg-gray-200 rounded ${folderListSort.column !== 'custom' ? 'text-blue-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
                                                         title="Change folder sort"
@@ -15546,7 +15545,7 @@
                                                     full-size direction triangle flips (the tiny gray caret runt is gone). */}
                                                 <span className="flex items-center" style={{ fontSize: '13px' }}>
                                                     <button
-                                                        ref={folderSortPickerBtnRef} data-popover-trigger
+                                                        ref={folderSortPickerBtnRef} {...popupTrigger(folderSortPickerOpen)}
                                                         onClick={() => setFolderSortPickerOpen(o => !o)}
                                                         className="flex items-center gap-1 hover:bg-gray-100 rounded px-1 py-0.5"
                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}
@@ -15597,7 +15596,7 @@
                                         {/* Sort status display with picker dropdown (v5.5.0) */}
                                         {/* v6.12.0-alpha.75 - Hide the book-sort picker in the Folders view; folders sort via the ⇅ header control + Name column (folderListSort). The book picker's columns don't apply to folders and it desynced from those. */}
                                         <div className={`flex items-center gap-1 border-l pl-4 text-sm ${selectedFolderId === '__library__' ? 'hidden' : ''}`} style={{ position: 'relative' }}>
-                                            <button ref={sortPickerBtnRef} data-popover-trigger
+                                            <button ref={sortPickerBtnRef} {...popupTrigger(sortPickerOpen)}
                                                 onClick={() => setSortPickerOpen(!sortPickerOpen)}
                                                 className="flex items-center gap-1 hover:bg-gray-100 rounded px-1 py-0.5 -mx-1"
                                                 style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '13px' }}
@@ -15792,7 +15791,7 @@
                                         {explorerView === 'list' && (
                                             <div className="relative ml-4">
                                                 <button
-                                                    ref={columnChooserBtnRef} data-popover-trigger
+                                                    ref={columnChooserBtnRef} {...popupTrigger(explorerColumnMenuOpen, 'dialog')}
                                                     onClick={() => {
                                                         if (explorerColumnMenuOpen) { closeColumnChooser(); return; }
                                                         setExplorerColumnMenuPos(null); // gear = anchored mode (no cursor point)
@@ -20076,7 +20075,7 @@
                                 message that evaporated before it was read */}
                             <span className="relative">
                                 <button
-                                    ref={toastHistoryBtnRef} data-popover-trigger
+                                    ref={toastHistoryBtnRef} {...popupTrigger(toastHistoryOpen, 'dialog')}
                                     onClick={() => setToastHistoryOpen(o => !o)}
                                     className="text-gray-400 hover:text-gray-600 px-1"
                                     title="Recent messages (this session)"

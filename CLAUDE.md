@@ -15,9 +15,11 @@ consumed), the ✕ / backdrop / outside-click dismissal, the keystroke + undo fe
 STRUCTURAL — the overlay self-registers in `overlayRegistry.js`. **Never hand-roll a scrim, an Esc
 listener, or a fence flag.** Remaining exception until they migrate: the imperative `showConfirmDialog`-
 style overlays (own capture-phase Esc, detected by `imperativeDialogsUp()`).
-**Popup buttons:** every button that opens a popup carries **`data-popover-trigger`** — then a click on it while
-ANY other popup is open switches in ONE click (instead of the usual "an outside click only closes"). Ron, 2026-10-07;
-replaced the earlier named sibling groups. A dev-server console warning flags an anchored popup whose button lacks it.
+**Popup buttons:** every button that opens a popup spreads **`{...popupTrigger(isOpen)}`** (optionally
+`popupTrigger(isOpen, 'listbox' | 'dialog')`) — one bundle carrying the `data-popover-trigger` marker (a click on it
+while ANY other popup is open switches in ONE click instead of the usual "an outside click only closes") plus the
+accessibility pair (aria-haspopup / aria-expanded). Never hand-write those attributes. Ron, 2026-10-07/08; a dev-server
+console warning flags an anchored popup whose button lacks it.
 
 (History: earned 2026-09-16 when the Share dialog shipped with only Cancel+backdrop. The old hand-run
 4-step checklist — register in `anyDialogOpen`, add to `handleModalEsc`, ✕, backdrop — was retired in
