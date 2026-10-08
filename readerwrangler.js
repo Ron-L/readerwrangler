@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.72";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.73";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -718,11 +718,12 @@
             }, []);
             return {
                 tip,
-                show: (el, bookId, clientX, clientY) => {
+                // extra (alpha.73): optional fields carried on the tip for the popup to read (e.g. { tray: true }).
+                show: (el, bookId, clientX, clientY, extra) => {
                     if (clickPopupUp()) return;
                     clearHide();
                     const r = el.getBoundingClientRect();
-                    pending.current = { bookId, x: r.left, y: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height, cursorX: clientX, cursorY: clientY };
+                    pending.current = { ...extra, bookId, x: r.left, y: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height, cursorX: clientX, cursorY: clientY };
                     clearShow();
                     showTimer.current = setTimeout(() => { if (pending.current) setTip(pending.current); }, delay);
                 },
@@ -12091,13 +12092,16 @@
                         // the selection to a list. They're not in moverGroups, so selecting one never organizes it.
                         const contextCover = (b, navList) => {
                             const sel = autoOrgSel.has(b.id);
+                            // alpha.73 (Ron: consistency) - the same shared hover popup as the main covers (was only a browser
+                            // tooltip); { tray } makes the popup add the tray's click hint as its last line.
+                            const showTip = (e) => previewTip.show(e.currentTarget, b.id, e.clientX, e.clientY, { tray: true });
                             return (
                             <div key={'ctx-' + b.id}
-                                title={`${sel ? '✓ On the list · ' : ''}${b.title || 'Untitled'}${b.series ? ` — ${b.series}${b.seriesPosition ? ' #' + b.seriesPosition : ''}` : ''} — click to add to a Book List (won't move)`}
                                 style={{ width: '38px', flex: '0 0 auto', position: 'relative', cursor: 'pointer', borderRadius: '4px', outline: sel ? '2px solid #4f46e5' : '2px solid transparent', outlineOffset: '1px' }}
                                 onClick={(e) => handlePreviewCoverClick(e, b)}
                                 onDoubleClick={(e) => { e.stopPropagation(); openBookModal(b, null, navList); }}
-                                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); const ids = autoOrgSel.size > 0 ? [...autoOrgSel] : [b.id]; previewTip.close(); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ids }); }}>
+                                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); const ids = autoOrgSel.size > 0 ? [...autoOrgSel] : [b.id]; previewTip.close(); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ids }); }}
+                                onMouseEnter={showTip} onMouseMove={showTip} onMouseLeave={previewTip.leave}>
                                 {b.coverUrl
                                     ? <img src={b.coverUrl} alt="" style={{ width: '38px', height: '57px', objectFit: 'cover', borderRadius: '3px' }} />
                                     : <div style={{ width: '38px', height: '57px', borderRadius: '3px', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', lineHeight: 1.1, textAlign: 'center', padding: '2px', overflow: 'hidden', color: '#6b7280' }}>{b.title || 'Untitled'}</div>}
@@ -12599,6 +12603,8 @@
                                         {lists.length > 0 && <div className={`text-gray-500 mb-0.5 ${flds.length > 0 ? 'mt-1' : ''}`}>On Book Lists:</div>}
                                         {lists.map(bl => <div key={bl.id} className="text-gray-700 truncate" title={bl.name}>📗 {bl.name}</div>)}
                                       </>}
+                                {/* alpha.73 - an "already here" tray cover: the old tooltip's click hint, read LIVE (a click toggles ✓) */}
+                                {previewTip.tip.tray && <div className="text-gray-400 mt-1 pt-1 border-t border-gray-200">{autoOrgSel.has(previewTip.tip.bookId) ? '✓ On the list · ' : ''}Click to add to a Book List (won't move)</div>}
                             </HoverPopup>
                         );
                     })()}
