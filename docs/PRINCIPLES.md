@@ -11,7 +11,7 @@ the rule, checklist item, memory file, or code pattern that makes it mechanical.
 enforcement is a wish.
 
 **The newest and most literal mechanism (2026-09-17): the pre-build gate.** A `PreToolUse` hook
-(`.claude/hooks/gate-check.py`) denies the *first* edit of `readerwrangler.js`/`mobile.js` each turn and
+(`.claude/hooks/gate-check.py`) denies the *first* edit of shipped code (any root `.js` + the relay worker) each turn and
 presents an 11-point checklist; a `Stop`/`SessionStart` hook re-arms it per turn. It exists because of a
 sharper form of the meta-principle, paid for the same week it was written: **invoking a rule's name is not
 running it.** A "new dialog checklist" added to CLAUDE.md was skipped the same session it was authored, and a
@@ -24,9 +24,11 @@ loose flags [Law 17]; (3) reinventing a React/DOM wheel?; (4) can the relationsh
 (6) less code, not cleverer?; (7) class of sites → run `/sitemap` (two pivots, publish the table before
 claiming coverage) [Law 5]; (8) grounded in the code, not a hazy memory? [Law 2]; (9) delivering less than
 asked → name + FILE the gap; (10) build-grade or explore-quality?; (11) did Ron approve *this* change? [Law
-1]. It is a trial (`.claude/settings.local.json`); the design of the *structural* version that would retire
-it — a self-registering `<Dialog>`/`<Popover>` layer registry — is in **DIALOG-DISMISSAL-AUDIT.md** (deferred
-to its own branch).
+1]. It is a trial (`.claude/settings.local.json`). The *structural* version for overlays — a self-registering
+`<Dialog>`/`<Popover>` layer registry (**DIALOG-DISMISSAL-AUDIT.md**) — **SHIPPED in 7.18.0** and retired the
+hand-run dialog checklist outright: nothing is left for a human to remember. (Gate gap found in the 7.18.0 PM:
+it watched only `readerwrangler.js`/`mobile.js`, so an edit to another shipped module skipped it — WIDENED the
+same day to a rule: any root `.js` + `relay/relay-worker.js`.)
 
 <!-- The block below is the SINGLE SOURCE for .claude/hooks/gate-check.py. The hook prints everything
 between the two checklist markers, verbatim, on the first app-source edit of a turn. Edit the checklist
@@ -329,6 +331,15 @@ the worked example; `project_714_release` memory.
 - References not copies for multi-membership; signals in the data (`userEdited`) beat out-of-band params;
   single source of truth for config (parallel label maps rot); sentinels beat booleans for "unset vs cleared."
 - Every `{entityId: value}` map needs a paired cleanup on entity delete.
+- **Order is not ownership.** A structure that INFERS a relationship from position (a stack where "above" means
+  "child", so removing a layer closes everything above it) breaks silently when a new kind of member joins. Let
+  the member state the relationship. 7.18.0-alpha.68→69: confirm boxes joined the overlay stack, a menu item
+  opened one above the still-open menu, and the menu's unmount cascade-closed it before it painted (no console
+  output). Fix: `detached` — an independent overlay is nobody's child. Test the new member's REAL lifecycle
+  (push-before-parent-unmount), not just the structure's rules.
+- **Policy as a pure function.** Rules that accumulate one at a time (7.18.0's seven outside-click rules) belong
+  in one pure, Node-tested decision function, not branches inside an event handler — each later rule change is
+  then a one-line, test-first edit (`overlayRegistry.outsideClickAction`).
 - React: never read a ref inside a state updater (the deferred-updater trap — cost two releases); hooks
   above conditionals (Babel can't catch #310); refs + direct DOM for 60fps work; global key handlers need
   escape hatches (input focus, modal open) — and there may be TWO of them.
@@ -338,6 +349,16 @@ the worked example; `project_714_release` memory.
   `--ff-only` fails loudly; **never force-push**.
 - Small independent branches; a git worktree when a second branch must not disturb the serving tree.
 - `git add` specific files only (the `-A` rule was earned three times); `git status` before the release commit.
+- **"Push to prod" always pushes dev too** (`git push prod main --tags` then `git push dev main --tags`; Ron,
+  2026-10-08) — keeps the two lineages matched (the 7.17.0 divergence cost a reconcile).
+- **Claims about a shipped version are checked against its tag** — `git show vX.Y.Z:file` — not memory and not a
+  revert. 7.18.0's CHANGELOG "stacked windows no longer darken twice" was proven in two greps of `v7.17.1`.
+- **A syntax check can't see an undefined name.** 7.18.0-alpha.55 crashed on `shareBtnRef is not defined` (a
+  line break swallowed by an edit joined the declaration into a comment; it parsed fine). Enforcement:
+  `scripts/check-names.js` in the pre-commit hook — Babel scope analysis refuses any name nothing defines.
+- **A pre-build-gate bounce hidden in a parallel batch ships a half-fix** (7.18.0-alpha.62: the CSS rule landed,
+  the class it targets didn't). Discipline for now (`feedback_gate_bounce_batches`: first app edit ALONE; grep
+  every intended change before committing) — a mechanism is still owed (Principle-to-hook audit TODO).
 - Big-bang refactors leak features for weeks (v5.0.0: 175 alphas, then 8 hotfixes in 48 hours) — the
   **feature-parity checklist** it needed was recommended four times and never built; build one next time.
 

@@ -89,15 +89,16 @@ particulars:
 | User says | Do |
 |-----------|-----|
 | "push" or "proceed" | Ask: navigator changes or ready to share? |
-| "push to prod" | Squash-merge to main, tag `vX.Y.Z`, then `git push prod main --tags` (keep the branch) |
+| "push to prod" | Squash-merge to main, tag `vX.Y.Z`, then `git push prod main --tags` **and** `git push dev main --tags` — prod always means dev too, don't ask (Ron 2026-10-08) (keep the branch) |
 | "release" | Clarify which |
 
 ---
 
 ## RW session tooling (`.claude/`, local, gitignored)
 
-- **Pre-build gate** — a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the first edit of
-  `readerwrangler.js`/`mobile.js` each turn with a checklist (mechanism, not memory). Consider it, then
+- **Pre-build gate** — a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the first edit of shipped
+  code each turn — **any `.js` at the repo root, plus `relay/relay-worker.js`** (a rule, so new modules are covered;
+  widened 2026-10-08 from just readerwrangler.js/mobile.js) — with a checklist (mechanism, not memory). Consider it, then
   re-issue the edit. `Stop`/`SessionStart` re-arm it per turn. The checklist is the **single source** in
   `docs/PRINCIPLES.md` (the `GATE-CHECKLIST` block); the hook just pulls + prints it and **fails LOUD** if
   it can't reach it. Full local tooling + the pattern: **`docs/design/SESSION-TOOLING.md`**.

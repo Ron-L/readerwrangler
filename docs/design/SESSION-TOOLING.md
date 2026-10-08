@@ -18,8 +18,8 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
 
 ## RW's local hooks (`.claude/hooks/`, gitignored; wired in `.claude/settings.local.json`)
 
-- **`gate-check.py`** (PreToolUse) — the **pre-build gate**. On the first `readerwrangler.js`/`mobile.js`
-  edit each turn it prints the checklist and denies once; re-issuing the identical edit proceeds. The
+- **`gate-check.py`** (PreToolUse) — the **pre-build gate**. On the first edit of shipped code (any `.js` at the
+  repo root + `relay/relay-worker.js` — `is_app_source()`, a rule not a list; widened 2026-10-08) each turn it prints the checklist and denies once; re-issuing the identical edit proceeds. The
   checklist is **not** in the hook — it's pulled from the `GATE-CHECKLIST` block in `docs/PRINCIPLES.md`
   (single source). Unreadable → loud `CHECKLIST SOURCE MISSING` alarm + a minimal core.
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by

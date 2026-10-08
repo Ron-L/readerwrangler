@@ -271,6 +271,9 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   `docs/design/*` write — the content is judgment but the visibility is enforced, and it fires at DESIGN time
   (where this assumption slipped), not just edit time. Guard against reminder-bloat (the gate is already 11
   points; more dilutes). Meta-principle recursion: prefer converting a law to a check over adding another tap.
+  **From the 7.18.0 PM (2026-10-08):** ~~(1) gate watched only readerwrangler.js/mobile.js~~ DONE same day — widened
+  to a rule (any root `.js` + relay worker). (2) STILL OPEN: a gate bounce inside a parallel batch silently drops
+  that one edit (alpha.62 half-fix) — no obvious mechanism yet (a hook can't know which edits were intended); design.
 
 - [ ] **Tag-from-Collections wizard: right-pane vs checkbox confusion (UNSETTLED — 2026-09-22)**. The
   left-pane row has TWO hit-targets doing different things with no cue: the **checkbox** = "include in Apply";
