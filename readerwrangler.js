@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0-alpha.70";  // Build version for this file
+        const ORGANIZER_VERSION = "7.18.0-alpha.71";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -628,7 +628,7 @@
         // anchorAlign (alpha.44): 'start' (default) = left edges aligned; 'end' = RIGHT edges aligned (a dropdown
         // whose trigger sits at the right of its header, e.g. the FOLDERS sort menu) — each falls back to the other
         // when it would leave the viewport.
-        function CursorPopup({ open, x, y, anchorRect, anchorAlign = 'start', className, style, role, ariaLabel, onClick, onContextMenu, onMouseDown, children, margin = 8, innerRef }) {
+        function CursorPopup({ open, x, y, anchorRect, anchorAlign = 'start', className, style, role, ariaLabel, onClick, onContextMenu, onMouseDown, onMouseEnter, onMouseLeave, children, margin = 8, innerRef }) {
             const ref = useRef(null);
             // v7.18.0 - optional innerRef: the <Popover> primitive needs the positioned node to decide
             // outside-clicks (ref.contains). Mirror the measuring ref onto it via one callback ref.
@@ -682,7 +682,89 @@
             return (
                 <div ref={setRefs} className={`fixed rw-popup ${className || ''}`} role={role} aria-label={ariaLabel}
                     onClick={onClick} onContextMenu={onContextMenu} onMouseDown={onMouseDown}
+                    onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
                     style={{ position: 'fixed', left: coords.left, top: coords.top, width: 'max-content', minWidth: 160, ...style }}>
+                    {children}
+                </div>
+            );
+        }
+
+        // v7.18.0-alpha.71 - THE hover popup ("where this book lives" on a cover): ONE behavior for the right pane and the
+        // Auto-Organize Preview, which had two unrelated copies (the Preview's ignored the mouse, so it vanished as you
+        // moved onto it — Ron 2026-09-30). useHoverTip owns the timing; <HoverPopup> owns the box.
+        //   rest delay — it pops only after the mouse SETTLES on a cover (~280ms); every move restarts the wait, so
+        //                sweeping across covers never flickers popups. (Cover handlers call show() on enter AND move.)
+        //   grace      — leaving the cover waits 150ms before hiding, long enough to cross onto the popup;
+        //   stays      — while the mouse is on the popup it stays (hold); leaving the popup hides it at once.
+        // Deliberately NOT an overlay-stack layer (Ron + UX, alpha.71): you never "opened" it, so Esc must not spend a
+        // press on it — Esc goes straight to the window/menu beneath, and the popup goes with that.
+        // tip = null | { bookId, x, y, right, bottom, width, height, cursorX, cursorY } (the cover's box + the cursor).
+        function useHoverTip({ delay = 280, grace = 150 } = {}) {
+            const [tip, setTip] = useState(null);
+            const showTimer = useRef(null);
+            const hideTimer = useRef(null);
+            const pending = useRef(null);
+            const clearShow = () => { if (showTimer.current) { clearTimeout(showTimer.current); showTimer.current = null; } };
+            const clearHide = () => { if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; } };
+            useEffect(() => () => { clearShow(); clearHide(); }, []);
+            return {
+                tip,
+                show: (el, bookId, clientX, clientY) => {
+                    clearHide();
+                    const r = el.getBoundingClientRect();
+                    pending.current = { bookId, x: r.left, y: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height, cursorX: clientX, cursorY: clientY };
+                    clearShow();
+                    showTimer.current = setTimeout(() => { if (pending.current) setTip(pending.current); }, delay);
+                },
+                leave: () => { pending.current = null; clearShow(); clearHide(); hideTimer.current = setTimeout(() => setTip(null), grace); },
+                hold: clearHide,
+                // close: hide NOW and cancel anything pending (a right-click menu / click elsewhere took over)
+                close: () => { pending.current = null; clearShow(); clearHide(); setTip(null); },
+            };
+        }
+
+        // The hover popup's box. placement:
+        //   'beside' — to the right of the cover, top-aligned (flips left at the screen edge). The Preview: its covers
+        //              are small and dense, and the clickable source label sits UNDER each cover — keep that clear.
+        //   'cursor' — (v6.13.2) grows AWAY from where you entered the cover: the cursor (held ≤90% from the cover's
+        //              center, so ~10% overlap bridges cover→popup) is the popup's inner corner. Flips a side that lacks
+        //              room. alpha.71: the room check uses the popup's MEASURED height (was a guess from its line count).
+        function HoverPopup({ hover, placement, className, style, children }) {
+            const t = hover.tip;
+            const ref = useRef(null);
+            const [measuredH, setMeasuredH] = useState(0);
+            useLayoutEffect(() => {
+                if (placement !== 'cursor' || !ref.current) return;
+                const h = ref.current.getBoundingClientRect().height;
+                setMeasuredH(cur => cur === h ? cur : h);
+            });
+            if (!t) return null;
+            if (placement === 'beside') {
+                return (
+                    <CursorPopup open={true} x={t.right + 8} y={t.y} className={className} style={style}
+                        onMouseEnter={hover.hold} onMouseLeave={hover.close}>
+                        {children}
+                    </CursorPopup>
+                );
+            }
+            const vw = window.innerWidth, vh = window.innerHeight;
+            const cw = t.width ?? 120, ch = t.height ?? 160;
+            const mx = t.x + cw / 2, my = t.y + ch / 2;
+            const cx = Math.max(mx - 0.45 * cw, Math.min(t.cursorX ?? mx, mx + 0.45 * cw)); // ≤90% from center
+            const cy = Math.max(my - 0.45 * ch, Math.min(t.cursorY ?? my, my + 0.45 * ch));
+            let vUp = cy < my;   // cursor above center → extend up (popup bottom edge at the cursor)
+            let hLeft = cx < mx; // cursor left of center → extend left (popup right edge at the cursor)
+            if (vUp && cy < measuredH + 8) vUp = false; else if (!vUp && (vh - cy) < measuredH + 8) vUp = true;
+            if (hLeft && cx < 140) hLeft = false; else if (!hLeft && (vw - cx) < 140) hLeft = true;
+            const maxW = Math.max(140, Math.min(300, hLeft ? (cx - 8) : (vw - cx - 8)));
+            return (
+                <div ref={ref} className={`fixed ${className || ''}`}
+                    onMouseEnter={hover.hold} onMouseLeave={hover.close}
+                    style={{
+                        ...(hLeft ? { right: `${Math.max(8, vw - cx)}px` } : { left: `${Math.max(8, cx)}px` }),
+                        ...(vUp ? { bottom: `${Math.max(8, vh - cy)}px` } : { top: `${Math.max(8, cy)}px` }),
+                        maxWidth: `${maxW}px`, maxHeight: '70vh', overflowY: 'auto', ...style
+                    }}>
                     {children}
                 </div>
             );
@@ -1139,7 +1221,7 @@
             const [autoOrgExcludedMembers, setAutoOrgExcludedMembers] = useState(new Set()); // v6.17.0 (B) - consolidate: deselected "folderId::bookId" copies (default all-in) for a multi-folder book
             const [autoOrgAnchor, setAutoOrgAnchor] = useState(null);  // v6.16.0 - shift-range pivot (last plain/ctrl-clicked cover) in the preview
             const [autoOrgMenu, setAutoOrgMenu] = useState(null);       // v6.13.0-alpha.9 (D2) - preview cover right-click menu: { x, y, bookIds } or null
-            const [autoOrgHover, setAutoOrgHover] = useState(null);     // v6.13.0-alpha.9 (D2) - preview cover hover "In" popup: { bookId, x, y } or null
+            const previewTip = useHoverTip();     // v6.13.0-alpha.9 (D2) - preview cover hover "In" popup; alpha.71 - the shared hover popup (was autoOrgHover)
             const [autoOrgSrcPopup, setAutoOrgSrcPopup] = useState(null); // v7.9.0-alpha.2 (UNIFIED §3) - origin popup: { bookId, x, y } — per-source moves/stays checkboxes
             const [autoOrgFileUnder, setAutoOrgFileUnder] = useState(null); // v7.9.0-alpha.8 (UNIFIED §9) - File-under folder picker: { bookIds, filter } — combobox, creation always explicit
             const [autoOrgOptionsOpen, setAutoOrgOptionsOpen] = useState(false); // v6.16.0 (Stage 2) - collapsible By-Series Options strip in the preview
@@ -1427,7 +1509,7 @@
             const [isResizingPane, setIsResizingPane] = useState(false); // v5.0.0-alpha.91 - Pane resize in progress
             const [navHistory, setNavHistory] = useState(['__all__']); // v5.0.0-alpha.92 - Navigation history stack
             const [navHistoryIndex, setNavHistoryIndex] = useState(0); // v5.0.0-alpha.92 - Current position in history
-            const [bookTooltip, setBookTooltip] = useState(null); // v5.0.0-alpha.98 - Tooltip for All Books view { bookId, x, y }
+            const coverTip = useHoverTip(); // v5.0.0-alpha.98 - "Found in" popup on a right-pane cover; alpha.71 - the shared hover popup (was bookTooltip)
             const [folderContextMenu, setFolderContextMenu] = useState(null); // v5.0.0-alpha.133 - Folder context menu { folderId, x, y }
             const [submenuExpandedFolders, setSubmenuExpandedFolders] = useState(new Set()); // v5.0.0-alpha.138 - Expanded folders in Move to submenu
             const [submenuFilter, setSubmenuFilter] = useState(''); // v6.17.0 - filter/search box in Move to / Copy to / Add to Book List submenus
@@ -3663,32 +3745,15 @@
                 return true;
             };
 
-            // v5.0.0-alpha.132 - Tooltip hide delay (prevents tooltip from disappearing when moving cursor to it)
-            const tooltipHideTimeoutRef = useRef(null);
-            // v6.13.2-alpha.5 - "In" popup hover-intent + cursor tracking. Only pop after the cursor SETTLES on a cover
-            // (~280ms of stillness); remember the cursor position (used as the popup's inner corner). Movement resets
-            // the timer, so scanning across covers never flickers a popup. Shared by both cover-render paths.
-            const coverTipTimerRef = useRef(null);
-            const coverTipPendingRef = useRef(null);
-            const showCoverTipSoon = (el, bookId, clientX, clientY) => {
-                if (tooltipHideTimeoutRef.current) { clearTimeout(tooltipHideTimeoutRef.current); tooltipHideTimeoutRef.current = null; }
-                const rect = el.getBoundingClientRect();
-                coverTipPendingRef.current = { bookId, x: rect.left, y: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height, cursorX: clientX, cursorY: clientY };
-                if (coverTipTimerRef.current) clearTimeout(coverTipTimerRef.current);
-                coverTipTimerRef.current = setTimeout(() => { if (coverTipPendingRef.current) setBookTooltip(coverTipPendingRef.current); }, 280);
-            };
+            // v6.13.2-alpha.5 - "In" popup hover-intent + cursor tracking — alpha.71: the timing now lives in the shared
+            // useHoverTip (coverTip); these two handlers are the right pane's cover wiring, used by both cover-render paths.
             // v6.13.2-alpha.6 - The "In" popup shows in cover view for every content view (All Books, Inbox, Library,
             // any folder, any Book List) — everywhere except the Views/Searches list. "See where a book lives."
             // v7.10.1-alpha.7 (Ron) - Trash included: a trashed book shows its FORMER homes ("Was in:"),
             // exactly the question you ask before restoring.
             const bookTipViewOk = (fid) => fid !== '__views__';
-            const handleCoverTip = (e, bookId) => { if (bookTipViewOk(selectedFolderId)) showCoverTipSoon(e.currentTarget, bookId, e.clientX, e.clientY); };
-            const handleCoverTipLeave = () => {
-                coverTipPendingRef.current = null;
-                if (coverTipTimerRef.current) { clearTimeout(coverTipTimerRef.current); coverTipTimerRef.current = null; }
-                if (tooltipHideTimeoutRef.current) clearTimeout(tooltipHideTimeoutRef.current);
-                tooltipHideTimeoutRef.current = setTimeout(() => setBookTooltip(null), 150);
-            };
+            const handleCoverTip = (e, bookId) => { if (bookTipViewOk(selectedFolderId)) coverTip.show(e.currentTarget, bookId, e.clientX, e.clientY); };
+            const handleCoverTipLeave = coverTip.leave;
 
             // Status bar state (v3.9.0 - Load-state-only, 4 states)
             const [libraryStatus, setLibraryStatus] = useState({
@@ -4420,14 +4485,7 @@
 
 
 
-            // v5.0.0-alpha.132 - Cleanup tooltip timeout on unmount
-            useEffect(() => {
-                return () => {
-                    if (tooltipHideTimeoutRef.current) {
-                        clearTimeout(tooltipHideTimeoutRef.current);
-                    }
-                };
-            }, []);
+            // (v5.0.0-alpha.132's tooltip-timer cleanup on unmount now lives in useHoverTip — alpha.71)
 
             // Auto-save organization — THE single folder/organization store (F1 consolidation)
             // v7.7.0-alpha.1 - Explicit load-complete gate replaces the old books.length proxy: a
@@ -8733,7 +8791,7 @@
                         defaultExcluded.add(`${f.id}::${b.id}`);
                     });
                 }));
-                setAutoOrgSel(new Set(initialIds)); setAutoOrgExcludedMembers(defaultExcluded); setAutoOrgAnchor(null); setAutoOrgMenu(null); setAutoOrgHover(null);
+                setAutoOrgSel(new Set(initialIds)); setAutoOrgExcludedMembers(defaultExcluded); setAutoOrgAnchor(null); setAutoOrgMenu(null); previewTip.close();
                 setAutoOrgPreview({ mode, authorGroups, opts: scopedOpts, label, dryPlan, sourceName, sourceFolderId: '__all__', alreadyFiled, isConsolidate: true, scopeAuthorNames: authorNames, narrowSourceId: srcId });
                 return true;
             };
@@ -8769,7 +8827,7 @@
                 { createSeriesFolders: true, seriesFolderMinBooks: wizardSeriesFolderMin, createMiscellaneous: wizardCreateMiscellaneous, sortByPosition: wizardSortByPosition },
                 (ags) => ags.length === 1 ? `Auto-Organized ${ags[0].displayName} by series` : `Auto-Organized ${ags.length} authors by series`);
 
-            const closeAutoOrgPreview = () => { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgExcludedMembers(new Set()); setAutoOrgAnchor(null); setAutoOrgMenu(null); setAutoOrgHover(null); setAutoOrgSrcPopup(null); setAutoOrgFileUnder(null); };
+            const closeAutoOrgPreview = () => { setAutoOrgPreview(null); setAutoOrgSel(new Set()); setAutoOrgExcludedMembers(new Set()); setAutoOrgAnchor(null); setAutoOrgMenu(null); previewTip.close(); setAutoOrgSrcPopup(null); setAutoOrgFileUnder(null); };
             // v7.14.3 - single closer for Relay Setup: X / backdrop / Done reset sub-state too, so
             // closing from manual-entry mode no longer leaves it stuck for the next open.
             const closeRelaySetup = () => { setRelaySetupOpen(false); setRelaySetupSection(null); setRelayManualCreds(false); setRelayHelpOpen(false); };
@@ -11986,11 +12044,12 @@
                                     e.preventDefault(); e.stopPropagation();
                                     // Add-to-Book-List reads the current selection (don't disturb it); fall back to this cover if empty.
                                     const ids = autoOrgSel.size > 0 ? [...autoOrgSel] : [b.id];
-                                    setAutoOrgHover(null);
+                                    previewTip.close();
                                     setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ids });
                                 }}
-                                onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setAutoOrgHover({ bookId: b.id, x: r.right + 8, y: r.top }); }}
-                                onMouseLeave={() => setAutoOrgHover(cur => (cur && cur.bookId === b.id) ? null : cur)}>
+                                onMouseEnter={(e) => previewTip.show(e.currentTarget, b.id, e.clientX, e.clientY)}
+                                onMouseMove={(e) => previewTip.show(e.currentTarget, b.id, e.clientX, e.clientY)}
+                                onMouseLeave={previewTip.leave}>
                                 {b.coverUrl
                                     ? <img src={b.coverUrl} alt="" style={{ width: '46px', height: '69px', objectFit: 'cover', borderRadius: '3px', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
                                     : <div style={{ width: '46px', height: '69px', borderRadius: '3px', background: 'var(--bg-hover, #e5e7eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', lineHeight: 1.1, textAlign: 'center', padding: '3px', overflow: 'hidden', color: 'var(--text-secondary, #6b7280)' }}>{b.title || 'Untitled'}</div>}
@@ -12029,7 +12088,7 @@
                                 style={{ width: '38px', flex: '0 0 auto', position: 'relative', cursor: 'pointer', borderRadius: '4px', outline: sel ? '2px solid #4f46e5' : '2px solid transparent', outlineOffset: '1px' }}
                                 onClick={(e) => handlePreviewCoverClick(e, b)}
                                 onDoubleClick={(e) => { e.stopPropagation(); openBookModal(b, null, navList); }}
-                                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); const ids = autoOrgSel.size > 0 ? [...autoOrgSel] : [b.id]; setAutoOrgHover(null); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ids }); }}>
+                                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); const ids = autoOrgSel.size > 0 ? [...autoOrgSel] : [b.id]; previewTip.close(); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ids }); }}>
                                 {b.coverUrl
                                     ? <img src={b.coverUrl} alt="" style={{ width: '38px', height: '57px', objectFit: 'cover', borderRadius: '3px' }} />
                                     : <div style={{ width: '38px', height: '57px', borderRadius: '3px', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', lineHeight: 1.1, textAlign: 'center', padding: '2px', overflow: 'hidden', color: '#6b7280' }}>{b.title || 'Untitled'}</div>}
@@ -12096,7 +12155,7 @@
                                 ? `Already where it belongs — in ${srcs.map(f => f.id === '__inbox__' ? 'Inbox' : f.name).join(', ')}. Organizing won't move it.`
                                 : `In: ${srcs.map(f => f.id === '__inbox__' ? 'Inbox' : f.name).join(', ')}${stays.length > 0 ? ` — stays in ${stays.map(f => f.name).join(', ')}` : ''}. Click to choose which copies move when organized.`;
                             return (
-                                <div onClick={(e) => { e.stopPropagation(); setAutoOrgHover(null); setAutoOrgSrcPopup({ bookId: b.id, x: e.clientX, y: e.clientY }); }}
+                                <div onClick={(e) => { e.stopPropagation(); previewTip.close(); setAutoOrgSrcPopup({ bookId: b.id, x: e.clientX, y: e.clientY }); }}
                                     title={tip}
                                     style={{ fontSize: '9px', color: !isMover ? '#16a34a' : stays.length > 0 ? '#b45309' : '#64748b', textAlign: 'center', marginTop: '2px', width: `${width}px`, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'underline dotted' }}>
                                     {capText}
@@ -12297,7 +12356,7 @@
                                                     <div key={ag.displayName} className="mb-4">
                                                         {/* v7.9.0-alpha.3 (UNIFIED §9) - right-click the group header = act on the whole group */}
                                                         <div className="font-semibold text-gray-900 flex items-center gap-2"
-                                                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setAutoOrgHover(null); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ag.books.map(b => b.id) }); }}
+                                                            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); previewTip.close(); setAutoOrgMenu({ x: e.clientX, y: e.clientY, bookIds: ag.books.map(b => b.id) }); }}
                                                             title="Right-click: add this group to a Book List or file it under a different folder">
                                                             {multiAuthor && triCheck(ag.books.map(b => b.id))}
                                                             📁 {ag.displayName}
@@ -12509,22 +12568,25 @@
                     )}
 
                     {/* v6.13.0-alpha.9 (D2) - Preview cover hover: where this book already lives (folders + Book Lists) */}
-                    {autoOrgHover && !autoOrgMenu && (() => {
-                        const flds = getFoldersContainingBook(autoOrgHover.bookId).filter(f => f.id !== '__inbox__' && f.id !== '__all__' && f.id !== '__library__');
-                        const lists = getBookListsContainingBook(autoOrgHover.bookId);
+                    {/* alpha.71 - the shared <HoverPopup> ('beside': keeps the clickable label under each cover clear). It now
+                        STAYS while the mouse is on it (was pointer-events:none → vanished as you moved toward it); names stay
+                        plain text (Ron + UX: hover = look; the label under the cover = act). Long lists scroll. */}
+                    {previewTip.tip && !autoOrgMenu && (() => {
+                        const flds = getFoldersContainingBook(previewTip.tip.bookId).filter(f => f.id !== '__inbox__' && f.id !== '__all__' && f.id !== '__library__');
+                        const lists = getBookListsContainingBook(previewTip.tip.bookId);
                         return (
-                            <CursorPopup open={true} x={autoOrgHover.x} y={autoOrgHover.y}
+                            <HoverPopup hover={previewTip} placement="beside"
                                 className="bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-xs z-[76]"
-                                style={{ maxWidth: '260px', pointerEvents: 'none' }}>
+                                style={{ maxWidth: '260px', maxHeight: '60vh', overflowY: 'auto' }}>
                                 {(flds.length === 0 && lists.length === 0)
                                     ? <div className="text-gray-400 italic">Only in Inbox — not filed or listed yet</div>
                                     : <>
                                         {flds.length > 0 && <div className="text-gray-500 mb-0.5">In folders:</div>}
-                                        {flds.map(f => <div key={f.id} className="text-gray-700 truncate">📁 {f.name}</div>)}
+                                        {flds.map(f => <div key={f.id} className="text-gray-700 truncate" title={f.name}>📁 {f.name}</div>)}
                                         {lists.length > 0 && <div className={`text-gray-500 mb-0.5 ${flds.length > 0 ? 'mt-1' : ''}`}>On Book Lists:</div>}
-                                        {lists.map(bl => <div key={bl.id} className="text-gray-700 truncate">📗 {bl.name}</div>)}
+                                        {lists.map(bl => <div key={bl.id} className="text-gray-700 truncate" title={bl.name}>📗 {bl.name}</div>)}
                                       </>}
-                            </CursorPopup>
+                            </HoverPopup>
                         );
                     })()}
 
@@ -16730,7 +16792,7 @@
                                                                     setExplorerSelectedItems(new Set([book.id]));
                                                                     setExplorerSelectionAnchor(index);
                                                                 }
-                                                                setBookTooltip(null);
+                                                                coverTip.close();
                                                                 setExplorerBookContextMenu({
                                                                     x: e.clientX,
                                                                     y: e.clientY
@@ -17353,7 +17415,7 @@
                                                                 setExplorerSelectedItems(new Set([book.id]));
                                                                 setExplorerSelectionAnchor(explorerVisibleFolders.length + index);
                                                             }
-                                                            setBookTooltip(null);
+                                                            coverTip.close();
                                                             setExplorerBookContextMenu({
                                                                 x: e.clientX,
                                                                 y: e.clientY
@@ -17806,73 +17868,23 @@
                             className="w-6 h-6 flex items-center justify-center rounded bg-white/90 border border-gray-300 shadow-sm text-gray-500 hover:bg-gray-100 hover:text-gray-800 text-sm leading-none">⤓</button>
                     </div>
 
-                    {bookTooltip && bookTipViewOk(selectedFolderId) && (() => {
-                        const containingFolders = getFoldersContainingBook(bookTooltip.bookId);
-                        const containingLists = getBookListsContainingBook(bookTooltip.bookId); // v6.12.0-alpha.56 (A)
+                    {coverTip.tip && bookTipViewOk(selectedFolderId) && (() => {
+                        const containingFolders = getFoldersContainingBook(coverTip.tip.bookId);
+                        const containingLists = getBookListsContainingBook(coverTip.tip.bookId); // v6.12.0-alpha.56 (A)
                         // v7.10.1-alpha.7 (Ron) - trashed book: former homes from deletedFromFolderIds
-                        const tipBook = books.find(b => b.id === bookTooltip.bookId);
+                        const tipBook = books.find(b => b.id === coverTip.tip.bookId);
                         const formerHomes = (tipBook?.isDeleted)
                             ? (tipBook.deletedFromFolderIds || []).map(normFolderMembership)
                                 .map(m => folders.find(f => f.id === m.folderId)).filter(Boolean)
                             : [];
                         if (containingFolders.length === 0 && containingLists.length === 0 && formerHomes.length === 0) return null;
 
-                        // v6.13.2-alpha.3 - Cursor-aware placement: the popup extends AWAY from where you entered the
-                        // cover — up if you came in high, down if low — overlapping the cover by only ~10% (enough to
-                        // bridge cover→popup for reachability, without burying the cover). Re-enter from the other half
-                        // to flip sides. Clamped to the viewport, with room-checks so it never runs off an edge.
-                        const PW = 300;
-                        const estH = 20
-                            + (containingFolders.length > 0 ? 24 + containingFolders.length * 26 : 0)
-                            + (formerHomes.length > 0 ? 24 + formerHomes.length * 26 : 0) // v7.10.1-alpha.7
-                            + (containingLists.length > 0 ? 28 + containingLists.length * 26 : 0);
-                        const vw = (typeof window !== 'undefined' ? window.innerWidth : 1200);
-                        const vh = (typeof window !== 'undefined' ? window.innerHeight : 800);
-                        // v6.13.2-alpha.5 - Cursor = the popup's INNER corner (the one nearest the cover center); the
-                        // popup fills the quadrant AWAY from center. NW cursor → popup up-left, its SE corner at the
-                        // cursor. Cursor is clamped to ≤90% from center so there's always ≥10% overlap, and it sits on
-                        // the cover IMAGE (where you hover) not the title below. Room-checks flip a side that would overrun.
-                        const cw = bookTooltip.width ?? 120;
-                        const ch = bookTooltip.height ?? 160;
-                        const mx = bookTooltip.x + cw / 2;
-                        const my = bookTooltip.y + ch / 2;
-                        const cx = Math.max(mx - 0.45 * cw, Math.min(bookTooltip.cursorX ?? mx, mx + 0.45 * cw)); // ≤90% from center
-                        const cy = Math.max(my - 0.45 * ch, Math.min(bookTooltip.cursorY ?? my, my + 0.45 * ch));
-                        let vUp = cy < my;   // cursor above center → extend up (popup bottom edge at the cursor)
-                        let hLeft = cx < mx; // cursor left of center → extend left (popup right edge at the cursor)
-                        if (vUp && cy < estH + 8) vUp = false; else if (!vUp && (vh - cy) < estH + 8) vUp = true;
-                        if (hLeft && cx < 140) hLeft = false; else if (!hLeft && (vw - cx) < 140) hLeft = true;
-                        const maxW = Math.max(140, Math.min(PW, hLeft ? (cx - 8) : (vw - cx - 8)));
-
+                        // v6.13.2-alpha.3/5 - Cursor-aware placement (grows AWAY from where you entered the cover, ~10%
+                        // overlap bridges cover→popup) — alpha.71: now the shared <HoverPopup placement="cursor">, which
+                        // measures the popup instead of guessing its height from the line count.
                         return (
-                            <div
-                                className="fixed bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-sm z-50"
-                                style={{
-                                    ...(hLeft
-                                        ? { right: `${Math.max(8, vw - cx)}px` }
-                                        : { left: `${Math.max(8, cx)}px` }),
-                                    ...(vUp
-                                        ? { bottom: `${Math.max(8, vh - cy)}px` }
-                                        : { top: `${Math.max(8, cy)}px` }),
-                                    maxWidth: `${maxW}px`,
-                                    maxHeight: '70vh',
-                                    overflowY: 'auto'
-                                }}
-                                onMouseEnter={() => {
-                                    // v5.0.0-alpha.132 - Cancel hide timeout when cursor enters tooltip
-                                    if (tooltipHideTimeoutRef.current) {
-                                        clearTimeout(tooltipHideTimeoutRef.current);
-                                        tooltipHideTimeoutRef.current = null;
-                                    }
-                                }}
-                                onMouseLeave={() => {
-                                    // v5.0.0-alpha.132 - Hide immediately when leaving tooltip
-                                    if (tooltipHideTimeoutRef.current) {
-                                        clearTimeout(tooltipHideTimeoutRef.current);
-                                        tooltipHideTimeoutRef.current = null;
-                                    }
-                                    setBookTooltip(null);
-                                }}>
+                            <HoverPopup hover={coverTip} placement="cursor"
+                                className="bg-white border border-gray-300 shadow-lg rounded px-3 py-2 text-sm z-50">
                                 {/* v7.10.1-alpha.7 (Ron) - trashed book: where it lived before Trash (plain text —
                                     navigating there wouldn't show the book, so no links) */}
                                 {formerHomes.length > 0 && (<>
@@ -17893,7 +17905,7 @@
                                             key={folder.id}
                                             onClick={() => {
                                                 navigateToFolder(folder.id);
-                                                setBookTooltip(null);
+                                                coverTip.close();
                                             }}
                                             className="text-left text-blue-600 hover:text-blue-800 hover:underline">
                                             {folder.id === '__trash__' ? '🗑️ ' : folder.id === '__inbox__' ? '📥 ' : '📁 '}{folder.name}
@@ -17910,7 +17922,7 @@
                                             key={bl.id}
                                             onClick={() => {
                                                 navigateToFolder(`__booklist_${bl.id}__`);
-                                                setBookTooltip(null);
+                                                coverTip.close();
                                             }}
                                             className="text-left text-blue-600 hover:text-blue-800 hover:underline">
                                             📗 {bl.name}
@@ -17918,7 +17930,7 @@
                                     ))}
                                 </div>
                                 </>)}
-                            </div>
+                            </HoverPopup>
                         );
                     })()}
 

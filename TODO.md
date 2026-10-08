@@ -196,7 +196,9 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   add a "no hard-coded light backgrounds in JSX" check to scripts/check-names.js's sibling tooling so new ones get
   flagged at commit time.
 
-- [ ] **AO / Preview / hover tooltip disappears when you move onto it (Ron 2026-09-30, UX polish)** — FOLDED INTO
+- [x] **DONE 7.18.0-alpha.71** — one shared hover popup (`useHoverTip` + `<HoverPopup>`) for the right pane + the
+  Preview; the Preview's now stays, waits for the mouse to rest, keeps plain-text names, sits beside the cover.
+  **AO / Preview / hover tooltip disappears when you move onto it (Ron 2026-09-30, UX polish)** — FOLDED INTO
   the overlay branch's `bookTooltip` step (Ron 2026-10-06): build ONE shared hover popup for the right pane + Preview.
   WHAT YOU SEE: open Auto-Organize → **Preview**, hover a book cover — a little popup appears listing where that
   book already lives (its folders / Book Lists). If you move the mouse toward that popup to read it, it **vanishes**.
