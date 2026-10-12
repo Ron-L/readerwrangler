@@ -102,7 +102,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0-alpha.6";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0-alpha.7";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -13984,11 +13984,22 @@
                                                         </div>
                                                     );
                                                 })()}
-                                                {/* v7.19.0-alpha.6 (Ron + UX) - say it where you look: a kept book gone from your Amazon library
-                                                    explains itself in its own details (why it won't open in Kindle, months later). */}
-                                                {!isEditingBook && amazonRemovalState(modalBook) === 'kept' && (
-                                                    <div className="text-sm text-amber-700">🧹 No longer in your Amazon library — kept</div>
-                                                )}
+                                                {/* v7.19.0-alpha.6/7 (Ron + UX) - say it where you look: a book gone from your Amazon library
+                                                    explains itself in its own details (why it won't open in Kindle, months later). alpha.7: all
+                                                    three states — kept, in your Trash, or "review" (a link that opens the review window on it). */}
+                                                {!isEditingBook && (() => {
+                                                    const st = amazonRemovalState(modalBook);
+                                                    if (st === 'none') return null;
+                                                    return (
+                                                        <div className="text-sm text-amber-700">
+                                                            🧹 No longer in your Amazon library — {st === 'kept' ? 'kept' : st === 'trashed' ? 'in your Trash' : (
+                                                                <button type="button" className="underline hover:text-amber-900"
+                                                                    title="Keep it or remove it (File → Removed books…)"
+                                                                    onClick={() => { setRemovedSel(new Set([modalBook.id])); setRemovedBooksOpen(true); }}>review</button>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                                 {modalBook.acquired && (
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-semibold text-gray-700">Acquired:</span>
