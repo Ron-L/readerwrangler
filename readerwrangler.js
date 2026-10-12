@@ -26,7 +26,13 @@
             // double-dim flash (the reason we don't need a separate global "already dimmed" flag).
             useLayoutEffect(() => {
                 const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef, fence,
-                    selectAll: () => { if (!selectAllRef.current) return false; selectAllRef.current(); return true; } });
+                    // selectAll is a function (one checklist) or { key: fn } (several — the area's data-select-items names which)
+                    selectAll: (key) => {
+                        const sa = selectAllRef.current;
+                        const fn = typeof sa === 'function' ? sa : (sa && sa[key]);
+                        if (!fn) return false;
+                        fn(); return true;
+                    } });
                 if (idRef) idRef.current = id;
                 const sync = () => setIsTopModal(overlayRegistry.isTopmostModal(id));
                 sync();
@@ -46,10 +52,12 @@
         //   zIndexClass    — scrim z-index class (default z-50; high-priority notices use z-[100])
         //   showClose/title — omit both to supply a fully custom header as children
         //   closeButton    — render a standard corner ✕ (for custom-header dialogs); auto-adds `relative` to the panel
-        // Ctrl+A (v7.19.0, Ron + UX) — a window says what "select all" means for it, never "the whole panel":
-        //   selectAll      — a CHECKLIST window's action (checks every item, = its Select all button), or
-        //   data-dialog-body — mark the main content element of a READING window; Ctrl+A selects only that text
-        //                    (not the title bar or button labels). See the dialogUp() Ctrl+A branch in the keydown handler.
+        // Ctrl+A (v7.19.0, Ron + UX) — acts on the AREA of the window you last clicked in / Tabbed to, never "the whole panel":
+        //   data-select-text        — mark a text area (a title, a paragraph): Ctrl+A selects just that text;
+        //   data-select-items="key" — mark a checklist area: Ctrl+A runs selectAll (a function, or { key: fn } when the
+        //                             window has several lists) — checks every item in THAT list (= its Select all);
+        //   data-dialog-body        — the main text used when nothing in the window has been clicked yet.
+        //   See the dialogUp() Ctrl+A branch in the keydown handler.
         const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true, zIndexClass = 'z-50', panelStyle, closeButton = false, selectAll }) => {
             const panelRef = useRef(null);
             const isTopModal = useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef, selectAll });
@@ -84,7 +92,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0-alpha.3";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -4954,6 +4962,17 @@
                 window.setFolders = setFolders;
             }, [folders]);
 
+            // v7.19.0-alpha.3 (Ron) - "where you last clicked": the element of your last mousedown or keyboard focus
+            // (Tab). Ctrl+A in a window acts on the AREA around it (see the dialogUp() Ctrl+A branch). Capture phase, so a
+            // handler that stops propagation can't hide a click from it. Clicks on images count too (unlike focus/selection).
+            const lastInteractRef = useRef(null);
+            useEffect(() => {
+                const note = (e) => { lastInteractRef.current = e.target; };
+                document.addEventListener('mousedown', note, true);
+                document.addEventListener('focusin', note, true);
+                return () => { document.removeEventListener('mousedown', note, true); document.removeEventListener('focusin', note, true); };
+            }, []);
+
             // ESC key to clear selection, Ctrl+A to select all in active column
             useEffect(() => {
                 const handleKeyDown = async (e) => {
@@ -5063,19 +5082,28 @@
                     // the faded page behind (the backdrop doesn't block text selection) — even when there's no node
                     // to scope to (e.g. an imperative dialog carries no registry node, so it simply suppresses).
                     // (UX: Ron 2026-09-29 — copying computed dialog text is useful, so scope-select, don't suppress.)
-                    // v7.19.0 (Ron + UX) - the TOPMOST window says what Ctrl+A means: a checklist window runs its own
-                    // select-all (<Dialog selectAll> — checks every item); a reading window selects only its marked body
-                    // text ([data-dialog-body]) — never the title bar or button labels. Unmarked → the whole panel (fallback).
+                    // v7.19.0-alpha.3 (Ron) - Ctrl+A in the TOPMOST window acts on the AREA you last clicked in (or Tabbed
+                    // to) — matching how click-drag / Shift+click selection already work:
+                    //   [data-select-items="key"] — a checklist area → the window's select-all for that key (<Dialog
+                    //                               selectAll={fn | {key: fn}}>) checks every item in THAT list;
+                    //   [data-select-text]        — a text area (a title, a paragraph) → selects just that text;
+                    //   nothing clicked in the window yet, or an unmarked spot → its main text ([data-dialog-body]),
+                    //                               else the whole panel (fallback for windows not yet marked).
+                    // A text box keeps native select-all (handled above, before this branch).
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a' && dialogUp()) {
                         e.preventDefault();
                         const top = overlayRegistry.topLayer();
-                        if (top && top.selectAll && top.selectAll()) return;
                         const node = top && top.nodeRef && top.nodeRef.current;
-                        if (node) {
-                            const target = node.querySelector('[data-dialog-body]') || node;
-                            const sel = window.getSelection();
-                            if (sel) { sel.removeAllRanges(); sel.selectAllChildren(target); }
+                        if (!node) return;
+                        const selectText = (el) => { const sel = window.getSelection(); if (sel) { sel.removeAllRanges(); sel.selectAllChildren(el); } };
+                        const last = lastInteractRef.current;
+                        const area = (last && last.closest && node.contains(last)) ? last.closest('[data-select-items],[data-select-text]') : null;
+                        if (area && node.contains(area)) {
+                            if (area.hasAttribute('data-select-items') && top.selectAll && top.selectAll(area.getAttribute('data-select-items'))) return;
+                            selectText(area); // a text area — or a checklist with no select-all action
+                            return;
                         }
+                        selectText(node.querySelector('[data-dialog-body]') || node);
                         return;
                     }
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
@@ -11036,11 +11064,18 @@
                             const parts = [...fs.map(f => f.name), ...ls.map(l => `📗 ${l.name}`)];
                             return parts.length ? parts.join(', ') : 'Inbox';
                         };
+                        // alpha.3 (Ron) - the title opens the book's details ON TOP of this window (◀ ▶ walks this list); the
+                        // rest of the row still ticks the checkbox. preventDefault keeps the wrapping <label> from toggling.
+                        const navList = [...filed, ...trashed];
                         const row = (b, showWhere) => (
                             <label key={b.id} className="flex items-start gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
                                 <input type="checkbox" checked={removedSel.has(b.id)} onChange={() => toggle(b.id)} className="mt-1 w-4 h-4 accent-indigo-600 flex-shrink-0" />
                                 <span className="flex-1 min-w-0">
-                                    <span className="block truncate font-medium text-gray-800">{b.title || 'Untitled'}</span>
+                                    <span className="block truncate font-medium">
+                                        <button type="button" title="Show this book's details"
+                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); openBookModal(b, null, navList); }}
+                                            className="text-gray-800 hover:text-blue-700 hover:underline text-left">{b.title || 'Untitled'}</button>
+                                    </span>
                                     <span className="block truncate text-xs text-gray-500">{b.author || 'Unknown author'}{showWhere ? ` · ${whereFiled(b)}` : ''}</span>
                                 </span>
                             </label>
@@ -11053,29 +11088,32 @@
                         );
                         return (
                             <Dialog onClose={close} showClose={false}
-                                selectAll={() => setRemovedSel(new Set([...filed, ...trashed].map(b => b.id)))} /* Ctrl+A = check every book (both groups) */
+                                selectAll={{ // alpha.3 - Ctrl+A checks every book in the GROUP you're working in (= its Select all)
+                                    filed: () => setRemovedSel(prev => new Set([...prev, ...filed.map(b => b.id)])),
+                                    trashed: () => setRemovedSel(prev => new Set([...prev, ...trashed.map(b => b.id)])),
+                                }}
                                 panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 className="text-lg font-bold text-gray-900">🧹 Books no longer in your Amazon library</h2>
+                                    <h2 data-select-text className="text-lg font-bold text-gray-900">🧹 Books no longer in your Amazon library</h2>
                                     <button onClick={close} className="text-gray-500 hover:text-gray-700 font-bold text-xl leading-none" title="Close" aria-label="Close">✕</button>
                                 </div>
                                 <div className="p-4 overflow-y-auto" style={{ flex: 1 }}>
                                     {(filed.length === 0 && trashed.length === 0) ? (
-                                        <p className="text-sm text-gray-500 italic">Nothing to review — every book is in your Amazon library, or you've chosen to keep it.</p>
+                                        <p data-select-text data-dialog-body className="text-sm text-gray-500 italic">Nothing to review — every book is in your Amazon library, or you've chosen to keep it.</p>
                                     ) : (
-                                        <p className="text-sm text-gray-600 mb-3">These were removed, returned, or delisted on Amazon since you last fetched your library. <strong>Keep</strong> the ones you still want — they stay where they're filed and you won't be asked about them again — or permanently delete the rest.</p>
+                                        <p data-select-text data-dialog-body className="text-sm text-gray-600 mb-3">These were removed, returned, or delisted on Amazon since you last fetched your library. <strong>Keep</strong> the ones you still want — they stay where they're filed and you won't be asked about them again — or permanently delete the rest.</p>
                                     )}
-                                    {filed.length > 0 && (<>
+                                    {filed.length > 0 && (<div data-select-items="filed">
                                         {groupHead('Still in your library', filed)}
                                         <div className="border border-gray-200 rounded divide-y divide-gray-100">{filed.map(b => row(b, true))}</div>
-                                    </>)}
-                                    {trashed.length > 0 && (<>
+                                    </div>)}
+                                    {trashed.length > 0 && (<div data-select-items="trashed">
                                         <div className="mt-3">{groupHead('Already in your Trash', trashed)}</div>
                                         <div className="text-xs text-gray-500 mb-1">You already deleted these — permanently deleting them here just finishes the job.</div>
                                         <div className="border border-gray-200 rounded divide-y divide-gray-100">{trashed.map(b => row(b, false))}</div>
-                                    </>)}
+                                    </div>)}
                                     {(filed.length > 0 || trashed.length > 0) && (
-                                        <div className="text-xs text-red-600 mt-3">⚠ <strong>Permanently delete</strong> removes a book from ReaderWrangler for good — it skips the Trash and can't be undone.</div>
+                                        <div data-select-text className="text-xs text-red-600 mt-3">⚠ <strong>Permanently delete</strong> removes a book from ReaderWrangler for good — it skips the Trash and can't be undone.</div>
                                     )}
                                 </div>
                                 <div className="flex justify-between items-center gap-2 p-4 border-t border-gray-200">
@@ -11822,7 +11860,7 @@
                         <Dialog onClose={() => setWizardModalOpen(false)} showClose={false} maxWidthClassName="max-w-2xl"
                             selectAll={() => setWizardSelectedAuthors(prev => new Set([...prev, ...wizardFilteredAuthors().map(a => a.normalizedName)]))} /* v7.18.0-alpha.34 Ctrl+A = Select All; v7.19.0 declared here */>
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-wizard" className="text-xl font-bold text-gray-900">✨ Auto-Organize — Choose Authors</h2>
+                                    <h2 data-select-text id="modal-wizard" className="text-xl font-bold text-gray-900">✨ Auto-Organize — Choose Authors</h2>
                                     <div className="flex items-center gap-2">
                                         {/* v5.1.0-alpha.10 - Help icon */}
                                         <button
@@ -11834,9 +11872,9 @@
                                         <button onClick={() => setWizardModalOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                     </div>
                                 </div>
-                                <div className="p-6 space-y-4">
+                                <div data-dialog-body className="p-6 space-y-4">
                                     {/* v5.1.0-alpha.10 - Source is always Inbox */}
-                                    <div className="text-sm text-gray-600 mb-3">
+                                    <div data-select-text className="text-sm text-gray-600 mb-3">
                                         Organizing books from: <strong>Inbox</strong>
                                     </div>
 
@@ -11864,7 +11902,7 @@
                                         preview's ⚙ Options (tuned live against the result). The wizard is now a pure author picker. */}
 
                                     {/* v5.1.0-alpha.5 - Author list */}
-                                    <div className="border border-gray-300 rounded-lg bg-white">
+                                    <div data-select-items="authors" className="border border-gray-300 rounded-lg bg-white">
                                         {/* Header with Select All/None + Sort Toggle */}
                                         <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-300">
                                             <div className="flex gap-3 items-center">
@@ -12347,8 +12385,8 @@
                                     <div className="flex flex-col gap-1.5 min-w-0">
                                         {/* v7.9.0-alpha.1 (UNIFIED §2) - one view, one title; the scope toggle is gone.
                                             Subtitle teaches the model: everything by these authors is here; checks decide. */}
-                                        <h2 id="modal-autoorg-preview" className="text-xl font-bold text-gray-900">✨ Auto-Organize{sourceName ? ` — from “${sourceName}”` : narrowSourceId === '__all__' ? ' — All Books' : ' — from Inbox'}</h2>
-                                        <div className="text-xs text-gray-600 flex items-center gap-2 flex-wrap">
+                                        <h2 data-select-text id="modal-autoorg-preview" className="text-xl font-bold text-gray-900">✨ Auto-Organize{sourceName ? ` — from “${sourceName}”` : narrowSourceId === '__all__' ? ' — All Books' : ' — from Inbox'}</h2>
+                                        <div data-select-text data-dialog-body className="text-xs text-gray-600 flex items-center gap-2 flex-wrap">
                                             <span>Showing everything by {authorGroups.length === 1 ? 'this author' : 'these authors'}, wherever it lives — checked books get organized.</span>
                                             {/* v7.9.0-alpha.2 (Ron) - Select all lives at the TOP: selection is where scanning starts; the footer confirms. */}
                                             <button onClick={() => setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreview).map(b => b.id)))}
@@ -12367,7 +12405,7 @@
                                 </div>
                                 {/* v6.16.0 (Stage 2) - Live By-Series options, collapsed by default; changes recompute the preview in place. */}
                                 {mode === 'series' && (
-                                    <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
+                                    <div data-select-text className="px-4 py-2 border-b border-gray-200 bg-gray-50">
                                         <button onClick={() => setAutoOrgOptionsOpen(o => !o)} className="text-xs font-medium text-gray-600 hover:text-gray-900 flex items-center gap-1">
                                             <span className="inline-block w-3">{autoOrgOptionsOpen ? '▾' : '▸'}</span>⚙ Options
                                         </button>
@@ -12395,7 +12433,7 @@
                                     </div>
                                 )}
                                 {/* Scrollable hierarchy — one selection; checkbox tree = select-all/none per group */}
-                                <div className="p-4 overflow-y-auto" style={{ flex: 1 }}>
+                                <div data-select-items="covers" className="p-4 overflow-y-auto" style={{ flex: 1 }}>
                                     {/* Already-filed section — its checkbox is select-all/none over the filed books. */}
                                     {alreadyFiled.length > 0 && (
                                         <div className="mb-3">
@@ -12829,10 +12867,18 @@
 
                         return (
                         <Dialog onClose={() => setTagFromCollectionsOpen(false)} showClose={false}
+                            selectAll={{ // v7.19.0-alpha.3 - Ctrl+A checks every item in the list you're working in
+                                collections: () => setTfcCheckedCollections(new Set(collectionNames)),   // = the top bar's "All"
+                                removals: () => setTfcCheckedRemovals(new Set(removalLabels)),
+                                books: () => { // every book shown in the right pane (clears that group's unchecked set)
+                                    if (isViewingRemoval) setTfcUncheckedRemovalBooks(prev => ({ ...prev, [tfcSelectedRemoval]: new Set() }));
+                                    else if (isViewingCollection) setTfcUncheckedBooks(prev => ({ ...prev, [tfcSelectedCollection]: new Set() }));
+                                },
+                            }}
                             panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '750px' }}>
                                 {/* Header */}
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-tfc" className="text-xl font-bold text-gray-900">🏷️ Tag from Collections</h2>
+                                    <h2 data-select-text id="modal-tfc" className="text-xl font-bold text-gray-900">🏷️ Tag from Collections</h2>
                                     <button onClick={() => setTagFromCollectionsOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
 
@@ -12879,7 +12925,7 @@
                                 {/* Two-pane body */}
                                 <div className="flex" style={{ height: '400px' }}>
                                     {/* Left pane: Collections list + Removal section */}
-                                    <div className="w-2/5 border-r border-gray-300 overflow-y-auto">
+                                    <div data-select-items="collections" className="w-2/5 border-r border-gray-300 overflow-y-auto">
                                         {collectionNames.length === 0 && removalLabels.length === 0 ? (
                                             <div className="text-center text-gray-500 py-8 px-4">
                                                 <p>No collections found</p>
@@ -12924,7 +12970,7 @@
 
                                                 {/* Removed from Kindle section */}
                                                 {removalLabels.length > 0 && (
-                                                    <>
+                                                    <div data-select-items="removals">
                                                         <div className="px-3 py-2 bg-amber-50 border-t border-b border-amber-200 text-xs font-semibold text-amber-800 mt-1">
                                                             Removed from Kindle
                                                         </div>
@@ -12957,14 +13003,14 @@
                                                                 </div>
                                                             );
                                                         })}
-                                                    </>
+                                                    </div>
                                                 )}
                                             </>
                                         )}
                                     </div>
 
                                     {/* Right pane: Books in selected collection or removal group */}
-                                    <div className="w-3/5 overflow-y-auto">
+                                    <div data-select-items="books" data-dialog-body className="w-3/5 overflow-y-auto">
                                         {!isViewingCollection && !isViewingRemoval ? (
                                             <div className="text-center text-gray-500 py-8">
                                                 <p>Select a collection to see its books</p>
