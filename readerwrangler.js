@@ -102,7 +102,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0-alpha.5";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0-alpha.6";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -375,7 +375,9 @@
                 update(msg) {
                     messageEl.textContent = msg;
                 },
-                finish(newTitle, msg) {
+                // v7.19.0-alpha.6 - optional extra = { label }: a second button left of OK (e.g. "Review…"). Resolves with
+                // 'extra' when that's clicked, else undefined (OK / Esc / background — unchanged for every existing caller).
+                finish(newTitle, msg, extra) {
                     return new Promise((resolve) => {
                         titleEl.textContent = newTitle;
                         messageEl.textContent = msg;
@@ -391,6 +393,16 @@
                         const ok = () => { remove(); resolve(); };
                         button.onclick = ok;
                         onEscAfterFinish = ok; // from here on, Esc = OK
+                        if (extra && extra.label) {
+                            const xb = document.createElement('button');
+                            xb.textContent = extra.label;
+                            xb.style.cssText = `
+                                background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border-strong);
+                                border-radius: 4px; padding: 10px 18px; font-size: 14px; cursor: pointer; margin-right: 8px;
+                            `;
+                            xb.onclick = () => { remove(); resolve('extra'); };
+                            buttonContainer.appendChild(xb);
+                        }
                         buttonContainer.appendChild(button);
                         button.focus();
                     });
@@ -1312,6 +1324,7 @@
             const [dupReviewOpen, setDupReviewOpen] = useState(false);
             const [removedBooksOpen, setRemovedBooksOpen] = useState(false);       // v7.19.0 - "Books no longer in your Amazon library" window
             const [removedSel, setRemovedSel] = useState(() => new Set());       // v7.19.0 - books checked in that window
+            const [removedReminderHidden, setRemovedReminderHidden] = useState(false); // v7.19.0-alpha.6 - "Not now" on the reminder bar (this session only)
             const [integrityResults, setIntegrityResults] = useState(() => loadIntegrityResults()); // v6.3.0
             const [integrityCheckPending, setIntegrityCheckPending] = useState(false); // v6.3.0 - triggers post-import check
             const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -5602,7 +5615,13 @@
                         : parts.length > 0
                             ? `Library updated: ${totalBooks} books (${parts.join(', ')}).`
                             : `No new books found (${totalBooks} books).`;
-                    await progress.finish('Relay Import', message);
+                    // v7.19.0-alpha.6 - "deal now" entry point (ORPHAN-CLEANUP §5): name the removed books and offer Review.
+                    const removedN = result.removedReviewCount || 0;
+                    const removedLine = removedN > 0
+                        ? `\n\n🧹 ${removedN} book${removedN !== 1 ? 's are' : ' is'} no longer in your Amazon library. Review now, or find ${removedN !== 1 ? 'them' : 'it'} any time under File → Removed books…`
+                        : '';
+                    const choice = await progress.finish('Relay Import', message + removedLine, removedN > 0 ? { label: 'Review…' } : undefined);
+                    if (choice === 'extra') { setRemovedSel(new Set()); setRemovedBooksOpen(true); }
                 } catch (err) {
                     console.error('❌ Relay import failed:', err);
                     if (err && err.isCorruption) {
@@ -6792,7 +6811,7 @@
                     setLastSyncTime(Date.now());
                     setSyncStatus('fresh');
                     if (onComplete) setTimeout(() => onComplete(metadata.totalBooks), 0);
-                    return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0 };
+                    return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0, removedReviewCount: mergedBooks.filter(b => amazonRemovalState(b) === 'review').length };
                 }
 
                 // No organization found, start fresh
@@ -6800,7 +6819,7 @@
                 setLastSyncTime(Date.now());
                 setSyncStatus('fresh');
                 if (onComplete) setTimeout(() => onComplete(metadata.totalBooks), 0);
-                return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0 };
+                return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0, removedReviewCount: mergedBooks.filter(b => amazonRemovalState(b) === 'review').length };
             };
 
             const checkIfBlankImage = (img, bookId) => {
@@ -9625,6 +9644,28 @@
                             </div>
                         </div>
                     )}
+                    {/* v7.19.0-alpha.6 - Removed-books reminder (ORPHAN-CLEANUP §5 "deal later"): driven by the LIVE count of
+                        books awaiting a decision — appears by itself when there are some, disappears by itself when none
+                        remain (kept, deleted, or back in your Amazon library). "Not now" hides it for this session only.
+                        Theme colors only (no hard-coded light gradient — the relay bar above has that dark-theme bug). */}
+                    {!removedReminderHidden && !relayImporting && (() => {
+                        const n = books.filter(b => amazonRemovalState(b) === 'review').length;
+                        if (n === 0) return null;
+                        return (
+                            <div style={{ background: 'var(--bg-surface-alt)', borderBottom: '1px solid var(--border-default)', padding: '8px 16px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                                <span style={{ color: 'var(--text-primary)' }}>🧹 {n} book{n !== 1 ? 's are' : ' is'} no longer in your Amazon library.</span>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button onClick={() => { setRemovedSel(new Set()); setRemovedBooksOpen(true); }} style={{
+                                        padding: '4px 12px', fontSize: '12px', fontWeight: 'bold', background: 'var(--bg-accent)', color: 'var(--text-on-accent)',
+                                        border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Review</button>
+                                    <button onClick={() => setRemovedReminderHidden(true)} title="Hide until next time — File → Removed books… any time" style={{
+                                        padding: '4px 12px', fontSize: '12px', background: 'var(--bg-surface)', color: 'var(--text-muted)',
+                                        border: '1px solid var(--border-default)', borderRadius: '4px', cursor: 'pointer' }}>Not now</button>
+                                </div>
+                            </div>
+                        );
+                    })()}
                     {/* v6.0.0-alpha.44 - Removed relay importing status bar; now uses showInfoDialog on completion */}
 
                     {/* v6.0.0-alpha.23 - Full-width welcome screen when no books loaded */}
@@ -13943,6 +13984,11 @@
                                                         </div>
                                                     );
                                                 })()}
+                                                {/* v7.19.0-alpha.6 (Ron + UX) - say it where you look: a kept book gone from your Amazon library
+                                                    explains itself in its own details (why it won't open in Kindle, months later). */}
+                                                {!isEditingBook && amazonRemovalState(modalBook) === 'kept' && (
+                                                    <div className="text-sm text-amber-700">🧹 No longer in your Amazon library — kept</div>
+                                                )}
                                                 {modalBook.acquired && (
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-semibold text-gray-700">Acquired:</span>
