@@ -168,6 +168,14 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   toggle joins undo. Motivation: hunting a series list in a long Book Lists column (Ctrl+F works but costs a
   thought-process switch). Expected usage: **Name to FIND, back to Manual for priority** — Ron's top tier =
   the `New To Read - *` work lists (mobile-filter surrogates, Prime clearing first), series To-Reads below.
+- [ ] **Search by ASIN in the search box (Ron 2026-10-12)**. WHAT: typing a book's ASIN (e.g. `B08P52K2PZ`) into the
+  search box at the top of the right pane ("Title, author or series...") finds that book — today it only matches title,
+  author and series. Useful for checking a specific book exists (came up testing the removed-books feature).
+  WHERE (three copies of the same match rule — make it ONE): the live search filter (`readerwrangler.js` ~10044), the
+  saved-Search matcher `bookMatchesFilters` (~2196), and the phone's search (`mobile.js` ~2289, which also matches notes
+  + tags). DO: one shared `bookMatchesText(book, term)` (uiHelpers) with ASIN added (exact or prefix, case-insensitive),
+  called by all three — then update the box's placeholder/tooltip to mention ASIN. Small.
+
 - [ ] **Left-pane type-to-filter box** (Ron 2026-09-10, companion/escalation to the above): one box narrowing
   **Folders + Book Lists + Searches** by name — the strongest pure "find" at scale. Design questions for the
   build: placement (whole-pane vs per-section), keyboard focus/shortcut, clear-on-navigate, interaction with

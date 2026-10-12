@@ -34,11 +34,13 @@ const _notify = () => { _subs.forEach(fn => { try { fn(); } catch (e) { /* a sub
 // selected book). Kept separate from `kind` because "dims like a dialog" and "blocks library keys"
 // are different facts.
 // detached (alpha.69): an INDEPENDENT overlay — never cascade-closed when a layer beneath it is removed (see removeLayer).
-const pushLayer = ({ close, kind, nodeRef, fence, detached }) => {
+// selectAll (v7.19.0): optional — the layer's own Ctrl+A action (a checklist window checks every item); returns true if
+// it handled Ctrl+A. Absent → the app selects the layer's body TEXT instead (the [data-dialog-body] region of nodeRef).
+const pushLayer = ({ close, kind, nodeRef, fence, detached, selectAll }) => {
     const id = ++_seq;
     // alpha.54: a 'list' (type-ahead suggestions under a field) doesn't fence by default either — it lives inside a
     // dialog that already does.
-    _layers.push({ id, close, kind, nodeRef, fence: fence === undefined ? (kind === 'modal' || kind === 'menu') : !!fence, detached: !!detached });
+    _layers.push({ id, close, kind, nodeRef, fence: fence === undefined ? (kind === 'modal' || kind === 'menu') : !!fence, detached: !!detached, selectAll });
     _notify();
     return id;
 };

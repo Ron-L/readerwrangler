@@ -26,6 +26,11 @@ knowingly target* — and behind a modal, pre-dialog actions are exactly that. S
 the discarded invisible-Reset proposal. A toast is narration, not visibility.
 
 - **On dialog open** (null → book, one chokepoint): record undo AND redo stack depths — the fence.
+  **v7.19.0: the fence is now a SEQUENCE NUMBER, not a depth.** Every recorded action carries a monotonic
+  `seq`; the fence is the last `seq` issued when the dialog opened, and undo/redo inside reach only actions
+  with a higher `seq`. Depths broke twice over: at the 50-step cap the depth stops growing (oldest shifted
+  off), so in-dialog actions looked older than the dialog; and a permanent delete prunes history entries,
+  shrinking the depth below the fence. Same rule, now immune to both.
 - **While the dialog is open (view mode)**: Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y operate **only above
   the fence** — i.e., on actions taken during this book-viewing session. The open dialog updates
   live (EDIT_BOOK undo/redo already refresh modalBook).

@@ -14,15 +14,19 @@
         // fence (optional, v7.18.0-alpha.40): raise the keystroke fence. Undefined = the registry default
         // (modal + menu fence, popover doesn't — alpha.44); a popover passes true to block library keys while open.
         // idRef (optional, alpha.45): receives this layer's registry id, so a <Popover> can ask "am I topmost?".
-        const useOverlayLayer = ({ close, kind, nodeRef, fence, idRef }) => {
+        // selectAll (optional, v7.19.0): the overlay's own Ctrl+A action (read via ref = always the latest closure).
+        const useOverlayLayer = ({ close, kind, nodeRef, fence, idRef, selectAll }) => {
             const closeRef = useRef(close);
             closeRef.current = close;
+            const selectAllRef = useRef(selectAll);
+            selectAllRef.current = selectAll;
             const [isTopModal, setIsTopModal] = useState(true);
             // useLayoutEffect (not useEffect): push/subscribe + the isTopModal recompute must run BEFORE paint,
             // so when a modal opens/closes the layer beneath flips its dim in the SAME frame — no one-frame
             // double-dim flash (the reason we don't need a separate global "already dimmed" flag).
             useLayoutEffect(() => {
-                const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef, fence });
+                const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef, fence,
+                    selectAll: () => { if (!selectAllRef.current) return false; selectAllRef.current(); return true; } });
                 if (idRef) idRef.current = id;
                 const sync = () => setIsTopModal(overlayRegistry.isTopmostModal(id));
                 sync();
@@ -42,9 +46,13 @@
         //   zIndexClass    — scrim z-index class (default z-50; high-priority notices use z-[100])
         //   showClose/title — omit both to supply a fully custom header as children
         //   closeButton    — render a standard corner ✕ (for custom-header dialogs); auto-adds `relative` to the panel
-        const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true, zIndexClass = 'z-50', panelStyle, closeButton = false }) => {
+        // Ctrl+A (v7.19.0, Ron + UX) — a window says what "select all" means for it, never "the whole panel":
+        //   selectAll      — a CHECKLIST window's action (checks every item, = its Select all button), or
+        //   data-dialog-body — mark the main content element of a READING window; Ctrl+A selects only that text
+        //                    (not the title bar or button labels). See the dialogUp() Ctrl+A branch in the keydown handler.
+        const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true, zIndexClass = 'z-50', panelStyle, closeButton = false, selectAll }) => {
             const panelRef = useRef(null);
-            const isTopModal = useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef });
+            const isTopModal = useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef, selectAll });
             const downOnScrimRef = useRef(false);
             const _panelCls = (panelClassName || `bg-white rounded-lg shadow-2xl ${maxWidthClassName} w-full mx-4`) + (closeButton ? ' relative' : '');
             return ReactDOM.createPortal(
@@ -76,7 +84,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0-alpha.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0-alpha.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1285,8 +1293,13 @@
             const modalBookRef = useRef(modalBook); // v4.21.0.g - Ref to check modal state in keyboard handler
             // v7.8.0-alpha.4 (UNDO-MODEL.md) - dialog undo fence: stack depths at dialog open / ◀▶ nav.
             // While the dialog is open, undo/redo reach only actions from this book-viewing session.
-            const dialogUndoFenceRef = useRef(0);
-            const dialogRedoFenceRef = useRef(0);
+            // v7.19.0 - the dialog undo fence is a SEQUENCE NUMBER, not a stack length. Every recorded action gets
+            // seq = ++undoSeqRef (monotonic, never reused); a window remembers the last seq issued when it opened, and
+            // undo/redo inside it reach only actions with a HIGHER seq. Lengths broke two ways: at the 50-step cap the
+            // length stops growing (shift + push), so everything done in a window looked "older than the window"; and
+            // a permanent delete prunes history entries, shrinking the length below the fence. (Found 2026-10-12.)
+            const undoSeqRef = useRef(0);
+            const dialogUndoFenceRef = useRef(0); // the last seq issued before the current dialog session (undo AND redo)
             const isEditingBookRef = useRef(false); // v7.8.0-alpha.4 - edit mode blocks global undo (Ctrl+Z = text there)
             const anyModalOpenRef = useRef(false); // v5.2.0-alpha.18 - Track any modal open for global key guard
             const prevAnyDialogOpenRef = useRef(false); // v7.10.1-alpha.6 - rising-edge detector for the universal fence
@@ -1326,8 +1339,6 @@
                 return () => window.removeEventListener('keydown', onKey);
             }, []);
             const autoOrgPreviewRef = useRef(null); // v6.16.0 - current auto-organize preview, for the keydown handler (which doesn't dep on it)
-            const wizardSelectAllRef = useRef(null); // v7.18.0-alpha.34 - current wizard "select all listed authors" action, for Ctrl+A (handler reads via ref, not state)
-            const autoOrgChildRef = useRef(false); // v7.18.0-alpha.35 - is an autoOrg CHILD overlay (cover menu / source popup / File-under) open OVER the preview? gates the preview/wizard Ctrl+A select-all so a child on top owns Ctrl+A instead
             const backdropMouseDownRef = useRef(null); // v5.2.0-alpha.15 - Track mousedown origin for backdrop close (prevents swipe-past-edge closing modals)
             const [contextSubmenu, setContextSubmenu] = useState(null); // v4.16.0.ba - 'move' | 'copyTo' | 'priceGoal' | null for submenu hover
             const [readStatusFilter, setReadStatusFilter] = useState(''); // Filter by READ/UNREAD/UNKNOWN
@@ -5011,23 +5022,9 @@
                     // modalBook is a <Dialog>, so the dialogUp() branch selects ITS text (copyable book details),
                     // never the page behind. (Was a hard block; Ron's call to allow copying details.)
 
-                    // v6.16.0 - Ctrl+A inside the Auto-Organize preview selects THAT preview's books (was leaking to the Inbox behind it).
-                    // v7.18.0-alpha.35 - ...only when the preview is the TOPMOST overlay: if a child (cover menu / source
-                    // popup / File-under) is open over it, that child owns Ctrl+A (handled by the generic scope-select below).
-                    if (autoOrgPreviewRef.current && !autoOrgChildRef.current && !modalBookRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
-                        e.preventDefault();
-                        setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreviewRef.current).map(b => b.id)));
-                        return;
-                    }
-
-                    // v7.18.0-alpha.34 - Ctrl+A in the Auto-Organize wizard checks ALL listed authors (Ron's ask),
-                    // mirroring the preview's select-all above (same action as the Select All button).
-                    // v7.18.0-alpha.35 - only when the wizard is topmost: not while the preview (or a child) is over it.
-                    if (wizardSelectAllRef.current && !autoOrgPreviewRef.current && !autoOrgChildRef.current && !modalBookRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
-                        e.preventDefault();
-                        wizardSelectAllRef.current();
-                        return;
-                    }
+                    // (v6.16.0 / v7.18.0-alpha.34-35's hand-written Ctrl+A cases for the Auto-Organize Preview and wizard —
+                    // each guarded against whatever might sit on top of it — are gone: v7.19.0 those windows declare their
+                    // Ctrl+A via <Dialog selectAll>, and the ONE dialog branch below asks only the TOPMOST window.)
 
                     // v5.0.0-alpha.92 - Alt+Left: Back, Alt+Right: Forward
                     // v7.10.1-alpha.6 (audit sweep B) - not while a dialog is up (was navigating folders BEHIND it)
@@ -5066,13 +5063,18 @@
                     // the faded page behind (the backdrop doesn't block text selection) — even when there's no node
                     // to scope to (e.g. an imperative dialog carries no registry node, so it simply suppresses).
                     // (UX: Ron 2026-09-29 — copying computed dialog text is useful, so scope-select, don't suppress.)
+                    // v7.19.0 (Ron + UX) - the TOPMOST window says what Ctrl+A means: a checklist window runs its own
+                    // select-all (<Dialog selectAll> — checks every item); a reading window selects only its marked body
+                    // text ([data-dialog-body]) — never the title bar or button labels. Unmarked → the whole panel (fallback).
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a' && dialogUp()) {
                         e.preventDefault();
                         const top = overlayRegistry.topLayer();
+                        if (top && top.selectAll && top.selectAll()) return;
                         const node = top && top.nodeRef && top.nodeRef.current;
                         if (node) {
+                            const target = node.querySelector('[data-dialog-body]') || node;
                             const sel = window.getSelection();
-                            if (sel) { sel.removeAllRanges(); sel.selectAllChildren(node); }
+                            if (sel) { sel.removeAllRanges(); sel.selectAllChildren(target); }
                         }
                         return;
                     }
@@ -7102,8 +7104,7 @@
                 // v7.8.0-alpha.4 (UNDO-MODEL.md) - fence on dialog OPEN and on ◀▶ navigation (each book
                 // is its own session; A→B→A deliberately re-fences — consistency beats cleverness).
                 if (modalBook && (!prevBook || prevBook.id !== modalBook.id)) {
-                    dialogUndoFenceRef.current = undoStackRef.current.length;
-                    dialogRedoFenceRef.current = redoStackRef.current.length;
+                    dialogUndoFenceRef.current = undoSeqRef.current; // v7.19.0 - seq fence (see undoSeqRef)
                 }
             }, [modalBook]);
             useEffect(() => {
@@ -7112,19 +7113,6 @@
             useEffect(() => {
                 autoOrgPreviewRef.current = autoOrgPreview;
             }, [autoOrgPreview]);
-            // v7.18.0-alpha.34 - keep a ref to the wizard's "select all listed authors" action (same as the
-            // Select All button) so Ctrl+A can check-all without the keydown handler depending on wizard state.
-            // No deps: refresh the closure every render so it always sees the current authors/filter.
-            useEffect(() => {
-                wizardSelectAllRef.current = wizardModalOpen
-                    ? () => setWizardSelectedAuthors(prev => new Set([...prev, ...wizardFilteredAuthors().map(a => a.normalizedName)]))
-                    : null;
-            });
-            // v7.18.0-alpha.35 - track whether an autoOrg CHILD overlay is on top of the preview, so the preview's
-            // (and wizard's) Ctrl+A select-all doesn't fire when a child popover/dialog should own Ctrl+A instead.
-            useEffect(() => {
-                autoOrgChildRef.current = !!(autoOrgMenu || autoOrgSrcPopup || autoOrgFileUnder);
-            }, [autoOrgMenu, autoOrgSrcPopup, autoOrgFileUnder]);
             // v7.10.1-alpha.6 (DIALOG_POLICY, audit sweeps B+C) - "is any fencing overlay open" drives everything below.
             // v7.18.0-alpha.43: there is NO hand-maintained list any more — build a dialog with <Dialog> (or a
             // keystroke-blocking popover with <Popover fence>) and it self-registers; the overlay registry's
@@ -7141,8 +7129,7 @@
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
-                    dialogUndoFenceRef.current = undoStackRef.current.length;
-                    dialogRedoFenceRef.current = redoStackRef.current.length;
+                    dialogUndoFenceRef.current = undoSeqRef.current; // v7.19.0 - seq fence (see undoSeqRef)
                 }
                 prevAnyDialogOpenRef.current = anyDialogOpen;
             }, [anyDialogOpen]);
@@ -7321,7 +7308,7 @@
             };
 
             const recordAction = (action) => {
-                const labeled = { ...action, label: actionLabel(action), timestamp: Date.now() };
+                const labeled = { ...action, label: actionLabel(action), timestamp: Date.now(), seq: ++undoSeqRef.current }; // v7.19.0 - seq (outside the updater)
                 setUndoStack(prev => {
                     const newStack = [...prev, labeled];
                     if (newStack.length > MAX_UNDO) newStack.shift();
@@ -8450,7 +8437,9 @@
                     showToast('Nothing to undo from this dialog — close it to undo earlier actions');
                     return;
                 }
-                if (dialogUp() && currentStack.length <= dialogUndoFenceRef.current) {
+                // v7.19.0 - reachable only if the top action was recorded AFTER this dialog opened (seq fence)
+                const undoTop = currentStack[currentStack.length - 1];
+                if (dialogUp() && !(undoTop && (undoTop.seq || 0) > dialogUndoFenceRef.current)) {
                     showToast('Nothing to undo from this dialog — close it to undo earlier actions');
                     return;
                 }
@@ -8472,7 +8461,9 @@
                     showToast('Nothing to redo from this dialog — close it to redo earlier actions');
                     return;
                 }
-                if (dialogUp() && currentStack.length <= dialogRedoFenceRef.current) {
+                // v7.19.0 - same seq fence: only actions recorded (and undone) in this dialog session can be redone
+                const redoTop = currentStack[currentStack.length - 1];
+                if (dialogUp() && !(redoTop && (redoTop.seq || 0) > dialogUndoFenceRef.current)) {
                     showToast('Nothing to redo from this dialog — close it to redo earlier actions');
                     return;
                 }
@@ -11062,6 +11053,7 @@
                         );
                         return (
                             <Dialog onClose={close} showClose={false}
+                                selectAll={() => setRemovedSel(new Set([...filed, ...trashed].map(b => b.id)))} /* Ctrl+A = check every book (both groups) */
                                 panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 className="text-lg font-bold text-gray-900">🧹 Books no longer in your Amazon library</h2>
@@ -11827,7 +11819,8 @@
 
                     {/* v5.1.0-alpha.3 - Auto-Organize Wizard Modal */}
                     {wizardModalOpen && (
-                        <Dialog onClose={() => setWizardModalOpen(false)} showClose={false} maxWidthClassName="max-w-2xl">
+                        <Dialog onClose={() => setWizardModalOpen(false)} showClose={false} maxWidthClassName="max-w-2xl"
+                            selectAll={() => setWizardSelectedAuthors(prev => new Set([...prev, ...wizardFilteredAuthors().map(a => a.normalizedName)]))} /* v7.18.0-alpha.34 Ctrl+A = Select All; v7.19.0 declared here */>
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 id="modal-wizard" className="text-xl font-bold text-gray-900">✨ Auto-Organize — Choose Authors</h2>
                                     <div className="flex items-center gap-2">
@@ -12346,6 +12339,7 @@
                         };
                         return (
                         <Dialog onClose={closeAutoOrgPreview} showClose={false}
+                            selectAll={() => setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreview).map(b => b.id)))} /* v6.16.0 Ctrl+A = check every book; v7.19.0 declared here */
                             panelClassName="bg-white rounded-lg shadow-2xl w-full"
                             panelStyle={{ maxWidth: '640px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 {/* Header — the mode is a live segmented toggle (recomputes the preview in place). */}
