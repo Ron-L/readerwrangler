@@ -137,6 +137,25 @@ test('isKeptOrphan: a Keep survives an import whose incoming lacks it, even with
     assert.strictEqual(merged.orphanStatus, 'orphan');
 });
 
+// v7.19.0 (Ron) - a book that RETURNS to the Amazon library clears the Keep (so a later disappearance asks again);
+// a stale "present" echo must not.
+test('isKeptOrphan: a FRESHER scan finding the book present clears the Keep; an older one does not', () => {
+    let { local, incoming } = makePair();
+    local.orphanStatus = 'orphan'; local.orphanCheckedDate = '2026-09-20T10:00:00Z'; local.isKeptOrphan = true;
+    incoming.orphanStatus = 'verified'; incoming.orphanCheckedDate = '2026-10-12T10:00:00Z'; // newer: it's back
+    delete incoming.isKeptOrphan;
+    let merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.orphanStatus, 'verified');
+    assert.strictEqual(merged.isKeptOrphan, false, 'a returned book kept its stale Keep');
+    ({ local, incoming } = makePair());
+    local.orphanStatus = 'orphan'; local.orphanCheckedDate = '2026-09-20T10:00:00Z'; local.isKeptOrphan = true;
+    incoming.orphanStatus = 'verified'; incoming.orphanCheckedDate = '2026-09-01T10:00:00Z'; // OLDER echo
+    delete incoming.isKeptOrphan;
+    merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.isKeptOrphan, true, 'a stale "present" echo un-kept the book');
+    assert.strictEqual(merged.orphanStatus, 'orphan');
+});
+
 // ---- Overridable fields: userEdited flag decides ----
 test('overridable field with userEdited flag → local wins', () => {
     const { local, incoming } = makePair();
