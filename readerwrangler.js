@@ -102,7 +102,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0-alpha.4";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0-alpha.5";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -6835,6 +6835,15 @@
                 setModalBook(book);
                 setShowAllReviews(false);
             };
+            // v7.19.0-alpha.5 (Ron) - THE clickable book title inside a checklist window (removed books, Tag from Collections):
+            // opens the book's details ON TOP so you can decide with the facts in view; ◀ ▶ walks navList. Lives inside a
+            // row <label> — preventDefault stops the label from ticking its checkbox. rw-text-button keeps it selectable
+            // (window button labels are otherwise unselectable — readerwrangler.css).
+            const renderBookTitleLink = (book, navList, colorClass = 'text-gray-800') => (
+                <button type="button" title="Show this book's details"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); openBookModal(book, null, navList); }}
+                    className={`rw-text-button ${colorClass} hover:text-blue-700 hover:underline text-left`}>{book.title || 'Untitled'}</button>
+            );
 
             // v6.16.0 (#55) - Book-detail prev/next: cycle the CURRENT context's books, circular — the explorer view,
             // or the Auto-Organize preview's shelf when that's open (the detail modal opens over the preview).
@@ -11097,9 +11106,7 @@
                                 <input type="checkbox" checked={removedSel.has(b.id)} onChange={() => toggle(b.id)} className="mt-1 w-4 h-4 accent-indigo-600 flex-shrink-0" />
                                 <span className="flex-1 min-w-0">
                                     <span className="block truncate font-medium">
-                                        <button type="button" title="Show this book's details"
-                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); openBookModal(b, null, navList); }}
-                                            className="rw-text-button text-gray-800 hover:text-blue-700 hover:underline text-left">{b.title || 'Untitled'}</button>
+                                        {renderBookTitleLink(b, navList)}
                                     </span>
                                     <span className="block truncate text-xs text-gray-500">{b.author || 'Unknown author'}{showWhere ? ` · ${whereFiled(b)}` : ''}</span>
                                 </span>
@@ -13081,7 +13088,7 @@
                                                                 }}
                                                                 className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 flex-shrink-0"
                                                             />
-                                                            <span className="ml-2 text-sm text-gray-900 truncate">{book.title}</span>
+                                                            <span className="ml-2 text-sm truncate">{renderBookTitleLink(book, removalBooks, 'text-gray-900')}</span>
                                                         </label>
                                                     );
                                                 })}
@@ -13134,8 +13141,8 @@
                                                                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
                                                                 />
                                                             )}
-                                                            <span className={`ml-2 text-sm truncate ${alreadyTagged ? 'text-gray-400' : 'text-gray-900'}`}>
-                                                                {book.title}
+                                                            <span className="ml-2 text-sm truncate">
+                                                                {renderBookTitleLink(book, visibleBooks, alreadyTagged ? 'text-gray-400' : 'text-gray-900')}
                                                             </span>
                                                             {alreadyTagged && <span className="text-xs text-gray-400 ml-auto flex-shrink-0">already tagged</span>}
                                                         </label>
@@ -13611,7 +13618,7 @@
                                                  onLoad={(e) => checkIfBlankImage(e.target, modalBook.id)} />
                                         )}
                                         </a>
-                                        <div className="flex-1">
+                                        <div data-select-text className="flex-1">
                                             {isEditingBook ? (
                                                 <input
                                                     type="text"
@@ -13625,7 +13632,7 @@
                                                 /* v5.6.6 - Title links to Amazon
                                                    v7.13.0-alpha.1 (Ron) - copy chip: a linked title fights drag-select, so the
                                                    value gets the standard take-me affordance (GitHub-SHA / DNS-record pattern) */
-                                                <div className="mb-3">
+                                                <div data-select-text className="mb-3">
                                                     <a href={getAmazonUrl(modalBook.asin)} target="_blank" rel="noopener noreferrer"
                                                         className="text-3xl font-bold text-gray-900 hover:text-blue-700 transition-colors"
                                                         title="View on Amazon">{modalBook.title}</a>
@@ -14299,7 +14306,7 @@
                                             </div>
                                         ) : (
                                             // v5.4.6 - View mode: read-only display
-                                            <div>
+                                            <div data-select-text>
                                                 <span className="font-semibold text-gray-700 text-sm">Note:</span>
                                                 {modalBook.userNote ? (
                                                     <p className="text-gray-700 mt-1 whitespace-pre-wrap">{modalBook.userNote}</p>
@@ -14325,7 +14332,7 @@
                                     )}
 
                                     {modalBook.description && (
-                                        <div className="mb-6 pb-6 border-b border-gray-200">
+                                        <div data-select-text className="mb-6 pb-6 border-b border-gray-200">
                                             <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
                                             <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
                                                 {modalBook.description}
@@ -14334,7 +14341,7 @@
                                     )}
 
                                     {modalBook.topReviews && modalBook.topReviews.length > 0 && (
-                                        <div>
+                                        <div data-select-text>
                                             <h3 className="text-lg font-semibold text-gray-900 mb-3">Top Reviews</h3>
                                             <div className="space-y-4">
                                                 {modalBook.topReviews.slice(0, showAllReviews ? modalBook.topReviews.length : 3).map((review, idx) => {
@@ -14344,7 +14351,7 @@
                                                     const reviewer = review.reviewer || review.contributor?.publicProfile?.publicProfile?.publicName?.displayString || '';
 
                                                     return (
-                                                        <div key={idx} className="bg-gray-50 rounded-lg p-4">
+                                                        <div key={idx} data-select-text className="bg-gray-50 rounded-lg p-4">
                                                             <div className="flex items-center gap-3 mb-2">
                                                                 <span className="text-yellow-500 text-lg">{'★'.repeat(stars)}</span>
                                                                 {title && (
