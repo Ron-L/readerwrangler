@@ -76,7 +76,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -151,6 +151,18 @@
         const getOwnershipType = (book) =>
             isWishlisted(book) ? 'wishlist' : (book.ownershipType || 'purchased');
         const getOwnershipLabel = (book) => (OWNERSHIP_META[getOwnershipType(book)] || OWNERSHIP_META.unknown).label;
+        // v7.19.0 - THE "no longer in your Amazon library" state of a book (docs/design/ORPHAN-CLEANUP.md §2), derived
+        // from two fields with DIFFERENT owners — orphanStatus (the fetcher's scan; sticky by freshness) and
+        // isKeptOrphan (the user's Keep; user-owned, so no fetch can un-keep). Callers read THIS, never the raw pair:
+        //   'none'    — in your Amazon library (or never scanned)
+        //   'review'  — gone from Amazon, still filed in RW, not yet decided → the review window + reminder
+        //   'kept'    — gone from Amazon, you chose Keep → never asked again
+        //   'trashed' — gone from Amazon and already in your Trash (your own decision) → finalize-only
+        const amazonRemovalState = (book) => {
+            if (!book || book.orphanStatus !== 'orphan') return 'none';
+            if (book.isDeleted) return 'trashed';
+            return book.isKeptOrphan ? 'kept' : 'review';
+        };
         // v7.4.0 - Badge local instances (tab title + header chip): two identical-looking tabs,
         // one production and one localhost, is how restores land on the wrong instance. Subtle
         // by intent — users legitimately run local clones; this is a label, not a warning.
@@ -1258,6 +1270,8 @@
             // manifestData state removed in v3.7.0.m - replaced by libraryStatus/collectionsStatus
             const [statusModalOpen, setStatusModalOpen] = useState(false);
             const [dupReviewOpen, setDupReviewOpen] = useState(false);
+            const [removedBooksOpen, setRemovedBooksOpen] = useState(false);       // v7.19.0 - "Books no longer in your Amazon library" window
+            const [removedSel, setRemovedSel] = useState(() => new Set());       // v7.19.0 - books checked in that window
             const [integrityResults, setIntegrityResults] = useState(() => loadIntegrityResults()); // v6.3.0
             const [integrityCheckPending, setIntegrityCheckPending] = useState(false); // v6.3.0 - triggers post-import check
             const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -7181,7 +7195,7 @@
                 SOFT_DELETE_BOOKS: 'Delete books', RESTORE_BOOKS: 'Restore books', SEQUENCE_SERIES: 'Number series',
                 TAG_BOOKS_DRAG: 'Tag books', WIZARD_ORGANIZE: 'Auto-Organize', COMPOUND: 'Multiple changes',
                 SET_PRICE_GOAL: 'Price goal', // v7.10.1-alpha.3
-                SET_RATING: 'Rate book', SET_TAGS: 'Tag books', RESOLVE_DUPLICATES: 'Remove duplicates', HIDE_COPIES: 'Hide copies', DELETE_TAGS: 'Delete tag', // v7.10.1-alpha.4
+                SET_RATING: 'Rate book', SET_BOOK_FIELDS: 'Change books', RESOLVE_DUPLICATES: 'Remove duplicates', HIDE_COPIES: 'Hide copies', DELETE_TAGS: 'Delete tag', // v7.10.1-alpha.4
                 RENAME_FOLDER: 'Rename folder', EDIT_FOLDER_PROPS: 'Edit folder', RENAME_TAG: 'Rename tag', RENAME_SEARCH: 'Rename Search', RENAME_BOOKLIST: 'Rename Book List',
                 SEARCH_CREATE: 'Save Search', SEARCH_DELETE: 'Delete Search', REORDER_TAGS: 'Reorder tags', REORDER_SEARCH: 'Reorder Searches', REORDER_BOOKLISTS: 'Reorder Book Lists' // v7.10.1-alpha.6
             };
@@ -7243,7 +7257,10 @@
             // Fields-based: nextFieldsById[id] = the fields to apply (usually { tags }, TFC also
             // carries collectionTags/collectionTagSeen); previous values captured per field here,
             // BEFORE the mutation — so call this before setBooks.
-            const recordTagChange = (bookIds, nextFieldsById, label) => {
+            // v7.19.0 - it was always generic ("set these fields on these books"), so it's named for that now —
+            // SET_BOOK_FIELDS (was SET_TAGS; undo history is in-memory only, so no stored record carries the old
+            // name). Keep (removed-books window) uses it too; recordTagChange stays as the tag call sites' name.
+            const recordBookFieldChange = (bookIds, nextFieldsById, label) => {
                 const prevFieldsById = {};
                 bookIds.forEach(id => {
                     const b = books.find(x => x.id === id);
@@ -7254,7 +7271,24 @@
                     });
                     prevFieldsById[id] = prev;
                 });
-                recordAction({ type: 'SET_TAGS', bookIds: [...bookIds], prevFieldsById, nextFieldsById, label });
+                recordAction({ type: 'SET_BOOK_FIELDS', bookIds: [...bookIds], prevFieldsById, nextFieldsById, label });
+            };
+            const recordTagChange = recordBookFieldChange;
+            // v7.19.0 - Keep: accept books that are no longer in your Amazon library — they stay filed and are never
+            // asked about again (isKeptOrphan is user-owned: no import or fetch can un-keep). Undoable, with a receipt.
+            const keepRemovedBooks = (bookIds) => {
+                if (!bookIds || bookIds.length === 0) return;
+                const idSet = new Set(bookIds);
+                const next = {};
+                bookIds.forEach(id => { next[id] = { isKeptOrphan: true }; });
+                const label = `Keep ${bookCountLabel(bookIds)}`;
+                recordBookFieldChange(bookIds, next, label); // BEFORE the mutation (captures the previous values)
+                setBooks(prev => {
+                    const updated = prev.map(b => idSet.has(b.id) ? { ...b, isKeptOrphan: true } : b);
+                    saveBooksToIndexedDB(updated);
+                    return updated;
+                });
+                showToast(`Kept ${bookCountLabel(bookIds)} — won't ask again`);
             };
             // v7.10.1-alpha.4 - tag DELETION undoable (the ops-refactor leftover): captures registry
             // entries, every affected book's tags, the tag filter, and any Searches the delete removes —
@@ -7616,7 +7650,7 @@
                             setModalBook(prev => prev ? { ...prev, myRating: action.previousValues[prev.id] ?? 0 } : prev);
                         }
                         break;
-                    case 'SET_TAGS': // v7.10.1-alpha.4 - restore per-book previous field values (tags, TFC extras)
+                    case 'SET_BOOK_FIELDS': // v7.10.1-alpha.4 - restore per-book previous field values (tags, TFC extras, v7.19.0 Keep)
                         setBooks(prev => {
                             const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, ...action.prevFieldsById[b.id] } : b);
                             saveBooksToIndexedDB(updated);
@@ -8164,7 +8198,7 @@
                             setModalBook(prev => prev ? { ...prev, myRating: action.newValue } : prev);
                         }
                         break;
-                    case 'SET_TAGS': // v7.10.1-alpha.4
+                    case 'SET_BOOK_FIELDS': // v7.10.1-alpha.4 (was SET_TAGS)
                         setBooks(prev => {
                             const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, ...action.nextFieldsById[b.id] } : b);
                             saveBooksToIndexedDB(updated);
@@ -9349,6 +9383,21 @@
                                                 }} onMouseEnter={e => { const en = books.some(b => (b.collections || []).length > 0) || books.some(b => (b.collectionTags || []).length > 0); en && (e.currentTarget.style.background = 'var(--bg-hover)'); }} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
                                                     🏷️ Tag from Collections…
                                                 </button>
+                                                {/* v7.19.0 - Removed books: review books no longer in your Amazon library, any time (ORPHAN-CLEANUP §5) */}
+                                                {(() => {
+                                                    const n = books.filter(b => amazonRemovalState(b) === 'review').length;
+                                                    return (
+                                                        <button onClick={() => { setRemovedSel(new Set()); setRemovedBooksOpen(true); setOpenMenuBar(null); }}
+                                                            title="Books that are no longer in your Amazon library — keep them or remove them"
+                                                            style={{
+                                                                width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
+                                                                border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
+                                                                transition: 'background 0.1s', color: 'var(--text-primary)'
+                                                            }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                            🧹 Removed books…{n > 0 ? ` (${n})` : ''}
+                                                        </button>
+                                                    );
+                                                })()}
                                                 <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
                                                 {/* v6.0.0 - Relay Setup */}
                                                 <button onClick={() => { setRelaySetupOpen(true); setOpenMenuBar(null); }} style={{
@@ -10977,6 +11026,86 @@
                     })()}
 
                     {/* Duplicate Review Modal */}
+                    {/* v7.19.0 - "Books no longer in your Amazon library" (docs/design/ORPHAN-CLEANUP.md; content from the
+                        reverted 7.16.0-alpha.1 dialog 914025b, rebuilt on <Dialog>). Two hide-when-empty groups, both read
+                        from amazonRemovalState: still filed ('review' → Keep or permanently delete) and already in Trash
+                        ('trashed' → finalize). Never says "orphan" (internal jargon). */}
+                    {removedBooksOpen && (() => {
+                        const filed = books.filter(b => amazonRemovalState(b) === 'review');
+                        const trashed = books.filter(b => amazonRemovalState(b) === 'trashed');
+                        const selFiled = filed.filter(b => removedSel.has(b.id));
+                        const selAll = [...selFiled, ...trashed.filter(b => removedSel.has(b.id))];
+                        const close = () => setRemovedBooksOpen(false);
+                        const toggle = (id) => setRemovedSel(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+                        const allChecked = (list) => list.length > 0 && list.every(b => removedSel.has(b.id));
+                        const toggleGroup = (list) => setRemovedSel(prev => { const n = new Set(prev); const all = list.every(b => n.has(b.id)); list.forEach(b => all ? n.delete(b.id) : n.add(b.id)); return n; });
+                        const whereFiled = (b) => {
+                            const fs = getFoldersContainingBook(b.id).filter(f => !['__all__', '__inbox__', '__library__', '__trash__', '__booklists__', '__views__', '__search__'].includes(f.id));
+                            const ls = getBookListsContainingBook(b.id);
+                            const parts = [...fs.map(f => f.name), ...ls.map(l => `📗 ${l.name}`)];
+                            return parts.length ? parts.join(', ') : 'Inbox';
+                        };
+                        const row = (b, showWhere) => (
+                            <label key={b.id} className="flex items-start gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
+                                <input type="checkbox" checked={removedSel.has(b.id)} onChange={() => toggle(b.id)} className="mt-1 w-4 h-4 accent-indigo-600 flex-shrink-0" />
+                                <span className="flex-1 min-w-0">
+                                    <span className="block truncate font-medium text-gray-800">{b.title || 'Untitled'}</span>
+                                    <span className="block truncate text-xs text-gray-500">{b.author || 'Unknown author'}{showWhere ? ` · ${whereFiled(b)}` : ''}</span>
+                                </span>
+                            </label>
+                        );
+                        const groupHead = (label, list) => (
+                            <div className="flex items-center justify-between mt-1 mb-1">
+                                <div className="text-sm font-semibold text-gray-700">{label} ({list.length})</div>
+                                <button onClick={() => toggleGroup(list)} className="text-xs text-blue-600 hover:underline">{allChecked(list) ? 'Clear' : 'Select all'}</button>
+                            </div>
+                        );
+                        return (
+                            <Dialog onClose={close} showClose={false}
+                                panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+                                <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
+                                    <h2 className="text-lg font-bold text-gray-900">🧹 Books no longer in your Amazon library</h2>
+                                    <button onClick={close} className="text-gray-500 hover:text-gray-700 font-bold text-xl leading-none" title="Close" aria-label="Close">✕</button>
+                                </div>
+                                <div className="p-4 overflow-y-auto" style={{ flex: 1 }}>
+                                    {(filed.length === 0 && trashed.length === 0) ? (
+                                        <p className="text-sm text-gray-500 italic">Nothing to review — every book is in your Amazon library, or you've chosen to keep it.</p>
+                                    ) : (
+                                        <p className="text-sm text-gray-600 mb-3">These were removed, returned, or delisted on Amazon since you last fetched your library. <strong>Keep</strong> the ones you still want — they stay where they're filed and you won't be asked about them again — or permanently delete the rest.</p>
+                                    )}
+                                    {filed.length > 0 && (<>
+                                        {groupHead('Still in your library', filed)}
+                                        <div className="border border-gray-200 rounded divide-y divide-gray-100">{filed.map(b => row(b, true))}</div>
+                                    </>)}
+                                    {trashed.length > 0 && (<>
+                                        <div className="mt-3">{groupHead('Already in your Trash', trashed)}</div>
+                                        <div className="text-xs text-gray-500 mb-1">You already deleted these — permanently deleting them here just finishes the job.</div>
+                                        <div className="border border-gray-200 rounded divide-y divide-gray-100">{trashed.map(b => row(b, false))}</div>
+                                    </>)}
+                                    {(filed.length > 0 || trashed.length > 0) && (
+                                        <div className="text-xs text-red-600 mt-3">⚠ <strong>Permanently delete</strong> removes a book from ReaderWrangler for good — it skips the Trash and can't be undone.</div>
+                                    )}
+                                </div>
+                                <div className="flex justify-between items-center gap-2 p-4 border-t border-gray-200">
+                                    <button onClick={close} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded">Not now</button>
+                                    <div className="flex gap-2">
+                                        <button disabled={selFiled.length === 0}
+                                            title="Keep them where they're filed and stop asking (Trash books can't be kept — restore them first)"
+                                            onClick={() => keepRemovedBooks(selFiled.map(b => b.id))}
+                                            className={`px-4 py-1.5 text-sm font-bold rounded ${selFiled.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
+                                            Keep selected ({selFiled.length})
+                                        </button>
+                                        <button disabled={selAll.length === 0}
+                                            onClick={() => permanentlyDeleteBooks(selAll.map(b => b.id))} // asks first ("cannot be undone" + Book List fallout)
+                                            className={`px-4 py-1.5 text-sm font-bold rounded ${selAll.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}>
+                                            Permanently delete selected ({selAll.length})
+                                        </button>
+                                    </div>
+                                </div>
+                            </Dialog>
+                        );
+                    })()}
+
                     {dupReviewOpen && (() => {
                         // Build duplicate groups
                         const asinMap = {};

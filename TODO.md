@@ -366,6 +366,13 @@ Reply to the user still owed (Ron's channel).
 
 ## 🔧 7.0.0 follow-ups (relay)
 
+- [ ] **Relay Setup's connection test always checks the PROD relay, even on localhost / the dev site (found 2026-10-12)**.
+  WHAT YOU SEE: on your local copy or the dev site, File → Relay Setup → the connection test reports on the *production*
+  relay, not the dev relay your copy actually uses — so "connected"/"revoked" there can be wrong for dev. WHY:
+  `readerwrangler.js` (the `case 'test':` branch, ~line 1685) hard-codes `https://readerwrangler-relay.readerwrangler.workers.dev`
+  instead of using the dev-aware worker URL (`window._RW_RELAY_WORKER_URL`, set at ~line 90 for localhost + the dev repo).
+  DO: read the same worker URL every other relay call uses (one accessor, not a second hard-coded string). Small.
+
 - [ ] **Relay storage keeps climbing ~18 MB per Restore, and the daily usage email shows the wrong number** (found 2026-10-03/04; full write-up + fix design in **docs/design/RELAY-WRITE-REDESIGN.md §14a**). Real total ≈572 MB (56% of the 1 GB free tier) while emails showed 219.7/326/0 — each email reports ONE bucket (prod or dev), never the sum, and "no data" prints as 0. ~265 MB is recoverable leftovers. Three fixes, one "relay storage" side-fix branch (Ron: after the overlay branch unless urgency changes): (1) Restore never deletes the package it absorbs → move cleanup INTO `commitGeneration` (+ dedupe `absorbedRuns`); (2) usage email: per-bucket query + sum, "no data" not 0, `keyCount` cross-check; (3) worker-side daily sweep for torn/extra/absorbed leftovers, report-only first, then deleting. Leave prod channel `58c1bfd7…` alone (another user; expires Dec 7). Don't Import from Relay on dev while the Sep 27 orphan test runs are pending. Inventory tool: `.private/analyze-relay-keys.js`.
 
 - [ ] **Checkpoint the cold (first-time) fetch** — a ~3,000-book initial enrichment has no resume; die at book 2,800, start over. 7.0 makes it natural: send enrichment progress as mailbox letters in stages so a resumed run's skip-hint already knows what's done. Bites each user exactly once — low priority, pre-launch nice-to-have. (From the 2026-08-21 external sync review, item 1's salvageable kernel.)

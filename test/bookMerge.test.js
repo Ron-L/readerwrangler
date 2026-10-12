@@ -125,6 +125,18 @@ test('orphanStatus: a fresher scan wins (a returned book clears to verified)', (
     assert.strictEqual(merged.orphanCheckedDate, '2026-09-22T10:00:00Z');
 });
 
+// v7.19.0 - Keep (ORPHAN-CLEANUP §7): the user's acceptance survives an import — including a FRESH scan that
+// still finds the book gone (the scan re-asserts orphan; it must not un-keep).
+test('isKeptOrphan: a Keep survives an import whose incoming lacks it, even with a fresh orphan scan', () => {
+    const { local, incoming } = makePair();
+    local.orphanStatus = 'orphan'; local.orphanCheckedDate = '2026-09-20T10:00:00Z'; local.isKeptOrphan = true;
+    incoming.orphanStatus = 'orphan'; incoming.orphanCheckedDate = '2026-09-25T10:00:00Z'; // fresher scan, still gone
+    delete incoming.isKeptOrphan;                                                         // fetches never carry it
+    const merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.isKeptOrphan, true, 'an import un-kept a book the user chose to Keep');
+    assert.strictEqual(merged.orphanStatus, 'orphan');
+});
+
 // ---- Overridable fields: userEdited flag decides ----
 test('overridable field with userEdited flag → local wins', () => {
     const { local, incoming } = makePair();

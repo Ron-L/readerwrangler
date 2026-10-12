@@ -44,6 +44,7 @@ const BOOK_FIELDS = {
     myRating:          { merge: 'user', wire: { def: 0 } },
     collectionTags:    { merge: 'user', wire: { def: [] } },        // Tag-from-Collections wizard state
     collectionTagSeen: { merge: 'user', wire: { def: false } },
+    isKeptOrphan:      { merge: 'user', wire: { def: false } },     // v7.19.0 - "Keep" on a book no longer in your Amazon library (never re-asked; survives import)
 
     // user-overridable — userEdited flag decides, else incoming
     title:          { merge: 'edit', wire: { def: 'Unknown' } },
