@@ -102,7 +102,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0-alpha.8";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0-alpha.9";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1325,6 +1325,7 @@
             const [removedBooksOpen, setRemovedBooksOpen] = useState(false);       // v7.19.0 - "Books no longer in your Amazon library" window
             const [removedSel, setRemovedSel] = useState(() => new Set());       // v7.19.0 - books checked in that window
             const [removedReminderHidden, setRemovedReminderHidden] = useState(false); // v7.19.0-alpha.6 - "Not now" on the reminder bar (this session only)
+            const [removedKeptOpen, setRemovedKeptOpen] = useState(false); // v7.19.0-alpha.9 - the review window's collapsed "Kept" group
             const [integrityResults, setIntegrityResults] = useState(() => loadIntegrityResults()); // v6.3.0
             const [integrityCheckPending, setIntegrityCheckPending] = useState(false); // v6.3.0 - triggers post-import check
             const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -7343,21 +7344,25 @@
             };
             const recordTagChange = recordBookFieldChange;
             // v7.19.0 - Keep: accept books that are no longer in your Amazon library — they stay filed and are never
-            // asked about again (isKeptOrphan is user-owned: no import or fetch can un-keep). Undoable, with a receipt.
-            const keepRemovedBooks = (bookIds) => {
+            // asked about again (isKeptOrphan is user-owned: no import or fetch can un-keep; only the book RETURNING to
+            // Amazon clears it — bookMerge). alpha.9: "Ask me again" is the same operation in reverse, so ONE setter.
+            // Undoable, with a receipt.
+            const setKeptRemovedBooks = (bookIds, kept) => {
                 if (!bookIds || bookIds.length === 0) return;
                 const idSet = new Set(bookIds);
                 const next = {};
-                bookIds.forEach(id => { next[id] = { isKeptOrphan: true }; });
-                const label = `Keep ${bookCountLabel(bookIds)}`;
+                bookIds.forEach(id => { next[id] = { isKeptOrphan: kept }; });
+                const label = kept ? `Keep ${bookCountLabel(bookIds)}` : `Ask again about ${bookCountLabel(bookIds)}`;
                 recordBookFieldChange(bookIds, next, label); // BEFORE the mutation (captures the previous values)
                 setBooks(prev => {
-                    const updated = prev.map(b => idSet.has(b.id) ? { ...b, isKeptOrphan: true } : b);
+                    const updated = prev.map(b => idSet.has(b.id) ? { ...b, isKeptOrphan: kept } : b);
                     saveBooksToIndexedDB(updated);
                     return updated;
                 });
-                showToast(`Kept ${bookCountLabel(bookIds)} — won't ask again`);
+                showToast(kept ? `Kept ${bookCountLabel(bookIds)} — won't ask again` : `Will ask again about ${bookCountLabel(bookIds)}`);
             };
+            const keepRemovedBooks = (bookIds) => setKeptRemovedBooks(bookIds, true);
+            const unkeepRemovedBooks = (bookIds) => setKeptRemovedBooks(bookIds, false);
             // v7.10.1-alpha.4 - tag DELETION undoable (the ops-refactor leftover): captures registry
             // entries, every affected book's tags, the tag filter, and any Searches the delete removes —
             // undo restores the entire cascade. Call BEFORE the mutations.
@@ -11127,8 +11132,10 @@
                     {removedBooksOpen && (() => {
                         const filed = books.filter(b => amazonRemovalState(b) === 'review');
                         const trashed = books.filter(b => amazonRemovalState(b) === 'trashed');
+                        const kept = books.filter(b => amazonRemovalState(b) === 'kept'); // alpha.9 - the collapsed "Kept" group
                         const selFiled = filed.filter(b => removedSel.has(b.id));
-                        const selAll = [...selFiled, ...trashed.filter(b => removedSel.has(b.id))];
+                        const selKept = removedKeptOpen ? kept.filter(b => removedSel.has(b.id)) : []; // a closed group acts on nothing
+                        const selAll = [...selFiled, ...trashed.filter(b => removedSel.has(b.id)), ...selKept];
                         const close = () => setRemovedBooksOpen(false);
                         const toggle = (id) => setRemovedSel(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
                         const allChecked = (list) => list.length > 0 && list.every(b => removedSel.has(b.id));
@@ -11141,7 +11148,7 @@
                         };
                         // alpha.3 (Ron) - the title opens the book's details ON TOP of this window (◀ ▶ walks this list); the
                         // rest of the row still ticks the checkbox. preventDefault keeps the wrapping <label> from toggling.
-                        const navList = [...filed, ...trashed];
+                        const navList = [...filed, ...trashed, ...kept];
                         const row = (b, showWhere) => (
                             <label key={b.id} className="flex items-start gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
                                 <input type="checkbox" checked={removedSel.has(b.id)} onChange={() => toggle(b.id)} className="mt-1 w-4 h-4 accent-indigo-600 flex-shrink-0" />
@@ -11164,6 +11171,7 @@
                                 selectAll={{ // alpha.3 - Ctrl+A checks every book in the GROUP you're working in (= its Select all)
                                     filed: () => setRemovedSel(prev => new Set([...prev, ...filed.map(b => b.id)])),
                                     trashed: () => setRemovedSel(prev => new Set([...prev, ...trashed.map(b => b.id)])),
+                                    kept: () => setRemovedSel(prev => new Set([...prev, ...kept.map(b => b.id)])),
                                 }}
                                 panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
@@ -11172,7 +11180,7 @@
                                 </div>
                                 <div className="p-4 overflow-y-auto" style={{ flex: 1 }}>
                                     {(filed.length === 0 && trashed.length === 0) ? (
-                                        <p data-select-text data-dialog-body className="text-sm text-gray-500 italic">Nothing to review — every book is in your Amazon library, or you've chosen to keep it.</p>
+                                        <p data-select-text data-dialog-body className="text-sm text-gray-500 italic mb-3">Nothing to review — every book is in your Amazon library, or you've chosen to keep it.</p>
                                     ) : (
                                         <p data-select-text data-dialog-body className="text-sm text-gray-600 mb-3">These were removed, returned, or delisted on Amazon since you last fetched your library. <strong>Keep</strong> the ones you still want — they stay where they're filed and you won't be asked about them again — or permanently delete the rest.</p>
                                     )}
@@ -11185,13 +11193,37 @@
                                         <div className="text-xs text-gray-500 mb-1">You already deleted these — permanently deleting them here just finishes the job.</div>
                                         <div className="border border-gray-200 rounded divide-y divide-gray-100">{trashed.map(b => row(b, false))}</div>
                                     </div>)}
-                                    {(filed.length > 0 || trashed.length > 0) && (
+                                    {/* alpha.9 (Ron) - every book you've kept, collapsed by default so it doesn't crowd the
+                                        decisions still to make. "Ask me again" (footer, while open) sends checked ones back. */}
+                                    {kept.length > 0 && (<div data-select-items="kept" className="mt-3">
+                                        <div className="flex items-center justify-between mt-1 mb-1">
+                                            <button type="button" onClick={() => setRemovedKeptOpen(o => !o)}
+                                                className="text-sm font-semibold text-gray-700 hover:text-gray-900"
+                                                title={removedKeptOpen ? 'Hide the books you kept' : 'Show the books you kept'}>
+                                                <span className="inline-block w-4">{removedKeptOpen ? '▾' : '▸'}</span>Kept ({kept.length})
+                                            </button>
+                                            {removedKeptOpen && <SelectAllToggle allChecked={allChecked(kept)} onToggle={() => toggleGroup(kept)} />}
+                                        </div>
+                                        {removedKeptOpen && (<>
+                                            <div className="text-xs text-gray-500 mb-1">You chose to keep these. They stay where they're filed; we won't ask again unless you say so — or the book comes back to your Amazon library and later disappears again.</div>
+                                            <div className="border border-gray-200 rounded divide-y divide-gray-100">{kept.map(b => row(b, true))}</div>
+                                        </>)}
+                                    </div>)}
+                                    {(filed.length > 0 || trashed.length > 0 || (removedKeptOpen && kept.length > 0)) && (
                                         <div data-select-text className="text-xs text-red-600 mt-3">⚠ <strong>Permanently delete</strong> removes a book from ReaderWrangler for good — it skips the Trash and can't be undone.</div>
                                     )}
                                 </div>
                                 <div className="flex justify-between items-center gap-2 p-4 border-t border-gray-200">
                                     <button onClick={close} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded">Not now</button>
                                     <div className="flex gap-2">
+                                        {removedKeptOpen && kept.length > 0 && (
+                                            <button disabled={selKept.length === 0}
+                                                title="Put them back on the list of books awaiting a decision"
+                                                onClick={() => unkeepRemovedBooks(selKept.map(b => b.id))}
+                                                className={`px-4 py-1.5 text-sm font-bold rounded ${selKept.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-indigo-700 border border-indigo-300 hover:bg-indigo-50'}`}>
+                                                Ask me again ({selKept.length})
+                                            </button>
+                                        )}
                                         <button disabled={selFiled.length === 0}
                                             title="Keep them where they're filed and stop asking (Trash books can't be kept — restore them first)"
                                             onClick={() => keepRemovedBooks(selFiled.map(b => b.id))}
