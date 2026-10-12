@@ -74,7 +74,7 @@
                         {closeButton && <button onClick={() => onClose && onClose('button')} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none z-10" title="Close" aria-label="Close">×</button>}
                         {(title || showClose) && (
                             <div className="flex justify-between items-start p-4 border-b border-gray-200">
-                                {title ? <h2 className="text-base font-semibold text-gray-900">{title}</h2> : <span />}
+                                {title ? <h2 data-select-text className="text-base font-semibold text-gray-900">{title}</h2> : <span />}
                                 {showClose && <button onClick={() => onClose && onClose('button')} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none" title="Close" aria-label="Close">×</button>}
                             </div>
                         )}
@@ -85,6 +85,16 @@
             );
         };
 
+        // v7.19.0-alpha.4 (Ron + UX) - THE "Select all / Clear" link in a checklist SECTION's header: one piece for every
+        // section (removed-books groups, Tag from Collections' books pane + "Removed from Kindle"), so they can't drift.
+        // Reads "Clear" when every item in the section is checked, else "Select all". Ctrl+A in the section does the
+        // same select-all (data-select-items + <Dialog selectAll>).
+        const SelectAllToggle = ({ allChecked, onToggle }) => (
+            <button type="button" onClick={onToggle} className="text-xs text-blue-600 hover:underline flex-shrink-0 ml-2">
+                {allChecked ? 'Clear' : 'Select all'}
+            </button>
+        );
+
         // APP_VERSION - Defined ONCE in readerwrangler.html, available in global scope
         // Single source of truth - no duplication!
         console.log(`✅ APP_VERSION: ${APP_VERSION} (from readerwrangler.html)`);
@@ -92,7 +102,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0-alpha.3";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0-alpha.4";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -245,6 +255,14 @@
             });
         }
 
+        // v7.19.0-alpha.4 - Ctrl+A areas for the imperative boxes: title and message are separate text areas; the
+        // message is the default when nothing's been clicked. (Button labels are never selectable — readerwrangler.css.)
+        function markDialogText(titleEl, messageEl) {
+            titleEl.setAttribute('data-select-text', '');
+            messageEl.setAttribute('data-select-text', '');
+            messageEl.setAttribute('data-dialog-body', '');
+        }
+
         function showInfoDialog(title, message) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
@@ -271,6 +289,7 @@
                 const messageEl = document.createElement('div');
                 messageEl.style.cssText = `margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;`;
                 messageEl.textContent = message;
+                markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
 
                 const button = document.createElement('button');
                 button.textContent = 'OK';
@@ -319,6 +338,7 @@
             const messageEl = document.createElement('div');
             messageEl.style.cssText = `margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;`;
             messageEl.textContent = message;
+            markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
 
             const buttonContainer = document.createElement('div');
             buttonContainer.style.cssText = `text-align: right;`;
@@ -408,6 +428,7 @@
                 const messageEl = document.createElement('div');
                 messageEl.style.cssText = `margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;`;
                 messageEl.textContent = message;
+                markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
 
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = `display: flex; gap: 8px; justify-content: flex-end;`;
@@ -460,6 +481,7 @@
                 const messageEl = document.createElement('div');
                 messageEl.style.cssText = `margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;`;
                 messageEl.textContent = message;
+                markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = `display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;`;
                 // v7.10.1-alpha.9 - Esc + ✕ dismiss (shared chrome); alpha.70 - backdrop click now comes from the shared chrome too
@@ -501,6 +523,7 @@
                 const messageEl = document.createElement('div');
                 messageEl.style.cssText = `margin-bottom: 16px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;`;
                 messageEl.textContent = message;
+                markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
                 const input = document.createElement('input');
                 input.type = 'text'; input.value = defaultValue; input.placeholder = placeholder;
                 input.style.cssText = `width: 100%; box-sizing: border-box; margin-bottom: 24px; padding: 8px 10px; font-size: 14px; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--bg-page); color: var(--text-primary);`;
@@ -557,6 +580,7 @@
                     ? 'This book is owned and likely still in your Amazon library. It will reappear the next time you run the fetcher. Consider using Hide instead.'
                     : `${purchasedCount} of these books are owned and likely still in your Amazon library. They will reappear the next time you run the fetcher. Consider using Hide instead.`;
 
+                markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = `display: flex; gap: 8px; justify-content: flex-end;`;
 
@@ -5103,6 +5127,7 @@
                             selectText(area); // a text area — or a checklist with no select-all action
                             return;
                         }
+                        if (node.querySelector('[data-select-none]')) return; // alpha.4 - a panel whose text is pure controls (More filters): nothing
                         selectText(node.querySelector('[data-dialog-body]') || node);
                         return;
                     }
@@ -10255,7 +10280,7 @@
                                 padding: '16px',
                                 zIndex: 1000
                             }}>
-                            <div style={{
+                            <div data-select-none style={{
                                 display: 'grid',
                                 gridTemplateColumns: 'repeat(3, 1fr)',
                                 gap: '16px'
@@ -10865,12 +10890,12 @@
                         <Dialog onClose={() => setStatusModalOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 {/* Header */}
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-data-status" className="text-xl font-bold text-gray-900">Data Status</h2>
+                                    <h2 data-select-text id="modal-data-status" className="text-xl font-bold text-gray-900">Data Status</h2>
                                     <button onClick={() => setStatusModalOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
 
                                 {/* Content - informational only */}
-                                <div className="p-6 space-y-4">
+                                <div data-select-text data-dialog-body className="p-6 space-y-4">
                                     {/* Library info - v4.15.1.c: Red text for non-fresh status */}
                                     <div className="border-b border-gray-200 pb-3">
                                         <p className="text-sm text-gray-700">
@@ -11074,7 +11099,7 @@
                                     <span className="block truncate font-medium">
                                         <button type="button" title="Show this book's details"
                                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); openBookModal(b, null, navList); }}
-                                            className="text-gray-800 hover:text-blue-700 hover:underline text-left">{b.title || 'Untitled'}</button>
+                                            className="rw-text-button text-gray-800 hover:text-blue-700 hover:underline text-left">{b.title || 'Untitled'}</button>
                                     </span>
                                     <span className="block truncate text-xs text-gray-500">{b.author || 'Unknown author'}{showWhere ? ` · ${whereFiled(b)}` : ''}</span>
                                 </span>
@@ -11083,7 +11108,7 @@
                         const groupHead = (label, list) => (
                             <div className="flex items-center justify-between mt-1 mb-1">
                                 <div className="text-sm font-semibold text-gray-700">{label} ({list.length})</div>
-                                <button onClick={() => toggleGroup(list)} className="text-xs text-blue-600 hover:underline">{allChecked(list) ? 'Clear' : 'Select all'}</button>
+                                <SelectAllToggle allChecked={allChecked(list)} onToggle={() => toggleGroup(list)} />
                             </div>
                         );
                         return (
@@ -11227,12 +11252,12 @@
                             panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
                                 {/* Header */}
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-duplicate-review" className="text-xl font-bold text-gray-900">Review Duplicates</h2>
+                                    <h2 data-select-text id="modal-duplicate-review" className="text-xl font-bold text-gray-900">Review Duplicates</h2>
                                     <button onClick={() => setDupReviewOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
 
                                 {/* Scrollable content */}
-                                <div className="p-4 overflow-y-auto" style={{ flex: 1 }}>
+                                <div data-select-text data-dialog-body className="p-4 overflow-y-auto" style={{ flex: 1 }}>
                                     <p className="text-sm text-gray-600 mb-4">
                                         {dupGroups.length} book{dupGroups.length !== 1 ? 's' : ''} with duplicate entries.
                                         The highlighted copy will be kept. Click a copy to change the selection.
@@ -11296,13 +11321,13 @@
                             panelClassName="bg-white rounded-lg shadow-2xl max-w-lg w-full"
                             panelStyle={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-start p-4 rounded-t-lg border-b" style={{ background: 'var(--bg-chrome)', borderColor: 'var(--border-default)', flexShrink: 0 }}>
-                                    <h2 id="modal-relay-setup" className="text-xl font-bold" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><img src="icons/sync-tower-neutral.svg" alt="" style={{ width: '14px', height: '22px' }} /> Relay Setup</h2>
+                                    <h2 data-select-text id="modal-relay-setup" className="text-xl font-bold" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><img src="icons/sync-tower-neutral.svg" alt="" style={{ width: '14px', height: '22px' }} /> Relay Setup</h2>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <button onClick={() => setRelayHelpOpen(true)} style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }} title="Learn about the relay, credentials, and bookmarklet" aria-label="Help">?</button>
                                         <button onClick={() => closeRelaySetup()} className="text-2xl leading-none" style={{ color: 'var(--text-muted)' }} title="Close" aria-label="Close">×</button>
                                     </div>
                                 </div>
-                                <div style={{ overflowY: 'auto', flex: 1 }}>
+                                <div data-select-text data-dialog-body style={{ overflowY: 'auto', flex: 1 }}>
                                     {(() => {
                                         const stored = (() => { try { return JSON.parse(localStorage.getItem(RELAY_KEY)); } catch { return null; } })();
                                         const hasCreds = stored && stored.channelId;
@@ -11631,10 +11656,10 @@
                             panelClassName="rounded-lg shadow-2xl max-w-lg w-full"
                             panelStyle={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-start p-4 rounded-t-lg border-b" style={{ background: 'var(--bg-chrome)', borderColor: 'var(--border-default)', flexShrink: 0 }}>
-                                    <h2 id="modal-relay-help" className="text-lg font-bold">Understanding Relay Setup</h2>
+                                    <h2 data-select-text id="modal-relay-help" className="text-lg font-bold">Understanding Relay Setup</h2>
                                     <button onClick={() => setRelayHelpOpen(false)} className="text-2xl leading-none" style={{ color: 'var(--text-muted)' }} title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div style={{ overflowY: 'auto', flex: 1, padding: '20px' }}>
+                                <div data-select-text data-dialog-body style={{ overflowY: 'auto', flex: 1, padding: '20px' }}>
                                     <div style={{ fontSize: '13px', lineHeight: '1.7', color: 'var(--text-secondary)' }}>
                                         <div style={{ marginBottom: '20px' }}>
                                             <p style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>What is the relay?</p>
@@ -11691,10 +11716,10 @@
                     {resetConfirmOpen && (
                         <Dialog onClose={() => setResetConfirmOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-reset-confirm" className="text-xl font-bold text-gray-900">Reset App Confirmation</h2>
+                                    <h2 data-select-text id="modal-reset-confirm" className="text-xl font-bold text-gray-900">Reset App Confirmation</h2>
                                     <button onClick={() => setResetConfirmOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold" title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div className="p-6 space-y-4">
+                                <div data-select-text data-dialog-body className="p-6 space-y-4">
                                     <p className="text-gray-800 font-semibold">This will completely reset the app to its initial unused state.</p>
                                     <div className="text-gray-700">
                                         <p className="font-semibold mb-2">This will:</p>
@@ -11731,7 +11756,7 @@
                         header, ✕, Esc, backdrop, and the keystroke fence are all provided by the primitive. */}
                     {newFolderHiddenAlert && (
                         <Dialog onClose={() => setNewFolderHiddenAlert(null)} title="New folder is hidden">
-                            <div className="p-4 space-y-3">
+                            <div data-select-text data-dialog-body className="p-4 space-y-3">
                                 <p className="text-sm text-gray-700">Active filters are hiding folders with no matching books. <strong>"{newFolderHiddenAlert.folderName}"</strong> won't appear in the sidebar until filters change.</p>
                                 <div className="flex flex-col gap-2 pt-1">
                                     <button
@@ -11764,10 +11789,10 @@
                     {aboutDialogOpen && (
                         <Dialog onClose={() => setAboutDialogOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-about" className="text-xl font-bold text-gray-900">About ReaderWrangler™</h2>
+                                    <h2 data-select-text id="modal-about" className="text-xl font-bold text-gray-900">About ReaderWrangler™</h2>
                                     <button onClick={() => setAboutDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div className="p-6 space-y-4 text-center">
+                                <div data-select-text data-dialog-body className="p-6 space-y-4 text-center">
                                     <img src="icons/logo-transparent.png" alt="ReaderWrangler" className="about-logo" style={{ width: '200px', height: '200px', margin: '0 auto' }} />
                                     <p className="text-sm text-gray-600">Wrangle your Kindle library with power and precision</p>
                                     <div className="text-sm text-gray-700 border-t border-gray-200 pt-4">
@@ -11788,10 +11813,10 @@
                     {shortcutsDialogOpen && (
                         <Dialog onClose={() => setShortcutsDialogOpen(false)} showClose={false} maxWidthClassName="max-w-lg">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-shortcuts" className="text-xl font-bold text-gray-900">Keyboard Shortcuts</h2>
+                                    <h2 data-select-text id="modal-shortcuts" className="text-xl font-bold text-gray-900">Keyboard Shortcuts</h2>
                                     <button onClick={() => setShortcutsDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div className="p-6 space-y-3">
+                                <div data-select-text data-dialog-body className="p-6 space-y-3">
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                                         <div className="font-semibold text-gray-700">Ctrl+Z</div>
                                         <div className="text-gray-600">Undo last action</div>
@@ -11831,10 +11856,10 @@
                     {howToDialogOpen && (
                         <Dialog onClose={() => setHowToDialogOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-how-to" className="text-xl font-bold text-gray-900">How To Use ReaderWrangler</h2>
+                                    <h2 data-select-text id="modal-how-to" className="text-xl font-bold text-gray-900">How To Use ReaderWrangler</h2>
                                     <button onClick={() => setHowToDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div className="p-6 space-y-4">
+                                <div data-select-text data-dialog-body className="p-6 space-y-4">
                                     <div className="bg-blue-50 border border-blue-200 rounded p-4 text-sm text-gray-700">
                                         <p className="font-semibold mb-2">Getting Started:</p>
                                         <ol className="list-decimal list-inside space-y-2 ml-2">
@@ -12073,10 +12098,10 @@
                     {wizardHelpOpen && (
                         <Dialog onClose={() => setWizardHelpOpen(false)} showClose={false} maxWidthClassName="max-w-lg">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-wizard-help" className="text-xl font-bold text-gray-900">📖 Auto-Organize Tips</h2>
+                                    <h2 data-select-text id="modal-wizard-help" className="text-xl font-bold text-gray-900">📖 Auto-Organize Tips</h2>
                                     <button onClick={() => setWizardHelpOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div className="p-6 space-y-4">
+                                <div data-select-text data-dialog-body className="p-6 space-y-4">
                                     <div className="space-y-4 text-sm text-gray-700">
                                         {/* Step 1 */}
                                         <div>
@@ -12131,9 +12156,9 @@
                         <Dialog onClose={() => setCorruptionRecovery(false)} showClose={false} closeButton zIndexClass="z-[100]"
                             panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
-                                    <h2 className="text-lg font-bold text-gray-900">⚠️ Sync data check failed</h2>
+                                    <h2 data-select-text className="text-lg font-bold text-gray-900">⚠️ Sync data check failed</h2>
                                 </div>
-                                <div className="p-4 overflow-y-auto" style={{ flex: 1 }}>
+                                <div data-select-text data-dialog-body className="p-4 overflow-y-auto" style={{ flex: 1 }}>
                                     <p className="text-sm font-semibold text-green-700 mb-2">✅ Your library is safe on this device — only the synced (cloud) copy is affected.</p>
                                     <p className="text-sm text-gray-700 mb-3">A browser tab was most likely closed while a sync was finishing. Keep this tab open (it’s slow to reload) and do all of these, in order:</p>
                                     <pre className="text-xs text-gray-800 bg-gray-50 border border-gray-200 rounded p-3" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{window.RW_RECOVERY_NUMBERED || 'Save a backup (File → Save Backup…), then re-download your library and collections from Amazon with the bookmarklet, then File → Import from Relay.'}</pre>
@@ -12161,9 +12186,9 @@
                         <Dialog onClose={() => { console.log('📋 Backup restore cancelled by user'); setRestoreConfirm(null); }}
                             showClose={false} closeButton zIndexClass="z-[100]" panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
-                                    <h2 className="text-lg font-bold text-gray-900">Restore backup?</h2>
+                                    <h2 data-select-text className="text-lg font-bold text-gray-900">Restore backup?</h2>
                                 </div>
-                                <div className="p-4">
+                                <div data-select-text data-dialog-body className="p-4">
                                     <p className="text-sm text-gray-700 mb-2">
                                         This backup is from <strong>{backupDate ? new Date(backupDate).toLocaleString() : 'an unknown date'}</strong>{ageLabel ? ` — ${ageLabel}` : ''}.
                                     </p>
@@ -12643,7 +12668,7 @@
                             <Dialog onClose={() => setAutoOrgFileUnder(null)} showClose={false} zIndexClass="z-[80]"
                                 panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '380px' }}>
                                     <div className="p-3 border-b border-gray-200">
-                                        <div className="text-sm font-semibold text-gray-900 mb-2">File {n} book{n !== 1 ? 's' : ''} under…</div>
+                                        <div data-select-text data-dialog-body className="text-sm font-semibold text-gray-900 mb-2">File {n} book{n !== 1 ? 's' : ''} under…</div>
                                         <input autoFocus value={raw}
                                             onChange={(e) => setAutoOrgFileUnder(prev => ({ ...prev, filter: e.target.value }))}
                                             onKeyDown={(e) => {
@@ -12971,8 +12996,12 @@
                                                 {/* Removed from Kindle section */}
                                                 {removalLabels.length > 0 && (
                                                     <div data-select-items="removals">
-                                                        <div className="px-3 py-2 bg-amber-50 border-t border-b border-amber-200 text-xs font-semibold text-amber-800 mt-1">
-                                                            Removed from Kindle
+                                                        <div className="flex items-center justify-between px-3 py-2 bg-amber-50 border-t border-b border-amber-200 text-xs font-semibold text-amber-800 mt-1">
+                                                            <span>Removed from Kindle</span>
+                                                            {/* v7.19.0-alpha.4 (Ron + UX) - its OWN toggle: the top bar's All|Some|None ADDS tags; this
+                                                                section REMOVES them — one "All" must never schedule both. */}
+                                                            <SelectAllToggle allChecked={removalLabels.every(l => tfcCheckedRemovals.has(l))}
+                                                                onToggle={() => setTfcCheckedRemovals(removalLabels.every(l => tfcCheckedRemovals.has(l)) ? new Set() : new Set(removalLabels))} />
                                                         </div>
                                                         {removalLabels.map(label => {
                                                             const group = removalGroups[label];
@@ -13018,8 +13047,14 @@
                                         ) : isViewingRemoval ? (
                                             /* Removal group view */
                                             <div className="p-2">
-                                                <div className="px-3 py-1 text-xs text-amber-700 border-b border-amber-200 mb-1">
-                                                    No longer in "{tfcSelectedRemoval}" on Kindle ({removalBooks.length} book{removalBooks.length !== 1 ? 's' : ''})
+                                                <div className="flex items-center justify-between px-3 py-1 text-xs text-amber-700 border-b border-amber-200 mb-1">
+                                                    <span>No longer in "{tfcSelectedRemoval}" on Kindle ({removalBooks.length} book{removalBooks.length !== 1 ? 's' : ''})</span>
+                                                    {/* v7.19.0-alpha.4 - section toggle (Ron): Clear = keep every tag, Select all = remove from all */}
+                                                    {(() => {
+                                                        const un = tfcUncheckedRemovalBooks[tfcSelectedRemoval] || new Set();
+                                                        const all = removalBooks.every(b => !un.has(b.id));
+                                                        return <SelectAllToggle allChecked={all} onToggle={() => setTfcUncheckedRemovalBooks(prev => ({ ...prev, [tfcSelectedRemoval]: all ? new Set(removalBooks.map(b => b.id)) : new Set() }))} />;
+                                                    })()}
                                                 </div>
                                                 <div className="px-3 py-1.5 text-xs text-gray-500 mb-1">
                                                     Checked = remove tag. Unchecked = keep tag (becomes yours).
@@ -13059,8 +13094,17 @@
                                         ) : (
                                             /* Collection view */
                                             <div className="p-2">
-                                                <div className="px-3 py-1 text-xs text-gray-500 border-b border-gray-200 mb-1">
-                                                    Books in "{tfcSelectedCollection}" ({visibleBooks.length})
+                                                <div className="flex items-center justify-between px-3 py-1 text-xs text-gray-500 border-b border-gray-200 mb-1">
+                                                    <span>Books in "{tfcSelectedCollection}" ({visibleBooks.length})</span>
+                                                    {/* v7.19.0-alpha.4 - section toggle (Ron): over the CHECKABLE books (already-tagged ones have no box) */}
+                                                    {(() => {
+                                                        const tagId = tfcSelectedCollection.toLowerCase().replace(/\s+/g, '-');
+                                                        const checkable = visibleBooks.filter(b => !(b.tags || []).includes(tagId));
+                                                        if (checkable.length === 0) return null;
+                                                        const un = tfcUncheckedBooks[tfcSelectedCollection] || new Set();
+                                                        const all = checkable.every(b => !un.has(b.id));
+                                                        return <SelectAllToggle allChecked={all} onToggle={() => setTfcUncheckedBooks(prev => ({ ...prev, [tfcSelectedCollection]: all ? new Set(checkable.map(b => b.id)) : new Set() }))} />;
+                                                    })()}
                                                 </div>
                                                 {visibleBooks.map(book => {
                                                     const tagId = tfcSelectedCollection.toLowerCase().replace(/\s+/g, '-');
@@ -13282,8 +13326,8 @@
                     {/* v4.20.0.a - Bulk price goal modal (v5.0.0-alpha.169.8 - use bulkPriceBookIds) */}
                     {showBulkPriceModal && (
                         <Dialog onClose={() => { setShowBulkPriceModal(false); setBulkPriceInput(''); setBulkPriceBookIds([]); }} showClose={false} closeButton panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm">
-                                <h2 id="modal-bulk-price" className="text-lg font-bold text-gray-900 mb-4">Set Custom Price Goal</h2>
-                                <p className="text-sm text-gray-600 mb-4">
+                                <h2 data-select-text id="modal-bulk-price" className="text-lg font-bold text-gray-900 mb-4">Set Custom Price Goal</h2>
+                                <p data-select-text data-dialog-body className="text-sm text-gray-600 mb-4">
                                     Set price goal for {bulkPriceBookIds.length} selected book{bulkPriceBookIds.length !== 1 ? 's' : ''}
                                 </p>
                                 <form
@@ -13359,8 +13403,8 @@
                             // closes it first on Esc — the old "Esc backs out the dropdown first" branch here is gone.
                             <Dialog onClose={() => { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); }} showClose={false} closeButton
                                 panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-80">
-                                    <h2 id="modal-bulk-edit" className="text-lg font-bold text-gray-900 mb-2">{config.title}</h2>
-                                    <p className="text-sm text-gray-600 mb-4">
+                                    <h2 data-select-text id="modal-bulk-edit" className="text-lg font-bold text-gray-900 mb-2">{config.title}</h2>
+                                    <p data-select-text data-dialog-body className="text-sm text-gray-600 mb-4">
                                         Apply to {bookCount} selected book{bookCount !== 1 ? 's' : ''}
                                     </p>
                                     <form onSubmit={(e) => { e.preventDefault(); saveBulkEdit(); }} className="flex flex-col gap-4">
@@ -13541,7 +13585,7 @@
                                     <button onClick={closeBookModal} className="text-gray-500 hover:text-gray-700 text-2xl" title="Close" aria-label="Close">×</button>
                                 </div>
 
-                                <div className="p-6">
+                                <div data-select-text data-dialog-body className="p-6">
                                     <div className="flex gap-6 mb-6">
                                         {/* v5.6.6 - Cover links to Amazon */}
                                         <a href={getAmazonUrl(modalBook.asin)} target="_blank" rel="noopener noreferrer"
@@ -17756,11 +17800,11 @@
                         <Dialog onClose={() => { setTagManagementOpen(false); setEditingTagId(null); }} showClose={false}
                             panelClassName="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
                                 <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                                    <h2 className="text-xl font-semibold">Manage Tags</h2>
+                                    <h2 data-select-text className="text-xl font-semibold">Manage Tags</h2>
                                     <button onClick={() => { setTagManagementOpen(false); setEditingTagId(null); }}
                                             className="text-gray-400 hover:text-gray-600 text-2xl" title="Close">×</button>
                                 </div>
-                                <div className="flex-1 overflow-y-auto" ref={tagManagerScrollRef}>
+                                <div data-select-text data-dialog-body className="flex-1 overflow-y-auto" ref={tagManagerScrollRef}>
                                     {Object.keys(tagRegistry).length === 0 ? (
                                         <p className="text-gray-500 text-center py-8 px-4">No tags created yet.</p>
                                     ) : (() => {
@@ -20187,10 +20231,10 @@
                             // v7.18.0 - converted to <Dialog>; drag (dialogDrag) dropped here, restored later by the draggable-dialogs feature (TODO)
                             <Dialog onClose={() => setFolderPropertiesDialog(null)} showClose={false} closeButton
                                 panelClassName="bg-white rounded-lg shadow-xl w-full max-w-md">
-                                    <h2 id="modal-folder-properties" className="text-xl font-semibold mb-4 p-6 pb-0">
+                                    <h2 data-select-text id="modal-folder-properties" className="text-xl font-semibold mb-4 p-6 pb-0">
                                         Folder Properties
                                     </h2>
-                                    <div className="px-6 pb-6">
+                                    <div data-select-text data-dialog-body className="px-6 pb-6">
 
                                         {/* Name */}
                                         <div className="mb-4">
@@ -20270,8 +20314,8 @@
                     {/* v6.10.0-alpha.13 - Share Email Fallback Dialog */}
                     {shareEmailChoice && (
                         <Dialog onClose={() => setShareEmailChoice(null)} showClose={false} closeButton panelClassName="bg-white rounded-lg shadow-xl p-6 max-w-md">
-                                <h3 className="text-lg font-bold text-gray-900 mb-2">Share by Email</h3>
-                                <p className="text-sm text-gray-600 mb-4">How would you like to send this?</p>
+                                <h3 data-select-text className="text-lg font-bold text-gray-900 mb-2">Share by Email</h3>
+                                <p data-select-text data-dialog-body className="text-sm text-gray-600 mb-4">How would you like to send this?</p>
                                 <div className="flex flex-col gap-2">
                                     {/* The two mail-client hand-offs, grouped. Copy is the fallback below the divider. */}
                                     {/* Desktop mail client via mailto (Outlook, Thunderbird, …). New context, so
