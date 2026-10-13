@@ -234,9 +234,10 @@ const loadBooksFromIndexedDB = async () => {
             // Dev/local only so production is never affected; first run on a real library also calibrates the
             // allow-list (a warn = add the field to KNOWN_BOOK_FIELDS if legit, else a real phantom to fix).
             try {
-                const loc = (typeof window !== 'undefined') && window.location;
-                const isLocalhost = !!loc && ['localhost', '127.0.0.1'].includes(loc.hostname);
-                const isDevEnv = isLocalhost || (!!loc && loc.hostname === 'ron-l.github.io' && loc.pathname.startsWith('/readerwranglerdev'));
+                // v7.21.0 - asks the environment answers (readerwrangler.html): the check runs for a CONTRIBUTOR or on the
+                // dev site; a self-hoster on localhost is a real user → silent, like production. (typeof guards: Node/tests.)
+                const _contributor = typeof isContributor === 'function' && isContributor();
+                const isDevEnv = _contributor || (typeof isDevSite === 'function' && isDevSite());
                 if (isDevEnv && typeof unknownBookFields === 'function') {
                     const seen = new Set();
                     for (const b of books) for (const k of unknownBookFields(b)) seen.add(k);
@@ -246,11 +247,12 @@ const loadBooksFromIndexedDB = async () => {
                             '— add to KNOWN_BOOK_FIELDS (bookFields.js) if legitimate, else a phantom/misnamed field leaked in.');
                         // v7.15.3 - LOCALHOST dev only: a loud popup so a real phantom can't be missed in the
                         // console. (Not on the dev repo or prod — console.warn covers the dev repo; prod is silent.)
-                        if (isLocalhost && typeof window.alert === 'function') {
+                        // v7.21.0 - contributors only (a self-hoster must never get a dev popup).
+                        if (_contributor && typeof window.alert === 'function') {
                             window.alert('⚠ ReaderWrangler dev — book-field schema check\n\n' +
                                 'Unknown field(s) found on loaded books:\n    ' + list + '\n\n' +
                                 'Either add them to KNOWN_BOOK_FIELDS in bookFields.js (if legitimate), or investigate a ' +
-                                'phantom / misnamed field that leaked onto a stored book.\n\n(This popup is localhost-only.)');
+                                'phantom / misnamed field that leaked onto a stored book.\n\n(This popup shows only in contributor mode.)');
                         }
                     }
                 }
