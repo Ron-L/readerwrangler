@@ -5,7 +5,10 @@ compatibility_date = "2024-09-25"
 [vars]
 ALLOWED_ORIGINS = "https://www.amazon.com,https://readerwrangler.com,https://ron-l.github.io,http://localhost:8000"
 CF_ACCOUNT_ID = "fd7a55c08920584561205e24b2d7eeae"
+# Which deployment this is — relay-worker.js's RELAYS table (worker names + namespace ids mirror this file).
+RELAY_ENV = "prod"
 
+# "*/30" = threshold alerts (prod only); "55 23" = the daily summary (must equal SUMMARY_CRON in relay-worker.js).
 [triggers]
 crons = ["*/30 * * * *", "55 23 * * *"]
 
@@ -17,16 +20,19 @@ preview_id = "4a445b412fb34860a896cfc145a67b9b"
 # --- Dev environment (Phase 0, relay write redesign) ---
 # Deploy with: npx wrangler deploy --env dev
 # Separate worker + separate KV namespace; production data is never touched.
-# No crons: the crons only send usage-alert emails — dev would double-send them.
+# Vars are NOT inherited by an env — every var is repeated here.
 [env.dev]
 name = "readerwrangler-relay-dev"
 
 [env.dev.vars]
 ALLOWED_ORIGINS = "https://www.amazon.com,https://readerwrangler.com,https://ron-l.github.io,http://localhost:8000"
 CF_ACCOUNT_ID = "fd7a55c08920584561205e24b2d7eeae"
+RELAY_ENV = "dev"
 
+# 7.22.0: dev sends its own daily summary (subject "[Dev] …": usage for both relays + a check of dev's storage).
+# Dev never sends threshold alerts — on dev, ANY schedule runs the summary (so a temporary test schedule is safe).
 [env.dev.triggers]
-crons = []
+crons = ["55 23 * * *"]
 
 [[env.dev.kv_namespaces]]
 binding = "RELAY_KV"
