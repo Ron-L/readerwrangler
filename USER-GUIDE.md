@@ -243,7 +243,7 @@ Keep backups in cloud storage (Google Drive, Dropbox, OneDrive) for safekeeping.
 
 ### Reset App
 
-**File > Reset App** clears all data and returns to a fresh state. This is irreversible — save a backup first if you want to keep anything. If you have relay credentials, you can restore your library by setting up the relay again and importing.
+**Tools > Reset App** clears all data and returns to a fresh state. This is irreversible — save a backup first if you want to keep anything. If you have relay credentials, you can restore your library by setting up the relay again and importing.
 
 ---
 
@@ -424,7 +424,7 @@ A: Yes. Open ReaderWrangler on your phone and pair with your desktop via QR code
 A: Yes. On your second computer, go to **File > Relay Setup** and enter your existing credentials (Channel ID and Passphrase). Then **File > Import from Relay** to pull your library. To sync organization between computers, use **File > Save Backup** on one and **File > Restore Backup** on the other.
 
 **Q: Can I maintain separate organizational states?**
-A: Yes. Use **File > Save Backup** to save your current state, then **File > Reset App** to start fresh. Create a different organization. Switch between them by restoring different backup files. Name them descriptively (e.g., `my-actual-library.json`, `demo-state.json`).
+A: Yes. Use **File > Save Backup** to save your current state, then **Tools > Reset App** to start fresh. Create a different organization. Switch between them by restoring different backup files. Name them descriptively (e.g., `my-actual-library.json`, `demo-state.json`).
 
 ### New Devices & Recovery
 

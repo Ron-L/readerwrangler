@@ -102,7 +102,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.20.0-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1212,8 +1212,8 @@
             const [dataSource, setDataSource] = useState('none');
             const [blankImageBooks, setBlankImageBooks] = useState(new Set());
             // v5.0.0-alpha.175.1 - Menu bar state
-            const [openMenuBar, setOpenMenuBar] = useState(null); // 'file' | 'view' | 'help' | null
-            const menuBarRefs = { file: useRef(null), view: useRef(null), help: useRef(null) }; // v7.18.0-alpha.58 - title anchors for the menu-bar <Popover>s
+            const [openMenuBar, setOpenMenuBar] = useState(null); // 'file' | 'view' | 'tools' | 'help' | null
+            const menuBarRefs = { file: useRef(null), view: useRef(null), tools: useRef(null), help: useRef(null) }; // v7.18.0-alpha.58 - title anchors for the menu-bar <Popover>s
             // v7.18.0-alpha.59 - button anchors for the filter-bar <Popover>s ("filterbar" siblings) and the dropdowns
             // inside the More panel ("morepanel" siblings).
             const filterBtnRefs = { status: useRef(null), tags: useRef(null), types: useRef(null), more: useRef(null),
@@ -5621,7 +5621,7 @@
                     // v7.19.0-alpha.6 - "deal now" entry point (ORPHAN-CLEANUP §5): name the removed books and offer Review.
                     const removedN = result.removedReviewCount || 0;
                     const removedLine = removedN > 0
-                        ? `\n\n🧹 ${removedN} book${removedN !== 1 ? 's are' : ' is'} no longer in your Amazon library. Review now, or find ${removedN !== 1 ? 'them' : 'it'} any time under File → Removed books…`
+                        ? `\n\n🧹 ${removedN} book${removedN !== 1 ? 's are' : ' is'} no longer in your Amazon library. Review now, or find ${removedN !== 1 ? 'them' : 'it'} any time under Tools → Removed books…`
                         : '';
                     // v7.19.0-alpha.11 (Ron) - one click for "kept their price goals — clear if no longer wanted" (it took
                     // filtering + sorting by hand before). Clears through applyPriceGoal: undoable, with its receipt.
@@ -9325,7 +9325,7 @@
                             )}
                         </a>
                         {/* v5.0.0-alpha.175.2 - File/View/Help menus */}
-                        {['File', 'View', 'Help'].map(menuName => (
+                        {['File', 'View', 'Tools', 'Help'].map(menuName => (
                             <div key={menuName} style={{ position: 'relative' }}>
                                 {/* v7.18.0-alpha.58 - menu-bar title: anchor of its <Popover>; File/View/Help are SIBLINGS
                                     (data-popover-trigger) so a click on another title switches in one click; hovering
@@ -9395,6 +9395,16 @@
                                                         </button>
                                                     );
                                                 })()}
+                                                {/* v6.0.0 - Relay Setup */}
+                                                <button onClick={() => { setRelaySetupOpen(true); setOpenMenuBar(null); }} style={{
+                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
+                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
+                                                    transition: 'background 0.1s', color: 'var(--text-primary)',
+                                                    display: 'flex', alignItems: 'center', gap: '6px'
+                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                    <img src="icons/sync-tower-neutral.svg" alt="" style={{ width: '10px', height: '16px' }} />
+                                                    Relay Setup…
+                                                </button>
                                                 <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
                                                 <button onClick={() => { importBackup(); setOpenMenuBar(null); }} style={{
                                                     width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
@@ -9422,7 +9432,11 @@
                                                 }} onMouseEnter={e => books.length > 0 && (e.currentTarget.style.background = 'var(--bg-hover)')} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
                                                     📊 Save Spreadsheet (CSV)…
                                                 </button>
-                                                <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
+                                            </>
+                                        )}
+                                        {/* v7.20.0-alpha.1 (Ron + UX) - TOOLS: working ON your library (File = your data in/out incl. the relay; View = display). Reset App alone at the bottom (danger zone). */}
+                                        {menuName === 'Tools' && (
+                                            <>
                                                 {/* v5.1.0-alpha.2 - Auto-Organize wizard */}
                                                 <button onClick={() => { setWizardModalOpen(true); setOpenMenuBar(null); }} disabled={books.length === 0} style={{
                                                     width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
@@ -9431,6 +9445,29 @@
                                                     opacity: books.length === 0 ? 0.5 : 1
                                                 }} onMouseEnter={e => books.length > 0 && (e.currentTarget.style.background = 'var(--bg-hover)')} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
                                                     ✨ Auto-Organize…
+                                                </button>
+                                                {/* v7.19.0 - Removed books: review books no longer in your Amazon library, any time (ORPHAN-CLEANUP §5) */}
+                                                {(() => {
+                                                    const n = books.filter(b => amazonRemovalState(b) === 'review').length;
+                                                    return (
+                                                        <button onClick={() => { openRemovedBooks(); setOpenMenuBar(null); }}
+                                                            title="Books that are no longer in your Amazon library — keep them or remove them"
+                                                            style={{
+                                                                width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
+                                                                border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
+                                                                transition: 'background 0.1s', color: 'var(--text-primary)'
+                                                            }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                            🧹 Removed books…{n > 0 ? ` (${n})` : ''}
+                                                        </button>
+                                                    );
+                                                })()}
+                                                <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
+                                                <button onClick={() => { setTagManagementOpen(true); setOpenMenuBar(null); }} style={{
+                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
+                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
+                                                    transition: 'background 0.1s', color: 'var(--text-primary)'
+                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                    🏷️ Manage Tags…
                                                 </button>
                                                 {/* v6.10.0-alpha.14 - Tag from Collections wizard (v6.10.0-alpha.15 - removal tracking) */}
                                                 <button onClick={() => {
@@ -9484,32 +9521,6 @@
                                                 }} onMouseEnter={e => { const en = books.some(b => (b.collections || []).length > 0) || books.some(b => (b.collectionTags || []).length > 0); en && (e.currentTarget.style.background = 'var(--bg-hover)'); }} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
                                                     🏷️ Tag from Collections…
                                                 </button>
-                                                {/* v7.19.0 - Removed books: review books no longer in your Amazon library, any time (ORPHAN-CLEANUP §5) */}
-                                                {(() => {
-                                                    const n = books.filter(b => amazonRemovalState(b) === 'review').length;
-                                                    return (
-                                                        <button onClick={() => { openRemovedBooks(); setOpenMenuBar(null); }}
-                                                            title="Books that are no longer in your Amazon library — keep them or remove them"
-                                                            style={{
-                                                                width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                                border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                                transition: 'background 0.1s', color: 'var(--text-primary)'
-                                                            }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                            🧹 Removed books…{n > 0 ? ` (${n})` : ''}
-                                                        </button>
-                                                    );
-                                                })()}
-                                                <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
-                                                {/* v6.0.0 - Relay Setup */}
-                                                <button onClick={() => { setRelaySetupOpen(true); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)',
-                                                    display: 'flex', alignItems: 'center', gap: '6px'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    <img src="icons/sync-tower-neutral.svg" alt="" style={{ width: '10px', height: '16px' }} />
-                                                    Relay Setup…
-                                                </button>
                                                 <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
                                                 <button onClick={() => { setResetConfirmOpen(true); setOpenMenuBar(null); }} style={{
                                                     width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
@@ -9554,14 +9565,6 @@
                                                 }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
                                                     {dealsFilterActive && <span style={{ position: 'absolute', left: '12px' }}>✓</span>}
                                                     Goal Met
-                                                </button>
-                                                <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
-                                                <button onClick={() => { setTagManagementOpen(true); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    Manage Tags...
                                                 </button>
                                                 <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
                                                 {/* v5.5.7 - Theme submenu */}
@@ -9688,7 +9691,7 @@
                                     <button onClick={() => { openRemovedBooks(); }} style={{
                                         padding: '4px 12px', fontSize: '12px', fontWeight: 'bold', background: 'var(--bg-accent)', color: 'var(--text-on-accent)',
                                         border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Review</button>
-                                    <button onClick={() => setRemovedReminderHidden(true)} title="Hide until next time — File → Removed books… any time" style={{
+                                    <button onClick={() => setRemovedReminderHidden(true)} title="Hide until next time — Tools → Removed books… any time" style={{
                                         padding: '4px 12px', fontSize: '12px', background: 'var(--bg-surface)', color: 'var(--text-muted)',
                                         border: '1px solid var(--border-default)', borderRadius: '4px', cursor: 'pointer' }}>Not now</button>
                                 </div>
@@ -10368,7 +10371,7 @@
                                 <div style={{ position: 'relative' }}>
                                     <button ref={filterBtnRefs.collections} {...popupTrigger(collectionsDropdownOpen, 'listbox')}
                                         onClick={() => { setCollectionsDropdownOpen(!collectionsDropdownOpen); setAmazonRatingDropdownOpen(false); setMyRatingDropdownOpen(false); setSeriesDropdownOpen(false); setDateDropdownOpen(false); }}
-                                        title={"Filter by Kindle Collection.\nThese come from Amazon and can't be edited here.\nUse File › Tag from Collections to convert them into editable tags."}
+                                        title={"Filter by Kindle Collection.\nThese come from Amazon and can't be edited here.\nUse Tools › Tag from Collections to convert them into editable tags."}
                                         className={`w-full px-3 py-1.5 rounded border text-left flex justify-between items-center ${
                                             selectedCollections.length > 0
                                                 ? 'bg-blue-50 border-blue-300 text-blue-700'
@@ -14050,7 +14053,7 @@
                                                         <div className="text-sm text-amber-700">
                                                             🧹 No longer in your Amazon library — {st === 'kept' ? 'kept' : st === 'trashed' ? 'in your Trash' : (
                                                                 <button type="button" className="underline hover:text-amber-900"
-                                                                    title="Keep it or remove it (File → Removed books…)"
+                                                                    title="Keep it or remove it (Tools → Removed books…)"
                                                                     onClick={() => { openRemovedBooks([modalBook.id]); }}>review</button>
                                                             )}
                                                         </div>
