@@ -78,7 +78,7 @@ const CF_LIMITS = {
 // Cloudflare's KV actionType → our counter. An action type not listed here is reported in the email, never dropped.
 const KV_ACTION_FIELDS = { read: 'kvReads', write: 'kvWrites', delete: 'kvDeletes', list: 'kvLists' };
 
-const WORKER_VERSION = '7.22.0-alpha.1'; // printed in every daily summary, so an email shows which deploy sent it
+const WORKER_VERSION = '7.22.0-alpha.2'; // printed in every daily summary, so an email shows which deploy sent it
 
 // THE list of relays (7.22.0, design §14a fix 2). One codebase, deployed twice; RELAY_ENV in wrangler.toml says which
 // deployment this is. Every daily summary reports ALL relays here (the free limits are shared account-wide); each
@@ -839,9 +839,11 @@ async function checkRateLimit(env, channelId) {
 
 // --- Telemetry ---
 
+// Events are labeled prod-/dev- by the relay that fired them (7.22.0) — the same labels the app's trackEvent uses.
 async function fireGoatCounter(env, eventName) {
+    const prefix = RELAYS[env.RELAY_ENV] ? env.RELAY_ENV : 'unknown'; // never throws: telemetry must not fail a request
     try {
-        await fetch(`https://readerwrangler.goatcounter.com/count?p=/event/${eventName}`, {
+        await fetch(`https://readerwrangler.goatcounter.com/count?p=/event/${prefix}-${eventName}`, {
             method: 'GET',
             headers: { 'User-Agent': 'ReaderWrangler-Relay/1.0' }
         });
