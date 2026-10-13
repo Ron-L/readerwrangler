@@ -8,7 +8,9 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-10-12 (through release 7.19.0)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-10-13 (through release 7.20.0)** — all sections human-reviewed (§1–21).
+7.20.0: new Tools menu — every "File →" / "View →" path to a moved item (Auto-Organize, Removed books, Manage Tags,
+Tag from Collections, Reset App) now reads "Tools →".
 7.19.0 comb hits: removed books (§12 new Q, §14 pointer), undo visibility (§13), Tag from Collections
 title links + per-list Select all (§9), goals cleared after import (§16), Ctrl+A areas (§18).
 7.18.0 (one shared system for every window/menu/popup): comb hits updated — Preview hover popup

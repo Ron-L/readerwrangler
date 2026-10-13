@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.20.0] - 2026-10-13
+
+### A new Tools menu
+- **The menus are now organized by what you're doing.** **File** is your data coming in and going out — Data Status, Import from Relay, Relay Setup, Restore Backup, Save Backup, and Save Spreadsheet. **View** is how things look. The new **Tools** menu holds what you do *to* your library — Auto-Organize, Removed books, Manage Tags, Tag from Collections, and Reset App (alone at the bottom, in red).
+- **What moved:** Auto-Organize, Removed books, Tag from Collections, and Reset App moved from **File** to **Tools**; Manage Tags moved from **View** to **Tools**. Tooltips and help text point to the new places.
+
 ## [7.19.0] - 2026-10-12
 
 ### Books that leave your Amazon library
