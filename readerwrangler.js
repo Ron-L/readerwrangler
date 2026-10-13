@@ -115,17 +115,18 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.20.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.21.0";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
         // so a DEV bookmarklet and a localhost app share the same (dev) relay universe.
         // Escape hatch: run  window._RW_RELAY_WORKER_URL = ''  in the console (then re-import)
         // to point a dev app at the production worker deliberately.
+        // v7.21.0 - CONTRIBUTOR-based, not "localhost": a self-hoster (local server, no contributor flag) reads the
+        // PRODUCTION relay like any user — they used to land on the dev relay. Asks the environment answers defined once in
+        // readerwrangler.html (isContributor / isDevSite); the dev site keeps the dev relay as before.
         (() => {
-            const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-            const isDevRepo = window.location.hostname === 'ron-l.github.io' && window.location.pathname.startsWith('/readerwranglerdev');
-            if ((isLocal || isDevRepo) && window._RW_RELAY_WORKER_URL === undefined) {
+            if ((isContributor() || isDevSite()) && window._RW_RELAY_WORKER_URL === undefined) {
                 window._RW_RELAY_WORKER_URL = 'https://readerwrangler-relay-dev.readerwrangler.workers.dev';
                 console.log(`🔧 DEV environment: relay → dev worker (${window._RW_RELAY_WORKER_URL})`);
             }
@@ -205,8 +206,11 @@
         // v7.4.0 - Badge local instances (tab title + header chip): two identical-looking tabs,
         // one production and one localhost, is how restores land on the wrong instance. Subtle
         // by intent — users legitimately run local clones; this is a label, not a warning.
-        const IS_LOCAL_HOST = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-        document.title = IS_LOCAL_HOST ? "ReaderWrangler (local)" : "ReaderWrangler";
+        // v7.21.0 - asks the environment answers (readerwrangler.html): any LOCAL SERVER gets the label (home network too);
+        // a CONTRIBUTOR's label says so — the contributor-mode fail-safe (spec): impossible to miss, no pop-ups.
+        const IS_LOCAL_HOST = isLocalServer();
+        const IS_CONTRIBUTOR = isContributor();
+        document.title = IS_CONTRIBUTOR ? "ReaderWrangler (local · contributor)" : IS_LOCAL_HOST ? "ReaderWrangler (local)" : "ReaderWrangler";
         // Constants and helper functions moved to uiHelpers.js and storage.js (v5.0.0)
         // saveBooksToIndexedDB, loadBooksFromIndexedDB, clearIndexedDB - see storage.js
         // normalizeBook, parsePrice, getAmazonUrl, calculateFreshness, formatRelativeTime - see uiHelpers.js
@@ -955,9 +959,8 @@
             // Safety net (alpha.61): a popup BUTTON without the marker would make "click another popup's button" take two
             // clicks again. Lists are exempt (they pass every click through anyway). Dev-server only; never shown to users.
             useEffect(() => {
-                const h = location.hostname;
                 if (kind === 'list' || !anchorRef || !anchorRef.current) return;
-                if (!(h === 'localhost' || h === '127.0.0.1' || /^(10|192\.168)\./.test(h))) return;
+                if (!isContributor()) return; // v7.21.0 - developer warning → contributors only (was: any local server)
                 if (!anchorRef.current.closest('[data-popover-trigger]')) {
                     console.warn('[Popover] this popup\'s button is missing {...popupTrigger(isOpen)} — spread it onto the button so other popups switch to it in one click:', anchorRef.current);
                 }
@@ -2697,10 +2700,10 @@
                     const sessionKey = 'rw-integrity-telemetry-sent';
                     if (!sessionStorage.getItem(sessionKey)) {
                         for (const fix of result.autoFixed) {
-                            new Image().src = `https://readerwrangler.goatcounter.com/count?p=/event/integrity-${fix.type}`;
+                            trackEvent(`integrity-${fix.type}`); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                         }
                         for (const issue of result.needsReview) {
-                            new Image().src = `https://readerwrangler.goatcounter.com/count?p=/event/integrity-${issue.type}`;
+                            trackEvent(`integrity-${issue.type}`); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                         }
                         if (result.autoFixed.length > 0 || result.needsReview.length > 0) {
                             sessionStorage.setItem(sessionKey, '1');
@@ -4543,9 +4546,8 @@
                             // guard) — and (b) the whole library survives a pack→unpack round trip. A mechanism
                             // (auto-runs on load) rather than a dev test someone must remember to run (no CI here).
                             try {
-                                const _loc = window.location;
-                                const _isLocalhost = _loc && ['localhost', '127.0.0.1'].includes(_loc.hostname);
-                                if (_isLocalhost && typeof roundTripCheck === 'function'
+                                // v7.21.0 - developer self-check (popups) → contributors only; a self-hoster never sees them
+                                if (isContributor() && typeof roundTripCheck === 'function'
                                     && localStorage.getItem('rw-serialization-selftest') !== ORGANIZER_VERSION) {
                                     const _schema = (typeof schemaSelfCheck === 'function') ? schemaSelfCheck() : [];
                                     const _fail = roundTripCheck(loadedBooks);
@@ -5666,9 +5668,10 @@
 
             // v6.0.0 - Generate environment-aware relay bookmarklet(s)
             // Returns array of { env, label, emoji, href, gradient, subtitle } objects
+            // v7.21.0 - which bookmarklets to offer MUST match the relay this copy reads: a contributor reads the dev relay
+            // (LOCAL + DEV bookmarklets, which send there — plus PROD); the dev site → DEV; everyone else, INCLUDING a
+            // self-hoster on localhost, → PROD (they read the production relay, so a LOCAL/DEV fetch would vanish for them).
             const generateRelayBookmarklets = (channelId, passphrase) => {
-                const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                const isDevRepo = window.location.hostname === 'ron-l.github.io' && window.location.pathname.startsWith('/readerwranglerdev');
                 const creds = `window._RW_RELAY_CHANNEL='${channelId}';window._RW_RELAY_PASSPHRASE='${passphrase}';`;
 
                 const makeHref = (env, baseUrl, cacheBust) => {
@@ -5678,7 +5681,7 @@
 
                 const bookmarklets = [];
 
-                if (isLocalhost) {
+                if (isContributor()) {
                     bookmarklets.push({
                         env: 'LOCAL', label: 'LOCAL ReaderWrangler', emoji: '\u26A0\uFE0F',
                         href: makeHref('LOCAL', 'http://localhost:8000/', true),
@@ -5694,7 +5697,7 @@
                         href: makeHref('PROD', 'https://readerwrangler.com/', false),
                         gradient: 'linear-gradient(135deg, #667eea, #764ba2)', subtitle: 'Production'
                     });
-                } else if (isDevRepo) {
+                } else if (isDevSite()) {
                     bookmarklets.push({
                         env: 'DEV', label: 'DEV ReaderWrangler', emoji: '\uD83D\uDD27',
                         href: makeHref('DEV', 'https://ron-l.github.io/readerwranglerdev/', true),
@@ -5840,7 +5843,7 @@
                     // v6.19.0 - Push the restore to the relay as a reset run (background)
                     sendRestoreToRelay(parsedData);
 
-                    new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/file-imported';
+                    trackEvent('file-imported'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                 } catch (error) {
                     progress.close();
                     console.error('Failed to sync:', error);
@@ -6213,7 +6216,7 @@
                         savedName = suggestedName;
                     }
                     console.log('✅ Backup exported (v2.0 format with organization)');
-                    new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/file-exported';
+                    trackEvent('file-exported'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                     progress.close();
                     // v7.6.2-alpha.2 - The receipt: filename + count + size = the confidence that was missing
                     showToast(`Backup saved — ${allBooks.length.toLocaleString()} books, ${(blob.size / 1048576).toFixed(1)} MB → ${savedName}`);
@@ -6290,7 +6293,7 @@
                         URL.revokeObjectURL(url);
                         savedName = suggestedName;
                     }
-                    new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/spreadsheet-saved';
+                    trackEvent('spreadsheet-saved'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                     progress.close();
                     showToast(`Spreadsheet saved — ${allBooks.length.toLocaleString()} books, ${(blob.size / 1048576).toFixed(1)} MB → ${savedName}`);
                 } catch (error) {
@@ -6352,7 +6355,7 @@
                     setExplorerView('list');
 
                     console.log('✅ Cleared library - app reset to initial state');
-                    new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/app-reset';
+                    trackEvent('app-reset'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                 } catch (error) {
                     console.error('Failed to clear library:', error);
                     showInfoDialog('Reset Error', 'Failed to clear library data.');
@@ -6370,7 +6373,7 @@
                 } else if (file.name.endsWith('.csv')) {
                     loadBooksFromCSV(text);
                 }
-                new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/file-imported';
+                trackEvent('file-imported'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
             };
 
             const loadBooksFromCSV = (csvContent) => {
@@ -9365,12 +9368,18 @@
                             <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                                 ReaderWrangler<span style={{ fontSize: '9px', verticalAlign: 'super', color: 'var(--text-muted)' }}>™</span>
                             </span>
+                            {/* v7.21.0 - the contributor-mode FAIL-SAFE: "LOCAL · CONTRIBUTOR" in orange when the flag is on;
+                                plain "LOCAL" (accent) when it's off. If a contributor ever sees plain LOCAL, the flag is lost. */}
                             {IS_LOCAL_HOST && (
-                                <span title="This is your local instance (localhost) — not readerwrangler.com" style={{
+                                <span title={IS_CONTRIBUTOR
+                                        ? 'Contributor mode: this local copy uses the DEV relay and shows developer checks. To turn it off, open the app once with ?contributor=off'
+                                        : 'This is a local copy — not readerwrangler.com. It uses the normal (production) relay.'}
+                                    style={{
                                     fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em', padding: '1px 6px',
-                                    borderRadius: '8px', border: '1px solid var(--text-accent-strong, #4f46e5)',
-                                    color: 'var(--text-accent-strong, #4f46e5)', marginLeft: '2px'
-                                }}>LOCAL</span>
+                                    borderRadius: '8px', marginLeft: '2px',
+                                    border: `1px solid ${IS_CONTRIBUTOR ? '#ea580c' : 'var(--text-accent-strong, #4f46e5)'}`,
+                                    color: IS_CONTRIBUTOR ? '#ea580c' : 'var(--text-accent-strong, #4f46e5)'
+                                }}>{IS_CONTRIBUTOR ? 'LOCAL · CONTRIBUTOR' : 'LOCAL'}</span>
                             )}
                         </a>
                         {/* v5.0.0-alpha.175.2 - File/View/Help menus */}
@@ -10915,7 +10924,7 @@
                                     {RELAY_IS_DEV && (
                                         <div className="border-b border-gray-200 pb-3">
                                             <p className="text-sm font-medium" style={{ color: '#9333ea' }}>🔧 Relay: Dev relay worker + storage</p>
-                                            <p className="text-xs mt-1 text-gray-500">Dev &amp; localhost share this store; prod is separate.</p>
+                                            <p className="text-xs mt-1 text-gray-500">The dev site and contributor mode share this store; prod is separate.</p>
                                         </div>
                                     )}
 
@@ -11322,8 +11331,8 @@
                                         const stored = (() => { try { return JSON.parse(localStorage.getItem(RELAY_KEY)); } catch { return null; } })();
                                         const hasCreds = stored && stored.channelId;
                                         const bookmarklets = hasCreds ? generateRelayBookmarklets(stored.channelId, stored.passphrase) : [];
-                                        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                                        const isDevRepo = window.location.hostname === 'ron-l.github.io' && window.location.pathname.startsWith('/readerwranglerdev');
+                                        // v7.21.0 - (local isLocalhost / isDevRepo copies removed: the dev-mode note and the pairing QR ask
+                                        // isContributor() / isDevSite() — so a self-hoster pairs their phone with readerwrangler.com.)
                                         // 'none' = user explicitly collapsed all; null = modal just opened (auto-open default)
                                         // null = nothing open (modal just opened or user closed all); 'none' also maps to null
                                         const activeSection = (relaySetupSection === 'none' || relaySetupSection === null) ? null : relaySetupSection;
@@ -11464,7 +11473,7 @@
                                                                         crypto.getRandomValues(arr);
                                                                         for (let i = 0; i < 32; i++) passphrase += chars[arr[i] % chars.length];
                                                                         await relayOp('generate', { channelId, passphrase });
-                                                                        new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/relay-channel-created';
+                                                                        trackEvent('relay-channel-created'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                                                                         setRelayManualCreds(false);
                                                                         setRelaySetupOpen(false);
                                                                         setTimeout(() => { setRelaySetupOpen(true); setRelaySetupSection('credentials'); }, 100);
@@ -11568,7 +11577,7 @@
                                                     React.createElement('img', { src: `images/bookmarklet-install.gif?v=${ORGANIZER_VERSION}`, alt: 'Drag bookmarklet to bookmarks bar', style: { maxWidth: '100%', height: 'auto', borderRadius: '6px', border: '1px solid var(--border-default)' } })
                                                 ),
                                                 React.createElement('p', { className: 'text-xs mt-2', style: { color: 'var(--text-muted)' } }, 'Your credentials are baked into the bookmarklet. If you regenerate credentials, you must drag the new bookmarklet to your bookmarks bar to replace the old one.'),
-                                                isLocalhost && React.createElement('p', { className: 'text-xs', style: { color: 'var(--text-muted)', fontStyle: 'italic' } }, 'Developer mode: showing all 3 environments.'),
+                                                isContributor() && React.createElement('p', { className: 'text-xs', style: { color: 'var(--text-muted)', fontStyle: 'italic' } }, 'Developer mode: showing all 3 environments.'),
                                                 React.createElement('div', { className: 'mt-3 p-3 rounded text-sm', style: { background: 'var(--bg-surface)', border: '1px solid var(--border-default)' } },
                                                     React.createElement('p', { className: 'font-semibold text-xs mb-1' }, 'How to use:'),
                                                     React.createElement('ul', { className: 'text-xs', style: { color: 'var(--text-secondary)', paddingLeft: '16px', margin: 0, lineHeight: '1.6', listStyleType: 'disc' } },
@@ -11594,7 +11603,7 @@
                                                     React.createElement('div', {
                                                         ref: (el) => {
                                                             if (el && !el.querySelector('canvas') && !el.querySelector('img') && window.QRCode) {
-                                                                const baseUrl = (isLocalhost || isDevRepo) ? 'https://ron-l.github.io/readerwranglerdev' : 'https://readerwrangler.com';
+                                                                const baseUrl = (isContributor() || isDevSite()) ? /* v7.21.0 - pair the phone with the relay this copy reads */ 'https://ron-l.github.io/readerwranglerdev' : 'https://readerwrangler.com';
                                                                 const creds = btoa(JSON.stringify({ channelId: stored.channelId, passphrase: stored.passphrase }));
                                                                 const pairingUrl = `${baseUrl}/readerwrangler.html#pair=${creds}`;
                                                                 new window.QRCode(el, { text: pairingUrl, width: 200, height: 200, colorDark: '#000000', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.L });

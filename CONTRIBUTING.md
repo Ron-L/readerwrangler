@@ -124,6 +124,31 @@ There are three development workflows available, depending on your testing needs
 
    Browsers block JavaScript from loading local files (like your library JSON) when opening HTML files directly (`file://` protocol). Running a local HTTP server (`http://localhost`) allows the application to access these files securely.
 
+4. **Turn on contributor mode (once per browser).** A local copy behaves like the real site by default — that's
+   right for anyone who simply self-hosts. To get developer behavior, open the organizer once with:
+
+   ```
+   http://localhost:8000/readerwrangler.html?contributor=on
+   ```
+
+   The setting is saved in that browser (for that address and port) and the `?contributor=on` disappears from the
+   address bar. `?contributor=off` turns it off. It only works on a local server — readerwrangler.com and the dev
+   site ignore it. A phone needs it only if it opens the app from your PC's server.
+
+   **Contributor mode means:** the app uses the **DEV relay** (separate from production data); Relay Setup offers the
+   LOCAL and DEV bookmarklets (both send to the dev relay); developer self-check popups are on; usage statistics are
+   labeled `dev-` so they don't count as real use.
+
+   **The badge is your check.** With contributor mode on, the header shows **LOCAL · CONTRIBUTOR** in orange (and the
+   tab title says "local · contributor"). Plain **LOCAL** means it's off — you're behaving like a self-hoster.
+
+   **If the flag is ever lost** (cleared browser data, a different browser or port), symptoms: the badge loses
+   "CONTRIBUTOR"; fetches from the LOCAL/DEV bookmarklets seem to vanish (they still go to the dev relay, but the app
+   now reads production) — Import says nothing new; Import shows production data instead of your dev test data; local
+   test changes and test Restores sync to the **production** relay; Relay Setup shows production storage; the phone
+   pairing code points at readerwrangler.com; developer self-check popups go silent. Fix: open once with
+   `?contributor=on`.
+
 ### Development Option B: GitHub Pages DEV Testing
 
 **Best for:** Testing GitHub Pages deployment without affecting production, verifying bookmarklet loading from remote server

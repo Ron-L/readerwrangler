@@ -370,7 +370,20 @@ Reply to the user still owed (Ron's channel).
   instead of using the dev-aware worker URL (`window._RW_RELAY_WORKER_URL`, set at ~line 90 for localhost + the dev repo).
   DO: read the same worker URL every other relay call uses (one accessor, not a second hard-coded string). Small.
 
-- [ ] **Relay storage keeps climbing ~18 MB per Restore, and the daily usage email shows the wrong number** (found 2026-10-03/04; full write-up + fix design in **docs/design/RELAY-WRITE-REDESIGN.md §14a**). Real total ≈572 MB (56% of the 1 GB free tier) while emails showed 219.7/326/0 — each email reports ONE bucket (prod or dev), never the sum, and "no data" prints as 0. ~265 MB is recoverable leftovers. Three fixes, one "relay storage" side-fix branch (Ron: after the overlay branch unless urgency changes): (1) Restore never deletes the package it absorbs → move cleanup INTO `commitGeneration` (+ dedupe `absorbedRuns`); (2) usage email: per-bucket query + sum, "no data" not 0, `keyCount` cross-check; (3) worker-side daily sweep for torn/extra/absorbed leftovers, report-only first, then deleting. Leave prod channel `58c1bfd7…` alone (another user; expires Dec 7). Don't Import from Relay on dev while the Sep 27 orphan test runs are pending. Inventory tool: `.private/analyze-relay-keys.js`.
+- [ ] **Relay storage keeps climbing ~18 MB per Restore, and the daily usage email shows the wrong number** (found 2026-10-03/04; full write-up + fix design in **docs/design/RELAY-WRITE-REDESIGN.md §14a**). Real total ≈572 MB (56% of the 1 GB free tier) while emails showed 219.7/326/0 — each email reports ONE bucket (prod or dev), never the sum, and "no data" prints as 0. ~265 MB is recoverable leftovers. Three fixes, one "relay storage" side-fix branch (Ron: after the overlay branch unless urgency changes): (1) Restore never deletes the package it absorbs → move cleanup INTO `commitGeneration` (+ dedupe `absorbedRuns`); (2) usage email: per-bucket query + sum, "no data" not 0, `keyCount` cross-check; (3) worker-side daily sweep for torn/extra/absorbed leftovers, report-only first, then deleting. Leave prod channel `58c1bfd7…` alone (another user; expires Dec 7). Inventory tool: `.private/analyze-relay-keys.js`.
+  **PLAN AGREED 2026-10-13 (Ron):** fresh read-only inventory done — prod unchanged since Sep 9 (torn chunk `…21fc`, unabsorbed Restore `…3560`, legacy device-state); dev's ~160 MB of Restore packages were reclaimed by the 2026-10-12 Imports (Import retries cleanup of earlier absorbed runs — so the Restore leak is permanent only on a channel that never imports, like prod); dev showed 7 device-state copies (F2). The Sep 27 dev runs are imported — that hold is lifted. ORDER: (A) 7.21.0 contributor mode (prereq); (B1) app-side: cleanup inside `commitGeneration` + dedupe; then **Send to Production…** (below); (B2) worker update — a `RELAY_ENV` prod/dev setting; BOTH workers send the COMBINED usage email (prod + dev + total vs the account-wide free limits), dev's subject says "Dev"; worker statistics labeled prod-/dev-; daily cleanup REPORT-ONLY; dev gets a schedule (summary + cleanup); only prod sends threshold alerts for now. Deploy to DEV first (`npx wrangler deploy --env dev`), ~1 week of correct reports, then deletion on for dev, then the same for prod — every deploy asks Ron first (the pre-approved prod deploy was removed from local permissions). (C, later) a tiny SHARED notepad storage bound to both workers (no user data): dev = backup alerter (sends "[Dev] backup alert" if a crossing it has seen for >1 h has no prod alert recorded since — timestamps, no cross-deletes) + a "prod is alive" check (alert if prod's daily summary is >26 h old).
+
+- [ ] **"Send to Production…" — a deliberate way to copy your dev library to readerwrangler.com (Ron 2026-10-13)**.
+  WHY: Ron organizes on his local (dev) copy and today copies it to production by Save Backup on localhost → Restore
+  Backup on readerwrangler.com. Turning the contributor flag off is NOT a sync (it just reconnects to production and
+  lets automatic saves run whenever, in either direction). WHAT: **File → Send to Production…**, shown ONLY in
+  contributor mode. It sends this local library + organization to the PRODUCTION relay as a fresh starting point (the
+  same "reset" package a Restore sends — `sendRestoreToRelay`, pointed at the prod worker by a parameter, not by
+  flipping the global relay address). readerwrangler.com / the phone pick it up with Import from Relay. Confirm dialog
+  spells it out: "Replace what readerwrangler.com sees with this local library (N books, your folders, tags and Book
+  Lists)? Anything changed on readerwrangler.com since your last send will be overwritten." Never touches the dev relay
+  or the local library. SEQUENCE: after Release B part 1 (otherwise each send leaves ~18 MB behind on prod, which never
+  imports to reclaim it).
 
 - [ ] **Checkpoint the cold (first-time) fetch** — a ~3,000-book initial enrichment has no resume; die at book 2,800, start over. 7.0 makes it natural: send enrichment progress as mailbox letters in stages so a resumed run's skip-hint already knows what's done. Bites each user exactly once — low priority, pre-launch nice-to-have. (From the 2026-08-21 external sync review, item 1's salvageable kernel.)
 
@@ -463,51 +476,6 @@ Reply to the user still owed (Ron's channel).
 - [ ] **Left-pane jump-to-top/bottom placement** — both chevrons now ship, but they sit at the **bottom-left**, not at the two **scrollbar ends** as originally intended (Ron expected top-at-top / bottom-at-bottom). Scroll affordances conventionally live by the scrollbar (right). Reconsider: move the pair to the right near the scrollbar (spatial mapping), or adopt the single context-aware "back to top" that appears on scroll-down. **Per-section jump** (Searches / Book Lists / Folders): skip — the collapsible sections already handle that navigation.
 
 ## 🗄️ Backlog (post-launch)
-
-**Self-hosting safety**
-- [ ] **Someone running ReaderWrangler on their OWN localhost silently uses Ron's DEV relay** (analysis 2026-10-06).
-  WHAT HAPPENS: the app treats "localhost" as "Ron's dev machine". For a (rare) self-hoster that means (1) their sync
-  goes to Ron's **DEV** relay storage (Ron's lab: untested worker deploys land there first, it may be wiped, it isn't
-  monitored, and it counts against Ron's storage) — readerwrangler.js ~87 + mobile.js ~24; (2) their phone-pairing
-  QR code sends the phone to Ron's **dev GitHub site** (~11255); (3) if they install the PROD bookmarklet but run the
-  app on localhost, fetches land in PROD while the app reads DEV → "No library data found". Harmless localhost checks
-  (LOCAL badge, mode indicator, mobile chip, restore wrong-instance guard, LOCAL bookmarklet option, load-error display,
-  the per-load cache-buster) need no change; the two dev self-check POP-UPS (book-field self-check ~4256, unknown-field
-  alert storage.js ~234) only fire when data is already wrong — optional.
-  ALSO FOUND: a phone opening the app from Ron's PC dev server over home Wi-Fi (`http://192.168.86.35:8000/…`) reads
-  the PRODUCTION relay today, while the desktop on localhost reads DEV — mobile.js ~24 only recognizes "localhost".
-  The spec below fixes this (a home-network address counts as a local server).
-
-  **DECIDED SPEC (Ron 2026-10-06):**
-  - TWO KINDS of local-server users: **self-hosters** (privacy-minded etc.) get PRODUCTION behavior, silently — no
-    nagging; **contributors** (Ron + any future contributor) get ALL dev behavior. It's a contributor switch, not
-    Ron-only.
-  - **ONE function decides: `isContributor()`** — the single chokepoint; every dev-only branch calls it, nothing else
-    re-derives it. (Named for the ROLE; `isDev()` rejected — "DEV" already means the readerwranglerdev site + DEV relay,
-    cf. `isDevRepo` / storage.js `isDevEnv`.) Defined ONCE in readerwrangler.html's inline script (runs before the
-    desktop app, mobile.js and storage.js), exposed on window.
-  - **Both conditions required:** running on a LOCAL SERVER (localhost / 127.0.0.1 / home-network 10.x or 192.168.x)
-    **AND** the browser's contributor flag is on. On readerwrangler.com or the DEV site it is always false and the
-    switch is ignored (Ron: "I would have gotten burnt when I tested Prod").
-  - **The switch:** visit the app with `?contributor=on` (or `?contributor=off`) once per browser; the page saves
-    `readerwrangler-contributor = on` in that browser's Local Storage (per address+port) and removes the parameter from
-    the address bar. A phone needs it only if it opens the app FROM the PC's dev server (each browser/address is
-    separate). Document in CONTRIBUTING.md.
-  - **Fail-safe = the badge, impossible to miss:** "LOCAL · CONTRIBUTOR" in a distinct color when on; plain "LOCAL"
-    when off. No warnings/pop-ups (don't harass self-hosters). Relay Setup's existing "which relay storage" line backs it up.
-  - SYMPTOMS if Ron's flag is ever lost (for the CONTRIBUTING.md troubleshooting note): badge loses "CONTRIBUTOR";
-    fetches from the LOCAL/DEV bookmarklets seem to vanish (they still go to DEV; the app now reads PROD) → "No library
-    data found"/nothing new on Import; Import shows production data instead of dev test data; **local testing changes
-    and test Restores sync to the PRODUCTION relay** (shows up on the phone's readerwrangler.com view); Relay Setup
-    shows production storage; pairing QR points at readerwrangler.com; dev self-check pop-ups go silent.
-  - The per-load fresh-code cache-buster (alpha.53) stays tied to "local server" only, NOT to contributor mode.
-  - IMPLEMENTATION: COMB every existing localhost / isLocal / isDevEnv check (sitemap 2026-10-06: readerwrangler.js ~87,
-    ~157, ~4256, ~5431, ~9002, ~10692, ~10983/11229/11255; mobile.js ~11-26; storage.js ~234; readerwrangler.html
-    ~222/~296), classify each (dev-only → `isContributor()`; harmless label → leave on "local server"), route the
-    dev-only ones through the function.
-  - Rejected mechanisms: IP address / project path (break silently); a marker file in .private (browsers can't see
-    folders — a request on every load for every user, and it needs the server to expose .private).
-  - Deferred by Ron 2026-10-06 — do after the overlay branch.
 
 **Dialog look (LOW priority — Ron 2026-10-08)**
 - [ ] **The confirm-style dialogs are hand-built page elements, not React `<Dialog>`s** — the message / OK-Cancel /

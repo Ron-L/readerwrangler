@@ -1,6 +1,6 @@
 // mobile.js — ReaderWrangler Mobile Viewer
 // MOBILE_VERSION tracks mobile-specific iterations
-const MOBILE_VERSION = '1.9.0'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
+const MOBILE_VERSION = '1.10.0'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
 console.log(`✅ Mobile viewer ${MOBILE_VERSION} | APP_VERSION: ${APP_VERSION}`);
 
 // v1.7.0 - Which server is this copy talking to? Derived from the page's own address, so an
@@ -10,9 +10,14 @@ const SERVER_ENV = (() => {
     const h = location.hostname;
     // v1.8.4 (Ron) - chip says DEV/LOCAL for BOTH non-prod builds: the reminder that localhost and
     // the dev site share one relay worker + storage (the label below still names the exact build).
-    if (h === 'localhost' || h === '127.0.0.1') return { label: 'Localhost', chip: 'DEV/LOCAL' };
+    // v1.10.0 (7.21.0 contributor mode) - asks the environment answers defined once in readerwrangler.html. The chip
+    // is the phone's FAIL-SAFE badge, matching the desktop: "LOCAL · CONTRIBUTOR" (dev relay) vs plain "LOCAL"
+    // (a self-hoster — production relay); the dev site says "DEV". Any other address behaves like production.
+    if (isContributor()) return { label: `Local copy (${h}) — contributor mode`, chip: 'LOCAL · CONTRIBUTOR' };
+    if (isLocalServer()) return { label: `Local copy (${h})`, chip: 'LOCAL' };
+    if (isDevSite()) return { label: 'Dev site (readerwranglerdev)', chip: 'DEV' };
     if (h === 'readerwrangler.com' || h === 'www.readerwrangler.com') return { label: 'readerwrangler.com', chip: null };
-    return { label: `Dev (${h})`, chip: 'DEV/LOCAL' };
+    return { label: h, chip: null };
 })();
 
 // v1.8.3 - Dev environments talk to the DEV relay worker (isolated KV namespace) — MIRRORS the
@@ -20,10 +25,9 @@ const SERVER_ENV = (() => {
 // mirrored: the badge above told the truth about the build while the relay underneath always read
 // PROD, so a dev/localhost phone could never see dev-relay data (found 2026-09-15: dev build on
 // phone still showed prod org). relay-client.js reads this override before its built-in prod URL.
+// v1.10.0 (7.21.0) - contributor-based, matching the desktop: a self-hoster's phone reads the PRODUCTION relay.
 (() => {
-    const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
-    const isDevRepo = location.hostname === 'ron-l.github.io' && location.pathname.startsWith('/readerwranglerdev');
-    if ((isLocal || isDevRepo) && window._RW_RELAY_WORKER_URL === undefined) {
+    if ((isContributor() || isDevSite()) && window._RW_RELAY_WORKER_URL === undefined) {
         window._RW_RELAY_WORKER_URL = 'https://readerwrangler-relay-dev.readerwrangler.workers.dev';
         console.log(`🔧 DEV environment: relay → dev worker (${window._RW_RELAY_WORKER_URL})`);
     }
@@ -639,7 +643,8 @@ function Header({ currentNav, navStack, folders, books, tagRegistry, bookLists, 
                     <span style={{
                         fontSize: '9px', fontWeight: 700, letterSpacing: '0.5px',
                         padding: '1px 5px', borderRadius: '4px', marginRight: '6px',
-                        background: '#6366f1', color: '#ffffff', verticalAlign: 'middle'
+                        // v1.10.0 - contributor mode in ORANGE, matching the desktop badge (the fail-safe color)
+                        background: isContributor() ? '#ea580c' : '#6366f1', color: '#ffffff', verticalAlign: 'middle'
                     }}>{SERVER_ENV.chip}</span>
                 )}
                 {centerText}

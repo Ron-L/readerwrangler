@@ -139,7 +139,7 @@
     <script src="bookFields.js?v=7.19.0"></script>
     <!-- v7.17.0 - Book-merge implementation (reads the table above); node-unit-tested; loads before storage.js -->
     <script src="bookMerge.js?v=7.19.0"></script>
-    <script src="storage.js?v=7.19.0"></script>
+    <script src="storage.js?v=7.21.0"></script>
     <!-- v7.18.0 - Overlay layer registry (pure JS; the ordered dialog/popover stack); node-unit-tested; loads before the app script -->
     <script src="overlayRegistry.js?v=7.19.0"></script>
     <!-- v6.3.0 - Data integrity checks -->
@@ -169,7 +169,46 @@
     <script>
         // APP_VERSION - Single source of truth for cache busting
         // Update this on each release to force browsers to fetch new code
-        const APP_VERSION = "7.20.0";
+        const APP_VERSION = "7.21.0";
+
+        // v7.21.0 - THE environment answers (contributor mode — spec in TODO.md, Ron 2026-10-06). Defined ONCE, here,
+        // before ANY app code loads (desktop app, mobile.js, storage.js all run after this); everything else ASKS these —
+        // nothing re-reads the address bar or the flag. Two kinds of local-server users: SELF-HOSTERS get production
+        // behavior, silently; CONTRIBUTORS (local server AND this browser's flag) get all dev behavior. The badge
+        // ("LOCAL · CONTRIBUTOR" vs "LOCAL") is the fail-safe that shows which you are.
+        //   isLocalServer()    — this PC or a phone on the home network hitting it (localhost / 127.0.0.1 / 10.x / 192.168.x)
+        //   isDevSite()        — the readerwranglerdev GitHub Pages site
+        //   isContributor()    — local server AND readerwrangler-contributor = on (always false elsewhere)
+        //   isTestingTraffic() — contributor OR dev site: labels usage statistics "dev-" instead of "prod-"
+        const CONTRIBUTOR_KEY = 'readerwrangler-contributor';
+        function isLocalServer() { var h = location.hostname; return h === 'localhost' || h === '127.0.0.1' || /^(10|192\.168)\./.test(h); }
+        function isDevSite() { return location.hostname === 'ron-l.github.io' && location.pathname.indexOf('/readerwranglerdev') === 0; }
+        function isContributor() {
+            if (!isLocalServer()) return false;
+            try { return localStorage.getItem(CONTRIBUTOR_KEY) === 'on'; } catch (e) { return false; }
+        }
+        function isTestingTraffic() { return isContributor() || isDevSite(); }
+        // v7.21.0 (Ron) - THE usage-statistics event: every app event goes through here, labeled "prod-" (real use:
+        // readerwrangler.com AND self-hosters) or "dev-" (testing: contributor mode or the dev site). Unlabeled events in
+        // the history are pre-7.21.0 and mixed — read them as such. (Page views are separate: GoatCounter's script
+        // already ignores local addresses, and the dev site records under its own /readerwranglerdev/ path.)
+        function trackEvent(name) {
+            try { new Image().src = 'https://readerwrangler.goatcounter.com/count?p=/event/' + (isTestingTraffic() ? 'dev-' : 'prod-') + name; }
+            catch (e) { /* statistics are best-effort */ }
+        }
+        // The switch: open the app once with ?contributor=on (or =off) — saved in THIS browser for this address+port,
+        // then removed from the address bar. Ignored anywhere but a local server.
+        (function () {
+            try {
+                var p = new URLSearchParams(location.search).get('contributor');
+                if (p !== 'on' && p !== 'off') return;
+                if (isLocalServer()) {
+                    if (p === 'on') localStorage.setItem(CONTRIBUTOR_KEY, 'on'); else localStorage.removeItem(CONTRIBUTOR_KEY);
+                }
+                var u = new URL(location.href); u.searchParams.delete('contributor');
+                history.replaceState(null, '', u.pathname + u.search + u.hash);
+            } catch (e) { /* storage blocked: the badge will show plain LOCAL — the fail-safe */ }
+        })();
 
         // Viewport detection: load mobile.js on phone-width screens
         // Session guard: once desktop loads in a tab, it stays desktop for that session
@@ -219,9 +258,8 @@
             // stamp per load: APP_VERSION doesn't move between alphas, so the browser could reuse a stale copy and a
             // hard refresh sometimes didn't fetch the new one (2026-10-06 stale-page false bug). Harmless for anyone
             // self-hosting (only skips caching of their own local file); production keeps the version-based cache.
-            var _h = location.hostname;
-            var _isLocalServer = _h === 'localhost' || _h === '127.0.0.1' || /^(10|192\.168)\./.test(_h);
-            script.src = (isMobile ? 'mobile.js' : 'readerwrangler.js') + '?v=' + (_isLocalServer ? Date.now() : APP_VERSION);
+            // v7.21.0 - asks isLocalServer() (stays "local server", not contributor — spec)
+            script.src = (isMobile ? 'mobile.js' : 'readerwrangler.js') + '?v=' + (isLocalServer() ? Date.now() : APP_VERSION);
             document.body.appendChild(script);
 
             // Dev-only mode indicator (localhost / file:// only — never ships to users). The desktop/mobile
@@ -230,8 +268,7 @@
             // fades — visible when you move, out of the way when visualizing the actual UI at rest.
             // TAP it to toggle to the other mode (desktop<->mobile) — also the escape hatch from a stuck mode.
             (function () {
-                var host = window.location.hostname;
-                if (host !== 'localhost' && host !== '127.0.0.1' && host !== '') return;
+                if (!isContributor()) return; // v7.21.0 - developer aid → contributors only (was: localhost / file://)
                 var narrow = window.matchMedia('(max-width: 767px)').matches;
                 var modeLabel = isMobile ? 'MOBILE' : ('DESKTOP' + (narrow ? ' · phone width' : ''));
                 var target = isMobile ? 'DESKTOP' : 'MOBILE'; // tapping toggles to the other mode
@@ -298,7 +335,7 @@
                         'ReaderWrangler failed to load. This may be caused by corrupted data. ' +
                         'You can reset the app to fix this. Your files on disk are safe.' +
                     '</div>' +
-                    ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') && window._lastLoadError
+                    (isLocalServer() && window._lastLoadError /* v7.21.0 - any local server: a self-hoster debugging a broken page needs it too */
                         ? '<pre style="text-align:left; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:10px 12px; font-size:0.78em; color:#991b1b; white-space:pre-wrap; word-break:break-word; margin-bottom:20px;">' +
                           String(window._lastLoadError).replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre>'
                         : '') +
