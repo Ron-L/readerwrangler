@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed:** in a long session, actions taken inside a window could become impossible to undo from that window.
 
 ### Smaller improvements
+- **Click a book's title to see its details** in Removed books and Tag from Collections — decide with the facts in front of you. The details open on top, and ◀ ▶ steps through the list.
 - **"Clear those N goals" after an import** — when books you've just bought still carry a price goal, one click clears them (undoable).
 
 ## [7.18.0] - 2026-10-08

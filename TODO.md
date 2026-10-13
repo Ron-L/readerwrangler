@@ -274,6 +274,11 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   **From the 7.18.0 PM (2026-10-08):** ~~(1) gate watched only readerwrangler.js/mobile.js~~ DONE same day — widened
   to a rule (any root `.js` + relay worker). (2) STILL OPEN: a gate bounce inside a parallel batch silently drops
   that one edit (alpha.62 half-fix) — no obvious mechanism yet (a hook can't know which edits were intended); design.
+  **(3) My code safety-check can be skipped by accident (7.19.0 PM, 2026-10-12).** The checklist that pops up before
+  I change app code only fires when I use my normal editing tool; edits I make with a find-and-replace command skip it.
+  Fix: have the check fire for those edits too. Affects only my tooling, not the app. Small.
+  (Technical: the gate hooks only Edit/Write; add a PreToolUse hook on Bash that spots `sed -i` / redirects onto a
+  root `.js` or the relay worker and runs the same once-per-turn checklist — reuse `is_app_source()`.)
 
 - [ ] **Tag-from-Collections wizard: right-pane vs checkbox confusion (UNSETTLED — 2026-09-22)**. The
   left-pane row has TWO hit-targets doing different things with no cue: the **checkbox** = "include in Apply";

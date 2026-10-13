@@ -326,6 +326,12 @@ the worked example; `project_714_release` memory.
 - Some "bugs" are expectations (cockpit error); verify intended behavior before declaring a defect.
 
 **Architecture**
+- **Fence on identity, not on a count.** A "since this point" marker must be a monotonic id (a sequence number),
+  never a collection's length — lengths stop growing at a cap and shrink when entries are pruned. 7.19.0: the
+  in-window undo fence compared undo-stack lengths, so at the 50-step cap (shift + push) or after a permanent delete
+  pruned history, actions taken inside a window became un-undoable there. Found by reading, latent since 7.8/7.10.
+- **A design's "reachable via Y" must point at a Y that exists.** ORPHAN-CLEANUP §5 said kept books were findable
+  "via the normal filters" — none existed; the gap surfaced only when Ron asked "how do I see all Kept books?"
 - Extract logic into a pure, node-tested engine before wiring UI — but remember engine tests validate LOGIC,
   not INTEGRATION (8/8 green while undo was broken).
 - References not copies for multi-membership; signals in the data (`userEdited`) beat out-of-band params;
@@ -345,6 +351,13 @@ the worked example; `project_714_release` memory.
   escape hatches (input focus, modal open) — and there may be TWO of them.
 
 **Release engineering**
+- **Every step of a test plan has side effects — verify each step's WRITES before handing it over.** 7.19.0's plan
+  said "restore the clean backup before the real import"; a Restore sends a relay *reset* run, which supersedes every
+  older run — it would have erased the one-shot test data. Caught by re-checking relay semantics first. Console fakes
+  likewise: save then `location.reload()` at once (the app's in-memory copy overwrites IndexedDB in any gap).
+- **Test steps name the real control and say why.** "Use your dev bookmarklet" (meaning "one that sends to the dev
+  relay") read as "the DEV one" and implied a fetcher change that didn't exist; Ron's default is localhost + the
+  LOCAL bookmarklet (`user_test_setup` memory).
 - Divergence pre-flight (`git log branch..main`) before drafting merge steps — prod accumulates hotfixes;
   `--ff-only` fails loudly; **never force-push**.
 - Small independent branches; a git worktree when a second branch must not disturb the serving tree.
