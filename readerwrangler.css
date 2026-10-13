@@ -947,6 +947,20 @@ tr.rw-cut-pending {
    nested in a div (e.g. an action bar inside a popup) is unaffected. */
 .rw-popup > button { display: block; }
 
+/* v7.20.0-alpha.2 - THE menu-bar item (MenuBarItem in readerwrangler.js) — the look that used to be copied inline on
+   ~15 buttons, with hover as a CSS rule instead of two JS handlers each. Values are exactly the old inline ones. */
+.rw-menu-item {
+    display: block; width: 100%; text-align: left; padding: 8px 16px; font-size: 13px;
+    border: none; background: var(--bg-surface); cursor: pointer; transition: background 0.1s; color: var(--text-primary);
+}
+.rw-menu-item:hover:not(:disabled) { background: var(--bg-hover); }
+.rw-menu-item:disabled { cursor: not-allowed; color: var(--text-muted); opacity: 0.5; }
+.rw-menu-item--danger { color: var(--text-danger); }
+.rw-menu-item--danger:hover:not(:disabled) { background: var(--bg-danger-hover); }
+.rw-menu-item--check { padding-left: 32px; position: relative; }      /* View's ✓ column */
+.rw-menu-item__check { position: absolute; left: 12px; }
+.rw-menu-divider { height: 1px; background: var(--border-default); margin: 4px 0; }
+
 /* v7.19.0-alpha.4 (Ron + UX) - Button LABELS inside a window are never part of a text selection — so Ctrl+A on a
    window's body (and drag-select, and Copy) gets the content, not "View on Amazon · Share ▾ · Cancel". A selection is
    one continuous range, so this is the only way to keep buttons that sit INSIDE a body out of it. Windows = role

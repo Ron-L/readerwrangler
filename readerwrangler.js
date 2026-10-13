@@ -95,6 +95,19 @@
             </button>
         );
 
+        // v7.20.0-alpha.2 (Ron) - THE menu-bar item + divider (File / View / Tools / Help). Each item used to carry ~6 lines
+        // of hand-copied inline style + two JS hover handlers (~15 copies); the look now lives in readerwrangler.css
+        // (.rw-menu-item — hover is a CSS rule). Options: disabled, danger (red, e.g. Reset App), checked (true/false
+        // draws View's ✓ column; omit for plain items), style (the two odd ones: Relay Setup's icon, Theme's ▶).
+        const MenuBarItem = ({ onClick, disabled, title, danger, checked, style, children }) => (
+            <button type="button" onClick={onClick} disabled={disabled} title={title || undefined} style={style}
+                className={`rw-menu-item${danger ? ' rw-menu-item--danger' : ''}${checked !== undefined ? ' rw-menu-item--check' : ''}`}>
+                {checked && <span className="rw-menu-item__check">✓</span>}
+                {children}
+            </button>
+        );
+        const MenuDivider = () => <div className="rw-menu-divider" />;
+
         // APP_VERSION - Defined ONCE in readerwrangler.html, available in global scope
         // Single source of truth - no duplication!
         console.log(`✅ APP_VERSION: ${APP_VERSION} (from readerwrangler.html)`);
@@ -102,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.20.0-alpha.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.20.0-alpha.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1213,6 +1226,8 @@
             const [blankImageBooks, setBlankImageBooks] = useState(new Set());
             // v5.0.0-alpha.175.1 - Menu bar state
             const [openMenuBar, setOpenMenuBar] = useState(null); // 'file' | 'view' | 'tools' | 'help' | null
+            // v7.20.0-alpha.2 - THE menu-bar click: do the thing, then close the menu (was setOpenMenuBar(null) in every item).
+            const menuAction = (fn) => () => { fn(); setOpenMenuBar(null); };
             const menuBarRefs = { file: useRef(null), view: useRef(null), tools: useRef(null), help: useRef(null) }; // v7.18.0-alpha.58 - title anchors for the menu-bar <Popover>s
             // v7.18.0-alpha.59 - button anchors for the filter-bar <Popover>s ("filterbar" siblings) and the dropdowns
             // inside the More panel ("morepanel" siblings).
@@ -7378,6 +7393,40 @@
                 setRemovedKeptOpen(false);
                 setRemovedBooksOpen(true);
             };
+            // v7.20.0-alpha.2 - open Tag from Collections fresh from the current books (was 35 lines inline in the menu item).
+            // v6.10.0-alpha.14/15 logic, unchanged: all collections checked; "New books only" if it has run before; removals
+            // = collection-tags whose collection a book no longer has, all checked (the user confirms).
+            const openTagFromCollections = () => {
+                const collectionsMap = {};
+                books.forEach(b => {
+                    (b.collections || []).forEach(c => {
+                        if (!collectionsMap[c.name]) collectionsMap[c.name] = [];
+                        collectionsMap[c.name].push(b);
+                    });
+                });
+                setTfcNewBooksOnly(books.some(b => b.collectionTagSeen));
+                setTfcCheckedCollections(new Set(Object.keys(collectionsMap)));
+                setTfcUncheckedBooks({});
+                setTfcSelectedCollection(Object.keys(collectionsMap)[0] || null);
+                const removalGroups = {};
+                books.forEach(b => {
+                    const cTags = b.collectionTags || [];
+                    if (cTags.length === 0) return;
+                    const currentCollNames = (b.collections || []).map(c => c.name.toLowerCase().replace(/\s+/g, '-'));
+                    cTags.forEach(tagId => {
+                        if (!currentCollNames.includes(tagId)) {
+                            const tagData = tagRegistry[tagId];
+                            const label = tagData ? tagData.label : tagId;
+                            if (!removalGroups[label]) removalGroups[label] = { tagId, books: [] };
+                            removalGroups[label].books.push(b);
+                        }
+                    });
+                });
+                setTfcCheckedRemovals(new Set(Object.keys(removalGroups)));
+                setTfcUncheckedRemovalBooks({});
+                setTfcSelectedRemoval(null);
+                setTagFromCollectionsOpen(true);
+            };
             const keepRemovedBooks = (bookIds) => setKeptRemovedBooks(bookIds, true);
             const unkeepRemovedBooks = (bookIds) => setKeptRemovedBooks(bookIds, false);
             // v7.10.1-alpha.4 - tag DELETION undoable (the ops-refactor leftover): captures registry
@@ -9368,217 +9417,75 @@
                                         {menuName === 'File' && (
                                             <>
                                                 {/* v5.0.0-alpha.175.30 - Data Status in File menu */}
-                                                <button onClick={() => { setStatusModalOpen(true); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: getUrgencyInfo().color.replace('text-', '')
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                <MenuBarItem onClick={menuAction(() => setStatusModalOpen(true))} style={{ color: getUrgencyInfo().color.replace('text-', '') }}>
                                                     {getStatusBall()} Data Status: {getUrgencyInfo().text}
-                                                </button>
+                                                </MenuBarItem>
                                                 {/* v6.0.0-alpha.44 - Relay import first (primary action), then backups */}
                                                 {(() => {
                                                     const relayReady = window.RWRelay && window.RWRelay.isConfigured();
-                                                    const isDisabled = !relayReady || relayImporting;
                                                     return (
-                                                        <button onClick={() => { if (relayReady) { importFromRelay(); setOpenMenuBar(null); } }}
-                                                            disabled={isDisabled}
-                                                            title={!relayReady ? 'Set up cloud sync first — File > Relay Setup' : ''}
-                                                            style={{
-                                                                width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                                border: 'none', background: 'var(--bg-surface)',
-                                                                cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                                                transition: 'background 0.1s',
-                                                                color: isDisabled ? 'var(--text-muted)' : 'var(--text-primary)',
-                                                                opacity: isDisabled ? 0.5 : 1
-                                                            }} onMouseEnter={e => !isDisabled && (e.currentTarget.style.background = 'var(--bg-hover)')} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                        <MenuBarItem onClick={menuAction(importFromRelay)} disabled={!relayReady || relayImporting}
+                                                            title={!relayReady ? 'Set up cloud sync first — File > Relay Setup' : ''}>
                                                             📡 Import from Relay
-                                                        </button>
+                                                        </MenuBarItem>
                                                     );
                                                 })()}
-                                                {/* v6.0.0 - Relay Setup */}
-                                                <button onClick={() => { setRelaySetupOpen(true); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)',
-                                                    display: 'flex', alignItems: 'center', gap: '6px'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                {/* v6.0.0 - Relay Setup (v7.20.0: stays in File — it configures where your library comes from) */}
+                                                <MenuBarItem onClick={menuAction(() => setRelaySetupOpen(true))} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <img src="icons/sync-tower-neutral.svg" alt="" style={{ width: '10px', height: '16px' }} />
                                                     Relay Setup…
-                                                </button>
-                                                <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
-                                                <button onClick={() => { importBackup(); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    📂 Restore Backup…
-                                                </button>
-                                                <button onClick={() => { exportBackup(); setOpenMenuBar(null); }} disabled={books.length === 0} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: books.length === 0 ? 'not-allowed' : 'pointer',
-                                                    transition: 'background 0.1s', color: books.length === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
-                                                    opacity: books.length === 0 ? 0.5 : 1
-                                                }} onMouseEnter={e => books.length > 0 && (e.currentTarget.style.background = 'var(--bg-hover)')} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    💾 Save Backup…
-                                                </button>
+                                                </MenuBarItem>
+                                                <MenuDivider />
+                                                <MenuBarItem onClick={menuAction(importBackup)}>📂 Restore Backup…</MenuBarItem>
+                                                <MenuBarItem onClick={menuAction(exportBackup)} disabled={books.length === 0}>💾 Save Backup…</MenuBarItem>
                                                 {/* v7.10.0 - Save Spreadsheet (CSV) — first user-requested feature */}
-                                                <button onClick={() => { exportSpreadsheet(); setOpenMenuBar(null); }} disabled={books.length === 0}
-                                                    title="Your library as a spreadsheet file (CSV) — opens in Excel; includes tags, folders, and Book Lists"
-                                                    style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: books.length === 0 ? 'not-allowed' : 'pointer',
-                                                    transition: 'background 0.1s', color: books.length === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
-                                                    opacity: books.length === 0 ? 0.5 : 1
-                                                }} onMouseEnter={e => books.length > 0 && (e.currentTarget.style.background = 'var(--bg-hover)')} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                <MenuBarItem onClick={menuAction(exportSpreadsheet)} disabled={books.length === 0}
+                                                    title="Your library as a spreadsheet file (CSV) — opens in Excel; includes tags, folders, and Book Lists">
                                                     📊 Save Spreadsheet (CSV)…
-                                                </button>
+                                                </MenuBarItem>
                                             </>
                                         )}
                                         {/* v7.20.0-alpha.1 (Ron + UX) - TOOLS: working ON your library (File = your data in/out incl. the relay; View = display). Reset App alone at the bottom (danger zone). */}
                                         {menuName === 'Tools' && (
                                             <>
                                                 {/* v5.1.0-alpha.2 - Auto-Organize wizard */}
-                                                <button onClick={() => { setWizardModalOpen(true); setOpenMenuBar(null); }} disabled={books.length === 0} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: books.length === 0 ? 'not-allowed' : 'pointer',
-                                                    transition: 'background 0.1s', color: books.length === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
-                                                    opacity: books.length === 0 ? 0.5 : 1
-                                                }} onMouseEnter={e => books.length > 0 && (e.currentTarget.style.background = 'var(--bg-hover)')} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    ✨ Auto-Organize…
-                                                </button>
+                                                <MenuBarItem onClick={menuAction(() => setWizardModalOpen(true))} disabled={books.length === 0}>✨ Auto-Organize…</MenuBarItem>
                                                 {/* v7.19.0 - Removed books: review books no longer in your Amazon library, any time (ORPHAN-CLEANUP §5) */}
                                                 {(() => {
                                                     const n = books.filter(b => amazonRemovalState(b) === 'review').length;
                                                     return (
-                                                        <button onClick={() => { openRemovedBooks(); setOpenMenuBar(null); }}
-                                                            title="Books that are no longer in your Amazon library — keep them or remove them"
-                                                            style={{
-                                                                width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                                border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                                transition: 'background 0.1s', color: 'var(--text-primary)'
-                                                            }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                        <MenuBarItem onClick={menuAction(openRemovedBooks)}
+                                                            title="Books that are no longer in your Amazon library — keep them or remove them">
                                                             🧹 Removed books…{n > 0 ? ` (${n})` : ''}
-                                                        </button>
+                                                        </MenuBarItem>
                                                     );
                                                 })()}
-                                                <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
-                                                <button onClick={() => { setTagManagementOpen(true); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    🏷️ Manage Tags…
-                                                </button>
-                                                {/* v6.10.0-alpha.14 - Tag from Collections wizard (v6.10.0-alpha.15 - removal tracking) */}
-                                                <button onClick={() => {
-                                                    // Initialize wizard state from current books
-                                                    const collectionsMap = {};
-                                                    books.forEach(b => {
-                                                        (b.collections || []).forEach(c => {
-                                                            if (!collectionsMap[c.name]) collectionsMap[c.name] = [];
-                                                            collectionsMap[c.name].push(b);
-                                                        });
-                                                    });
-                                                    // Check if user has run this before (any book has collectionTagSeen)
-                                                    const hasRunBefore = books.some(b => b.collectionTagSeen);
-                                                    setTfcNewBooksOnly(hasRunBefore);
-                                                    // Check all collections by default
-                                                    setTfcCheckedCollections(new Set(Object.keys(collectionsMap)));
-                                                    setTfcUncheckedBooks({});
-                                                    setTfcSelectedCollection(Object.keys(collectionsMap)[0] || null);
-                                                    // v6.10.0-alpha.15 - Compute removals: books with collectionTags that no longer match collections
-                                                    const removalGroups = {};
-                                                    books.forEach(b => {
-                                                        const cTags = b.collectionTags || [];
-                                                        if (cTags.length === 0) return;
-                                                        const currentCollNames = (b.collections || []).map(c => c.name.toLowerCase().replace(/\s+/g, '-'));
-                                                        cTags.forEach(tagId => {
-                                                            if (!currentCollNames.includes(tagId)) {
-                                                                const tagData = tagRegistry[tagId];
-                                                                const label = tagData ? tagData.label : tagId;
-                                                                if (!removalGroups[label]) removalGroups[label] = { tagId, books: [] };
-                                                                removalGroups[label].books.push(b);
-                                                            }
-                                                        });
-                                                    });
-                                                    // Check all removals by default (user confirms removal)
-                                                    setTfcCheckedRemovals(new Set(Object.keys(removalGroups)));
-                                                    setTfcUncheckedRemovalBooks({});
-                                                    setTfcSelectedRemoval(null);
-                                                    setTagFromCollectionsOpen(true);
-                                                    setOpenMenuBar(null);
-                                                }} disabled={(() => {
-                                                    const hasCollections = books.some(b => (b.collections || []).length > 0);
-                                                    const hasCollectionTags = books.some(b => (b.collectionTags || []).length > 0);
-                                                    return !hasCollections && !hasCollectionTags;
-                                                })()} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)',
-                                                    cursor: (() => { const e = books.some(b => (b.collections || []).length > 0) || books.some(b => (b.collectionTags || []).length > 0); return e ? 'pointer' : 'not-allowed'; })(),
-                                                    transition: 'background 0.1s',
-                                                    color: (() => { const e = books.some(b => (b.collections || []).length > 0) || books.some(b => (b.collectionTags || []).length > 0); return e ? 'var(--text-primary)' : 'var(--text-muted)'; })(),
-                                                    opacity: (() => { const e = books.some(b => (b.collections || []).length > 0) || books.some(b => (b.collectionTags || []).length > 0); return e ? 1 : 0.5; })()
-                                                }} onMouseEnter={e => { const en = books.some(b => (b.collections || []).length > 0) || books.some(b => (b.collectionTags || []).length > 0); en && (e.currentTarget.style.background = 'var(--bg-hover)'); }} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                <MenuDivider />
+                                                <MenuBarItem onClick={menuAction(() => setTagManagementOpen(true))}>🏷️ Manage Tags…</MenuBarItem>
+                                                {/* v6.10.0-alpha.14 - Tag from Collections wizard (setup: openTagFromCollections) — needs collections or collection-tags */}
+                                                <MenuBarItem onClick={menuAction(openTagFromCollections)}
+                                                    disabled={!books.some(b => (b.collections || []).length > 0) && !books.some(b => (b.collectionTags || []).length > 0)}>
                                                     🏷️ Tag from Collections…
-                                                </button>
-                                                <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
-                                                <button onClick={() => { setResetConfirmOpen(true); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-danger)'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-danger-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    ⚠️ Reset App
-                                                </button>
+                                                </MenuBarItem>
+                                                <MenuDivider />
+                                                <MenuBarItem danger onClick={menuAction(() => setResetConfirmOpen(true))}>⚠️ Reset App</MenuBarItem>
                                             </>
                                         )}
                                         {menuName === 'View' && (
                                             <>
-                                                <button onClick={() => { setExplorerView('list'); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px 8px 32px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)', position: 'relative'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    {explorerView === 'list' && <span style={{ position: 'absolute', left: '12px' }}>✓</span>}
-                                                    List View
-                                                </button>
-                                                <button onClick={() => { setExplorerView('covers'); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px 8px 32px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)', position: 'relative'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    {explorerView === 'covers' && <span style={{ position: 'absolute', left: '12px' }}>✓</span>}
-                                                    Cover View
-                                                </button>
-                                                <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
-                                                <button onClick={() => { setShowHidden(!showHidden); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px 8px 32px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)', position: 'relative'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    {showHidden && <span style={{ position: 'absolute', left: '12px' }}>✓</span>}
-                                                    Show Hidden
-                                                </button>
-                                                <button onClick={() => { setDealsFilterActive(!dealsFilterActive); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px 8px 32px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)', position: 'relative'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    {dealsFilterActive && <span style={{ position: 'absolute', left: '12px' }}>✓</span>}
-                                                    Goal Met
-                                                </button>
-                                                <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
+                                                <MenuBarItem checked={explorerView === 'list'} onClick={menuAction(() => setExplorerView('list'))}>List View</MenuBarItem>
+                                                <MenuBarItem checked={explorerView === 'covers'} onClick={menuAction(() => setExplorerView('covers'))}>Cover View</MenuBarItem>
+                                                <MenuDivider />
+                                                <MenuBarItem checked={!!showHidden} onClick={menuAction(() => setShowHidden(!showHidden))}>Show Hidden</MenuBarItem>
+                                                <MenuBarItem checked={!!dealsFilterActive} onClick={menuAction(() => setDealsFilterActive(!dealsFilterActive))}>Goal Met</MenuBarItem>
+                                                <MenuDivider />
                                                 {/* v5.5.7 - Theme submenu */}
                                                 <div style={{ position: 'relative' }}
                                                     onMouseEnter={() => setThemeSubmenuOpen(true)}
                                                     onMouseLeave={() => setThemeSubmenuOpen(false)}>
-                                                    <button style={{
-                                                        width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                        border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                        transition: 'background 0.1s', color: 'var(--text-primary)',
-                                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                                    }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                    <MenuBarItem style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         Theme <span style={{ fontSize: '10px' }}>▶</span>
-                                                    </button>
+                                                    </MenuBarItem>
                                                     {themeSubmenuOpen && (
                                                         <div style={{
                                                             position: 'absolute', left: '100%', top: 0,
@@ -9611,35 +9518,11 @@
                                         {menuName === 'Help' && (
                                             <>
                                                 {/* v6.10.0 - Combined Getting Started + How To Use */}
-                                                <button onClick={() => { setHowToDialogOpen(true); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    How To Use
-                                                </button>
-                                                <button onClick={() => { window.open('tutorials.html', '_blank'); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    Watch Tutorials
-                                                </button>
-                                                <button onClick={() => { setShortcutsDialogOpen(true); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    Keyboard Shortcuts
-                                                </button>
-                                                <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
-                                                <button onClick={() => { setAboutDialogOpen(true); setOpenMenuBar(null); }} style={{
-                                                    width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
-                                                    border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
-                                                    transition: 'background 0.1s', color: 'var(--text-primary)'
-                                                }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
-                                                    About ReaderWrangler™
-                                                </button>
+                                                <MenuBarItem onClick={menuAction(() => setHowToDialogOpen(true))}>How To Use</MenuBarItem>
+                                                <MenuBarItem onClick={menuAction(() => window.open('tutorials.html', '_blank'))}>Watch Tutorials</MenuBarItem>
+                                                <MenuBarItem onClick={menuAction(() => setShortcutsDialogOpen(true))}>Keyboard Shortcuts</MenuBarItem>
+                                                <MenuDivider />
+                                                <MenuBarItem onClick={menuAction(() => setAboutDialogOpen(true))}>About ReaderWrangler™</MenuBarItem>
                                             </>
                                         )}
                                     </Popover>
