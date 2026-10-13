@@ -102,7 +102,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0-alpha.9";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0-alpha.10";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -5622,7 +5622,7 @@
                         ? `\n\n🧹 ${removedN} book${removedN !== 1 ? 's are' : ' is'} no longer in your Amazon library. Review now, or find ${removedN !== 1 ? 'them' : 'it'} any time under File → Removed books…`
                         : '';
                     const choice = await progress.finish('Relay Import', message + removedLine, removedN > 0 ? { label: 'Review…' } : undefined);
-                    if (choice === 'extra') { setRemovedSel(new Set()); setRemovedBooksOpen(true); }
+                    if (choice === 'extra') { openRemovedBooks(); }
                 } catch (err) {
                     console.error('❌ Relay import failed:', err);
                     if (err && err.isCorruption) {
@@ -7361,6 +7361,14 @@
                 });
                 showToast(kept ? `Kept ${bookCountLabel(bookIds)} — won't ask again` : `Will ask again about ${bookCountLabel(bookIds)}`);
             };
+            // v7.19.0-alpha.10 (Ron + UX) - THE way to open the removed-books window: always FRESH — the Kept group collapsed,
+            // only the books you came for checked. (alpha.9 left Kept expanded from the last visit: "unexpected and
+            // confusing".) Four entry points — File menu, reminder bar, import summary, book details — all call this.
+            const openRemovedBooks = (preselectIds = []) => {
+                setRemovedSel(new Set(preselectIds));
+                setRemovedKeptOpen(false);
+                setRemovedBooksOpen(true);
+            };
             const keepRemovedBooks = (bookIds) => setKeptRemovedBooks(bookIds, true);
             const unkeepRemovedBooks = (bookIds) => setKeptRemovedBooks(bookIds, false);
             // v7.10.1-alpha.4 - tag DELETION undoable (the ops-refactor leftover): captures registry
@@ -8512,7 +8520,10 @@
                 }
             };
 
-            const undo = () => {
+            // v7.19.0-alpha.10 - opts.fromPanel: the 🕐 panel's "Undo" link names the exact action it undoes and you click
+            // it on purpose — so it skips the dialog fence (the panel itself is a fenced popover; the fence exists to stop
+            // undoing changes you CAN'T see, and this one is spelled out). Imperative boxes still block.
+            const undo = (opts = {}) => {
                 // Use ref to get current stack (avoids stale closure from keyboard handler)
                 const currentStack = undoStackRef.current;
                 // v7.8.0-alpha.4 (UNDO-MODEL.md) - dialog fence: behind a modal, pre-dialog actions are
@@ -8525,11 +8536,12 @@
                 }
                 // v7.19.0 - reachable only if the top action was recorded AFTER this dialog opened (seq fence)
                 const undoTop = currentStack[currentStack.length - 1];
-                if (dialogUp() && !(undoTop && (undoTop.seq || 0) > dialogUndoFenceRef.current)) {
+                if (!opts.fromPanel && dialogUp() && !(undoTop && (undoTop.seq || 0) > dialogUndoFenceRef.current)) {
                     showToast('Nothing to undo from this dialog — close it to undo earlier actions');
                     return;
                 }
-                if (currentStack.length === 0) return;
+                // v7.19.0-alpha.10 - never a dead key (UNDO-MODEL): an empty history says so instead of doing nothing
+                if (currentStack.length === 0) { showToast('Nothing to undo'); return; }
                 const action = currentStack[currentStack.length - 1];
                 executeUndo(action);
                 setUndoStack(prev => prev.slice(0, -1));
@@ -8553,7 +8565,7 @@
                     showToast('Nothing to redo from this dialog — close it to redo earlier actions');
                     return;
                 }
-                if (currentStack.length === 0) return;
+                if (currentStack.length === 0) { showToast('Nothing to redo'); return; } // v7.19.0-alpha.10 - never a dead key
                 const action = currentStack[currentStack.length - 1];
                 executeRedo(action);
                 setRedoStack(prev => prev.slice(0, -1));
@@ -9464,7 +9476,7 @@
                                                 {(() => {
                                                     const n = books.filter(b => amazonRemovalState(b) === 'review').length;
                                                     return (
-                                                        <button onClick={() => { setRemovedSel(new Set()); setRemovedBooksOpen(true); setOpenMenuBar(null); }}
+                                                        <button onClick={() => { openRemovedBooks(); setOpenMenuBar(null); }}
                                                             title="Books that are no longer in your Amazon library — keep them or remove them"
                                                             style={{
                                                                 width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
@@ -9661,7 +9673,7 @@
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
                                 <span style={{ color: 'var(--text-primary)' }}>🧹 {n} book{n !== 1 ? 's are' : ' is'} no longer in your Amazon library.</span>
                                 <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button onClick={() => { setRemovedSel(new Set()); setRemovedBooksOpen(true); }} style={{
+                                    <button onClick={() => { openRemovedBooks(); }} style={{
                                         padding: '4px 12px', fontSize: '12px', fontWeight: 'bold', background: 'var(--bg-accent)', color: 'var(--text-on-accent)',
                                         border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Review</button>
                                     <button onClick={() => setRemovedReminderHidden(true)} title="Hide until next time — File → Removed books… any time" style={{
@@ -14027,7 +14039,7 @@
                                                             🧹 No longer in your Amazon library — {st === 'kept' ? 'kept' : st === 'trashed' ? 'in your Trash' : (
                                                                 <button type="button" className="underline hover:text-amber-900"
                                                                     title="Keep it or remove it (File → Removed books…)"
-                                                                    onClick={() => { setRemovedSel(new Set([modalBook.id])); setRemovedBooksOpen(true); }}>review</button>
+                                                                    onClick={() => { openRemovedBooks([modalBook.id]); }}>review</button>
                                                             )}
                                                         </div>
                                                     );
@@ -20502,6 +20514,19 @@
                                         role="dialog" ariaLabel="Recent messages"
                                         className="bg-white border border-gray-300 shadow-lg rounded z-[70] max-h-[320px] overflow-y-auto py-1"
                                         style={{ width: 420 }}>
+                                        {/* v7.19.0-alpha.10 (Ron + UX) - the log is a LOG; this one line names what undo would do next
+                                            (undo is a stack — only the top is next, so no greying of entries). The link undoes it. */}
+                                        {(() => {
+                                            const next = undoStack[undoStack.length - 1];
+                                            return (
+                                                <div data-select-text className="px-3 py-1.5 border-b border-gray-200 bg-gray-50 text-xs text-gray-600 flex items-center justify-between gap-2">
+                                                    <span className="truncate">{next ? <>Next undo: <strong>{next.label || FRIENDLY_ACTION[next.type] || next.type}</strong></> : 'Nothing to undo'}</span>
+                                                    {next && <button type="button" className="text-blue-600 hover:underline flex-shrink-0"
+                                                        onClick={() => { undo({ fromPanel: true }); setToastHistoryOpen(false); }}>Undo</button>}
+                                                </div>
+                                            );
+                                        })()}
+                                        <div data-select-text data-dialog-body>
                                         {toastHistoryRef.current.length === 0 ? (
                                             <div className="px-3 py-2 text-gray-400">No messages yet this session</div>
                                         ) : (
@@ -20512,6 +20537,7 @@
                                                 </div>
                                             ))
                                         )}
+                                        </div>
                                     </Popover>
                                 )}
                             </span>
