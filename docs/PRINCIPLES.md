@@ -351,6 +351,12 @@ the worked example; `project_714_release` memory.
   escape hatches (input focus, modal open) — and there may be TWO of them.
 
 **Release engineering**
+- **A comb over PROSE needs a pivot per separator and format.** 7.20.0's menu-path comb: "File → X", then every
+  arrow style (→ > › `&rsaquo;` `&rarr;`), then bold-wrapped paths (`File → **X**`) — each pivot found hits the
+  previous missed. Law 5's two pivots are a floor, not a ceiling, when the class is human-written text.
+- **Move markup with a boundary-asserting script, not by hand.** Assert the exact text at every boundary line, then
+  splice ranges bottom-up; a shifted file fails loudly instead of corrupting JSX (7.20.0: two big menu moves,
+  parse-clean first time).
 - **Every step of a test plan has side effects — verify each step's WRITES before handing it over.** 7.19.0's plan
   said "restore the clean backup before the real import"; a Restore sends a relay *reset* run, which supersedes every
   older run — it would have erased the one-shot test data. Caught by re-checking relay semantics first. Console fakes
