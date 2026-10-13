@@ -102,7 +102,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0-alpha.10";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0-alpha.11";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -375,9 +375,9 @@
                 update(msg) {
                     messageEl.textContent = msg;
                 },
-                // v7.19.0-alpha.6 - optional extra = { label }: a second button left of OK (e.g. "Review…"). Resolves with
-                // 'extra' when that's clicked, else undefined (OK / Esc / background — unchanged for every existing caller).
-                finish(newTitle, msg, extra) {
+                // v7.19.0-alpha.6/11 - optional extras = [{ key, label }]: buttons left of OK (e.g. "Clear 2 goals", "Review…").
+                // Resolves with the clicked one's key, else undefined (OK / Esc / background — unchanged for every existing caller).
+                finish(newTitle, msg, extras) {
                     return new Promise((resolve) => {
                         titleEl.textContent = newTitle;
                         messageEl.textContent = msg;
@@ -393,16 +393,16 @@
                         const ok = () => { remove(); resolve(); };
                         button.onclick = ok;
                         onEscAfterFinish = ok; // from here on, Esc = OK
-                        if (extra && extra.label) {
+                        (extras || []).forEach(({ key, label }) => {
                             const xb = document.createElement('button');
-                            xb.textContent = extra.label;
+                            xb.textContent = label;
                             xb.style.cssText = `
                                 background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border-strong);
                                 border-radius: 4px; padding: 10px 18px; font-size: 14px; cursor: pointer; margin-right: 8px;
                             `;
-                            xb.onclick = () => { remove(); resolve('extra'); };
+                            xb.onclick = () => { remove(); resolve(key); };
                             buttonContainer.appendChild(xb);
-                        }
+                        });
                         buttonContainer.appendChild(button);
                         button.focus();
                     });
@@ -2642,11 +2642,13 @@
             // Shows toast at position, animates to footer, persists 10s, then fades
             // x/y: screen coordinates (optional — defaults to center-screen if missing/non-numeric)
             // level: 'info' (default) or 'error' (red text via --text-danger)
-            const showToast = (message, x, y, { level = 'info' } = {}) => {
+            // log (v7.19.0-alpha.11, Ron + UX): false = a transient HINT about a keypress that did nothing ("Nothing to undo")
+            // — shown, but kept out of the 🕐 history, which records things that HAPPENED (changes, undos, errors).
+            const showToast = (message, x, y, { level = 'info', log = true } = {}) => {
                 // v7.6.2-alpha.2 - Toast history (Ron-ratified): toasts carry real information and
                 // evaporate. Session-local ring buffer, newest last, capped at 50; the 🕐 by the
                 // status bar opens the receipts (VS Code notification-bell convention).
-                toastHistoryRef.current = [...toastHistoryRef.current.slice(-49), { message, level, time: Date.now() }];
+                if (log) toastHistoryRef.current = [...toastHistoryRef.current.slice(-49), { message, level, time: Date.now() }];
                 const posX = typeof x === 'number' ? x : window.innerWidth / 2;
                 const posY = typeof y === 'number' ? y : window.innerHeight * 0.4;
                 setClipboardMessage(message);
@@ -5621,8 +5623,15 @@
                     const removedLine = removedN > 0
                         ? `\n\n🧹 ${removedN} book${removedN !== 1 ? 's are' : ' is'} no longer in your Amazon library. Review now, or find ${removedN !== 1 ? 'them' : 'it'} any time under File → Removed books…`
                         : '';
-                    const choice = await progress.finish('Relay Import', message + removedLine, removedN > 0 ? { label: 'Review…' } : undefined);
-                    if (choice === 'extra') { openRemovedBooks(); }
+                    // v7.19.0-alpha.11 (Ron) - one click for "kept their price goals — clear if no longer wanted" (it took
+                    // filtering + sorting by hand before). Clears through applyPriceGoal: undoable, with its receipt.
+                    const goalIds = result.upgradedGoalIds || [];
+                    const extras = [];
+                    if (goalIds.length > 0) extras.push({ key: 'clear-goals', label: `Clear ${goalIds.length === 1 ? 'that goal' : `those ${goalIds.length} goals`}` });
+                    if (removedN > 0) extras.push({ key: 'review', label: 'Review…' });
+                    const choice = await progress.finish('Relay Import', message + removedLine, extras);
+                    if (choice === 'review') openRemovedBooks();
+                    if (choice === 'clear-goals') { applyPriceGoal(goalIds, null); showToast(`Cleared ${goalIds.length === 1 ? 'the price goal' : `${goalIds.length} price goals`} on books you now own`); }
                 } catch (err) {
                     console.error('❌ Relay import failed:', err);
                     if (err && err.isCorruption) {
@@ -6812,7 +6821,7 @@
                     setLastSyncTime(Date.now());
                     setSyncStatus('fresh');
                     if (onComplete) setTimeout(() => onComplete(metadata.totalBooks), 0);
-                    return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0, removedReviewCount: mergedBooks.filter(b => amazonRemovalState(b) === 'review').length };
+                    return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0, removedReviewCount: mergedBooks.filter(b => amazonRemovalState(b) === 'review').length, upgradedGoalIds: mergedBooks.wishlistToOwnedGoalIds || [] };
                 }
 
                 // No organization found, start fresh
@@ -6820,7 +6829,7 @@
                 setLastSyncTime(Date.now());
                 setSyncStatus('fresh');
                 if (onComplete) setTimeout(() => onComplete(metadata.totalBooks), 0);
-                return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0, removedReviewCount: mergedBooks.filter(b => amazonRemovalState(b) === 'review').length };
+                return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0, removedReviewCount: mergedBooks.filter(b => amazonRemovalState(b) === 'review').length, upgradedGoalIds: mergedBooks.wishlistToOwnedGoalIds || [] };
             };
 
             const checkIfBlankImage = (img, bookId) => {
@@ -8530,18 +8539,20 @@
                 // state you can't see — never pop past the fence. And never a dead key: explain instead.
                 // v7.10.1-alpha.6 (DIALOG_POLICY) - UNIVERSAL: every dialog is fenced, not just book detail.
                 // Imperative overlays (confirm/progress) stamp no fence — they block undo outright.
+                // v7.19.0-alpha.10/11 - never a dead key (UNDO-MODEL). An EMPTY history says just that, FIRST — "close it
+                // to undo earlier actions" would promise actions that don't exist (Ron's screenshot). Hints, not receipts:
+                // shown, never logged in the 🕐 history.
+                if (currentStack.length === 0) { showToast('Nothing to undo', undefined, undefined, { log: false }); return; }
                 if (imperativeDialogsUp()) {
-                    showToast('Nothing to undo from this dialog — close it to undo earlier actions');
+                    showToast('Nothing to undo from this dialog — close it to undo earlier actions', undefined, undefined, { log: false });
                     return;
                 }
                 // v7.19.0 - reachable only if the top action was recorded AFTER this dialog opened (seq fence)
                 const undoTop = currentStack[currentStack.length - 1];
                 if (!opts.fromPanel && dialogUp() && !(undoTop && (undoTop.seq || 0) > dialogUndoFenceRef.current)) {
-                    showToast('Nothing to undo from this dialog — close it to undo earlier actions');
+                    showToast('Nothing to undo from this dialog — close it to undo earlier actions', undefined, undefined, { log: false });
                     return;
                 }
-                // v7.19.0-alpha.10 - never a dead key (UNDO-MODEL): an empty history says so instead of doing nothing
-                if (currentStack.length === 0) { showToast('Nothing to undo'); return; }
                 const action = currentStack[currentStack.length - 1];
                 executeUndo(action);
                 setUndoStack(prev => prev.slice(0, -1));
@@ -8555,17 +8566,18 @@
                 // v7.8.0-alpha.4 (UNDO-MODEL.md) - fence, symmetric: only redo entries created above it
                 // (i.e., by this dialog session's own undos).
                 // v7.10.1-alpha.6 (DIALOG_POLICY) - universal, matching undo().
+                // v7.19.0-alpha.10/11 - empty FIRST, and hints are never logged (mirrors undo())
+                if (currentStack.length === 0) { showToast('Nothing to redo', undefined, undefined, { log: false }); return; }
                 if (imperativeDialogsUp()) {
-                    showToast('Nothing to redo from this dialog — close it to redo earlier actions');
+                    showToast('Nothing to redo from this dialog — close it to redo earlier actions', undefined, undefined, { log: false });
                     return;
                 }
                 // v7.19.0 - same seq fence: only actions recorded (and undone) in this dialog session can be redone
                 const redoTop = currentStack[currentStack.length - 1];
                 if (dialogUp() && !(redoTop && (redoTop.seq || 0) > dialogUndoFenceRef.current)) {
-                    showToast('Nothing to redo from this dialog — close it to redo earlier actions');
+                    showToast('Nothing to redo from this dialog — close it to redo earlier actions', undefined, undefined, { log: false });
                     return;
                 }
-                if (currentStack.length === 0) { showToast('Nothing to redo'); return; } // v7.19.0-alpha.10 - never a dead key
                 const action = currentStack[currentStack.length - 1];
                 executeRedo(action);
                 setRedoStack(prev => prev.slice(0, -1));

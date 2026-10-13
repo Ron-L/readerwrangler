@@ -175,6 +175,10 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
             const b = booksByAsin.get(asin);
             return b && (b.targetPrice != null || b.priceTrigger != null);
         }).length;
+        // v7.19.0-alpha.11 (Ron) - WHICH upgraded books still carry a visible goal (priceTrigger — what the app's Clear
+        // clears), so the import summary can offer one-click "Clear N goals" instead of a manual hunt.
+        uniqueBooks.wishlistToOwnedGoalIds = wishlistToOwned.map(asin => booksByAsin.get(asin))
+            .filter(b => b && b.priceTrigger != null).map(b => b.id);
 
         if (duplicates.length > 0) {
             console.warn(`⚠️  Found ${duplicates.length} duplicate ASINs, owned books take priority`);

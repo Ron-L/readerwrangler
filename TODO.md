@@ -168,6 +168,14 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   toggle joins undo. Motivation: hunting a series list in a long Book Lists column (Ctrl+F works but costs a
   thought-process switch). Expected usage: **Name to FIND, back to Manual for priority** — Ron's top tier =
   the `New To Read - *` work lists (mobile-filter surrogates, Prime clearing first), series To-Reads below.
+- [ ] **Old price-goal field `targetPrice` still lingers (found 2026-10-12)**. WHAT: a few code paths treat a book as
+  "has a goal" if EITHER `priceTrigger` (today's goal) OR the older `targetPrice` is set — the import's "kept their
+  price goals" count (storage.js ~174), the fetcher's goal check (amazon-library-fetcher.js ~2286), and the spreadsheet
+  (`priceTrigger ?? targetPrice`). But clearing a goal in the app only clears `priceTrigger`. So a book that still
+  carries an old `targetPrice` keeps "having a goal" in those places after you clear it. DO: first check whether any
+  real book still has `targetPrice` set (console count); if so, migrate it into `priceTrigger` once, then retire the
+  field (bookFields row + the three readers) — one goal field, not two. Small.
+
 - [ ] **Search by ASIN in the search box (Ron 2026-10-12)**. WHAT: typing a book's ASIN (e.g. `B08P52K2PZ`) into the
   search box at the top of the right pane ("Title, author or series...") finds that book — today it only matches title,
   author and series. Useful for checking a specific book exists (came up testing the removed-books feature).
