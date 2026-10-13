@@ -278,7 +278,7 @@ tutorials/
 
 ### Standard Scene Prep
 
-1. Reset app (File → Reset App) or use a fresh browser profile
+1. Reset app (Tools → Reset App) or use a fresh browser profile
 2. File → Restore Backup → select `readerwrangler-demo-library.json`
 3. 119 books appear in Inbox
 4. For "organized" scenes: pre-organize into target folder structure (see DEMO-LIBRARY-PLAN.md)
@@ -377,7 +377,7 @@ Rapid cuts (1-3 sec each), zoom in/out transitions (0.25s), no voiceover, music 
 Brand new users who need to get started fast
 
 ### Scene Prep
-- Fresh ReaderWrangler state (File → Reset App or fresh browser profile)
+- Fresh ReaderWrangler state (Tools → Reset App or fresh browser profile)
 - Amazon account logged in
 - Chrome with bookmarks bar visible
 - Chrome settings: new tabs open google.com (so bookmarklet works on new tabs)
@@ -494,7 +494,7 @@ They land in your Inbox... ready to organize.
 
 The Inbox is your staging area. Everything new arrives here.
 
-Let's organize. Open the File menu... and choose Auto-Organize.
+Let's organize. Open the Tools menu... and choose Auto-Organize.
 
 It builds an Author... Series... Books structure automatically. One click... and your library has shape.
 
@@ -508,7 +508,7 @@ Now create a "Next to Read" folder... and drag in the books you're excited about
 
 **Screen Direction:**
 - Inbox selected, 119 books visible in right pane
-- File menu → Auto-Organize
+- Tools menu → Auto-Organize
 - Auto-Organize dialog: deselect "Miscellaneous" option, click Preview to show what will be created, then click Organize Now
 - Summary dialog shows folders created — dismiss
 - Folder tree populates with Author / Series / Books hierarchy
@@ -856,7 +856,7 @@ Right now you have 119 books waiting to be organized. Let's fix that.
 
 **Script:**
 
-ReaderWrangler can do the heavy lifting. Open the File menu... and click Auto-Organize.
+ReaderWrangler can do the heavy lifting. Open the Tools menu... and click Auto-Organize.
 
 The wizard scans your Inbox... and groups books by author and series. Use the slider to set a minimum... like three books per author.
 
@@ -867,7 +867,7 @@ Happy with it? Click Apply. Watch the folder tree fill up.
 Don't like what happened? Press Control-Z. The entire operation undoes in one step.
 
 **Screen Direction:**
-- File → Auto-Organize
+- Tools → Auto-Organize
 - Wizard dialog opens, source: Inbox
 - Adjust slider to 3 books minimum
 - Click Preview — show preview of proposed folders
@@ -892,7 +892,7 @@ Now they're yours to work with. Rename them. Merge them. Add books. Remove books
 One thing to keep in mind. ReaderWrangler is your personal organizer. Changes you make here — tags, folders, views — stay in the app. Nothing is sent back to Amazon or your Kindle. It's a one-way flow: Amazon to you.
 
 **Screen Direction:**
-- File → Tag from Collections
+- Tools → Tag from Collections
 - Wizard dialog opens — shows list of Kindle Collections with book counts
 - Select a few collections → click Apply
 - Show tags appearing on books (open a book detail to confirm)
@@ -1462,7 +1462,7 @@ It groups books by author. Authors with series get subfolders automatically. The
 Preview shows exactly what will happen before you commit. And the entire operation... no matter how many folders it creates... undoes in a single Control-Z.
 
 **Screen Direction:**
-- File → Auto-Organize
+- Tools → Auto-Organize
 - Show slider at different values (1, 3, 5)
 - Click Preview — show the proposed hierarchy
 - Click Apply — tree fills up

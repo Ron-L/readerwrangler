@@ -8,7 +8,9 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-10-12 (through release 7.19.0)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-10-13 (through release 7.20.0)** — all sections human-reviewed (§1–21).
+7.20.0: new Tools menu — every "File →" / "View →" path to a moved item (Auto-Organize, Removed books, Manage Tags,
+Tag from Collections, Reset App) now reads "Tools →".
 7.19.0 comb hits: removed books (§12 new Q, §14 pointer), undo visibility (§13), Tag from Collections
 title links + per-list Select all (§9), goals cleared after import (§16), Ctrl+A areas (§18).
 7.18.0 (one shared system for every window/menu/popup): comb hits updated — Preview hover popup
@@ -126,7 +128,7 @@ any hand-picked set: a to-read queue, all your SF, your wife's books; tear up a 
 book stays on its shelf. **A tag is a sticky note** — a label you filter by, in any
 combination with everything else, for unlimited views of your collection. (Tags are the one
 tool here without a sidebar section of their own — they live in the filter bar, and under
-View → Manage Tags.) Book Lists and tags overlap on purpose — plenty of schemes work as
+Tools → Manage Tags.) Book Lists and tags overlap on purpose — plenty of schemes work as
 either, and which carries what is *your* preference. ReaderWrangler provides the tools; the
 schema is yours. Proven patterns and their trade-offs: WORKFLOW-PATTERNS.md.
 
@@ -218,7 +220,7 @@ column header for your own secondary key.
 you — the cure for a thousand-book Inbox. Two entry points, one engine:
 - **Right-click a book → Auto-Organize ▸ By Author / By Series** — acts on the chosen
   authors' books.
-- **File → Auto-Organize…** — the wizard: pick multiple authors at once (filter box,
+- **Tools → Auto-Organize…** — the wizard: pick multiple authors at once (filter box,
   All/Some/None, minimum-books slider), then the same preview.
 
 **The preview is the contract.** It shows *everything* by the chosen authors, wherever it
@@ -297,7 +299,7 @@ Travel`, `Non-Fiction`, `Classics`) you filter by, in any combination. A book ta
 number of sticky notes.
 
 **How do I tag books?** Select → right-click → **Tags ▸**: check/uncheck existing tags, or
-type to create a new one. View → **Manage Tags…** is the registry: create, rename, delete,
+type to create a new one. Tools → **Manage Tags…** is the registry: create, rename, delete,
 multi-select, and **drag to reorder** — that order drives the right-click Tags menu.
 
 **What happens when I rename a tag?** The label changes everywhere at once — on every book,
@@ -308,7 +310,7 @@ the tag keep working (they follow the tag, not its spelling). Undoable, with a r
 active filter, and any saved Search that depended on it is removed too — the receipt spells
 out the fallout, and one undo reverses all of it.
 
-**What's Tag from Collections?** File → **Tag from Collections…** turns your Kindle
+**What's Tag from Collections?** Tools → **Tag from Collections…** turns your Kindle
 Collections into RW tags in one reviewed pass — pick which collections become tags and apply.
 On later runs, "New books only" limits the pass to books that joined collections since last
 time, and the wizard also flags books whose collection membership *ended* so their
@@ -433,7 +435,7 @@ Trash** first, or the add is skipped as a duplicate of the trashed copy.
 **A book is "no longer in your Amazon library" — what now? (7.19.0)** The fetcher's scan (§14)
 noticed a book is gone from Amazon's side — a returned loan, a sample you deleted, a delisted
 book. ReaderWrangler doesn't touch it on its own: the import summary names it with a
-**Review…** button, a reminder bar stays up until you decide, and **File → Removed books…**
+**Review…** button, a reminder bar stays up until you decide, and **Tools → Removed books…**
 lists them any time (with where each is filed; click a title for its details). Per book:
 **Keep** (stays filed, never asked again — later fetches/imports don't undo it) or
 **Permanently delete** (gone from RW for good — it skips the Trash). Books already in your
@@ -509,7 +511,7 @@ for a change to reach the Relay before Import can read it.
 2. **The fetcher runs in phases** (titles → enrichment → tags → prices), and after "fetch
    complete" a **full-library orphan scan** runs in the background with its own progress bar.
    Closing the tab early skips it (the dialog's ℹ️ explains). The orphan scan is what notices
-   books you removed on Amazon's side — they show up in **File → Removed books…** (§12).
+   books you removed on Amazon's side — they show up in **Tools → Removed books…** (§12).
 3. **Fetches are incremental** — they stop at the newest book RW already knows, since older ones
    usually haven't changed. But if the fetcher's known count doesn't match the total Amazon
    currently reports — which happens when books were removed, returned, or delisted on Amazon's

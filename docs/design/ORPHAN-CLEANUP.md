@@ -16,7 +16,7 @@ keep → re-sample → fetch + import cleared it as designed.
   review").
 - **A return clears the Keep** (refines §2/§3): a FRESHER scan finding the book present sets
   `isKeptOrphan` false, so a later disappearance asks again; a stale "present" echo can't (bookMerge test).
-- Menu: **File → Removed books…** (the §5 open question). The window opens fresh every time (one opener).
+- Menu: **File → Removed books…** in 7.19.0 (the §5 open question); moved to **Tools → Removed books…** in 7.20.0 (the new Tools menu). The window opens fresh every time (one opener).
 - Copy: never "orphan"; and no claim that removed books "won't open" — a downloaded book generally still
   opens; this is about what Amazon's library lists.
 

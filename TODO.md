@@ -50,14 +50,6 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
    batch — item 6 first).
 
 
-- [ ] **New "Tools" menu — move non-appearance / non-I/O items out of File + View (Ron 2026-09-28; UX pass)**.
-  Principle: File = pure data I/O (Data Status, Import from Relay, Restore/Save Backup, Save Spreadsheet); View = pure
-  display (List/Cover View, Show Hidden, Goal Met, Theme). New **Tools** menu gets: **Manage Tags** (from View) +
-  **Tag from Collections** (from File) — adjacent, both tag ops (consider a "Tags ▶" submenu); **Auto-Organize**;
-  **Relay Setup** (really config — Tools for now, would go to a Settings menu if one ever exists); **Reset App** at the
-  BOTTOM behind a divider (danger zone, keep its red). Data Status stays in File. Menu-IA task — its own small release,
-  NOT part of the overlay migration.
-
 - [ ] **Draggable dialogs — bake drag into the `<Dialog>` primitive (Ron 2026-09-28; SEPARATE feature AFTER the overlay migration ships)**.
   Ron often needs to move a dialog to see what's under it (Quicken habit). Add drag to `<Dialog>` so ALL dialogs become
   draggable at once (retires the old per-dialog `dialogDrag`; **folderPropertiesDialog is being converted WITHOUT drag
