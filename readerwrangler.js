@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.21.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.21.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -5546,8 +5546,7 @@
                                     ...((canonical && canonical.manifest && canonical.manifest.absorbedRuns) || []),
                                     ...pending.map(r => r.runId)
                                 ]),
-                                // For post-commit storage reclamation of big absorbed runs
-                                absorbedPending: pending.map(r => ({ runId: r.runId, parts: r.parts || 1 }))
+                                // (v7.21.1 - absorbedPending removed: commitGeneration reclaims absorbed runs itself)
                             };
                         }
                         // v7.7.2 (batch item 10) - Reclamation RETRY: absorbed multi-part runs that survived
@@ -5597,9 +5596,8 @@
                             try {
                                 const manifest = await window.RWRelay.commitGeneration(c.jsonString, c.absorbedRuns);
                                 console.log(`📦 Canonical consolidated: generation ${manifest.gen} (${manifest.bookCount} books, ${c.absorbedRuns.length} runs absorbed)`);
-                                // Reclaim big absorbed runs early (letters are only removed AFTER
-                                // the commit that absorbed them — the clearing invariant holds)
-                                await window.RWRelay.deleteAbsorbedBulkRuns(c.absorbedPending);
+                                // (v7.21.1 - reclaiming the big absorbed runs now happens INSIDE commitGeneration, for every
+                                // writer — this call is gone; the clearing invariant is unchanged.)
                             } catch (err) {
                                 console.warn('⚠️ Consolidation deferred (will retry on next import):', err.message);
                             }

@@ -768,6 +768,9 @@
   async function commitGeneration(jsonString, absorbedRuns, onProgress, opts) {
     if (!isConfigured()) throw new Error('Relay not configured');
     const notify = onProgress || (() => {});
+    // v7.21.1 (design §14a F3) - absorbedRuns has SET semantics (§9d); callers could pass a duplicate (seen in a dev
+    // manifest). Dedupe here, at the one place every commit passes through.
+    absorbedRuns = Array.from(new Set(absorbedRuns || []));
 
     const mint = await relayFetch(`/gen/${_channelId}/begin?device=${deviceId()}`, { method: 'POST' });
     const gen = (await mint.json()).gen;
@@ -834,8 +837,33 @@
       }
     } catch { /* GC is best-effort */ }
 
+    // v7.21.1 (design §14a fix 1) - reclaim absorbed bulk runs HERE, inside every commit — Import, Restore, the fetchers'
+    // merge alike. Restore never called it (each Restore left its ~18 MB reset run for 90 days, F1), and on a channel
+    // that never imports (prod) nothing ever retried. Uses the manifest's full absorbedRuns, so leftovers from EARLIER
+    // commits are retried too. Safe by construction: only runs this COMMITTED generation lists as absorbed.
+    try { await reclaimAbsorbedRuns(manifest.absorbedRuns); } catch { /* best-effort — the TTL is the backstop */ }
+
     notify('complete', 'Committed');
     return manifest;
+  }
+
+  /**
+   * v7.21.1 - Delete the multi-letter mailbox runs among `absorbedRunIds` that are still in storage (one mailbox list to
+   * count letters per run; single-letter runs are tiny and ride their TTL). Called by commitGeneration after the pointer
+   * flip — i.e. only for runs a COMMITTED generation has absorbed (the clearing invariant).
+   */
+  async function reclaimAbsorbedRuns(absorbedRunIds) {
+    const absorbed = new Set(absorbedRunIds || []);
+    if (absorbed.size === 0) return 0;
+    const keys = (await (await relayFetch(`/mail/${_channelId}/list`)).json()).keys; // "{runId}:{seq}" | "{runId}:manifest"
+    const letters = new Map();
+    for (const k of keys) {
+      const sep = k.lastIndexOf(':');
+      const runId = k.slice(0, sep);
+      if (!absorbed.has(runId) || k.slice(sep + 1) === 'manifest') continue;
+      letters.set(runId, (letters.get(runId) || 0) + 1);
+    }
+    return deleteAbsorbedBulkRuns(Array.from(letters, ([runId, parts]) => ({ runId, parts })));
   }
 
   /**
@@ -1022,8 +1050,7 @@
         ...((canonical && canonical.manifest && canonical.manifest.absorbedRuns) || []),
         ...pending.map(r => r.runId)
       ]);
-      const manifest = await commitGeneration(composed.jsonString, absorbed, onProgress);
-      await deleteAbsorbedBulkRuns(pending); // reclaim big absorbed runs early (best-effort)
+      const manifest = await commitGeneration(composed.jsonString, absorbed, onProgress); // v7.21.1 - reclaims absorbed bulk runs itself
       return { merged: true, reason: 'age-cap', gen: manifest.gen, bookCount: manifest.bookCount };
     } catch (e) {
       console.warn('Age-cap merge skipped:', e.message);
