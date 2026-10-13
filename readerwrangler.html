@@ -139,7 +139,7 @@
     <script src="bookFields.js?v=7.19.0"></script>
     <!-- v7.17.0 - Book-merge implementation (reads the table above); node-unit-tested; loads before storage.js -->
     <script src="bookMerge.js?v=7.19.0"></script>
-    <script src="storage.js?v=7.21.0-alpha.1"></script>
+    <script src="storage.js?v=7.21.0"></script>
     <!-- v7.18.0 - Overlay layer registry (pure JS; the ordered dialog/popover stack); node-unit-tested; loads before the app script -->
     <script src="overlayRegistry.js?v=7.19.0"></script>
     <!-- v6.3.0 - Data integrity checks -->
@@ -169,7 +169,7 @@
     <script>
         // APP_VERSION - Single source of truth for cache busting
         // Update this on each release to force browsers to fetch new code
-        const APP_VERSION = "7.20.0";
+        const APP_VERSION = "7.21.0";
 
         // v7.21.0 - THE environment answers (contributor mode — spec in TODO.md, Ron 2026-10-06). Defined ONCE, here,
         // before ANY app code loads (desktop app, mobile.js, storage.js all run after this); everything else ASKS these —

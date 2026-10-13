@@ -8,7 +8,8 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-10-13 (through release 7.20.0)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-10-13 (through release 7.21.0)** — all sections human-reviewed (§1–21).
+7.21.0: self-hosting / contributor mode — new Q in §14.
 7.20.0: new Tools menu — every "File →" / "View →" path to a moved item (Auto-Organize, Removed books, Manage Tags,
 Tag from Collections, Reset App) now reads "Tools →".
 7.19.0 comb hits: removed books (§12 new Q, §14 pointer), undo visibility (§13), Tag from Collections
@@ -546,6 +547,13 @@ for a change to reach the Relay before Import can read it.
 8. **Collections and read status come FROM the Kindle/Amazon side** — fetch Collections to
    refresh them; they're edited on your Kindle/Amazon, not in RW. Amazon's automatic "read"
    status (fires around 99%) is separate from any collection you happen to name "Read".
+
+**I run ReaderWrangler on my own computer (self-hosting) — which relay does it use? (7.21.0)** The normal one, exactly
+like readerwrangler.com: a self-hosted copy behaves like the real site (badge **LOCAL** in the header, so you can tell
+the tabs apart). Before 7.21.0 a self-hosted copy quietly used the developers' test relay and its phone-pairing code
+pointed at the test site — if a self-hoster's sync ever "lost" data across that update, that's why. People working *on*
+ReaderWrangler turn on **contributor mode** (badge **LOCAL · CONTRIBUTOR**, orange) to get the test relay and
+developer checks; setup is in CONTRIBUTING.md.
 
 ## 15. Backups & spreadsheet
 

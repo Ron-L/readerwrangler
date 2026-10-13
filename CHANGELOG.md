@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.21.0] - 2026-10-13
+
+### Running ReaderWrangler on your own computer
+- **A copy you run yourself now behaves like the real site.** If you serve ReaderWrangler from your own computer (self-hosting), it uses the normal sync relay and shows no developer messages. Previously a self-hosted copy quietly used the developers' test relay, and its phone-pairing code pointed at the test site.
+- **Contributor mode** — for people working *on* ReaderWrangler — turns on the developer behavior instead, once per browser. The header badge shows **LOCAL · CONTRIBUTOR** when it's on, plain **LOCAL** when it isn't. Setup is in CONTRIBUTING.md.
+
+### Under the hood
+- **Usage statistics now separate real use from testing**, so the numbers the project uses to decide what to improve reflect actual readers.
+
 ## [7.20.0] - 2026-10-13
 
 ### A new Tools menu
