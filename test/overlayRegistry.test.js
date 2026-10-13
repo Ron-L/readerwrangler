@@ -171,6 +171,16 @@ test('fence: a fencing popover above a modal does not unseat the modal as topmos
 });
 
 // --- outsideClickAction: the Popover outside-click policy, one case per earned rule ---
+test('selectAll: a layer carries its own Ctrl+A action through to the top-layer record', () => {
+    let called = 0;
+    reg.pushLayer({ close: () => {}, kind: 'modal' });
+    reg.pushLayer({ close: () => {}, kind: 'modal', selectAll: () => { called++; return true; } });
+    assert.strictEqual(reg.topLayer().selectAll(), true);
+    assert.strictEqual(called, 1);
+    reg._reset();
+    reg.pushLayer({ close: () => {}, kind: 'modal' });
+    assert.strictEqual(reg.topLayer().selectAll, undefined, 'no action → the app falls back to body text');
+});
 test('detached: a confirm opened from a menu SURVIVES the menu closing; normal children above still cascade', () => {
     // alpha.69 - Bake / New list: the menu item pushes a confirm above the still-open menu, then the menu unmounts.
     let confirmClosed = 0, childClosed = 0;

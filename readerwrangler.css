@@ -946,3 +946,11 @@ tr.rw-cut-pending {
    Restore Backup + Save Backup + Save Spreadsheet). Ron, 2026-10-07. Direct children only, so a row of buttons
    nested in a div (e.g. an action bar inside a popup) is unaffected. */
 .rw-popup > button { display: block; }
+
+/* v7.19.0-alpha.4 (Ron + UX) - Button LABELS inside a window are never part of a text selection — so Ctrl+A on a
+   window's body (and drag-select, and Copy) gets the content, not "View on Amazon · Share ▾ · Cancel". A selection is
+   one continuous range, so this is the only way to keep buttons that sit INSIDE a body out of it. Windows = role
+   "dialog" (every <Dialog>, plus dialog-role popovers) and the imperative yes/no boxes. A button that IS content
+   (e.g. a book title you click to open) opts back in with .rw-text-button. */
+[role="dialog"] button:not(.rw-text-button),
+.rw-imperative-overlay button:not(.rw-text-button) { -webkit-user-select: none; user-select: none; }

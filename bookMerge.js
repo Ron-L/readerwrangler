@@ -71,6 +71,13 @@ const mergeBookFields = (local, incoming) => {
             merged.orphanStatus = local.orphanStatus;
             merged.orphanCheckedDate = local.orphanCheckedDate;
         }
+        // v7.19.0 (Ron + UX) - a FRESHER scan that finds the book back in your Amazon library clears your Keep: you
+        // kept it because of ONE disappearance; if it vanishes again later, that's new news worth asking about (not a
+        // silent "already kept"). Same freshness rule as above — a stale "present" echo can't un-keep. The one place a
+        // user-owned field is cleared by incoming data, and only by a newer scan's verdict on the very fact it answered.
+        if (incomingOCD > localOCD && incoming.orphanStatus === 'verified' && merged.isKeptOrphan) {
+            merged.isKeptOrphan = false;
+        }
     }
     // soft-delete: OR-merge (a delete on either side sticks; survives relay imports)
     merged.isDeleted = local.isDeleted || incoming.isDeleted || false;

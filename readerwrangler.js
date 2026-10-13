@@ -14,15 +14,25 @@
         // fence (optional, v7.18.0-alpha.40): raise the keystroke fence. Undefined = the registry default
         // (modal + menu fence, popover doesn't — alpha.44); a popover passes true to block library keys while open.
         // idRef (optional, alpha.45): receives this layer's registry id, so a <Popover> can ask "am I topmost?".
-        const useOverlayLayer = ({ close, kind, nodeRef, fence, idRef }) => {
+        // selectAll (optional, v7.19.0): the overlay's own Ctrl+A action (read via ref = always the latest closure).
+        const useOverlayLayer = ({ close, kind, nodeRef, fence, idRef, selectAll }) => {
             const closeRef = useRef(close);
             closeRef.current = close;
+            const selectAllRef = useRef(selectAll);
+            selectAllRef.current = selectAll;
             const [isTopModal, setIsTopModal] = useState(true);
             // useLayoutEffect (not useEffect): push/subscribe + the isTopModal recompute must run BEFORE paint,
             // so when a modal opens/closes the layer beneath flips its dim in the SAME frame — no one-frame
             // double-dim flash (the reason we don't need a separate global "already dimmed" flag).
             useLayoutEffect(() => {
-                const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef, fence });
+                const id = overlayRegistry.pushLayer({ close: (reason) => closeRef.current && closeRef.current(reason), kind, nodeRef, fence,
+                    // selectAll is a function (one checklist) or { key: fn } (several — the area's data-select-items names which)
+                    selectAll: (key) => {
+                        const sa = selectAllRef.current;
+                        const fn = typeof sa === 'function' ? sa : (sa && sa[key]);
+                        if (!fn) return false;
+                        fn(); return true;
+                    } });
                 if (idRef) idRef.current = id;
                 const sync = () => setIsTopModal(overlayRegistry.isTopmostModal(id));
                 sync();
@@ -42,9 +52,15 @@
         //   zIndexClass    — scrim z-index class (default z-50; high-priority notices use z-[100])
         //   showClose/title — omit both to supply a fully custom header as children
         //   closeButton    — render a standard corner ✕ (for custom-header dialogs); auto-adds `relative` to the panel
-        const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true, zIndexClass = 'z-50', panelStyle, closeButton = false }) => {
+        // Ctrl+A (v7.19.0, Ron + UX) — acts on the AREA of the window you last clicked in / Tabbed to, never "the whole panel":
+        //   data-select-text        — mark a text area (a title, a paragraph): Ctrl+A selects just that text;
+        //   data-select-items="key" — mark a checklist area: Ctrl+A runs selectAll (a function, or { key: fn } when the
+        //                             window has several lists) — checks every item in THAT list (= its Select all);
+        //   data-dialog-body        — the main text used when nothing in the window has been clicked yet.
+        //   See the dialogUp() Ctrl+A branch in the keydown handler.
+        const Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'max-w-sm', showClose = true, zIndexClass = 'z-50', panelStyle, closeButton = false, selectAll }) => {
             const panelRef = useRef(null);
-            const isTopModal = useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef });
+            const isTopModal = useOverlayLayer({ close: onClose, kind: 'modal', nodeRef: panelRef, selectAll });
             const downOnScrimRef = useRef(false);
             const _panelCls = (panelClassName || `bg-white rounded-lg shadow-2xl ${maxWidthClassName} w-full mx-4`) + (closeButton ? ' relative' : '');
             return ReactDOM.createPortal(
@@ -58,7 +74,7 @@
                         {closeButton && <button onClick={() => onClose && onClose('button')} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl leading-none z-10" title="Close" aria-label="Close">×</button>}
                         {(title || showClose) && (
                             <div className="flex justify-between items-start p-4 border-b border-gray-200">
-                                {title ? <h2 className="text-base font-semibold text-gray-900">{title}</h2> : <span />}
+                                {title ? <h2 data-select-text className="text-base font-semibold text-gray-900">{title}</h2> : <span />}
                                 {showClose && <button onClick={() => onClose && onClose('button')} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none" title="Close" aria-label="Close">×</button>}
                             </div>
                         )}
@@ -69,6 +85,16 @@
             );
         };
 
+        // v7.19.0-alpha.4 (Ron + UX) - THE "Select all / Clear" link in a checklist SECTION's header: one piece for every
+        // section (removed-books groups, Tag from Collections' books pane + "Removed from Kindle"), so they can't drift.
+        // Reads "Clear" when every item in the section is checked, else "Select all". Ctrl+A in the section does the
+        // same select-all (data-select-items + <Dialog selectAll>).
+        const SelectAllToggle = ({ allChecked, onToggle }) => (
+            <button type="button" onClick={onToggle} className="text-xs text-blue-600 hover:underline flex-shrink-0 ml-2">
+                {allChecked ? 'Clear' : 'Select all'}
+            </button>
+        );
+
         // APP_VERSION - Defined ONCE in readerwrangler.html, available in global scope
         // Single source of truth - no duplication!
         console.log(`✅ APP_VERSION: ${APP_VERSION} (from readerwrangler.html)`);
@@ -76,7 +102,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.18.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -151,6 +177,18 @@
         const getOwnershipType = (book) =>
             isWishlisted(book) ? 'wishlist' : (book.ownershipType || 'purchased');
         const getOwnershipLabel = (book) => (OWNERSHIP_META[getOwnershipType(book)] || OWNERSHIP_META.unknown).label;
+        // v7.19.0 - THE "no longer in your Amazon library" state of a book (docs/design/ORPHAN-CLEANUP.md §2), derived
+        // from two fields with DIFFERENT owners — orphanStatus (the fetcher's scan; sticky by freshness) and
+        // isKeptOrphan (the user's Keep; user-owned, so no fetch can un-keep). Callers read THIS, never the raw pair:
+        //   'none'    — in your Amazon library (or never scanned)
+        //   'review'  — gone from Amazon, still filed in RW, not yet decided → the review window + reminder
+        //   'kept'    — gone from Amazon, you chose Keep → never asked again
+        //   'trashed' — gone from Amazon and already in your Trash (your own decision) → finalize-only
+        const amazonRemovalState = (book) => {
+            if (!book || book.orphanStatus !== 'orphan') return 'none';
+            if (book.isDeleted) return 'trashed';
+            return book.isKeptOrphan ? 'kept' : 'review';
+        };
         // v7.4.0 - Badge local instances (tab title + header chip): two identical-looking tabs,
         // one production and one localhost, is how restores land on the wrong instance. Subtle
         // by intent — users legitimately run local clones; this is a label, not a warning.
@@ -217,6 +255,14 @@
             });
         }
 
+        // v7.19.0-alpha.4 - Ctrl+A areas for the imperative boxes: title and message are separate text areas; the
+        // message is the default when nothing's been clicked. (Button labels are never selectable — readerwrangler.css.)
+        function markDialogText(titleEl, messageEl) {
+            titleEl.setAttribute('data-select-text', '');
+            messageEl.setAttribute('data-select-text', '');
+            messageEl.setAttribute('data-dialog-body', '');
+        }
+
         function showInfoDialog(title, message) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
@@ -243,6 +289,7 @@
                 const messageEl = document.createElement('div');
                 messageEl.style.cssText = `margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;`;
                 messageEl.textContent = message;
+                markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
 
                 const button = document.createElement('button');
                 button.textContent = 'OK';
@@ -291,6 +338,7 @@
             const messageEl = document.createElement('div');
             messageEl.style.cssText = `margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;`;
             messageEl.textContent = message;
+            markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
 
             const buttonContainer = document.createElement('div');
             buttonContainer.style.cssText = `text-align: right;`;
@@ -327,7 +375,9 @@
                 update(msg) {
                     messageEl.textContent = msg;
                 },
-                finish(newTitle, msg) {
+                // v7.19.0-alpha.6/11 - optional extras = [{ key, label }]: buttons left of OK (e.g. "Clear 2 goals", "Review…").
+                // Resolves with the clicked one's key, else undefined (OK / Esc / background — unchanged for every existing caller).
+                finish(newTitle, msg, extras) {
                     return new Promise((resolve) => {
                         titleEl.textContent = newTitle;
                         messageEl.textContent = msg;
@@ -343,6 +393,16 @@
                         const ok = () => { remove(); resolve(); };
                         button.onclick = ok;
                         onEscAfterFinish = ok; // from here on, Esc = OK
+                        (extras || []).forEach(({ key, label }) => {
+                            const xb = document.createElement('button');
+                            xb.textContent = label;
+                            xb.style.cssText = `
+                                background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border-strong);
+                                border-radius: 4px; padding: 10px 18px; font-size: 14px; cursor: pointer; margin-right: 8px;
+                            `;
+                            xb.onclick = () => { remove(); resolve(key); };
+                            buttonContainer.appendChild(xb);
+                        });
                         buttonContainer.appendChild(button);
                         button.focus();
                     });
@@ -380,6 +440,7 @@
                 const messageEl = document.createElement('div');
                 messageEl.style.cssText = `margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;`;
                 messageEl.textContent = message;
+                markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
 
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = `display: flex; gap: 8px; justify-content: flex-end;`;
@@ -432,6 +493,7 @@
                 const messageEl = document.createElement('div');
                 messageEl.style.cssText = `margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;`;
                 messageEl.textContent = message;
+                markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = `display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;`;
                 // v7.10.1-alpha.9 - Esc + ✕ dismiss (shared chrome); alpha.70 - backdrop click now comes from the shared chrome too
@@ -473,6 +535,7 @@
                 const messageEl = document.createElement('div');
                 messageEl.style.cssText = `margin-bottom: 16px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;`;
                 messageEl.textContent = message;
+                markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
                 const input = document.createElement('input');
                 input.type = 'text'; input.value = defaultValue; input.placeholder = placeholder;
                 input.style.cssText = `width: 100%; box-sizing: border-box; margin-bottom: 24px; padding: 8px 10px; font-size: 14px; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--bg-page); color: var(--text-primary);`;
@@ -529,6 +592,7 @@
                     ? 'This book is owned and likely still in your Amazon library. It will reappear the next time you run the fetcher. Consider using Hide instead.'
                     : `${purchasedCount} of these books are owned and likely still in your Amazon library. They will reappear the next time you run the fetcher. Consider using Hide instead.`;
 
+                markDialogText(titleEl, messageEl); // v7.19.0-alpha.4
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = `display: flex; gap: 8px; justify-content: flex-end;`;
 
@@ -1258,6 +1322,10 @@
             // manifestData state removed in v3.7.0.m - replaced by libraryStatus/collectionsStatus
             const [statusModalOpen, setStatusModalOpen] = useState(false);
             const [dupReviewOpen, setDupReviewOpen] = useState(false);
+            const [removedBooksOpen, setRemovedBooksOpen] = useState(false);       // v7.19.0 - "Books no longer in your Amazon library" window
+            const [removedSel, setRemovedSel] = useState(() => new Set());       // v7.19.0 - books checked in that window
+            const [removedReminderHidden, setRemovedReminderHidden] = useState(false); // v7.19.0-alpha.6 - "Not now" on the reminder bar (this session only)
+            const [removedKeptOpen, setRemovedKeptOpen] = useState(false); // v7.19.0-alpha.9 - the review window's collapsed "Kept" group
             const [integrityResults, setIntegrityResults] = useState(() => loadIntegrityResults()); // v6.3.0
             const [integrityCheckPending, setIntegrityCheckPending] = useState(false); // v6.3.0 - triggers post-import check
             const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -1271,8 +1339,13 @@
             const modalBookRef = useRef(modalBook); // v4.21.0.g - Ref to check modal state in keyboard handler
             // v7.8.0-alpha.4 (UNDO-MODEL.md) - dialog undo fence: stack depths at dialog open / ◀▶ nav.
             // While the dialog is open, undo/redo reach only actions from this book-viewing session.
-            const dialogUndoFenceRef = useRef(0);
-            const dialogRedoFenceRef = useRef(0);
+            // v7.19.0 - the dialog undo fence is a SEQUENCE NUMBER, not a stack length. Every recorded action gets
+            // seq = ++undoSeqRef (monotonic, never reused); a window remembers the last seq issued when it opened, and
+            // undo/redo inside it reach only actions with a HIGHER seq. Lengths broke two ways: at the 50-step cap the
+            // length stops growing (shift + push), so everything done in a window looked "older than the window"; and
+            // a permanent delete prunes history entries, shrinking the length below the fence. (Found 2026-10-12.)
+            const undoSeqRef = useRef(0);
+            const dialogUndoFenceRef = useRef(0); // the last seq issued before the current dialog session (undo AND redo)
             const isEditingBookRef = useRef(false); // v7.8.0-alpha.4 - edit mode blocks global undo (Ctrl+Z = text there)
             const anyModalOpenRef = useRef(false); // v5.2.0-alpha.18 - Track any modal open for global key guard
             const prevAnyDialogOpenRef = useRef(false); // v7.10.1-alpha.6 - rising-edge detector for the universal fence
@@ -1312,8 +1385,6 @@
                 return () => window.removeEventListener('keydown', onKey);
             }, []);
             const autoOrgPreviewRef = useRef(null); // v6.16.0 - current auto-organize preview, for the keydown handler (which doesn't dep on it)
-            const wizardSelectAllRef = useRef(null); // v7.18.0-alpha.34 - current wizard "select all listed authors" action, for Ctrl+A (handler reads via ref, not state)
-            const autoOrgChildRef = useRef(false); // v7.18.0-alpha.35 - is an autoOrg CHILD overlay (cover menu / source popup / File-under) open OVER the preview? gates the preview/wizard Ctrl+A select-all so a child on top owns Ctrl+A instead
             const backdropMouseDownRef = useRef(null); // v5.2.0-alpha.15 - Track mousedown origin for backdrop close (prevents swipe-past-edge closing modals)
             const [contextSubmenu, setContextSubmenu] = useState(null); // v4.16.0.ba - 'move' | 'copyTo' | 'priceGoal' | null for submenu hover
             const [readStatusFilter, setReadStatusFilter] = useState(''); // Filter by READ/UNREAD/UNKNOWN
@@ -2571,11 +2642,13 @@
             // Shows toast at position, animates to footer, persists 10s, then fades
             // x/y: screen coordinates (optional — defaults to center-screen if missing/non-numeric)
             // level: 'info' (default) or 'error' (red text via --text-danger)
-            const showToast = (message, x, y, { level = 'info' } = {}) => {
+            // log (v7.19.0-alpha.11, Ron + UX): false = a transient HINT about a keypress that did nothing ("Nothing to undo")
+            // — shown, but kept out of the 🕐 history, which records things that HAPPENED (changes, undos, errors).
+            const showToast = (message, x, y, { level = 'info', log = true } = {}) => {
                 // v7.6.2-alpha.2 - Toast history (Ron-ratified): toasts carry real information and
                 // evaporate. Session-local ring buffer, newest last, capped at 50; the 🕐 by the
                 // status bar opens the receipts (VS Code notification-bell convention).
-                toastHistoryRef.current = [...toastHistoryRef.current.slice(-49), { message, level, time: Date.now() }];
+                if (log) toastHistoryRef.current = [...toastHistoryRef.current.slice(-49), { message, level, time: Date.now() }];
                 const posX = typeof x === 'number' ? x : window.innerWidth / 2;
                 const posY = typeof y === 'number' ? y : window.innerHeight * 0.4;
                 setClipboardMessage(message);
@@ -4929,6 +5002,17 @@
                 window.setFolders = setFolders;
             }, [folders]);
 
+            // v7.19.0-alpha.3 (Ron) - "where you last clicked": the element of your last mousedown or keyboard focus
+            // (Tab). Ctrl+A in a window acts on the AREA around it (see the dialogUp() Ctrl+A branch). Capture phase, so a
+            // handler that stops propagation can't hide a click from it. Clicks on images count too (unlike focus/selection).
+            const lastInteractRef = useRef(null);
+            useEffect(() => {
+                const note = (e) => { lastInteractRef.current = e.target; };
+                document.addEventListener('mousedown', note, true);
+                document.addEventListener('focusin', note, true);
+                return () => { document.removeEventListener('mousedown', note, true); document.removeEventListener('focusin', note, true); };
+            }, []);
+
             // ESC key to clear selection, Ctrl+A to select all in active column
             useEffect(() => {
                 const handleKeyDown = async (e) => {
@@ -4997,23 +5081,9 @@
                     // modalBook is a <Dialog>, so the dialogUp() branch selects ITS text (copyable book details),
                     // never the page behind. (Was a hard block; Ron's call to allow copying details.)
 
-                    // v6.16.0 - Ctrl+A inside the Auto-Organize preview selects THAT preview's books (was leaking to the Inbox behind it).
-                    // v7.18.0-alpha.35 - ...only when the preview is the TOPMOST overlay: if a child (cover menu / source
-                    // popup / File-under) is open over it, that child owns Ctrl+A (handled by the generic scope-select below).
-                    if (autoOrgPreviewRef.current && !autoOrgChildRef.current && !modalBookRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
-                        e.preventDefault();
-                        setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreviewRef.current).map(b => b.id)));
-                        return;
-                    }
-
-                    // v7.18.0-alpha.34 - Ctrl+A in the Auto-Organize wizard checks ALL listed authors (Ron's ask),
-                    // mirroring the preview's select-all above (same action as the Select All button).
-                    // v7.18.0-alpha.35 - only when the wizard is topmost: not while the preview (or a child) is over it.
-                    if (wizardSelectAllRef.current && !autoOrgPreviewRef.current && !autoOrgChildRef.current && !modalBookRef.current && (e.ctrlKey || e.metaKey) && e.key === 'a') {
-                        e.preventDefault();
-                        wizardSelectAllRef.current();
-                        return;
-                    }
+                    // (v6.16.0 / v7.18.0-alpha.34-35's hand-written Ctrl+A cases for the Auto-Organize Preview and wizard —
+                    // each guarded against whatever might sit on top of it — are gone: v7.19.0 those windows declare their
+                    // Ctrl+A via <Dialog selectAll>, and the ONE dialog branch below asks only the TOPMOST window.)
 
                     // v5.0.0-alpha.92 - Alt+Left: Back, Alt+Right: Forward
                     // v7.10.1-alpha.6 (audit sweep B) - not while a dialog is up (was navigating folders BEHIND it)
@@ -5052,14 +5122,29 @@
                     // the faded page behind (the backdrop doesn't block text selection) — even when there's no node
                     // to scope to (e.g. an imperative dialog carries no registry node, so it simply suppresses).
                     // (UX: Ron 2026-09-29 — copying computed dialog text is useful, so scope-select, don't suppress.)
+                    // v7.19.0-alpha.3 (Ron) - Ctrl+A in the TOPMOST window acts on the AREA you last clicked in (or Tabbed
+                    // to) — matching how click-drag / Shift+click selection already work:
+                    //   [data-select-items="key"] — a checklist area → the window's select-all for that key (<Dialog
+                    //                               selectAll={fn | {key: fn}}>) checks every item in THAT list;
+                    //   [data-select-text]        — a text area (a title, a paragraph) → selects just that text;
+                    //   nothing clicked in the window yet, or an unmarked spot → its main text ([data-dialog-body]),
+                    //                               else the whole panel (fallback for windows not yet marked).
+                    // A text box keeps native select-all (handled above, before this branch).
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a' && dialogUp()) {
                         e.preventDefault();
                         const top = overlayRegistry.topLayer();
                         const node = top && top.nodeRef && top.nodeRef.current;
-                        if (node) {
-                            const sel = window.getSelection();
-                            if (sel) { sel.removeAllRanges(); sel.selectAllChildren(node); }
+                        if (!node) return;
+                        const selectText = (el) => { const sel = window.getSelection(); if (sel) { sel.removeAllRanges(); sel.selectAllChildren(el); } };
+                        const last = lastInteractRef.current;
+                        const area = (last && last.closest && node.contains(last)) ? last.closest('[data-select-items],[data-select-text]') : null;
+                        if (area && node.contains(area)) {
+                            if (area.hasAttribute('data-select-items') && top.selectAll && top.selectAll(area.getAttribute('data-select-items'))) return;
+                            selectText(area); // a text area — or a checklist with no select-all action
+                            return;
                         }
+                        if (node.querySelector('[data-select-none]')) return; // alpha.4 - a panel whose text is pure controls (More filters): nothing
+                        selectText(node.querySelector('[data-dialog-body]') || node);
                         return;
                     }
                     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
@@ -5533,7 +5618,20 @@
                         : parts.length > 0
                             ? `Library updated: ${totalBooks} books (${parts.join(', ')}).`
                             : `No new books found (${totalBooks} books).`;
-                    await progress.finish('Relay Import', message);
+                    // v7.19.0-alpha.6 - "deal now" entry point (ORPHAN-CLEANUP §5): name the removed books and offer Review.
+                    const removedN = result.removedReviewCount || 0;
+                    const removedLine = removedN > 0
+                        ? `\n\n🧹 ${removedN} book${removedN !== 1 ? 's are' : ' is'} no longer in your Amazon library. Review now, or find ${removedN !== 1 ? 'them' : 'it'} any time under File → Removed books…`
+                        : '';
+                    // v7.19.0-alpha.11 (Ron) - one click for "kept their price goals — clear if no longer wanted" (it took
+                    // filtering + sorting by hand before). Clears through applyPriceGoal: undoable, with its receipt.
+                    const goalIds = result.upgradedGoalIds || [];
+                    const extras = [];
+                    if (goalIds.length > 0) extras.push({ key: 'clear-goals', label: `Clear ${goalIds.length === 1 ? 'that goal' : `those ${goalIds.length} goals`}` });
+                    if (removedN > 0) extras.push({ key: 'review', label: 'Review…' });
+                    const choice = await progress.finish('Relay Import', message + removedLine, extras);
+                    if (choice === 'review') openRemovedBooks();
+                    if (choice === 'clear-goals') { applyPriceGoal(goalIds, null); showToast(`Cleared ${goalIds.length === 1 ? 'the price goal' : `${goalIds.length} price goals`} on books you now own`); }
                 } catch (err) {
                     console.error('❌ Relay import failed:', err);
                     if (err && err.isCorruption) {
@@ -6723,7 +6821,7 @@
                     setLastSyncTime(Date.now());
                     setSyncStatus('fresh');
                     if (onComplete) setTimeout(() => onComplete(metadata.totalBooks), 0);
-                    return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0 };
+                    return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0, removedReviewCount: mergedBooks.filter(b => amazonRemovalState(b) === 'review').length, upgradedGoalIds: mergedBooks.wishlistToOwnedGoalIds || [] };
                 }
 
                 // No organization found, start fresh
@@ -6731,7 +6829,7 @@
                 setLastSyncTime(Date.now());
                 setSyncStatus('fresh');
                 if (onComplete) setTimeout(() => onComplete(metadata.totalBooks), 0);
-                return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0 };
+                return { totalBooks: mergedBooks.length, newBookIds, upgradedCount: mergedBooks.wishlistToOwnedCount || 0, upgradedGoalCount: mergedBooks.wishlistToOwnedGoalCount || 0, removedReviewCount: mergedBooks.filter(b => amazonRemovalState(b) === 'review').length, upgradedGoalIds: mergedBooks.wishlistToOwnedGoalIds || [] };
             };
 
             const checkIfBlankImage = (img, bookId) => {
@@ -6766,6 +6864,15 @@
                 setModalBook(book);
                 setShowAllReviews(false);
             };
+            // v7.19.0-alpha.5 (Ron) - THE clickable book title inside a checklist window (removed books, Tag from Collections):
+            // opens the book's details ON TOP so you can decide with the facts in view; ◀ ▶ walks navList. Lives inside a
+            // row <label> — preventDefault stops the label from ticking its checkbox. rw-text-button keeps it selectable
+            // (window button labels are otherwise unselectable — readerwrangler.css).
+            const renderBookTitleLink = (book, navList, colorClass = 'text-gray-800') => (
+                <button type="button" title="Show this book's details"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); openBookModal(book, null, navList); }}
+                    className={`rw-text-button ${colorClass} hover:text-blue-700 hover:underline text-left`}>{book.title || 'Untitled'}</button>
+            );
 
             // v6.16.0 (#55) - Book-detail prev/next: cycle the CURRENT context's books, circular — the explorer view,
             // or the Auto-Organize preview's shelf when that's open (the detail modal opens over the preview).
@@ -7088,8 +7195,7 @@
                 // v7.8.0-alpha.4 (UNDO-MODEL.md) - fence on dialog OPEN and on ◀▶ navigation (each book
                 // is its own session; A→B→A deliberately re-fences — consistency beats cleverness).
                 if (modalBook && (!prevBook || prevBook.id !== modalBook.id)) {
-                    dialogUndoFenceRef.current = undoStackRef.current.length;
-                    dialogRedoFenceRef.current = redoStackRef.current.length;
+                    dialogUndoFenceRef.current = undoSeqRef.current; // v7.19.0 - seq fence (see undoSeqRef)
                 }
             }, [modalBook]);
             useEffect(() => {
@@ -7098,19 +7204,6 @@
             useEffect(() => {
                 autoOrgPreviewRef.current = autoOrgPreview;
             }, [autoOrgPreview]);
-            // v7.18.0-alpha.34 - keep a ref to the wizard's "select all listed authors" action (same as the
-            // Select All button) so Ctrl+A can check-all without the keydown handler depending on wizard state.
-            // No deps: refresh the closure every render so it always sees the current authors/filter.
-            useEffect(() => {
-                wizardSelectAllRef.current = wizardModalOpen
-                    ? () => setWizardSelectedAuthors(prev => new Set([...prev, ...wizardFilteredAuthors().map(a => a.normalizedName)]))
-                    : null;
-            });
-            // v7.18.0-alpha.35 - track whether an autoOrg CHILD overlay is on top of the preview, so the preview's
-            // (and wizard's) Ctrl+A select-all doesn't fire when a child popover/dialog should own Ctrl+A instead.
-            useEffect(() => {
-                autoOrgChildRef.current = !!(autoOrgMenu || autoOrgSrcPopup || autoOrgFileUnder);
-            }, [autoOrgMenu, autoOrgSrcPopup, autoOrgFileUnder]);
             // v7.10.1-alpha.6 (DIALOG_POLICY, audit sweeps B+C) - "is any fencing overlay open" drives everything below.
             // v7.18.0-alpha.43: there is NO hand-maintained list any more — build a dialog with <Dialog> (or a
             // keystroke-blocking popover with <Popover fence>) and it self-registers; the overlay registry's
@@ -7127,8 +7220,7 @@
             useEffect(() => {
                 anyModalOpenRef.current = anyDialogOpen;
                 if (anyDialogOpen && !prevAnyDialogOpenRef.current) {
-                    dialogUndoFenceRef.current = undoStackRef.current.length;
-                    dialogRedoFenceRef.current = redoStackRef.current.length;
+                    dialogUndoFenceRef.current = undoSeqRef.current; // v7.19.0 - seq fence (see undoSeqRef)
                 }
                 prevAnyDialogOpenRef.current = anyDialogOpen;
             }, [anyDialogOpen]);
@@ -7181,7 +7273,7 @@
                 SOFT_DELETE_BOOKS: 'Delete books', RESTORE_BOOKS: 'Restore books', SEQUENCE_SERIES: 'Number series',
                 TAG_BOOKS_DRAG: 'Tag books', WIZARD_ORGANIZE: 'Auto-Organize', COMPOUND: 'Multiple changes',
                 SET_PRICE_GOAL: 'Price goal', // v7.10.1-alpha.3
-                SET_RATING: 'Rate book', SET_TAGS: 'Tag books', RESOLVE_DUPLICATES: 'Remove duplicates', HIDE_COPIES: 'Hide copies', DELETE_TAGS: 'Delete tag', // v7.10.1-alpha.4
+                SET_RATING: 'Rate book', SET_BOOK_FIELDS: 'Change books', RESOLVE_DUPLICATES: 'Remove duplicates', HIDE_COPIES: 'Hide copies', DELETE_TAGS: 'Delete tag', // v7.10.1-alpha.4
                 RENAME_FOLDER: 'Rename folder', EDIT_FOLDER_PROPS: 'Edit folder', RENAME_TAG: 'Rename tag', RENAME_SEARCH: 'Rename Search', RENAME_BOOKLIST: 'Rename Book List',
                 SEARCH_CREATE: 'Save Search', SEARCH_DELETE: 'Delete Search', REORDER_TAGS: 'Reorder tags', REORDER_SEARCH: 'Reorder Searches', REORDER_BOOKLISTS: 'Reorder Book Lists' // v7.10.1-alpha.6
             };
@@ -7243,7 +7335,10 @@
             // Fields-based: nextFieldsById[id] = the fields to apply (usually { tags }, TFC also
             // carries collectionTags/collectionTagSeen); previous values captured per field here,
             // BEFORE the mutation — so call this before setBooks.
-            const recordTagChange = (bookIds, nextFieldsById, label) => {
+            // v7.19.0 - it was always generic ("set these fields on these books"), so it's named for that now —
+            // SET_BOOK_FIELDS (was SET_TAGS; undo history is in-memory only, so no stored record carries the old
+            // name). Keep (removed-books window) uses it too; recordTagChange stays as the tag call sites' name.
+            const recordBookFieldChange = (bookIds, nextFieldsById, label) => {
                 const prevFieldsById = {};
                 bookIds.forEach(id => {
                     const b = books.find(x => x.id === id);
@@ -7254,8 +7349,37 @@
                     });
                     prevFieldsById[id] = prev;
                 });
-                recordAction({ type: 'SET_TAGS', bookIds: [...bookIds], prevFieldsById, nextFieldsById, label });
+                recordAction({ type: 'SET_BOOK_FIELDS', bookIds: [...bookIds], prevFieldsById, nextFieldsById, label });
             };
+            const recordTagChange = recordBookFieldChange;
+            // v7.19.0 - Keep: accept books that are no longer in your Amazon library — they stay filed and are never
+            // asked about again (isKeptOrphan is user-owned: no import or fetch can un-keep; only the book RETURNING to
+            // Amazon clears it — bookMerge). alpha.9: "Ask me again" is the same operation in reverse, so ONE setter.
+            // Undoable, with a receipt.
+            const setKeptRemovedBooks = (bookIds, kept) => {
+                if (!bookIds || bookIds.length === 0) return;
+                const idSet = new Set(bookIds);
+                const next = {};
+                bookIds.forEach(id => { next[id] = { isKeptOrphan: kept }; });
+                const label = kept ? `Keep ${bookCountLabel(bookIds)}` : `Ask again about ${bookCountLabel(bookIds)}`;
+                recordBookFieldChange(bookIds, next, label); // BEFORE the mutation (captures the previous values)
+                setBooks(prev => {
+                    const updated = prev.map(b => idSet.has(b.id) ? { ...b, isKeptOrphan: kept } : b);
+                    saveBooksToIndexedDB(updated);
+                    return updated;
+                });
+                showToast(kept ? `Kept ${bookCountLabel(bookIds)} — won't ask again` : `Will ask again about ${bookCountLabel(bookIds)}`);
+            };
+            // v7.19.0-alpha.10 (Ron + UX) - THE way to open the removed-books window: always FRESH — the Kept group collapsed,
+            // only the books you came for checked. (alpha.9 left Kept expanded from the last visit: "unexpected and
+            // confusing".) Four entry points — File menu, reminder bar, import summary, book details — all call this.
+            const openRemovedBooks = (preselectIds = []) => {
+                setRemovedSel(new Set(preselectIds));
+                setRemovedKeptOpen(false);
+                setRemovedBooksOpen(true);
+            };
+            const keepRemovedBooks = (bookIds) => setKeptRemovedBooks(bookIds, true);
+            const unkeepRemovedBooks = (bookIds) => setKeptRemovedBooks(bookIds, false);
             // v7.10.1-alpha.4 - tag DELETION undoable (the ops-refactor leftover): captures registry
             // entries, every affected book's tags, the tag filter, and any Searches the delete removes —
             // undo restores the entire cascade. Call BEFORE the mutations.
@@ -7287,7 +7411,7 @@
             };
 
             const recordAction = (action) => {
-                const labeled = { ...action, label: actionLabel(action), timestamp: Date.now() };
+                const labeled = { ...action, label: actionLabel(action), timestamp: Date.now(), seq: ++undoSeqRef.current }; // v7.19.0 - seq (outside the updater)
                 setUndoStack(prev => {
                     const newStack = [...prev, labeled];
                     if (newStack.length > MAX_UNDO) newStack.shift();
@@ -7616,7 +7740,7 @@
                             setModalBook(prev => prev ? { ...prev, myRating: action.previousValues[prev.id] ?? 0 } : prev);
                         }
                         break;
-                    case 'SET_TAGS': // v7.10.1-alpha.4 - restore per-book previous field values (tags, TFC extras)
+                    case 'SET_BOOK_FIELDS': // v7.10.1-alpha.4 - restore per-book previous field values (tags, TFC extras, v7.19.0 Keep)
                         setBooks(prev => {
                             const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, ...action.prevFieldsById[b.id] } : b);
                             saveBooksToIndexedDB(updated);
@@ -8164,7 +8288,7 @@
                             setModalBook(prev => prev ? { ...prev, myRating: action.newValue } : prev);
                         }
                         break;
-                    case 'SET_TAGS': // v7.10.1-alpha.4
+                    case 'SET_BOOK_FIELDS': // v7.10.1-alpha.4 (was SET_TAGS)
                         setBooks(prev => {
                             const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, ...action.nextFieldsById[b.id] } : b);
                             saveBooksToIndexedDB(updated);
@@ -8405,22 +8529,30 @@
                 }
             };
 
-            const undo = () => {
+            // v7.19.0-alpha.10 - opts.fromPanel: the 🕐 panel's "Undo" link names the exact action it undoes and you click
+            // it on purpose — so it skips the dialog fence (the panel itself is a fenced popover; the fence exists to stop
+            // undoing changes you CAN'T see, and this one is spelled out). Imperative boxes still block.
+            const undo = (opts = {}) => {
                 // Use ref to get current stack (avoids stale closure from keyboard handler)
                 const currentStack = undoStackRef.current;
                 // v7.8.0-alpha.4 (UNDO-MODEL.md) - dialog fence: behind a modal, pre-dialog actions are
                 // state you can't see — never pop past the fence. And never a dead key: explain instead.
                 // v7.10.1-alpha.6 (DIALOG_POLICY) - UNIVERSAL: every dialog is fenced, not just book detail.
                 // Imperative overlays (confirm/progress) stamp no fence — they block undo outright.
+                // v7.19.0-alpha.10/11 - never a dead key (UNDO-MODEL). An EMPTY history says just that, FIRST — "close it
+                // to undo earlier actions" would promise actions that don't exist (Ron's screenshot). Hints, not receipts:
+                // shown, never logged in the 🕐 history.
+                if (currentStack.length === 0) { showToast('Nothing to undo', undefined, undefined, { log: false }); return; }
                 if (imperativeDialogsUp()) {
-                    showToast('Nothing to undo from this dialog — close it to undo earlier actions');
+                    showToast('Nothing to undo from this dialog — close it to undo earlier actions', undefined, undefined, { log: false });
                     return;
                 }
-                if (dialogUp() && currentStack.length <= dialogUndoFenceRef.current) {
-                    showToast('Nothing to undo from this dialog — close it to undo earlier actions');
+                // v7.19.0 - reachable only if the top action was recorded AFTER this dialog opened (seq fence)
+                const undoTop = currentStack[currentStack.length - 1];
+                if (!opts.fromPanel && dialogUp() && !(undoTop && (undoTop.seq || 0) > dialogUndoFenceRef.current)) {
+                    showToast('Nothing to undo from this dialog — close it to undo earlier actions', undefined, undefined, { log: false });
                     return;
                 }
-                if (currentStack.length === 0) return;
                 const action = currentStack[currentStack.length - 1];
                 executeUndo(action);
                 setUndoStack(prev => prev.slice(0, -1));
@@ -8434,15 +8566,18 @@
                 // v7.8.0-alpha.4 (UNDO-MODEL.md) - fence, symmetric: only redo entries created above it
                 // (i.e., by this dialog session's own undos).
                 // v7.10.1-alpha.6 (DIALOG_POLICY) - universal, matching undo().
+                // v7.19.0-alpha.10/11 - empty FIRST, and hints are never logged (mirrors undo())
+                if (currentStack.length === 0) { showToast('Nothing to redo', undefined, undefined, { log: false }); return; }
                 if (imperativeDialogsUp()) {
-                    showToast('Nothing to redo from this dialog — close it to redo earlier actions');
+                    showToast('Nothing to redo from this dialog — close it to redo earlier actions', undefined, undefined, { log: false });
                     return;
                 }
-                if (dialogUp() && currentStack.length <= dialogRedoFenceRef.current) {
-                    showToast('Nothing to redo from this dialog — close it to redo earlier actions');
+                // v7.19.0 - same seq fence: only actions recorded (and undone) in this dialog session can be redone
+                const redoTop = currentStack[currentStack.length - 1];
+                if (dialogUp() && !(redoTop && (redoTop.seq || 0) > dialogUndoFenceRef.current)) {
+                    showToast('Nothing to redo from this dialog — close it to redo earlier actions', undefined, undefined, { log: false });
                     return;
                 }
-                if (currentStack.length === 0) return;
                 const action = currentStack[currentStack.length - 1];
                 executeRedo(action);
                 setRedoStack(prev => prev.slice(0, -1));
@@ -9349,6 +9484,21 @@
                                                 }} onMouseEnter={e => { const en = books.some(b => (b.collections || []).length > 0) || books.some(b => (b.collectionTags || []).length > 0); en && (e.currentTarget.style.background = 'var(--bg-hover)'); }} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
                                                     🏷️ Tag from Collections…
                                                 </button>
+                                                {/* v7.19.0 - Removed books: review books no longer in your Amazon library, any time (ORPHAN-CLEANUP §5) */}
+                                                {(() => {
+                                                    const n = books.filter(b => amazonRemovalState(b) === 'review').length;
+                                                    return (
+                                                        <button onClick={() => { openRemovedBooks(); setOpenMenuBar(null); }}
+                                                            title="Books that are no longer in your Amazon library — keep them or remove them"
+                                                            style={{
+                                                                width: '100%', textAlign: 'left', padding: '8px 16px', fontSize: '13px',
+                                                                border: 'none', background: 'var(--bg-surface)', cursor: 'pointer',
+                                                                transition: 'background 0.1s', color: 'var(--text-primary)'
+                                                            }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}>
+                                                            🧹 Removed books…{n > 0 ? ` (${n})` : ''}
+                                                        </button>
+                                                    );
+                                                })()}
                                                 <div style={{ height: '1px', background: 'var(--border-default)', margin: '4px 0' }} />
                                                 {/* v6.0.0 - Relay Setup */}
                                                 <button onClick={() => { setRelaySetupOpen(true); setOpenMenuBar(null); }} style={{
@@ -9523,6 +9673,28 @@
                             </div>
                         </div>
                     )}
+                    {/* v7.19.0-alpha.6 - Removed-books reminder (ORPHAN-CLEANUP §5 "deal later"): driven by the LIVE count of
+                        books awaiting a decision — appears by itself when there are some, disappears by itself when none
+                        remain (kept, deleted, or back in your Amazon library). "Not now" hides it for this session only.
+                        Theme colors only (no hard-coded light gradient — the relay bar above has that dark-theme bug). */}
+                    {!removedReminderHidden && !relayImporting && (() => {
+                        const n = books.filter(b => amazonRemovalState(b) === 'review').length;
+                        if (n === 0) return null;
+                        return (
+                            <div style={{ background: 'var(--bg-surface-alt)', borderBottom: '1px solid var(--border-default)', padding: '8px 16px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                                <span style={{ color: 'var(--text-primary)' }}>🧹 {n} book{n !== 1 ? 's are' : ' is'} no longer in your Amazon library.</span>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button onClick={() => { openRemovedBooks(); }} style={{
+                                        padding: '4px 12px', fontSize: '12px', fontWeight: 'bold', background: 'var(--bg-accent)', color: 'var(--text-on-accent)',
+                                        border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Review</button>
+                                    <button onClick={() => setRemovedReminderHidden(true)} title="Hide until next time — File → Removed books… any time" style={{
+                                        padding: '4px 12px', fontSize: '12px', background: 'var(--bg-surface)', color: 'var(--text-muted)',
+                                        border: '1px solid var(--border-default)', borderRadius: '4px', cursor: 'pointer' }}>Not now</button>
+                                </div>
+                            </div>
+                        );
+                    })()}
                     {/* v6.0.0-alpha.44 - Removed relay importing status bar; now uses showInfoDialog on completion */}
 
                     {/* v6.0.0-alpha.23 - Full-width welcome screen when no books loaded */}
@@ -10187,7 +10359,7 @@
                                 padding: '16px',
                                 zIndex: 1000
                             }}>
-                            <div style={{
+                            <div data-select-none style={{
                                 display: 'grid',
                                 gridTemplateColumns: 'repeat(3, 1fr)',
                                 gap: '16px'
@@ -10797,12 +10969,12 @@
                         <Dialog onClose={() => setStatusModalOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 {/* Header */}
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-data-status" className="text-xl font-bold text-gray-900">Data Status</h2>
+                                    <h2 data-select-text id="modal-data-status" className="text-xl font-bold text-gray-900">Data Status</h2>
                                     <button onClick={() => setStatusModalOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
 
                                 {/* Content - informational only */}
-                                <div className="p-6 space-y-4">
+                                <div data-select-text data-dialog-body className="p-6 space-y-4">
                                     {/* Library info - v4.15.1.c: Red text for non-fresh status */}
                                     <div className="border-b border-gray-200 pb-3">
                                         <p className="text-sm text-gray-700">
@@ -10977,6 +11149,122 @@
                     })()}
 
                     {/* Duplicate Review Modal */}
+                    {/* v7.19.0 - "Books no longer in your Amazon library" (docs/design/ORPHAN-CLEANUP.md; content from the
+                        reverted 7.16.0-alpha.1 dialog 914025b, rebuilt on <Dialog>). Two hide-when-empty groups, both read
+                        from amazonRemovalState: still filed ('review' → Keep or permanently delete) and already in Trash
+                        ('trashed' → finalize). Never says "orphan" (internal jargon). */}
+                    {removedBooksOpen && (() => {
+                        const filed = books.filter(b => amazonRemovalState(b) === 'review');
+                        const trashed = books.filter(b => amazonRemovalState(b) === 'trashed');
+                        const kept = books.filter(b => amazonRemovalState(b) === 'kept'); // alpha.9 - the collapsed "Kept" group
+                        const selFiled = filed.filter(b => removedSel.has(b.id));
+                        const selKept = removedKeptOpen ? kept.filter(b => removedSel.has(b.id)) : []; // a closed group acts on nothing
+                        const selAll = [...selFiled, ...trashed.filter(b => removedSel.has(b.id)), ...selKept];
+                        const close = () => setRemovedBooksOpen(false);
+                        const toggle = (id) => setRemovedSel(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+                        const allChecked = (list) => list.length > 0 && list.every(b => removedSel.has(b.id));
+                        const toggleGroup = (list) => setRemovedSel(prev => { const n = new Set(prev); const all = list.every(b => n.has(b.id)); list.forEach(b => all ? n.delete(b.id) : n.add(b.id)); return n; });
+                        const whereFiled = (b) => {
+                            const fs = getFoldersContainingBook(b.id).filter(f => !['__all__', '__inbox__', '__library__', '__trash__', '__booklists__', '__views__', '__search__'].includes(f.id));
+                            const ls = getBookListsContainingBook(b.id);
+                            const parts = [...fs.map(f => f.name), ...ls.map(l => `📗 ${l.name}`)];
+                            return parts.length ? parts.join(', ') : 'Inbox';
+                        };
+                        // alpha.3 (Ron) - the title opens the book's details ON TOP of this window (◀ ▶ walks this list); the
+                        // rest of the row still ticks the checkbox. preventDefault keeps the wrapping <label> from toggling.
+                        const navList = [...filed, ...trashed, ...kept];
+                        const row = (b, showWhere) => (
+                            <label key={b.id} className="flex items-start gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
+                                <input type="checkbox" checked={removedSel.has(b.id)} onChange={() => toggle(b.id)} className="mt-1 w-4 h-4 accent-indigo-600 flex-shrink-0" />
+                                <span className="flex-1 min-w-0">
+                                    <span className="block truncate font-medium">
+                                        {renderBookTitleLink(b, navList)}
+                                    </span>
+                                    <span className="block truncate text-xs text-gray-500">{b.author || 'Unknown author'}{showWhere ? ` · ${whereFiled(b)}` : ''}</span>
+                                </span>
+                            </label>
+                        );
+                        const groupHead = (label, list) => (
+                            <div className="flex items-center justify-between mt-1 mb-1">
+                                <div className="text-sm font-semibold text-gray-700">{label} ({list.length})</div>
+                                <SelectAllToggle allChecked={allChecked(list)} onToggle={() => toggleGroup(list)} />
+                            </div>
+                        );
+                        return (
+                            <Dialog onClose={close} showClose={false}
+                                selectAll={{ // alpha.3 - Ctrl+A checks every book in the GROUP you're working in (= its Select all)
+                                    filed: () => setRemovedSel(prev => new Set([...prev, ...filed.map(b => b.id)])),
+                                    trashed: () => setRemovedSel(prev => new Set([...prev, ...trashed.map(b => b.id)])),
+                                    kept: () => setRemovedSel(prev => new Set([...prev, ...kept.map(b => b.id)])),
+                                }}
+                                panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+                                <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
+                                    <h2 data-select-text className="text-lg font-bold text-gray-900">🧹 Books no longer in your Amazon library</h2>
+                                    <button onClick={close} className="text-gray-500 hover:text-gray-700 font-bold text-xl leading-none" title="Close" aria-label="Close">✕</button>
+                                </div>
+                                <div className="p-4 overflow-y-auto" style={{ flex: 1 }}>
+                                    {(filed.length === 0 && trashed.length === 0) ? (
+                                        <p data-select-text data-dialog-body className="text-sm text-gray-500 italic mb-3">Nothing to review — every book is in your Amazon library, or you've chosen to keep it.</p>
+                                    ) : (
+                                        <p data-select-text data-dialog-body className="text-sm text-gray-600 mb-3">These were removed, returned, or delisted on Amazon since you last fetched your library. <strong>Keep</strong> the ones you still want — they stay where they're filed and you won't be asked about them again — or permanently delete the rest.</p>
+                                    )}
+                                    {filed.length > 0 && (<div data-select-items="filed">
+                                        {groupHead('Still in your library', filed)}
+                                        <div className="border border-gray-200 rounded divide-y divide-gray-100">{filed.map(b => row(b, true))}</div>
+                                    </div>)}
+                                    {trashed.length > 0 && (<div data-select-items="trashed">
+                                        <div className="mt-3">{groupHead('Already in your Trash', trashed)}</div>
+                                        <div className="text-xs text-gray-500 mb-1">You already deleted these — permanently deleting them here just finishes the job.</div>
+                                        <div className="border border-gray-200 rounded divide-y divide-gray-100">{trashed.map(b => row(b, false))}</div>
+                                    </div>)}
+                                    {/* alpha.9 (Ron) - every book you've kept, collapsed by default so it doesn't crowd the
+                                        decisions still to make. "Ask me again" (footer, while open) sends checked ones back. */}
+                                    {kept.length > 0 && (<div data-select-items="kept" className="mt-3">
+                                        <div className="flex items-center justify-between mt-1 mb-1">
+                                            <button type="button" onClick={() => setRemovedKeptOpen(o => !o)}
+                                                className="text-sm font-semibold text-gray-700 hover:text-gray-900"
+                                                title={removedKeptOpen ? 'Hide the books you kept' : 'Show the books you kept'}>
+                                                <span className="inline-block w-4">{removedKeptOpen ? '▾' : '▸'}</span>Kept ({kept.length})
+                                            </button>
+                                            {removedKeptOpen && <SelectAllToggle allChecked={allChecked(kept)} onToggle={() => toggleGroup(kept)} />}
+                                        </div>
+                                        {removedKeptOpen && (<>
+                                            <div className="text-xs text-gray-500 mb-1">You chose to keep these. They stay where they're filed; we won't ask again unless you say so — or the book comes back to your Amazon library and later disappears again.</div>
+                                            <div className="border border-gray-200 rounded divide-y divide-gray-100">{kept.map(b => row(b, true))}</div>
+                                        </>)}
+                                    </div>)}
+                                    {(filed.length > 0 || trashed.length > 0 || (removedKeptOpen && kept.length > 0)) && (
+                                        <div data-select-text className="text-xs text-red-600 mt-3">⚠ <strong>Permanently delete</strong> removes a book from ReaderWrangler for good — it skips the Trash and can't be undone.</div>
+                                    )}
+                                </div>
+                                <div className="flex justify-between items-center gap-2 p-4 border-t border-gray-200">
+                                    <button onClick={close} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded">Not now</button>
+                                    <div className="flex gap-2">
+                                        {removedKeptOpen && kept.length > 0 && (
+                                            <button disabled={selKept.length === 0}
+                                                title="Put them back on the list of books awaiting a decision"
+                                                onClick={() => unkeepRemovedBooks(selKept.map(b => b.id))}
+                                                className={`px-4 py-1.5 text-sm font-bold rounded ${selKept.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-indigo-700 border border-indigo-300 hover:bg-indigo-50'}`}>
+                                                Ask me again ({selKept.length})
+                                            </button>
+                                        )}
+                                        <button disabled={selFiled.length === 0}
+                                            title="Keep them where they're filed and stop asking (Trash books can't be kept — restore them first)"
+                                            onClick={() => keepRemovedBooks(selFiled.map(b => b.id))}
+                                            className={`px-4 py-1.5 text-sm font-bold rounded ${selFiled.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
+                                            Keep selected ({selFiled.length})
+                                        </button>
+                                        <button disabled={selAll.length === 0}
+                                            onClick={() => permanentlyDeleteBooks(selAll.map(b => b.id))} // asks first ("cannot be undone" + Book List fallout)
+                                            className={`px-4 py-1.5 text-sm font-bold rounded ${selAll.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}>
+                                            Permanently delete selected ({selAll.length})
+                                        </button>
+                                    </div>
+                                </div>
+                            </Dialog>
+                        );
+                    })()}
+
                     {dupReviewOpen && (() => {
                         // Build duplicate groups
                         const asinMap = {};
@@ -11068,12 +11356,12 @@
                             panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
                                 {/* Header */}
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-duplicate-review" className="text-xl font-bold text-gray-900">Review Duplicates</h2>
+                                    <h2 data-select-text id="modal-duplicate-review" className="text-xl font-bold text-gray-900">Review Duplicates</h2>
                                     <button onClick={() => setDupReviewOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
 
                                 {/* Scrollable content */}
-                                <div className="p-4 overflow-y-auto" style={{ flex: 1 }}>
+                                <div data-select-text data-dialog-body className="p-4 overflow-y-auto" style={{ flex: 1 }}>
                                     <p className="text-sm text-gray-600 mb-4">
                                         {dupGroups.length} book{dupGroups.length !== 1 ? 's' : ''} with duplicate entries.
                                         The highlighted copy will be kept. Click a copy to change the selection.
@@ -11137,13 +11425,13 @@
                             panelClassName="bg-white rounded-lg shadow-2xl max-w-lg w-full"
                             panelStyle={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-start p-4 rounded-t-lg border-b" style={{ background: 'var(--bg-chrome)', borderColor: 'var(--border-default)', flexShrink: 0 }}>
-                                    <h2 id="modal-relay-setup" className="text-xl font-bold" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><img src="icons/sync-tower-neutral.svg" alt="" style={{ width: '14px', height: '22px' }} /> Relay Setup</h2>
+                                    <h2 data-select-text id="modal-relay-setup" className="text-xl font-bold" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><img src="icons/sync-tower-neutral.svg" alt="" style={{ width: '14px', height: '22px' }} /> Relay Setup</h2>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <button onClick={() => setRelayHelpOpen(true)} style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }} title="Learn about the relay, credentials, and bookmarklet" aria-label="Help">?</button>
                                         <button onClick={() => closeRelaySetup()} className="text-2xl leading-none" style={{ color: 'var(--text-muted)' }} title="Close" aria-label="Close">×</button>
                                     </div>
                                 </div>
-                                <div style={{ overflowY: 'auto', flex: 1 }}>
+                                <div data-select-text data-dialog-body style={{ overflowY: 'auto', flex: 1 }}>
                                     {(() => {
                                         const stored = (() => { try { return JSON.parse(localStorage.getItem(RELAY_KEY)); } catch { return null; } })();
                                         const hasCreds = stored && stored.channelId;
@@ -11472,10 +11760,10 @@
                             panelClassName="rounded-lg shadow-2xl max-w-lg w-full"
                             panelStyle={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="flex justify-between items-start p-4 rounded-t-lg border-b" style={{ background: 'var(--bg-chrome)', borderColor: 'var(--border-default)', flexShrink: 0 }}>
-                                    <h2 id="modal-relay-help" className="text-lg font-bold">Understanding Relay Setup</h2>
+                                    <h2 data-select-text id="modal-relay-help" className="text-lg font-bold">Understanding Relay Setup</h2>
                                     <button onClick={() => setRelayHelpOpen(false)} className="text-2xl leading-none" style={{ color: 'var(--text-muted)' }} title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div style={{ overflowY: 'auto', flex: 1, padding: '20px' }}>
+                                <div data-select-text data-dialog-body style={{ overflowY: 'auto', flex: 1, padding: '20px' }}>
                                     <div style={{ fontSize: '13px', lineHeight: '1.7', color: 'var(--text-secondary)' }}>
                                         <div style={{ marginBottom: '20px' }}>
                                             <p style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>What is the relay?</p>
@@ -11532,10 +11820,10 @@
                     {resetConfirmOpen && (
                         <Dialog onClose={() => setResetConfirmOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-reset-confirm" className="text-xl font-bold text-gray-900">Reset App Confirmation</h2>
+                                    <h2 data-select-text id="modal-reset-confirm" className="text-xl font-bold text-gray-900">Reset App Confirmation</h2>
                                     <button onClick={() => setResetConfirmOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold" title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div className="p-6 space-y-4">
+                                <div data-select-text data-dialog-body className="p-6 space-y-4">
                                     <p className="text-gray-800 font-semibold">This will completely reset the app to its initial unused state.</p>
                                     <div className="text-gray-700">
                                         <p className="font-semibold mb-2">This will:</p>
@@ -11572,7 +11860,7 @@
                         header, ✕, Esc, backdrop, and the keystroke fence are all provided by the primitive. */}
                     {newFolderHiddenAlert && (
                         <Dialog onClose={() => setNewFolderHiddenAlert(null)} title="New folder is hidden">
-                            <div className="p-4 space-y-3">
+                            <div data-select-text data-dialog-body className="p-4 space-y-3">
                                 <p className="text-sm text-gray-700">Active filters are hiding folders with no matching books. <strong>"{newFolderHiddenAlert.folderName}"</strong> won't appear in the sidebar until filters change.</p>
                                 <div className="flex flex-col gap-2 pt-1">
                                     <button
@@ -11605,10 +11893,10 @@
                     {aboutDialogOpen && (
                         <Dialog onClose={() => setAboutDialogOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-about" className="text-xl font-bold text-gray-900">About ReaderWrangler™</h2>
+                                    <h2 data-select-text id="modal-about" className="text-xl font-bold text-gray-900">About ReaderWrangler™</h2>
                                     <button onClick={() => setAboutDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div className="p-6 space-y-4 text-center">
+                                <div data-select-text data-dialog-body className="p-6 space-y-4 text-center">
                                     <img src="icons/logo-transparent.png" alt="ReaderWrangler" className="about-logo" style={{ width: '200px', height: '200px', margin: '0 auto' }} />
                                     <p className="text-sm text-gray-600">Wrangle your Kindle library with power and precision</p>
                                     <div className="text-sm text-gray-700 border-t border-gray-200 pt-4">
@@ -11629,10 +11917,10 @@
                     {shortcutsDialogOpen && (
                         <Dialog onClose={() => setShortcutsDialogOpen(false)} showClose={false} maxWidthClassName="max-w-lg">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-shortcuts" className="text-xl font-bold text-gray-900">Keyboard Shortcuts</h2>
+                                    <h2 data-select-text id="modal-shortcuts" className="text-xl font-bold text-gray-900">Keyboard Shortcuts</h2>
                                     <button onClick={() => setShortcutsDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div className="p-6 space-y-3">
+                                <div data-select-text data-dialog-body className="p-6 space-y-3">
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                                         <div className="font-semibold text-gray-700">Ctrl+Z</div>
                                         <div className="text-gray-600">Undo last action</div>
@@ -11672,10 +11960,10 @@
                     {howToDialogOpen && (
                         <Dialog onClose={() => setHowToDialogOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-how-to" className="text-xl font-bold text-gray-900">How To Use ReaderWrangler</h2>
+                                    <h2 data-select-text id="modal-how-to" className="text-xl font-bold text-gray-900">How To Use ReaderWrangler</h2>
                                     <button onClick={() => setHowToDialogOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div className="p-6 space-y-4">
+                                <div data-select-text data-dialog-body className="p-6 space-y-4">
                                     <div className="bg-blue-50 border border-blue-200 rounded p-4 text-sm text-gray-700">
                                         <p className="font-semibold mb-2">Getting Started:</p>
                                         <ol className="list-decimal list-inside space-y-2 ml-2">
@@ -11698,9 +11986,10 @@
 
                     {/* v5.1.0-alpha.3 - Auto-Organize Wizard Modal */}
                     {wizardModalOpen && (
-                        <Dialog onClose={() => setWizardModalOpen(false)} showClose={false} maxWidthClassName="max-w-2xl">
+                        <Dialog onClose={() => setWizardModalOpen(false)} showClose={false} maxWidthClassName="max-w-2xl"
+                            selectAll={() => setWizardSelectedAuthors(prev => new Set([...prev, ...wizardFilteredAuthors().map(a => a.normalizedName)]))} /* v7.18.0-alpha.34 Ctrl+A = Select All; v7.19.0 declared here */>
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-wizard" className="text-xl font-bold text-gray-900">✨ Auto-Organize — Choose Authors</h2>
+                                    <h2 data-select-text id="modal-wizard" className="text-xl font-bold text-gray-900">✨ Auto-Organize — Choose Authors</h2>
                                     <div className="flex items-center gap-2">
                                         {/* v5.1.0-alpha.10 - Help icon */}
                                         <button
@@ -11712,9 +12001,9 @@
                                         <button onClick={() => setWizardModalOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                     </div>
                                 </div>
-                                <div className="p-6 space-y-4">
+                                <div data-dialog-body className="p-6 space-y-4">
                                     {/* v5.1.0-alpha.10 - Source is always Inbox */}
-                                    <div className="text-sm text-gray-600 mb-3">
+                                    <div data-select-text className="text-sm text-gray-600 mb-3">
                                         Organizing books from: <strong>Inbox</strong>
                                     </div>
 
@@ -11742,7 +12031,7 @@
                                         preview's ⚙ Options (tuned live against the result). The wizard is now a pure author picker. */}
 
                                     {/* v5.1.0-alpha.5 - Author list */}
-                                    <div className="border border-gray-300 rounded-lg bg-white">
+                                    <div data-select-items="authors" className="border border-gray-300 rounded-lg bg-white">
                                         {/* Header with Select All/None + Sort Toggle */}
                                         <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-300">
                                             <div className="flex gap-3 items-center">
@@ -11913,10 +12202,10 @@
                     {wizardHelpOpen && (
                         <Dialog onClose={() => setWizardHelpOpen(false)} showClose={false} maxWidthClassName="max-w-lg">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-wizard-help" className="text-xl font-bold text-gray-900">📖 Auto-Organize Tips</h2>
+                                    <h2 data-select-text id="modal-wizard-help" className="text-xl font-bold text-gray-900">📖 Auto-Organize Tips</h2>
                                     <button onClick={() => setWizardHelpOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
-                                <div className="p-6 space-y-4">
+                                <div data-select-text data-dialog-body className="p-6 space-y-4">
                                     <div className="space-y-4 text-sm text-gray-700">
                                         {/* Step 1 */}
                                         <div>
@@ -11971,9 +12260,9 @@
                         <Dialog onClose={() => setCorruptionRecovery(false)} showClose={false} closeButton zIndexClass="z-[100]"
                             panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
-                                    <h2 className="text-lg font-bold text-gray-900">⚠️ Sync data check failed</h2>
+                                    <h2 data-select-text className="text-lg font-bold text-gray-900">⚠️ Sync data check failed</h2>
                                 </div>
-                                <div className="p-4 overflow-y-auto" style={{ flex: 1 }}>
+                                <div data-select-text data-dialog-body className="p-4 overflow-y-auto" style={{ flex: 1 }}>
                                     <p className="text-sm font-semibold text-green-700 mb-2">✅ Your library is safe on this device — only the synced (cloud) copy is affected.</p>
                                     <p className="text-sm text-gray-700 mb-3">A browser tab was most likely closed while a sync was finishing. Keep this tab open (it’s slow to reload) and do all of these, in order:</p>
                                     <pre className="text-xs text-gray-800 bg-gray-50 border border-gray-200 rounded p-3" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{window.RW_RECOVERY_NUMBERED || 'Save a backup (File → Save Backup…), then re-download your library and collections from Amazon with the bookmarklet, then File → Import from Relay.'}</pre>
@@ -12001,9 +12290,9 @@
                         <Dialog onClose={() => { console.log('📋 Backup restore cancelled by user'); setRestoreConfirm(null); }}
                             showClose={false} closeButton zIndexClass="z-[100]" panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
-                                    <h2 className="text-lg font-bold text-gray-900">Restore backup?</h2>
+                                    <h2 data-select-text className="text-lg font-bold text-gray-900">Restore backup?</h2>
                                 </div>
-                                <div className="p-4">
+                                <div data-select-text data-dialog-body className="p-4">
                                     <p className="text-sm text-gray-700 mb-2">
                                         This backup is from <strong>{backupDate ? new Date(backupDate).toLocaleString() : 'an unknown date'}</strong>{ageLabel ? ` — ${ageLabel}` : ''}.
                                     </p>
@@ -12217,6 +12506,7 @@
                         };
                         return (
                         <Dialog onClose={closeAutoOrgPreview} showClose={false}
+                            selectAll={() => setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreview).map(b => b.id)))} /* v6.16.0 Ctrl+A = check every book; v7.19.0 declared here */
                             panelClassName="bg-white rounded-lg shadow-2xl w-full"
                             panelStyle={{ maxWidth: '640px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                                 {/* Header — the mode is a live segmented toggle (recomputes the preview in place). */}
@@ -12224,8 +12514,8 @@
                                     <div className="flex flex-col gap-1.5 min-w-0">
                                         {/* v7.9.0-alpha.1 (UNIFIED §2) - one view, one title; the scope toggle is gone.
                                             Subtitle teaches the model: everything by these authors is here; checks decide. */}
-                                        <h2 id="modal-autoorg-preview" className="text-xl font-bold text-gray-900">✨ Auto-Organize{sourceName ? ` — from “${sourceName}”` : narrowSourceId === '__all__' ? ' — All Books' : ' — from Inbox'}</h2>
-                                        <div className="text-xs text-gray-600 flex items-center gap-2 flex-wrap">
+                                        <h2 data-select-text id="modal-autoorg-preview" className="text-xl font-bold text-gray-900">✨ Auto-Organize{sourceName ? ` — from “${sourceName}”` : narrowSourceId === '__all__' ? ' — All Books' : ' — from Inbox'}</h2>
+                                        <div data-select-text data-dialog-body className="text-xs text-gray-600 flex items-center gap-2 flex-wrap">
                                             <span>Showing everything by {authorGroups.length === 1 ? 'this author' : 'these authors'}, wherever it lives — checked books get organized.</span>
                                             {/* v7.9.0-alpha.2 (Ron) - Select all lives at the TOP: selection is where scanning starts; the footer confirms. */}
                                             <button onClick={() => setAutoOrgSel(new Set(getPreviewOrderedBooks(autoOrgPreview).map(b => b.id)))}
@@ -12244,7 +12534,7 @@
                                 </div>
                                 {/* v6.16.0 (Stage 2) - Live By-Series options, collapsed by default; changes recompute the preview in place. */}
                                 {mode === 'series' && (
-                                    <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
+                                    <div data-select-text className="px-4 py-2 border-b border-gray-200 bg-gray-50">
                                         <button onClick={() => setAutoOrgOptionsOpen(o => !o)} className="text-xs font-medium text-gray-600 hover:text-gray-900 flex items-center gap-1">
                                             <span className="inline-block w-3">{autoOrgOptionsOpen ? '▾' : '▸'}</span>⚙ Options
                                         </button>
@@ -12272,7 +12562,7 @@
                                     </div>
                                 )}
                                 {/* Scrollable hierarchy — one selection; checkbox tree = select-all/none per group */}
-                                <div className="p-4 overflow-y-auto" style={{ flex: 1 }}>
+                                <div data-select-items="covers" className="p-4 overflow-y-auto" style={{ flex: 1 }}>
                                     {/* Already-filed section — its checkbox is select-all/none over the filed books. */}
                                     {alreadyFiled.length > 0 && (
                                         <div className="mb-3">
@@ -12482,7 +12772,7 @@
                             <Dialog onClose={() => setAutoOrgFileUnder(null)} showClose={false} zIndexClass="z-[80]"
                                 panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '380px' }}>
                                     <div className="p-3 border-b border-gray-200">
-                                        <div className="text-sm font-semibold text-gray-900 mb-2">File {n} book{n !== 1 ? 's' : ''} under…</div>
+                                        <div data-select-text data-dialog-body className="text-sm font-semibold text-gray-900 mb-2">File {n} book{n !== 1 ? 's' : ''} under…</div>
                                         <input autoFocus value={raw}
                                             onChange={(e) => setAutoOrgFileUnder(prev => ({ ...prev, filter: e.target.value }))}
                                             onKeyDown={(e) => {
@@ -12706,10 +12996,18 @@
 
                         return (
                         <Dialog onClose={() => setTagFromCollectionsOpen(false)} showClose={false}
+                            selectAll={{ // v7.19.0-alpha.3 - Ctrl+A checks every item in the list you're working in
+                                collections: () => setTfcCheckedCollections(new Set(collectionNames)),   // = the top bar's "All"
+                                removals: () => setTfcCheckedRemovals(new Set(removalLabels)),
+                                books: () => { // every book shown in the right pane (clears that group's unchecked set)
+                                    if (isViewingRemoval) setTfcUncheckedRemovalBooks(prev => ({ ...prev, [tfcSelectedRemoval]: new Set() }));
+                                    else if (isViewingCollection) setTfcUncheckedBooks(prev => ({ ...prev, [tfcSelectedCollection]: new Set() }));
+                                },
+                            }}
                             panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '750px' }}>
                                 {/* Header */}
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
-                                    <h2 id="modal-tfc" className="text-xl font-bold text-gray-900">🏷️ Tag from Collections</h2>
+                                    <h2 data-select-text id="modal-tfc" className="text-xl font-bold text-gray-900">🏷️ Tag from Collections</h2>
                                     <button onClick={() => setTagFromCollectionsOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
 
@@ -12756,7 +13054,7 @@
                                 {/* Two-pane body */}
                                 <div className="flex" style={{ height: '400px' }}>
                                     {/* Left pane: Collections list + Removal section */}
-                                    <div className="w-2/5 border-r border-gray-300 overflow-y-auto">
+                                    <div data-select-items="collections" className="w-2/5 border-r border-gray-300 overflow-y-auto">
                                         {collectionNames.length === 0 && removalLabels.length === 0 ? (
                                             <div className="text-center text-gray-500 py-8 px-4">
                                                 <p>No collections found</p>
@@ -12801,9 +13099,13 @@
 
                                                 {/* Removed from Kindle section */}
                                                 {removalLabels.length > 0 && (
-                                                    <>
-                                                        <div className="px-3 py-2 bg-amber-50 border-t border-b border-amber-200 text-xs font-semibold text-amber-800 mt-1">
-                                                            Removed from Kindle
+                                                    <div data-select-items="removals">
+                                                        <div className="flex items-center justify-between px-3 py-2 bg-amber-50 border-t border-b border-amber-200 text-xs font-semibold text-amber-800 mt-1">
+                                                            <span>Removed from Kindle</span>
+                                                            {/* v7.19.0-alpha.4 (Ron + UX) - its OWN toggle: the top bar's All|Some|None ADDS tags; this
+                                                                section REMOVES them — one "All" must never schedule both. */}
+                                                            <SelectAllToggle allChecked={removalLabels.every(l => tfcCheckedRemovals.has(l))}
+                                                                onToggle={() => setTfcCheckedRemovals(removalLabels.every(l => tfcCheckedRemovals.has(l)) ? new Set() : new Set(removalLabels))} />
                                                         </div>
                                                         {removalLabels.map(label => {
                                                             const group = removalGroups[label];
@@ -12834,14 +13136,14 @@
                                                                 </div>
                                                             );
                                                         })}
-                                                    </>
+                                                    </div>
                                                 )}
                                             </>
                                         )}
                                     </div>
 
                                     {/* Right pane: Books in selected collection or removal group */}
-                                    <div className="w-3/5 overflow-y-auto">
+                                    <div data-select-items="books" data-dialog-body className="w-3/5 overflow-y-auto">
                                         {!isViewingCollection && !isViewingRemoval ? (
                                             <div className="text-center text-gray-500 py-8">
                                                 <p>Select a collection to see its books</p>
@@ -12849,8 +13151,14 @@
                                         ) : isViewingRemoval ? (
                                             /* Removal group view */
                                             <div className="p-2">
-                                                <div className="px-3 py-1 text-xs text-amber-700 border-b border-amber-200 mb-1">
-                                                    No longer in "{tfcSelectedRemoval}" on Kindle ({removalBooks.length} book{removalBooks.length !== 1 ? 's' : ''})
+                                                <div className="flex items-center justify-between px-3 py-1 text-xs text-amber-700 border-b border-amber-200 mb-1">
+                                                    <span>No longer in "{tfcSelectedRemoval}" on Kindle ({removalBooks.length} book{removalBooks.length !== 1 ? 's' : ''})</span>
+                                                    {/* v7.19.0-alpha.4 - section toggle (Ron): Clear = keep every tag, Select all = remove from all */}
+                                                    {(() => {
+                                                        const un = tfcUncheckedRemovalBooks[tfcSelectedRemoval] || new Set();
+                                                        const all = removalBooks.every(b => !un.has(b.id));
+                                                        return <SelectAllToggle allChecked={all} onToggle={() => setTfcUncheckedRemovalBooks(prev => ({ ...prev, [tfcSelectedRemoval]: all ? new Set(removalBooks.map(b => b.id)) : new Set() }))} />;
+                                                    })()}
                                                 </div>
                                                 <div className="px-3 py-1.5 text-xs text-gray-500 mb-1">
                                                     Checked = remove tag. Unchecked = keep tag (becomes yours).
@@ -12877,7 +13185,7 @@
                                                                 }}
                                                                 className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 flex-shrink-0"
                                                             />
-                                                            <span className="ml-2 text-sm text-gray-900 truncate">{book.title}</span>
+                                                            <span className="ml-2 text-sm truncate">{renderBookTitleLink(book, removalBooks, 'text-gray-900')}</span>
                                                         </label>
                                                     );
                                                 })}
@@ -12890,8 +13198,17 @@
                                         ) : (
                                             /* Collection view */
                                             <div className="p-2">
-                                                <div className="px-3 py-1 text-xs text-gray-500 border-b border-gray-200 mb-1">
-                                                    Books in "{tfcSelectedCollection}" ({visibleBooks.length})
+                                                <div className="flex items-center justify-between px-3 py-1 text-xs text-gray-500 border-b border-gray-200 mb-1">
+                                                    <span>Books in "{tfcSelectedCollection}" ({visibleBooks.length})</span>
+                                                    {/* v7.19.0-alpha.4 - section toggle (Ron): over the CHECKABLE books (already-tagged ones have no box) */}
+                                                    {(() => {
+                                                        const tagId = tfcSelectedCollection.toLowerCase().replace(/\s+/g, '-');
+                                                        const checkable = visibleBooks.filter(b => !(b.tags || []).includes(tagId));
+                                                        if (checkable.length === 0) return null;
+                                                        const un = tfcUncheckedBooks[tfcSelectedCollection] || new Set();
+                                                        const all = checkable.every(b => !un.has(b.id));
+                                                        return <SelectAllToggle allChecked={all} onToggle={() => setTfcUncheckedBooks(prev => ({ ...prev, [tfcSelectedCollection]: all ? new Set(checkable.map(b => b.id)) : new Set() }))} />;
+                                                    })()}
                                                 </div>
                                                 {visibleBooks.map(book => {
                                                     const tagId = tfcSelectedCollection.toLowerCase().replace(/\s+/g, '-');
@@ -12921,8 +13238,8 @@
                                                                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
                                                                 />
                                                             )}
-                                                            <span className={`ml-2 text-sm truncate ${alreadyTagged ? 'text-gray-400' : 'text-gray-900'}`}>
-                                                                {book.title}
+                                                            <span className="ml-2 text-sm truncate">
+                                                                {renderBookTitleLink(book, visibleBooks, alreadyTagged ? 'text-gray-400' : 'text-gray-900')}
                                                             </span>
                                                             {alreadyTagged && <span className="text-xs text-gray-400 ml-auto flex-shrink-0">already tagged</span>}
                                                         </label>
@@ -13113,8 +13430,8 @@
                     {/* v4.20.0.a - Bulk price goal modal (v5.0.0-alpha.169.8 - use bulkPriceBookIds) */}
                     {showBulkPriceModal && (
                         <Dialog onClose={() => { setShowBulkPriceModal(false); setBulkPriceInput(''); setBulkPriceBookIds([]); }} showClose={false} closeButton panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm">
-                                <h2 id="modal-bulk-price" className="text-lg font-bold text-gray-900 mb-4">Set Custom Price Goal</h2>
-                                <p className="text-sm text-gray-600 mb-4">
+                                <h2 data-select-text id="modal-bulk-price" className="text-lg font-bold text-gray-900 mb-4">Set Custom Price Goal</h2>
+                                <p data-select-text data-dialog-body className="text-sm text-gray-600 mb-4">
                                     Set price goal for {bulkPriceBookIds.length} selected book{bulkPriceBookIds.length !== 1 ? 's' : ''}
                                 </p>
                                 <form
@@ -13190,8 +13507,8 @@
                             // closes it first on Esc — the old "Esc backs out the dropdown first" branch here is gone.
                             <Dialog onClose={() => { setShowBulkEditModal(false); setBulkEditSeriesDropdownOpen(false); }} showClose={false} closeButton
                                 panelClassName="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-80">
-                                    <h2 id="modal-bulk-edit" className="text-lg font-bold text-gray-900 mb-2">{config.title}</h2>
-                                    <p className="text-sm text-gray-600 mb-4">
+                                    <h2 data-select-text id="modal-bulk-edit" className="text-lg font-bold text-gray-900 mb-2">{config.title}</h2>
+                                    <p data-select-text data-dialog-body className="text-sm text-gray-600 mb-4">
                                         Apply to {bookCount} selected book{bookCount !== 1 ? 's' : ''}
                                     </p>
                                     <form onSubmit={(e) => { e.preventDefault(); saveBulkEdit(); }} className="flex flex-col gap-4">
@@ -13372,7 +13689,7 @@
                                     <button onClick={closeBookModal} className="text-gray-500 hover:text-gray-700 text-2xl" title="Close" aria-label="Close">×</button>
                                 </div>
 
-                                <div className="p-6">
+                                <div data-select-text data-dialog-body className="p-6">
                                     <div className="flex gap-6 mb-6">
                                         {/* v5.6.6 - Cover links to Amazon */}
                                         <a href={getAmazonUrl(modalBook.asin)} target="_blank" rel="noopener noreferrer"
@@ -13398,7 +13715,7 @@
                                                  onLoad={(e) => checkIfBlankImage(e.target, modalBook.id)} />
                                         )}
                                         </a>
-                                        <div className="flex-1">
+                                        <div data-select-text className="flex-1">
                                             {isEditingBook ? (
                                                 <input
                                                     type="text"
@@ -13412,7 +13729,7 @@
                                                 /* v5.6.6 - Title links to Amazon
                                                    v7.13.0-alpha.1 (Ron) - copy chip: a linked title fights drag-select, so the
                                                    value gets the standard take-me affordance (GitHub-SHA / DNS-record pattern) */
-                                                <div className="mb-3">
+                                                <div data-select-text className="mb-3">
                                                     <a href={getAmazonUrl(modalBook.asin)} target="_blank" rel="noopener noreferrer"
                                                         className="text-3xl font-bold text-gray-900 hover:text-blue-700 transition-colors"
                                                         title="View on Amazon">{modalBook.title}</a>
@@ -13719,6 +14036,22 @@
                                                                 <span className={`${meta.badge} text-white text-xs font-bold rounded px-2 py-0.5`}>{meta.label}</span>
                                                             ) : (
                                                                 <span className="text-gray-400">{meta.label}</span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
+                                                {/* v7.19.0-alpha.6/7 (Ron + UX) - say it where you look: a book gone from your Amazon library
+                                                    explains itself in its own details (why it's no longer in your Amazon library / Kindle list, months later). alpha.7: all
+                                                    three states — kept, in your Trash, or "review" (a link that opens the review window on it). */}
+                                                {!isEditingBook && (() => {
+                                                    const st = amazonRemovalState(modalBook);
+                                                    if (st === 'none') return null;
+                                                    return (
+                                                        <div className="text-sm text-amber-700">
+                                                            🧹 No longer in your Amazon library — {st === 'kept' ? 'kept' : st === 'trashed' ? 'in your Trash' : (
+                                                                <button type="button" className="underline hover:text-amber-900"
+                                                                    title="Keep it or remove it (File → Removed books…)"
+                                                                    onClick={() => { openRemovedBooks([modalBook.id]); }}>review</button>
                                                             )}
                                                         </div>
                                                     );
@@ -14086,7 +14419,7 @@
                                             </div>
                                         ) : (
                                             // v5.4.6 - View mode: read-only display
-                                            <div>
+                                            <div data-select-text>
                                                 <span className="font-semibold text-gray-700 text-sm">Note:</span>
                                                 {modalBook.userNote ? (
                                                     <p className="text-gray-700 mt-1 whitespace-pre-wrap">{modalBook.userNote}</p>
@@ -14112,7 +14445,7 @@
                                     )}
 
                                     {modalBook.description && (
-                                        <div className="mb-6 pb-6 border-b border-gray-200">
+                                        <div data-select-text className="mb-6 pb-6 border-b border-gray-200">
                                             <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
                                             <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
                                                 {modalBook.description}
@@ -14121,7 +14454,7 @@
                                     )}
 
                                     {modalBook.topReviews && modalBook.topReviews.length > 0 && (
-                                        <div>
+                                        <div data-select-text>
                                             <h3 className="text-lg font-semibold text-gray-900 mb-3">Top Reviews</h3>
                                             <div className="space-y-4">
                                                 {modalBook.topReviews.slice(0, showAllReviews ? modalBook.topReviews.length : 3).map((review, idx) => {
@@ -14131,7 +14464,7 @@
                                                     const reviewer = review.reviewer || review.contributor?.publicProfile?.publicProfile?.publicName?.displayString || '';
 
                                                     return (
-                                                        <div key={idx} className="bg-gray-50 rounded-lg p-4">
+                                                        <div key={idx} data-select-text className="bg-gray-50 rounded-lg p-4">
                                                             <div className="flex items-center gap-3 mb-2">
                                                                 <span className="text-yellow-500 text-lg">{'★'.repeat(stars)}</span>
                                                                 {title && (
@@ -17587,11 +17920,11 @@
                         <Dialog onClose={() => { setTagManagementOpen(false); setEditingTagId(null); }} showClose={false}
                             panelClassName="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
                                 <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                                    <h2 className="text-xl font-semibold">Manage Tags</h2>
+                                    <h2 data-select-text className="text-xl font-semibold">Manage Tags</h2>
                                     <button onClick={() => { setTagManagementOpen(false); setEditingTagId(null); }}
                                             className="text-gray-400 hover:text-gray-600 text-2xl" title="Close">×</button>
                                 </div>
-                                <div className="flex-1 overflow-y-auto" ref={tagManagerScrollRef}>
+                                <div data-select-text data-dialog-body className="flex-1 overflow-y-auto" ref={tagManagerScrollRef}>
                                     {Object.keys(tagRegistry).length === 0 ? (
                                         <p className="text-gray-500 text-center py-8 px-4">No tags created yet.</p>
                                     ) : (() => {
@@ -20018,10 +20351,10 @@
                             // v7.18.0 - converted to <Dialog>; drag (dialogDrag) dropped here, restored later by the draggable-dialogs feature (TODO)
                             <Dialog onClose={() => setFolderPropertiesDialog(null)} showClose={false} closeButton
                                 panelClassName="bg-white rounded-lg shadow-xl w-full max-w-md">
-                                    <h2 id="modal-folder-properties" className="text-xl font-semibold mb-4 p-6 pb-0">
+                                    <h2 data-select-text id="modal-folder-properties" className="text-xl font-semibold mb-4 p-6 pb-0">
                                         Folder Properties
                                     </h2>
-                                    <div className="px-6 pb-6">
+                                    <div data-select-text data-dialog-body className="px-6 pb-6">
 
                                         {/* Name */}
                                         <div className="mb-4">
@@ -20101,8 +20434,8 @@
                     {/* v6.10.0-alpha.13 - Share Email Fallback Dialog */}
                     {shareEmailChoice && (
                         <Dialog onClose={() => setShareEmailChoice(null)} showClose={false} closeButton panelClassName="bg-white rounded-lg shadow-xl p-6 max-w-md">
-                                <h3 className="text-lg font-bold text-gray-900 mb-2">Share by Email</h3>
-                                <p className="text-sm text-gray-600 mb-4">How would you like to send this?</p>
+                                <h3 data-select-text className="text-lg font-bold text-gray-900 mb-2">Share by Email</h3>
+                                <p data-select-text data-dialog-body className="text-sm text-gray-600 mb-4">How would you like to send this?</p>
                                 <div className="flex flex-col gap-2">
                                     {/* The two mail-client hand-offs, grouped. Copy is the fallback below the divider. */}
                                     {/* Desktop mail client via mailto (Outlook, Thunderbird, …). New context, so
@@ -20193,6 +20526,19 @@
                                         role="dialog" ariaLabel="Recent messages"
                                         className="bg-white border border-gray-300 shadow-lg rounded z-[70] max-h-[320px] overflow-y-auto py-1"
                                         style={{ width: 420 }}>
+                                        {/* v7.19.0-alpha.10 (Ron + UX) - the log is a LOG; this one line names what undo would do next
+                                            (undo is a stack — only the top is next, so no greying of entries). The link undoes it. */}
+                                        {(() => {
+                                            const next = undoStack[undoStack.length - 1];
+                                            return (
+                                                <div data-select-text className="px-3 py-1.5 border-b border-gray-200 bg-gray-50 text-xs text-gray-600 flex items-center justify-between gap-2">
+                                                    <span className="truncate">{next ? <>Next undo: <strong>{next.label || FRIENDLY_ACTION[next.type] || next.type}</strong></> : 'Nothing to undo'}</span>
+                                                    {next && <button type="button" className="text-blue-600 hover:underline flex-shrink-0"
+                                                        onClick={() => { undo({ fromPanel: true }); setToastHistoryOpen(false); }}>Undo</button>}
+                                                </div>
+                                            );
+                                        })()}
+                                        <div data-select-text data-dialog-body>
                                         {toastHistoryRef.current.length === 0 ? (
                                             <div className="px-3 py-2 text-gray-400">No messages yet this session</div>
                                         ) : (
@@ -20203,6 +20549,7 @@
                                                 </div>
                                             ))
                                         )}
+                                        </div>
                                     </Popover>
                                 )}
                             </span>

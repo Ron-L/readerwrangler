@@ -168,6 +168,22 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
   toggle joins undo. Motivation: hunting a series list in a long Book Lists column (Ctrl+F works but costs a
   thought-process switch). Expected usage: **Name to FIND, back to Manual for priority** — Ron's top tier =
   the `New To Read - *` work lists (mobile-filter surrogates, Prime clearing first), series To-Reads below.
+- [ ] **Old price-goal field `targetPrice` still lingers (found 2026-10-12)**. WHAT: a few code paths treat a book as
+  "has a goal" if EITHER `priceTrigger` (today's goal) OR the older `targetPrice` is set — the import's "kept their
+  price goals" count (storage.js ~174), the fetcher's goal check (amazon-library-fetcher.js ~2286), and the spreadsheet
+  (`priceTrigger ?? targetPrice`). But clearing a goal in the app only clears `priceTrigger`. So a book that still
+  carries an old `targetPrice` keeps "having a goal" in those places after you clear it. DO: first check whether any
+  real book still has `targetPrice` set (console count); if so, migrate it into `priceTrigger` once, then retire the
+  field (bookFields row + the three readers) — one goal field, not two. Small.
+
+- [ ] **Search by ASIN in the search box (Ron 2026-10-12)**. WHAT: typing a book's ASIN (e.g. `B08P52K2PZ`) into the
+  search box at the top of the right pane ("Title, author or series...") finds that book — today it only matches title,
+  author and series. Useful for checking a specific book exists (came up testing the removed-books feature).
+  WHERE (three copies of the same match rule — make it ONE): the live search filter (`readerwrangler.js` ~10044), the
+  saved-Search matcher `bookMatchesFilters` (~2196), and the phone's search (`mobile.js` ~2289, which also matches notes
+  + tags). DO: one shared `bookMatchesText(book, term)` (uiHelpers) with ASIN added (exact or prefix, case-insensitive),
+  called by all three — then update the box's placeholder/tooltip to mention ASIN. Small.
+
 - [ ] **Left-pane type-to-filter box** (Ron 2026-09-10, companion/escalation to the above): one box narrowing
   **Folders + Book Lists + Searches** by name — the strongest pure "find" at scale. Design questions for the
   build: placement (whole-pane vs per-section), keyboard focus/shortcut, clear-on-navigate, interaction with
@@ -231,22 +247,6 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     the `amazon.com/dp/<ASIN>` fallback. **Marketplace matters** — non-US accounts need
     `read.amazon.co.uk` / `.co.jp` / etc.; RW may need the user's marketplace or default to `.com` + rely
     on fallback. (Backstory link: `reference_read_in_kindle` memory.)
-
-- [ ] **Orphan-cleanup step at import (2026-09-20, Ron)** — discoverability + action. When the orphan scan
-  finds books **no longer in your Amazon library**, show a dialog with a **checkbox list of those titles**
-  + **"Delete permanently"** (removes from folders AND trash in one step — for true orphans this STICKS).
-  Design must-haves: (a) **scope to genuine orphans** — a book still in the Amazon library (owned/sample)
-  re-lists on the next fetch no matter how it's deleted in RW, so exclude those or warn *"still in your
-  Amazon library — remove it there first, or it comes back"* (exactly what bit Ron: samples he removed at
-  Amazon returned because they were still in the library); (b) permanent-delete is **destructive** (skips
-  the trash safety net) → a clear *"Permanently delete N books — can't be undone"* confirm. (Started as a
-  passive info notice; Ron upgraded it to the actionable checkbox-delete.) New dialog → follow the
-  new-dialog checklist / the `<Dialog>` primitive when it lands.
-  **→ NOW DESIGNED + IN BUILD: docs/design/ORPHAN-CLEANUP.md** (expanded scope after testing found the
-  original was a one-shot): durable orphan STATUS (not an import-time moment), sticky-by-freshness merge,
-  `isKeptOrphan` revival, persistent entry points (live-count nudge + File→Removed books + import-summary
-  button). Branch `feature/orphan-cleanup-dialog`; **7.16.0-alpha.2 = the merge-completeness chokepoint
-  (below) shipped**; remaining: sticky orphanStatus + entry points. Open Qs in the doc await Ron's red pen.
 
 - [ ] **bookMerge ownership audit — the deeper invariant the chokepoint surfaced (2026-09-22)**.
   DONE so far (7.16.0-alpha.3): `collectionTagSeen` + `collectionTags` were silently `'amazon'`
@@ -365,6 +365,13 @@ Reply to the user still owed (Ron's channel).
 - [ ] Flip to Workers Paid ($5/mo) at or shortly before public launch — analysis DONE (RELAY-ECONOMICS.md, 2026-08-28): post-7.5.0 levers, flat $5 covers ~250 Ron-like users; free tier is ~6-10 and SHARED. This is now just the act of upgrading the Cloudflare plan at the right moment.
 
 ## 🔧 7.0.0 follow-ups (relay)
+
+- [ ] **Relay Setup's connection test always checks the PROD relay, even on localhost / the dev site (found 2026-10-12)**.
+  WHAT YOU SEE: on your local copy or the dev site, File → Relay Setup → the connection test reports on the *production*
+  relay, not the dev relay your copy actually uses — so "connected"/"revoked" there can be wrong for dev. WHY:
+  `readerwrangler.js` (the `case 'test':` branch, ~line 1685) hard-codes `https://readerwrangler-relay.readerwrangler.workers.dev`
+  instead of using the dev-aware worker URL (`window._RW_RELAY_WORKER_URL`, set at ~line 90 for localhost + the dev repo).
+  DO: read the same worker URL every other relay call uses (one accessor, not a second hard-coded string). Small.
 
 - [ ] **Relay storage keeps climbing ~18 MB per Restore, and the daily usage email shows the wrong number** (found 2026-10-03/04; full write-up + fix design in **docs/design/RELAY-WRITE-REDESIGN.md §14a**). Real total ≈572 MB (56% of the 1 GB free tier) while emails showed 219.7/326/0 — each email reports ONE bucket (prod or dev), never the sum, and "no data" prints as 0. ~265 MB is recoverable leftovers. Three fixes, one "relay storage" side-fix branch (Ron: after the overlay branch unless urgency changes): (1) Restore never deletes the package it absorbs → move cleanup INTO `commitGeneration` (+ dedupe `absorbedRuns`); (2) usage email: per-bucket query + sum, "no data" not 0, `keyCount` cross-check; (3) worker-side daily sweep for torn/extra/absorbed leftovers, report-only first, then deleting. Leave prod channel `58c1bfd7…` alone (another user; expires Dec 7). Don't Import from Relay on dev while the Sep 27 orphan test runs are pending. Inventory tool: `.private/analyze-relay-keys.js`.
 
