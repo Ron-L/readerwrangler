@@ -8,7 +8,9 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-10-08 (through release 7.18.0)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-10-12 (through release 7.19.0)** — all sections human-reviewed (§1–21).
+7.19.0 comb hits: removed books (§12 new Q, §14 pointer), undo visibility (§13), Tag from Collections
+title links + per-list Select all (§9), goals cleared after import (§16), Ctrl+A areas (§18).
 7.18.0 (one shared system for every window/menu/popup): comb hits updated — Preview hover popup
 (§Auto-Organize), zero-match Save (§10), book-window Share ▾ (Share), Esc/Ctrl+A rows + hover
 (§18). 7.17.0 was under-the-hood (no section content changed).
@@ -310,7 +312,10 @@ out the fallout, and one undo reverses all of it.
 Collections into RW tags in one reviewed pass — pick which collections become tags and apply.
 On later runs, "New books only" limits the pass to books that joined collections since last
 time, and the wizard also flags books whose collection membership *ended* so their
-collection-tags can be retired.
+collection-tags can be retired. Not sure what a book is? **Click its title** for its details
+(7.19.0). Each list — collections, the "Removed from Kindle" section, the books pane — has its
+own **Select all / Clear** link, and **Ctrl+A** checks whichever list you clicked in (the top
+All | Some | None adds tags; the Removed-from-Kindle section removes them, so it has its own).
 
 **Why would I want that, if I can already filter by Collections?** Because collections are
 *Amazon-side* data: read-only in ReaderWrangler, editable only on your Kindle (see §14).
@@ -425,6 +430,20 @@ WORKFLOW-PATTERNS. **Wishlist books are the exception: their deletes stick** (th
 ReaderWrangler-native; Amazon holds no copy) — though re-*adding* one requires **Empty
 Trash** first, or the add is skipped as a duplicate of the trashed copy.
 
+**A book is "no longer in your Amazon library" — what now? (7.19.0)** The fetcher's scan (§14)
+noticed a book is gone from Amazon's side — a returned loan, a sample you deleted, a delisted
+book. ReaderWrangler doesn't touch it on its own: the import summary names it with a
+**Review…** button, a reminder bar stays up until you decide, and **File → Removed books…**
+lists them any time (with where each is filed; click a title for its details). Per book:
+**Keep** (stays filed, never asked again — later fetches/imports don't undo it) or
+**Permanently delete** (gone from RW for good — it skips the Trash). Books already in your
+Trash show in their own group to finish deleting; they don't count toward the reminder (you
+already decided). **Kept** books live in a collapsed **Kept** group with **Ask me again**;
+their details say "🧹 No longer in your Amazon library — kept". **If a kept book comes back**
+to your Amazon library (e.g. you re-sample it), the next fetch + import clears the Keep, so a
+later disappearance asks again. A downloaded book generally still opens on your Kindle — this
+is about what Amazon's library lists, not about the file on your device.
+
 ## 13. Undo
 
 **What can I undo?** Everything you do to your data: moves, copies, paste, delete/restore,
@@ -443,7 +462,10 @@ confirm things with nothing to undo (clipboard copies, file saves, refusals).
 **Missed a message?** The 🕐 button by the status bar keeps this session's messages — the last
 ~50 receipts and undo/redo confirmations — so a toast that faded before you read it isn't lost.
 (It's a log of what happened, not a clickable undo list; use **Ctrl+Z** to undo and **Ctrl+Shift+Z**
-or **Ctrl+Y** to redo.)
+or **Ctrl+Y** to redo.) **7.19.0:** its top line names what undo would do next — "Next undo: Clear
+price goal for 7 books" — with an **Undo** link (or "Nothing to undo"). Undo is a stack, so only
+that one action is next. **Ctrl+Z with nothing to undo says "Nothing to undo"** (it used to be
+silent); those "nothing happened" hints show briefly but aren't kept in the log.
 
 **Undo in dialogs is scoped.** While any dialog is open, Ctrl+Z reaches only what happened
 since it opened (rename a tag in Manage Tags, undo it right there); otherwise the app says
@@ -487,7 +509,7 @@ for a change to reach the Relay before Import can read it.
 2. **The fetcher runs in phases** (titles → enrichment → tags → prices), and after "fetch
    complete" a **full-library orphan scan** runs in the background with its own progress bar.
    Closing the tab early skips it (the dialog's ℹ️ explains). The orphan scan is what notices
-   books you removed on Amazon's side.
+   books you removed on Amazon's side — they show up in **File → Removed books…** (§12).
 3. **Fetches are incremental** — they stop at the newest book RW already knows, since older ones
    usually haven't changed. But if the fetcher's known count doesn't match the total Amazon
    currently reports — which happens when books were removed, returned, or delisted on Amazon's
@@ -572,7 +594,10 @@ only a non-Kindle edition (e.g. audiobook) is for sale. A **Prime/KU book showin
 means "free to borrow, $X to buy" — ownership says Prime, price says what buying costs.
 
 **Do goals survive buying the book?** Yes — promotion keeps your data, snapshot included
-(you'll visit the book anyway to file/queue it; clear the goal then if you like).
+(you'll visit the book anyway to file/queue it; clear the goal then if you like). An owned book
+can legitimately keep a goal (watching for a dip to buy it as a gift). **7.19.0:** when an import
+upgrades books that still carry a goal, its summary says so and offers **"Clear those N goals"** —
+one click, undoable — instead of hunting them down with filters.
 
 ## 17. Mobile
 
@@ -616,7 +641,7 @@ The app's own list: Help → **Keyboard Shortcuts**. The core set:
 | Keys | Action |
 |---|---|
 | Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) | Undo / Redo (toasts name the target) |
-| Ctrl+A | Select all in the current view · in a window: select its text · in the Auto-Organize preview: check all its books · in a hover popup you've clicked: select its text |
+| Ctrl+A | Select all in the current view · **in a window (7.19.0): acts on the part you last clicked** — a title or paragraph → just that text; a checkbox list → checks that whole list (= its Select all); nothing clicked yet → the main text. Button labels are never selected. · in a hover popup you've clicked: select its text |
 | Ctrl+X / Ctrl+C / Ctrl+V | Cut (marks) / Copy / Paste books into the current folder |
 | Ctrl+Click / Shift+Click | Multi-select / range-select |
 | DEL | Delete selection (context-aware — see §12) |

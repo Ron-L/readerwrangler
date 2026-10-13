@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.19.0] - 2026-10-12
+
+### Books that leave your Amazon library
+- **ReaderWrangler now tells you when a book disappears from your Amazon library** — a returned loan, a sample you deleted, a book Amazon delisted. Until now those books simply stayed in ReaderWrangler looking exactly as before, with nothing to say they were no longer in your Amazon library.
+- **File → Removed books…** lists them, with where each one is filed. For each book you choose: **Keep** (it stays filed, and you won't be asked about it again — later fetches and imports won't undo that) or **Permanently delete**. Click a title to see the book's details before you decide.
+- **You'll hear about it when it happens:** an Import from Relay names any removed books and offers **Review…**, and a reminder bar stays up until you've decided (**Not now** hides it until next time).
+- **Every book you've kept** is listed in a collapsed **Kept** group, with **Ask me again** if you change your mind; book details also say *"No longer in your Amazon library"* — kept, in your Trash, or waiting for review.
+- **If a kept book comes back** to your Amazon library, ReaderWrangler clears the Keep — so if it ever disappears again, you'll be asked again.
+
+### Select all that means what you're doing
+- **Ctrl+A acts on the part of a window you last clicked in.** Click a title or a paragraph and Ctrl+A selects just that text; click in a list of checkboxes and Ctrl+A checks that whole list. Book details is divided into its title, facts, note, description, and each review. Button labels are never caught up in a selection, so copying window text gets just the content.
+- **Checklist sections have a Select all / Clear link** in their header — including Tag from Collections' book list and its "Removed from Kindle" section.
+- **Tag from Collections:** click a book's title to open its details before deciding.
+
+### Undo you can see
+- **The 🕐 message history shows what undo would do next**, with an **Undo** link right there.
+- **Ctrl+Z with nothing to undo now says so**, instead of silently doing nothing.
+- **Fixed:** in a long session, actions taken inside a window could become impossible to undo from that window.
+
+### Smaller improvements
+- **"Clear those N goals" after an import** — when books you've just bought still carry a price goal, one click clears them (undoable).
+
 ## [7.18.0] - 2026-10-08
 
 ### Windows, menus and popups all behave the same way

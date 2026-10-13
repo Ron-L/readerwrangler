@@ -151,6 +151,16 @@ Structural takeaway for the sidebar: this splits Book Lists into two tiers — a
 tail of **per-series To-Read queues** (hunted occasionally by name). Sidebar ordering features
 (pins, name-sort) should serve exactly that split.
 
+## Pattern: reviewing books that left your Amazon library (2026-10-12, 7.19.0)
+
+After an import names removed books, **click each title before deciding** — the details show
+where it's filed and whether it's a sample, loan, or owned book, which usually settles it: a
+returned Prime loan or a deleted sample you meant to drop → **Permanently delete**; a book you
+still care about (or don't want to lose from its folders/Book Lists) → **Keep**. Ron's first
+real case (*My Friend Ark*, a sample he'd deleted) he kept, later re-sampled it, and the next
+fetch + import quietly cleared the Keep — the loop needs no upkeep. When in doubt, Keep: it's
+reversible (**Ask me again** in the Kept group); Permanently delete is not.
+
 ## Meta
 - **There's no single right way** — these are compositions of the same primitives (folders, Book Lists, tags, saved searches, Auto-Organize). The guide should present them as menus of trade-offs, not mandates.
 - Add new patterns here as they surface, then distill for the USER-GUIDE near launch.

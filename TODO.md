@@ -248,22 +248,6 @@ both shipped to prod; dev confirmed, prod verify in progress.)_
     `read.amazon.co.uk` / `.co.jp` / etc.; RW may need the user's marketplace or default to `.com` + rely
     on fallback. (Backstory link: `reference_read_in_kindle` memory.)
 
-- [ ] **Orphan-cleanup step at import (2026-09-20, Ron)** — discoverability + action. When the orphan scan
-  finds books **no longer in your Amazon library**, show a dialog with a **checkbox list of those titles**
-  + **"Delete permanently"** (removes from folders AND trash in one step — for true orphans this STICKS).
-  Design must-haves: (a) **scope to genuine orphans** — a book still in the Amazon library (owned/sample)
-  re-lists on the next fetch no matter how it's deleted in RW, so exclude those or warn *"still in your
-  Amazon library — remove it there first, or it comes back"* (exactly what bit Ron: samples he removed at
-  Amazon returned because they were still in the library); (b) permanent-delete is **destructive** (skips
-  the trash safety net) → a clear *"Permanently delete N books — can't be undone"* confirm. (Started as a
-  passive info notice; Ron upgraded it to the actionable checkbox-delete.) New dialog → follow the
-  new-dialog checklist / the `<Dialog>` primitive when it lands.
-  **→ NOW DESIGNED + IN BUILD: docs/design/ORPHAN-CLEANUP.md** (expanded scope after testing found the
-  original was a one-shot): durable orphan STATUS (not an import-time moment), sticky-by-freshness merge,
-  `isKeptOrphan` revival, persistent entry points (live-count nudge + File→Removed books + import-summary
-  button). Branch `feature/orphan-cleanup-dialog`; **7.16.0-alpha.2 = the merge-completeness chokepoint
-  (below) shipped**; remaining: sticky orphanStatus + entry points. Open Qs in the doc await Ron's red pen.
-
 - [ ] **bookMerge ownership audit — the deeper invariant the chokepoint surfaced (2026-09-22)**.
   DONE so far (7.16.0-alpha.3): `collectionTagSeen` + `collectionTags` were silently `'amazon'`
   (incoming-wins) and WIPED on every import — the fetcher never sets them AND the device-state push

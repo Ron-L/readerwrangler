@@ -2,8 +2,25 @@
 
 **Feature**: surface books the fetcher's scan found gone from Amazon, and let the user remove them —
 **as a durable library status, not a one-shot import-time moment.**
-**Status**: DESIGN — for Ron's red pen (2026-09-22). Build = expanded 7.16.0 (branch
-`feature/orphan-cleanup-dialog`).
+**Status**: **BUILT — part A in 7.16.0, part B (the feature) in 7.19.0** (branch `feature/removed-books`,
+2026-10-12). Proven on real data: the pending dev import surfaced one genuine removal (a deleted sample);
+keep → re-sample → fetch + import cleared it as designed.
+
+**As built vs this design (7.19.0):**
+- One derived state, `amazonRemovalState(book)` → `none | review | kept | trashed` — nothing reads the raw
+  `orphanStatus` × `isKeptOrphan` pair (the §2 lifecycle, enforced as code).
+- **Trash doesn't count** toward the reminder or the File-menu count (the user already decided); trashed
+  books still show in the window to finish deleting.
+- **Kept books are listed** — a collapsed "Kept" group in the window with **Ask me again** (§5 assumed "the
+  normal filters" would find them; none existed). Book details names the state ("— kept / in your Trash /
+  review").
+- **A return clears the Keep** (refines §2/§3): a FRESHER scan finding the book present sets
+  `isKeptOrphan` false, so a later disappearance asks again; a stale "present" echo can't (bookMerge test).
+- Menu: **File → Removed books…** (the §5 open question). The window opens fresh every time (one opener).
+- Copy: never "orphan"; and no claim that removed books "won't open" — a downloaded book generally still
+  opens; this is about what Amazon's library lists.
+
+_(Original design text follows, unchanged.)_
 **Supersedes**: `archive/ORPHAN-DETECTION-RECYCLE-BIN.md` (2026-01-07; its `loadId` detection was
 replaced by the fetcher-side scan — but its **lifecycle model was lost in that swap**, which is the
 root of the miss this doc corrects).

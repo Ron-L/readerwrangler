@@ -102,7 +102,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.19.0-alpha.11";  // Build version for this file
+        const ORGANIZER_VERSION = "7.19.0";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -14041,7 +14041,7 @@
                                                     );
                                                 })()}
                                                 {/* v7.19.0-alpha.6/7 (Ron + UX) - say it where you look: a book gone from your Amazon library
-                                                    explains itself in its own details (why it won't open in Kindle, months later). alpha.7: all
+                                                    explains itself in its own details (why it's no longer in your Amazon library / Kindle list, months later). alpha.7: all
                                                     three states — kept, in your Trash, or "review" (a link that opens the review window on it). */}
                                                 {!isEditingBook && (() => {
                                                     const st = amazonRemovalState(modalBook);

@@ -126,6 +126,7 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 <!-- SYNC: Keep "Recent Features" in sync with features.html -->
 ## Recent Features
 
+- **Know when books leave your Amazon library (7.19)** — Returned loans, deleted samples and delisted books no longer sit there unexplained: ReaderWrangler flags them after an import and lets you keep or remove each one, from **File → Removed books…**. Plus Select All that acts on just the part of a window you're working in, and an undo that shows what it will do next.
 - **Backups stay whole (7.16–7.17)** — Save and Restore no longer quietly drop parts of your library; collection-based tags, trash, price goals, read status and more all come back intact. Very old (pre-2026) backups now say so plainly instead of importing blanks. 7.17 locks it in — backup, phone sync, and update-merging now share one definition of your book details, so this can't creep back.
 - **Email a friend, without the dead end (7.14)** — Sharing a book by email now asks how you want to send it: your email app, Gmail on the web, or copy-to-clipboard — instead of guessing and sometimes stranding you in a redirect loop. The copy option always works, so no one gets stuck.
 - **Copy without the fight (7.13)** — One-click copy chips for a book's title and author (those co-author strings that read like random passwords), plus Copy Author(s) in the right-click menu everywhere.
@@ -143,7 +144,6 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 <!-- SYNC: Keep "Coming Soon" / "Future Features" in sync with features.html -->
 ## Coming Soon!
 
-- **Books Amazon no longer lists** — See which books have dropped out of your Amazon library, and keep or clear them in one place
 - **Move any window aside** — Drag any window out of the way to see what's behind it
 - **A calmer book editor** — In edit mode, nothing changes until you press Save — and one undo reverses the whole save
 - **Fetch & import reports that tell the whole story** — "3 wishlist books now owned, 1 became a sample," in the dialog and the toast history
