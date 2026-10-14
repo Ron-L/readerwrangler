@@ -26,7 +26,7 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
   session id) so the checklist lands exactly once, at the planning→build boundary.
 - **`version-guard.py`** (pre-commit, `.git/hooks/pre-commit` → this script) — refuses a commit that stages
   shipped code without moving its version stamp: `readerwrangler.js`→`ORGANIZER_VERSION`,
-  `mobile.js`→`MOBILE_VERSION`, and the module `.js` files + `readerwrangler.css` → their `?v=` cache-buster
+  `mobile.js`→`MOBILE_VERSION`, `relay/relay-worker.js`→`WORKER_VERSION` (added 2026-10-14; shown in the relay's emails), and the module `.js` files + `readerwrangler.css` → their `?v=` cache-buster
   in `readerwrangler.html`. Bypass (Ron's call): `git commit --no-verify`.
 - **`scripts/check-names.js`** (pre-commit, called from `.git/hooks/pre-commit` when any `.js`/`.html` is staged;
   the script itself is VERSIONED in the repo — the hook is the thin caller) — Babel scope analysis of
