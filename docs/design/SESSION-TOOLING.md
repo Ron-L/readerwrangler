@@ -28,6 +28,10 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
   shipped code without moving its version stamp: `readerwrangler.js`→`ORGANIZER_VERSION`,
   `mobile.js`→`MOBILE_VERSION`, and the module `.js` files + `readerwrangler.css` → their `?v=` cache-buster
   in `readerwrangler.html`. Bypass (Ron's call): `git commit --no-verify`.
+- **`scripts/check-toc.js`** (pre-commit, when `TODO.md` is staged; checks the STAGED copy; versioned) — refuses a
+  `TODO.md` whose table of contents (between `<!-- TOC -->` markers, built by the VS Code extension "Auto Markdown
+  TOC" on save) doesn't match its headers by text and depth. Link targets aren't compared (the extension owns them).
+  Earned 2026-10-14 when the TODO became one header per task: edits that don't go through a VS Code save leave it stale.
 - **`scripts/check-names.js`** (pre-commit, called from `.git/hooks/pre-commit` when any `.js`/`.html` is staged;
   the script itself is VERSIONED in the repo — the hook is the thin caller) — Babel scope analysis of
   `readerwrangler.js` + `mobile.js`: refuses any identifier that is neither bound in scope, a browser/CDN global, nor

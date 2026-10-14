@@ -72,7 +72,7 @@ Follows the generic semver+alpha rules in `../CLAUDE.md`. RW's specific stamps:
   `WORKFLOW-PATTERNS.md` (usage patterns). The sweep is a COMB: grep the KB for every term the
   release touched (renamed labels, changed behaviors, new UI) and update each hit; bump the KB's
   "up to date as of" stamp.
-- **TODO.md**: delete all checked `- [x]` items (now recorded in CHANGELOG) — TODO is future-only.
+- **TODO.md**: delete every ✅ section (done tasks — now recorded in CHANGELOG) — TODO is future-only.
 - (Then the generic: PM always → update PRINCIPLES.md + memory, per `../CLAUDE.md`.)
 
 ---
@@ -110,6 +110,11 @@ particulars:
   "shareBtnRef is not defined" crash), and any `readerwrangler.html` inline script that doesn't parse. Page-level
   names are derived from `readerwrangler.html`'s scripts, so new modules need no upkeep. Needs
   `npm i --no-save @babel/core @babel/preset-react` (fails loud if missing).
+- **TODO table-of-contents check** — the same `pre-commit` hook runs **`scripts/check-toc.js`** (versioned) when
+  `TODO.md` is staged: refuses a table of contents that doesn't match the headers. The table is built by the VS Code
+  extension "Auto Markdown TOC" only on a VS Code save — edits made any other way leave it stale. Fix: Ron saves the
+  file in VS Code, or Claude corrects the listed entries. TODO format: one header per task (plain words, ~80 chars,
+  132 max), a "why it matters" first line, ✅ in front when done (Ron, 2026-10-14).
 - **Timestamp stamp hook is GLOBAL, not RW-local** — it is `C:/Users/Ron/Projects/stamp.py`, wired in
   `~/.claude/settings.json` (`UserPromptSubmit`), injecting the live time each turn for **all** projects.
   See the Projects-root **`CLAUDE-TOOLING.md`**. (Corrected 2026-09-30 — the old `.claude/hooks/stamp.py`
