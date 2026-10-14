@@ -40,6 +40,7 @@
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
       - [Auto-Organize: let a misfiled book go back to the Inbox](#auto-organize-let-a-misfiled-book-go-back-to-the-inbox)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
+      - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
     - [Unsorted](#unsorted)
       - [✅ Auto-Organize preview: show which Book Lists a book is in](#auto-organize-preview-show-which-book-lists-a-book-is-in)
       - [See an author's other books without leaving your spot](#see-an-authors-other-books-without-leaving-your-spot)
@@ -833,6 +834,23 @@ _Why it matters:_ Shift-click selects by a hidden internal order that can differ
 
 **How (technical)**
 - 6.16.0 rebuilt the range to follow display order (`getPreviewOrderedBooks`, readerwrangler.js ~9213–9246) — correct for the books being moved, but it pushes the **already-filed** books in their stored order (`preview.alreadyFiled`), not their on-screen grouping. Also check series mode against what's drawn. Deferred from 7.9.0.
+
+#### Folder right-click menu: add Auto-Organize
+
+_Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder is a natural place to look for it.
+
+**What you see**
+- Auto-Organize… is on the right-click menu of a **book** and of the **Inbox**, but not of an ordinary folder.
+
+**What you'd get**
+- "✨ Auto-Organize…" on the folder right-click menu, in its "where things go" group (Move to / Top / Bottom / Pin).
+  It opens the preview for that folder.
+
+**Status:** Ron, 2026-10-14 (noticed while comparing right-click menus with the menu bar).
+
+**How (technical)**
+- Folder menu: readerwrangler.js ~18443 (`folderContextMenu`). The Inbox menu's entry (~18348) and the book menu's
+  (~19292) show how to open it scoped to a folder.
 
 ### Unsorted
 
