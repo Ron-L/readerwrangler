@@ -682,9 +682,14 @@ _Why it matters:_ Shift-click selects by a hidden internal order that can differ
 
 **What you see**
 - In Auto-Organize, Shift-click a range. In series mode, and in the grouped "Already filed" list, the selected range doesn't match the books between your two clicks on screen.
+- **Confirmed still broken in "Already filed"** (Ron, 2026-10-14).
+
+**How to make a test case**
+- A normal Inbox has few or no "Already filed" books. To get a useful list: **copy several books from organized folders into the Inbox** (books from more than one series), then open Auto-Organize on the Inbox.
+- Click a book in the "Already filed" section, then Shift-click one further down in it: only the books between them on screen should toggle.
 
 **How (technical)**
-- The range follows the internal array order instead of the visual order. Deferred from 7.9.0.
+- 6.16.0 rebuilt the range to follow display order (`getPreviewOrderedBooks`, readerwrangler.js ~9213–9246) — correct for the books being moved, but it pushes the **already-filed** books in their stored order (`preview.alreadyFiled`), not their on-screen grouping. Also check series mode against what's drawn. Deferred from 7.9.0.
 
 ### Fetch summary should report books you bought
 
