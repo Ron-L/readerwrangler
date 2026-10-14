@@ -31,6 +31,7 @@
  *   test-alert-counter                 → test alert sequence number
  *   usage-alert:{YYYY-MM-DD}           → counter-threshold alerts already sent today (TTL: 2 days)
  *   usage-alert:storage-band           → last alerted storage band: 0/25/50/75/90 (no TTL)
+ *   cron-mistriggers                   → schedules that fired but aren't this relay's, since the last summary (TTL: 7 days)
  *   (both usage-alert keys exist only in PRODUCTION's namespace — only prod sends threshold alerts; since 7.22.0
  *    they track the TOTAL across both relays)
  *
@@ -78,7 +79,7 @@ const CF_LIMITS = {
 // Cloudflare's KV actionType → our counter. An action type not listed here is reported in the email, never dropped.
 const KV_ACTION_FIELDS = { read: 'kvReads', write: 'kvWrites', delete: 'kvDeletes', list: 'kvLists' };
 
-const WORKER_VERSION = '7.22.0-alpha.3'; // printed in every daily summary, so an email shows which deploy sent it
+const WORKER_VERSION = '7.22.0-alpha.4'; // printed in every daily summary, so an email shows which deploy sent it
 
 // THE list of relays (7.22.0, design §14a fix 2). One codebase, deployed twice; RELAY_ENV in wrangler.toml says which
 // deployment this is. Every daily summary reports ALL relays here (the free limits are shared account-wide); each
@@ -89,7 +90,16 @@ const RELAYS = {
   dev:  { label: 'Dev',        worker: 'readerwrangler-relay-dev', kvId: '58116108eead40d18a55e59d799472b3',
           sendsThresholdAlerts: false }, // prod alone alerts for now (step C adds a dev backup alerter)
 };
+// Each schedule's ONE job (7.22.0-alpha.4). A schedule not listed here — or the threshold check on a relay that doesn't
+// alert — does NOTHING but get counted: on 2026-10-13/14 a Cloudflare incident kept firing dev's old 10-minute test
+// schedule for hours after it was replaced, mailing a summary every time. Matched by the schedule's TEXT (Cloudflare
+// hands the firing schedule to scheduled() as event.cron), never by clock time — so a late run is still recognized.
+// Schedules must also match wrangler.toml.
 const SUMMARY_CRON = '55 23 * * *';
+const THRESHOLD_CRON = '*/30 * * * *';
+const MISTRIGGER_KEY = 'cron-mistriggers';  // { crons: { "<cron>": count }, first, last } since the last summary
+const MISTRIGGER_WRITE_CAP = 24;            // tally saves between summaries — a stuck every-minute schedule must not
+                                            // eat the 1,000/day KV write quota; past the cap the email says "24 or more"
 
 // This deployment's RELAYS entry. Fails LOUD on a missing/unknown RELAY_ENV (the cron error mail names the fix).
 function thisRelay(env) {
@@ -131,13 +141,10 @@ export default {
   async scheduled(event, env, ctx) {
     const cron = event.cron;
     try {
-      // The summary runs on SUMMARY_CRON — and on ANY schedule of a relay that doesn't send threshold alerts (dev), so a
-      // temporary test schedule there produces summaries, never alerts. Prod's other schedule = the threshold check.
-      if (cron === SUMMARY_CRON || !thisRelay(env).sendsThresholdAlerts) {
-        await sendDailySummary(env);
-      } else {
-        await checkUsageThresholds(env);
-      }
+      const self = thisRelay(env);
+      if (cron === SUMMARY_CRON) await sendDailySummary(env);
+      else if (cron === THRESHOLD_CRON && self.sendsThresholdAlerts) await checkUsageThresholds(env);
+      else await recordMistrigger(env, cron); // not this relay's schedule — count it, run nothing
     } catch (err) {
       await sendAlert(env, 'Cron error', `Cron "${cron}" failed: ${err.message}\nTime: ${new Date().toISOString()}`);
     }
@@ -315,6 +322,17 @@ async function route(request, path, env) {
     await env.RELAY_KV.put(countKey, String(count));
     await sendAlert(env, `Test Alert #${count}`, `Test alert #${count} from the ReaderWrangler relay worker.\nSent: ${new Date().toISOString()}`);
     return jsonResponse({ ok: true, message: `Alert #${count} sent` });
+  }
+
+  // POST /run-summary?key={TEST_ALERT_KEY} — send the daily summary NOW (7.22.0): the way to test it. A temporary test
+  // schedule is not — Cloudflare can take 15 minutes to hours to apply (or remove) a schedule change.
+  match = path.match(/^\/run-summary$/);
+  if (match && request.method === 'POST') {
+    if (!env.TEST_ALERT_KEY || new URL(request.url).searchParams.get('key') !== env.TEST_ALERT_KEY) {
+      return jsonResponse({ error: 'Unauthorized' }, 401);
+    }
+    await sendDailySummary(env);
+    return jsonResponse({ ok: true, message: 'Summary sent' });
   }
 
   return new Response('Not Found', { status: 404 });
@@ -867,10 +885,11 @@ async function sendAlert(env, subject, message) {
                 from: 'ReaderWrangler Relay <alerts@readerwrangler.com>',
                 to: [env.ALERT_TO_EMAIL],
                 subject: `${tag}🚨 ${subject}`,
-                text: message,
+                text: message.split(RED_START).join('').split(RED_END).join(''),
                 // 7.22.0 - plus a preformatted HTML copy: mail programs reflow plain text (Outlook joined lines of the
-                // summary); <pre> keeps every line break and the table's columns, in any client.
-                html: `<pre style="font-family:Consolas,Menlo,monospace;font-size:13px">${escapeHtml(message)}</pre>`
+                // summary); <pre> keeps every line break and the table's columns, in any client. red() lines show red.
+                html: `<pre style="font-family:Consolas,Menlo,monospace;font-size:13px">${escapeHtml(message)
+                    .split(RED_START).join('<span style="color:#c00;font-weight:bold">').split(RED_END).join('</span>')}</pre>`
             })
         });
     } catch { /* best-effort — don't let alert failure break the request */ }
@@ -1080,11 +1099,48 @@ async function sendDailySummary(env) {
   try { sections.push(formatStorageCheck(self, await inspectStorage(env), usage)); }
   catch (err) { sections.push(`STORAGE CHECK (${self.label}) FAILED: ${err.message}`); }
 
+  let mistriggers = null;
+  try { mistriggers = await mistriggerSection(env, self); }
+  catch (err) { mistriggers = red(`SCHEDULE CHECK FAILED: ${err.message}`); }
+  if (mistriggers) sections.splice(1, 0, mistriggers); // right under the header — it's the thing to act on
+
   await sendAlert(env, `Daily usage summary - ${today}`, sections.join('\n\n'));
+  if (mistriggers) await env.RELAY_KV.delete(MISTRIGGER_KEY); // reported → start a fresh tally
 
   // The remembered storage band is prod's threshold-alert state — only the relay that alerts maintains it.
   if (self.sendsThresholdAlerts && usage) await rebaselineStorageBand(env, usage); // full-day reading = the only trustworthy downgrade
 }
+
+// A schedule fired that isn't one of this relay's jobs. Tally it (by schedule text) for the next summary; at most
+// MISTRIGGER_WRITE_CAP saves between summaries, so even a stuck every-minute schedule can't drain the write quota.
+async function recordMistrigger(env, cron) {
+  const tally = JSON.parse(await env.RELAY_KV.get(MISTRIGGER_KEY) || 'null') || { crons: {}, saves: 0 };
+  if (tally.saves >= MISTRIGGER_WRITE_CAP) return;
+  const now = new Date().toISOString();
+  tally.crons[cron] = (tally.crons[cron] || 0) + 1;
+  tally.saves++;
+  tally.first = tally.first || now;
+  tally.last = now;
+  await env.RELAY_KV.put(MISTRIGGER_KEY, JSON.stringify(tally), { expirationTtl: 7 * 86400 });
+}
+
+// The summary's red section (or null): the mistrigger tally since the last summary. Caller clears it after mailing.
+async function mistriggerSection(env, self) {
+  const tally = JSON.parse(await env.RELAY_KV.get(MISTRIGGER_KEY) || 'null');
+  if (!tally || !Object.keys(tally.crons).length) return null;
+  const capped = tally.saves >= MISTRIGGER_WRITE_CAP;
+  const jobs = [SUMMARY_CRON, ...(self.sendsThresholdAlerts ? [THRESHOLD_CRON] : [])].map(c => `"${c}"`).join(', ');
+  return [
+    `SCHEDULE PROBLEM - Cloudflare ran schedules that are not this relay's (its own: ${jobs}). They did nothing.`,
+    ...Object.entries(tally.crons).map(([c, n]) => `  "${c}" fired ${n}${capped ? ' or more' : ''} time(s)`),
+    `  first ${tally.first}, last counted ${tally.last} (UTC). Likely an old schedule Cloudflare still runs after a change`,
+    `  (cloudflarestatus.com) - compare with the worker's Trigger events on the dashboard.`,
+  ].map(red).join('\n');
+}
+
+// Marks a line to show in RED in the HTML copy of an email (the plain-text copy shows it unmarked). See sendAlert.
+const RED_START = '\u0001', RED_END = '\u0002';
+const red = line => `${RED_START}${line}${RED_END}`;
 
 function fmtNum(n) {
   return n == null ? 'no data' : n.toLocaleString('en-US', { maximumFractionDigits: 1 });
