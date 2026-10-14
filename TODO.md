@@ -108,12 +108,12 @@
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
     - [Relay and data safety](#relay-and-data-safety)
-      - [Safer relay saves (the relay redesign)](#safer-relay-saves-the-relay-redesign)
-      - [Deleted books that stay deleted](#deleted-books-that-stay-deleted)
+      - [✅ Safer relay saves (the relay redesign)](#safer-relay-saves-the-relay-redesign)
+      - [✅ Deleted books that stay deleted](#deleted-books-that-stay-deleted)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Cheaper small syncs (send only what changed)](#cheaper-small-syncs-send-only-what-changed)
       - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
-      - [Ask before restoring when relay credentials don't match](#ask-before-restoring-when-relay-credentials-dont-match)
+      - [✅ Ask before restoring when relay credentials don't match](#ask-before-restoring-when-relay-credentials-dont-match)
     - [Features](#features)
       - [Finish keyboard accessibility](#finish-keyboard-accessibility)
       - [Show reading progress](#show-reading-progress)
@@ -124,9 +124,9 @@
       - [Support stores besides Amazon](#support-stores-besides-amazon)
       - [Several people on one installation](#several-people-on-one-installation)
       - [Smart collections (rule-based)](#smart-collections-rule-based)
-      - [More ways to filter by Kindle collections](#more-ways-to-filter-by-kindle-collections)
+      - [✅ More ways to filter by Kindle collections](#more-ways-to-filter-by-kindle-collections)
       - [Reading statistics](#reading-statistics)
-      - [More export options (printable list)](#more-export-options-printable-list)
+      - [✅ More export options (printable list)](#more-export-options-printable-list)
       - [Connect with Goodreads / StoryGraph](#connect-with-goodreads--storygraph)
       - [Animated drag-and-drop](#animated-drag-and-drop)
     - [Technical clean-up](#technical-clean-up)
@@ -205,6 +205,7 @@ _Why it matters:_ After every reboot you hunt for the server command, and today'
 - A versioned `serve.py`: standard `http.server` plus a handler that answers `/.private/…` and `/.git/…` with 404. Same port and origin.
 - A versioned `.bat` launching it; a Startup-folder shortcut to the `.bat`.
 - Don't use `--bind 127.0.0.1` (phone tests over the home network).
+- Today's command (the one you hunt for in developers.md): `python -m http.server 8000 --directory C:\Users\Ron\Projects\ReaderWrangler`. CONTRIBUTING's dead line is the Python 2 `SimpleHTTPServer` one. On your PC (2026-10-06): `py` → 3.14.7.
 
 ### Book details window: changes happen only when you click Save
 
@@ -254,6 +255,7 @@ _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them as
 
 **How (technical)**
 - Build drag once in the shared `<Dialog>` (readerwrangler.js ~61) so every dialog gets it at once. The old per-dialog drag code (`dialogDrag`) is already gone.
+- Names from the 2026-09-28 decisions: a `cursor:move` affordance; the off-window opt-in is a `dragBounds:'free'` option.
 - Message boxes share their window chrome in `attachDialogDismiss` (readerwrangler.js ~237); add drag there.
 - A click on a lower dialog actually lands on the top dialog's full-window background layer (readerwrangler.js ~69–71). The background-click close must ignore clicks that fall over another dialog.
 - New user feature, so it gets its own branch and release.
@@ -400,7 +402,7 @@ _Why it matters:_ A long Book Lists column is hard to search; Folders already ha
 
 **What you'd get**
 - Book Lists and Searches in the left pane get **the same controls and words as Folders** (7.6.0): pins (a top tier) and a header sort control, **Manual ↔ Name**. No second ordering system three inches from the first.
-- Pinning can be undone (list reordering already can).
+- Pinning can be undone (list reordering already can, since 7.10.1-alpha.6).
 
 **How you'd use it** (Ron, 2026-09-10)
 - **Name to find** a list, then back to **Manual** for priority.
@@ -609,8 +611,8 @@ _Formerly: ⏸️ Ownership-honesty batch (ratified 2026-09-04, HELD — awaitin
 When a book changes kind — wishlist → bought, sample → bought, a loan, a book in the Trash — ReaderWrangler should notice, show it, and never lose your settings. Ratified 2026-09-04; **held until you say go**. When it starts, **"Fetch should update books it already knows" goes first** (the old stack's note: "item 6 first").
 
 **Already shipped from this batch**
-- 7.7.2: Imports reclaim old upload storage. Proof outstanding: the first production Import on 7.7.2 or later should log "🧹 Reclaimed 7 absorbed bulk run(s)" (~124 MB). _(7.21.1 now does this on every save, so this proof may be moot.)_
-- 7.8.0: the ownership dialog redesign, the undo fence, undo messages that name what they undo.
+- 7.7.2 (2026-09-07): Imports reclaim old upload storage. Proof outstanding: the first production Import on 7.7.2 or later should log "🧹 Reclaimed 7 absorbed bulk run(s)" (~124 MB). _(7.21.1 now does this on every save, so this proof may be moot.)_
+- 7.8.0 (2026-09-08): the ownership dialog redesign, the undo fence, undo messages that name what they undo.
 - 7.9.0: one unified Auto-Organize (two pieces deferred — the first two tasks below).
 - 7.10.0: Save as Spreadsheet (CSV). _A reply to the user who asked for it is still owed (Ron's channel)._
 - 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
@@ -800,7 +802,7 @@ _Why it matters:_ "Relay" is an engineering word; renaming is free before launch
 **What you'd get**
 - "Cloud Sync Setup", "Import from Cloud", and the same in the status section, tooltips, the fetcher's screens and the recovery steps.
 - About 20–40 phrases, plus README / features / tutorials pages.
-- Internal names (code, files, the worker) stay as they are.
+- Internal names (`RWRelay`, file names, the worker) stay as they are.
 
 **Decided** (2026-08-28)
 - "Cloud Relay" was considered and rejected — still jargon, and clunky.
@@ -1017,6 +1019,7 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
 - Inventory tool: `.private/analyze-relay-keys.js` (key dumps hold channel IDs — credentials — so delete them after use).
 - B1 lives in `commitGeneration` (relay-client.js) with `absorbedRuns` deduped.
 - Deploy dev: `npx wrangler deploy --env dev`, from `relay/` on the B2 branch.
+- B2 alpha.4 = commit `e753679`. The deployment is named by `RELAY_ENV` (prod / dev) in wrangler.toml; the worker's version is `WORKER_VERSION`; the key check compares Cloudflare's `keyCount`.
 
 ### Let a new user's first big fetch resume after an interruption
 
@@ -1381,6 +1384,7 @@ _Why it matters:_ So the fetch can honestly say "your library matches Amazon exa
 **How (technical)**
 - Filters: hash `858f501de…` tags exactly the 13 product-null husks (unfetchable dead records, likely deleted samples); `222711ade…` tags nothing today. Maps and physical items are not hidden by the filter.
 - 101 tie-timestamp clusters covering 279 books were seen — harmless.
+- Amazon's total is the API's `totalCount` (acquisition records, not titles).
 
 #### Fetcher odds and ends (progress figure, frozen timer, request pacing)
 
@@ -1506,13 +1510,19 @@ _Formerly: Dialog look (LOW priority — Ron 2026-10-08)_
 
 _Why it matters:_ Low priority — only worth doing if we want every dialog to share one look.
 
-**The confirm-style dialogs are hand-built page elements, not React `<Dialog>`s** — the message / OK-Cancel /
-type-a-name / progress / choice / "Owned Book" boxes (showInfoDialog, showConfirmDialog, showInputDialog,
-showProgressDialog, showChoiceDialog, showDeleteWarningDialog; ~45 call sites). 7.18.0 plugged them into the overlay
-system (Esc, ✕, key blocking all shared) but kept their hand-built look. OPTION A (deferred): one React "dialog
-service" rendering each request as a `<Dialog>`, call sites unchanged (`await showConfirmDialog(…)`) — removes ~300
-lines of hand-built DOM and gives every dialog one look; costs a visual check of all ~45. Only worth it if a dialog
-redesign is wanted.
+**What's there**
+- The message boxes — OK/Cancel, type-a-name, progress, choice, "Owned Book" — are hand-built page elements, used in about 45 places.
+- Since 7.18.0 they behave like every other dialog (Esc, ✕, key blocking), but keep their own hand-built look.
+
+**Option A** (deferred)
+- One shared piece that shows each request as a standard dialog; the 45 call sites stay unchanged.
+- Removes about 300 lines of hand-built code and gives every dialog one look. Costs a visual check of all 45.
+
+**Related**
+- "Drag any dialog out of the way" (Up next) must also work for these boxes — doing this first would make that simpler.
+
+**How (technical)**
+- `showInfoDialog`, `showConfirmDialog`, `showInputDialog`, `showProgressDialog`, `showChoiceDialog`, `showDeleteWarningDialog`, rendered as `<Dialog>`s by a React "dialog service"; callers keep `await showConfirmDialog(…)`.
 
 ### Speed
 
@@ -1522,63 +1532,66 @@ _Formerly: Responsiveness_
 
 _Why it matters:_ A small but noticeable delay on every click while searching or filtering.
 
-**Clicking a different book feels slightly laggy while a filter or search is active** (Ron 2026-10-06). WHAT YOU
-SEE: with any filter/search active — even inside a small folder — click from one book to another; there's a small
-but noticeable delay before the old book un-highlights and the new one highlights. With NO filter active it's
-instant. Chrome's DevTools Console sometimes shows `[Violation] 'click' handler took ~270ms` (couldn't reproduce on
-demand after a refresh). Severity: mild; "live with it on All Books" is acceptable. LIKELY CAUSE (hypothesis, not
-verified): the filtered book list itself is already cached (`explorerDisplayItems` useMemo — it does NOT re-filter
-on a selection change), so the extra per-click cost is probably the ACTIVE-FILTER BANNER, which re-renders on every
-click and recomputes the "💾 N results · Save ▾" count, the "✓ Search: …" match check and the chips. DO: profile one
-click with DevTools Performance (filter on vs off), then cache whatever the banner recomputes. (Ron's first theory —
-"filter the current folder, not the whole library" — can't explain a SELECTION-click lag, since filtering isn't
-re-run on selection; still worth checking for the initial filter cost.)
+**What you see** (Ron, 2026-10-06)
+- With any filter or search active — even inside a small folder — click from one book to another. There's a short delay before the old book un-highlights and the new one highlights.
+- With no filter, it's instant.
+- Chrome's console sometimes shows "[Violation] 'click' handler took ~270ms" (not reproducible on demand after a refresh).
+- Mild — "live with it on All Books" is acceptable.
+
+**Likely cause** (a guess, not verified)
+- The filtered list itself is already remembered, so it isn't re-filtered on a click.
+- The extra cost is probably the **active-filter bar**: it redraws on every click and recounts "💾 N results · Save ▾", the "✓ Search: …" check and the chips.
+
+**To do**
+1. Measure one click with Chrome's performance tool, filter on vs. off.
+2. Remember whatever that bar recalculates.
+
+**Note**
+- Your first theory — "filter the current folder, not the whole library" — can't explain a lag on **selecting** (filtering doesn't re-run then). Still worth checking for the first filter's cost.
+
+**How (technical)**
+- The cached list is `explorerDisplayItems` (a useMemo); profile with DevTools Performance.
 
 ### Relay and data safety
 
 _Formerly: Relay / data robustness_
 
-#### Safer relay saves (the relay redesign)
+#### ✅ Safer relay saves (the relay redesign)
 
 _Why it matters:_ Saves that can't be half-written.
 
-❓ May already be done — check before working on it.
+**Status:** done — shipped in 7.0.0 (2026-08-17) as the "corruption-proof" sync rebuild (verified in the CHANGELOG 2026-10-14; Ron: "sounds like the whole 7.0.0 redesign"). Delete at the next release. Design: docs/design/RELAY-WRITE-REDESIGN.md.
 
-Relay write redesign (atomic commit-pointer + app-owned key + wishlist-delta) → see docs/design/RELAY-WRITE-REDESIGN.md (spec)
-
-#### Deleted books that stay deleted
+#### ✅ Deleted books that stay deleted
 
 _Why it matters:_ A permanently deleted book shouldn't come back on the next fetch.
 
-❓ May already be done — check before working on it.
-
-Tombstone delete (durable purge + smart resurrect) → see docs/design/TOMBSTONE-DELETE.md (spec)
+**Status:** done — shipped in 7.0.0: "Deletes stay deleted… deliberately re-adding it later still works" (verified in the CHANGELOG 2026-10-14). Delete at the next release. Design: docs/design/TOMBSTONE-DELETE.md.
 
 #### Edit Kindle collections from ReaderWrangler
 
 _Why it matters:_ Change your Kindle collections without going to Amazon.
 
-Edit Kindle collections from WR → see docs/design/COLLECTION-EDITING.md
+**Spec:** docs/design/COLLECTION-EDITING.md.
 
 #### Cheaper small syncs (send only what changed)
 
 _Why it matters:_ Optional: smaller uploads for small changes.
 
-Relay delta-append for cheap incremental sync (OPTIONAL) → see docs/design/RELAY-DELTA.md (spec)
+**Spec:** docs/design/RELAY-DELTA.md.
 
 #### Relay Setup: disconnect, or reset credentials
 
-_Why it matters:_ A clean way to stop syncing or start over.
+_Why it matters:_ A clean way to stop syncing, or to start over with new credentials.
 
-Relay Disconnect / Reset credentials in Relay Setup
+#### ✅ Ask before restoring when relay credentials don't match
 
-#### Ask before restoring when relay credentials don't match
+_Why it matters:_ A backup from another channel shouldn't silently switch your sync.
 
-_Why it matters:_ A backup from another account shouldn't silently mix data.
+**Status:** done — shipped in 7.14.3 (2026-09-20): "Restoring a backup no longer silently changes your sync credentials" (verified in the CHANGELOG and docs/design/RELAY-CRED-MISMATCH.md, which says "✅ SHIPPED"). Delete at the next release.
 
-❓ May already be done — check before working on it.
-
-Relay credential mismatch — safe restore (prompt on cred mismatch) → see docs/design/RELAY-CRED-MISMATCH.md (spec)
+**Leftover idea** (from that design doc)
+- The bookmarklet could check the channel before fetching and warn if it's revoked — a separate case, not a mismatch. File it separately if wanted.
 
 ### Features
 
@@ -1588,87 +1601,79 @@ _Formerly: Features_
 
 _Why it matters:_ Everything should be usable without a mouse.
 
-Keyboard accessibility completion (focus trapping, `:focus-visible`, context-menu keys)
+**Left**
+- Keeping focus inside an open dialog.
+- A visible focus outline for keyboard users.
+- Keyboard access to the right-click menus.
+
+**How (technical)**
+- Focus trapping, `:focus-visible`, context-menu keys.
 
 #### Show reading progress
 
-_Why it matters:_ See how far along you are, in the book window and as a column.
-
-Reading progress visualization (dialog + column)
+_Why it matters:_ See how far along you are — in the book window, and as a list column.
 
 #### Book recommendations
 
-_Why it matters:_ Suggestions based on your library.
+_Why it matters:_ Suggestions based on your own library.
 
-Book recommendations → see docs/design/BOOK-RECOMMENDATIONS.md
+**Spec:** docs/design/BOOK-RECOMMENDATIONS.md.
 
 #### Show who a book is shared with (Family Library)
 
 _Why it matters:_ See sharing at a glance in the book window.
 
-Family sharing info (shared-with in book dialog)
-
 #### Auto-Organize: file co-written books under each author
 
 _Why it matters:_ Today a co-written book appears under only one author.
 
-Auto-Organize: aggregate co-authored books under each author → see docs/design/AUTO-ORGANIZE-COAUTHORS.md (spec)
+**Spec:** docs/design/AUTO-ORGANIZE-COAUTHORS.md.
 
 #### Two-pane split view
 
 _Why it matters:_ Work with two folders side by side.
 
-V2 dual-pane split → see docs/design/archive/DUAL-PANE-SPLIT.md
+**Spec:** docs/design/archive/DUAL-PANE-SPLIT.md (filed as "V2").
 
 #### Support stores besides Amazon
 
 _Why it matters:_ For readers who buy elsewhere too.
 
-Multi-store architecture → see docs/reference/MULTI-STORE-ARCHITECTURE.md
+**Spec:** docs/reference/MULTI-STORE-ARCHITECTURE.md.
 
 #### Several people on one installation
 
 _Why it matters:_ Low priority — Save / Restore Backup already works around it.
 
-Multi-user support (low priority; Backup/Restore workaround exists) → see docs/design/archive/MULTI-USER-DESIGN.md
+**Spec:** docs/design/archive/MULTI-USER-DESIGN.md.
 
 #### Smart collections (rule-based)
 
 _Why it matters:_ Lists that fill themselves from rules you set.
 
-Smart Collections (rule-based)
-
-#### More ways to filter by Kindle collections
+#### ✅ More ways to filter by Kindle collections
 
 _Why it matters:_ Filter by read status, collection name, or "in no collection".
 
-Collections filtering enhancements (read status / collection name / uncollected)
+**Status:** done — all three filters exist (verified in the code 2026-10-14: the read-status filter, the Collections filter by name, and its "Uncollected" choice). Delete at the next release.
 
 #### Reading statistics
 
 _Why it matters:_ A dashboard of your reading.
 
-Reading stats dashboard
+#### ✅ More export options (printable list)
 
-#### More export options (printable list)
+_Why it matters:_ Get your library out in other forms.
 
-_Why it matters:_ Spreadsheet export exists; a print-friendly list doesn't.
-
-❓ May already be done — check before working on it.
-
-Enhanced export options (CSV, print-friendly list)
+**Status:** done as far as wanted — Save as Spreadsheet (CSV) shipped in 7.10.0. Ron, 2026-10-14: "I can't imagine anything safer than CSV… I'd call it done." A print-friendly list was the other idea; dropped. Delete at the next release.
 
 #### Connect with Goodreads / StoryGraph
 
 _Why it matters:_ Share data with the reading sites people already use.
 
-Third-party integrations (Goodreads / StoryGraph)
-
 #### Animated drag-and-drop
 
-_Why it matters:_ Books slide aside to show where a drop will land.
-
-Live reflow drag-and-drop animation
+_Why it matters:_ Books slide aside live to show where a drop will land.
 
 ### Technical clean-up
 
@@ -1676,45 +1681,54 @@ _Formerly: Tech / performance_
 
 #### Faster loading: build the app ahead of time
 
-_Why it matters:_ The app compiles itself in the browser on every load today.
+_Why it matters:_ Today the app compiles itself in the browser on every load.
 
-Precompile build step (Babel + Tailwind → static) — removes in-browser Babel/Tailwind; the durable load-time + CDN-pin fix → see docs/design/PRECOMPILE.md (spec)
+**What you'd get**
+- The app's code is prepared once, ahead of time, instead of in the browser each load. Faster loading — and the lasting fix for pinning outside code versions.
+
+**Spec:** docs/design/PRECOMPILE.md.
+
+**How (technical)**
+- Precompile Babel + Tailwind to static files; removes in-browser Babel and Tailwind.
 
 #### Split the main code file into modules
 
 _Why it matters:_ One very large file is harder to work in safely.
 
-Refactor readerwrangler.js into modules (re-assess — uiHelpers/storage/integrity already split) → see docs/design/MODULE-SPLIT.md (spec)
+**Status**
+- Re-assess first — uiHelpers, storage and integrity are already split out.
+
+**Spec:** docs/design/MODULE-SPLIT.md.
 
 #### Show a notice when book descriptions are missing
 
 _Why it matters:_ So a missing description reads as known, not broken.
 
-Phase 3 UI error handling (missing-description banners)
+**How (technical)**
+- "Phase 3 UI error handling" — missing-description banners.
 
 #### Tooltip review: Tag from Collections wizard
 
 _Why it matters:_ Make sure every control explains itself.
 
-Tooltip audit — Tag from Collections wizard (6e)
+**How (technical)**
+- Old review item 6e.
 
 #### Clean up developer console messages
 
-_Why it matters:_ About 70 of them: keep, hide or remove each.
-
-console.log audit (~70 statements — keep/gate/remove)
+_Why it matters:_ About 70 of them: keep, hide behind a switch, or remove each.
 
 #### Check nothing was lost between versions 4 and 5
 
-_Why it matters:_ A feature-by-feature comparison.
-
-v4 → v5 feature-parity audit
+_Why it matters:_ A feature-by-feature comparison of the two versions.
 
 #### Leftover desktop polish (left-pane keyboard, shadows)
 
 _Why it matters:_ Small finishing touches.
 
-Deferred desktop polish (left-pane keyboard nav; directional shadow consistency)
+**Left**
+- Keyboard navigation in the left pane.
+- Consistent shadow direction.
 
 ## 🧊 Someday
 
@@ -1722,6 +1736,7 @@ _Formerly: 🧊 Icebox (no timeline)_
 
 ### Test on Safari (desktop and iPhone)
 
-_Why it matters:_ Some Safari differences could break storage or layout.
+_Why it matters:_ Some Safari differences could break storage, the phone install, or layout.
 
-Safari browser testing (desktop + iOS; IndexedDB / PWA / CSS risk)
+**Risks to check**
+- The browser's book storage (IndexedDB), installing as a phone app (PWA), and styling.
