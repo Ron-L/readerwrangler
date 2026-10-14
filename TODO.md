@@ -950,40 +950,105 @@ _Formerly: 🔧 7.0.0 follow-ups (relay)_
 
 _Why it matters:_ On your local copy or the dev site it tests production, so its answer can be wrong.
 
-**Relay Setup's connection test always checks the PROD relay, even on localhost / the dev site (found 2026-10-12)**.
-WHAT YOU SEE: on your local copy or the dev site, File → Relay Setup → the connection test reports on the *production*
-relay, not the dev relay your copy actually uses — so "connected"/"revoked" there can be wrong for dev. WHY:
-`readerwrangler.js` (the `case 'test':` branch, ~line 1685) hard-codes `https://readerwrangler-relay.readerwrangler.workers.dev`
-instead of using the dev-aware worker URL (`window._RW_RELAY_WORKER_URL`, set at ~line 90 for localhost + the dev repo).
-DO: read the same worker URL every other relay call uses (one accessor, not a second hard-coded string). Small.
+**What you see**
+- On your local copy or the dev site: File → Relay Setup → the connection test reports on the **production** relay, not the dev relay your copy actually uses. So "connected" / "revoked" there can be wrong for dev.
+
+**To do**
+- Use the same relay address every other relay call uses — one place that answers "which relay", not a second fixed address. Small.
+
+**How (technical)**
+- readerwrangler.js ~1774 (the `case 'test':` branch) fetches a fixed `https://readerwrangler-relay.readerwrangler.workers.dev/…` (verified 2026-10-14).
+- Use the dev-aware `window._RW_RELAY_WORKER_URL` (set near the top of readerwrangler.js for localhost and the dev site). Found 2026-10-12.
 
 ### Relay storage: stop leftovers piling up, and report usage correctly (in progress)
 
 _Why it matters:_ Leftovers eat into the free storage limit, and the daily email was reporting the wrong total.
 
-**Relay storage keeps climbing ~18 MB per Restore, and the daily usage email shows the wrong number** (found 2026-10-03/04; full write-up + fix design in **docs/design/RELAY-WRITE-REDESIGN.md §14a**). Real total ≈572 MB (56% of the 1 GB free tier) while emails showed 219.7/326/0 — each email reports ONE bucket (prod or dev), never the sum, and "no data" prints as 0. ~265 MB is recoverable leftovers. Three fixes, one "relay storage" side-fix branch (Ron: after the overlay branch unless urgency changes): (1) Restore never deletes the package it absorbs → move cleanup INTO `commitGeneration` (+ dedupe `absorbedRuns`); (2) usage email: per-bucket query + sum, "no data" not 0, `keyCount` cross-check; (3) worker-side daily sweep for torn/extra/absorbed leftovers, report-only first, then deleting. Leave prod channel `58c1bfd7…` alone (another user; expires Dec 7). Inventory tool: `.private/analyze-relay-keys.js`.
-**B1 DONE in 7.21.1 (2026-10-13):** cleanup inside `commitGeneration` + dedupe — proven on dev (a same-content Restore → "🧹 Reclaimed 1 absorbed bulk run(s)"; inventory: 0 multi-part runs left, 2 library + 2 device-state gens). Prod's old leftovers get reclaimed on prod's next save (or by the B2 sweep).
-**B2 STATUS + REVISED PLAN (Ron, 2026-10-14) — branch `feature/relay-worker-b2`, alpha.4 `e753679` deployed to DEV ONLY (prod still runs the old worker):**
-- Built: combined usage email from both relays (dev's subject "[Dev]"), threshold alerts on the total (prod only), report-only storage check, key check (Cloudflare's key count = the day's HIGHEST, so live ≤ it is "consistent"), every email also as HTML, worker events labeled prod-/dev-, `WORKER_VERSION` in every email (version-guard enforces the bump).
-- Learned the hard way: Cloudflare cron incidents (2026-10-12, 10-13, 10-14) delayed schedule changes by HOURS — the replaced 10-minute test schedule kept mailing. Now each schedule runs only its own job (matched by the schedule's text, so a late run still counts); any other schedule does nothing and is counted in RED at the top of the next summary. **Never test with a temporary schedule again** — test with the on-demand summary: PowerShell `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))` (one email each; Resend allows 100/day).
-- **(1) TONIGHT 6:55 PM:** exactly ONE prod email (old format — settles the 10-13 duplicate) + the "[Dev]" summary, opening with the red section if the stray 10-minute schedule still fired. Also check dev's storage figure vs the Cloudflare dashboard.
-- **(2) In a day or two: deploy report-only to PROD** (asks Ron) — prod has the REAL leftovers, so its report is the real test of the rules: expect "would delete" the interrupted save `…21fc`, and "kept" the never-imported Restore `…3560` (10-13 inventory). Possibly one storage-band alert on its first threshold check.
-- **(3) After a few days of both reports being right: release 7.22.0 (report-only)** — update RELAY-WRITE-REDESIGN §14a (fix 2 + 3 built report-only; its two open questions are answered: each relay checks its own storage; Cloudflare's key count is a daily max), CHANGELOG (Ron's word), squash/tag/push both, PM.
-- **(4) Deleting = the NEXT release, own branch:** needs a per-run budget (a free-plan run gets 50 subrequests and every storage call counts — one 18-part leftover alone is 19 deletes; spread big cleanups over days). Test on dev with DELIBERATELY PLANTED leftovers on the test channel `22222222…` (dev has none of its own), confirm it removes exactly those, a few days on dev, then prod.
-- **(5) Then C** (below).
-**PLAN AGREED 2026-10-13 (Ron):** fresh read-only inventory done — prod unchanged since Sep 9 (torn chunk `…21fc`, unabsorbed Restore `…3560`, legacy device-state); dev's ~160 MB of Restore packages were reclaimed by the 2026-10-12 Imports (Import retries cleanup of earlier absorbed runs — so the Restore leak is permanent only on a channel that never imports, like prod); dev showed 7 device-state copies (F2). The Sep 27 dev runs are imported — that hold is lifted. ORDER: (A) 7.21.0 contributor mode (prereq); (B1) app-side: cleanup inside `commitGeneration` + dedupe; ~~then Send to Production~~ — considered and REJECTED 2026-10-13 (see docs/design/SEND-TO-PRODUCTION.md); (B2) worker update — a `RELAY_ENV` prod/dev setting; BOTH workers send the COMBINED usage email (prod + dev + total vs the account-wide free limits), dev's subject says "Dev"; worker statistics labeled prod-/dev-; daily cleanup REPORT-ONLY; dev gets a schedule (summary + cleanup); only prod sends threshold alerts for now. Deploy to DEV first (`npx wrangler deploy --env dev`), ~~~1 week of correct reports, then deletion on for dev, then the same for prod~~ (order REVISED 2026-10-14 — see B2 STATUS above: report-only to prod next, release, then deletion as its own release) — every deploy asks Ron first (the pre-approved prod deploy was removed from local permissions). (C, later) a tiny SHARED notepad storage bound to both workers (no user data): dev = backup alerter (sends "[Dev] backup alert" if a crossing it has seen for >1 h has no prod alert recorded since — timestamps, no cross-deletes) + a "prod is alive" check (alert if prod's daily summary is >26 h old).
+**The problem** (found 2026-10-03/04; full write-up: docs/design/RELAY-WRITE-REDESIGN.md §14a)
+- Each Restore left an ~18 MB package behind on the relay.
+- The daily usage email showed **one** relay's storage (production or dev), never the sum, and printed "no data" as 0. The real total was ~572 MB — 56% of the 1 GB free limit — while emails said 219.7 / 326 / 0.
+- About 265 MB was recoverable leftovers.
+
+**The plan** (agreed 2026-10-13, revised 2026-10-14)
+- ✅ **A — contributor mode** (7.21.0): a prerequisite.
+- ✅ **B1 — the app cleans up after every save** (7.21.1): the package a save absorbed is deleted inside the save itself, and duplicates are removed. Proven on dev. Production's old leftovers go on its next save, or via the B2 cleanup.
+- ~~Send to Production~~ — considered and rejected 2026-10-13 (docs/design/SEND-TO-PRODUCTION.md).
+- 🔨 **B2 — the relay worker** (branch `feature/relay-worker-b2`, alpha.4 running on **dev only**; production still runs the old worker). Built so far:
+  - Both relays send the daily email, covering **production + dev + the total** against the account-wide free limits. Dev's subject starts "[Dev]".
+  - Threshold alerts compare the total (production only sends them).
+  - A daily storage check that **reports** what a cleanup would delete, and deletes nothing.
+  - A key-count check: Cloudflare's count is the day's **highest**, so "live ≤ it" reads as consistent.
+  - Every email also arrives as formatted HTML. Worker statistics are labeled prod- / dev-.
+  - The worker's version is in every email (the pre-commit check enforces the bump).
+  - Each schedule runs only its own job. Any other schedule does nothing and is counted **in red** at the top of the next summary.
+- ⏭️ **C — a shared notepad** for both relays (no user data): dev becomes a backup alerter (sends "[Dev] backup alert" if a limit crossing it has seen for over an hour has no production alert recorded), plus a "production is alive" check (alert if production's daily summary is more than 26 hours old).
+
+**Next steps**
+1. **Tonight, 6:55 PM:**
+   - Exactly **one** production email (old format) — settles the 10-13 duplicate.
+   - The "[Dev]" summary, opening with the red section if the stray 10-minute schedule still fired.
+   - Compare dev's storage figure with the Cloudflare dashboard.
+2. **In a day or two: put the report-only worker on production** (asks you first). Production has the **real** leftovers, so its report is the real test. Expect:
+   - "Would delete": the interrupted save `…21fc`.
+   - "Kept": the never-imported Restore `…3560`.
+   - Possibly one storage alert on its first threshold check.
+3. **After a few days of both reports being right: release 7.22.0 (report-only).** Update RELAY-WRITE-REDESIGN §14a (fixes 2 and 3 built as report-only; its two open questions are answered — each relay checks its own storage, and Cloudflare's key count is a daily maximum), CHANGELOG (your word on the copy), squash / tag / push to both, post-mortem.
+4. **Deleting = the next release, on its own branch.**
+   - It needs a per-run budget: a free-plan run gets 50 outside calls, and every storage call counts — one 18-part leftover alone is 19 deletes. Spread big cleanups over days.
+   - Test on dev with **deliberately planted** leftovers on the test channel `22222222…` (dev has none of its own); confirm it removes exactly those; a few days on dev; then production.
+5. **Then C.**
+
+**Lessons learned**
+- Cloudflare had three schedule incidents (2026-10-12, 10-13, 10-14) that delayed schedule changes by **hours** — the replaced 10-minute test schedule kept mailing.
+- **Never test with a temporary schedule again.** Test with the on-demand summary instead (PowerShell; one email each; Resend allows 100 a day):
+  `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))`
+- **Never deploy the relay from main** (or a branch off it) until B2 merges: main still has the old worker.
+
+**Rules**
+- Every deploy asks you first (the pre-approved production deploy was removed from local permissions).
+- Leave production channel `58c1bfd7…` alone — another user's data; it expires Dec 7.
+
+**Background** (the 2026-10-13 inventory)
+- Production unchanged since Sep 9: the interrupted save `…21fc`, the unabsorbed Restore `…3560`, an old-format device-state copy.
+- Dev's ~160 MB of Restore packages were reclaimed by the 2026-10-12 Imports (an Import retries cleaning earlier absorbed runs — so the leak was permanent only on a channel that never imports, like production). Dev had 7 device-state copies.
+- The Sep 27 dev runs have been imported — that hold is lifted.
+
+**How (technical)**
+- Inventory tool: `.private/analyze-relay-keys.js` (key dumps hold channel IDs — credentials — so delete them after use).
+- B1 lives in `commitGeneration` (relay-client.js) with `absorbedRuns` deduped.
+- Deploy dev: `npx wrangler deploy --env dev`, from `relay/` on the B2 branch.
 
 ### Let a new user's first big fetch resume after an interruption
 
 _Why it matters:_ A first 3,000-book fetch that dies near the end starts over from scratch.
 
-**Checkpoint the cold (first-time) fetch** — a ~3,000-book initial enrichment has no resume; die at book 2,800, start over. 7.0 makes it natural: send enrichment progress as mailbox letters in stages so a resumed run's skip-hint already knows what's done. Bites each user exactly once — low priority, pre-launch nice-to-have. (From the 2026-08-21 external sync review, item 1's salvageable kernel.)
+**What happens**
+- A new user's first fetch fills in details for ~3,000 books with no resume point. If it dies at book 2,800, it starts over.
+
+**What you'd get**
+- The fetch sends its progress in stages, so a re-run skips what's already done. 7.0's upload design makes this natural.
+
+**Status**
+- Hits each user exactly once — low priority; nice to have before launch. (From the 2026-08-21 outside review, item 1.)
+
+**How (technical)**
+- Send enrichment progress as mailbox letters in stages, so a resumed run's skip-hint already knows what's done.
 
 ### Keep the settings the app and relay share in step
 
-_Why it matters:_ Two settings are copied by hand in two places — fine for now; revisit if more appear.
+_Why it matters:_ Values copied by hand in two places can drift apart.
 
-**Worker/client protocol-constant drift note** — `LETTER_TTL` (worker, seconds) and `LETTER_TTL_MS` (client) are mirrored by hand; same for the minted-id format. Fine at 2 constants with cross-reference comments; revisit a shared protocol-constants module if a third appears. (Worker is the same language — JS — different runtime; sharing is possible, low value today.)
+**What happens**
+- A few values exist in both the app and the relay worker, copied by hand: how long uploads are kept (90 days), and the format of upload IDs.
+- The plan was: fine at two, with comments pointing at each other; revisit if a third appears.
+
+**A third has appeared**
+- The relay-storage worker (branch `feature/relay-worker-b2`, unmerged) mirrors three more of the app's values: the 1-hour grace period, "keep the newest 2", and how an ID's time is read. Time to decide whether to share them.
+
+**How (technical)**
+- `LETTER_TTL` (worker, seconds) vs `LETTER_TTL_MS` (relay-client.js); the minted-ID format.
+- B2 adds `SWEEP_GRACE_MS` (mirrors `GC_GRACE_MS`), `SWEEP_KEEP_GENS` (mirrors `KEEP_GENS`), `idTimestamp`.
+- Both sides are JavaScript but run in different places; a shared constants module is possible.
 
 ## 💰 Price checking
 
@@ -993,13 +1058,34 @@ _Formerly: 💰 Price sweep scoping + staleness display (agreed 2026-08-21, from
 
 _Why it matters:_ So you can switch to the Kindle edition without losing its folders, lists and tags.
 
-**Format watch (LOW priority)** — `formatWatch: 'kindle'` on print-edition placeholders; slow-lane detection of a Kindle edition appearing; on hit, OFFER (never auto) a swap to the new ASIN carrying folder/Book List/tags/price goal (cousin of the wishlist→owned upgrade). KEY VERIFY first: does the batch enrichment API expose sibling editions for a print ASIN, or does detection need per-book product-page fetches? LOW because the live cases are mostly covered: Amazon author-follow notifies on new-format releases (Heinlein), and for withdrawn-Kindle books already recorded as Kindle, the price REAPPEARING in the normal price sweep is itself the availability signal (The Destroyer's 18 withdrawn titles) — the only uncovered gap is print-placeholder→Kindle detection. (External review item 6.)
+**What you'd get**
+- A print book you're waiting on can be marked "watch for Kindle".
+- An occasional slow check notices when a Kindle edition appears, and **offers** (never forces) to swap to it, carrying over its folders, Book Lists, tags and price goal — a cousin of the wishlist → owned upgrade.
+
+**Low priority, because most cases are already covered**
+- Amazon's author-follow emails announce new formats (e.g. Heinlein).
+- For Kindle books Amazon withdrew, the price **reappearing** in the normal price check is itself the signal (The Destroyer's 18 withdrawn titles).
+- The only uncovered gap: a print placeholder → a new Kindle edition.
+
+**Check first**
+- Does the batch lookup report other editions of a print ASIN, or does this need a product-page visit per book?
+
+**How (technical)**
+- `formatWatch: 'kindle'` on print placeholders; likely shares a mechanism with the slow refresh below. (Outside review item 6.)
 
 ### Now and then, refresh ratings for books you might buy
 
 _Why it matters:_ Ratings are frozen at the first fetch — fine for owned books, a little stale for buying decisions.
 
-**Optional "slow lane": occasional re-enrichment of buyable books** (ratings/review counts — frozen at first fetch today, which is fine for owned books but mildly stale for purchase decisions). Monthly-ish or every-Nth-fetch, reusing item-2's scoped list + batch calls. 7.0 letters make it interruption-safe: results go out as a run; tab closes, so be it — nothing torn, resumes next time. NOT the per-book adaptive-TTL machinery from the external review (a beautiful solution to a scale problem we don't have). Likely shared mechanism with the format watch above. (External review item 3 kernel.)
+**What you'd get**
+- Optional: about monthly (or every Nth fetch), refresh ratings and review counts for books you could still buy.
+- Safe to interrupt: results are sent as an upload run, so a closed tab tears nothing — it carries on next time.
+
+**Not this**
+- The outside review's per-book adaptive refresh timing — a fine solution to a scale problem we don't have.
+
+**How (technical)**
+- Reuse the scoped list from the price-sweep work and batch calls. (Outside review item 3.)
 
 ## 🔜 Soon
 
