@@ -606,81 +606,152 @@ _Why it matters:_ During testing you can't tell from the phone which build it's 
 
 _Formerly: ⏸️ Ownership-honesty batch (ratified 2026-09-04, HELD — awaiting Ron's go; likely 7.8.0)_
 
-Shipped so far: item 0 + ownership-dialog redesign + undo fence + undo-toast naming → **7.8.0** (2026-09-08);
-item 10 → **7.7.2** (2026-09-07; prod proof outstanding — first prod import on ≥7.7.2 should log
-`🧹 Reclaimed 7 absorbed bulk run(s)`, ~124MB).
-**Unified Auto-Organize SHIPPED as 7.9.0** (2026-09-09; 9 soak-tested alphas in 2 days — the soak-as-test-rig
-model at full speed). Two §9/§2 pieces deliberately deferred (explicitly, per the scope rule):
-Then batch 1-9 (item 11 SHIPPED in 7.11.0). (Item 12 — mooted by the unification.)
+When a book changes kind — wishlist → bought, sample → bought, a loan, a book in the Trash — ReaderWrangler should notice, show it, and never lose your settings. Ratified 2026-09-04; **held until you say go**. When it starts, **"Fetch should update books it already knows" goes first** (the old stack's note: "item 6 first").
 
-Save as Spreadsheet (CSV): **SHIPPED as 7.10.0** (2026-09-09 — requested 09-08, shipped next day).
-Reply to the user still owed (Ron's channel).
+**Already shipped from this batch**
+- 7.7.2: Imports reclaim old upload storage. Proof outstanding: the first production Import on 7.7.2 or later should log "🧹 Reclaimed 7 absorbed bulk run(s)" (~124 MB). _(7.21.1 now does this on every save, so this proof may be moot.)_
+- 7.8.0: the ownership dialog redesign, the undo fence, undo messages that name what they undo.
+- 7.9.0: one unified Auto-Organize (two pieces deferred — the first two tasks below).
+- 7.10.0: Save as Spreadsheet (CSV). _A reply to the user who asked for it is still owed (Ron's channel)._
+- 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
 
 ### Auto-Organize: let a misfiled book go back to the Inbox
 
 _Why it matters:_ There's no way to send a book that Auto-Organize filed wrongly back to the Inbox.
 
-**Inbox as a File-under target** (demote a mis-filed book back out) — different commit machinery
+**What you'd get**
+- The Inbox as a "File under" choice in Auto-Organize, to take a misfiled book back out.
+
+**How (technical)**
+- Deferred from 7.9.0 on purpose (scope rule): it needs different commit machinery from ordinary filing.
 
 ### Auto-Organize: Shift-click ranges should follow what you see
 
 _Why it matters:_ Shift-click selects by a hidden internal order that can differ from the order on screen.
 
-**Shift-click ranges follow VISUAL order** — still internal-array order; diverges in series mode + grouped Already-filed
+**What you see**
+- In Auto-Organize, Shift-click a range. In series mode, and in the grouped "Already filed" list, the selected range doesn't match the books between your two clicks on screen.
+
+**How (technical)**
+- The range follows the internal array order instead of the visual order. Deferred from 7.9.0.
 
 ### Fetch summary should report books you bought
 
-_Why it matters:_ After buying 4 wishlist books the summary says "0 new" — the upgrades only show in the developer console.
+_Why it matters:_ After buying 4 wishlist books, the summary says "0 new" — the upgrades only show in the developer console.
 
-**1. Fetcher completion dialog reports ownership upgrades** (today: console-only ⬆️; dialog says "0 new" after you buy 4 books) — **cross-ref:** the "Fetcher: throttle the full-library passes" item in the TOP-OF-STACK queued list also lives in this completion dialog; build them together.
+**What you'd get**
+- The fetch's completion window lists ownership upgrades (wishlist / sample / loan → owned).
+
+**Also**
+- Build together with "Faster back-to-back fetches" (Up next) — same completion window.
+
+**How (technical)**
+- Today the upgrades are only logged as ⬆️ in the console.
 
 ### Import summary: count every ownership change, by kind
 
 _Why it matters:_ Sample → owned upgrades are missed, and wishlist → sample could be mislabeled as owned.
 
-**2. Import summary counts ALL ownership promotions, labeled by destination** — "3 wishlist → owned", "1 wishlist → sample" — keyed on ownershipType transitions (today: onWishlist-flip only ⇒ misses sample→owned AND would mislabel wishlist→sample as owned). Also: name the titles in the console line (the 🎉-line-has-no-title gap that blocked diagnosis 2026-09-04).
+**What you'd get**
+- The Import summary counts every change, labeled by where the book ended up — e.g. "3 wishlist → owned", "1 wishlist → sample".
+- The console line names the books (a missing title blocked a diagnosis on 2026-09-04).
+
+**How (technical)**
+- Since 6.17.2 the summary reports "N now owned", but it's keyed on the wishlist flag flipping. Key it on `ownershipType` transitions instead.
 
 ### Keep price goals when a book is bought, and say so
 
 _Why it matters:_ Goals must never vanish silently; optionally offer a one-click "clear these goals".
 
-**3. Goals on promotion: KEEP (old rule stands — never silently destroy)** + receipt line; optional one-click "Clear goals on these N" in the import summary (Ron to pick during build). Rationale: promoted books already require a manual All-Books visit to file into reading lists, so clearing rides a trip he makes anyway (Ron 2026-09-04).
+**Decided** (Ron, 2026-09-04)
+- **Keep** the goal when a book is bought — the old rule stands: never silently destroy.
+- Add a receipt line (in the 🕐 history) saying which books kept their goals.
+- Optional: a one-click **"Clear goals on these N"** in the Import summary. You pick during the build.
+
+**Why that's enough**
+- Bought books already need a manual visit to All Books to file them into reading lists, so clearing goals rides along on a trip you make anyway.
+
+**Already there**
+- Since 7.1.0 the Import summary says "N kept their price goals — clear if no longer wanted". The receipt line and the one-click clear are what's left.
 
 ### Keep the Import summary in the message history
 
 _Why it matters:_ The summary disappears on refresh, leaving no record of what changed.
 
-**4. Import summary echoed into 🕐 toast history** (receipts gap: dialog evidence vanishes on refresh)
+**What you'd get**
+- The Import summary is also recorded in the 🕐 message history.
 
 ### Buying a book that's in the Trash should bring it back
 
 _Why it matters:_ A book you just bought shouldn't stay hidden in the Trash.
 
-**5. Un-trash on ownership upgrade** (buying a trashed book should resurrect it — Ron: "YES! Include it")
+**What you'd get**
+- When a book in the Trash becomes owned, it comes out of the Trash automatically. (Ron: "YES! Include it.")
+
+**How (technical)**
+- Lives in storage.js (also listed under "Fetcher odds and ends" in Soon).
 
 ### Fetch should update books it already knows, not skip them
 
 _Why it matters:_ A sample or loan of a wishlisted book is thrown away, so the change never shows.
 
-**6. Known-ASIN walked records become UPDATE events, not dup-skip discards** ([fetcher:1422-1425](../amazon-library-fetcher.js) seeds seenASINs with all known ASINs; live sample record for wishlisted Oath of Honor was thrown away 2026-09-04) — refresh ownershipType/acquisitionDate/binding from the record; wishlist→sample/borrow becomes visible (today invisible FOREVER for borrows — no pastPurchase backstop); never downgrade purchased (stale sample records in full fetches); newest-record-wins = record date vs STORED acquisitionDate; respect userEdited; acquisitionDate refresh also heals the watermark re-walk quirk. pastPurchase upgrade demoted to backstop.
+**What happens**
+- The fetcher skips any record whose ASIN it already knows. On 2026-09-04 a sample record for the wishlisted *Oath of Honor* was thrown away.
+- For loans it's invisible **forever** — there's no other path that would catch it.
+
+**What you'd get**
+- A known book's record becomes an **update**: refresh its kind (owned / sample / loan…), purchase date and format from the record.
+- wishlist → sample / loan becomes visible.
+
+**Rules**
+- **Never downgrade a purchased book** (full fetches include old sample records).
+- The newest record wins: compare the record's date with the **stored** purchase date.
+- Respect anything you edited yourself.
+- Refreshing the purchase date also fixes a re-walk quirk in how the fetcher remembers where it stopped.
+- The existing "past purchase" upgrade becomes just a backstop.
+
+**How (technical)**
+- amazon-library-fetcher.js (~1422–1425 when filed): `seenASINs` is seeded with every known ASIN, so known records are dup-skipped.
+- Fields: `ownershipType`, `acquisitionDate`, binding; respect `userEdited`. The watermark re-walk quirk heals with the date refresh. `pastPurchase` demoted to backstop.
 
 ### Let library loans and Audible Plus books upgrade to owned
 
 _Why it matters:_ Those two kinds can never become "owned" today, even after you buy the book.
 
-**7. `TEMP_OWNERSHIP` gains `publicLibraryLending` + `audiblePlus`** (list written v4.11.8, never updated for v5.2.0's new types — loan→purchase can never upgrade; no-goal loans skipped by price phase)
+**What happens**
+- The fetcher's list of "temporary" kinds that can upgrade to owned was written for fetcher 4.11.8 and never updated for the kinds added in 5.2.0.
+- So a library loan you later buy never upgrades, and loans without a price goal are skipped by the price check.
+
+**How (technical)**
+- Add `publicLibraryLending` and `audiblePlus` to `TEMP_OWNERSHIP` (amazon-library-fetcher.js ~2277; verified still missing 2026-10-14).
 
 ### Write the wishlist / ownership rules down in one design doc
 
 _Why it matters:_ So the rules are settled once and never argued again.
 
-**8. Docs**: wishlist model + transition matrix into a design doc (FORMAT-POLICY sibling) — never relitigate. ~~Divider between Move to / Copy to~~ (suspect exonerated by item 9's diagnosis).
+**What you'd get**
+- A design doc (a sibling of FORMAT-POLICY) holding the wishlist model and the table of which kind can change into which.
+
+**History**
+- A suspected "divider between Move to / Copy to" problem was cleared by the Inbox diagnosis below.
 
 ### Relay Import: only books in no folder should go to the Inbox
 
 _Why it matters:_ A restore once copied the whole library into the Inbox.
 
-**9. Relay-import Inbox placement: predicate must be "in no folder", not "new to the books DB"** (DIAGNOSED 2026-09-04: Ron's whole library — Inbox count 3076 — got Inbox-copied when Relay Import ran as a restore against the deleted books store on Sep-3; every book was "new to the DB" while the folders blob still filed them; js:4770/4824. Fix: filter newBookIds through getAllBookIdsInFolders() + skip isDeleted). Add restore-into-empty-DB to PRELAUNCH-TEST-GATE suite 4. ~~One-shot cleanup~~ RESOLVED 2026-09-04: Ron restored the 9/3 13:05 backup; count script showed only 4 genuine dual-filed stragglers (hand-cleaned). Retest this path after the fix (books-blob delete + relay restore ⇒ Inbox count unchanged).
+**What happened** (diagnosed 2026-09-04)
+- On Sep 3, Import from Relay ran as a restore against an emptied book store. Every book looked "new", so all 3,076 were copied into the Inbox — even though your folders still held them.
+- Cleaned up the same day: you restored the 9/3 13:05 backup; only 4 genuinely double-filed books needed hand-fixing.
+
+**The fix**
+- The test for "goes to the Inbox" must be **"is in no folder"**, not "is new to the book store". Also skip deleted books.
+
+**To do**
+- Add "restore into an empty book store" to the pre-launch test suite (PRELAUNCH-TEST-GATE, suite 4).
+- Retest after the fix: delete the book store, Import from Relay → the Inbox count is unchanged.
+
+**How (technical)**
+- Filter `newBookIds` through `getAllBookIdsInFolders()` and skip `isDeleted` (js ~4770 / ~4824 when filed).
 
 ## 🚦 Before public launch
 
