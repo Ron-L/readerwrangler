@@ -2,42 +2,70 @@
 
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
-    - [Save our working process in git, so losing this PC can't erase it](#save-our-working-process-in-git-so-losing-this-pc-cant-erase-it)
-    - [Start the local server automatically, without exposing private files](#start-the-local-server-automatically-without-exposing-private-files)
-    - [Make sure an Import never wipes fields only ReaderWrangler sets](#make-sure-an-import-never-wipes-fields-only-readerwrangler-sets)
-    - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
-    - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
-    - ["Add Bibliography to Wishlist" is greyed out on an author's All Books tab](#add-bibliography-to-wishlist-is-greyed-out-on-an-authors-all-books-tab)
-    - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
-    - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
-    - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
-    - [Faster back-to-back fetches: refresh everything at most once a day](#faster-back-to-back-fetches-refresh-everything-at-most-once-a-day)
-    - [Book Lists and Searches: pin and sort them like Folders](#book-lists-and-searches-pin-and-sort-them-like-folders)
-    - [A type-to-filter box for the left pane](#a-type-to-filter-box-for-the-left-pane)
-    - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
-    - [Tag from Collections: clear up the checkbox vs. preview confusion](#tag-from-collections-clear-up-the-checkbox-vs-preview-confusion)
-    - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
-    - [Ctrl+X from a Book List or Search quietly copies instead of cutting](#ctrlx-from-a-book-list-or-search-quietly-copies-instead-of-cutting)
-    - [Clearing a price goal doesn't fully clear it everywhere](#clearing-a-price-goal-doesnt-fully-clear-it-everywhere)
-    - [Cancelling a new folder that a filter hides should discard it](#cancelling-a-new-folder-that-a-filter-hides-should-discard-it)
-    - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
-    - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
-    - [✅ Ctrl+A in a dialog must never select the page behind it](#ctrla-in-a-dialog-must-never-select-the-page-behind-it)
-    - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
-    - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
-    - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
-  - [⏸️ On hold: honest ownership changes (buying, samples, loans)](#on-hold-honest-ownership-changes-buying-samples-loans)
-    - [Auto-Organize: let a misfiled book go back to the Inbox](#auto-organize-let-a-misfiled-book-go-back-to-the-inbox)
-    - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
-    - [Fetch summary should report books you bought](#fetch-summary-should-report-books-you-bought)
-    - [Import summary: count every ownership change, by kind](#import-summary-count-every-ownership-change-by-kind)
-    - [Keep price goals when a book is bought, and say so](#keep-price-goals-when-a-book-is-bought-and-say-so)
-    - [Keep the Import summary in the message history](#keep-the-import-summary-in-the-message-history)
-    - [Buying a book that's in the Trash should bring it back](#buying-a-book-thats-in-the-trash-should-bring-it-back)
-    - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
-    - [Let library loans and Audible Plus books upgrade to owned](#let-library-loans-and-audible-plus-books-upgrade-to-owned)
-    - [Write the wishlist / ownership rules down in one design doc](#write-the-wishlist--ownership-rules-down-in-one-design-doc)
-    - [Relay Import: only books in no folder should go to the Inbox](#relay-import-only-books-in-no-folder-should-go-to-the-inbox)
+    - [High priority](#high-priority)
+      - [Save our working process in git, so losing this PC can't erase it](#save-our-working-process-in-git-so-losing-this-pc-cant-erase-it)
+      - [Start the local server automatically, without exposing private files](#start-the-local-server-automatically-without-exposing-private-files)
+      - [Make sure an Import never wipes fields only ReaderWrangler sets](#make-sure-an-import-never-wipes-fields-only-readerwrangler-sets)
+      - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
+      - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
+      - ["Add Bibliography to Wishlist" is greyed out on an author's All Books tab](#add-bibliography-to-wishlist-is-greyed-out-on-an-authors-all-books-tab)
+      - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
+      - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
+      - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
+      - [Faster back-to-back fetches: refresh everything at most once a day](#faster-back-to-back-fetches-refresh-everything-at-most-once-a-day)
+      - [Book Lists and Searches: pin and sort them like Folders](#book-lists-and-searches-pin-and-sort-them-like-folders)
+      - [A type-to-filter box for the left pane](#a-type-to-filter-box-for-the-left-pane)
+      - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
+      - [Tag from Collections: clear up the checkbox vs. preview confusion](#tag-from-collections-clear-up-the-checkbox-vs-preview-confusion)
+      - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
+      - [Honest ownership changes: buying, samples, loans](#honest-ownership-changes-buying-samples-loans)
+        - [Write the wishlist / ownership rules down in one design doc](#write-the-wishlist--ownership-rules-down-in-one-design-doc)
+        - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
+        - [Relay Import: only books in no folder should go to the Inbox](#relay-import-only-books-in-no-folder-should-go-to-the-inbox)
+        - [Let library loans and Audible Plus books upgrade to owned](#let-library-loans-and-audible-plus-books-upgrade-to-owned)
+        - [Buying a book that's in the Trash should bring it back](#buying-a-book-thats-in-the-trash-should-bring-it-back)
+        - [Fetch summary should report books you bought](#fetch-summary-should-report-books-you-bought)
+        - [Import summary: count every ownership change, by kind](#import-summary-count-every-ownership-change-by-kind)
+        - [Keep the Import summary in the message history](#keep-the-import-summary-in-the-message-history)
+        - [Keep price goals when a book is bought, and say so](#keep-price-goals-when-a-book-is-bought-and-say-so)
+    - [Polish](#polish)
+      - [Ctrl+X from a Book List or Search quietly copies instead of cutting](#ctrlx-from-a-book-list-or-search-quietly-copies-instead-of-cutting)
+      - [Clearing a price goal doesn't fully clear it everywhere](#clearing-a-price-goal-doesnt-fully-clear-it-everywhere)
+      - [Cancelling a new folder that a filter hides should discard it](#cancelling-a-new-folder-that-a-filter-hides-should-discard-it)
+      - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
+      - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
+      - [✅ Ctrl+A in a dialog must never select the page behind it](#ctrla-in-a-dialog-must-never-select-the-page-behind-it)
+      - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
+      - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
+      - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
+      - [Auto-Organize: let a misfiled book go back to the Inbox](#auto-organize-let-a-misfiled-book-go-back-to-the-inbox)
+      - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
+    - [Unsorted](#unsorted)
+      - [✅ Auto-Organize preview: show which Book Lists a book is in](#auto-organize-preview-show-which-book-lists-a-book-is-in)
+      - [See an author's other books without leaving your spot](#see-an-authors-other-books-without-leaving-your-spot)
+      - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
+      - [User Guide: explain workarounds for fields you can't filter by](#user-guide-explain-workarounds-for-fields-you-cant-filter-by)
+      - [Drag between Folders and Book Lists](#drag-between-folders-and-book-lists)
+      - [Search everywhere without leaving the current folder](#search-everywhere-without-leaving-the-current-folder)
+      - [Wording pass: explain Book List shortcuts and Linked Copies](#wording-pass-explain-book-list-shortcuts-and-linked-copies)
+      - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
+      - [Fetcher: name and explain Amazon's library filter](#fetcher-name-and-explain-amazons-library-filter)
+      - [Hide returned loans and borrows](#hide-returned-loans-and-borrows)
+      - [A management view for Book Lists](#a-management-view-for-book-lists)
+      - [Delete a book from All Books (removes it everywhere)](#delete-a-book-from-all-books-removes-it-everywhere)
+      - [Drag a box to select covers](#drag-a-box-to-select-covers)
+      - [Show only hidden books](#show-only-hidden-books)
+      - [Fetch: report exactly how your library compares with Amazon](#fetch-report-exactly-how-your-library-compares-with-amazon)
+      - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
+      - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
+      - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
+      - [Import book details from a pasted list or spreadsheet](#import-book-details-from-a-pasted-list-or-spreadsheet)
+      - [Set different series numbers on several books at once ("2, 4")](#set-different-series-numbers-on-several-books-at-once-2-4)
+      - [One book in several series positions (omnibus, anthology, MegaPack)](#one-book-in-several-series-positions-omnibus-anthology-megapack)
+      - [Folder menu: Move to Top / Move to Bottom](#folder-menu-move-to-top--move-to-bottom)
+      - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
+      - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
+      - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Security page: finish the high-contrast light theme](#security-page-finish-the-high-contrast-light-theme)
@@ -76,33 +104,6 @@
     - [Book List menus and undo history](#book-list-menus-and-undo-history)
       - [Book List menu: remove Move / Copy, and block dragging onto folders](#book-list-menu-remove-move--copy-and-block-dragging-onto-folders)
       - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
-    - [Ideas from the August 2026 library clean-up](#ideas-from-the-august-2026-library-clean-up)
-      - [✅ Auto-Organize preview: show which Book Lists a book is in](#auto-organize-preview-show-which-book-lists-a-book-is-in)
-      - [See an author's other books without leaving your spot](#see-an-authors-other-books-without-leaving-your-spot)
-      - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
-      - [User Guide: explain workarounds for fields you can't filter by](#user-guide-explain-workarounds-for-fields-you-cant-filter-by)
-      - [Drag between Folders and Book Lists](#drag-between-folders-and-book-lists)
-      - [Search everywhere without leaving the current folder](#search-everywhere-without-leaving-the-current-folder)
-    - [Other follow-ups](#other-follow-ups)
-      - [Wording pass: explain Book List shortcuts and Linked Copies](#wording-pass-explain-book-list-shortcuts-and-linked-copies)
-      - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
-      - [Fetcher: name and explain Amazon's library filter](#fetcher-name-and-explain-amazons-library-filter)
-      - [Hide returned loans and borrows](#hide-returned-loans-and-borrows)
-      - [A management view for Book Lists](#a-management-view-for-book-lists)
-      - [Delete a book from All Books (removes it everywhere)](#delete-a-book-from-all-books-removes-it-everywhere)
-      - [Drag a box to select covers](#drag-a-box-to-select-covers)
-      - [Show only hidden books](#show-only-hidden-books)
-      - [Fetch: report exactly how your library compares with Amazon](#fetch-report-exactly-how-your-library-compares-with-amazon)
-      - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
-      - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
-      - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
-      - [Import book details from a pasted list or spreadsheet](#import-book-details-from-a-pasted-list-or-spreadsheet)
-      - [Set different series numbers on several books at once ("2, 4")](#set-different-series-numbers-on-several-books-at-once-2-4)
-      - [One book in several series positions (omnibus, anthology, MegaPack)](#one-book-in-several-series-positions-omnibus-anthology-megapack)
-      - [Folder menu: Move to Top / Move to Bottom](#folder-menu-move-to-top--move-to-bottom)
-      - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
-      - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
-      - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
   - [🗄️ After launch](#after-launch)
     - [Dialog look](#dialog-look)
       - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
@@ -163,9 +164,12 @@
 
 _Formerly: 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-16)_
 
-In priority order (Ron re-ranked 2026-10-14; the last seven kept their earlier order).
+In priority order (Ron re-ranked 2026-10-14). Two parts: **High priority**, then **Polish**. **Unsorted** at the
+bottom holds tasks moved in from elsewhere, waiting for Ron to place them.
 
-### Save our working process in git, so losing this PC can't erase it
+### High priority
+
+#### Save our working process in git, so losing this PC can't erase it
 
 _Why it matters:_ My memory, the commit checks and the pre-build checklist live only on this PC — lost with it, and nothing would warn us.
 
@@ -213,7 +217,7 @@ _Why it matters:_ My memory, the commit checks and the pre-build checklist live 
 **Watch out**
 - The RW repo is **public**: nothing with secrets goes in it. (Your approvals file holds only your project path — still kept personal, since it's wrong for anyone else.)
 
-### Start the local server automatically, without exposing private files
+#### Start the local server automatically, without exposing private files
 
 _Why it matters:_ After every reboot you hunt for the server command, and today's server also shows private files to other devices at home.
 
@@ -237,7 +241,7 @@ _Why it matters:_ After every reboot you hunt for the server command, and today'
 - Don't use `--bind 127.0.0.1` (phone tests over the home network).
 - Today's command (the one you hunt for in developers.md): `python -m http.server 8000 --directory C:\Users\Ron\Projects\ReaderWrangler`. CONTRIBUTING's dead line is the Python 2 `SimpleHTTPServer` one. On your PC (2026-10-06): `py` → 3.14.7.
 
-### Make sure an Import never wipes fields only ReaderWrangler sets
+#### Make sure an Import never wipes fields only ReaderWrangler sets
 
 _Why it matters:_ Two fields were being wiped on every Import; check no other field has the same gap, and decide whether backups should keep them.
 
@@ -253,7 +257,7 @@ _Why it matters:_ Two fields were being wiped on every Import; check no other fi
 - The rule: an app-written field missing from the device-state push payload must be `'user'`.
 - Payload builder readerwrangler.js ~5560–5594; import parser ~6186 / ~6270. (2026-09-22)
 
-### Turn more of our working rules into automatic checks (my tooling)
+#### Turn more of our working rules into automatic checks (my tooling)
 
 _Why it matters:_ Rules that depend on memory keep failing; automatic checks don't. This affects only how I work, not the app.
 
@@ -271,7 +275,7 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 **How (technical)**
 - Item 3: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
 
-### Drag any dialog out of the way
+#### Drag any dialog out of the way
 
 _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them aside is a habit from Quicken.
 
@@ -300,7 +304,7 @@ _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them as
 - A click on a lower dialog actually lands on the top dialog's full-window background layer (readerwrangler.js ~69–71). The background-click close must ignore clicks that fall over another dialog.
 - New user feature, so it gets its own branch and release.
 
-### "Add Bibliography to Wishlist" is greyed out on an author's All Books tab
+#### "Add Bibliography to Wishlist" is greyed out on an author's All Books tab
 
 _Why it matters:_ The bookmarklet doesn't recognize that kind of author page, so the button can't be used there.
 
@@ -321,7 +325,7 @@ _Why it matters:_ The bookmarklet doesn't recognize that kind of author page, so
 - The check is in bookmarklet-nav-hub.js (~line 68): `/\/stores\/[^/]+\/author\/[A-Z0-9]{10}/i`.
 - Fetcher / nav-hub change: bump their versions; test on the DEV bookmarklet first (a navigator change), then PROD.
 
-### Find a book by its ASIN in the search box
+#### Find a book by its ASIN in the search box
 
 _Why it matters:_ Handy for checking whether one specific book is in your library.
 
@@ -338,7 +342,7 @@ _Why it matters:_ Handy for checking whether one specific book is in your librar
 - Copies: readerwrangler.js ~10044 (live filter), `bookMatchesFilters` ~2196 (saved Searches), mobile.js ~2289.
 - One `bookMatchesText(book, term)` in uiHelpers, with ASIN as exact or prefix match, case-insensitive.
 
-### Dark theme: fix the unreadable bar and the light strips
+#### Dark theme: fix the unreadable bar and the light strips
 
 _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar's text is unreadable.
 
@@ -362,7 +366,7 @@ _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar'
 - Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
 - Grep for inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and unmapped Tailwind colors; move them to CSS variables (e.g. `var(--bg-surface)`) or add them to the dark remap. The check could sit beside `scripts/check-names.js`.
 
-### Phone: show which test build is running
+#### Phone: show which test build is running
 
 _Why it matters:_ During testing you can't tell from the phone which build it's on.
 
@@ -376,7 +380,7 @@ _Why it matters:_ During testing you can't tell from the phone which build it's 
 **How (technical)**
 - `APP_VERSION` (released, frozen during alphas) vs `ORGANIZER_VERSION` (live, desktop only) vs `MOBILE_VERSION` (moves per alpha).
 
-### Faster back-to-back fetches: refresh everything at most once a day
+#### Faster back-to-back fetches: refresh everything at most once a day
 
 _Why it matters:_ Grabbing one new book still re-prices and re-checks the whole library every time.
 
@@ -400,7 +404,7 @@ _Why it matters:_ Grabbing one new book still re-prices and re-checks the whole 
 - Remember `lastFullPassAt` (relay, or browser storage on Amazon's site).
 - A fetcher (bookmarklet) change, maybe with app/relay help for the stored time and the dialog.
 
-### Book Lists and Searches: pin and sort them like Folders
+#### Book Lists and Searches: pin and sort them like Folders
 
 _Why it matters:_ A long Book Lists column is hard to search; Folders already have pins and a Name / Manual sort.
 
@@ -415,7 +419,7 @@ _Why it matters:_ A long Book Lists column is hard to search; Folders already ha
 
 **Status:** queued behind the book details window rework.
 
-### A type-to-filter box for the left pane
+#### A type-to-filter box for the left pane
 
 _Why it matters:_ With many folders, Book Lists and Searches, typing a few letters is the fastest way to find one.
 
@@ -430,7 +434,7 @@ _Why it matters:_ With many folders, Book Lists and Searches, typing a few lette
 
 **Status:** Ron, 2026-09-10.
 
-### "Read in Kindle": open a book in the Kindle app or Cloud Reader
+#### "Read in Kindle": open a book in the Kindle app or Cloud Reader
 
 _Why it matters:_ Jump straight from ReaderWrangler to reading the book.
 
@@ -453,7 +457,7 @@ _Why it matters:_ Jump straight from ReaderWrangler to reading the book.
 - Fallback: `https://www.amazon.com/dp/<ASIN>`.
 - Background research: the `reference_read_in_kindle` memory (Ron's 2026-09-19 research).
 
-### Tag from Collections: clear up the checkbox vs. preview confusion
+#### Tag from Collections: clear up the checkbox vs. preview confusion
 
 _Why it matters:_ Each row has two click targets that do different things, with nothing to tell them apart.
 
@@ -473,7 +477,7 @@ _Why it matters:_ Each row has two click targets that do different things, with 
 **How (technical)**
 - The "shown" state is `tfcSelectedCollection`.
 
-### Restore dialog calls yesterday's backup "today"
+#### Restore dialog calls yesterday's backup "today"
 
 _Why it matters:_ A wrong date label can lead you to restore the wrong backup.
 
@@ -487,7 +491,159 @@ _Why it matters:_ A wrong date label can lead you to restore the wrong backup.
 1. Verify first: find where the "— today" label is made.
 2. Compare by calendar day in local time, and add "yesterday" and "N days ago".
 
-### Ctrl+X from a Book List or Search quietly copies instead of cutting
+#### Honest ownership changes: buying, samples, loans
+
+_Why it matters:_ When a book changes kind — bought, a sample, a loan, a book in the Trash — ReaderWrangler should notice, tell you, and never lose your settings.
+
+**What this is**
+- One batch, ratified 2026-09-04 and held until Ron said go (formerly its own section, "⏸️ On hold: honest ownership
+  changes"). Its tasks are below, **in build order**: the rules doc and the foundation first, then the data fixes,
+  then the summaries (the polish end — there's nothing honest to report until the fetch notices changes).
+
+**History** (from the old section)
+
+When a book changes kind — wishlist → bought, sample → bought, a loan, a book in the Trash — ReaderWrangler should notice, show it, and never lose your settings. Ratified 2026-09-04; **held until you say go**. When it starts, **"Fetch should update books it already knows" goes first** (the old stack's note: "item 6 first").
+
+**Already shipped from this batch**
+- 7.7.2 (2026-09-07): Imports reclaim old upload storage. Proof outstanding: the first production Import on 7.7.2 or later should log "🧹 Reclaimed 7 absorbed bulk run(s)" (~124 MB). _(7.21.1 now does this on every save, so this proof may be moot.)_
+- 7.8.0 (2026-09-08): the ownership dialog redesign, the undo fence, undo messages that name what they undo.
+- 7.9.0: one unified Auto-Organize (two pieces deferred — the first two tasks below).
+- 7.10.0: Save as Spreadsheet (CSV). _A reply to the user who asked for it is still owed (Ron's channel)._
+- 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
+
+##### Write the wishlist / ownership rules down in one design doc
+
+_Why it matters:_ So the rules are settled once and never argued again.
+
+_Written first, alongside "Fetch should update books it already knows"._
+
+**What you'd get**
+- A design doc (a sibling of FORMAT-POLICY) holding the wishlist model and the table of which kind can change into which.
+
+**History**
+- A suspected "divider between Move to / Copy to" problem was cleared by the Inbox diagnosis below.
+
+##### Fetch should update books it already knows, not skip them
+
+_Why it matters:_ A sample or loan of a wishlisted book is thrown away, so the change never shows.
+
+_The foundation — the summaries below depend on it._
+
+**What happens**
+- The fetcher skips any record whose ASIN it already knows. On 2026-09-04 a sample record for the wishlisted *Oath of Honor* was thrown away.
+- For loans it's invisible **forever** — there's no other path that would catch it.
+
+**What you'd get**
+- A known book's record becomes an **update**: refresh its kind (owned / sample / loan…), purchase date and format from the record.
+- wishlist → sample / loan becomes visible.
+
+**Rules**
+- **Never downgrade a purchased book** (full fetches include old sample records).
+- The newest record wins: compare the record's date with the **stored** purchase date.
+- Respect anything you edited yourself.
+- Refreshing the purchase date also fixes a re-walk quirk in how the fetcher remembers where it stopped.
+- The existing "past purchase" upgrade becomes just a backstop.
+
+**How (technical)**
+- amazon-library-fetcher.js (~1422–1425 when filed): `seenASINs` is seeded with every known ASIN, so known records are dup-skipped.
+- Fields: `ownershipType`, `acquisitionDate`, binding; respect `userEdited`. The watermark re-walk quirk heals with the date refresh. `pastPurchase` demoted to backstop.
+
+##### Relay Import: only books in no folder should go to the Inbox
+
+_Why it matters:_ A restore once copied the whole library into the Inbox.
+
+**What happened** (diagnosed 2026-09-04)
+- On Sep 3, Import from Relay ran as a restore against an emptied book store. Every book looked "new", so all 3,076 were copied into the Inbox — even though your folders still held them.
+- Cleaned up the same day: you restored the 9/3 13:05 backup; only 4 genuinely double-filed books needed hand-fixing.
+
+**The fix**
+- The test for "goes to the Inbox" must be **"is in no folder"**, not "is new to the book store". Also skip deleted books.
+
+**To do**
+- Add "restore into an empty book store" to the pre-launch test suite (PRELAUNCH-TEST-GATE, suite 4).
+- Retest after the fix: delete the book store, Import from Relay → the Inbox count is unchanged.
+
+**How (technical)**
+- Filter `newBookIds` through `getAllBookIdsInFolders()` and skip `isDeleted` (js ~4770 / ~4824 when filed).
+
+##### Let library loans and Audible Plus books upgrade to owned
+
+_Why it matters:_ Those two kinds can never become "owned" today, even after you buy the book.
+
+**What happens**
+- The fetcher's list of "temporary" kinds that can upgrade to owned was written for fetcher 4.11.8 and never updated for the kinds added in 5.2.0.
+- So a library loan you later buy never upgrades, and loans without a price goal are skipped by the price check.
+
+**How (technical)**
+- Add `publicLibraryLending` and `audiblePlus` to `TEMP_OWNERSHIP` (amazon-library-fetcher.js ~2277; verified still missing 2026-10-14).
+
+##### Buying a book that's in the Trash should bring it back
+
+_Why it matters:_ A book you just bought shouldn't stay hidden in the Trash.
+
+**What you'd get**
+- When a book in the Trash becomes owned, it comes out of the Trash automatically. (Ron: "YES! Include it.")
+
+**How (technical)**
+- Lives in storage.js (also listed under "Fetcher odds and ends" in Soon).
+
+##### Fetch summary should report books you bought
+
+_Why it matters:_ After buying 4 wishlist books, the summary says "0 new" — the upgrades only show in the developer console.
+
+_Polish end of the batch; after "Fetch should update books it already knows". Shares a window with "Faster back-to-back fetches"._
+
+**What you'd get**
+- The fetch's completion window lists ownership upgrades (wishlist / sample / loan → owned).
+
+**Also**
+- Build together with "Faster back-to-back fetches" (Up next) — same completion window.
+
+**How (technical)**
+- Today the upgrades are only logged as ⬆️ in the console.
+
+##### Import summary: count every ownership change, by kind
+
+_Why it matters:_ Sample → owned upgrades are missed, and wishlist → sample could be mislabeled as owned.
+
+_Polish end of the batch; after "Fetch should update books it already knows"._
+
+**What you'd get**
+- The Import summary counts every change, labeled by where the book ended up — e.g. "3 wishlist → owned", "1 wishlist → sample".
+- The console line names the books (a missing title blocked a diagnosis on 2026-09-04).
+
+**How (technical)**
+- Since 6.17.2 the summary reports "N now owned", but it's keyed on the wishlist flag flipping. Key it on `ownershipType` transitions instead.
+
+##### Keep the Import summary in the message history
+
+_Why it matters:_ The summary disappears on refresh, leaving no record of what changed.
+
+_Polish end of the batch._
+
+**What you'd get**
+- The Import summary is also recorded in the 🕐 message history.
+
+##### Keep price goals when a book is bought, and say so
+
+_Why it matters:_ Goals must never vanish silently; optionally offer a one-click "clear these goals".
+
+_Polish end of the batch._
+
+**Decided** (Ron, 2026-09-04)
+- **Keep** the goal when a book is bought — the old rule stands: never silently destroy.
+- Add a receipt line (in the 🕐 history) saying which books kept their goals.
+- Optional: a one-click **"Clear goals on these N"** in the Import summary. You pick during the build.
+
+**Why that's enough**
+- Bought books already need a manual visit to All Books to file them into reading lists, so clearing goals rides along on a trip you make anyway.
+
+**Already there**
+- Since 7.1.0 the Import summary says "N kept their price goals — clear if no longer wanted". The receipt line and the one-click clear are what's left.
+
+### Polish
+
+#### Ctrl+X from a Book List or Search quietly copies instead of cutting
 
 _Why it matters:_ You think you moved the book, but it never leaves the list.
 
@@ -501,7 +657,7 @@ _Why it matters:_ You think you moved the book, but it never leaves the list.
 **How (technical)**
 - Cut records the view as the source, but paste-cut only removes from **folders**. Found during alpha testing (alpha.7), filed not fixed.
 
-### Clearing a price goal doesn't fully clear it everywhere
+#### Clearing a price goal doesn't fully clear it everywhere
 
 _Why it matters:_ An old second price-goal field can keep a book counted as "has a goal" after you clear it.
 
@@ -519,7 +675,7 @@ _Why it matters:_ An old second price-goal field can keep a book counted as "has
 - Readers: storage.js ~174 (import count), amazon-library-fetcher.js ~2286, the spreadsheet's `priceTrigger ?? targetPrice`; plus its row in bookFields.js.
 - Found 2026-10-12.
 
-### Cancelling a new folder that a filter hides should discard it
+#### Cancelling a new folder that a filter hides should discard it
 
 _Why it matters:_ A new folder can land hidden by your filters, and there's no clean way to back out. Cancel should just remove it.
 
@@ -538,7 +694,7 @@ _Why it matters:_ A new folder can land hidden by your filters, and there's no c
 - Delete through the existing undoable create-folder step (`CREATE_FOLDER`).
 - Option C would predict `hasActiveFilters` before creating.
 
-### Book details window: changes happen only when you click Save
+#### Book details window: changes happen only when you click Save
 
 _Why it matters:_ Today some fields save instantly and others wait for Save. One rule makes the window predictable, with one undo per Save.
 
@@ -562,7 +718,7 @@ _Why it matters:_ Today some fields save instantly and others wait for Save. One
 - Rating / price goal / tags join `editBookFields` as staged fields; Save folds them into the one `EDIT_BOOK` undo step.
 - Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and your context-keying principle: UNDO-MODEL.md, section "fully transactional".
 
-### Relay Setup: smoother sections and clearer Esc / Help behavior
+#### Relay Setup: smoother sections and clearer Esc / Help behavior
 
 _Why it matters:_ Its sections jump open so abruptly they look like new windows, and Esc behaves differently in a way you can't see.
 
@@ -581,7 +737,7 @@ _Why it matters:_ Its sections jump open so abruptly they look like new windows,
 **How (technical)**
 - Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog.
 
-### ✅ Ctrl+A in a dialog must never select the page behind it
+#### ✅ Ctrl+A in a dialog must never select the page behind it
 
 _Why it matters:_ A few controls inside dialogs could let Ctrl+A highlight the whole page behind the dialog.
 
@@ -591,7 +747,7 @@ _Why it matters:_ A few controls inside dialogs could let Ctrl+A highlight the w
 - Found and fixed in Bulk Edit's Series field (7.18.0-alpha.21); the page-level handler always blocks the browser's own select-all when a dialog is up (alpha.22), but only if the key reaches it.
 - The plan was a two-way sweep for controls that stop the key, or one capture-phase guard at the page level that no control can bypass.
 
-### Arrow keys should move through the Series suggestion lists
+#### Arrow keys should move through the Series suggestion lists
 
 _Why it matters:_ You can't pick a series from the list with the keyboard — Down scrolls the window instead.
 
@@ -614,7 +770,7 @@ _Why it matters:_ You can't pick a series from the list with the keyboard — Do
 - Build it once in the shared list popup (`<Popover kind="list">` — both Series lists became that in 7.18.0-alpha.54), not per field.
 - The working model is the `SearchInput` component's Down/Up/Enter/Esc handling. Stable copy "as it was": `git show 46a0cf6:readerwrangler.js`, search for `const SearchInput`.
 
-### The "Save results" menu runs off the screen with many Book Lists
+#### The "Save results" menu runs off the screen with many Book Lists
 
 _Why it matters:_ With 20+ Book Lists, the lower ones are cut off and can't be reached.
 
@@ -636,7 +792,7 @@ _Why it matters:_ With 20+ Book Lists, the lower ones are cut off and can't be r
 - An opt-in option on `<Popover>` for button dropdowns: when it can't fit below, pick the roomier side, cap the height, scroll.
 - Today it pins to the top of the window and hangs off the bottom. The fly-out rule is CursorPopup's "never add overflow".
 
-### Removing a recent search should offer Undo
+#### Removing a recent search should offer Undo
 
 _Why it matters:_ One click deletes a recent search with no message and no way back.
 
@@ -653,20 +809,7 @@ _Why it matters:_ One click deletes a recent search with no message and no way b
 - Route it through the shared undo/message path, not a one-off.
 - Check what else still sits outside that path — tag and Search deletes were left out of it in 6.13.1.
 
-## ⏸️ On hold: honest ownership changes (buying, samples, loans)
-
-_Formerly: ⏸️ Ownership-honesty batch (ratified 2026-09-04, HELD — awaiting Ron's go; likely 7.8.0)_
-
-When a book changes kind — wishlist → bought, sample → bought, a loan, a book in the Trash — ReaderWrangler should notice, show it, and never lose your settings. Ratified 2026-09-04; **held until you say go**. When it starts, **"Fetch should update books it already knows" goes first** (the old stack's note: "item 6 first").
-
-**Already shipped from this batch**
-- 7.7.2 (2026-09-07): Imports reclaim old upload storage. Proof outstanding: the first production Import on 7.7.2 or later should log "🧹 Reclaimed 7 absorbed bulk run(s)" (~124 MB). _(7.21.1 now does this on every save, so this proof may be moot.)_
-- 7.8.0 (2026-09-08): the ownership dialog redesign, the undo fence, undo messages that name what they undo.
-- 7.9.0: one unified Auto-Organize (two pieces deferred — the first two tasks below).
-- 7.10.0: Save as Spreadsheet (CSV). _A reply to the user who asked for it is still owed (Ron's channel)._
-- 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
-
-### Auto-Organize: let a misfiled book go back to the Inbox
+#### Auto-Organize: let a misfiled book go back to the Inbox
 
 _Why it matters:_ There's no way to send a book that Auto-Organize filed wrongly back to the Inbox.
 
@@ -676,7 +819,7 @@ _Why it matters:_ There's no way to send a book that Auto-Organize filed wrongly
 **How (technical)**
 - Deferred from 7.9.0 on purpose (scope rule): it needs different commit machinery from ordinary filing.
 
-### Auto-Organize: Shift-click ranges should follow what you see
+#### Auto-Organize: Shift-click ranges should follow what you see
 
 _Why it matters:_ Shift-click selects by a hidden internal order that can differ from the order on screen.
 
@@ -691,123 +834,356 @@ _Why it matters:_ Shift-click selects by a hidden internal order that can differ
 **How (technical)**
 - 6.16.0 rebuilt the range to follow display order (`getPreviewOrderedBooks`, readerwrangler.js ~9213–9246) — correct for the books being moved, but it pushes the **already-filed** books in their stored order (`preview.alreadyFiled`), not their on-screen grouping. Also check series mode against what's drawn. Deferred from 7.9.0.
 
-### Fetch summary should report books you bought
+### Unsorted
 
-_Why it matters:_ After buying 4 wishlist books, the summary says "0 new" — the upgrades only show in the developer console.
+Moved here 2026-10-14 for Ron to place into High priority or Polish: the former "Ideas from the
+August 2026 library clean-up" (2026-08-10 library-cleanup findings) and "Other follow-ups" groups from Soon.
 
-**What you'd get**
-- The fetch's completion window lists ownership upgrades (wishlist / sample / loan → owned).
+#### ✅ Auto-Organize preview: show which Book Lists a book is in
 
-**Also**
-- Build together with "Faster back-to-back fetches" (Up next) — same completion window.
+_Why it matters:_ You see a book's folders but not its Book Lists while deciding where it goes.
 
-**How (technical)**
-- Today the upgrades are only logged as ⬆️ in the console.
+**Status:** done — Ron confirmed 2026-10-14. Delete at the next release.
 
-### Import summary: count every ownership change, by kind
+#### See an author's other books without leaving your spot
 
-_Why it matters:_ Sample → owned upgrades are missed, and wishlist → sample could be mislabeled as owned.
+_Why it matters:_ Today it takes All Books + a filter + finding your way back.
 
 **What you'd get**
-- The Import summary counts every change, labeled by where the book ended up — e.g. "3 wishlist → owned", "1 wishlist → sample".
-- The console line names the books (a missing title blocked a diagnosis on 2026-09-04).
+- From a book or folder, a quick view of the author's other books.
 
-**How (technical)**
-- Since 6.17.2 the summary reports "N now owned", but it's keyed on the wishlist flag flipping. Key it on `ownershipType` transitions instead.
+#### Open one book's details without losing a multi-selection
 
-### Keep price goals when a book is bought, and say so
-
-_Why it matters:_ Goals must never vanish silently; optionally offer a one-click "clear these goals".
-
-**Decided** (Ron, 2026-09-04)
-- **Keep** the goal when a book is bought — the old rule stands: never silently destroy.
-- Add a receipt line (in the 🕐 history) saying which books kept their goals.
-- Optional: a one-click **"Clear goals on these N"** in the Import summary. You pick during the build.
-
-**Why that's enough**
-- Bought books already need a manual visit to All Books to file them into reading lists, so clearing goals rides along on a trip you make anyway.
-
-**Already there**
-- Since 7.1.0 the Import summary says "N kept their price goals — clear if no longer wanted". The receipt line and the one-click clear are what's left.
-
-### Keep the Import summary in the message history
-
-_Why it matters:_ The summary disappears on refresh, leaving no record of what changed.
+_Why it matters:_ Lets you identify a book mid-scan and carry on with your selection.
 
 **What you'd get**
-- The Import summary is also recorded in the 🕐 message history.
+- With several books selected, right-click one → **Open** shows that book's details **without** clearing the selection.
+- Today, opening from a multi-selection opens the whole selection as a shelf you step through.
+- Name the menu item per a UX pass.
 
-### Buying a book that's in the Trash should bring it back
+#### User Guide: explain workarounds for fields you can't filter by
 
-_Why it matters:_ A book you just bought shouldn't stay hidden in the Trash.
-
-**What you'd get**
-- When a book in the Trash becomes owned, it comes out of the Trash automatically. (Ron: "YES! Include it.")
-
-**How (technical)**
-- Lives in storage.js (also listed under "Fetcher odds and ends" in Soon).
-
-### Fetch should update books it already knows, not skip them
-
-_Why it matters:_ A sample or loan of a wishlisted book is thrown away, so the change never shows.
-
-**What happens**
-- The fetcher skips any record whose ASIN it already knows. On 2026-09-04 a sample record for the wishlisted *Oath of Honor* was thrown away.
-- For loans it's invisible **forever** — there's no other path that would catch it.
-
-**What you'd get**
-- A known book's record becomes an **update**: refresh its kind (owned / sample / loan…), purchase date and format from the record.
-- wishlist → sample / loan becomes visible.
-
-**Rules**
-- **Never downgrade a purchased book** (full fetches include old sample records).
-- The newest record wins: compare the record's date with the **stored** purchase date.
-- Respect anything you edited yourself.
-- Refreshing the purchase date also fixes a re-walk quirk in how the fetcher remembers where it stopped.
-- The existing "past purchase" upgrade becomes just a backstop.
-
-**How (technical)**
-- amazon-library-fetcher.js (~1422–1425 when filed): `seenASINs` is seeded with every known ASIN, so known records are dup-skipped.
-- Fields: `ownershipType`, `acquisitionDate`, binding; respect `userEdited`. The watermark re-walk quirk heals with the date refresh. `pastPurchase` demoted to backstop.
-
-### Let library loans and Audible Plus books upgrade to owned
-
-_Why it matters:_ Those two kinds can never become "owned" today, even after you buy the book.
-
-**What happens**
-- The fetcher's list of "temporary" kinds that can upgrade to owned was written for fetcher 4.11.8 and never updated for the kinds added in 5.2.0.
-- So a library loan you later buy never upgrades, and loans without a price goal are skipped by the price check.
-
-**How (technical)**
-- Add `publicLibraryLending` and `audiblePlus` to `TEMP_OWNERSHIP` (amazon-library-fetcher.js ~2277; verified still missing 2026-10-14).
-
-### Write the wishlist / ownership rules down in one design doc
-
-_Why it matters:_ So the rules are settled once and never argued again.
-
-**What you'd get**
-- A design doc (a sibling of FORMAT-POLICY) holding the wishlist model and the table of which kind can change into which.
-
-**History**
-- A suspected "divider between Move to / Copy to" problem was cleared by the Inbox diagnosis below.
-
-### Relay Import: only books in no folder should go to the Inbox
-
-_Why it matters:_ A restore once copied the whole library into the Inbox.
-
-**What happened** (diagnosed 2026-09-04)
-- On Sep 3, Import from Relay ran as a restore against an emptied book store. Every book looked "new", so all 3,076 were copied into the Inbox — even though your folders still held them.
-- Cleaned up the same day: you restored the 9/3 13:05 backup; only 4 genuinely double-filed books needed hand-fixing.
-
-**The fix**
-- The test for "goes to the Inbox" must be **"is in no folder"**, not "is new to the book store". Also skip deleted books.
+_Why it matters:_ There's usually another way, e.g. add the column in List view and sort.
 
 **To do**
-- Add "restore into an empty book store" to the pre-launch test suite (PRELAUNCH-TEST-GATE, suite 4).
-- Retest after the fix: delete the book store, Import from Relay → the Inbox count is unchanged.
+- In the User Guide and the GPT manual: when someone can't filter by a field, show the workaround (e.g. List view → add that column → sort).
+
+#### Drag between Folders and Book Lists
+
+_Why it matters:_ Natural gestures for filling Book Lists, plus honest messages about what a drop did.
+
+**Honesty fixes**
+- From a list view, say "Added", not "Moved", in the message and its undo.
+- No fake "you can drop here" signals — including the left pane's blanket drop handling.
+- Book List reordering can be undone; fix an over-count in the message; fix a leak into the Trash.
+
+**The two new gestures** (decided 2026-08-29)
+- Drop a folder **on** a Book List row → adds the folder's books to that list.
+- Drop a folder or books **between** rows → creates a new list there: named "‹folder name› - To Read" for a folder, or by the naming engine for books (e.g. "Beach Reads").
+- Right-click → New also falls back to the current folder's name.
+
+**On ship:** update SUPPORT-KB §8 and §6 (they describe today's behavior).
+
+**Spec:** docs/design/CROSS-SECTION-DRAG.md.
+
+#### Search everywhere without leaving the current folder
+
+_Why it matters:_ Answers "is this book in my library?" without losing your place.
+
+**What you'd get** (Ron, 2026-08-29)
+- The search box still searches the current folder by default. While searching, a toggle shows: **This folder | Everywhere** (as in Finder / Explorer).
+- "Everywhere" shows matches from the whole library in the right pane, temporarily. Clearing the search returns you to the folder, scroll position untouched.
+- **Discoverability:** when nothing matches, offer *"No matches in ‹folder› — Search everywhere?"* as a one-click link (as Gmail and Amazon do).
+- Results work with the existing "where does this book live" popup, so the answer arrives with locations.
 
 **How (technical)**
-- Filter `newBookIds` through `getAllBookIdsInFolders()` and skip `isDeleted` (js ~4770 / ~4824 when filed).
+- Reuse the view-folder filter-stash plumbing for the temporary view.
+
+#### Wording pass: explain Book List shortcuts and Linked Copies
+
+_Why it matters:_ Those terms confuse people unless they're explained once, clearly.
+
+**To do**
+- Use "shortcut" language in Book List messages and menus.
+- Explain "Linked Copies" once, in the manual and the GPT manual.
+
+**Spec:** docs/design/TERMINOLOGY.md. (Filed for 6.12.1.)
+
+#### Stray double spaces in author names create duplicate authors
+
+_Why it matters:_ An author can split in two, making a series look incomplete.
+
+**What happened**
+- "Jodi  Taylor" (two spaces) and "Jodi Taylor" became two authors: 2 of 7 Time Police books were mis-authored, and the series looked incomplete in the Auto-Organize preview.
+
+**To do**
+- Collapse repeated spaces and trim, on fetch, Import and edit.
+- A **one-time cleanup** of existing data.
+
+#### Fetcher: name and explain Amazon's library filter
+
+_Why it matters:_ An unexplained code string is repeated in four places; one named, documented setting is safer to change.
+
+**Background** (checked 2026-10-14)
+- An old fetcher fix (`ee6d83c`, June 2026) had two parts. Both were lost when the fetcher was later rewritten.
+  1. **A notice for books Amazon has delisted — done.** Since fetcher v4.11.0, the end of a fetch shows a banner:
+     "recovered N previously-missing book(s); M unavailable/delisted (see console)".
+  2. **Name and explain the library filter — still missing.** This task.
+
+**Removed vs. delisted — two different cases**
+- **Removed books** have **left** your Amazon library: a returned loan, a sample you deleted. They're no longer in the
+  list Amazon sends. These are what **Tools → Removed books** (7.19.0) handles.
+- **Delisted books** were withdrawn from Amazon's **catalog**, but you still own them. They're **still in** your Amazon
+  library list, just with no title, author or cover attached. The removed-books check deliberately counts them as
+  present, so they never reach the Removed books dialog. A delisted book that can't be filled in at all is what the
+  end-of-fetch banner (part 1 above) reports.
+
+**What the filter is**
+- When the fetcher asks Amazon for your library, it adds a filter that hides two of Amazon's internal tag groups —
+  mirroring what Amazon's own Your Books page hides.
+- Today that filter is a long, unexplained code string pasted into **4 places** in the fetcher. Changing it means
+  finding and editing all 4 identically, with nothing saying what it does.
+
+**To do**
+- Put the whole filter (both tags) in **one** named, commented constant, and use it in all 4 places. No change in
+  behavior. Small.
+
+**How (technical)**
+- The constant (approved by Ron 2026-10-14):
+  ```js
+  // Default library view filter — hides two of Amazon's tag groups, as Amazon's own Your Books page does:
+  //   222711ade… = "V"                  (purpose unknown — tags nothing on your account today)
+  //   858f501de… = "Permanently Remove" (items flagged for removal; also exactly the 13 dead "husk" records)
+  const LIBRARY_EXCLUDE_TAGS = 'NOT (222711ade9d0f22714af93d1c8afec60 OR 858f501de8e2d7ece33f768936463ac8)';
+  ```
+- The 4 queries: amazon-library-fetcher.js ~1040 (start-up test), ~1449 (main fetch), ~1748 (recovery sweep),
+  ~2805 (removed-books check).
+- Delisted = "product-null" in the code: the removed-books check adds those ASINs as present (~2869–2878).
+- A fetcher change: bump `FETCHER_VERSION`.
+
+#### Hide returned loans and borrows
+
+_Why it matters:_ Returned Prime, Kindle Unlimited and library loans clutter the library.
+
+**What you'd get**
+- A **"Returned"** ownership filter, hidden by default (a toggle shows them).
+- A bulk move-to-folder for the ones you want to keep.
+
+**Watch out**
+- **Not** via the ASIN exclusion list — that would block borrowing the book again.
+
+**How (technical)**
+- The fetcher flags borrow records with `activeBorrow === false`. Design: docs/design/RETURNED-BORROWS.md.
+
+#### A management view for Book Lists
+
+_Why it matters:_ One place to organize and order your Book Lists.
+
+**What you'd get**
+- A Book Lists management view, plus one ordering approach shared by every left-pane section (Folders / Views / Book Lists).
+
+**Spec:** docs/design/FOLDER-ORDERING.md. Related: "Book Lists and Searches: pin and sort them like Folders" (Up next).
+
+#### Delete a book from All Books (removes it everywhere)
+
+_Why it matters:_ Today you have to remove a book from each folder and list separately.
+
+**What you'd get**
+- Delete from All Books moves the book to the Trash, removing it from **every** folder and Book List at once.
+- The confirmation says how many places it's in.
+
+**How (technical)**
+- Reuse the membership snapshot, so restoring puts it back everywhere.
+
+#### Drag a box to select covers
+
+_Why it matters:_ Faster than clicking covers one by one.
+
+**What you'd get**
+- In cover view, drag a rectangle (or lasso) to select the covers inside it.
+
+**How (technical)**
+- Extends `explorerSelectedItems`.
+
+#### Show only hidden books
+
+_Why it matters:_ Answers "what have I hidden?" — today you have to hunt for them.
+
+**What you'd get** (ratified 2026-09-03)
+- "Show Hidden" becomes three choices: **Hide hidden** / **Show all** / **Only hidden**.
+- Today it only shows or hides them, so finding the 2 hidden books among 337 is impractical.
+
+#### Fetch: report exactly how your library compares with Amazon
+
+_Why it matters:_ So the fetch can honestly say "your library matches Amazon exactly", or list the differences.
+
+**The goal**
+- Your library matches Amazon **exactly** — 2,801 = 2,801 unique owned books — once both sides are counted the same way.
+
+**Rules** (spec'd 2026-09-03 by live investigation)
+1. **Compare sets of unique books, same scope on both sides.** ReaderWrangler's side excludes the wishlist (337). Amazon's side is de-duplicated: Amazon's total counts **purchase records**, not books (15 sample-then-buy pairs in your data), so use it only as a progress estimate.
+2. **Keep Amazon's standard filters everywhere.** Log the filtered-vs-unfiltered difference each fetch (13 today) as an early warning if Amazon reclassifies things.
+3. **Retire the count-based sweep** — it compared things that can never be equal. Instead:
+   - on Amazon but not here → missing books → fetch them by ASIN, upload as a small follow-up run;
+   - here but not on Amazon → **candidates** for "removed" → re-check just those before flagging.
+4. **What you see:** a two-way "Removed-books check" report — each direction hidden when it's 0, no "orphan" jargon, an ℹ️ note that they're "still safe in ReaderWrangler". The line "Your library matches Amazon exactly" becomes achievable.
+
+**Already done**
+- 7.7.0 (2026-09-04) stopped the false alarms: 13 "removed" books were physical items (maps, a DVD, "Shoes") the scan wouldn't count.
+- The false-orphan bug itself was fixed in fetcher v5.2.7.
+- Ruled out: Amazon's paging (30- and 50-page walks returned identical complete sets) and Amazon deletions (zero).
+
+**Still there** (checked 2026-10-14)
+- The old count-based sweep still runs (the 🩹 recovery sweep, amazon-library-fetcher.js ~1741).
+
+**How (technical)**
+- Filters: hash `858f501de…` tags exactly the 13 product-null husks (unfetchable dead records, likely deleted samples); `222711ade…` tags nothing today. Maps and physical items are not hidden by the filter.
+- 101 tie-timestamp clusters covering 279 books were seen — harmless.
+- Amazon's total is the API's `totalCount` (acquisition records, not titles).
+
+#### Fetcher odds and ends (progress figure, frozen timer, request pacing)
+
+_Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
+
+**The list**
+1. A live positive test of an ownership **upgrade**.
+2. Un-trash on ownership upgrade (also a task in "On hold").
+3. Fix the "772%" figure in the details-filled ratio.
+4. The elapsed time freezes during the "Checking Relay" (both lines) and "Recovering" phases — it only repaints when the phase or progress changes. (Ron, 2026-09-03, twice.)
+5. **A minimum pause between requests** (~400 ms). Today it's 0 because network round-trips slow things naturally — but if Amazon's servers ever got faster, we'd hammer them. Decided earlier and never recorded until 2026-09-04.
+
+**How (technical)**
+- Item 2 lives in storage.js. Item 5: `FETCH_DELAY_MS`.
+
+#### Tooltips in the book details window
+
+_Why it matters:_ Some fields aren't self-explanatory — e.g. that Collections are read-only and come from Amazon.
+
+#### Wishlist: record the real format when a book is added
+
+_Why it matters:_ Today the format is only known after the book's details are filled in.
+
+**How (technical)**
+- Capture the binding from the product page (`bindingInformation`) when the book is added to the wishlist.
+
+#### Import book details from a pasted list or spreadsheet
+
+_Why it matters:_ A way to bring in information from outside Amazon.
+
+**What you'd get**
+- Paste a list or load a CSV; ReaderWrangler matches the rows to your books.
+
+**Spec:** docs/design/Metadata-Import.md.
+
+#### Set different series numbers on several books at once ("2, 4")
+
+_Why it matters:_ Needed when you own scattered volumes of a series.
+
+**What you'd get**
+- In a multi-book edit, type "2, 4" and the numbers go to the selected books in display order.
+- Needed for David Drake's Raj Whitehall books — gaps in what you own mean "renumber by current order" can't do it.
+
+#### One book in several series positions (omnibus, anthology, MegaPack)
+
+_Why it matters:_ A collection should appear at each place it belongs in its series.
+
+**What you'd get**
+- **One** book record holding **several** series positions, shown once at **each** position when sorted by series.
+- An omnibus that **is** volumes 1–3 (`1-3` or `1,2,3`; today's Raj Whitehall "789" workaround).
+- An anthology whose stories fall between volumes (`2.5, 4.5, 4.6, 5.5` — the Dresden *Side Jobs* pattern; today you file it at its first position with the story map in the Note).
+- A visible cue on the repeats ("also at 4.5", or a ⟳ badge) — deliberate duplication must look intentional.
+- **Manual order shows the book once** (manual positions are per book; repeats belong to series-sorted views).
+
+**Extension: several series in one book** (MegaPacks, Ron 2026-09-20)
+- A public-domain MegaPack can hold scattered volumes of several series at once (e.g. Skylark 1, 4 + Lensman 2, 4), possibly by several authors.
+- **Keep the common case simple:** one series → the existing Series field plus a numbers field that takes ranges and lists (`1-3, 5`). A **"+ add series"** link reveals a multi-row editor (series + numbers per row) only for the rare multi-series book.
+- Filtering matches if **any** of its series match; sorting uses the lowest position.
+
+**Decided**
+- **No duplicate book records**, and no fake ASIN-suffixed books (rejected 2026-09-15): they'd fight ASIN-keyed merging, the removed-books scan would flag them every fetch, and duplicate detection, upgrades and CSV would all need special cases.
+- **Per-story notes: out of scope** — you already tag notes free-form.
+- The rule "no duplicates in a folder" is untouched.
+
+**Open**
+- A scattered list (`1, 4`) fills each slot — that's the point. But a big contiguous range (`1-3`) may collapse to **one** labeled entry to avoid N identical covers. Settle it against a real MegaPack.
+- To spec: "Number by current order", the "2, 4" multi-edit (above), CSV export (one row, list in the column).
+- Multi-author MegaPacks: the compound-author problem is separate and pre-existing — not solved here.
+
+**How (technical)**
+- `seriesPosition` becomes a parseable list / range, expanded at sort time into display instances (the `_instanceId` render-layer idea — not duplicate records).
+- Generalized: `seriesMemberships: [{series, positions:[…]}]` — a normal book is one entry with one position (uniform data; the UI compacts it).
+- Ratified direction 2026-09-15.
+
+#### Folder menu: Move to Top / Move to Bottom
+
+_Why it matters:_ Quicker than dragging a folder a long way.
+
+#### Folder dragging: where you drop decides pinned, and the level
+
+_Why it matters:_ Folders land somewhere other than where the guide line showed, and sorting reshuffles folders you arranged by hand.
+
+**What you see** (Ron, 2026-10-14)
+1. **Wrong level at an expanded folder's edge.** Drag a folder to just above a top-level folder that sits below an
+   *expanded* folder: it lands **inside** the expanded folder (after its last subfolder), not at the top level.
+2. **Dropped into the pins, placed below them.** Drag a folder (a subfolder of a pinned folder, or an unpinned
+   top-level folder) into the pinned area: it lands **below** the pinned folders, unpinned. _(That's the August
+   "wall" rule working as designed — now reversed, see Decided.)_
+3. **Sorting reorders a pinned folder's subfolders.** Switch to Name A→Z / Z→A: subfolders inside a pinned folder
+   re-sort. And they show no 📌, so you can't tell whether they're pinned.
+
+**Decided** (Ron + UX, 2026-10-14 — design of record: docs/design/FOLDER-ORDERING.md, "drag decides pinning")
+1. **Where you drop decides.** Dropping among the pins **pins** it (at that spot); dragging a pinned folder below
+   the pins **unpins** it. A **divider** under the last pinned folder marks the edge; the guide line shows a **📌** in
+   the pinned zone; **one undo** and a message ("Pinned 'X'"). Right-click Pin / Unpin stays.
+2. **Sorted mode, dragged out of the pins:** lands at its sorted position; its manual position becomes the **top,
+   just below the pins** (the existing rule for every new arrival).
+3. **Pinned means hand-arranged, all the way down.** A pinned folder's subfolders (and theirs) keep their manual
+   order in every sort mode; new or dropped subfolders inside are placed by hand (new ones at the top). Each shows a
+   **faded, non-clickable 📌** with the tooltip "Kept in manual order because 'X' is pinned". The parent's 📌 stays
+   the real, clickable control.
+4. **The level at an expanded folder's edge:** top half of the next top-level row → **top level** (full-width guide
+   line); bottom half of the last subfolder row → **inside** (indented guide line). If nesting is deeper there, add
+   horizontal pointer position to pick the level (the outliner convention).
+
+**History**
+- Replaces "Dragging a subfolder to the top level drops it in the wrong place" (2026-08-03): Ron suspects that one is
+  fixed (7.6.0 moved new folders to the top); case 1 above is what's left.
+
+**How (technical)**
+- Pins are per level today: `f.pinned` on any folder; each parent's children are pins-first, then the global sort
+  (readerwrangler.js ~3052–3087). Rule 3 changes that for children of a pinned ancestor — decide how existing
+  per-child pins migrate.
+- Drag-to-pin / unpin needs the drop handlers to stop snapping at the boundary (the "wall"), and the drop position to
+  set or clear `pinned` as one undo step.
+- Check how the drop target's level is computed today before changing it (case 1 suggests row halves are ignored
+  at that edge).
+
+#### Book Lists: arrange by series number
+
+_Why it matters:_ Put a list in series order once, then adjust it by hand.
+
+**What you'd get**
+- In Manual mode, "Arrange by series #" bakes the series-number order into the list's manual order — a one-time rearrange, not a live sort.
+- The Book List version of a folder's sort-then-keep.
+
+**Not to confuse with**
+- The existing "Number by current order", which sets each book's series **number**, not the list's order.
+
+#### Left pane: put the jump-to-top / bottom buttons by the scrollbar
+
+_Why it matters:_ They sit at the bottom left today, not where you'd look for them.
+
+**What you see**
+- Both jump buttons (to top / to bottom) sit at the bottom-left of the left pane. You expected top-at-top and bottom-at-bottom, by the scrollbar.
+
+**Options**
+- Move the pair to the right, near the scrollbar (where scroll controls conventionally live).
+- Or one "back to top" button that appears when you scroll down.
+
+**Decided**
+- No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
+
+---
 
 ## 🚦 Before public launch
 
@@ -1280,355 +1656,7 @@ _Why it matters:_ Losing undo mid-session is alarming; the cause is still unknow
 **Do now regardless**
 - Whitelist localhost and readerwrangler.com in TinySuspender. A suspended ReaderWrangler tab can also tear an upload when you leave it.
 
-### Ideas from the August 2026 library clean-up
-
-_Formerly: 2026-08-10 library-cleanup findings (Ron)_
-
-#### ✅ Auto-Organize preview: show which Book Lists a book is in
-
-_Why it matters:_ You see a book's folders but not its Book Lists while deciding where it goes.
-
-**Status:** done — Ron confirmed 2026-10-14. Delete at the next release.
-
-#### See an author's other books without leaving your spot
-
-_Why it matters:_ Today it takes All Books + a filter + finding your way back.
-
-**What you'd get**
-- From a book or folder, a quick view of the author's other books.
-
-#### Open one book's details without losing a multi-selection
-
-_Why it matters:_ Lets you identify a book mid-scan and carry on with your selection.
-
-**What you'd get**
-- With several books selected, right-click one → **Open** shows that book's details **without** clearing the selection.
-- Today, opening from a multi-selection opens the whole selection as a shelf you step through.
-- Name the menu item per a UX pass.
-
-#### User Guide: explain workarounds for fields you can't filter by
-
-_Why it matters:_ There's usually another way, e.g. add the column in List view and sort.
-
-**To do**
-- In the User Guide and the GPT manual: when someone can't filter by a field, show the workaround (e.g. List view → add that column → sort).
-
-#### Drag between Folders and Book Lists
-
-_Why it matters:_ Natural gestures for filling Book Lists, plus honest messages about what a drop did.
-
-**Honesty fixes**
-- From a list view, say "Added", not "Moved", in the message and its undo.
-- No fake "you can drop here" signals — including the left pane's blanket drop handling.
-- Book List reordering can be undone; fix an over-count in the message; fix a leak into the Trash.
-
-**The two new gestures** (decided 2026-08-29)
-- Drop a folder **on** a Book List row → adds the folder's books to that list.
-- Drop a folder or books **between** rows → creates a new list there: named "‹folder name› - To Read" for a folder, or by the naming engine for books (e.g. "Beach Reads").
-- Right-click → New also falls back to the current folder's name.
-
-**On ship:** update SUPPORT-KB §8 and §6 (they describe today's behavior).
-
-**Spec:** docs/design/CROSS-SECTION-DRAG.md.
-
-#### Search everywhere without leaving the current folder
-
-_Why it matters:_ Answers "is this book in my library?" without losing your place.
-
-**What you'd get** (Ron, 2026-08-29)
-- The search box still searches the current folder by default. While searching, a toggle shows: **This folder | Everywhere** (as in Finder / Explorer).
-- "Everywhere" shows matches from the whole library in the right pane, temporarily. Clearing the search returns you to the folder, scroll position untouched.
-- **Discoverability:** when nothing matches, offer *"No matches in ‹folder› — Search everywhere?"* as a one-click link (as Gmail and Amazon do).
-- Results work with the existing "where does this book live" popup, so the answer arrives with locations.
-
-**How (technical)**
-- Reuse the view-folder filter-stash plumbing for the temporary view.
-
-### Other follow-ups
-
-#### Wording pass: explain Book List shortcuts and Linked Copies
-
-_Why it matters:_ Those terms confuse people unless they're explained once, clearly.
-
-**To do**
-- Use "shortcut" language in Book List messages and menus.
-- Explain "Linked Copies" once, in the manual and the GPT manual.
-
-**Spec:** docs/design/TERMINOLOGY.md. (Filed for 6.12.1.)
-
-#### Stray double spaces in author names create duplicate authors
-
-_Why it matters:_ An author can split in two, making a series look incomplete.
-
-**What happened**
-- "Jodi  Taylor" (two spaces) and "Jodi Taylor" became two authors: 2 of 7 Time Police books were mis-authored, and the series looked incomplete in the Auto-Organize preview.
-
-**To do**
-- Collapse repeated spaces and trim, on fetch, Import and edit.
-- A **one-time cleanup** of existing data.
-
-#### Fetcher: name and explain Amazon's library filter
-
-_Why it matters:_ An unexplained code string is repeated in four places; one named, documented setting is safer to change.
-
-**Background** (checked 2026-10-14)
-- An old fetcher fix (`ee6d83c`, June 2026) had two parts. Both were lost when the fetcher was later rewritten.
-  1. **A notice for books Amazon has delisted — done.** Since fetcher v4.11.0, the end of a fetch shows a banner:
-     "recovered N previously-missing book(s); M unavailable/delisted (see console)".
-  2. **Name and explain the library filter — still missing.** This task.
-
-**Removed vs. delisted — two different cases**
-- **Removed books** have **left** your Amazon library: a returned loan, a sample you deleted. They're no longer in the
-  list Amazon sends. These are what **Tools → Removed books** (7.19.0) handles.
-- **Delisted books** were withdrawn from Amazon's **catalog**, but you still own them. They're **still in** your Amazon
-  library list, just with no title, author or cover attached. The removed-books check deliberately counts them as
-  present, so they never reach the Removed books dialog. A delisted book that can't be filled in at all is what the
-  end-of-fetch banner (part 1 above) reports.
-
-**What the filter is**
-- When the fetcher asks Amazon for your library, it adds a filter that hides two of Amazon's internal tag groups —
-  mirroring what Amazon's own Your Books page hides.
-- Today that filter is a long, unexplained code string pasted into **4 places** in the fetcher. Changing it means
-  finding and editing all 4 identically, with nothing saying what it does.
-
-**To do**
-- Put the whole filter (both tags) in **one** named, commented constant, and use it in all 4 places. No change in
-  behavior. Small.
-
-**How (technical)**
-- The constant (approved by Ron 2026-10-14):
-  ```js
-  // Default library view filter — hides two of Amazon's tag groups, as Amazon's own Your Books page does:
-  //   222711ade… = "V"                  (purpose unknown — tags nothing on your account today)
-  //   858f501de… = "Permanently Remove" (items flagged for removal; also exactly the 13 dead "husk" records)
-  const LIBRARY_EXCLUDE_TAGS = 'NOT (222711ade9d0f22714af93d1c8afec60 OR 858f501de8e2d7ece33f768936463ac8)';
-  ```
-- The 4 queries: amazon-library-fetcher.js ~1040 (start-up test), ~1449 (main fetch), ~1748 (recovery sweep),
-  ~2805 (removed-books check).
-- Delisted = "product-null" in the code: the removed-books check adds those ASINs as present (~2869–2878).
-- A fetcher change: bump `FETCHER_VERSION`.
-
-#### Hide returned loans and borrows
-
-_Why it matters:_ Returned Prime, Kindle Unlimited and library loans clutter the library.
-
-**What you'd get**
-- A **"Returned"** ownership filter, hidden by default (a toggle shows them).
-- A bulk move-to-folder for the ones you want to keep.
-
-**Watch out**
-- **Not** via the ASIN exclusion list — that would block borrowing the book again.
-
-**How (technical)**
-- The fetcher flags borrow records with `activeBorrow === false`. Design: docs/design/RETURNED-BORROWS.md.
-
-#### A management view for Book Lists
-
-_Why it matters:_ One place to organize and order your Book Lists.
-
-**What you'd get**
-- A Book Lists management view, plus one ordering approach shared by every left-pane section (Folders / Views / Book Lists).
-
-**Spec:** docs/design/FOLDER-ORDERING.md. Related: "Book Lists and Searches: pin and sort them like Folders" (Up next).
-
-#### Delete a book from All Books (removes it everywhere)
-
-_Why it matters:_ Today you have to remove a book from each folder and list separately.
-
-**What you'd get**
-- Delete from All Books moves the book to the Trash, removing it from **every** folder and Book List at once.
-- The confirmation says how many places it's in.
-
-**How (technical)**
-- Reuse the membership snapshot, so restoring puts it back everywhere.
-
-#### Drag a box to select covers
-
-_Why it matters:_ Faster than clicking covers one by one.
-
-**What you'd get**
-- In cover view, drag a rectangle (or lasso) to select the covers inside it.
-
-**How (technical)**
-- Extends `explorerSelectedItems`.
-
-#### Show only hidden books
-
-_Why it matters:_ Answers "what have I hidden?" — today you have to hunt for them.
-
-**What you'd get** (ratified 2026-09-03)
-- "Show Hidden" becomes three choices: **Hide hidden** / **Show all** / **Only hidden**.
-- Today it only shows or hides them, so finding the 2 hidden books among 337 is impractical.
-
-#### Fetch: report exactly how your library compares with Amazon
-
-_Why it matters:_ So the fetch can honestly say "your library matches Amazon exactly", or list the differences.
-
-**The goal**
-- Your library matches Amazon **exactly** — 2,801 = 2,801 unique owned books — once both sides are counted the same way.
-
-**Rules** (spec'd 2026-09-03 by live investigation)
-1. **Compare sets of unique books, same scope on both sides.** ReaderWrangler's side excludes the wishlist (337). Amazon's side is de-duplicated: Amazon's total counts **purchase records**, not books (15 sample-then-buy pairs in your data), so use it only as a progress estimate.
-2. **Keep Amazon's standard filters everywhere.** Log the filtered-vs-unfiltered difference each fetch (13 today) as an early warning if Amazon reclassifies things.
-3. **Retire the count-based sweep** — it compared things that can never be equal. Instead:
-   - on Amazon but not here → missing books → fetch them by ASIN, upload as a small follow-up run;
-   - here but not on Amazon → **candidates** for "removed" → re-check just those before flagging.
-4. **What you see:** a two-way "Removed-books check" report — each direction hidden when it's 0, no "orphan" jargon, an ℹ️ note that they're "still safe in ReaderWrangler". The line "Your library matches Amazon exactly" becomes achievable.
-
-**Already done**
-- 7.7.0 (2026-09-04) stopped the false alarms: 13 "removed" books were physical items (maps, a DVD, "Shoes") the scan wouldn't count.
-- The false-orphan bug itself was fixed in fetcher v5.2.7.
-- Ruled out: Amazon's paging (30- and 50-page walks returned identical complete sets) and Amazon deletions (zero).
-
-**Still there** (checked 2026-10-14)
-- The old count-based sweep still runs (the 🩹 recovery sweep, amazon-library-fetcher.js ~1741).
-
-**How (technical)**
-- Filters: hash `858f501de…` tags exactly the 13 product-null husks (unfetchable dead records, likely deleted samples); `222711ade…` tags nothing today. Maps and physical items are not hidden by the filter.
-- 101 tie-timestamp clusters covering 279 books were seen — harmless.
-- Amazon's total is the API's `totalCount` (acquisition records, not titles).
-
-#### Fetcher odds and ends (progress figure, frozen timer, request pacing)
-
-_Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
-
-**The list**
-1. A live positive test of an ownership **upgrade**.
-2. Un-trash on ownership upgrade (also a task in "On hold").
-3. Fix the "772%" figure in the details-filled ratio.
-4. The elapsed time freezes during the "Checking Relay" (both lines) and "Recovering" phases — it only repaints when the phase or progress changes. (Ron, 2026-09-03, twice.)
-5. **A minimum pause between requests** (~400 ms). Today it's 0 because network round-trips slow things naturally — but if Amazon's servers ever got faster, we'd hammer them. Decided earlier and never recorded until 2026-09-04.
-
-**How (technical)**
-- Item 2 lives in storage.js. Item 5: `FETCH_DELAY_MS`.
-
-#### Tooltips in the book details window
-
-_Why it matters:_ Some fields aren't self-explanatory — e.g. that Collections are read-only and come from Amazon.
-
-#### Wishlist: record the real format when a book is added
-
-_Why it matters:_ Today the format is only known after the book's details are filled in.
-
-**How (technical)**
-- Capture the binding from the product page (`bindingInformation`) when the book is added to the wishlist.
-
-#### Import book details from a pasted list or spreadsheet
-
-_Why it matters:_ A way to bring in information from outside Amazon.
-
-**What you'd get**
-- Paste a list or load a CSV; ReaderWrangler matches the rows to your books.
-
-**Spec:** docs/design/Metadata-Import.md.
-
-#### Set different series numbers on several books at once ("2, 4")
-
-_Why it matters:_ Needed when you own scattered volumes of a series.
-
-**What you'd get**
-- In a multi-book edit, type "2, 4" and the numbers go to the selected books in display order.
-- Needed for David Drake's Raj Whitehall books — gaps in what you own mean "renumber by current order" can't do it.
-
-#### One book in several series positions (omnibus, anthology, MegaPack)
-
-_Why it matters:_ A collection should appear at each place it belongs in its series.
-
-**What you'd get**
-- **One** book record holding **several** series positions, shown once at **each** position when sorted by series.
-- An omnibus that **is** volumes 1–3 (`1-3` or `1,2,3`; today's Raj Whitehall "789" workaround).
-- An anthology whose stories fall between volumes (`2.5, 4.5, 4.6, 5.5` — the Dresden *Side Jobs* pattern; today you file it at its first position with the story map in the Note).
-- A visible cue on the repeats ("also at 4.5", or a ⟳ badge) — deliberate duplication must look intentional.
-- **Manual order shows the book once** (manual positions are per book; repeats belong to series-sorted views).
-
-**Extension: several series in one book** (MegaPacks, Ron 2026-09-20)
-- A public-domain MegaPack can hold scattered volumes of several series at once (e.g. Skylark 1, 4 + Lensman 2, 4), possibly by several authors.
-- **Keep the common case simple:** one series → the existing Series field plus a numbers field that takes ranges and lists (`1-3, 5`). A **"+ add series"** link reveals a multi-row editor (series + numbers per row) only for the rare multi-series book.
-- Filtering matches if **any** of its series match; sorting uses the lowest position.
-
-**Decided**
-- **No duplicate book records**, and no fake ASIN-suffixed books (rejected 2026-09-15): they'd fight ASIN-keyed merging, the removed-books scan would flag them every fetch, and duplicate detection, upgrades and CSV would all need special cases.
-- **Per-story notes: out of scope** — you already tag notes free-form.
-- The rule "no duplicates in a folder" is untouched.
-
-**Open**
-- A scattered list (`1, 4`) fills each slot — that's the point. But a big contiguous range (`1-3`) may collapse to **one** labeled entry to avoid N identical covers. Settle it against a real MegaPack.
-- To spec: "Number by current order", the "2, 4" multi-edit (above), CSV export (one row, list in the column).
-- Multi-author MegaPacks: the compound-author problem is separate and pre-existing — not solved here.
-
-**How (technical)**
-- `seriesPosition` becomes a parseable list / range, expanded at sort time into display instances (the `_instanceId` render-layer idea — not duplicate records).
-- Generalized: `seriesMemberships: [{series, positions:[…]}]` — a normal book is one entry with one position (uniform data; the UI compacts it).
-- Ratified direction 2026-09-15.
-
-#### Folder menu: Move to Top / Move to Bottom
-
-_Why it matters:_ Quicker than dragging a folder a long way.
-
-#### Folder dragging: where you drop decides pinned, and the level
-
-_Why it matters:_ Folders land somewhere other than where the guide line showed, and sorting reshuffles folders you arranged by hand.
-
-**What you see** (Ron, 2026-10-14)
-1. **Wrong level at an expanded folder's edge.** Drag a folder to just above a top-level folder that sits below an
-   *expanded* folder: it lands **inside** the expanded folder (after its last subfolder), not at the top level.
-2. **Dropped into the pins, placed below them.** Drag a folder (a subfolder of a pinned folder, or an unpinned
-   top-level folder) into the pinned area: it lands **below** the pinned folders, unpinned. _(That's the August
-   "wall" rule working as designed — now reversed, see Decided.)_
-3. **Sorting reorders a pinned folder's subfolders.** Switch to Name A→Z / Z→A: subfolders inside a pinned folder
-   re-sort. And they show no 📌, so you can't tell whether they're pinned.
-
-**Decided** (Ron + UX, 2026-10-14 — design of record: docs/design/FOLDER-ORDERING.md, "drag decides pinning")
-1. **Where you drop decides.** Dropping among the pins **pins** it (at that spot); dragging a pinned folder below
-   the pins **unpins** it. A **divider** under the last pinned folder marks the edge; the guide line shows a **📌** in
-   the pinned zone; **one undo** and a message ("Pinned 'X'"). Right-click Pin / Unpin stays.
-2. **Sorted mode, dragged out of the pins:** lands at its sorted position; its manual position becomes the **top,
-   just below the pins** (the existing rule for every new arrival).
-3. **Pinned means hand-arranged, all the way down.** A pinned folder's subfolders (and theirs) keep their manual
-   order in every sort mode; new or dropped subfolders inside are placed by hand (new ones at the top). Each shows a
-   **faded, non-clickable 📌** with the tooltip "Kept in manual order because 'X' is pinned". The parent's 📌 stays
-   the real, clickable control.
-4. **The level at an expanded folder's edge:** top half of the next top-level row → **top level** (full-width guide
-   line); bottom half of the last subfolder row → **inside** (indented guide line). If nesting is deeper there, add
-   horizontal pointer position to pick the level (the outliner convention).
-
-**History**
-- Replaces "Dragging a subfolder to the top level drops it in the wrong place" (2026-08-03): Ron suspects that one is
-  fixed (7.6.0 moved new folders to the top); case 1 above is what's left.
-
-**How (technical)**
-- Pins are per level today: `f.pinned` on any folder; each parent's children are pins-first, then the global sort
-  (readerwrangler.js ~3052–3087). Rule 3 changes that for children of a pinned ancestor — decide how existing
-  per-child pins migrate.
-- Drag-to-pin / unpin needs the drop handlers to stop snapping at the boundary (the "wall"), and the drop position to
-  set or clear `pinned` as one undo step.
-- Check how the drop target's level is computed today before changing it (case 1 suggests row halves are ignored
-  at that edge).
-
-#### Book Lists: arrange by series number
-
-_Why it matters:_ Put a list in series order once, then adjust it by hand.
-
-**What you'd get**
-- In Manual mode, "Arrange by series #" bakes the series-number order into the list's manual order — a one-time rearrange, not a live sort.
-- The Book List version of a folder's sort-then-keep.
-
-**Not to confuse with**
-- The existing "Number by current order", which sets each book's series **number**, not the list's order.
-
-#### Left pane: put the jump-to-top / bottom buttons by the scrollbar
-
-_Why it matters:_ They sit at the bottom left today, not where you'd look for them.
-
-**What you see**
-- Both jump buttons (to top / to bottom) sit at the bottom-left of the left pane. You expected top-at-top and bottom-at-bottom, by the scrollbar.
-
-**Options**
-- Move the pair to the right, near the scrollbar (where scroll controls conventionally live).
-- Or one "back to top" button that appears when you scroll down.
-
-**Decided**
-- No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
+---
 
 ## 🗄️ After launch
 
