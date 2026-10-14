@@ -1,13 +1,13 @@
 <!-- TOC -->
 
 - [TODO](#todo)
-  - [🔝 Up next](#up-next)
+  - [🔝 Up next](#-up-next)
     - [Cancelling a new folder that a filter hides should discard it](#cancelling-a-new-folder-that-a-filter-hides-should-discard-it)
     - [Start the local server automatically, without exposing private files](#start-the-local-server-automatically-without-exposing-private-files)
     - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
     - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
     - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
-    - [✅ Ctrl+A in a dialog must never select the page behind it](#ctrla-in-a-dialog-must-never-select-the-page-behind-it)
+    - [✅ Ctrl+A in a dialog must never select the page behind it](#-ctrla-in-a-dialog-must-never-select-the-page-behind-it)
     - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
     - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
     - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
@@ -25,7 +25,7 @@
     - [Tag from Collections: clear up the checkbox vs. preview confusion](#tag-from-collections-clear-up-the-checkbox-vs-preview-confusion)
     - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
     - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
-  - [⏸️ On hold: honest ownership changes (buying, samples, loans)](#on-hold-honest-ownership-changes-buying-samples-loans)
+  - [⏸️ On hold: honest ownership changes (buying, samples, loans)](#-on-hold-honest-ownership-changes-buying-samples-loans)
     - [Auto-Organize: let a misfiled book go back to the Inbox](#auto-organize-let-a-misfiled-book-go-back-to-the-inbox)
     - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
     - [Fetch summary should report books you bought](#fetch-summary-should-report-books-you-bought)
@@ -37,13 +37,13 @@
     - [Let library loans and Audible Plus books upgrade to owned](#let-library-loans-and-audible-plus-books-upgrade-to-owned)
     - [Write the wishlist / ownership rules down in one design doc](#write-the-wishlist--ownership-rules-down-in-one-design-doc)
     - [Relay Import: only books in no folder should go to the Inbox](#relay-import-only-books-in-no-folder-should-go-to-the-inbox)
-  - [🚦 Before public launch](#before-public-launch)
+  - [🚦 Before public launch](#-before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Security page: finish the high-contrast light theme](#security-page-finish-the-high-contrast-light-theme)
       - [Rewrite the User Guide around Searches, Book Lists and Folders](#rewrite-the-user-guide-around-searches-book-lists-and-folders)
       - [Rename "Relay" to "Cloud Sync" everywhere users see it](#rename-relay-to-cloud-sync-everywhere-users-see-it)
       - [Update and record the sizzle reel](#update-and-record-the-sizzle-reel)
-      - [✅ Add "Watch Tutorials" to the Help menu](#add-watch-tutorials-to-the-help-menu)
+      - [✅ Add "Watch Tutorials" to the Help menu](#-add-watch-tutorials-to-the-help-menu)
       - [Refresh the landing page's before / after screenshot](#refresh-the-landing-pages-before--after-screenshot)
       - [Create a FAQ page](#create-a-faq-page)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
@@ -57,15 +57,15 @@
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
     - [Costs](#costs)
       - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
-  - [🔧 Relay follow-ups](#relay-follow-ups)
+  - [🔧 Relay follow-ups](#-relay-follow-ups)
     - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
     - [Relay storage: stop leftovers piling up, and report usage correctly (in progress)](#relay-storage-stop-leftovers-piling-up-and-report-usage-correctly-in-progress)
     - [Let a new user's first big fetch resume after an interruption](#let-a-new-users-first-big-fetch-resume-after-an-interruption)
     - [Keep the settings the app and relay share in step](#keep-the-settings-the-app-and-relay-share-in-step)
-  - [💰 Price checking](#price-checking)
+  - [💰 Price checking](#-price-checking)
     - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
     - [Now and then, refresh ratings for books you might buy](#now-and-then-refresh-ratings-for-books-you-might-buy)
-  - [🔜 Soon](#soon)
+  - [🔜 Soon](#-soon)
     - [Undo, deleting and multiple windows](#undo-deleting-and-multiple-windows)
       - [Finish routing every change through one shared path, with undo](#finish-routing-every-change-through-one-shared-path-with-undo)
       - [The Delete key should delete the folders you've selected](#the-delete-key-should-delete-the-folders-youve-selected)
@@ -102,18 +102,18 @@
       - [Dragging a subfolder to the top level drops it in the wrong place](#dragging-a-subfolder-to-the-top-level-drops-it-in-the-wrong-place)
       - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
       - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
-  - [🗄️ After launch](#after-launch)
+  - [🗄️ After launch](#-after-launch)
     - [Dialog look](#dialog-look)
       - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
     - [Relay and data safety](#relay-and-data-safety)
-      - [✅ Safer relay saves (the relay redesign)](#safer-relay-saves-the-relay-redesign)
-      - [✅ Deleted books that stay deleted](#deleted-books-that-stay-deleted)
+      - [✅ Safer relay saves (the relay redesign)](#-safer-relay-saves-the-relay-redesign)
+      - [✅ Deleted books that stay deleted](#-deleted-books-that-stay-deleted)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Cheaper small syncs (send only what changed)](#cheaper-small-syncs-send-only-what-changed)
       - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
-      - [✅ Ask before restoring when relay credentials don't match](#ask-before-restoring-when-relay-credentials-dont-match)
+      - [✅ Ask before restoring when relay credentials don't match](#-ask-before-restoring-when-relay-credentials-dont-match)
     - [Features](#features)
       - [Finish keyboard accessibility](#finish-keyboard-accessibility)
       - [Show reading progress](#show-reading-progress)
@@ -124,9 +124,9 @@
       - [Support stores besides Amazon](#support-stores-besides-amazon)
       - [Several people on one installation](#several-people-on-one-installation)
       - [Smart collections (rule-based)](#smart-collections-rule-based)
-      - [✅ More ways to filter by Kindle collections](#more-ways-to-filter-by-kindle-collections)
+      - [✅ More ways to filter by Kindle collections](#-more-ways-to-filter-by-kindle-collections)
       - [Reading statistics](#reading-statistics)
-      - [✅ More export options (printable list)](#more-export-options-printable-list)
+      - [✅ More export options (printable list)](#-more-export-options-printable-list)
       - [Connect with Goodreads / StoryGraph](#connect-with-goodreads--storygraph)
       - [Animated drag-and-drop](#animated-drag-and-drop)
     - [Technical clean-up](#technical-clean-up)
@@ -137,7 +137,7 @@
       - [Clean up developer console messages](#clean-up-developer-console-messages)
       - [Check nothing was lost between versions 4 and 5](#check-nothing-was-lost-between-versions-4-and-5)
       - [Leftover desktop polish (left-pane keyboard, shadows)](#leftover-desktop-polish-left-pane-keyboard-shadows)
-  - [🧊 Someday](#someday)
+  - [🧊 Someday](#-someday)
     - [Test on Safari (desktop and iPhone)](#test-on-safari-desktop-and-iphone)
 
 <!-- /TOC -->
@@ -1294,17 +1294,42 @@ _Why it matters:_ An author can split in two, making a series look incomplete.
 
 _Why it matters:_ An unexplained code string is repeated in four places; one named, documented setting is safer to change.
 
-**Checked 2026-10-14** (Ron asked me to determine this one)
-- An old fix (`ee6d83c`, June 2026) had two parts that were lost in a later fetcher version:
-  1. **A notice for books Amazon has delisted — effectively done.** Since fetcher v4.11.0, unrecoverable books are counted and a banner says "N unavailable/delisted".
-  2. **Name and document the library filter — still missing.** The filter that hides two of Amazon's tag buckets is written out in full in 4 places, with no explanation.
+**Background** (checked 2026-10-14)
+- An old fetcher fix (`ee6d83c`, June 2026) had two parts. Both were lost when the fetcher was later rewritten.
+  1. **A notice for books Amazon has delisted — done.** Since fetcher v4.11.0, the end of a fetch shows a banner:
+     "recovered N previously-missing book(s); M unavailable/delisted (see console)".
+  2. **Name and explain the library filter — still missing.** This task.
+
+**Removed vs. delisted — two different cases**
+- **Removed books** have **left** your Amazon library: a returned loan, a sample you deleted. They're no longer in the
+  list Amazon sends. These are what **Tools → Removed books** (7.19.0) handles.
+- **Delisted books** were withdrawn from Amazon's **catalog**, but you still own them. They're **still in** your Amazon
+  library list, just with no title, author or cover attached. The removed-books check deliberately counts them as
+  present, so they never reach the Removed books dialog. A delisted book that can't be filled in at all is what the
+  end-of-fetch banner (part 1 above) reports.
+
+**What the filter is**
+- When the fetcher asks Amazon for your library, it adds a filter that hides two of Amazon's internal tag groups —
+  mirroring what Amazon's own Your Books page hides.
+- Today that filter is a long, unexplained code string pasted into **4 places** in the fetcher. Changing it means
+  finding and editing all 4 identically, with nothing saying what it does.
 
 **To do**
-- One named constant with a comment saying what the two tags are. Small.
+- Put the whole filter (both tags) in **one** named, commented constant, and use it in all 4 places. No change in
+  behavior. Small.
 
 **How (technical)**
-- `LIBRARY_EXCLUDE_TAGS = 'NOT (222711ade… OR 858f501de…)'`: `858f501de…` = "Permanently Remove" (also tags exactly the 13 product-null husks, per the 2026-09-03 probe); `222711ade…` = "V", purpose unknown, tags nothing today.
-- Used at amazon-library-fetcher.js ~1040, ~1449, ~1748, ~2805.
+- The constant (approved by Ron 2026-10-14):
+  ```js
+  // Default library view filter — hides two of Amazon's tag groups, as Amazon's own Your Books page does:
+  //   222711ade… = "V"                  (purpose unknown — tags nothing on your account today)
+  //   858f501de… = "Permanently Remove" (items flagged for removal; also exactly the 13 dead "husk" records)
+  const LIBRARY_EXCLUDE_TAGS = 'NOT (222711ade9d0f22714af93d1c8afec60 OR 858f501de8e2d7ece33f768936463ac8)';
+  ```
+- The 4 queries: amazon-library-fetcher.js ~1040 (start-up test), ~1449 (main fetch), ~1748 (recovery sweep),
+  ~2805 (removed-books check).
+- Delisted = "product-null" in the code: the removed-books check adds those ASINs as present (~2869–2878).
+- A fetcher change: bump `FETCHER_VERSION`.
 
 #### Hide returned loans and borrows
 
