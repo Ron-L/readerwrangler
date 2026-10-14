@@ -1,13 +1,14 @@
 <!-- TOC -->
 
 - [TODO](#todo)
-  - [🔝 Up next](#-up-next)
+  - [🔝 Up next](#up-next)
+    - [Save our working process in git, so losing this PC can't erase it](#save-our-working-process-in-git-so-losing-this-pc-cant-erase-it)
     - [Cancelling a new folder that a filter hides should discard it](#cancelling-a-new-folder-that-a-filter-hides-should-discard-it)
     - [Start the local server automatically, without exposing private files](#start-the-local-server-automatically-without-exposing-private-files)
     - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
     - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
     - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
-    - [✅ Ctrl+A in a dialog must never select the page behind it](#-ctrla-in-a-dialog-must-never-select-the-page-behind-it)
+    - [✅ Ctrl+A in a dialog must never select the page behind it](#ctrla-in-a-dialog-must-never-select-the-page-behind-it)
     - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
     - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
     - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
@@ -25,7 +26,7 @@
     - [Tag from Collections: clear up the checkbox vs. preview confusion](#tag-from-collections-clear-up-the-checkbox-vs-preview-confusion)
     - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
     - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
-  - [⏸️ On hold: honest ownership changes (buying, samples, loans)](#-on-hold-honest-ownership-changes-buying-samples-loans)
+  - [⏸️ On hold: honest ownership changes (buying, samples, loans)](#on-hold-honest-ownership-changes-buying-samples-loans)
     - [Auto-Organize: let a misfiled book go back to the Inbox](#auto-organize-let-a-misfiled-book-go-back-to-the-inbox)
     - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
     - [Fetch summary should report books you bought](#fetch-summary-should-report-books-you-bought)
@@ -37,13 +38,13 @@
     - [Let library loans and Audible Plus books upgrade to owned](#let-library-loans-and-audible-plus-books-upgrade-to-owned)
     - [Write the wishlist / ownership rules down in one design doc](#write-the-wishlist--ownership-rules-down-in-one-design-doc)
     - [Relay Import: only books in no folder should go to the Inbox](#relay-import-only-books-in-no-folder-should-go-to-the-inbox)
-  - [🚦 Before public launch](#-before-public-launch)
+  - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Security page: finish the high-contrast light theme](#security-page-finish-the-high-contrast-light-theme)
       - [Rewrite the User Guide around Searches, Book Lists and Folders](#rewrite-the-user-guide-around-searches-book-lists-and-folders)
       - [Rename "Relay" to "Cloud Sync" everywhere users see it](#rename-relay-to-cloud-sync-everywhere-users-see-it)
       - [Update and record the sizzle reel](#update-and-record-the-sizzle-reel)
-      - [✅ Add "Watch Tutorials" to the Help menu](#-add-watch-tutorials-to-the-help-menu)
+      - [✅ Add "Watch Tutorials" to the Help menu](#add-watch-tutorials-to-the-help-menu)
       - [Refresh the landing page's before / after screenshot](#refresh-the-landing-pages-before--after-screenshot)
       - [Create a FAQ page](#create-a-faq-page)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
@@ -57,15 +58,15 @@
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
     - [Costs](#costs)
       - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
-  - [🔧 Relay follow-ups](#-relay-follow-ups)
+  - [🔧 Relay follow-ups](#relay-follow-ups)
     - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
     - [Relay storage: stop leftovers piling up, and report usage correctly (in progress)](#relay-storage-stop-leftovers-piling-up-and-report-usage-correctly-in-progress)
     - [Let a new user's first big fetch resume after an interruption](#let-a-new-users-first-big-fetch-resume-after-an-interruption)
-    - [Keep the settings the app and relay share in step](#keep-the-settings-the-app-and-relay-share-in-step)
-  - [💰 Price checking](#-price-checking)
+    - [Numbers the app and relay must agree on: add a check that they match](#numbers-the-app-and-relay-must-agree-on-add-a-check-that-they-match)
+  - [💰 Price checking](#price-checking)
     - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
     - [Now and then, refresh ratings for books you might buy](#now-and-then-refresh-ratings-for-books-you-might-buy)
-  - [🔜 Soon](#-soon)
+  - [🔜 Soon](#soon)
     - [Undo, deleting and multiple windows](#undo-deleting-and-multiple-windows)
       - [Finish routing every change through one shared path, with undo](#finish-routing-every-change-through-one-shared-path-with-undo)
       - [The Delete key should delete the folders you've selected](#the-delete-key-should-delete-the-folders-youve-selected)
@@ -102,18 +103,18 @@
       - [Dragging a subfolder to the top level drops it in the wrong place](#dragging-a-subfolder-to-the-top-level-drops-it-in-the-wrong-place)
       - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
       - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
-  - [🗄️ After launch](#-after-launch)
+  - [🗄️ After launch](#after-launch)
     - [Dialog look](#dialog-look)
       - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
     - [Relay and data safety](#relay-and-data-safety)
-      - [✅ Safer relay saves (the relay redesign)](#-safer-relay-saves-the-relay-redesign)
-      - [✅ Deleted books that stay deleted](#-deleted-books-that-stay-deleted)
+      - [✅ Safer relay saves (the relay redesign)](#safer-relay-saves-the-relay-redesign)
+      - [✅ Deleted books that stay deleted](#deleted-books-that-stay-deleted)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Cheaper small syncs (send only what changed)](#cheaper-small-syncs-send-only-what-changed)
       - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
-      - [✅ Ask before restoring when relay credentials don't match](#-ask-before-restoring-when-relay-credentials-dont-match)
+      - [✅ Ask before restoring when relay credentials don't match](#ask-before-restoring-when-relay-credentials-dont-match)
     - [Features](#features)
       - [Finish keyboard accessibility](#finish-keyboard-accessibility)
       - [Show reading progress](#show-reading-progress)
@@ -124,9 +125,9 @@
       - [Support stores besides Amazon](#support-stores-besides-amazon)
       - [Several people on one installation](#several-people-on-one-installation)
       - [Smart collections (rule-based)](#smart-collections-rule-based)
-      - [✅ More ways to filter by Kindle collections](#-more-ways-to-filter-by-kindle-collections)
+      - [✅ More ways to filter by Kindle collections](#more-ways-to-filter-by-kindle-collections)
       - [Reading statistics](#reading-statistics)
-      - [✅ More export options (printable list)](#-more-export-options-printable-list)
+      - [✅ More export options (printable list)](#more-export-options-printable-list)
       - [Connect with Goodreads / StoryGraph](#connect-with-goodreads--storygraph)
       - [Animated drag-and-drop](#animated-drag-and-drop)
     - [Technical clean-up](#technical-clean-up)
@@ -137,7 +138,7 @@
       - [Clean up developer console messages](#clean-up-developer-console-messages)
       - [Check nothing was lost between versions 4 and 5](#check-nothing-was-lost-between-versions-4-and-5)
       - [Leftover desktop polish (left-pane keyboard, shadows)](#leftover-desktop-polish-left-pane-keyboard-shadows)
-  - [🧊 Someday](#-someday)
+  - [🧊 Someday](#someday)
     - [Test on Safari (desktop and iPhone)](#test-on-safari-desktop-and-iphone)
 
 <!-- /TOC -->
@@ -163,6 +164,54 @@
 _Formerly: 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-16)_
 
 In priority order as last set on 2026-09-16: the first three were "the stack", then the rest. Re-rank as we review.
+
+### Save our working process in git, so losing this PC can't erase it
+
+_Why it matters:_ My memory, the commit checks and the pre-build checklist live only on this PC — lost with it, and nothing would warn us.
+
+**What's at risk today** (inventory 2026-10-14)
+
+| What | Where it lives | What it does |
+|---|---|---|
+| **My memory — all ~54 files** | `~/.claude/projects/c--Users-Ron-Projects-ReaderWrangler/memory/` | everything I remember between sessions |
+| Pre-build checklist hooks | RW `.claude/hooks/gate-check.py`, `gate-reset.py` | the checklist bounce before code edits |
+| Their wiring + this PC's approvals | RW `.claude/settings.local.json` | turns those hooks on; holds your approved commands |
+| Version-stamp check | RW `.claude/hooks/version-guard.py` | refuses a commit whose version didn't move |
+| Commit-check wiring | RW `.git/hooks/pre-commit` | runs every commit check (git never saves its own hooks folder) |
+| `/sitemap` command | RW `.claude/commands/sitemap.md` | the class-of-sites comb |
+| Timestamp hook wiring | `~/.claude/settings.json` | runs `stamp.py` each turn |
+
+**Already safe** (in git and pushed)
+- RW: `CLAUDE.md`, `docs/PRINCIPLES.md` (incl. the checklist text), `docs/design/SESSION-TOOLING.md`, `scripts/check-names.js`, `scripts/check-toc.js`.
+- The Projects folder's own repo (GitHub `homelab-notes`): the cross-project `CLAUDE.md`, `CLAUDE-TOOLING.md`, `stamp.py`.
+- `.private` (its own private repo): secrets, research notes, the relay inventory tool.
+
+**Decided** (Ron, 2026-10-14)
+1. **Folders named for who runs them:**
+   - `git-hooks/` (in the repo) — run **by git** on each commit: the commit wiring, the version check, the names check, the table-of-contents check, and the app/relay match check (see "Numbers the app and relay must agree on"). Move `scripts/check-*.js` and `version-guard.py` here.
+   - `.claude/hooks/` — run **by Claude Code**: the pre-build checklist. Stays where it is, but is saved in git.
+2. **Point git at the saved folder:** `git config core.hooksPath git-hooks` — a one-time setting per copy of the project.
+3. **Settings split** (the way Claude Code intends):
+   - `.claude/settings.json` → **in the repo**: the hook wiring (already portable — it uses `$CLAUDE_PROJECT_DIR`, not your path) plus any approvals that make sense for anyone, written with relative paths.
+   - `.claude/settings.local.json` → **stays out of the public repo** (your absolute paths are right only for you) but is **backed up to `.private`**, so a rebuild doesn't mean re-approving dozens of prompts.
+4. **Memory backed up to `.private`** (private repo).
+5. **CONTRIBUTING.md lists the checks — never copies them.** A short list of what each check does and why, plus the one setup command. The scripts stay the source of truth (a copy would drift).
+
+**To do**
+1. Create `git-hooks/`; move the commit wiring, `version-guard.py` and both check scripts into it; update the paths they use.
+2. `git config core.hooksPath git-hooks`; prove it: a commit that should be refused is refused.
+3. Un-ignore `.claude/` except `settings.local.json`; move the hook wiring from `settings.local.json` into `settings.json`; commit `.claude/hooks/`, `.claude/commands/`, `.claude/settings.json`.
+4. Back up memory and `settings.local.json` into `.private`; push it.
+5. CONTRIBUTING.md: replace the out-of-date hook section (it says the pre-commit hook "auto-rebuilds SKILL zips" — it doesn't anymore) with the list + setup command.
+6. Update CLAUDE.md's tooling section and SESSION-TOOLING.md to the new locations.
+
+**Later (smaller)**
+- **Fail loud when a copy isn't set up:** the session-start hook warns "commit checks are not active" if `core.hooksPath` isn't `git-hooks`.
+- Back up the global timestamp wiring (`~/.claude/settings.json`'s hook entry) — e.g. into the Projects repo.
+- Decide whether memory is backed up **automatically** (e.g. a step in the release checklist, or a hook) rather than by hand.
+
+**Watch out**
+- The RW repo is **public**: nothing with secrets goes in it. (Your approvals file holds only your project path — still kept personal, since it's wrong for anyone else.)
 
 ### Cancelling a new folder that a filter hides should discard it
 
@@ -1037,21 +1086,40 @@ _Why it matters:_ A first 3,000-book fetch that dies near the end starts over fr
 **How (technical)**
 - Send enrichment progress as mailbox letters in stages, so a resumed run's skip-hint already knows what's done.
 
-### Keep the settings the app and relay share in step
+### Numbers the app and relay must agree on: add a check that they match
 
-_Why it matters:_ Values copied by hand in two places can drift apart.
+_Why it matters:_ The same rules are typed separately in two programs; change one and forget the other, and things quietly go wrong.
 
-**What happens**
-- A few values exist in both the app and the relay worker, copied by hand: how long uploads are kept (90 days), and the format of upload IDs.
-- The plan was: fine at two, with comments pointing at each other; revisit if a third appears.
+**What this is about**
+- ReaderWrangler is two separate programs: **the app** (in your browser) and **the relay** (on Cloudflare).
+- A few numbers and rules must be **identical in both**, but each is typed separately in each program's code. Nothing
+  complains if they differ.
 
-**A third has appeared**
-- The relay-storage worker (branch `feature/relay-worker-b2`, unmerged) mirrors three more of the app's values: the 1-hour grace period, "keep the newest 2", and how an ID's time is read. Time to decide whether to share them.
+**Shared today**
+1. **How long an upload waits on the relay: 90 days.** The relay deletes an upload after 90 days; the app uses the same
+   90 days to decide when it can forget which uploads it already imported. If the relay kept uploads longer but the app
+   weren't changed, the app could forget it imported an old upload and **import it again** — re-applying old changes.
+2. **The format of upload IDs.** The relay builds each ID from a time, the device and a random part (like
+   `1760500000000-dRon-ab12`); the app reads the time back out of it.
+
+**Three more arrive with the relay storage work** (branch `feature/relay-worker-b2`)
+- The relay's daily storage check must judge leftovers by **exactly** the app's own cleanup rules: the 1-hour grace
+  period, "keep the newest 2 copies", and reading the time out of an ID.
+- If they differ, the check would report the app's normal copies as leftovers — and once deleting is on, could delete them.
+
+**Decided** (Ron, 2026-10-14) — option (c)
+- A **commit check** reads both programs and refuses a commit when any pair differs. Same style as the table-of-contents
+  check; about 30 lines; nothing changes in how either program loads.
+- Rejected: (a) leave it to comments and memory; (b) one shared file both load — cleanest in principle, but it means
+  restructuring how the app loads its relay code.
+- **Build it with the relay storage work (B2)**, where the three new copies come from. It lives in `git-hooks/` (see
+  "Save our working process in git").
 
 **How (technical)**
-- `LETTER_TTL` (worker, seconds) vs `LETTER_TTL_MS` (relay-client.js); the minted-ID format.
-- B2 adds `SWEEP_GRACE_MS` (mirrors `GC_GRACE_MS`), `SWEEP_KEEP_GENS` (mirrors `KEEP_GENS`), `idTimestamp`.
-- Both sides are JavaScript but run in different places; a shared constants module is possible.
+- Pairs: `LETTER_TTL` (worker, seconds) ↔ `LETTER_TTL_MS` (relay-client.js); the minted-ID format (`MINTED_ID_REGEX` /
+  `mintId` in the worker ↔ `idTimestamp` in relay-client.js); B2's `SWEEP_GRACE_MS` ↔ `GC_GRACE_MS`, `SWEEP_KEEP_GENS`
+  ↔ `KEEP_GENS`, and the worker's `idTimestamp` ↔ the client's.
+- Units differ (seconds vs ms) — the check must compare values, not text.
 
 ## 💰 Price checking
 
