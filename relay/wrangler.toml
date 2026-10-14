@@ -32,8 +32,7 @@ RELAY_ENV = "dev"
 # 7.22.0: dev sends its own daily summary (subject "[Dev] …": usage for both relays + a check of dev's storage).
 # Dev never sends threshold alerts — on dev, ANY schedule runs the summary (so a temporary test schedule is safe).
 [env.dev.triggers]
-# TEMPORARY TEST SCHEDULE (7.22.0-alpha.2) — every 10 minutes; revert to ["55 23 * * *"] after the test emails.
-crons = ["*/10 * * * *"]
+crons = ["55 23 * * *"]
 
 [[env.dev.kv_namespaces]]
 binding = "RELAY_KV"

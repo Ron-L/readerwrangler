@@ -78,7 +78,7 @@ const CF_LIMITS = {
 // Cloudflare's KV actionType → our counter. An action type not listed here is reported in the email, never dropped.
 const KV_ACTION_FIELDS = { read: 'kvReads', write: 'kvWrites', delete: 'kvDeletes', list: 'kvLists' };
 
-const WORKER_VERSION = '7.22.0-alpha.2'; // printed in every daily summary, so an email shows which deploy sent it
+const WORKER_VERSION = '7.22.0-alpha.3'; // printed in every daily summary, so an email shows which deploy sent it
 
 // THE list of relays (7.22.0, design §14a fix 2). One codebase, deployed twice; RELAY_ENV in wrangler.toml says which
 // deployment this is. Every daily summary reports ALL relays here (the free limits are shared account-wide); each
@@ -867,7 +867,10 @@ async function sendAlert(env, subject, message) {
                 from: 'ReaderWrangler Relay <alerts@readerwrangler.com>',
                 to: [env.ALERT_TO_EMAIL],
                 subject: `${tag}🚨 ${subject}`,
-                text: message
+                text: message,
+                // 7.22.0 - plus a preformatted HTML copy: mail programs reflow plain text (Outlook joined lines of the
+                // summary); <pre> keeps every line break and the table's columns, in any client.
+                html: `<pre style="font-family:Consolas,Menlo,monospace;font-size:13px">${escapeHtml(message)}</pre>`
             })
         });
     } catch { /* best-effort — don't let alert failure break the request */ }
@@ -1248,10 +1251,13 @@ function formatStorageCheck(self, inv, usage) {
   const cf = usage && usage.relays[self.key];
   let check = `Keys counted just now: ${inv.keyCount.toLocaleString('en-US')}${inv.complete ? '' : '+ (stopped at the listing cap)'}`;
   if (cf && cf.storageKeys != null) {
+    // Cloudflare's keyCount is the day's HIGHEST count (max over the day), not a snapshot: keys that expired or were
+    // deleted since (e.g. 2-hour rate-limit counters) leave the live count below it. Only live > highest is suspect.
     const diff = inv.keyCount - cf.storageKeys;
-    check += `. Cloudflare's reading (${cf.storageDate}): ${cf.storageKeys.toLocaleString('en-US')} - ` + (diff === 0
-      ? 'matches, so the storage figure above is current.'
-      : `differs by ${diff > 0 ? '+' : ''}${diff} (keys added or removed since that reading, or the reading lags).`);
+    check += `. Cloudflare's highest count for ${cf.storageDate}: ${cf.storageKeys.toLocaleString('en-US')} - ` + (diff > 0
+      ? `LIVE IS ${diff} HIGHER, so Cloudflare's reading lags - the storage figure above may be out of date.`
+      : diff === 0 ? 'the same, so the storage figure above is current.'
+      : `${-diff} fewer now (keys expired or deleted since its high point) - consistent.`);
   } else {
     check += '. No Cloudflare reading to compare.';
   }
@@ -1268,6 +1274,10 @@ function formatStorageCheck(self, inv, usage) {
 }
 
 // --- Helpers ---
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 function validateChannelId(id) {
   return UUID_REGEX.test(id);
