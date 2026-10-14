@@ -3,29 +3,29 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [Save our working process in git, so losing this PC can't erase it](#save-our-working-process-in-git-so-losing-this-pc-cant-erase-it)
-    - [Cancelling a new folder that a filter hides should discard it](#cancelling-a-new-folder-that-a-filter-hides-should-discard-it)
     - [Start the local server automatically, without exposing private files](#start-the-local-server-automatically-without-exposing-private-files)
-    - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
+    - [Make sure an Import never wipes fields only ReaderWrangler sets](#make-sure-an-import-never-wipes-fields-only-readerwrangler-sets)
+    - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
     - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
+    - ["Add Bibliography to Wishlist" is greyed out on an author's All Books tab](#add-bibliography-to-wishlist-is-greyed-out-on-an-authors-all-books-tab)
+    - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
+    - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
+    - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
+    - [Faster back-to-back fetches: refresh everything at most once a day](#faster-back-to-back-fetches-refresh-everything-at-most-once-a-day)
+    - [Book Lists and Searches: pin and sort them like Folders](#book-lists-and-searches-pin-and-sort-them-like-folders)
+    - [A type-to-filter box for the left pane](#a-type-to-filter-box-for-the-left-pane)
+    - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
+    - [Tag from Collections: clear up the checkbox vs. preview confusion](#tag-from-collections-clear-up-the-checkbox-vs-preview-confusion)
+    - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
+    - [Ctrl+X from a Book List or Search quietly copies instead of cutting](#ctrlx-from-a-book-list-or-search-quietly-copies-instead-of-cutting)
+    - [Clearing a price goal doesn't fully clear it everywhere](#clearing-a-price-goal-doesnt-fully-clear-it-everywhere)
+    - [Cancelling a new folder that a filter hides should discard it](#cancelling-a-new-folder-that-a-filter-hides-should-discard-it)
+    - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
     - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
     - [✅ Ctrl+A in a dialog must never select the page behind it](#ctrla-in-a-dialog-must-never-select-the-page-behind-it)
     - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
     - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
     - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
-    - ["Add Bibliography to Wishlist" is greyed out on an author's All Books tab](#add-bibliography-to-wishlist-is-greyed-out-on-an-authors-all-books-tab)
-    - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
-    - [Book Lists and Searches: pin and sort them like Folders](#book-lists-and-searches-pin-and-sort-them-like-folders)
-    - [Clearing a price goal doesn't fully clear it everywhere](#clearing-a-price-goal-doesnt-fully-clear-it-everywhere)
-    - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
-    - [A type-to-filter box for the left pane](#a-type-to-filter-box-for-the-left-pane)
-    - [Ctrl+X from a Book List or Search quietly copies instead of cutting](#ctrlx-from-a-book-list-or-search-quietly-copies-instead-of-cutting)
-    - [Faster back-to-back fetches: refresh everything at most once a day](#faster-back-to-back-fetches-refresh-everything-at-most-once-a-day)
-    - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
-    - [Make sure an Import never wipes fields only ReaderWrangler sets](#make-sure-an-import-never-wipes-fields-only-readerwrangler-sets)
-    - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
-    - [Tag from Collections: clear up the checkbox vs. preview confusion](#tag-from-collections-clear-up-the-checkbox-vs-preview-confusion)
-    - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
-    - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
   - [⏸️ On hold: honest ownership changes (buying, samples, loans)](#on-hold-honest-ownership-changes-buying-samples-loans)
     - [Auto-Organize: let a misfiled book go back to the Inbox](#auto-organize-let-a-misfiled-book-go-back-to-the-inbox)
     - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
@@ -163,7 +163,7 @@
 
 _Formerly: 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-16)_
 
-In priority order as last set on 2026-09-16: the first three were "the stack", then the rest. Re-rank as we review.
+In priority order (Ron re-ranked 2026-10-14; the last seven kept their earlier order).
 
 ### Save our working process in git, so losing this PC can't erase it
 
@@ -213,25 +213,6 @@ _Why it matters:_ My memory, the commit checks and the pre-build checklist live 
 **Watch out**
 - The RW repo is **public**: nothing with secrets goes in it. (Your approvals file holds only your project path — still kept personal, since it's wrong for anyone else.)
 
-### Cancelling a new folder that a filter hides should discard it
-
-_Why it matters:_ A new folder can land hidden by your filters, and there's no clean way to back out. Cancel should just remove it.
-
-**What you see**
-- With filters active, create a folder. A notice says the filters are hiding it and it won't appear in the left pane.
-- The notice has no Cancel, so the folder stays, hidden.
-
-**Decided** (Ron, during 7.14.2 testing — Option A now, Option C later)
-- The notice gets 4 buttons: **Clear All Filters** / **Show All Folders** / **Leave As Is** (keep it hidden) / **Cancel**.
-- **Cancel** — and Esc, ✕, or a click on the background — deletes the just-created folder, undoably, with the message "New folder discarded".
-- **Later (Option C, separate):** warn *before* creating the folder, so nothing is created on Cancel; and stop the rename box opening on a folder row that's hidden.
-
-**How (technical)**
-- The notice is `newFolderHiddenAlert`; give its payload the new `folderId` at the 3 places that raise it (search
-  `setNewFolderHiddenAlert` — the line numbers recorded in September have drifted).
-- Delete through the existing undoable create-folder step (`CREATE_FOLDER`).
-- Option C would predict `hasActiveFilters` before creating.
-
 ### Start the local server automatically, without exposing private files
 
 _Why it matters:_ After every reboot you hunt for the server command, and today's server also shows private files to other devices at home.
@@ -256,29 +237,39 @@ _Why it matters:_ After every reboot you hunt for the server command, and today'
 - Don't use `--bind 127.0.0.1` (phone tests over the home network).
 - Today's command (the one you hunt for in developers.md): `python -m http.server 8000 --directory C:\Users\Ron\Projects\ReaderWrangler`. CONTRIBUTING's dead line is the Python 2 `SimpleHTTPServer` one. On your PC (2026-10-06): `py` → 3.14.7.
 
-### Book details window: changes happen only when you click Save
+### Make sure an Import never wipes fields only ReaderWrangler sets
 
-_Why it matters:_ Today some fields save instantly and others wait for Save. One rule makes the window predictable, with one undo per Save.
+_Why it matters:_ Two fields were being wiped on every Import; check no other field has the same gap, and decide whether backups should keep them.
 
-**What you'd get**
-- In the book details window, **Edit → Save is the only way anything changes** — one undo per Save. Cancel throws away everything you changed.
-- Rating, price goal and tags stop being instant controls: they become read-only in view mode and editable in edit mode, saved with everything else. A new tag is created at Save.
-- **Commands stay live in both modes:** Share, the Amazon link, Status History, ◀ ▶ (previous/next book).
-- Outside the window, changes stay instant (one undo each).
+**Done so far** (7.16.0)
+- The Tag from Collections wizard's two remembered settings were wiped on every Import. They're now protected, with a test locking that in.
 
-**Quick access** (replaces the instant controls)
-- In list view, click the Price Goal or My Rating cell to set it in place (preset goals / custom amount, or a row of stars).
-- Decide during the build: should right-clicking a cover also offer a My Rating submenu?
-
-**Steps**
-1. **Classify every control** in the window as a field (saved by Save) or a command (acts now). Publish the table for your red pen **before** any code.
-2. **Build** against the approved table — its own branch.
-
-**Status:** ratified 2026-09-10. Version number assigned when the work starts (the old "7.14.0" label is stale).
+**Still open**
+1. **The general check:** any field the app sets that isn't sent along with your organization must be protected from Import, or Import silently wipes it. Walk the list of what's sent against the field table and check every field.
+2. **Save / Restore and other devices still lose those two settings** — they aren't sent at all. If keeping the wizard's state across a backup matters, add them to what's sent and read back. Decide if it's in scope.
 
 **How (technical)**
-- Rating / price goal / tags join `editBookFields` as staged fields; Save folds them into the one `EDIT_BOOK` undo step.
-- Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and your context-keying principle: UNDO-MODEL.md, section "fully transactional".
+- Fields: `collectionTagSeen`, `collectionTags`; were incoming-wins (`'amazon'`), now local-wins (`'user'`) in the bookMerge registry, with a gate test.
+- The rule: an app-written field missing from the device-state push payload must be `'user'`.
+- Payload builder readerwrangler.js ~5560–5594; import parser ~6186 / ~6270. (2026-09-22)
+
+### Turn more of our working rules into automatic checks (my tooling)
+
+_Why it matters:_ Rules that depend on memory keep failing; automatic checks don't. This affects only how I work, not the app.
+
+**The idea** (Ron, 2026-09-22, after "assuming bit us again")
+- Go through docs/PRINCIPLES.md rule by rule and sort each one:
+  - **Can become an automatic check** that blocks a commit or release — for example: run the tests before a commit; search for leftover TODO / REMOVE markers before release; version bumped when code changed; cache-busters match.
+  - **Judgment only** (never assume, model the legal states, UX first). A hook can only *remind*, and reminders fade into rubber stamps. Give these teeth with a required artifact instead: e.g. every design doc must have an **"Assumptions (and how each was verified)"** section, which a hook can check exists when a design doc is written — catching assumptions at design time, not just at edit time.
+- Guard against reminder bloat — the pre-build checklist is already 11 points.
+
+**Open items**
+1. ✅ The pre-build checklist only watched two files — widened to all app code on 2026-10-08.
+2. **When an edit is bounced by the checklist inside a batch of edits, that one edit silently goes missing** (alpha.62 shipped half a fix). No obvious mechanism yet — a hook can't know which edits were intended. Needs design.
+3. **My code safety check can be skipped by accident** (7.19.0 post-mortem). The checklist only fires for my normal editing tool; edits made with a find-and-replace command skip it. Make it fire for those too. Small.
+
+**How (technical)**
+- Item 3: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
 
 ### Drag any dialog out of the way
 
@@ -308,6 +299,268 @@ _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them as
 - Message boxes share their window chrome in `attachDialogDismiss` (readerwrangler.js ~237); add drag there.
 - A click on a lower dialog actually lands on the top dialog's full-window background layer (readerwrangler.js ~69–71). The background-click close must ignore clicks that fall over another dialog.
 - New user feature, so it gets its own branch and release.
+
+### "Add Bibliography to Wishlist" is greyed out on an author's All Books tab
+
+_Why it matters:_ The bookmarklet doesn't recognize that kind of author page, so the button can't be used there.
+
+**What you see**
+- On Amazon, click an author's name (e.g. John Marrs), open their author page's **All Books** tab, filter English + Kindle, then click the ReaderWrangler bookmarklet.
+- The **⭐ Add Bibliography to Wishlist** button is disabled.
+- Example address: `https://www.amazon.com/stores/author/B00F1CRG9U/allbooks?…`
+
+**Likely cause** (found in the code, not yet tested live)
+- The bookmarklet recognizes an author page only when its address contains the author's **name**: `/stores/John-Marrs/author/B00F1CRG9U`.
+- The All Books tab's address has no name and adds `/allbooks`, so it isn't recognized.
+
+**To do**
+1. Accept both address shapes (name optional).
+2. Then test the bibliography fetch itself on the All Books page — its layout may differ from the author home page, and the English/Kindle filters may change what's on screen.
+
+**How (technical)**
+- The check is in bookmarklet-nav-hub.js (~line 68): `/\/stores\/[^/]+\/author\/[A-Z0-9]{10}/i`.
+- Fetcher / nav-hub change: bump their versions; test on the DEV bookmarklet first (a navigator change), then PROD.
+
+### Find a book by its ASIN in the search box
+
+_Why it matters:_ Handy for checking whether one specific book is in your library.
+
+**What you'd get**
+- Type a book's ASIN (e.g. `B08P52K2PZ`) into the search box at the top of the right pane, and it finds the book. Today the box matches only title, author and series.
+- The box's placeholder and tooltip mention ASIN.
+
+**Watch out**
+- The matching rule exists in **three copies**: the live search, saved Searches, and the phone's search (which also matches notes and tags). Make it **one** shared rule that all three use.
+
+**Status:** Ron, 2026-10-12 (came up testing removed books). Small.
+
+**How (technical)**
+- Copies: readerwrangler.js ~10044 (live filter), `bookMatchesFilters` ~2196 (saved Searches), mobile.js ~2289.
+- One `bookMatchesText(book, term)` in uiHelpers, with ASIN as exact or prefix match, case-insensitive.
+
+### Dark theme: fix the unreadable bar and the light strips
+
+_Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar's text is unreadable.
+
+**What you see** (View → Theme → Dark)
+1. The bar under the menu bar reading **"📡 New library data available (uploaded …)"** keeps its light blue/purple background while its text turns near-white — unreadable.
+2. A light strip shows under the **"🔍 Active: Search …"** bar, and wherever there's a gap between sections.
+3. Not yet seen by you, same cause: light boxes in the Auto-Organize preview, and likely more.
+
+**Why** (verified)
+- Dark mode works by swapping a specific list of colors. Anything colored outside that list stays light.
+- The relay bar's background is a fixed light gradient; the app's outer background is a gradient style that isn't on the list.
+
+**To do**
+- A sweep, not two spot fixes: find every fixed light color in the screens and move each onto the theme. Check each one in Dark afterwards.
+- **Mechanism idea:** a commit-time check that flags new fixed light backgrounds, next to the existing name check.
+
+**How (technical)**
+- Dark remaps Tailwind classes in readerwrangler.css (`[data-theme="dark"] .bg-white {…}` etc.).
+- Relay bar: inline `linear-gradient(135deg, #dbeafe, #ede9fe)` with `color: var(--text-primary)` (readerwrangler.js ~9360).
+- Outer container: `bg-gradient-to-br from-blue-50 to-blue-100` (~8992) — gradient classes aren't remapped; the Active bar's `mb-4` gap shows it.
+- Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
+- Grep for inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and unmapped Tailwind colors; move them to CSS variables (e.g. `var(--bg-surface)`) or add them to the dark remap. The check could sit beside `scripts/check-names.js`.
+
+### Phone: show which test build is running
+
+_Why it matters:_ During testing you can't tell from the phone which build it's on.
+
+**What you see**
+- The phone's About shows "App v…" — the last **released** version, which by design doesn't change during testing — and "Mobile v…".
+- The desktop shows the live test build (e.g. 7.16.0-alpha.6). The phone can't, since it's a different file. The mobile number does change with each test build, but the "App v" line looks stale.
+
+**To do**
+- Show a live build marker on the phone. Small display / version-plumbing fix.
+
+**How (technical)**
+- `APP_VERSION` (released, frozen during alphas) vs `ORGANIZER_VERSION` (live, desktop only) vs `MOBILE_VERSION` (moves per alpha).
+
+### Faster back-to-back fetches: refresh everything at most once a day
+
+_Why it matters:_ Grabbing one new book still re-prices and re-checks the whole library every time.
+
+**What you see** (Ron, 2026-09-19, patching $0.99 series holes: buy → download → import, again and again)
+- Each fetch re-prices every wishlist book, re-checks every book's details, and runs the full removed-books scan — wasteful when run back to back.
+
+**Decided**
+- **Always:** fetch what's new, and fill in the new books' details (series, cover, description) — you need them to file the books.
+- **At most once a day:** the whole-library passes — re-pricing the wishlist, re-checking existing books, the removed-books scan. A day matches when prices start showing as stale (KB §16), so price-watching doesn't suffer.
+- **When it skips, it says so** in the fetch's completion window, with one click to run them anyway: *"Skipped the full refresh (prices, details, removed-books check) — already done today. Do it now?"*
+- **No Shift/Alt-click shortcut** for this — Windows reports those keys unreliably on clicks, and nobody would discover it.
+
+**Before building**
+- Check whether the fetcher already separates "fill in NEW books" from "re-price / re-check ALL". If they're tangled together, separating them is the real work.
+
+**Also**
+- Build together with "Fetch summary should report books you bought" (On hold section) — same completion window.
+- When shipped, update SUPPORT-KB §16: "prices are as fresh as your last fetch" and "every wishlist book is re-priced each run" stop being true.
+
+**How (technical)**
+- Remember `lastFullPassAt` (relay, or browser storage on Amazon's site).
+- A fetcher (bookmarklet) change, maybe with app/relay help for the stored time and the dialog.
+
+### Book Lists and Searches: pin and sort them like Folders
+
+_Why it matters:_ A long Book Lists column is hard to search; Folders already have pins and a Name / Manual sort.
+
+**What you'd get**
+- Book Lists and Searches in the left pane get **the same controls and words as Folders** (7.6.0): pins (a top tier) and a header sort control, **Manual ↔ Name**. No second ordering system three inches from the first.
+- Pinning can be undone (list reordering already can, since 7.10.1-alpha.6).
+
+**How you'd use it** (Ron, 2026-09-10)
+- **Name to find** a list, then back to **Manual** for priority.
+- Your top tier is the `New To Read - *` work lists (Prime clearing first); series To-Read lists below.
+- Today you hunt with Ctrl+F, which costs a switch of thought.
+
+**Status:** queued behind the book details window rework.
+
+### A type-to-filter box for the left pane
+
+_Why it matters:_ With many folders, Book Lists and Searches, typing a few letters is the fastest way to find one.
+
+**What you'd get**
+- One box that narrows **Folders + Book Lists + Searches** by name — the strongest pure "find" at scale. The bigger sibling of the pin/sort task above.
+
+**Open questions**
+- Where it sits: one box for the whole pane, or one per section?
+- Keyboard: how you reach it (a shortcut?).
+- Does it clear when you navigate somewhere?
+- How it works with collapsed sections.
+
+**Status:** Ron, 2026-09-10.
+
+### "Read in Kindle": open a book in the Kindle app or Cloud Reader
+
+_Why it matters:_ Jump straight from ReaderWrangler to reading the book.
+
+**What you'd get**
+- A **Read** action on books you **own** (not wishlist or sample entries — those keep "Open in Amazon"):
+  - **Phone:** opens the book in the Android Kindle app.
+  - **Desktop:** opens Kindle Cloud Reader (read.amazon.com) at the book. Optionally also "Open in Kindle app" for Kindle-for-PC users (the browser asks "Open Kindle?").
+- **Not** a built-in reader — you still read on the Paperwhite.
+
+**Limits**
+- **Tested and failed (2026-09-19):** opening a book in the Android app does **not** move it to the top of the Paperwhite's list. So it only helps people who read in the app or Cloud Reader; Paperwhite-only readers gain nothing. Prioritize accordingly.
+- The links are **unofficial** — Amazon could break them. Keep a fallback to the book's Amazon page, and test per platform and app version.
+- Needs the **Kindle edition's** ASIN; a print-only owned book won't open. Some titles can't be read in Cloud Reader at all, and there's no way to tell in advance.
+- **Country matters:** non-US accounts need read.amazon.co.uk / .co.jp etc. Ask for the user's marketplace, or default to .com and rely on the fallback.
+
+**How (technical)**
+- Android (preferred, with fallback): `intent://book?action=open&asin=<ASIN>#Intent;scheme=kindle;package=com.amazon.kindle;S.browser_fallback_url=https%3A%2F%2Fwww.amazon.com%2Fdp%2F<ASIN>;end`
+- Android bare form: `kindle://book?action=open&asin=<ASIN>` — must come from a tap (Chrome blocks it otherwise); behavior has shifted between app versions (may land on the details page instead of opening the book).
+- Desktop: `https://read.amazon.com/?asin=<ASIN>` (opens if signed in; resumes at your last position).
+- Fallback: `https://www.amazon.com/dp/<ASIN>`.
+- Background research: the `reference_read_in_kindle` memory (Ron's 2026-09-19 research).
+
+### Tag from Collections: clear up the checkbox vs. preview confusion
+
+_Why it matters:_ Each row has two click targets that do different things, with nothing to tell them apart.
+
+**What you see** (in the Tag from Collections wizard's left list)
+- The **checkbox** means "include this collection when you Apply".
+- Clicking the **name** means "show this collection's books on the right".
+- Unchecking a box doesn't change the right side — only clicking a name does. And "checked" and "being shown" use the same row highlight, so you can't see the two states (it fooled you).
+
+**Unsettled — don't prescribe a fix yet**
+- First decide what the right side is **for**: a preview? the set Apply will use?
+- Then make the two states look different — or unify them (the right side follows the checkboxes / your last action, with a header like "Viewing: X").
+- Design pass before any code.
+
+**Also** (Ron, 2026-09-22)
+- A UX opinion wanted: should the wizard **also** be reachable from the Manage Tags menu — and where? Evaluate, don't just wire it in.
+
+**How (technical)**
+- The "shown" state is `tfcSelectedCollection`.
+
+### Restore dialog calls yesterday's backup "today"
+
+_Why it matters:_ A wrong date label can lead you to restore the wrong backup.
+
+**What you see**
+- A backup from 9/21 6:54 PM was labeled **"— today"** on 9/22. Not a time-zone effect: it was yesterday everywhere.
+
+**Likely cause**
+- "Within about 24 hours = today" instead of comparing calendar days — or a mix-up between UTC and local time.
+
+**To do**
+1. Verify first: find where the "— today" label is made.
+2. Compare by calendar day in local time, and add "yesterday" and "N days ago".
+
+### Ctrl+X from a Book List or Search quietly copies instead of cutting
+
+_Why it matters:_ You think you moved the book, but it never leaves the list.
+
+**What happens**
+- In a Book List or Search view, Ctrl+X a book, then paste it into a folder. It's added there, but stays in the list too.
+
+**To do** (pick one)
+- Refuse with an explanatory message (as All Books already does), **or**
+- Make paste remove the book from the Book List it was cut from.
+
+**How (technical)**
+- Cut records the view as the source, but paste-cut only removes from **folders**. Found during alpha testing (alpha.7), filed not fixed.
+
+### Clearing a price goal doesn't fully clear it everywhere
+
+_Why it matters:_ An old second price-goal field can keep a book counted as "has a goal" after you clear it.
+
+**What happens**
+- A few places treat a book as "has a goal" if **either** today's goal field **or** an older one is set: the Import's "kept their price goals" count, the fetcher's goal check, and the spreadsheet export.
+- Clearing a goal in the app clears only today's field. A book still carrying the old one keeps "having a goal" in those places.
+
+**To do**
+1. First count whether any real book still has the old field set.
+2. If so, move it into today's field once.
+3. Retire the old field — one goal field, not two. Small.
+
+**How (technical)**
+- Today's field: `priceTrigger`. Old field: `targetPrice`.
+- Readers: storage.js ~174 (import count), amazon-library-fetcher.js ~2286, the spreadsheet's `priceTrigger ?? targetPrice`; plus its row in bookFields.js.
+- Found 2026-10-12.
+
+### Cancelling a new folder that a filter hides should discard it
+
+_Why it matters:_ A new folder can land hidden by your filters, and there's no clean way to back out. Cancel should just remove it.
+
+**What you see**
+- With filters active, create a folder. A notice says the filters are hiding it and it won't appear in the left pane.
+- The notice has no Cancel, so the folder stays, hidden.
+
+**Decided** (Ron, during 7.14.2 testing — Option A now, Option C later)
+- The notice gets 4 buttons: **Clear All Filters** / **Show All Folders** / **Leave As Is** (keep it hidden) / **Cancel**.
+- **Cancel** — and Esc, ✕, or a click on the background — deletes the just-created folder, undoably, with the message "New folder discarded".
+- **Later (Option C, separate):** warn *before* creating the folder, so nothing is created on Cancel; and stop the rename box opening on a folder row that's hidden.
+
+**How (technical)**
+- The notice is `newFolderHiddenAlert`; give its payload the new `folderId` at the 3 places that raise it (search
+  `setNewFolderHiddenAlert` — the line numbers recorded in September have drifted).
+- Delete through the existing undoable create-folder step (`CREATE_FOLDER`).
+- Option C would predict `hasActiveFilters` before creating.
+
+### Book details window: changes happen only when you click Save
+
+_Why it matters:_ Today some fields save instantly and others wait for Save. One rule makes the window predictable, with one undo per Save.
+
+**What you'd get**
+- In the book details window, **Edit → Save is the only way anything changes** — one undo per Save. Cancel throws away everything you changed.
+- Rating, price goal and tags stop being instant controls: they become read-only in view mode and editable in edit mode, saved with everything else. A new tag is created at Save.
+- **Commands stay live in both modes:** Share, the Amazon link, Status History, ◀ ▶ (previous/next book).
+- Outside the window, changes stay instant (one undo each).
+
+**Quick access** (replaces the instant controls)
+- In list view, click the Price Goal or My Rating cell to set it in place (preset goals / custom amount, or a row of stars).
+- Decide during the build: should right-clicking a cover also offer a My Rating submenu?
+
+**Steps**
+1. **Classify every control** in the window as a field (saved by Save) or a command (acts now). Publish the table for your red pen **before** any code.
+2. **Build** against the approved table — its own branch.
+
+**Status:** ratified 2026-09-10. Version number assigned when the work starts (the old "7.14.0" label is stale).
+
+**How (technical)**
+- Rating / price goal / tags join `editBookFields` as staged fields; Save folds them into the one `EDIT_BOOK` undo step.
+- Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and your context-keying principle: UNDO-MODEL.md, section "fully transactional".
 
 ### Relay Setup: smoother sections and clearer Esc / Help behavior
 
@@ -399,259 +652,6 @@ _Why it matters:_ One click deletes a recent search with no message and no way b
 **Also**
 - Route it through the shared undo/message path, not a one-off.
 - Check what else still sits outside that path — tag and Search deletes were left out of it in 6.13.1.
-
-### "Add Bibliography to Wishlist" is greyed out on an author's All Books tab
-
-_Why it matters:_ The bookmarklet doesn't recognize that kind of author page, so the button can't be used there.
-
-**What you see**
-- On Amazon, click an author's name (e.g. John Marrs), open their author page's **All Books** tab, filter English + Kindle, then click the ReaderWrangler bookmarklet.
-- The **⭐ Add Bibliography to Wishlist** button is disabled.
-- Example address: `https://www.amazon.com/stores/author/B00F1CRG9U/allbooks?…`
-
-**Likely cause** (found in the code, not yet tested live)
-- The bookmarklet recognizes an author page only when its address contains the author's **name**: `/stores/John-Marrs/author/B00F1CRG9U`.
-- The All Books tab's address has no name and adds `/allbooks`, so it isn't recognized.
-
-**To do**
-1. Accept both address shapes (name optional).
-2. Then test the bibliography fetch itself on the All Books page — its layout may differ from the author home page, and the English/Kindle filters may change what's on screen.
-
-**How (technical)**
-- The check is in bookmarklet-nav-hub.js (~line 68): `/\/stores\/[^/]+\/author\/[A-Z0-9]{10}/i`.
-- Fetcher / nav-hub change: bump their versions; test on the DEV bookmarklet first (a navigator change), then PROD.
-
-### Dark theme: fix the unreadable bar and the light strips
-
-_Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar's text is unreadable.
-
-**What you see** (View → Theme → Dark)
-1. The bar under the menu bar reading **"📡 New library data available (uploaded …)"** keeps its light blue/purple background while its text turns near-white — unreadable.
-2. A light strip shows under the **"🔍 Active: Search …"** bar, and wherever there's a gap between sections.
-3. Not yet seen by you, same cause: light boxes in the Auto-Organize preview, and likely more.
-
-**Why** (verified)
-- Dark mode works by swapping a specific list of colors. Anything colored outside that list stays light.
-- The relay bar's background is a fixed light gradient; the app's outer background is a gradient style that isn't on the list.
-
-**To do**
-- A sweep, not two spot fixes: find every fixed light color in the screens and move each onto the theme. Check each one in Dark afterwards.
-- **Mechanism idea:** a commit-time check that flags new fixed light backgrounds, next to the existing name check.
-
-**How (technical)**
-- Dark remaps Tailwind classes in readerwrangler.css (`[data-theme="dark"] .bg-white {…}` etc.).
-- Relay bar: inline `linear-gradient(135deg, #dbeafe, #ede9fe)` with `color: var(--text-primary)` (readerwrangler.js ~9360).
-- Outer container: `bg-gradient-to-br from-blue-50 to-blue-100` (~8992) — gradient classes aren't remapped; the Active bar's `mb-4` gap shows it.
-- Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
-- Grep for inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and unmapped Tailwind colors; move them to CSS variables (e.g. `var(--bg-surface)`) or add them to the dark remap. The check could sit beside `scripts/check-names.js`.
-
-### Book Lists and Searches: pin and sort them like Folders
-
-_Why it matters:_ A long Book Lists column is hard to search; Folders already have pins and a Name / Manual sort.
-
-**What you'd get**
-- Book Lists and Searches in the left pane get **the same controls and words as Folders** (7.6.0): pins (a top tier) and a header sort control, **Manual ↔ Name**. No second ordering system three inches from the first.
-- Pinning can be undone (list reordering already can, since 7.10.1-alpha.6).
-
-**How you'd use it** (Ron, 2026-09-10)
-- **Name to find** a list, then back to **Manual** for priority.
-- Your top tier is the `New To Read - *` work lists (Prime clearing first); series To-Read lists below.
-- Today you hunt with Ctrl+F, which costs a switch of thought.
-
-**Status:** queued behind the book details window rework.
-
-### Clearing a price goal doesn't fully clear it everywhere
-
-_Why it matters:_ An old second price-goal field can keep a book counted as "has a goal" after you clear it.
-
-**What happens**
-- A few places treat a book as "has a goal" if **either** today's goal field **or** an older one is set: the Import's "kept their price goals" count, the fetcher's goal check, and the spreadsheet export.
-- Clearing a goal in the app clears only today's field. A book still carrying the old one keeps "having a goal" in those places.
-
-**To do**
-1. First count whether any real book still has the old field set.
-2. If so, move it into today's field once.
-3. Retire the old field — one goal field, not two. Small.
-
-**How (technical)**
-- Today's field: `priceTrigger`. Old field: `targetPrice`.
-- Readers: storage.js ~174 (import count), amazon-library-fetcher.js ~2286, the spreadsheet's `priceTrigger ?? targetPrice`; plus its row in bookFields.js.
-- Found 2026-10-12.
-
-### Find a book by its ASIN in the search box
-
-_Why it matters:_ Handy for checking whether one specific book is in your library.
-
-**What you'd get**
-- Type a book's ASIN (e.g. `B08P52K2PZ`) into the search box at the top of the right pane, and it finds the book. Today the box matches only title, author and series.
-- The box's placeholder and tooltip mention ASIN.
-
-**Watch out**
-- The matching rule exists in **three copies**: the live search, saved Searches, and the phone's search (which also matches notes and tags). Make it **one** shared rule that all three use.
-
-**Status:** Ron, 2026-10-12 (came up testing removed books). Small.
-
-**How (technical)**
-- Copies: readerwrangler.js ~10044 (live filter), `bookMatchesFilters` ~2196 (saved Searches), mobile.js ~2289.
-- One `bookMatchesText(book, term)` in uiHelpers, with ASIN as exact or prefix match, case-insensitive.
-
-### A type-to-filter box for the left pane
-
-_Why it matters:_ With many folders, Book Lists and Searches, typing a few letters is the fastest way to find one.
-
-**What you'd get**
-- One box that narrows **Folders + Book Lists + Searches** by name — the strongest pure "find" at scale. The bigger sibling of the pin/sort task above.
-
-**Open questions**
-- Where it sits: one box for the whole pane, or one per section?
-- Keyboard: how you reach it (a shortcut?).
-- Does it clear when you navigate somewhere?
-- How it works with collapsed sections.
-
-**Status:** Ron, 2026-09-10.
-
-### Ctrl+X from a Book List or Search quietly copies instead of cutting
-
-_Why it matters:_ You think you moved the book, but it never leaves the list.
-
-**What happens**
-- In a Book List or Search view, Ctrl+X a book, then paste it into a folder. It's added there, but stays in the list too.
-
-**To do** (pick one)
-- Refuse with an explanatory message (as All Books already does), **or**
-- Make paste remove the book from the Book List it was cut from.
-
-**How (technical)**
-- Cut records the view as the source, but paste-cut only removes from **folders**. Found during alpha testing (alpha.7), filed not fixed.
-
-### Faster back-to-back fetches: refresh everything at most once a day
-
-_Why it matters:_ Grabbing one new book still re-prices and re-checks the whole library every time.
-
-**What you see** (Ron, 2026-09-19, patching $0.99 series holes: buy → download → import, again and again)
-- Each fetch re-prices every wishlist book, re-checks every book's details, and runs the full removed-books scan — wasteful when run back to back.
-
-**Decided**
-- **Always:** fetch what's new, and fill in the new books' details (series, cover, description) — you need them to file the books.
-- **At most once a day:** the whole-library passes — re-pricing the wishlist, re-checking existing books, the removed-books scan. A day matches when prices start showing as stale (KB §16), so price-watching doesn't suffer.
-- **When it skips, it says so** in the fetch's completion window, with one click to run them anyway: *"Skipped the full refresh (prices, details, removed-books check) — already done today. Do it now?"*
-- **No Shift/Alt-click shortcut** for this — Windows reports those keys unreliably on clicks, and nobody would discover it.
-
-**Before building**
-- Check whether the fetcher already separates "fill in NEW books" from "re-price / re-check ALL". If they're tangled together, separating them is the real work.
-
-**Also**
-- Build together with "Fetch summary should report books you bought" (On hold section) — same completion window.
-- When shipped, update SUPPORT-KB §16: "prices are as fresh as your last fetch" and "every wishlist book is re-priced each run" stop being true.
-
-**How (technical)**
-- Remember `lastFullPassAt` (relay, or browser storage on Amazon's site).
-- A fetcher (bookmarklet) change, maybe with app/relay help for the stored time and the dialog.
-
-### "Read in Kindle": open a book in the Kindle app or Cloud Reader
-
-_Why it matters:_ Jump straight from ReaderWrangler to reading the book.
-
-**What you'd get**
-- A **Read** action on books you **own** (not wishlist or sample entries — those keep "Open in Amazon"):
-  - **Phone:** opens the book in the Android Kindle app.
-  - **Desktop:** opens Kindle Cloud Reader (read.amazon.com) at the book. Optionally also "Open in Kindle app" for Kindle-for-PC users (the browser asks "Open Kindle?").
-- **Not** a built-in reader — you still read on the Paperwhite.
-
-**Limits**
-- **Tested and failed (2026-09-19):** opening a book in the Android app does **not** move it to the top of the Paperwhite's list. So it only helps people who read in the app or Cloud Reader; Paperwhite-only readers gain nothing. Prioritize accordingly.
-- The links are **unofficial** — Amazon could break them. Keep a fallback to the book's Amazon page, and test per platform and app version.
-- Needs the **Kindle edition's** ASIN; a print-only owned book won't open. Some titles can't be read in Cloud Reader at all, and there's no way to tell in advance.
-- **Country matters:** non-US accounts need read.amazon.co.uk / .co.jp etc. Ask for the user's marketplace, or default to .com and rely on the fallback.
-
-**How (technical)**
-- Android (preferred, with fallback): `intent://book?action=open&asin=<ASIN>#Intent;scheme=kindle;package=com.amazon.kindle;S.browser_fallback_url=https%3A%2F%2Fwww.amazon.com%2Fdp%2F<ASIN>;end`
-- Android bare form: `kindle://book?action=open&asin=<ASIN>` — must come from a tap (Chrome blocks it otherwise); behavior has shifted between app versions (may land on the details page instead of opening the book).
-- Desktop: `https://read.amazon.com/?asin=<ASIN>` (opens if signed in; resumes at your last position).
-- Fallback: `https://www.amazon.com/dp/<ASIN>`.
-- Background research: the `reference_read_in_kindle` memory (Ron's 2026-09-19 research).
-
-### Make sure an Import never wipes fields only ReaderWrangler sets
-
-_Why it matters:_ Two fields were being wiped on every Import; check no other field has the same gap, and decide whether backups should keep them.
-
-**Done so far** (7.16.0)
-- The Tag from Collections wizard's two remembered settings were wiped on every Import. They're now protected, with a test locking that in.
-
-**Still open**
-1. **The general check:** any field the app sets that isn't sent along with your organization must be protected from Import, or Import silently wipes it. Walk the list of what's sent against the field table and check every field.
-2. **Save / Restore and other devices still lose those two settings** — they aren't sent at all. If keeping the wizard's state across a backup matters, add them to what's sent and read back. Decide if it's in scope.
-
-**How (technical)**
-- Fields: `collectionTagSeen`, `collectionTags`; were incoming-wins (`'amazon'`), now local-wins (`'user'`) in the bookMerge registry, with a gate test.
-- The rule: an app-written field missing from the device-state push payload must be `'user'`.
-- Payload builder readerwrangler.js ~5560–5594; import parser ~6186 / ~6270. (2026-09-22)
-
-### Turn more of our working rules into automatic checks (my tooling)
-
-_Why it matters:_ Rules that depend on memory keep failing; automatic checks don't. This affects only how I work, not the app.
-
-**The idea** (Ron, 2026-09-22, after "assuming bit us again")
-- Go through docs/PRINCIPLES.md rule by rule and sort each one:
-  - **Can become an automatic check** that blocks a commit or release — for example: run the tests before a commit; search for leftover TODO / REMOVE markers before release; version bumped when code changed; cache-busters match.
-  - **Judgment only** (never assume, model the legal states, UX first). A hook can only *remind*, and reminders fade into rubber stamps. Give these teeth with a required artifact instead: e.g. every design doc must have an **"Assumptions (and how each was verified)"** section, which a hook can check exists when a design doc is written — catching assumptions at design time, not just at edit time.
-- Guard against reminder bloat — the pre-build checklist is already 11 points.
-
-**Open items**
-1. ✅ The pre-build checklist only watched two files — widened to all app code on 2026-10-08.
-2. **When an edit is bounced by the checklist inside a batch of edits, that one edit silently goes missing** (alpha.62 shipped half a fix). No obvious mechanism yet — a hook can't know which edits were intended. Needs design.
-3. **My code safety check can be skipped by accident** (7.19.0 post-mortem). The checklist only fires for my normal editing tool; edits made with a find-and-replace command skip it. Make it fire for those too. Small.
-
-**How (technical)**
-- Item 3: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
-
-### Tag from Collections: clear up the checkbox vs. preview confusion
-
-_Why it matters:_ Each row has two click targets that do different things, with nothing to tell them apart.
-
-**What you see** (in the Tag from Collections wizard's left list)
-- The **checkbox** means "include this collection when you Apply".
-- Clicking the **name** means "show this collection's books on the right".
-- Unchecking a box doesn't change the right side — only clicking a name does. And "checked" and "being shown" use the same row highlight, so you can't see the two states (it fooled you).
-
-**Unsettled — don't prescribe a fix yet**
-- First decide what the right side is **for**: a preview? the set Apply will use?
-- Then make the two states look different — or unify them (the right side follows the checkboxes / your last action, with a header like "Viewing: X").
-- Design pass before any code.
-
-**Also** (Ron, 2026-09-22)
-- A UX opinion wanted: should the wizard **also** be reachable from the Manage Tags menu — and where? Evaluate, don't just wire it in.
-
-**How (technical)**
-- The "shown" state is `tfcSelectedCollection`.
-
-### Restore dialog calls yesterday's backup "today"
-
-_Why it matters:_ A wrong date label can lead you to restore the wrong backup.
-
-**What you see**
-- A backup from 9/21 6:54 PM was labeled **"— today"** on 9/22. Not a time-zone effect: it was yesterday everywhere.
-
-**Likely cause**
-- "Within about 24 hours = today" instead of comparing calendar days — or a mix-up between UTC and local time.
-
-**To do**
-1. Verify first: find where the "— today" label is made.
-2. Compare by calendar day in local time, and add "yesterday" and "N days ago".
-
-### Phone: show which test build is running
-
-_Why it matters:_ During testing you can't tell from the phone which build it's on.
-
-**What you see**
-- The phone's About shows "App v…" — the last **released** version, which by design doesn't change during testing — and "Mobile v…".
-- The desktop shows the live test build (e.g. 7.16.0-alpha.6). The phone can't, since it's a different file. The mobile number does change with each test build, but the "App v" line looks stale.
-
-**To do**
-- Show a live build marker on the phone. Small display / version-plumbing fix.
-
-**How (technical)**
-- `APP_VERSION` (released, frozen during alphas) vs `ORGANIZER_VERSION` (live, desktop only) vs `MOBILE_VERSION` (moves per alpha).
 
 ## ⏸️ On hold: honest ownership changes (buying, samples, loans)
 
