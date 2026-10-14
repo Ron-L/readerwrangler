@@ -77,7 +77,7 @@
       - [Book List menu: remove Move / Copy, and block dragging onto folders](#book-list-menu-remove-move--copy-and-block-dragging-onto-folders)
       - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
     - [Ideas from the August 2026 library clean-up](#ideas-from-the-august-2026-library-clean-up)
-      - [Auto-Organize preview: show which Book Lists a book is in](#auto-organize-preview-show-which-book-lists-a-book-is-in)
+      - [✅ Auto-Organize preview: show which Book Lists a book is in](#auto-organize-preview-show-which-book-lists-a-book-is-in)
       - [See an author's other books without leaving your spot](#see-an-authors-other-books-without-leaving-your-spot)
       - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
       - [User Guide: explain workarounds for fields you can't filter by](#user-guide-explain-workarounds-for-fields-you-cant-filter-by)
@@ -1279,9 +1279,11 @@ _Why it matters:_ Losing undo mid-session is alarming; the cause is still unknow
 
 _Formerly: 2026-08-10 library-cleanup findings (Ron)_
 
-#### Auto-Organize preview: show which Book Lists a book is in
+#### ✅ Auto-Organize preview: show which Book Lists a book is in
 
 _Why it matters:_ You see a book's folders but not its Book Lists while deciding where it goes.
+
+**Status:** done — Ron confirmed 2026-10-14. Delete at the next release.
 
 #### See an author's other books without leaving your spot
 
