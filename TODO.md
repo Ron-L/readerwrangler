@@ -100,7 +100,7 @@
       - [Set different series numbers on several books at once ("2, 4")](#set-different-series-numbers-on-several-books-at-once-2-4)
       - [One book in several series positions (omnibus, anthology, MegaPack)](#one-book-in-several-series-positions-omnibus-anthology-megapack)
       - [Folder menu: Move to Top / Move to Bottom](#folder-menu-move-to-top--move-to-bottom)
-      - [Dragging a subfolder to the top level drops it in the wrong place](#dragging-a-subfolder-to-the-top-level-drops-it-in-the-wrong-place)
+      - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
       - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
       - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
   - [🗄️ After launch](#after-launch)
@@ -1558,15 +1558,45 @@ _Why it matters:_ A collection should appear at each place it belongs in its ser
 
 _Why it matters:_ Quicker than dragging a folder a long way.
 
-#### Dragging a subfolder to the top level drops it in the wrong place
+#### Folder dragging: where you drop decides pinned, and the level
 
-_Why it matters:_ It lands near the bottom instead of where you dropped it.
+_Why it matters:_ Folders land somewhere other than where the guide line showed, and sorting reshuffles folders you arranged by hand.
 
-**What you see** (confirmed still broken 2026-08-03 — annoying)
-- Drag a subfolder out to the top level: it lands roughly alphabetically near the bottom, not at the drop spot.
+**What you see** (Ron, 2026-10-14)
+1. **Wrong level at an expanded folder's edge.** Drag a folder to just above a top-level folder that sits below an
+   *expanded* folder: it lands **inside** the expanded folder (after its last subfolder), not at the top level.
+2. **Dropped into the pins, placed below them.** Drag a folder (a subfolder of a pinned folder, or an unpinned
+   top-level folder) into the pinned area: it lands **below** the pinned folders, unpinned. _(That's the August
+   "wall" rule working as designed — now reversed, see Decided.)_
+3. **Sorting reorders a pinned folder's subfolders.** Switch to Name A→Z / Z→A: subfolders inside a pinned folder
+   re-sort. And they show no 📌, so you can't tell whether they're pinned.
+
+**Decided** (Ron + UX, 2026-10-14 — design of record: docs/design/FOLDER-ORDERING.md, "drag decides pinning")
+1. **Where you drop decides.** Dropping among the pins **pins** it (at that spot); dragging a pinned folder below
+   the pins **unpins** it. A **divider** under the last pinned folder marks the edge; the guide line shows a **📌** in
+   the pinned zone; **one undo** and a message ("Pinned 'X'"). Right-click Pin / Unpin stays.
+2. **Sorted mode, dragged out of the pins:** lands at its sorted position; its manual position becomes the **top,
+   just below the pins** (the existing rule for every new arrival).
+3. **Pinned means hand-arranged, all the way down.** A pinned folder's subfolders (and theirs) keep their manual
+   order in every sort mode; new or dropped subfolders inside are placed by hand (new ones at the top). Each shows a
+   **faded, non-clickable 📌** with the tooltip "Kept in manual order because 'X' is pinned". The parent's 📌 stays
+   the real, clickable control.
+4. **The level at an expanded folder's edge:** top half of the next top-level row → **top level** (full-width guide
+   line); bottom half of the last subfolder row → **inside** (indented guide line). If nesting is deeper there, add
+   horizontal pointer position to pick the level (the outliner convention).
+
+**History**
+- Replaces "Dragging a subfolder to the top level drops it in the wrong place" (2026-08-03): Ron suspects that one is
+  fixed (7.6.0 moved new folders to the top); case 1 above is what's left.
 
 **How (technical)**
-- Shares a root cause with the alphabetical insert of new folders and Move-to's stale position. _(7.6.0 moved new folders to the top — re-check what's left.)_
+- Pins are per level today: `f.pinned` on any folder; each parent's children are pins-first, then the global sort
+  (readerwrangler.js ~3052–3087). Rule 3 changes that for children of a pinned ancestor — decide how existing
+  per-child pins migrate.
+- Drag-to-pin / unpin needs the drop handlers to stop snapping at the boundary (the "wall"), and the drop position to
+  set or clear `pinned` as one undo step.
+- Check how the drop target's level is computed today before changing it (case 1 suggests row halves are ignored
+  at that edge).
 
 #### Book Lists: arrange by series number
 
