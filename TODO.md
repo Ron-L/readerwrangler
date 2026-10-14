@@ -857,7 +857,9 @@ _Why it matters:_ "Relay" is an engineering word; renaming is free before launch
 - "Cloud Relay" was considered and rejected — still jargon, and clunky.
 
 **Watch out**
-- CLAUDE.md currently tells me to use exactly "Relay", "Import from Relay" etc. in user-facing text. If this rename goes ahead, that rule changes with it.
+- When the rename is done, update the CLAUDE.md vocabulary rule to the new names. (No conflict today: that rule says
+  how to write with the names currently on screen; this task is the planned pre-launch change. Checked 2026-10-14:
+  both trace to the same 2026-08-28 decision in the 7.0.1–7.4.0 post-mortem.)
 
 **Also**
 - Fold into the User Guide rewrite (above).
