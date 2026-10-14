@@ -85,7 +85,7 @@
     - [Other follow-ups](#other-follow-ups)
       - [Wording pass: explain Book List shortcuts and Linked Copies](#wording-pass-explain-book-list-shortcuts-and-linked-copies)
       - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
-      - [Fetcher: re-apply two lost improvements](#fetcher-re-apply-two-lost-improvements)
+      - [Fetcher: name and explain Amazon's library filter](#fetcher-name-and-explain-amazons-library-filter)
       - [Hide returned loans and borrows](#hide-returned-loans-and-borrows)
       - [A management view for Book Lists](#a-management-view-for-book-lists)
       - [Delete a book from All Books (removes it everywhere)](#delete-a-book-from-all-books-removes-it-everywhere)
@@ -1097,43 +1097,78 @@ _Formerly: 🔜 Next (6.12.x follow-ups)_
 
 _Why it matters:_ A few actions — deleting tags or Searches, renaming — still can't be undone.
 
-**Operations single-source-of-truth — remaining bits** — CORE shipped in **6.13.1**: folder delete (`deleteFolder`), book move/copy (all menu + drag → `moveItems`), folder reparent (menu/cut-paste/drag → `reparentFolder`), Book List create/delete, and forced undo/redo toasts (every action stamped with a label). Still un-consolidated (lower priority, less drift-prone): **tag** delete, **Search** delete, folder/Book-List **rename** (make undoable), the folder-copy **redo** TODO (js~6398, in `COPY_PASTE_FOLDER`), and optionally folding `moveItems`' folder-reparent into `reparentFolder`. → docs/design/OPERATIONS-REFACTOR.md. Feeds MODULE-SPLIT.
+**Done** (6.13.1)
+- Folder delete, book move / copy (every menu and drag), folder moves (menu, cut-paste, drag), Book List create / delete, and an undo message for every action.
+
+**Left** (lower priority — less likely to drift)
+- Deleting a **tag**, deleting a **Search**.
+- Renaming a folder or a Book List — make it undoable.
+- Redo for copying a folder (a TODO in the code).
+- Optional: fold the folder-move part of moving items into the one folder-move operation.
+
+**How (technical)**
+- Shared operations: `deleteFolder`, `moveItems`, `reparentFolder`. The redo TODO is in `COPY_PASTE_FOLDER`. Design: docs/design/OPERATIONS-REFACTOR.md; feeds MODULE-SPLIT.
 
 #### The Delete key should delete the folders you've selected
 
 _Why it matters:_ Today it only deletes the folder you're inside.
 
-**DEL deletes the folder(s) selected in the right-pane list / Folders overview** — today the DEL key only deletes the folder you're *inside* (`selectedFolderId`), not a right-pane row selection (`getSelectedFolderIds()`). Wire single-select via `deleteFolder`, multi-select via a batch confirm + one compound undo (best once the ops layer has a `deleteFolders(folders)` primitive — don't ship single-only, it's more confusing than neither). Surfaced during ops refactor #1.
+**What you see**
+- Select folders in the right pane's list (e.g. the Folders view) and press Delete: nothing happens to them — only the folder you're *inside* is deleted.
+
+**What you'd get**
+- One selected folder → deleted, as from its menu.
+- Several → one confirmation, and one undo for the lot.
+- **Don't ship single-only** — that's more confusing than neither.
+
+**How (technical)**
+- Today it uses `selectedFolderId` instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch confirm and one compound undo — best once there's a `deleteFolders(folders)` operation. Surfaced during the operations refactor.
 
 #### Keep reading the old save format (a standing decision, not a task)
 
 _Why it matters:_ Some users update late; these reads are cheap. Recorded so nobody removes them on a schedule.
 
-**Legacy FOLDERS_KEY/BOOKLISTS_KEY migration reads: KEEP INDEFINITELY** (Ron 2026-09-04: field users update on their own schedule — GoatCounter shows real users; the reads are cheap and dated comments explain them). Revisit only with adoption evidence, never on a release-count schedule.
+**Decided** (Ron, 2026-09-04)
+- GoatCounter shows real users who update on their own schedule. Keep the code that reads the old save format **indefinitely**.
+- Revisit only with evidence that nobody's left on it — never "after N releases".
+
+**How (technical)**
+- The legacy `FOLDERS_KEY` / `BOOKLISTS_KEY` migration reads; dated comments explain them.
 
 #### Protect against editing in two tabs at once
 
 _Why it matters:_ Two open tabs can overwrite each other's work — a real data-loss risk.
 
-**Multi-tab hardening — Web-Locks read-only second tab (MEDIUM priority)** + reload-then-promote +
-live/freeze viewer → designed in docs/design/MULTI-INSTANCE.md §4. This is **Tier 0**: the real data-loss
-footgun (two tabs share ONE localStorage, so a stale tab's edit clobbers the other's work). Fully designed
-and ratified 2026-08-30; unbuilt. (Queue note "after 7.7.0" is stale — 7.7.0 shipped long ago; this just
-hasn't been picked up.)
+**What happens**
+- Two ReaderWrangler tabs share one browser storage, so an out-of-date tab's edit overwrites the other tab's work.
+
+**What you'd get**
+- A second tab opens **read-only**, with an offer to reload and take over editing; it can show live or frozen.
+
+**Status**
+- **Medium priority — "Tier 0": the real data-loss risk.** Fully designed and ratified 2026-08-30; not built. (Its old "after 7.7.0" note is stale.)
+
+**How (technical)**
+- Web Locks for the read-only second tab, reload-then-promote, live / freeze viewer. Design: docs/design/MULTI-INSTANCE.md §4.
 
 #### Warn when another browser has newer changes
 
 _Why it matters:_ Two browsers on one account can drift apart without anyone noticing.
 
-**Cross-browser sequential coherence — check-on-activation + soft relay lease (LOW priority)** →
-designed in docs/design/MULTI-INSTANCE.md **§6** (added 2026-09-22). This is **Tier 1**: closes the
-restore-to-sync footgun (two browsers on one channel via a copied backup) *without* live sync or a merge.
-On idle→in-use, the browser compares the relay's serialized-state stamp to its own; if behind, offers
-**Catch up & edit here / Just view / Leave as-is** (adopt the relay org blob + optionally claim the soft
-lease). Real work = giving the desktop a device-state **adopt** path (today `getDeviceState` on desktop is
-only a connection test, readerwrangler.js:1246) + the per-channel lease record. Builds on Tier 0's writer-state
-(one "am I the editor?" concept, Web Locks in-browser + soft relay lease cross-browser). Live two-way concurrent
-sync (Tier 2) is REJECTED on the ratio (needs push infra + an org CRDT) — see §6 non-goal.
+**What happens**
+- Copy a backup into a second browser and both now use one relay. Each edits its own copy and nothing tells you.
+
+**What you'd get**
+- When a browser becomes active again, it compares itself with the relay. If it's behind, it offers: **Catch up & edit here** / **Just view** / **Leave as-is**.
+
+**Decided**
+- **Low priority — "Tier 1".** Builds on the two-tab task above (one idea of "who's the editor": in-browser between tabs, across browsers via the relay).
+- **Live two-way sync is rejected** — it would need push infrastructure and a merge engine for organization.
+
+**How (technical)**
+- Compare the relay's serialized-state stamp; adopt the relay's organization; an optional soft relay lease.
+- The real work: give the desktop a way to **adopt** device-state (today `getDeviceState` on desktop is only a connection test), plus a per-channel lease record.
+- Design: docs/design/MULTI-INSTANCE.md §6 (2026-09-22).
 
 ### Book List menus and undo history
 
@@ -1143,13 +1178,29 @@ _Formerly: Auto-Organize ergonomics_
 
 _Why it matters:_ Moving a Book List entry into a folder makes no sense, and once caused a membership mess.
 
-**Book List right-click menu — drop Move/Copy + block Book-List→folder drag (A)** — a Book List entry is a shortcut; Move/Copy of a shortcut INTO a folder is incoherent. When viewing a Book List, remove those two menu items (keep Add-to-Book-List, Remove-from-list, Edit, reorder); block plain AND Ctrl drag from a Book List onto a folder. (Ron, 2026-08-08 — the muddled Book-List→Inbox "move" that created the Inbox+folder+list triple-membership mess.)
+**What you'd get**
+- In a Book List view, the book right-click menu drops **Move to** and **Copy to**. It keeps Add to Book List, Remove from list, Edit and reordering.
+- Dragging (plain or Ctrl) from a Book List onto a folder is blocked.
+
+**Why**
+- A Book List entry is a shortcut; moving a shortcut into a folder is incoherent. On 2026-08-08 a "move" from a Book List to the Inbox left books in the Inbox, a folder **and** the list at once.
 
 #### Undo history sometimes empties by itself
 
 _Why it matters:_ Losing undo mid-session is alarming; the cause is still unknown.
 
-**Undo stack clears mid-session unexpectedly (D)** — twice (2026-08-07/08) the undo stack emptied with no user undo/redo. **NARROWED 2026-09-01, not solved**: the sweep proved NO code path clears the stack (in-memory only; MAX_UNDO trims oldest only) — so SOME invisible reload is the only mechanism on the table. Candidates: TinySuspender discard-and-restore (a reload the user never sees) — but Ron's config argues against it for those incidents (60-min idle timeout, he was actively bouncing tabs; localhost/rw.com NOT whitelisted, so possible but improbable) — or a forgotten manual reload. Watch: next sighting, check console history + Data Status "last checked" (a discard clears both). PROPHYLACTIC regardless: whitelist localhost + readerwrangler.com in TinySuspender (a suspended RW tab also risks torn flush-on-leave pushes — swept now, but still wasteful).
+**What happened**
+- Twice (2026-08-07 and 08), the undo history emptied with no undo or redo by you.
+
+**What we know** (2026-09-01)
+- No code path clears it — it lives only in memory and only drops its oldest steps at the limit. So **some invisible page reload** is the only explanation.
+- Suspect: the TinySuspender extension discarding and restoring the tab. Your settings argue against it for those two times (60-minute idle timeout; you were actively switching tabs). A forgotten manual reload is the other possibility.
+
+**Next time it happens**
+- Check the console history and Data Status's "last checked" — a discarded tab clears both.
+
+**Do now regardless**
+- Whitelist localhost and readerwrangler.com in TinySuspender. A suspended ReaderWrangler tab can also tear an upload when you leave it.
 
 ### Ideas from the August 2026 library clean-up
 
@@ -1159,37 +1210,59 @@ _Formerly: 2026-08-10 library-cleanup findings (Ron)_
 
 _Why it matters:_ You see a book's folders but not its Book Lists while deciding where it goes.
 
-**Auto-Organize preview should show Book List membership** too (alongside the folder neighborhood).
-
 #### See an author's other books without leaving your spot
 
 _Why it matters:_ Today it takes All Books + a filter + finding your way back.
 
-**"Other books by this author" quick-view** — from a book/folder, see the author's other books without jumping to All Books + filter + back.
+**What you'd get**
+- From a book or folder, a quick view of the author's other books.
 
 #### Open one book's details without losing a multi-selection
 
 _Why it matters:_ Lets you identify a book mid-scan and carry on with your selection.
 
-**Right-click "Open" a book while multi-selecting** — opens the book detail WITHOUT clearing the selection; normal flow opens the whole selection as a shelf (nav). Lets you ID a book mid-scan and resume. (Name per UX.)
+**What you'd get**
+- With several books selected, right-click one → **Open** shows that book's details **without** clearing the selection.
+- Today, opening from a multi-selection opens the whole selection as a shelf you step through.
+- Name the menu item per a UX pass.
 
 #### User Guide: explain workarounds for fields you can't filter by
 
 _Why it matters:_ There's usually another way, e.g. add the column in List view and sort.
 
-**USER-GUIDE/GPT note: "can't filter by field X" → tell them the workaround** (e.g. List view → add that column → sort). More than one way to skin a cat.
+**To do**
+- In the User Guide and the GPT manual: when someone can't filter by a field, show the workaround (e.g. List view → add that column → sort).
 
 #### Drag between Folders and Book Lists
 
 _Why it matters:_ Natural gestures for filling Book Lists, plus honest messages about what a drop did.
 
-**Cross-section drag: Folders ↔ Book Lists** (DECIDED 2026-08-29) — honesty fixes (Added-not-Moved toast/undo from list views; kill fake drop affordances incl. the blanket left-pane preventDefault; undoable list reorder; toast over-count; Trash leak) + the two gestures: folder **ON** a list row = add its books; folder/books **BETWEEN** rows = create new list(s) there, named `<folder name> - To Read` for folders / engine-named for books (grabbed-noun principle, Beach-Reads example); right-click New gains current-folder-name fallback → docs/design/CROSS-SECTION-DRAG.md (spec). **On ship: update SUPPORT-KB §8/§6** (they document current behavior only)
+**Honesty fixes**
+- From a list view, say "Added", not "Moved", in the message and its undo.
+- No fake "you can drop here" signals — including the left pane's blanket drop handling.
+- Book List reordering can be undone; fix an over-count in the message; fix a leak into the Trash.
+
+**The two new gestures** (decided 2026-08-29)
+- Drop a folder **on** a Book List row → adds the folder's books to that list.
+- Drop a folder or books **between** rows → creates a new list there: named "‹folder name› - To Read" for a folder, or by the naming engine for books (e.g. "Beach Reads").
+- Right-click → New also falls back to the current folder's name.
+
+**On ship:** update SUPPORT-KB §8 and §6 (they describe today's behavior).
+
+**Spec:** docs/design/CROSS-SECTION-DRAG.md.
 
 #### Search everywhere without leaving the current folder
 
 _Why it matters:_ Answers "is this book in my library?" without losing your place.
 
-**Search everywhere — scope toggle + zero-result nudge** (Ron, 2026-08-29) — answers "is this book in my library?" WITHOUT losing your spot. Search box stays folder-scoped by default; while searching, show a scope toggle **This folder | Everywhere** (Finder/Explorer search-in-place convention). "Everywhere" shows all-library matches in the right pane as a temporary view (reuse the view-folder filter-stash plumbing); clearing the search returns to the folder + scroll position untouched. **Discoverability engine**: the empty-result state offers *"No matches in ‹folder› — Search everywhere?"* as a one-click link (Gmail/Amazon convention). Result rows pair with the existing "see where a book lives" popup — the answer arrives with locations.
+**What you'd get** (Ron, 2026-08-29)
+- The search box still searches the current folder by default. While searching, a toggle shows: **This folder | Everywhere** (as in Finder / Explorer).
+- "Everywhere" shows matches from the whole library in the right pane, temporarily. Clearing the search returns you to the folder, scroll position untouched.
+- **Discoverability:** when nothing matches, offer *"No matches in ‹folder› — Search everywhere?"* as a one-click link (as Gmail and Amazon do).
+- Results work with the existing "where does this book live" popup, so the answer arrives with locations.
+
+**How (technical)**
+- Reuse the view-folder filter-stash plumbing for the temporary view.
 
 ### Other follow-ups
 
@@ -1197,143 +1270,229 @@ _Why it matters:_ Answers "is this book in my library?" without losing your plac
 
 _Why it matters:_ Those terms confuse people unless they're explained once, clearly.
 
-**Terminology copy pass** (6.12.1) — "shortcut" language in Book List toasts/menus; explain "Linked Copies" once in manual/GPT → see docs/design/TERMINOLOGY.md (spec)
+**To do**
+- Use "shortcut" language in Book List messages and menus.
+- Explain "Linked Copies" once, in the manual and the GPT manual.
+
+**Spec:** docs/design/TERMINOLOGY.md. (Filed for 6.12.1.)
 
 #### Stray double spaces in author names create duplicate authors
 
 _Why it matters:_ An author can split in two, making a series look incomplete.
 
-**Author/Series whitespace hygiene** — collapse runs of internal whitespace + trim on fetch/import/edit so "Jodi  Taylor" (double space) can't split from "Jodi Taylor" (silently creates a duplicate author + orphan series in Auto-Organize). Add a **one-time cleanup sweep** for existing data. (Ron hit this on Jodi Taylor / Time Police — 2 of 7 books mis-authored, series looked incomplete in the Auto-Organize preview.)
+**What happened**
+- "Jodi  Taylor" (two spaces) and "Jodi Taylor" became two authors: 2 of 7 Time Police books were mis-authored, and the series looked incomplete in the Auto-Organize preview.
 
-#### Fetcher: re-apply two lost improvements
+**To do**
+- Collapse repeated spaces and trim, on fetch, Import and edit.
+- A **one-time cleanup** of existing data.
 
-_Why it matters:_ Two small fetcher changes were lost in an older version and never put back.
+#### Fetcher: name and explain Amazon's library filter
 
-❓ May already be done — check before working on it.
+_Why it matters:_ An unexplained code string is repeated in four places; one named, documented setting is safer to change.
 
-**Fetcher `ee6d83c` re-apply** on v4.11.10 — `LIBRARY_EXCLUDE_TAGS` named-constant/doc + delisted-book (`product=null`) count+notice adapted to coexist with null-product recovery (count only when recovery also fails)
+**Checked 2026-10-14** (Ron asked me to determine this one)
+- An old fix (`ee6d83c`, June 2026) had two parts that were lost in a later fetcher version:
+  1. **A notice for books Amazon has delisted — effectively done.** Since fetcher v4.11.0, unrecoverable books are counted and a banner says "N unavailable/delisted".
+  2. **Name and document the library filter — still missing.** The filter that hides two of Amazon's tag buckets is written out in full in 4 places, with no explanation.
+
+**To do**
+- One named constant with a comment saying what the two tags are. Small.
+
+**How (technical)**
+- `LIBRARY_EXCLUDE_TAGS = 'NOT (222711ade… OR 858f501de…)'`: `858f501de…` = "Permanently Remove" (also tags exactly the 13 product-null husks, per the 2026-09-03 probe); `222711ade…` = "V", purpose unknown, tags nothing today.
+- Used at amazon-library-fetcher.js ~1040, ~1449, ~1748, ~2805.
 
 #### Hide returned loans and borrows
 
 _Why it matters:_ Returned Prime, Kindle Unlimited and library loans clutter the library.
 
-**Returned / expired borrows — filter & hide** — Prime/KU/library loans that were returned still clutter the library. Fetcher flags borrow nodes with `activeBorrow === false`; app adds a **"Returned" ownership filter, hidden-by-default** (toggle to show), bulk move-to-folder for keepers. **NOT** via the ASIN exclusion list (would block re-borrows). → docs/design/RETURNED-BORROWS.md
+**What you'd get**
+- A **"Returned"** ownership filter, hidden by default (a toggle shows them).
+- A bulk move-to-folder for the ones you want to keep.
+
+**Watch out**
+- **Not** via the ASIN exclusion list — that would block borrowing the book again.
+
+**How (technical)**
+- The fetcher flags borrow records with `activeBorrow === false`. Design: docs/design/RETURNED-BORROWS.md.
 
 #### A management view for Book Lists
 
 _Why it matters:_ One place to organize and order your Book Lists.
 
-**Book Lists management view** + generic orderable-left-pane-section ordering (Folders/Views/Book Lists uniform) → see docs/design/FOLDER-ORDERING.md (spec)
+**What you'd get**
+- A Book Lists management view, plus one ordering approach shared by every left-pane section (Folders / Views / Book Lists).
+
+**Spec:** docs/design/FOLDER-ORDERING.md. Related: "Book Lists and Searches: pin and sort them like Folders" (Up next).
 
 #### Delete a book from All Books (removes it everywhere)
 
 _Why it matters:_ Today you have to remove a book from each folder and list separately.
 
-Delete from All Books — soft-delete to Trash, removing from ALL folders + Book Lists at once (reuse membership snapshot; confirm dialog discloses count)
+**What you'd get**
+- Delete from All Books moves the book to the Trash, removing it from **every** folder and Book List at once.
+- The confirmation says how many places it's in.
+
+**How (technical)**
+- Reuse the membership snapshot, so restoring puts it back everywhere.
 
 #### Drag a box to select covers
 
 _Why it matters:_ Faster than clicking covers one by one.
 
-Rectangle/Lasso selection in cover view (extends `explorerSelectedItems`)
+**What you'd get**
+- In cover view, drag a rectangle (or lasso) to select the covers inside it.
+
+**How (technical)**
+- Extends `explorerSelectedItems`.
 
 #### Show only hidden books
 
 _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for them.
 
-**Hidden books: 3-state control** (ratified 2026-09-03) — Show Hidden is a visibility toggle, not a finder ("find the 2 hidden among 337" is impractical). Hide hidden / Show all / **Only hidden** — the third state answers "what have I hidden?"
+**What you'd get** (ratified 2026-09-03)
+- "Show Hidden" becomes three choices: **Hide hidden** / **Show all** / **Only hidden**.
+- Today it only shows or hides them, so finding the 2 hidden books among 337 is impractical.
 
 #### Fetch: report exactly how your library compares with Amazon
 
 _Why it matters:_ So the fetch can honestly say "your library matches Amazon exactly", or list the differences.
 
-**Fetcher: discrepancy-accounting redesign** (spec'd via live investigation 2026-09-03; supersedes the count-triggered sweep). THE INVARIANT the design must be able to report: Ron's library matches Amazon EXACTLY — 2801 = 2801 unique owned ASINs — once the units are right. Rules: (1) compare UNIQUE-ASIN SETS only, same filtered universe both sides — RW side excludes wishlist (337); Amazon side deduped (Amazon's `totalCount` counts acquisition RECORDS, not titles: 15 sample-then-purchase pairs in Ron's data; use totalCount only as a progress estimate). (2) KEEP Amazon's stock NOT-hash filters everywhere — probed live: hash `858f501de…` tags exactly the 13 product-null husks (unfetchable dead records, likely deleted-sample corpses), hash `222711ade…` currently tags nothing; the maps/physical items are NOT filter-hidden (present in the filtered walk). Log the filtered-vs-unfiltered count delta each fetch (13 today) as a reclassification tripwire. (3) Retire the 🩹 count sweep (its trigger compared titles+wishlist against records — structurally never equal); replace with set-exact differences in the orphan scan: amazon − local = missing owned books → refetch by ASIN → small follow-up run write; local − amazon = orphan CANDIDATES → verify absence before flagging (re-check just the candidate set). (4) User-facing output = Ron's two-directional "Removed-books check" report (each direction suppressed at 0; "orphan" jargon out; ℹ️ notes "still safe in ReaderWrangler"); the success line "Your library matches Amazon exactly" is now actually achievable. Exonerated by the investigation: API pagination (30- and 50-page walks returned identical complete sets; 101 tie-timestamp clusters covering 279 books, harmless), Amazon deletions (zero). The false-orphan bug itself (BOOK_BINDINGS skip inside the verification loop) is fixed separately in fetcher v5.2.7.
+**The goal**
+- Your library matches Amazon **exactly** — 2,801 = 2,801 unique owned books — once both sides are counted the same way.
+
+**Rules** (spec'd 2026-09-03 by live investigation)
+1. **Compare sets of unique books, same scope on both sides.** ReaderWrangler's side excludes the wishlist (337). Amazon's side is de-duplicated: Amazon's total counts **purchase records**, not books (15 sample-then-buy pairs in your data), so use it only as a progress estimate.
+2. **Keep Amazon's standard filters everywhere.** Log the filtered-vs-unfiltered difference each fetch (13 today) as an early warning if Amazon reclassifies things.
+3. **Retire the count-based sweep** — it compared things that can never be equal. Instead:
+   - on Amazon but not here → missing books → fetch them by ASIN, upload as a small follow-up run;
+   - here but not on Amazon → **candidates** for "removed" → re-check just those before flagging.
+4. **What you see:** a two-way "Removed-books check" report — each direction hidden when it's 0, no "orphan" jargon, an ℹ️ note that they're "still safe in ReaderWrangler". The line "Your library matches Amazon exactly" becomes achievable.
+
+**Already done**
+- 7.7.0 (2026-09-04) stopped the false alarms: 13 "removed" books were physical items (maps, a DVD, "Shoes") the scan wouldn't count.
+- The false-orphan bug itself was fixed in fetcher v5.2.7.
+- Ruled out: Amazon's paging (30- and 50-page walks returned identical complete sets) and Amazon deletions (zero).
+
+**Still there** (checked 2026-10-14)
+- The old count-based sweep still runs (the 🩹 recovery sweep, amazon-library-fetcher.js ~1741).
+
+**How (technical)**
+- Filters: hash `858f501de…` tags exactly the 13 product-null husks (unfetchable dead records, likely deleted samples); `222711ade…` tags nothing today. Maps and physical items are not hidden by the filter.
+- 101 tie-timestamp clusters covering 279 books were seen — harmless.
 
 #### Fetcher odds and ends (progress figure, frozen timer, request pacing)
 
 _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
 
-Fetcher follow-ups: ownership-**upgrade** live positive test; un-trash on ownership upgrade (storage.js); fix the "772%" enriched ratio; elapsed-time display frozen during "Checking Relay" (both lines) / "Recovering" phases (timer repaints only on phase/progress updates — Ron 2026-09-03 ×2); **minimum request throttle floor** (~400ms) — FETCH_DELAY_MS is 0 today because network RTT throttles naturally, but if Amazon's backend ever speeds up we'd hammer them; Ron recalled this decision 2026-09-04 and it was never recorded — now it is
+**The list**
+1. A live positive test of an ownership **upgrade**.
+2. Un-trash on ownership upgrade (also a task in "On hold").
+3. Fix the "772%" figure in the details-filled ratio.
+4. The elapsed time freezes during the "Checking Relay" (both lines) and "Recovering" phases — it only repaints when the phase or progress changes. (Ron, 2026-09-03, twice.)
+5. **A minimum pause between requests** (~400 ms). Today it's 0 because network round-trips slow things naturally — but if Amazon's servers ever got faster, we'd hammer them. Decided earlier and never recorded until 2026-09-04.
+
+**How (technical)**
+- Item 2 lives in storage.js. Item 5: `FETCH_DELAY_MS`.
 
 #### Tooltips in the book details window
 
-_Why it matters:_ E.g. that Collections are read-only and come from Amazon.
-
-Book detail dialog tooltips (esp. Collections = read-only-from-Amazon)
+_Why it matters:_ Some fields aren't self-explanatory — e.g. that Collections are read-only and come from Amazon.
 
 #### Wishlist: record the real format when a book is added
 
-_Why it matters:_ Today the format is only known after the next full fetch.
+_Why it matters:_ Today the format is only known after the book's details are filled in.
 
-Wishlist fetcher — capture real binding on add (product-page `bindingInformation`), not only after enrichment
+**How (technical)**
+- Capture the binding from the product page (`bindingInformation`) when the book is added to the wishlist.
 
 #### Import book details from a pasted list or spreadsheet
 
 _Why it matters:_ A way to bring in information from outside Amazon.
 
-Metadata import (paste-list / CSV) + matching → see docs/design/Metadata-Import.md
+**What you'd get**
+- Paste a list or load a CSV; ReaderWrangler matches the rows to your books.
+
+**Spec:** docs/design/Metadata-Import.md.
 
 #### Set different series numbers on several books at once ("2, 4")
 
 _Why it matters:_ Needed when you own scattered volumes of a series.
 
-Comma-separated series-position multi-edit ("2, 4" mapped to selected books in display order) — **needed for David Drake / Raj Whitehall** (ownership gaps that "renumber by current order" can't handle)
+**What you'd get**
+- In a multi-book edit, type "2, 4" and the numbers go to the selected books in display order.
+- Needed for David Drake's Raj Whitehall books — gaps in what you own mean "renumber by current order" can't do it.
 
 #### One book in several series positions (omnibus, anthology, MegaPack)
 
 _Why it matters:_ A collection should appear at each place it belongs in its series.
 
-**Multi-position series books: omnibus AND anthology (B)** — ONE record holding MULTIPLE series
-positions, **rendered once at EACH position in series-sorted views**. Two cases, one mechanism
-(ratified direction 2026-09-15): the omnibus that IS volumes 1–3 (`1-3` / `1,2,3`; Raj Whitehall
-"789" workaround); the anthology whose stories interleave the series (`2.5, 4.5, 4.6, 5.5` —
-Dresden Side Jobs pattern; today Ron files it at first occurrence with the story map in the Note).
-Design points: `seriesPosition` becomes parseable list/range → sort-time expansion into display
-instances (the `_instanceId` render-layer concept — NOT duplicate book records; ASIN-suffixed
-pseudo-books REJECTED 2026-09-15: they'd fight ASIN-keyed merge, orphan scan would flag them every
-fetch, dup detection/upgrades/CSV all need special cases). Repeats need a visible cue ("also at
-4.5" / ⟳ badge — Law 16: deliberate duplication must read as intentional). **Manual order shows the
-book ONCE** (manual slots are id-based; multi-slot belongs to series-sorted views). Interplay to
-spec: Number-by-Current-Order, the comma-separated multi-edit above, CSV export (one row, list in
-the column). The no-duplicates-per-folder invariant stays untouched.
-**EXTENSION — multiple SERIES per record (MegaPacks, Ron 2026-09-20):** a public-domain MegaPack can
-hold scattered volumes of *several* series at once (one ASIN = Skylark 1,4 + Lensman 2,4; possibly
-cross-author). Generalize `seriesPosition` → **`seriesMemberships: [{series, positions:[…]}]`** (a
-normal book = one entry, one position — uniform data; the UI compacts it). **Progressive-disclosure
-UI** (don't tax the common case): ONE series → the existing series field + a **ranges/lists number
-field** (`1-3, 5`); a **"+ add series"** affordance reveals the structured multi-row editor (series +
-ranges per row) ONLY for the multi-series outlier. Filter matches if ANY membership matches; sort uses
-the min position. **Per-work notes: OUT OF SCOPE** — user tags notes free-form (Ron already does this;
-per-series notes would need context-tagged notes — not worth it). **Open rendering decision:** a
-scattered list (`1, 4`) fills each slot (the gap-filling point), but a big contiguous range (`1-3`)
-may collapse to ONE labeled/spanning entry to avoid N duplicate covers — settle against a real
-MegaPack. **LUID / duplicate records stay REJECTED** (see above) — the memberships list handles
-multi-series without touching ASIN identity. (Multi-author MegaPacks: the compound-author gap is a
-separate, pre-existing concern, not solved here.)
+**What you'd get**
+- **One** book record holding **several** series positions, shown once at **each** position when sorted by series.
+- An omnibus that **is** volumes 1–3 (`1-3` or `1,2,3`; today's Raj Whitehall "789" workaround).
+- An anthology whose stories fall between volumes (`2.5, 4.5, 4.6, 5.5` — the Dresden *Side Jobs* pattern; today you file it at its first position with the story map in the Note).
+- A visible cue on the repeats ("also at 4.5", or a ⟳ badge) — deliberate duplication must look intentional.
+- **Manual order shows the book once** (manual positions are per book; repeats belong to series-sorted views).
+
+**Extension: several series in one book** (MegaPacks, Ron 2026-09-20)
+- A public-domain MegaPack can hold scattered volumes of several series at once (e.g. Skylark 1, 4 + Lensman 2, 4), possibly by several authors.
+- **Keep the common case simple:** one series → the existing Series field plus a numbers field that takes ranges and lists (`1-3, 5`). A **"+ add series"** link reveals a multi-row editor (series + numbers per row) only for the rare multi-series book.
+- Filtering matches if **any** of its series match; sorting uses the lowest position.
+
+**Decided**
+- **No duplicate book records**, and no fake ASIN-suffixed books (rejected 2026-09-15): they'd fight ASIN-keyed merging, the removed-books scan would flag them every fetch, and duplicate detection, upgrades and CSV would all need special cases.
+- **Per-story notes: out of scope** — you already tag notes free-form.
+- The rule "no duplicates in a folder" is untouched.
+
+**Open**
+- A scattered list (`1, 4`) fills each slot — that's the point. But a big contiguous range (`1-3`) may collapse to **one** labeled entry to avoid N identical covers. Settle it against a real MegaPack.
+- To spec: "Number by current order", the "2, 4" multi-edit (above), CSV export (one row, list in the column).
+- Multi-author MegaPacks: the compound-author problem is separate and pre-existing — not solved here.
+
+**How (technical)**
+- `seriesPosition` becomes a parseable list / range, expanded at sort time into display instances (the `_instanceId` render-layer idea — not duplicate records).
+- Generalized: `seriesMemberships: [{series, positions:[…]}]` — a normal book is one entry with one position (uniform data; the UI compacts it).
+- Ratified direction 2026-09-15.
 
 #### Folder menu: Move to Top / Move to Bottom
 
 _Why it matters:_ Quicker than dragging a folder a long way.
 
-Folder "Move to Top / Move to Bottom" context items (D)
-
 #### Dragging a subfolder to the top level drops it in the wrong place
 
 _Why it matters:_ It lands near the bottom instead of where you dropped it.
 
-Fix drag-subfolder→root drop-position (**confirmed still broken 2026-08-03**, annoying) — dropping a subfolder at root lands it alphabetical-ish near the bottom instead of at the drop target; shares a root cause with new-folder alphabetical insert + Move-to stale position
+**What you see** (confirmed still broken 2026-08-03 — annoying)
+- Drag a subfolder out to the top level: it lands roughly alphabetically near the bottom, not at the drop spot.
+
+**How (technical)**
+- Shares a root cause with the alphabetical insert of new folders and Move-to's stale position. _(7.6.0 moved new folders to the top — re-check what's left.)_
 
 #### Book Lists: arrange by series number
 
 _Why it matters:_ Put a list in series order once, then adjust it by hand.
 
-Book Lists: **"Arrange by series #"** — in Manual mode, bake the series-number order into the list's manual order (persistent, then hand-tweak). The Book-List analog of folder sort-then-bake; a one-time rearrange, not a live sort mode. (Distinct from the existing "Number by current order," which sets each book's *position value*, not the list's order.)
+**What you'd get**
+- In Manual mode, "Arrange by series #" bakes the series-number order into the list's manual order — a one-time rearrange, not a live sort.
+- The Book List version of a folder's sort-then-keep.
+
+**Not to confuse with**
+- The existing "Number by current order", which sets each book's series **number**, not the list's order.
 
 #### Left pane: put the jump-to-top / bottom buttons by the scrollbar
 
 _Why it matters:_ They sit at the bottom left today, not where you'd look for them.
 
-**Left-pane jump-to-top/bottom placement** — both chevrons now ship, but they sit at the **bottom-left**, not at the two **scrollbar ends** as originally intended (Ron expected top-at-top / bottom-at-bottom). Scroll affordances conventionally live by the scrollbar (right). Reconsider: move the pair to the right near the scrollbar (spatial mapping), or adopt the single context-aware "back to top" that appears on scroll-down. **Per-section jump** (Searches / Book Lists / Folders): skip — the collapsible sections already handle that navigation.
+**What you see**
+- Both jump buttons (to top / to bottom) sit at the bottom-left of the left pane. You expected top-at-top and bottom-at-bottom, by the scrollbar.
+
+**Options**
+- Move the pair to the right, near the scrollbar (where scroll controls conventionally live).
+- Or one "back to top" button that appears when you scroll down.
+
+**Decided**
+- No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
 
 ## 🗄️ After launch
 
