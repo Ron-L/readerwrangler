@@ -43,7 +43,7 @@
       - [Rewrite the User Guide around Searches, Book Lists and Folders](#rewrite-the-user-guide-around-searches-book-lists-and-folders)
       - [Rename "Relay" to "Cloud Sync" everywhere users see it](#rename-relay-to-cloud-sync-everywhere-users-see-it)
       - [Update and record the sizzle reel](#update-and-record-the-sizzle-reel)
-      - [Add "Watch Tutorials" to the Help menu](#add-watch-tutorials-to-the-help-menu)
+      - [✅ Add "Watch Tutorials" to the Help menu](#add-watch-tutorials-to-the-help-menu)
       - [Refresh the landing page's before / after screenshot](#refresh-the-landing-pages-before--after-screenshot)
       - [Create a FAQ page](#create-a-faq-page)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
@@ -765,55 +765,94 @@ _Formerly: Docs & onboarding_
 
 _Why it matters:_ The last bit of polish on the security page; low priority.
 
-**security.html: residual polish** (2026-09-09: content lies FIXED same-day + nav + theme via Tailwind-override sheet — dark/hc-dark done): remaining = hc-light treatment, and optionally a real restyle onto the site's shared CSS instead of utility-class overrides. Low priority now.
+**Done already** (2026-09-09)
+- The page's wrong statements were fixed, plus its navigation, and Dark / High-Contrast-Dark themes.
+
+**Left**
+- The High-Contrast-Light treatment.
+- Optional: restyle it onto the site's shared styles instead of the current overrides.
 
 #### Rewrite the User Guide around Searches, Book Lists and Folders
 
 _Why it matters:_ The guide predates today's way of organizing.
 
-USER-GUIDE.md + GPT manual — rewrite around the new mental model (All Books / Searches / Book Lists / Folders; custodial vs supplemental; "when to use which"), **including the Book List ↔ Folder workflow pattern** (structure lives in Folders; to-read queues live in Book Lists) and "get books out of Inbox → use a folder, not a Book List". Draw the backlog-wrangling examples from **docs/design/WORKFLOW-PATTERNS.md** and the facts/FAQ from **docs/design/SUPPORT-KB.md** (mined 2026-09-10 from the full session transcript back to May; kept current by the same-breath rule + release-checklist sweep)
+**What it should cover**
+- The four places: All Books / Searches / Book Lists / Folders — what each is for, and "when to use which".
+- Folders hold your books; Book Lists are shortcuts that point at them.
+- **The Book List ↔ Folder pattern:** structure lives in Folders; to-read queues live in Book Lists.
+- "Getting books out of the Inbox → use a folder, not a Book List."
+
+**Sources**
+- Examples of taming a backlog: docs/design/WORKFLOW-PATTERNS.md.
+- Facts and FAQ: docs/design/SUPPORT-KB.md (mined 2026-09-10 from every session back to May, and kept current at each release).
+
+**Also**
+- Do the "Relay → Cloud Sync" rename (next task) in the same pass, so the new names land in the docs in one go.
+- The same rewrite covers the GPT support assistant's manual.
+
+**How (technical)**
+- "Holds vs. points at" = the custodial vs. supplemental model.
 
 #### Rename "Relay" to "Cloud Sync" everywhere users see it
 
-_Why it matters:_ "Relay" is an engineering word; a rename is free before launch and expensive after.
+_Why it matters:_ "Relay" is an engineering word; renaming is free before launch and expensive after.
 
-**Rename user-facing "Relay" → "Cloud Sync"** (Cloud Sync Setup / Import from Cloud; status section, tooltips, fetcher overlays, recovery steps) — kills the engineering term that leaked into the UI; "Cloud Relay" considered and rejected as jargon-plus-clunk (2026-08-28). Internal names (`RWRelay`, filenames, worker) unchanged. Pure copy-pass, ~20-40 strings + README/features/tutorials. **Fold into the USER-GUIDE rewrite** so the new names bake into the docs in one motion. Renames are free pre-launch and expensive forever after.
+**What you'd get**
+- "Cloud Sync Setup", "Import from Cloud", and the same in the status section, tooltips, the fetcher's screens and the recovery steps.
+- About 20–40 phrases, plus README / features / tutorials pages.
+- Internal names (code, files, the worker) stay as they are.
+
+**Decided** (2026-08-28)
+- "Cloud Relay" was considered and rejected — still jargon, and clunky.
+
+**Watch out**
+- CLAUDE.md currently tells me to use exactly "Relay", "Import from Relay" etc. in user-facing text. If this rename goes ahead, that rule changes with it.
+
+**Also**
+- Fold into the User Guide rewrite (above).
 
 #### Update and record the sizzle reel
 
 _Why it matters:_ The promo video shows the old way of organizing.
 
-Sizzle reel — update the script for Book Lists/Searches, then record + produce
+**To do**
+1. Update the script for Book Lists and Searches.
+2. Record and produce.
 
-#### Add "Watch Tutorials" to the Help menu
+#### ✅ Add "Watch Tutorials" to the Help menu
 
 _Why it matters:_ Makes the tutorials easy to find.
 
-Add "Watch Tutorials" to the app Help menu
+**Status:** done — verified 2026-10-14: Help → Watch Tutorials opens tutorials.html. Delete at the next release.
 
 #### Refresh the landing page's before / after screenshot
 
 _Why it matters:_ The "after" picture predates the redesign.
 
-Refresh the landing-page before/after screenshot (post-redesign "after")
-
 #### Create a FAQ page
 
 _Why it matters:_ Common questions answered in one place.
 
-FAQ page — faq.html (Security/Privacy, Data/Backup, Troubleshooting, Library, General); link from Help, README, features/tutorials footers
+**What you'd get**
+- faq.html with sections: Security / Privacy, Data / Backup, Troubleshooting, Library, General.
+- Linked from the Help menu, README, and the features and tutorials page footers.
 
 #### Build the support assistant (custom GPT)
 
 _Why it matters:_ Lets users get answers without waiting for you.
 
-Custom GPT support assistant — build + link from Help menu → see docs/design/SUPPORT-GPT.md (spec)
+**What you'd get**
+- A custom GPT that answers ReaderWrangler questions, linked from the Help menu.
+
+**Spec:** docs/design/SUPPORT-GPT.md.
 
 #### Document how to recover from disasters
 
 _Why it matters:_ Users need clear steps when credentials or data are lost.
 
-Disaster Recovery documentation (relay credential recovery paths; backups include creds)
+**Should cover**
+- How to recover relay credentials.
+- That backups include your credentials.
 
 ### Safety and data protection
 
@@ -823,37 +862,73 @@ _Formerly: Safety / data-integrity guards_
 
 _Why it matters:_ The core data rules must be proven before strangers rely on them.
 
-**Test gate green** — the data-layer characterization suites in docs/design/PRELAUNCH-TEST-GATE.md (merge/edit-protection, import mapping, tombstones, load guards, relay semantics) exist and pass. Spec'd 2026-09-04 while the bug classes were fresh; ~2-4 sessions at gate time. Blocks launch, nothing else.
+**What it means**
+- The test suites in docs/design/PRELAUNCH-TEST-GATE.md exist and pass: merging and edit protection, Import mapping, permanent-delete markers, load guards, relay behavior.
+- Specified 2026-09-04 while those bugs were fresh. About 2–4 sessions when the time comes.
+- **Blocks launch; blocks nothing else.**
 
 #### Warn before uploading a much smaller library (demo safety)
 
 _Why it matters:_ A leftover demo setting could replace a real library with a tiny one.
 
-Demo-whitelist footgun guard (6f) — warn/confirm before uploading a library dramatically smaller than the relay's; make the active-whitelist banner unmissable; ensure no demo state can ship
+**What you'd get**
+- A warning and confirmation before uploading a library dramatically smaller than the one on the relay.
+- When the demo book list is active, a banner you can't miss.
+- A guarantee that no demo setting can ship.
+
+**How (technical)**
+- Old review item 6f; the demo setting is the "demo whitelist".
 
 #### A button to rebuild the library from Amazon
 
 _Why it matters:_ Today a full reset needs the browser's developer tools.
 
-"Rebuild library from Amazon (full re-fetch)" affordance (6g) — clear the relay library without DevTools; pairs with the demo-whitelist guard
+**What you'd get**
+- "Rebuild library from Amazon (full re-fetch)": clears the relay's library so the next fetch starts fresh.
+- Goes with the demo-safety warning above.
+
+**How (technical)**
+- Old review item 6g.
 
 #### Pin the exact versions of outside code libraries
 
 _Why it matters:_ An unannounced update to one of them could break the app overnight.
 
-Pin remaining CDN deps (6h) — React/ReactDOM to an exact 18.x; audit all HTML entry points (Tailwind's durable fix is the precompile step below)
+**What you'd get**
+- React and ReactDOM pinned to one exact 18.x version (today: "any 18" — readerwrangler.html ~128, checked 2026-10-14).
+- Check every HTML page for the same.
+- Tailwind's lasting fix is the "build the app ahead of time" task (After launch).
+
+**How (technical)**
+- Old review item 6h.
 
 #### Find out why some books end up in no folder
 
 _Why it matters:_ Rare reports of books in no folder at all; watch whether it still happens.
 
-`integrity-homeless` investigation — real user event in v6.11.5 + 2 more field events 2026-09-03; books in IndexedDB with no folder refs. F1 (7.7.0) removed the leading suspected cause (stale-FOLDERS_KEY cold boot referencing nothing for newest books) — WATCH the event post-release before investing a session
+**What we know**
+- One real user event on 6.11.5, and two more on 2026-09-03: books in the browser's book store that no folder refers to.
+- 7.7.0 removed the leading suspect: a cold start reading an out-of-date folder list that didn't yet know the newest books.
+
+**Next step**
+- **Watch** for the event after releases before spending a session on it.
+
+**How (technical)**
+- The event is `integrity-homeless`; the suspect was a stale `FOLDERS_KEY`.
 
 #### Stop cleanly when Amazon asks for a human check mid-fetch
 
 _Why it matters:_ Today it shows confusing errors instead of saying what to do.
 
-**Mid-sweep challenge detection** — classify challenge-shaped responses (HTML where JSON expected, validate-captcha redirect, robot-check 503) in the fetchers' retry path and halt with an honest message: "Amazon is asking for a human check. Open any Amazon page, complete it, then re-run — everything fetched so far is safe." (That last clause is TRUE post-7.0: a halted run is uncommitted and invisible.) Phase 0 already guards startup; this covers a challenge appearing mid-run, which today reads as generic API errors. Never observed yet — cheap pre-launch hardening. (External review item 7 kernel.)
+**What you'd get**
+- When Amazon interrupts a fetch with a "are you human?" check, the fetcher stops and says: *"Amazon is asking for a human check. Open any Amazon page, complete it, then re-run — everything fetched so far is safe."*
+- That last clause is true since 7.0: a stopped run is simply never committed.
+
+**Status**
+- The start of a fetch is already guarded; this covers a check appearing **partway through**. Never seen yet — cheap insurance before launch. (From an outside review, item 7.)
+
+**How (technical)**
+- In the fetchers' retry path, recognize check-shaped answers: HTML where JSON was expected, a validate-captcha redirect, a robot-check 503.
 
 ### Costs
 
@@ -863,7 +938,9 @@ _Formerly: Launch economics_
 
 _Why it matters:_ The free plan supports only a handful of users.
 
-Flip to Workers Paid ($5/mo) at or shortly before public launch — analysis DONE (RELAY-ECONOMICS.md, 2026-08-28): post-7.5.0 levers, flat $5 covers ~250 Ron-like users; free tier is ~6-10 and SHARED. This is now just the act of upgrading the Cloudflare plan at the right moment.
+**What we know** (RELAY-ECONOMICS.md, 2026-08-28)
+- After 7.5.0's savings, the flat $5 plan covers about 250 users like you; the free plan about 6–10 — and it's shared between production and dev.
+- So this is now just the act of upgrading at the right moment, at or shortly before launch.
 
 ## 🔧 Relay follow-ups
 
