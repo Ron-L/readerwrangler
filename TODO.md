@@ -7,7 +7,7 @@
     - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
     - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
     - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
-    - [Ctrl+A in a dialog must never select the page behind it](#ctrla-in-a-dialog-must-never-select-the-page-behind-it)
+    - [✅ Ctrl+A in a dialog must never select the page behind it](#ctrla-in-a-dialog-must-never-select-the-page-behind-it)
     - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
     - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
     - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
@@ -162,404 +162,445 @@
 
 _Formerly: 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-16)_
 
-_(Done 2026-09-16: 7.13.1 mobile dev-relay-worker fix + 7.13.2 relay worker+storage visibility —
-both shipped to prod; dev confirmed, prod verify in progress.)_
-
-**THE CURRENT STACK (pop in this order):**
-(The numbered stack items are the sections right below, in order; then the rest of this section.)
-
-Then the queued items below (left-pane parity, filter box, Ctrl+X-from-list fix, ownership
-batch — item 6 first).
+In priority order as last set on 2026-09-16: the first three were "the stack", then the rest. Re-rank as we review.
 
 ### Cancelling a new folder that a filter hides should discard it
 
-_Why it matters:_ A new folder can land hidden by your filters, and there is no clean way to back out — Cancel should just remove it.
+_Why it matters:_ A new folder can land hidden by your filters, and there's no clean way to back out. Cancel should just remove it.
 
-**New-folder "discard on cancel" (Option A) — its own small release (~7.14.3).** Discovered during
-7.14.2 testing (unrelated). `newFolderHiddenAlert` should get 4 buttons: Clear All Filters / Show
-All Folders / Leave As Is (keep hidden) / **Cancel** (discard). Cancel + Esc + ✕ + backdrop →
-delete the just-created folder via the existing undoable CREATE_FOLDER machinery + toast **"New
-folder discarded"**. Add `folderId` to the alert payload at the 3 trigger sites (js 14972 / 15560 /
-18451). LATER polish (Option C, separate): warn BEFORE creating (predict `hasActiveFilters`) so
-nothing is created on cancel, and fix the inline-rename that currently happens in the hidden sidebar
-row. Ron chose A now, C deferred.
+**What you see**
+- With filters active, create a folder. A notice says the filters are hiding it and it won't appear in the left pane.
+- The notice has no Cancel, so the folder stays, hidden.
+
+**Decided** (Ron, during 7.14.2 testing — Option A now, Option C later)
+- The notice gets 4 buttons: **Clear All Filters** / **Show All Folders** / **Leave As Is** (keep it hidden) / **Cancel**.
+- **Cancel** — and Esc, ✕, or a click on the background — deletes the just-created folder, undoably, with the message "New folder discarded".
+- **Later (Option C, separate):** warn *before* creating the folder, so nothing is created on Cancel; and stop the rename box opening on a folder row that's hidden.
+
+**How (technical)**
+- The notice is `newFolderHiddenAlert`; give its payload the new `folderId` at the 3 places that raise it (search
+  `setNewFolderHiddenAlert` — the line numbers recorded in September have drifted).
+- Delete through the existing undoable create-folder step (`CREATE_FOLDER`).
+- Option C would predict `hasActiveFilters` before creating.
 
 ### Start the local server automatically, without exposing private files
 
 _Why it matters:_ After every reboot you hunt for the server command, and today's server also shows private files to other devices at home.
 
-**Auto-start the local RW server (dev convenience, addressed in RW).** Pain point: after every
-reboot Ron hunts the `python -m http.server` line in developers.md. **Fix = Option 3 (rec): a
-Startup-folder shortcut to a versioned `.bat` in the repo** — `python -m http.server 8000 --directory
-C:\Users\Ron\Projects\ReaderWrangler`, started minimized. Keeps the **`localhost:8000` origin**
-(critical — the Apache-alias option would change the origin and orphan ALL of RW's localStorage:
-library, organization, relay credentials; plus breaks root-relative paths + phone testing). Do NOT
-add `--bind 127.0.0.1` (phone tests over the LAN). Option 2 (scheduled task at logon) = headless
-alternative if a console window isn't wanted.
-**Updates (Ron 2026-10-06):** (a) the server must run in a **VISIBLE window** (not minimized/headless) — so
-Option 2 is out and the shortcut opens normal. (b) **Security finding:** plain `python -m http.server` serves the
-WHOLE project folder — including `.private/` (API key notes, the private repo's own `.git`) and `.git/` — to any
-device on the home network that can reach port 8000. Since `--bind 127.0.0.1` would break phone testing, the
-fix is a tiny versioned **`serve.py`** in the repo (stdlib `http.server` + a handler that refuses `/.private/…` and
-`/.git/…` with 404), launched by the `.bat`. Same port and origin, phone still works, secrets never served.
-Then update CONTRIBUTING.md's server lines (and drop its Python 2 `SimpleHTTPServer` line — EOL since 2020).
-(c) Use **`py`**, not `python`, in the .bat and docs: since Python 3.14 the new Python Install Manager provides
-`py` (Ron's habit). On Ron's PC 2026-10-06: `py` → 3.14.7, but `python` → 3.13 (older install first on PATH).
-(d) Deferred by Ron 2026-10-06 ("save the fixes for later") — do after the overlay branch.
+**What you'd get**
+- A shortcut in Windows' Startup folder runs a small file kept in the project, which starts the local server in a **visible** window at logon.
+
+**Decided** (Ron, 2026-10-06)
+- **Keep the address `localhost:8000`.** Changing it (e.g. an Apache alias) would orphan everything the browser stores for ReaderWrangler — library, organization, relay credentials — and break phone testing.
+- **Visible window**, not hidden or minimized.
+- **Security fix:** today's plain server shows the WHOLE project folder — including `.private/` (secrets) and `.git/` — to any device on the home network. Can't restrict it to this PC alone (that breaks phone testing), so instead a tiny server script refuses those two folders.
+- Use **`py`**, not `python`, in the file and docs (`py` → 3.14 on your PC; `python` → an older 3.13).
+
+**Also**
+- Update CONTRIBUTING.md's server lines, and drop its Python 2 line (dead since 2020).
+
+**Status:** deferred by Ron 2026-10-06 until after the overlay branch (which shipped as 7.18.0).
+
+**How (technical)**
+- A versioned `serve.py`: standard `http.server` plus a handler that answers `/.private/…` and `/.git/…` with 404. Same port and origin.
+- A versioned `.bat` launching it; a Startup-folder shortcut to the `.bat`.
+- Don't use `--bind 127.0.0.1` (phone tests over the home network).
 
 ### Book details window: changes happen only when you click Save
 
-_Why it matters:_ Today some fields save instantly and others wait for Save; one rule makes the window predictable, with one undo per Save.
+_Why it matters:_ Today some fields save instantly and others wait for Save. One rule makes the window predictable, with one undo per Save.
 
-**Book dialog goes fully transactional (7.14.0 — NEXT UP, ratified 2026-09-10; renumbered thrice: 7.11.0=audit, 7.12.0=price snapshot, 7.13.0=copy chips)**:
-in the dialog, Edit/Save is the ONLY way anything changes (one undo per Save); everywhere else changes are
-instant commands (one undo each). Rating / price goal / tags leave view mode (read-only displays) and join
-`editBookFields` as staged fields — Cancel discards, Save folds them into the one atomic EDIT_BOOK step;
-new-tag creation happens at Save. Finishes the OWNERSHIP-MODEL §4 edit-in-place pattern (instant controls
-were the anomaly). Commands stay live in both modes (Share, Amazon link, Status History, ◀▶) — build starts
-with an enumeration pass classifying every dialog control field-vs-command (explicit, not vibes).
-**Quick access replaces dialog instant-set**: line-view cell popups for Price Goal + My Rating (click cell →
-preset goals/custom, or star row); decide during build whether cover right-click gains a My Rating submenu.
-UNDO-MODEL.md §"fully transactional" has the rationale + Ron's context-keying principle.
+**What you'd get**
+- In the book details window, **Edit → Save is the only way anything changes** — one undo per Save. Cancel throws away everything you changed.
+- Rating, price goal and tags stop being instant controls: they become read-only in view mode and editable in edit mode, saved with everything else. A new tag is created at Save.
+- **Commands stay live in both modes:** Share, the Amazon link, Status History, ◀ ▶ (previous/next book).
+- Outside the window, changes stay instant (one undo each).
 
-Steps (from the stack):
+**Quick access** (replaces the instant controls)
+- In list view, click the Price Goal or My Rating cell to set it in place (preset goals / custom amount, or a row of stars).
+- Decide during the build: should right-clicking a cover also offer a My Rating submenu?
 
-**Transactional book-dialog enumeration pass** — the field-vs-command classification table for
-every book-dialog control, published for Ron's red pen BEFORE any transactional surgery (the
-copy-chips work that opened its branch shipped as 7.13.0; transactional gets a fresh branch).
-_Version number assigned when the work is taken up — not pre-planned._
-**Transactional book-dialog build** against the approved table (number assigned at pickup).
+**Steps**
+1. **Classify every control** in the window as a field (saved by Save) or a command (acts now). Publish the table for your red pen **before** any code.
+2. **Build** against the approved table — its own branch.
+
+**Status:** ratified 2026-09-10. Version number assigned when the work starts (the old "7.14.0" label is stale).
+
+**How (technical)**
+- Rating / price goal / tags join `editBookFields` as staged fields; Save folds them into the one `EDIT_BOOK` undo step.
+- Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and your context-keying principle: UNDO-MODEL.md, section "fully transactional".
 
 ### Drag any dialog out of the way
 
 _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them aside is a habit from Quicken.
 
-**Draggable dialogs — bake drag into the `<Dialog>` primitive (Ron 2026-09-28; SEPARATE feature AFTER the overlay migration ships)**.
-Ron often needs to move a dialog to see what's under it (Quicken habit). Add drag to `<Dialog>` so ALL dialogs become
-draggable at once (retires the old per-dialog `dialogDrag`; **folderPropertiesDialog is being converted WITHOUT drag
-during the migration — this feature restores it, universally**). Decisions (Ron 2026-09-28): (1) grab from **anywhere
-on the panel except interactive controls** (input/textarea/button/a/select), with a `cursor:move` affordance;
-(2) **bounds** default = keep a grabbable strip always on-screen (never lose a dialog), but support a
-**`dragBounds:'free'` option to drag fully off-window** (Ron finds off-window useful in Quicken — Search Results /
-Reconciliation; keep the capability even if most default to constrained) — prove free/off-window works with one test
-dialog; (3) **position** = centered on each open, then draggable (not remember-last). New user functionality → its OWN
-branch/release, keeping the overlay branch a pure refactor (Ron's Option A).
+**What you'd get**
+- Drag any dialog by grabbing it anywhere except its controls (buttons, fields, links, lists). The pointer turns into a move cursor to show it.
+- Folder Properties used to be draggable on its own; it lost that in 7.18.0 and gets it back here.
+
+**Decided** (Ron, 2026-09-28 and 2026-10-14)
+1. **Stays on screen.** By default you can't drag a dialog so far that you lose it; a strip you can grab always stays visible. A dialog can opt in to dragging fully off the window (as Quicken's Search Results and Reconciliation do); prove that with one dialog.
+2. **Where dialogs open:**
+   - A first dialog opens centered in the window.
+   - A dialog opened from another dialog opens centered over the one that opened it, wherever you dragged it. If you moved a dialog aside to read the app, what it opens appears beside it too.
+   - Never "wherever it was last time".
+3. **Dialogs underneath are frozen for use.** Their buttons and fields do nothing until the top dialog closes, because the top one may be mid-change.
+4. **But every dialog can be dragged, including the ones underneath.** Moving a window changes nothing, so it's always safe. Windows doesn't allow this: you have to close back down, move the first window, and rebuild the stack.
+5. **Clicking a frozen dialog does nothing.** Above all, it must not close the top dialog. Only a click on empty background closes it. A brief flash of the top dialog is an optional hint.
+
+**Watch out**
+- "Every dialog" covers two kinds: the standard dialogs, and the older message boxes (OK/Cancel, type-a-name, progress; about 45 places use them), which are built differently. Drag must work in both. The alternative is rebuilding the message boxes as standard dialogs first, which is its own task under "After launch".
+- Today a click anywhere outside the top dialog closes it, including on a dialog showing through underneath. Point 5 changes that rule, so test it carefully.
+
+**How (technical)**
+- Build drag once in the shared `<Dialog>` (readerwrangler.js ~61) so every dialog gets it at once. The old per-dialog drag code (`dialogDrag`) is already gone.
+- Message boxes share their window chrome in `attachDialogDismiss` (readerwrangler.js ~237); add drag there.
+- A click on a lower dialog actually lands on the top dialog's full-window background layer (readerwrangler.js ~69–71). The background-click close must ignore clicks that fall over another dialog.
+- New user feature, so it gets its own branch and release.
 
 ### Relay Setup: smoother sections and clearer Esc / Help behavior
 
 _Why it matters:_ Its sections jump open so abruptly they look like new windows, and Esc behaves differently in a way you can't see.
 
-**relaySetup UX polish (Ron 2026-09-28, surfaced during the overlay migration; NOT part of the migration)**.
-Relay Setup's internal accordion sections shove content up/down so hard the expansion reads as "a new
-dialog appeared." Items: (1) **slow/animate the expansions** (a height transition) so the eye can track
-Credentials/Enter-Manually and Bookmarklet/Pairing expanding rather than jumping; (2) **"Enter Credentials
-Manually" isn't perceivable as a level** — users can't tell it from just expanding a section, so its special
-"Esc backs out one level first" behavior (the smart onClose reason==='esc' branch) is invisible/confusing —
-reconsider whether manual-creds should be a distinct level at all, or just have Esc close relaySetup like the
-backdrop; (3) **stacked Help clarity** — Help covers relaySetup exactly so it reads as a replacement, not a
-stack; the draggable-dialogs feature (drag Help aside) is the natural fix, or a slight offset. All relaySetup-
-internal redesign, separate focused pass.
+**What you see** (File → Relay Setup)
+1. **Sections jump.** Opening "Credentials" / "Enter Credentials Manually" or "Bookmarklet" / "Pairing" shoves everything up and down so hard it reads as "a new window appeared".
+2. **A hidden level.** "Enter Credentials Manually" secretly counts as a level of its own: Esc backs out of it first instead of closing Relay Setup. Nothing shows you that.
+3. **Help looks like a replacement.** Help opens exactly on top of Relay Setup, so it doesn't read as stacked on it.
 
-### Ctrl+A in a dialog must never select the page behind it
+**Ideas**
+1. Animate the sections opening, so the eye can follow.
+2. Either drop the hidden level (Esc just closes Relay Setup, like a background click), or make the level visible.
+3. Draggable dialogs (above) fix it naturally — drag Help aside — or open Help slightly offset.
 
-_Why it matters:_ A few controls inside dialogs can still let Ctrl+A highlight the whole page behind the dialog.
+**Status:** noted 2026-09-28 during the overlay work; a separate, focused redesign pass.
 
-❓ May already be done — check before working on it.
+**How (technical)**
+- Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog.
 
-**Ctrl+A leak sweep — non-input controls that swallow select-all in modals (Ron 2026-09-29; two-pivot sweep)**.
-A non-input focusable control inside a dialog that calls `stopPropagation()` on Ctrl+A bypasses the dialog-aware
-select-all guard, so the browser's NATIVE select-all fires and highlights the whole page BEHIND the modal (the
-faded backdrop doesn't stop text selection). Found + fixed in the bulkEdit Series field (▼ button + dropdown rows,
-7.18.0-alpha.21), and the document handler always preventDefaults (never leaks) then scope-selects the top dialog's
-text whenever any dialog is open (7.18.0-alpha.22) — but only when the key REACHES it, so any OTHER non-input control
-that stopPropagations Ctrl+A can still leak. Sweep: TWO pivots — (1) grep `onKeyDown=...stopPropagation` (~19 inline
-hits + multi-line) and classify by element: input/textarea = OK (native field-select), button/div/li/a = SUSPECT;
-(2) walk each dialog's focusable non-text controls. Diff the two, post the file:line table, then fix (let Ctrl+A
-bubble on non-input controls). STRUCTURAL alternative worth weighing: a CAPTURE-phase Ctrl+A guard at the document
-(scope-select the top dialog's text when a dialog is up and focus isn't in a text field) — one chokepoint inner
-stopPropagation can't defeat — folding in autoOrgPreview's book-select once it's converted to declare its own semantics.
+### ✅ Ctrl+A in a dialog must never select the page behind it
+
+_Why it matters:_ A few controls inside dialogs could let Ctrl+A highlight the whole page behind the dialog.
+
+**Status:** done — Ron confirmed 2026-10-14 (7.19.0 reworked Ctrl+A around "the area you last clicked"). Delete at the next release.
+
+**History** (the original plan, for reference)
+- Found and fixed in Bulk Edit's Series field (7.18.0-alpha.21); the page-level handler always blocks the browser's own select-all when a dialog is up (alpha.22), but only if the key reaches it.
+- The plan was a two-way sweep for controls that stop the key, or one capture-phase guard at the page level that no control can bypass.
 
 ### Arrow keys should move through the Series suggestion lists
 
 _Why it matters:_ You can't pick a series from the list with the keyboard — Down scrolls the window instead.
 
-**Arrow keys do nothing in the Series suggestion lists (Ron 2026-09-29; re-confirmed 2026-10-06, minor a11y)**.
-WHAT YOU SEE: in BOTH Series fields — the book details window's edit mode (✏️) and Bulk Edit → Series… — open the
-list (type a letter or click ▼) and press Down arrow: nothing moves through the list. In the book details window the
-Down arrow instead SCROLLS THE WHOLE WINDOW (that window scrolls; Bulk Edit doesn't, so there it does nothing). Enter
-takes the typed text, not a highlighted row.
-DO (standard combobox pattern): Down/Up move a highlight through the list while the cursor STAYS IN THE TEXT FIELD
-(so you can keep typing); Enter picks the highlighted series; Esc closes the list (already works); a list that's
-open consumes Down/Up so the window no longer scrolls. Build it ONCE in the shared `<Popover kind="list">` (both
-lists became that in 7.18.0-alpha.54) — not per field. Deferred by Ron 2026-10-06 (after the overlay branch's
-remaining groups).
-THE MODEL ALREADY EXISTS (found 2026-10-07): the search box's recent-searches list — the `SearchInput` component's
-Down/Up/Enter/Esc handling (highlight index, keeps typing in the field) — is exactly this pattern, working today.
-EXTRACT that into the shared list popup and use the ONE implementation for all three type-ahead lists (both Series
-fields AND the search box). Stable reference for "as it was": commit 46a0cf6 (`git show 46a0cf6:readerwrangler.js`,
-search for `const SearchInput`).
+**What you see**
+- In both Series fields — the book details window's edit mode (✏️), and Bulk Edit → Series… — open the list (type a letter or click ▼) and press Down.
+- Nothing moves through the list. In the book details window, Down scrolls the whole window instead.
+- Enter takes what you typed, not a highlighted row.
+
+**What you'd get** (the standard pattern)
+- Down / Up move a highlight through the list while the cursor **stays in the text field**, so you can keep typing.
+- Enter picks the highlighted series. Esc closes the list (already works).
+- While the list is open, Down / Up never scroll the window.
+
+**The model already exists**
+- The search box's "Recent searches" list works exactly this way today. Extract that and use **one implementation for all three type-ahead lists**: both Series fields and the search box.
+
+**Status:** deferred by Ron 2026-10-06 (minor accessibility fix).
+
+**How (technical)**
+- Build it once in the shared list popup (`<Popover kind="list">` — both Series lists became that in 7.18.0-alpha.54), not per field.
+- The working model is the `SearchInput` component's Down/Up/Enter/Esc handling. Stable copy "as it was": `git show 46a0cf6:readerwrangler.js`, search for `const SearchInput`.
 
 ### The "Save results" menu runs off the screen with many Book Lists
 
-_Why it matters:_ With 20+ Book Lists the lower ones are cut off and can't be reached.
+_Why it matters:_ With 20+ Book Lists, the lower ones are cut off and can't be reached.
 
-**"💾 N results · Save ▾" menu runs off the screen when you have many Book Lists (Ron 2026-10-06)**.
-WHAT YOU SEE: with a search or filter active, click the "💾 N results · Save ▾" button in the bar above the books.
-The menu lists every Book List; with ~20+ lists it's taller than the window, so the lower lists are cut off at the
-bottom with no way to scroll to them (and a long flat list is slow to scan).
-DO: give it a max height + scrolling, and — past ~10 lists — the same filter box the book right-click menu's
-"Move to" submenu already has (reuse that, don't build a second one). Check the other menus that list user items
-(Book Lists, folders) for the same problem while there. Not overlay-branch work.
-PREFERRED MECHANISM (designed 2026-10-06): an opt-in `<Popover>` option for BUTTON dropdowns — when the menu can't
-fit below its button, open on whichever side (above/below) has MORE room, cap its height to that space, and scroll
-(the standard "size to fit" approach of modern menu libraries). Today it pins to the top of the window and hangs off
-the bottom. Must NOT apply to the right-click menus with fly-out submenus (Move to / Copy to) — a scrolling menu would
-clip its own fly-outs (CursorPopup's "never add overflow" rule). The filter box stays a useful extra. Deferred by Ron
-2026-10-06 (wait in TODO).
+**What you see**
+- With a search or filter active, click the **💾 N results · Save ▾** button in the bar above the books.
+- The menu lists every Book List. With about 20 or more, it's taller than the window and the bottom ones are cut off, with no way to scroll. A long flat list is also slow to scan.
+
+**What you'd get**
+- The menu opens on whichever side of its button (above or below) has more room, fits that space, and scrolls — the usual approach in modern menus.
+- With more than ~10 lists, a filter box at the top — reuse the one the book right-click menu's "Move to" submenu already has.
+- Check other menus that list your own items (Book Lists, folders) for the same problem while there.
+
+**Watch out**
+- This must **not** apply to right-click menus with fly-out submenus (Move to / Copy to): a scrolling menu would clip its own fly-outs.
+
+**Status:** designed and deferred by Ron 2026-10-06.
+
+**How (technical)**
+- An opt-in option on `<Popover>` for button dropdowns: when it can't fit below, pick the roomier side, cap the height, scroll.
+- Today it pins to the top of the window and hangs off the bottom. The fly-out rule is CursorPopup's "never add overflow".
 
 ### Removing a recent search should offer Undo
 
 _Why it matters:_ One click deletes a recent search with no message and no way back.
 
-**Removing a recent search (the × on a row) can't be undone and leaves no trace (Ron 2026-10-07)**.
-WHAT YOU SEE: click into the search box so "Recent searches" appears, click the × on a row — it's gone instantly,
-with no toast, no Undo, and nothing in the 🕐 message history. Deleting a SAVED Search (left pane → SEARCHES →
-right-click → Delete Search) does confirm, toast and undo.
-DECIDED (Ron + UX pass): give recents removal the same treatment MINUS the confirmation — remove immediately, show a
-toast with Undo, record it in the 🕐 history (a recent is automatic history; "Are you sure?" per row would nag —
-standard "Removed · Undo" pattern). Route it through the shared undo/toast operation path, not a one-off. Related:
-memory notes "tag/search delete" was left off the shared undo system in the 6.13.1 operations refactor — check what
-else is still outside it while there.
+**What you see**
+- Click into the search box so "Recent searches" appears; click the × on a row.
+- It's gone instantly: no message, no Undo, nothing in the 🕐 message history.
+- By contrast, deleting a **saved** Search (left pane → SEARCHES → right-click → Delete Search) confirms, shows a message, and can be undone.
+
+**Decided** (Ron + UX pass, 2026-10-07)
+- Same treatment as a saved Search, **minus the confirmation**: remove at once, show "Removed · Undo", and log it in the 🕐 history.
+- No "Are you sure?" — recents are automatic history, and a question per row would nag.
+
+**Also**
+- Route it through the shared undo/message path, not a one-off.
+- Check what else still sits outside that path — tag and Search deletes were left out of it in 6.13.1.
 
 ### "Add Bibliography to Wishlist" is greyed out on an author's All Books tab
 
 _Why it matters:_ The bookmarklet doesn't recognize that kind of author page, so the button can't be used there.
 
-**"⭐ Add Bibliography to Wishlist" button is greyed out on an author's "All Books" tab (Ron 2026-10-07)**.
-WHAT YOU SEE: on Amazon, click an author's name (e.g. John Marrs), open the author page's **All Books** tab, filter
-English + Kindle, then click the ReaderWrangler bookmarklet — the "⭐ Add Bibliography to Wishlist" button is
-disabled. Example URL: `https://www.amazon.com/stores/author/B00F1CRG9U/allbooks?…`.
-LIKELY CAUSE (verified in code, not yet live-tested): the nav hub's author-page check
-(bookmarklet-nav-hub.js ~68: `/\/stores\/[^/]+\/author\/[A-Z0-9]{10}/i`) requires an author-NAME segment —
-`/stores/John-Marrs/author/B00F1CRG9U` — but the All Books tab uses `/stores/author/B00F1CRG9U/allbooks` (no name
-segment, extra `/allbooks`), so the page isn't recognized. DO: accept both URL shapes (name segment optional), then
-TEST the bibliography fetcher itself on the All Books page — its page structure may differ from the author home
-page, and the English/Kindle filters Ron applies may change what's on screen. Fetcher/nav-hub change → bump their
-versions; DEV bookmarklet first (navigator change), then PROD.
+**What you see**
+- On Amazon, click an author's name (e.g. John Marrs), open their author page's **All Books** tab, filter English + Kindle, then click the ReaderWrangler bookmarklet.
+- The **⭐ Add Bibliography to Wishlist** button is disabled.
+- Example address: `https://www.amazon.com/stores/author/B00F1CRG9U/allbooks?…`
+
+**Likely cause** (found in the code, not yet tested live)
+- The bookmarklet recognizes an author page only when its address contains the author's **name**: `/stores/John-Marrs/author/B00F1CRG9U`.
+- The All Books tab's address has no name and adds `/allbooks`, so it isn't recognized.
+
+**To do**
+1. Accept both address shapes (name optional).
+2. Then test the bibliography fetch itself on the All Books page — its layout may differ from the author home page, and the English/Kindle filters may change what's on screen.
+
+**How (technical)**
+- The check is in bookmarklet-nav-hub.js (~line 68): `/\/stores\/[^/]+\/author\/[A-Z0-9]{10}/i`.
+- Fetcher / nav-hub change: bump their versions; test on the DEV bookmarklet first (a navigator change), then PROD.
 
 ### Dark theme: fix the unreadable bar and the light strips
 
 _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar's text is unreadable.
 
-**Dark theme: unreadable "New library data available" bar + light strips around the filter area (Ron 2026-10-07)**.
-WHAT YOU SEE (View → Theme → Dark): (1) the bar under the menu bar reading "📡 New library data available (uploaded …)"
-keeps its LIGHT blue/purple background while its text turns near-white — unreadable; (2) a light strip shows under
-the "🔍 Active: Search …" bar (and anywhere there's a gap between sections).
-WHY (verified): dark mode works by REMAPPING specific Tailwind color classes in readerwrangler.css
-(`[data-theme="dark"] .bg-white {…}` etc.); anything colored outside that list stays light. (1) the relay bar's
-background is a hard-coded inline gradient `linear-gradient(135deg, #dbeafe, #ede9fe)` (readerwrangler.js ~9360) with
-`color: var(--text-primary)` text; (2) the app's outermost container uses `bg-gradient-to-br from-blue-50 to-blue-100`
-(~8992) — the GRADIENT classes aren't remapped (only plain bg-blue-50/100 are), and the Active bar's `mb-4` gap shows it.
-ALSO FOUND (same class, not yet seen by Ron): hard-coded light boxes in the Auto-Organize Preview (`#f1f3f5`, `#fafafa`,
-`#e5e7eb` ~12009/12018/12046), and likely more.
-DO: a COMB, not two spot fixes — grep every hard-coded light color in JSX (inline `background: '#…'` / light
-`linear-gradient`, `from-*/to-*` gradient classes, unmapped Tailwind colors) and move each onto the theme (CSS
-variables like `var(--bg-surface)`, or add the class to the dark remap). Check each in Dark after. MECHANISM idea:
-add a "no hard-coded light backgrounds in JSX" check to scripts/check-names.js's sibling tooling so new ones get
-flagged at commit time.
+**What you see** (View → Theme → Dark)
+1. The bar under the menu bar reading **"📡 New library data available (uploaded …)"** keeps its light blue/purple background while its text turns near-white — unreadable.
+2. A light strip shows under the **"🔍 Active: Search …"** bar, and wherever there's a gap between sections.
+3. Not yet seen by you, same cause: light boxes in the Auto-Organize preview, and likely more.
+
+**Why** (verified)
+- Dark mode works by swapping a specific list of colors. Anything colored outside that list stays light.
+- The relay bar's background is a fixed light gradient; the app's outer background is a gradient style that isn't on the list.
+
+**To do**
+- A sweep, not two spot fixes: find every fixed light color in the screens and move each onto the theme. Check each one in Dark afterwards.
+- **Mechanism idea:** a commit-time check that flags new fixed light backgrounds, next to the existing name check.
+
+**How (technical)**
+- Dark remaps Tailwind classes in readerwrangler.css (`[data-theme="dark"] .bg-white {…}` etc.).
+- Relay bar: inline `linear-gradient(135deg, #dbeafe, #ede9fe)` with `color: var(--text-primary)` (readerwrangler.js ~9360).
+- Outer container: `bg-gradient-to-br from-blue-50 to-blue-100` (~8992) — gradient classes aren't remapped; the Active bar's `mb-4` gap shows it.
+- Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
+- Grep for inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and unmapped Tailwind colors; move them to CSS variables (e.g. `var(--bg-surface)`) or add them to the dark remap. The check could sit beside `scripts/check-names.js`.
 
 ### Book Lists and Searches: pin and sort them like Folders
 
 _Why it matters:_ A long Book Lists column is hard to search; Folders already have pins and a Name / Manual sort.
 
-**Left-pane ordering parity for Book Lists + Searches** (Ron 2026-09-10, queued behind the transactional dialog):
-pins (top tier) + header sort control (Manual ↔ Name), the FOLDERS 7.6.0 vocabulary and controls verbatim —
-no second ordering system three inches from the first. List reorder already undoable (7.10.1-alpha.6); pin
-toggle joins undo. Motivation: hunting a series list in a long Book Lists column (Ctrl+F works but costs a
-thought-process switch). Expected usage: **Name to FIND, back to Manual for priority** — Ron's top tier =
-the `New To Read - *` work lists (mobile-filter surrogates, Prime clearing first), series To-Reads below.
+**What you'd get**
+- Book Lists and Searches in the left pane get **the same controls and words as Folders** (7.6.0): pins (a top tier) and a header sort control, **Manual ↔ Name**. No second ordering system three inches from the first.
+- Pinning can be undone (list reordering already can).
+
+**How you'd use it** (Ron, 2026-09-10)
+- **Name to find** a list, then back to **Manual** for priority.
+- Your top tier is the `New To Read - *` work lists (Prime clearing first); series To-Read lists below.
+- Today you hunt with Ctrl+F, which costs a switch of thought.
+
+**Status:** queued behind the book details window rework.
 
 ### Clearing a price goal doesn't fully clear it everywhere
 
 _Why it matters:_ An old second price-goal field can keep a book counted as "has a goal" after you clear it.
 
-**Old price-goal field `targetPrice` still lingers (found 2026-10-12)**. WHAT: a few code paths treat a book as
-"has a goal" if EITHER `priceTrigger` (today's goal) OR the older `targetPrice` is set — the import's "kept their
-price goals" count (storage.js ~174), the fetcher's goal check (amazon-library-fetcher.js ~2286), and the spreadsheet
-(`priceTrigger ?? targetPrice`). But clearing a goal in the app only clears `priceTrigger`. So a book that still
-carries an old `targetPrice` keeps "having a goal" in those places after you clear it. DO: first check whether any
-real book still has `targetPrice` set (console count); if so, migrate it into `priceTrigger` once, then retire the
-field (bookFields row + the three readers) — one goal field, not two. Small.
+**What happens**
+- A few places treat a book as "has a goal" if **either** today's goal field **or** an older one is set: the Import's "kept their price goals" count, the fetcher's goal check, and the spreadsheet export.
+- Clearing a goal in the app clears only today's field. A book still carrying the old one keeps "having a goal" in those places.
+
+**To do**
+1. First count whether any real book still has the old field set.
+2. If so, move it into today's field once.
+3. Retire the old field — one goal field, not two. Small.
+
+**How (technical)**
+- Today's field: `priceTrigger`. Old field: `targetPrice`.
+- Readers: storage.js ~174 (import count), amazon-library-fetcher.js ~2286, the spreadsheet's `priceTrigger ?? targetPrice`; plus its row in bookFields.js.
+- Found 2026-10-12.
 
 ### Find a book by its ASIN in the search box
 
 _Why it matters:_ Handy for checking whether one specific book is in your library.
 
-**Search by ASIN in the search box (Ron 2026-10-12)**. WHAT: typing a book's ASIN (e.g. `B08P52K2PZ`) into the
-search box at the top of the right pane ("Title, author or series...") finds that book — today it only matches title,
-author and series. Useful for checking a specific book exists (came up testing the removed-books feature).
-WHERE (three copies of the same match rule — make it ONE): the live search filter (`readerwrangler.js` ~10044), the
-saved-Search matcher `bookMatchesFilters` (~2196), and the phone's search (`mobile.js` ~2289, which also matches notes
-+ tags). DO: one shared `bookMatchesText(book, term)` (uiHelpers) with ASIN added (exact or prefix, case-insensitive),
-called by all three — then update the box's placeholder/tooltip to mention ASIN. Small.
+**What you'd get**
+- Type a book's ASIN (e.g. `B08P52K2PZ`) into the search box at the top of the right pane, and it finds the book. Today the box matches only title, author and series.
+- The box's placeholder and tooltip mention ASIN.
+
+**Watch out**
+- The matching rule exists in **three copies**: the live search, saved Searches, and the phone's search (which also matches notes and tags). Make it **one** shared rule that all three use.
+
+**Status:** Ron, 2026-10-12 (came up testing removed books). Small.
+
+**How (technical)**
+- Copies: readerwrangler.js ~10044 (live filter), `bookMatchesFilters` ~2196 (saved Searches), mobile.js ~2289.
+- One `bookMatchesText(book, term)` in uiHelpers, with ASIN as exact or prefix match, case-insensitive.
 
 ### A type-to-filter box for the left pane
 
 _Why it matters:_ With many folders, Book Lists and Searches, typing a few letters is the fastest way to find one.
 
-**Left-pane type-to-filter box** (Ron 2026-09-10, companion/escalation to the above): one box narrowing
-**Folders + Book Lists + Searches** by name — the strongest pure "find" at scale. Design questions for the
-build: placement (whole-pane vs per-section), keyboard focus/shortcut, clear-on-navigate, interaction with
-the accordion collapse.
+**What you'd get**
+- One box that narrows **Folders + Book Lists + Searches** by name — the strongest pure "find" at scale. The bigger sibling of the pin/sort task above.
+
+**Open questions**
+- Where it sits: one box for the whole pane, or one per section?
+- Keyboard: how you reach it (a shortcut?).
+- Does it clear when you navigate somewhere?
+- How it works with collapsed sections.
+
+**Status:** Ron, 2026-09-10.
 
 ### Ctrl+X from a Book List or Search quietly copies instead of cutting
 
 _Why it matters:_ You think you moved the book, but it never leaves the list.
 
-**Ctrl+X from a Book List / Search view silently degrades to copy** (found during alpha.7, filed not fixed):
-cut records the view id as source, but paste-cut removes from FOLDERS only — the book never leaves the list.
-Fix: refuse with the explanatory toast (like All Books) or make paste-cut honor Book List sources.
+**What happens**
+- In a Book List or Search view, Ctrl+X a book, then paste it into a folder. It's added there, but stays in the list too.
+
+**To do** (pick one)
+- Refuse with an explanatory message (as All Books already does), **or**
+- Make paste remove the book from the Book List it was cut from.
+
+**How (technical)**
+- Cut records the view as the source, but paste-cut only removes from **folders**. Found during alpha testing (alpha.7), filed not fixed.
 
 ### Faster back-to-back fetches: refresh everything at most once a day
 
 _Why it matters:_ Grabbing one new book still re-prices and re-checks the whole library every time.
 
-**Fetcher: throttle the full-library passes on back-to-back fetches** (Ron 2026-09-19, felt while
-patching $0.99 series holes — buy → download → import, repeatedly). Grabbing 1 new book still re-prices
-EVERY wishlist book, re-enriches, and runs the full orphan scan — wasteful back-to-back. Design:
-- **Always** run the incremental fetch + **enrich the NEW books** (series/cover/description — needed to
-  file them; never skip this).
-- **Throttle only the FULL-LIBRARY passes** — re-price-all-wishlist, re-enrich-existing, orphan-scan —
-  to at most **once per ~24h**. Principled interval: matches the existing price-staleness threshold
-  (prices dim at ~24h, KB §16), so throttling doesn't degrade price-watching.
-- **State:** `lastFullPassAt` (relay, or localStorage on the Amazon origin).
-- **Override at the point of effect** (Law 16): when the fetcher skips the full passes, its completion
-  dialog says so and offers one click — *"Skipped the full refresh (prices, re-enrichment, orphan scan)
-  — already done today. Do it now?"* Gives "full twice today" without a 2nd bookmarklet. **Do NOT** use a
-  Shift/Alt-click modifier (PRINCIPLES/Browser: Windows drag/click events lie about modifiers —
-  unreliable + undiscoverable).
-- **ANALYSIS FIRST (before building):** does the fetcher already separate "enrich NEW" from
-  "re-price/re-enrich ALL" in its phases (titles → enrichment → tags → prices)? If entangled, splitting
-  them is the real work. Read the fetcher (bookmarklet) code first. Fetcher-side change (+ maybe app/relay
-  coordination for the state + the override dialog) — separate codebase from the app.
-- **Cross-ref:** Ownership-honesty batch **item #1** ("Fetcher completion dialog reports ownership
-  upgrades") touches the SAME fetcher completion dialog — build them together.
-- **KB update on ship (Ron 2026-09-21):** once full re-pricing is throttled to ~once/24h, §16's answers
-  *"How fresh are prices? As fresh as your last fetch"* and *"every wishlist-priced book is re-priced each
-  run"* become inaccurate — update them (prices refresh at most ~once/day by default; the override forces a
-  fresh pass).
+**What you see** (Ron, 2026-09-19, patching $0.99 series holes: buy → download → import, again and again)
+- Each fetch re-prices every wishlist book, re-checks every book's details, and runs the full removed-books scan — wasteful when run back to back.
+
+**Decided**
+- **Always:** fetch what's new, and fill in the new books' details (series, cover, description) — you need them to file the books.
+- **At most once a day:** the whole-library passes — re-pricing the wishlist, re-checking existing books, the removed-books scan. A day matches when prices start showing as stale (KB §16), so price-watching doesn't suffer.
+- **When it skips, it says so** in the fetch's completion window, with one click to run them anyway: *"Skipped the full refresh (prices, details, removed-books check) — already done today. Do it now?"*
+- **No Shift/Alt-click shortcut** for this — Windows reports those keys unreliably on clicks, and nobody would discover it.
+
+**Before building**
+- Check whether the fetcher already separates "fill in NEW books" from "re-price / re-check ALL". If they're tangled together, separating them is the real work.
+
+**Also**
+- Build together with "Fetch summary should report books you bought" (On hold section) — same completion window.
+- When shipped, update SUPPORT-KB §16: "prices are as fresh as your last fetch" and "every wishlist book is re-priced each run" stop being true.
+
+**How (technical)**
+- Remember `lastFullPassAt` (relay, or browser storage on Amazon's site).
+- A fetcher (bookmarklet) change, maybe with app/relay help for the stored time and the dialog.
 
 ### "Read in Kindle": open a book in the Kindle app or Cloud Reader
 
 _Why it matters:_ Jump straight from ReaderWrangler to reading the book.
 
-**"Read in Kindle" — jump from RW to the book in a Kindle reader** (Ron 2026-09-20; RW has become
-his primary library organizer and he keeps wanting to open a book straight from RW mobile). **NOT a
-built-in reader** (he still reads on the Paperwhite; too much scope). Instead, a per-book **Read**
-action for OWNED books:
-- **Mobile RW → Android Kindle app** via a deep link by ASIN (Kindle app URI scheme / Android App Link).
-- **Desktop RW → Kindle Cloud Reader** (`read.amazon.com`, opened to the ASIN).
-- **Owned-only:** show it only for owned books — you can't read a wishlist/sample entry (those keep
-  "Open in Amazon" / the product page).
-- **Known dead-end (tested 2026-09-19, FAILED):** opening a book in the Android Kindle app does NOT bump
-  it to the top of the Uncollected collection on the Paperwhite (the hoped-for cross-device surfacing).
-  So the value is limited to people who read in the **Android app or Cloud Reader** — Paperwhite-only
-  users gain nothing. Priority accordingly.
-- **Deep-link specifics (Ron's research 2026-09-19; all UNOFFICIAL/undocumented — Amazon could break
-  them, so best-effort with a fallback, and TEST per platform/version):**
-  - **Android → intent URL with fallback** (preferred over the bare scheme):
-    `intent://book?action=open&asin=<ASIN>#Intent;scheme=kindle;package=com.amazon.kindle;S.browser_fallback_url=https%3A%2F%2Fwww.amazon.com%2Fdp%2F<ASIN>;end`
-    — falls back to the Amazon product page if the app isn't installed. Bare form:
-    `kindle://book?action=open&asin=<ASIN>`. **Must be a user tap** (Chrome blocks otherwise); owned
-    books only; behavior has shifted across app versions (may land on the detail page instead of
-    opening to read).
-  - **Desktop → Kindle Cloud Reader:** `https://read.amazon.com/?asin=<ASIN>` (opens the book if
-    signed in; resumes at last position via Whispersync). Optional secondary "Open in Kindle app"
-    using the same `kindle://…` scheme for **Kindle-for-PC** users (browser shows an "Open Kindle?"
-    prompt).
-- **Caveats:** use the **Kindle-edition ASIN** (not print) — fine for owned Kindle books (RW's ASINs
-  come from the Kindle library), but a print-only owned book won't open. Not every title is
-  Cloud-Reader-readable (some restricted → "download the app" prompt, undetectable in advance) → keep
-  the `amazon.com/dp/<ASIN>` fallback. **Marketplace matters** — non-US accounts need
-  `read.amazon.co.uk` / `.co.jp` / etc.; RW may need the user's marketplace or default to `.com` + rely
-  on fallback. (Backstory link: `reference_read_in_kindle` memory.)
+**What you'd get**
+- A **Read** action on books you **own** (not wishlist or sample entries — those keep "Open in Amazon"):
+  - **Phone:** opens the book in the Android Kindle app.
+  - **Desktop:** opens Kindle Cloud Reader (read.amazon.com) at the book. Optionally also "Open in Kindle app" for Kindle-for-PC users (the browser asks "Open Kindle?").
+- **Not** a built-in reader — you still read on the Paperwhite.
+
+**Limits**
+- **Tested and failed (2026-09-19):** opening a book in the Android app does **not** move it to the top of the Paperwhite's list. So it only helps people who read in the app or Cloud Reader; Paperwhite-only readers gain nothing. Prioritize accordingly.
+- The links are **unofficial** — Amazon could break them. Keep a fallback to the book's Amazon page, and test per platform and app version.
+- Needs the **Kindle edition's** ASIN; a print-only owned book won't open. Some titles can't be read in Cloud Reader at all, and there's no way to tell in advance.
+- **Country matters:** non-US accounts need read.amazon.co.uk / .co.jp etc. Ask for the user's marketplace, or default to .com and rely on the fallback.
+
+**How (technical)**
+- Android (preferred, with fallback): `intent://book?action=open&asin=<ASIN>#Intent;scheme=kindle;package=com.amazon.kindle;S.browser_fallback_url=https%3A%2F%2Fwww.amazon.com%2Fdp%2F<ASIN>;end`
+- Android bare form: `kindle://book?action=open&asin=<ASIN>` — must come from a tap (Chrome blocks it otherwise); behavior has shifted between app versions (may land on the details page instead of opening the book).
+- Desktop: `https://read.amazon.com/?asin=<ASIN>` (opens if signed in; resumes at your last position).
+- Fallback: `https://www.amazon.com/dp/<ASIN>`.
+- Background research: the `reference_read_in_kindle` memory (Ron's 2026-09-19 research).
 
 ### Make sure an Import never wipes fields only ReaderWrangler sets
 
-_Why it matters:_ Two fields were being wiped on every Import; check no other field has the same gap, and decide whether backups keep them.
+_Why it matters:_ Two fields were being wiped on every Import; check no other field has the same gap, and decide whether backups should keep them.
 
-**bookMerge ownership audit — the deeper invariant the chokepoint surfaced (2026-09-22)**.
-DONE so far (7.16.0-alpha.3): `collectionTagSeen` + `collectionTags` were silently `'amazon'`
-(incoming-wins) and WIPED on every import — the fetcher never sets them AND the device-state push
-(readerwrangler ~5560-5594) doesn't carry them, so incoming ALWAYS lacks them. Reclassified to `'user'`
-(local-wins) + a gate test locking it. **The general invariant to sweep for:** any book field the APP
-writes but the device-state push payload does NOT include must be `'user'` (local-wins), or import
-silently wipes it. Walk the payload vs the registry and check every field lands right.
-**SECOND HALF — still OPEN (separate, wire-schema):** those two fields are also absent from the push
-payload, so **Save/Restore and cross-device still lose them** (local-wins only saves them from the IMPORT
-merge, not from a restore that replaces wholesale). If preserving wizard state across backup/restore
-matters, ADD both to the payload builder (~5560) + the import parser (~6186/6270). Decide if in scope.
+**Done so far** (7.16.0)
+- The Tag from Collections wizard's two remembered settings were wiped on every Import. They're now protected, with a test locking that in.
+
+**Still open**
+1. **The general check:** any field the app sets that isn't sent along with your organization must be protected from Import, or Import silently wipes it. Walk the list of what's sent against the field table and check every field.
+2. **Save / Restore and other devices still lose those two settings** — they aren't sent at all. If keeping the wizard's state across a backup matters, add them to what's sent and read back. Decide if it's in scope.
+
+**How (technical)**
+- Fields: `collectionTagSeen`, `collectionTags`; were incoming-wins (`'amazon'`), now local-wins (`'user'`) in the bookMerge registry, with a gate test.
+- The rule: an app-written field missing from the device-state push payload must be `'user'`.
+- Payload builder readerwrangler.js ~5560–5594; import parser ~6186 / ~6270. (2026-09-22)
 
 ### Turn more of our working rules into automatic checks (my tooling)
 
-_Why it matters:_ Rules that depend on memory keep failing; automatic checks don't. Affects only how I work, not the app.
+_Why it matters:_ Rules that depend on memory keep failing; automatic checks don't. This affects only how I work, not the app.
 
-**Principle-to-hook audit — can each distilled law be MECHANIZED, not just remembered? (Ron 2026-09-22)**
-Motivated by "assuming bit us again" (orphanStatus durability, a DESIGN-time assumption the edit-time gate
-never saw). Walk `docs/PRINCIPLES.md` law by law and classify each: **(a) reducible to a deterministic gate**
-(a script/test a hook runs + BLOCKS on red — real teeth: e.g. run the test suite before commit; grep TODO/
-REMOVE before release; version-bump-when-.js-changed; cache-buster-matches; the merge-completeness test)
-vs **(b) judgment-only** (NEVER ASSUME, model-legal-states, UX-first — a hook can only REMIND, and reminders
-decay to rubber-stamps). For (b), the leverage is giving reminders *teeth via a required artifact*: e.g. a
-design-doc **`## Assumptions (and how each was verified)`** section a PreToolUse hook can check EXISTS on a
-`docs/design/*` write — the content is judgment but the visibility is enforced, and it fires at DESIGN time
-(where this assumption slipped), not just edit time. Guard against reminder-bloat (the gate is already 11
-points; more dilutes). Meta-principle recursion: prefer converting a law to a check over adding another tap.
-**From the 7.18.0 PM (2026-10-08):** ~~(1) gate watched only readerwrangler.js/mobile.js~~ DONE same day — widened
-to a rule (any root `.js` + relay worker). (2) STILL OPEN: a gate bounce inside a parallel batch silently drops
-that one edit (alpha.62 half-fix) — no obvious mechanism yet (a hook can't know which edits were intended); design.
-**(3) My code safety-check can be skipped by accident (7.19.0 PM, 2026-10-12).** The checklist that pops up before
-I change app code only fires when I use my normal editing tool; edits I make with a find-and-replace command skip it.
-Fix: have the check fire for those edits too. Affects only my tooling, not the app. Small.
-(Technical: the gate hooks only Edit/Write; add a PreToolUse hook on Bash that spots `sed -i` / redirects onto a
-root `.js` or the relay worker and runs the same once-per-turn checklist — reuse `is_app_source()`.)
+**The idea** (Ron, 2026-09-22, after "assuming bit us again")
+- Go through docs/PRINCIPLES.md rule by rule and sort each one:
+  - **Can become an automatic check** that blocks a commit or release — for example: run the tests before a commit; search for leftover TODO / REMOVE markers before release; version bumped when code changed; cache-busters match.
+  - **Judgment only** (never assume, model the legal states, UX first). A hook can only *remind*, and reminders fade into rubber stamps. Give these teeth with a required artifact instead: e.g. every design doc must have an **"Assumptions (and how each was verified)"** section, which a hook can check exists when a design doc is written — catching assumptions at design time, not just at edit time.
+- Guard against reminder bloat — the pre-build checklist is already 11 points.
+
+**Open items**
+1. ✅ The pre-build checklist only watched two files — widened to all app code on 2026-10-08.
+2. **When an edit is bounced by the checklist inside a batch of edits, that one edit silently goes missing** (alpha.62 shipped half a fix). No obvious mechanism yet — a hook can't know which edits were intended. Needs design.
+3. **My code safety check can be skipped by accident** (7.19.0 post-mortem). The checklist only fires for my normal editing tool; edits made with a find-and-replace command skip it. Make it fire for those too. Small.
+
+**How (technical)**
+- Item 3: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
 
 ### Tag from Collections: clear up the checkbox vs. preview confusion
 
 _Why it matters:_ Each row has two click targets that do different things, with nothing to tell them apart.
 
-**Tag-from-Collections wizard: right-pane vs checkbox confusion (UNSETTLED — 2026-09-22)**. The
-left-pane row has TWO hit-targets doing different things with no cue: the **checkbox** = "include in Apply";
-clicking the **name text** = "show this collection's books in the right pane" (`tfcSelectedCollection`).
-Unchecking a box doesn't change the right pane — only a text-click does; and "checked" vs "being viewed"
-share the same row highlight, so the two models are invisible (fooled Ron). **UNSETTLED — the goal of the
-right pane isn't even clear (preview? the apply-set?); do NOT prescribe a fix yet.** When taken up: first
-pin down what the right pane is FOR, then make the two states distinct (or unify: right pane follows the
-checkbox / last action; header "Viewing: X"). Design pass before any code.
-**Also (Ron 2026-09-22): UX-Expert opinion wanted on whether AND where to ALSO surface the
-Tag-from-Collections wizard from the Manage Tags menu / sub-menu** (in addition to its current launch
-point) — a discoverability/placement question; evaluate, don't just wire it in.
+**What you see** (in the Tag from Collections wizard's left list)
+- The **checkbox** means "include this collection when you Apply".
+- Clicking the **name** means "show this collection's books on the right".
+- Unchecking a box doesn't change the right side — only clicking a name does. And "checked" and "being shown" use the same row highlight, so you can't see the two states (it fooled you).
+
+**Unsettled — don't prescribe a fix yet**
+- First decide what the right side is **for**: a preview? the set Apply will use?
+- Then make the two states look different — or unify them (the right side follows the checkboxes / your last action, with a header like "Viewing: X").
+- Design pass before any code.
+
+**Also** (Ron, 2026-09-22)
+- A UX opinion wanted: should the wizard **also** be reachable from the Manage Tags menu — and where? Evaluate, don't just wire it in.
+
+**How (technical)**
+- The "shown" state is `tfcSelectedCollection`.
 
 ### Restore dialog calls yesterday's backup "today"
 
 _Why it matters:_ A wrong date label can lead you to restore the wrong backup.
 
-**Restore dialog mislabels a backup's relative date (2026-09-22)**: a backup from **9/21 6:54 PM** was
-labeled **"— today"** while the real date was 9/22 (Ron: NOT a timezone artifact — it was yesterday
-everywhere). The "today"/relative-date logic is wrong — likely a "within ~24h = today" heuristic instead of
-a calendar-day compare, or a UTC/local mismatch. VERIFY first (grep the "— today" string / the label code),
-then compare by calendar day in local time + add yesterday / N-days-ago cases.
+**What you see**
+- A backup from 9/21 6:54 PM was labeled **"— today"** on 9/22. Not a time-zone effect: it was yesterday everywhere.
+
+**Likely cause**
+- "Within about 24 hours = today" instead of comparing calendar days — or a mix-up between UTC and local time.
+
+**To do**
+1. Verify first: find where the "— today" label is made.
+2. Compare by calendar day in local time, and add "yesterday" and "N days ago".
 
 ### Phone: show which test build is running
 
 _Why it matters:_ During testing you can't tell from the phone which build it's on.
 
-**Mobile: show a live BUILD marker, not just the released `APP_VERSION` (Ron 2026-09-22)**. Mobile's
-About shows `App v{APP_VERSION}` (the last *released* version, which by design doesn't bump during alphas)
-+ `Mobile v{MOBILE_VERSION}`. During alpha testing the desktop surfaces the live `ORGANIZER_VERSION`
-(e.g. 7.16.0-alpha.6) but mobile can't (it's a different file). Surface a live build marker on mobile so a
-tester can tell which build the phone is actually running (MOBILE_VERSION already moves per alpha, but the
-"App v" line reads stale-looking). Small UI/version-plumbing polish.
+**What you see**
+- The phone's About shows "App v…" — the last **released** version, which by design doesn't change during testing — and "Mobile v…".
+- The desktop shows the live test build (e.g. 7.16.0-alpha.6). The phone can't, since it's a different file. The mobile number does change with each test build, but the "App v" line looks stale.
+
+**To do**
+- Show a live build marker on the phone. Small display / version-plumbing fix.
+
+**How (technical)**
+- `APP_VERSION` (released, frozen during alphas) vs `ORGANIZER_VERSION` (live, desktop only) vs `MOBILE_VERSION` (moves per alpha).
 
 ## ⏸️ On hold: honest ownership changes (buying, samples, loans)
 
