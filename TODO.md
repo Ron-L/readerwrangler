@@ -28,6 +28,8 @@
         - [Import summary: count every ownership change, by kind](#import-summary-count-every-ownership-change-by-kind)
         - [Keep the Import summary in the message history](#keep-the-import-summary-in-the-message-history)
         - [Keep price goals when a book is bought, and say so](#keep-price-goals-when-a-book-is-bought-and-say-so)
+      - [Relay storage: stop leftovers piling up, and report usage correctly (in progress)](#relay-storage-stop-leftovers-piling-up-and-report-usage-correctly-in-progress)
+        - [Numbers the app and relay must agree on: add a check that they match](#numbers-the-app-and-relay-must-agree-on-add-a-check-that-they-match)
     - [Polish](#polish)
       - [Ctrl+X from a Book List or Search quietly copies instead of cutting](#ctrlx-from-a-book-list-or-search-quietly-copies-instead-of-cutting)
       - [Clearing a price goal doesn't fully clear it everywhere](#clearing-a-price-goal-doesnt-fully-clear-it-everywhere)
@@ -41,32 +43,49 @@
       - [Auto-Organize: let a misfiled book go back to the Inbox](#auto-organize-let-a-misfiled-book-go-back-to-the-inbox)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
-    - [Unsorted](#unsorted)
-      - [✅ Auto-Organize preview: show which Book Lists a book is in](#auto-organize-preview-show-which-book-lists-a-book-is-in)
-      - [See an author's other books without leaving your spot](#see-an-authors-other-books-without-leaving-your-spot)
-      - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
-      - [User Guide: explain workarounds for fields you can't filter by](#user-guide-explain-workarounds-for-fields-you-cant-filter-by)
-      - [Drag between Folders and Book Lists](#drag-between-folders-and-book-lists)
-      - [Search everywhere without leaving the current folder](#search-everywhere-without-leaving-the-current-folder)
-      - [Wording pass: explain Book List shortcuts and Linked Copies](#wording-pass-explain-book-list-shortcuts-and-linked-copies)
-      - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
-      - [Fetcher: name and explain Amazon's library filter](#fetcher-name-and-explain-amazons-library-filter)
-      - [Hide returned loans and borrows](#hide-returned-loans-and-borrows)
-      - [A management view for Book Lists](#a-management-view-for-book-lists)
-      - [Delete a book from All Books (removes it everywhere)](#delete-a-book-from-all-books-removes-it-everywhere)
-      - [Drag a box to select covers](#drag-a-box-to-select-covers)
-      - [Show only hidden books](#show-only-hidden-books)
-      - [Fetch: report exactly how your library compares with Amazon](#fetch-report-exactly-how-your-library-compares-with-amazon)
-      - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
-      - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
-      - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
-      - [Import book details from a pasted list or spreadsheet](#import-book-details-from-a-pasted-list-or-spreadsheet)
-      - [Set different series numbers on several books at once ("2, 4")](#set-different-series-numbers-on-several-books-at-once-2-4)
-      - [One book in several series positions (omnibus, anthology, MegaPack)](#one-book-in-several-series-positions-omnibus-anthology-megapack)
-      - [Folder menu: Move to Top / Move to Bottom](#folder-menu-move-to-top--move-to-bottom)
-      - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
-      - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
-      - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
+      - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
+      - [Finish routing every change through one shared path, with undo](#finish-routing-every-change-through-one-shared-path-with-undo)
+      - [The Delete key should delete the folders you've selected](#the-delete-key-should-delete-the-folders-youve-selected)
+      - [Book List menu: remove Move / Copy, and block dragging onto folders](#book-list-menu-remove-move--copy-and-block-dragging-onto-folders)
+      - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
+    - [Unsorted — suggested for High priority](#unsorted--suggested-for-high-priority)
+      - [Group 1 — Series numbers (Ron: high priority)](#group-1--series-numbers-ron-high-priority)
+        - [Set different series numbers on several books at once ("2, 4")](#set-different-series-numbers-on-several-books-at-once-2-4)
+        - [One book in several series positions (omnibus, anthology, MegaPack)](#one-book-in-several-series-positions-omnibus-anthology-megapack)
+      - [Group 2 — Everyday organizing](#group-2--everyday-organizing)
+        - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
+        - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
+        - [Search everywhere without leaving the current folder](#search-everywhere-without-leaving-the-current-folder)
+      - [Group 3 — Trusting the fetch](#group-3--trusting-the-fetch)
+        - [Fetch: report exactly how your library compares with Amazon](#fetch-report-exactly-how-your-library-compares-with-amazon)
+        - [Hide returned loans and borrows](#hide-returned-loans-and-borrows)
+    - [Unsorted — suggested for Polish](#unsorted--suggested-for-polish)
+      - [Group 1 — Moving and selecting](#group-1--moving-and-selecting)
+        - [Drag between Folders and Book Lists](#drag-between-folders-and-book-lists)
+        - [Delete a book from All Books (removes it everywhere)](#delete-a-book-from-all-books-removes-it-everywhere)
+        - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
+        - [See an author's other books without leaving your spot](#see-an-authors-other-books-without-leaving-your-spot)
+      - [Group 2 — Book Lists](#group-2--book-lists)
+        - [A management view for Book Lists](#a-management-view-for-book-lists)
+        - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
+      - [Group 3 — Small fixes](#group-3--small-fixes)
+        - [Show only hidden books](#show-only-hidden-books)
+        - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
+        - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
+        - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
+      - [Group 4 — Fetcher housekeeping](#group-4--fetcher-housekeeping)
+        - [Fetcher: name and explain Amazon's library filter](#fetcher-name-and-explain-amazons-library-filter)
+        - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
+      - [Group 5 — Looks done (confirm in the done-ness sweep)](#group-5--looks-done-confirm-in-the-done-ness-sweep)
+        - [✅ Auto-Organize preview: show which Book Lists a book is in](#auto-organize-preview-show-which-book-lists-a-book-is-in)
+        - [Folder menu: Move to Top / Move to Bottom](#folder-menu-move-to-top--move-to-bottom)
+    - [Unsorted — suggested to move out of Up next](#unsorted--suggested-to-move-out-of-up-next)
+      - [To Before launch (with the User Guide rewrite)](#to-before-launch-with-the-user-guide-rewrite)
+        - [User Guide: explain workarounds for fields you can't filter by](#user-guide-explain-workarounds-for-fields-you-cant-filter-by)
+        - [Wording pass: explain Book List shortcuts and Linked Copies](#wording-pass-explain-book-list-shortcuts-and-linked-copies)
+      - [To After launch (Features)](#to-after-launch-features)
+        - [Import book details from a pasted list or spreadsheet](#import-book-details-from-a-pasted-list-or-spreadsheet)
+        - [Drag a box to select covers](#drag-a-box-to-select-covers)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Security page: finish the high-contrast light theme](#security-page-finish-the-high-contrast-light-theme)
@@ -85,38 +104,23 @@
       - [Pin the exact versions of outside code libraries](#pin-the-exact-versions-of-outside-code-libraries)
       - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
+      - [Protect against editing in two tabs at once](#protect-against-editing-in-two-tabs-at-once)
+      - [Let a new user's first big fetch resume after an interruption](#let-a-new-users-first-big-fetch-resume-after-an-interruption)
+      - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
     - [Costs](#costs)
       - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
-  - [🔧 Relay follow-ups](#relay-follow-ups)
-    - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
-    - [Relay storage: stop leftovers piling up, and report usage correctly (in progress)](#relay-storage-stop-leftovers-piling-up-and-report-usage-correctly-in-progress)
-    - [Let a new user's first big fetch resume after an interruption](#let-a-new-users-first-big-fetch-resume-after-an-interruption)
-    - [Numbers the app and relay must agree on: add a check that they match](#numbers-the-app-and-relay-must-agree-on-add-a-check-that-they-match)
-  - [💰 Price checking](#price-checking)
-    - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
-    - [Now and then, refresh ratings for books you might buy](#now-and-then-refresh-ratings-for-books-you-might-buy)
-  - [🔜 Soon](#soon)
-    - [Undo, deleting and multiple windows](#undo-deleting-and-multiple-windows)
-      - [Finish routing every change through one shared path, with undo](#finish-routing-every-change-through-one-shared-path-with-undo)
-      - [The Delete key should delete the folders you've selected](#the-delete-key-should-delete-the-folders-youve-selected)
-      - [Keep reading the old save format (a standing decision, not a task)](#keep-reading-the-old-save-format-a-standing-decision-not-a-task)
-      - [Protect against editing in two tabs at once](#protect-against-editing-in-two-tabs-at-once)
-      - [Warn when another browser has newer changes](#warn-when-another-browser-has-newer-changes)
-    - [Book List menus and undo history](#book-list-menus-and-undo-history)
-      - [Book List menu: remove Move / Copy, and block dragging onto folders](#book-list-menu-remove-move--copy-and-block-dragging-onto-folders)
-      - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
   - [🗄️ After launch](#after-launch)
     - [Dialog look](#dialog-look)
       - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
-    - [Relay and data safety](#relay-and-data-safety)
+    - [Relay and sync](#relay-and-sync)
       - [✅ Safer relay saves (the relay redesign)](#safer-relay-saves-the-relay-redesign)
       - [✅ Deleted books that stay deleted](#deleted-books-that-stay-deleted)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Cheaper small syncs (send only what changed)](#cheaper-small-syncs-send-only-what-changed)
-      - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
       - [✅ Ask before restoring when relay credentials don't match](#ask-before-restoring-when-relay-credentials-dont-match)
+      - [Warn when another browser has newer changes](#warn-when-another-browser-has-newer-changes)
     - [Features](#features)
       - [Finish keyboard accessibility](#finish-keyboard-accessibility)
       - [Show reading progress](#show-reading-progress)
@@ -132,6 +136,9 @@
       - [✅ More export options (printable list)](#more-export-options-printable-list)
       - [Connect with Goodreads / StoryGraph](#connect-with-goodreads--storygraph)
       - [Animated drag-and-drop](#animated-drag-and-drop)
+    - [Prices](#prices)
+      - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
+      - [Now and then, refresh ratings for books you might buy](#now-and-then-refresh-ratings-for-books-you-might-buy)
     - [Technical clean-up](#technical-clean-up)
       - [Faster loading: build the app ahead of time](#faster-loading-build-the-app-ahead-of-time)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
@@ -165,8 +172,8 @@
 
 _Formerly: 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-16)_
 
-In priority order (Ron re-ranked 2026-10-14). Two parts: **High priority**, then **Polish**. **Unsorted** at the
-bottom holds tasks moved in from elsewhere, waiting for Ron to place them.
+In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**. The three **Unsorted** groups at the
+bottom are my suggested placements (2026-10-14) for tasks moved in from elsewhere — Ron places them.
 
 ### High priority
 
@@ -642,6 +649,102 @@ _Polish end of the batch._
 **Already there**
 - Since 7.1.0 the Import summary says "N kept their price goals — clear if no longer wanted". The receipt line and the one-click clear are what's left.
 
+#### Relay storage: stop leftovers piling up, and report usage correctly (in progress)
+
+_Why it matters:_ Leftovers eat into the free storage limit, and the daily email was reporting the wrong total.
+
+**The problem** (found 2026-10-03/04; full write-up: docs/design/RELAY-WRITE-REDESIGN.md §14a)
+- Each Restore left an ~18 MB package behind on the relay.
+- The daily usage email showed **one** relay's storage (production or dev), never the sum, and printed "no data" as 0. The real total was ~572 MB — 56% of the 1 GB free limit — while emails said 219.7 / 326 / 0.
+- About 265 MB was recoverable leftovers.
+
+**The plan** (agreed 2026-10-13, revised 2026-10-14)
+- ✅ **A — contributor mode** (7.21.0): a prerequisite.
+- ✅ **B1 — the app cleans up after every save** (7.21.1): the package a save absorbed is deleted inside the save itself, and duplicates are removed. Proven on dev. Production's old leftovers go on its next save, or via the B2 cleanup.
+- ~~Send to Production~~ — considered and rejected 2026-10-13 (docs/design/SEND-TO-PRODUCTION.md).
+- 🔨 **B2 — the relay worker** (branch `feature/relay-worker-b2`, alpha.4 running on **dev only**; production still runs the old worker). Built so far:
+  - Both relays send the daily email, covering **production + dev + the total** against the account-wide free limits. Dev's subject starts "[Dev]".
+  - Threshold alerts compare the total (production only sends them).
+  - A daily storage check that **reports** what a cleanup would delete, and deletes nothing.
+  - A key-count check: Cloudflare's count is the day's **highest**, so "live ≤ it" reads as consistent.
+  - Every email also arrives as formatted HTML. Worker statistics are labeled prod- / dev-.
+  - The worker's version is in every email (the pre-commit check enforces the bump).
+  - Each schedule runs only its own job. Any other schedule does nothing and is counted **in red** at the top of the next summary.
+- ⏭️ **C — a shared notepad** for both relays (no user data): dev becomes a backup alerter (sends "[Dev] backup alert" if a limit crossing it has seen for over an hour has no production alert recorded), plus a "production is alive" check (alert if production's daily summary is more than 26 hours old).
+
+**Next steps**
+1. **Tonight, 6:55 PM:**
+   - Exactly **one** production email (old format) — settles the 10-13 duplicate.
+   - The "[Dev]" summary, opening with the red section if the stray 10-minute schedule still fired.
+   - Compare dev's storage figure with the Cloudflare dashboard.
+2. **In a day or two: put the report-only worker on production** (asks you first). Production has the **real** leftovers, so its report is the real test. Expect:
+   - "Would delete": the interrupted save `…21fc`.
+   - "Kept": the never-imported Restore `…3560`.
+   - Possibly one storage alert on its first threshold check.
+3. **After a few days of both reports being right: release 7.22.0 (report-only).** Update RELAY-WRITE-REDESIGN §14a (fixes 2 and 3 built as report-only; its two open questions are answered — each relay checks its own storage, and Cloudflare's key count is a daily maximum), CHANGELOG (your word on the copy), squash / tag / push to both, post-mortem.
+4. **Deleting = the next release, on its own branch.**
+   - It needs a per-run budget: a free-plan run gets 50 outside calls, and every storage call counts — one 18-part leftover alone is 19 deletes. Spread big cleanups over days.
+   - Test on dev with **deliberately planted** leftovers on the test channel `22222222…` (dev has none of its own); confirm it removes exactly those; a few days on dev; then production.
+5. **Then C.**
+
+**Lessons learned**
+- Cloudflare had three schedule incidents (2026-10-12, 10-13, 10-14) that delayed schedule changes by **hours** — the replaced 10-minute test schedule kept mailing.
+- **Never test with a temporary schedule again.** Test with the on-demand summary instead (PowerShell; one email each; Resend allows 100 a day):
+  `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))`
+- **Never deploy the relay from main** (or a branch off it) until B2 merges: main still has the old worker.
+
+**Rules**
+- Every deploy asks you first (the pre-approved production deploy was removed from local permissions).
+- Leave production channel `58c1bfd7…` alone — another user's data; it expires Dec 7.
+
+**Background** (the 2026-10-13 inventory)
+- Production unchanged since Sep 9: the interrupted save `…21fc`, the unabsorbed Restore `…3560`, an old-format device-state copy.
+- Dev's ~160 MB of Restore packages were reclaimed by the 2026-10-12 Imports (an Import retries cleaning earlier absorbed runs — so the leak was permanent only on a channel that never imports, like production). Dev had 7 device-state copies.
+- The Sep 27 dev runs have been imported — that hold is lifted.
+
+**How (technical)**
+- Inventory tool: `.private/analyze-relay-keys.js` (key dumps hold channel IDs — credentials — so delete them after use).
+- B1 lives in `commitGeneration` (relay-client.js) with `absorbedRuns` deduped.
+- Deploy dev: `npx wrangler deploy --env dev`, from `relay/` on the B2 branch.
+- B2 alpha.4 = commit `e753679`. The deployment is named by `RELAY_ENV` (prod / dev) in wrangler.toml; the worker's version is `WORKER_VERSION`; the key check compares Cloudflare's `keyCount`.
+
+##### Numbers the app and relay must agree on: add a check that they match
+
+_Why it matters:_ The same rules are typed separately in two programs; change one and forget the other, and things quietly go wrong.
+
+_Part of the relay storage work above — build it with B2 (decided 2026-10-14)._
+
+**What this is about**
+- ReaderWrangler is two separate programs: **the app** (in your browser) and **the relay** (on Cloudflare).
+- A few numbers and rules must be **identical in both**, but each is typed separately in each program's code. Nothing
+  complains if they differ.
+
+**Shared today**
+1. **How long an upload waits on the relay: 90 days.** The relay deletes an upload after 90 days; the app uses the same
+   90 days to decide when it can forget which uploads it already imported. If the relay kept uploads longer but the app
+   weren't changed, the app could forget it imported an old upload and **import it again** — re-applying old changes.
+2. **The format of upload IDs.** The relay builds each ID from a time, the device and a random part (like
+   `1760500000000-dRon-ab12`); the app reads the time back out of it.
+
+**Three more arrive with the relay storage work** (branch `feature/relay-worker-b2`)
+- The relay's daily storage check must judge leftovers by **exactly** the app's own cleanup rules: the 1-hour grace
+  period, "keep the newest 2 copies", and reading the time out of an ID.
+- If they differ, the check would report the app's normal copies as leftovers — and once deleting is on, could delete them.
+
+**Decided** (Ron, 2026-10-14) — option (c)
+- A **commit check** reads both programs and refuses a commit when any pair differs. Same style as the table-of-contents
+  check; about 30 lines; nothing changes in how either program loads.
+- Rejected: (a) leave it to comments and memory; (b) one shared file both load — cleanest in principle, but it means
+  restructuring how the app loads its relay code.
+- **Build it with the relay storage work (B2)**, where the three new copies come from. It lives in `git-hooks/` (see
+  "Save our working process in git").
+
+**How (technical)**
+- Pairs: `LETTER_TTL` (worker, seconds) ↔ `LETTER_TTL_MS` (relay-client.js); the minted-ID format (`MINTED_ID_REGEX` /
+  `mintId` in the worker ↔ `idTimestamp` in relay-client.js); B2's `SWEEP_GRACE_MS` ↔ `GC_GRACE_MS`, `SWEEP_KEEP_GENS`
+  ↔ `KEEP_GENS`, and the worker's `idTimestamp` ↔ the client's.
+- Units differ (seconds vs ms) — the check must compare values, not text.
+
 ### Polish
 
 #### Ctrl+X from a Book List or Search quietly copies instead of cutting
@@ -852,41 +955,243 @@ _Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder 
 - Folder menu: readerwrangler.js ~18443 (`folderContextMenu`). The Inbox menu's entry (~18348) and the book menu's
   (~19292) show how to open it scoped to a folder.
 
-### Unsorted
+#### Relay Setup's connection test checks the wrong relay on dev
 
-Moved here 2026-10-14 for Ron to place into High priority or Polish: the former "Ideas from the
-August 2026 library clean-up" (2026-08-10 library-cleanup findings) and "Other follow-ups" groups from Soon.
+_Why it matters:_ On your local copy or the dev site it tests production, so its answer can be wrong.
 
-#### ✅ Auto-Organize preview: show which Book Lists a book is in
-
-_Why it matters:_ You see a book's folders but not its Book Lists while deciding where it goes.
-
-**Status:** done — Ron confirmed 2026-10-14. Delete at the next release.
-
-#### See an author's other books without leaving your spot
-
-_Why it matters:_ Today it takes All Books + a filter + finding your way back.
-
-**What you'd get**
-- From a book or folder, a quick view of the author's other books.
-
-#### Open one book's details without losing a multi-selection
-
-_Why it matters:_ Lets you identify a book mid-scan and carry on with your selection.
-
-**What you'd get**
-- With several books selected, right-click one → **Open** shows that book's details **without** clearing the selection.
-- Today, opening from a multi-selection opens the whole selection as a shelf you step through.
-- Name the menu item per a UX pass.
-
-#### User Guide: explain workarounds for fields you can't filter by
-
-_Why it matters:_ There's usually another way, e.g. add the column in List view and sort.
+**What you see**
+- On your local copy or the dev site: File → Relay Setup → the connection test reports on the **production** relay, not the dev relay your copy actually uses. So "connected" / "revoked" there can be wrong for dev.
 
 **To do**
-- In the User Guide and the GPT manual: when someone can't filter by a field, show the workaround (e.g. List view → add that column → sort).
+- Use the same relay address every other relay call uses — one place that answers "which relay", not a second fixed address. Small.
 
-#### Drag between Folders and Book Lists
+**How (technical)**
+- readerwrangler.js ~1774 (the `case 'test':` branch) fetches a fixed `https://readerwrangler-relay.readerwrangler.workers.dev/…` (verified 2026-10-14).
+- Use the dev-aware `window._RW_RELAY_WORKER_URL` (set near the top of readerwrangler.js for localhost and the dev site). Found 2026-10-12.
+
+#### Finish routing every change through one shared path, with undo
+
+_Why it matters:_ A few actions — deleting tags or Searches, renaming — still can't be undone.
+
+**Done** (6.13.1)
+- Folder delete, book move / copy (every menu and drag), folder moves (menu, cut-paste, drag), Book List create / delete, and an undo message for every action.
+
+**Left** (lower priority — less likely to drift)
+- Deleting a **tag**, deleting a **Search**.
+- Renaming a folder or a Book List — make it undoable.
+- Redo for copying a folder (a TODO in the code).
+- Optional: fold the folder-move part of moving items into the one folder-move operation.
+
+**How (technical)**
+- Shared operations: `deleteFolder`, `moveItems`, `reparentFolder`. The redo TODO is in `COPY_PASTE_FOLDER`. Design: docs/design/OPERATIONS-REFACTOR.md; feeds MODULE-SPLIT.
+
+#### The Delete key should delete the folders you've selected
+
+_Why it matters:_ Today it only deletes the folder you're inside.
+
+**What you see**
+- Select folders in the right pane's list (e.g. the Folders view) and press Delete: nothing happens to them — only the folder you're *inside* is deleted.
+
+**What you'd get**
+- One selected folder → deleted, as from its menu.
+- Several → one confirmation, and one undo for the lot.
+- **Don't ship single-only** — that's more confusing than neither.
+
+**How (technical)**
+- Today it uses `selectedFolderId` instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch confirm and one compound undo — best once there's a `deleteFolders(folders)` operation. Surfaced during the operations refactor.
+
+#### Book List menu: remove Move / Copy, and block dragging onto folders
+
+_Why it matters:_ Moving a Book List entry into a folder makes no sense, and once caused a membership mess.
+
+**What you'd get**
+- In a Book List view, the book right-click menu drops **Move to** and **Copy to**. It keeps Add to Book List, Remove from list, Edit and reordering.
+- Dragging (plain or Ctrl) from a Book List onto a folder is blocked.
+
+**Why**
+- A Book List entry is a shortcut; moving a shortcut into a folder is incoherent. On 2026-08-08 a "move" from a Book List to the Inbox left books in the Inbox, a folder **and** the list at once.
+
+#### Undo history sometimes empties by itself
+
+_Why it matters:_ Losing undo mid-session is alarming; the cause is still unknown.
+
+**What happened**
+- Twice (2026-08-07 and 08), the undo history emptied with no undo or redo by you.
+
+**What we know** (2026-09-01)
+- No code path clears it — it lives only in memory and only drops its oldest steps at the limit. So **some invisible page reload** is the only explanation.
+- Suspect: the TinySuspender extension discarding and restoring the tab. Your settings argue against it for those two times (60-minute idle timeout; you were actively switching tabs). A forgotten manual reload is the other possibility.
+
+**Next time it happens**
+- Check the console history and Data Status's "last checked" — a discarded tab clears both.
+
+**Do now regardless**
+- Whitelist localhost and readerwrangler.com in TinySuspender. A suspended ReaderWrangler tab can also tear an upload when you leave it.
+
+### Unsorted — suggested for High priority
+
+#### Group 1 — Series numbers (Ron: high priority)
+
+Build "2, 4" first; the multi-position one is larger and uses the same series-number editing.
+
+##### Set different series numbers on several books at once ("2, 4")
+
+_Why it matters:_ Needed when you own scattered volumes of a series.
+
+**What you'd get**
+- In a multi-book edit, type "2, 4" and the numbers go to the selected books in display order.
+- Needed for David Drake's Raj Whitehall books — gaps in what you own mean "renumber by current order" can't do it.
+
+##### One book in several series positions (omnibus, anthology, MegaPack)
+
+_Why it matters:_ A collection should appear at each place it belongs in its series.
+
+**What you'd get**
+- **One** book record holding **several** series positions, shown once at **each** position when sorted by series.
+- An omnibus that **is** volumes 1–3 (`1-3` or `1,2,3`; today's Raj Whitehall "789" workaround).
+- An anthology whose stories fall between volumes (`2.5, 4.5, 4.6, 5.5` — the Dresden *Side Jobs* pattern; today you file it at its first position with the story map in the Note).
+- A visible cue on the repeats ("also at 4.5", or a ⟳ badge) — deliberate duplication must look intentional.
+- **Manual order shows the book once** (manual positions are per book; repeats belong to series-sorted views).
+
+**Extension: several series in one book** (MegaPacks, Ron 2026-09-20)
+- A public-domain MegaPack can hold scattered volumes of several series at once (e.g. Skylark 1, 4 + Lensman 2, 4), possibly by several authors.
+- **Keep the common case simple:** one series → the existing Series field plus a numbers field that takes ranges and lists (`1-3, 5`). A **"+ add series"** link reveals a multi-row editor (series + numbers per row) only for the rare multi-series book.
+- Filtering matches if **any** of its series match; sorting uses the lowest position.
+
+**Decided**
+- **No duplicate book records**, and no fake ASIN-suffixed books (rejected 2026-09-15): they'd fight ASIN-keyed merging, the removed-books scan would flag them every fetch, and duplicate detection, upgrades and CSV would all need special cases.
+- **Per-story notes: out of scope** — you already tag notes free-form.
+- The rule "no duplicates in a folder" is untouched.
+
+**Open**
+- A scattered list (`1, 4`) fills each slot — that's the point. But a big contiguous range (`1-3`) may collapse to **one** labeled entry to avoid N identical covers. Settle it against a real MegaPack.
+- To spec: "Number by current order", the "2, 4" multi-edit (above), CSV export (one row, list in the column).
+- Multi-author MegaPacks: the compound-author problem is separate and pre-existing — not solved here.
+
+**How (technical)**
+- `seriesPosition` becomes a parseable list / range, expanded at sort time into display instances (the `_instanceId` render-layer idea — not duplicate records).
+- Generalized: `seriesMemberships: [{series, positions:[…]}]` — a normal book is one entry with one position (uniform data; the UI compacts it).
+- Ratified direction 2026-09-15.
+
+#### Group 2 — Everyday organizing
+
+Things that trip you up while working through the Inbox backlog.
+
+##### Folder dragging: where you drop decides pinned, and the level
+
+_Why it matters:_ Folders land somewhere other than where the guide line showed, and sorting reshuffles folders you arranged by hand.
+
+**What you see** (Ron, 2026-10-14)
+1. **Wrong level at an expanded folder's edge.** Drag a folder to just above a top-level folder that sits below an
+   *expanded* folder: it lands **inside** the expanded folder (after its last subfolder), not at the top level.
+2. **Dropped into the pins, placed below them.** Drag a folder (a subfolder of a pinned folder, or an unpinned
+   top-level folder) into the pinned area: it lands **below** the pinned folders, unpinned. _(That's the August
+   "wall" rule working as designed — now reversed, see Decided.)_
+3. **Sorting reorders a pinned folder's subfolders.** Switch to Name A→Z / Z→A: subfolders inside a pinned folder
+   re-sort. And they show no 📌, so you can't tell whether they're pinned.
+
+**Decided** (Ron + UX, 2026-10-14 — design of record: docs/design/FOLDER-ORDERING.md, "drag decides pinning")
+1. **Where you drop decides.** Dropping among the pins **pins** it (at that spot); dragging a pinned folder below
+   the pins **unpins** it. A **divider** under the last pinned folder marks the edge; the guide line shows a **📌** in
+   the pinned zone; **one undo** and a message ("Pinned 'X'"). Right-click Pin / Unpin stays.
+2. **Sorted mode, dragged out of the pins:** lands at its sorted position; its manual position becomes the **top,
+   just below the pins** (the existing rule for every new arrival).
+3. **Pinned means hand-arranged, all the way down.** A pinned folder's subfolders (and theirs) keep their manual
+   order in every sort mode; new or dropped subfolders inside are placed by hand (new ones at the top). Each shows a
+   **faded, non-clickable 📌** with the tooltip "Kept in manual order because 'X' is pinned". The parent's 📌 stays
+   the real, clickable control.
+4. **The level at an expanded folder's edge:** top half of the next top-level row → **top level** (full-width guide
+   line); bottom half of the last subfolder row → **inside** (indented guide line). If nesting is deeper there, add
+   horizontal pointer position to pick the level (the outliner convention).
+
+**History**
+- Replaces "Dragging a subfolder to the top level drops it in the wrong place" (2026-08-03): Ron suspects that one is
+  fixed (7.6.0 moved new folders to the top); case 1 above is what's left.
+
+**How (technical)**
+- Pins are per level today: `f.pinned` on any folder; each parent's children are pins-first, then the global sort
+  (readerwrangler.js ~3052–3087). Rule 3 changes that for children of a pinned ancestor — decide how existing
+  per-child pins migrate.
+- Drag-to-pin / unpin needs the drop handlers to stop snapping at the boundary (the "wall"), and the drop position to
+  set or clear `pinned` as one undo step.
+- Check how the drop target's level is computed today before changing it (case 1 suggests row halves are ignored
+  at that edge).
+
+##### Stray double spaces in author names create duplicate authors
+
+_Why it matters:_ An author can split in two, making a series look incomplete.
+
+**What happened**
+- "Jodi  Taylor" (two spaces) and "Jodi Taylor" became two authors: 2 of 7 Time Police books were mis-authored, and the series looked incomplete in the Auto-Organize preview.
+
+**To do**
+- Collapse repeated spaces and trim, on fetch, Import and edit.
+- A **one-time cleanup** of existing data.
+
+##### Search everywhere without leaving the current folder
+
+_Why it matters:_ Answers "is this book in my library?" without losing your place.
+
+**What you'd get** (Ron, 2026-08-29)
+- The search box still searches the current folder by default. While searching, a toggle shows: **This folder | Everywhere** (as in Finder / Explorer).
+- "Everywhere" shows matches from the whole library in the right pane, temporarily. Clearing the search returns you to the folder, scroll position untouched.
+- **Discoverability:** when nothing matches, offer *"No matches in ‹folder› — Search everywhere?"* as a one-click link (as Gmail and Amazon do).
+- Results work with the existing "where does this book live" popup, so the answer arrives with locations.
+
+**How (technical)**
+- Reuse the view-folder filter-stash plumbing for the temporary view.
+
+#### Group 3 — Trusting the fetch
+
+So what ReaderWrangler shows matches what you actually have on Amazon.
+
+##### Fetch: report exactly how your library compares with Amazon
+
+_Why it matters:_ So the fetch can honestly say "your library matches Amazon exactly", or list the differences.
+
+**The goal**
+- Your library matches Amazon **exactly** — 2,801 = 2,801 unique owned books — once both sides are counted the same way.
+
+**Rules** (spec'd 2026-09-03 by live investigation)
+1. **Compare sets of unique books, same scope on both sides.** ReaderWrangler's side excludes the wishlist (337). Amazon's side is de-duplicated: Amazon's total counts **purchase records**, not books (15 sample-then-buy pairs in your data), so use it only as a progress estimate.
+2. **Keep Amazon's standard filters everywhere.** Log the filtered-vs-unfiltered difference each fetch (13 today) as an early warning if Amazon reclassifies things.
+3. **Retire the count-based sweep** — it compared things that can never be equal. Instead:
+   - on Amazon but not here → missing books → fetch them by ASIN, upload as a small follow-up run;
+   - here but not on Amazon → **candidates** for "removed" → re-check just those before flagging.
+4. **What you see:** a two-way "Removed-books check" report — each direction hidden when it's 0, no "orphan" jargon, an ℹ️ note that they're "still safe in ReaderWrangler". The line "Your library matches Amazon exactly" becomes achievable.
+
+**Already done**
+- 7.7.0 (2026-09-04) stopped the false alarms: 13 "removed" books were physical items (maps, a DVD, "Shoes") the scan wouldn't count.
+- The false-orphan bug itself was fixed in fetcher v5.2.7.
+- Ruled out: Amazon's paging (30- and 50-page walks returned identical complete sets) and Amazon deletions (zero).
+
+**Still there** (checked 2026-10-14)
+- The old count-based sweep still runs (the 🩹 recovery sweep, amazon-library-fetcher.js ~1741).
+
+**How (technical)**
+- Filters: hash `858f501de…` tags exactly the 13 product-null husks (unfetchable dead records, likely deleted samples); `222711ade…` tags nothing today. Maps and physical items are not hidden by the filter.
+- 101 tie-timestamp clusters covering 279 books were seen — harmless.
+- Amazon's total is the API's `totalCount` (acquisition records, not titles).
+
+##### Hide returned loans and borrows
+
+_Why it matters:_ Returned Prime, Kindle Unlimited and library loans clutter the library.
+
+**What you'd get**
+- A **"Returned"** ownership filter, hidden by default (a toggle shows them).
+- A bulk move-to-folder for the ones you want to keep.
+
+**Watch out**
+- **Not** via the ASIN exclusion list — that would block borrowing the book again.
+
+**How (technical)**
+- The fetcher flags borrow records with `activeBorrow === false`. Design: docs/design/RETURNED-BORROWS.md.
+
+### Unsorted — suggested for Polish
+
+#### Group 1 — Moving and selecting
+
+##### Drag between Folders and Book Lists
 
 _Why it matters:_ Natural gestures for filling Book Lists, plus honest messages about what a drop did.
 
@@ -904,41 +1209,97 @@ _Why it matters:_ Natural gestures for filling Book Lists, plus honest messages 
 
 **Spec:** docs/design/CROSS-SECTION-DRAG.md.
 
-#### Search everywhere without leaving the current folder
+##### Delete a book from All Books (removes it everywhere)
 
-_Why it matters:_ Answers "is this book in my library?" without losing your place.
+_Why it matters:_ Today you have to remove a book from each folder and list separately.
 
-**What you'd get** (Ron, 2026-08-29)
-- The search box still searches the current folder by default. While searching, a toggle shows: **This folder | Everywhere** (as in Finder / Explorer).
-- "Everywhere" shows matches from the whole library in the right pane, temporarily. Clearing the search returns you to the folder, scroll position untouched.
-- **Discoverability:** when nothing matches, offer *"No matches in ‹folder› — Search everywhere?"* as a one-click link (as Gmail and Amazon do).
-- Results work with the existing "where does this book live" popup, so the answer arrives with locations.
+**What you'd get**
+- Delete from All Books moves the book to the Trash, removing it from **every** folder and Book List at once.
+- The confirmation says how many places it's in.
 
 **How (technical)**
-- Reuse the view-folder filter-stash plumbing for the temporary view.
+- Reuse the membership snapshot, so restoring puts it back everywhere.
 
-#### Wording pass: explain Book List shortcuts and Linked Copies
+##### Open one book's details without losing a multi-selection
 
-_Why it matters:_ Those terms confuse people unless they're explained once, clearly.
+_Why it matters:_ Lets you identify a book mid-scan and carry on with your selection.
 
-**To do**
-- Use "shortcut" language in Book List messages and menus.
-- Explain "Linked Copies" once, in the manual and the GPT manual.
+**What you'd get**
+- With several books selected, right-click one → **Open** shows that book's details **without** clearing the selection.
+- Today, opening from a multi-selection opens the whole selection as a shelf you step through.
+- Name the menu item per a UX pass.
 
-**Spec:** docs/design/TERMINOLOGY.md. (Filed for 6.12.1.)
+##### See an author's other books without leaving your spot
 
-#### Stray double spaces in author names create duplicate authors
+_Why it matters:_ Today it takes All Books + a filter + finding your way back.
 
-_Why it matters:_ An author can split in two, making a series look incomplete.
+**What you'd get**
+- From a book or folder, a quick view of the author's other books.
 
-**What happened**
-- "Jodi  Taylor" (two spaces) and "Jodi Taylor" became two authors: 2 of 7 Time Police books were mis-authored, and the series looked incomplete in the Auto-Organize preview.
+#### Group 2 — Book Lists
 
-**To do**
-- Collapse repeated spaces and trim, on fetch, Import and edit.
-- A **one-time cleanup** of existing data.
+Pairs with "Book Lists and Searches: pin and sort them like Folders" (High priority).
 
-#### Fetcher: name and explain Amazon's library filter
+##### A management view for Book Lists
+
+_Why it matters:_ One place to organize and order your Book Lists.
+
+**What you'd get**
+- A Book Lists management view, plus one ordering approach shared by every left-pane section (Folders / Views / Book Lists).
+
+**Spec:** docs/design/FOLDER-ORDERING.md. Related: "Book Lists and Searches: pin and sort them like Folders" (Up next).
+
+##### Book Lists: arrange by series number
+
+_Why it matters:_ Put a list in series order once, then adjust it by hand.
+
+**What you'd get**
+- In Manual mode, "Arrange by series #" bakes the series-number order into the list's manual order — a one-time rearrange, not a live sort.
+- The Book List version of a folder's sort-then-keep.
+
+**Not to confuse with**
+- The existing "Number by current order", which sets each book's series **number**, not the list's order.
+
+#### Group 3 — Small fixes
+
+##### Show only hidden books
+
+_Why it matters:_ Answers "what have I hidden?" — today you have to hunt for them.
+
+**What you'd get** (ratified 2026-09-03)
+- "Show Hidden" becomes three choices: **Hide hidden** / **Show all** / **Only hidden**.
+- Today it only shows or hides them, so finding the 2 hidden books among 337 is impractical.
+
+##### Tooltips in the book details window
+
+_Why it matters:_ Some fields aren't self-explanatory — e.g. that Collections are read-only and come from Amazon.
+
+##### Wishlist: record the real format when a book is added
+
+_Why it matters:_ Today the format is only known after the book's details are filled in.
+
+**How (technical)**
+- Capture the binding from the product page (`bindingInformation`) when the book is added to the wishlist.
+
+##### Left pane: put the jump-to-top / bottom buttons by the scrollbar
+
+_Why it matters:_ They sit at the bottom left today, not where you'd look for them.
+
+**What you see**
+- Both jump buttons (to top / to bottom) sit at the bottom-left of the left pane. You expected top-at-top and bottom-at-bottom, by the scrollbar.
+
+**Options**
+- Move the pair to the right, near the scrollbar (where scroll controls conventionally live).
+- Or one "back to top" button that appears when you scroll down.
+
+**Decided**
+- No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
+
+#### Group 4 — Fetcher housekeeping
+
+Small code-and-safety fixes; "odds and ends" includes a minimum pause between requests to Amazon.
+
+##### Fetcher: name and explain Amazon's library filter
 
 _Why it matters:_ An unexplained code string is repeated in four places; one named, documented setting is safer to change.
 
@@ -979,87 +1340,7 @@ _Why it matters:_ An unexplained code string is repeated in four places; one nam
 - Delisted = "product-null" in the code: the removed-books check adds those ASINs as present (~2869–2878).
 - A fetcher change: bump `FETCHER_VERSION`.
 
-#### Hide returned loans and borrows
-
-_Why it matters:_ Returned Prime, Kindle Unlimited and library loans clutter the library.
-
-**What you'd get**
-- A **"Returned"** ownership filter, hidden by default (a toggle shows them).
-- A bulk move-to-folder for the ones you want to keep.
-
-**Watch out**
-- **Not** via the ASIN exclusion list — that would block borrowing the book again.
-
-**How (technical)**
-- The fetcher flags borrow records with `activeBorrow === false`. Design: docs/design/RETURNED-BORROWS.md.
-
-#### A management view for Book Lists
-
-_Why it matters:_ One place to organize and order your Book Lists.
-
-**What you'd get**
-- A Book Lists management view, plus one ordering approach shared by every left-pane section (Folders / Views / Book Lists).
-
-**Spec:** docs/design/FOLDER-ORDERING.md. Related: "Book Lists and Searches: pin and sort them like Folders" (Up next).
-
-#### Delete a book from All Books (removes it everywhere)
-
-_Why it matters:_ Today you have to remove a book from each folder and list separately.
-
-**What you'd get**
-- Delete from All Books moves the book to the Trash, removing it from **every** folder and Book List at once.
-- The confirmation says how many places it's in.
-
-**How (technical)**
-- Reuse the membership snapshot, so restoring puts it back everywhere.
-
-#### Drag a box to select covers
-
-_Why it matters:_ Faster than clicking covers one by one.
-
-**What you'd get**
-- In cover view, drag a rectangle (or lasso) to select the covers inside it.
-
-**How (technical)**
-- Extends `explorerSelectedItems`.
-
-#### Show only hidden books
-
-_Why it matters:_ Answers "what have I hidden?" — today you have to hunt for them.
-
-**What you'd get** (ratified 2026-09-03)
-- "Show Hidden" becomes three choices: **Hide hidden** / **Show all** / **Only hidden**.
-- Today it only shows or hides them, so finding the 2 hidden books among 337 is impractical.
-
-#### Fetch: report exactly how your library compares with Amazon
-
-_Why it matters:_ So the fetch can honestly say "your library matches Amazon exactly", or list the differences.
-
-**The goal**
-- Your library matches Amazon **exactly** — 2,801 = 2,801 unique owned books — once both sides are counted the same way.
-
-**Rules** (spec'd 2026-09-03 by live investigation)
-1. **Compare sets of unique books, same scope on both sides.** ReaderWrangler's side excludes the wishlist (337). Amazon's side is de-duplicated: Amazon's total counts **purchase records**, not books (15 sample-then-buy pairs in your data), so use it only as a progress estimate.
-2. **Keep Amazon's standard filters everywhere.** Log the filtered-vs-unfiltered difference each fetch (13 today) as an early warning if Amazon reclassifies things.
-3. **Retire the count-based sweep** — it compared things that can never be equal. Instead:
-   - on Amazon but not here → missing books → fetch them by ASIN, upload as a small follow-up run;
-   - here but not on Amazon → **candidates** for "removed" → re-check just those before flagging.
-4. **What you see:** a two-way "Removed-books check" report — each direction hidden when it's 0, no "orphan" jargon, an ℹ️ note that they're "still safe in ReaderWrangler". The line "Your library matches Amazon exactly" becomes achievable.
-
-**Already done**
-- 7.7.0 (2026-09-04) stopped the false alarms: 13 "removed" books were physical items (maps, a DVD, "Shoes") the scan wouldn't count.
-- The false-orphan bug itself was fixed in fetcher v5.2.7.
-- Ruled out: Amazon's paging (30- and 50-page walks returned identical complete sets) and Amazon deletions (zero).
-
-**Still there** (checked 2026-10-14)
-- The old count-based sweep still runs (the 🩹 recovery sweep, amazon-library-fetcher.js ~1741).
-
-**How (technical)**
-- Filters: hash `858f501de…` tags exactly the 13 product-null husks (unfetchable dead records, likely deleted samples); `222711ade…` tags nothing today. Maps and physical items are not hidden by the filter.
-- 101 tie-timestamp clusters covering 279 books were seen — harmless.
-- Amazon's total is the API's `totalCount` (acquisition records, not titles).
-
-#### Fetcher odds and ends (progress figure, frozen timer, request pacing)
+##### Fetcher odds and ends (progress figure, frozen timer, request pacing)
 
 _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
 
@@ -1073,18 +1354,48 @@ _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
 **How (technical)**
 - Item 2 lives in storage.js. Item 5: `FETCH_DELAY_MS`.
 
-#### Tooltips in the book details window
+#### Group 5 — Looks done (confirm in the done-ness sweep)
 
-_Why it matters:_ Some fields aren't self-explanatory — e.g. that Collections are read-only and come from Amazon.
+The folder right-click menu already has Move to Top and Move to Bottom (seen 2026-10-14).
 
-#### Wishlist: record the real format when a book is added
+##### ✅ Auto-Organize preview: show which Book Lists a book is in
 
-_Why it matters:_ Today the format is only known after the book's details are filled in.
+_Why it matters:_ You see a book's folders but not its Book Lists while deciding where it goes.
 
-**How (technical)**
-- Capture the binding from the product page (`bindingInformation`) when the book is added to the wishlist.
+**Status:** done — Ron confirmed 2026-10-14. Delete at the next release.
 
-#### Import book details from a pasted list or spreadsheet
+##### Folder menu: Move to Top / Move to Bottom
+
+_Why it matters:_ Quicker than dragging a folder a long way.
+
+### Unsorted — suggested to move out of Up next
+
+#### To Before launch (with the User Guide rewrite)
+
+Both are writing for the guide and the GPT manual.
+
+##### User Guide: explain workarounds for fields you can't filter by
+
+_Why it matters:_ There's usually another way, e.g. add the column in List view and sort.
+
+**To do**
+- In the User Guide and the GPT manual: when someone can't filter by a field, show the workaround (e.g. List view → add that column → sort).
+
+##### Wording pass: explain Book List shortcuts and Linked Copies
+
+_Why it matters:_ Those terms confuse people unless they're explained once, clearly.
+
+**To do**
+- Use "shortcut" language in Book List messages and menus.
+- Explain "Linked Copies" once, in the manual and the GPT manual.
+
+**Spec:** docs/design/TERMINOLOGY.md. (Filed for 6.12.1.)
+
+#### To After launch (Features)
+
+Bigger features, not needed before launch.
+
+##### Import book details from a pasted list or spreadsheet
 
 _Why it matters:_ A way to bring in information from outside Amazon.
 
@@ -1093,113 +1404,15 @@ _Why it matters:_ A way to bring in information from outside Amazon.
 
 **Spec:** docs/design/Metadata-Import.md.
 
-#### Set different series numbers on several books at once ("2, 4")
+##### Drag a box to select covers
 
-_Why it matters:_ Needed when you own scattered volumes of a series.
-
-**What you'd get**
-- In a multi-book edit, type "2, 4" and the numbers go to the selected books in display order.
-- Needed for David Drake's Raj Whitehall books — gaps in what you own mean "renumber by current order" can't do it.
-
-#### One book in several series positions (omnibus, anthology, MegaPack)
-
-_Why it matters:_ A collection should appear at each place it belongs in its series.
+_Why it matters:_ Faster than clicking covers one by one.
 
 **What you'd get**
-- **One** book record holding **several** series positions, shown once at **each** position when sorted by series.
-- An omnibus that **is** volumes 1–3 (`1-3` or `1,2,3`; today's Raj Whitehall "789" workaround).
-- An anthology whose stories fall between volumes (`2.5, 4.5, 4.6, 5.5` — the Dresden *Side Jobs* pattern; today you file it at its first position with the story map in the Note).
-- A visible cue on the repeats ("also at 4.5", or a ⟳ badge) — deliberate duplication must look intentional.
-- **Manual order shows the book once** (manual positions are per book; repeats belong to series-sorted views).
-
-**Extension: several series in one book** (MegaPacks, Ron 2026-09-20)
-- A public-domain MegaPack can hold scattered volumes of several series at once (e.g. Skylark 1, 4 + Lensman 2, 4), possibly by several authors.
-- **Keep the common case simple:** one series → the existing Series field plus a numbers field that takes ranges and lists (`1-3, 5`). A **"+ add series"** link reveals a multi-row editor (series + numbers per row) only for the rare multi-series book.
-- Filtering matches if **any** of its series match; sorting uses the lowest position.
-
-**Decided**
-- **No duplicate book records**, and no fake ASIN-suffixed books (rejected 2026-09-15): they'd fight ASIN-keyed merging, the removed-books scan would flag them every fetch, and duplicate detection, upgrades and CSV would all need special cases.
-- **Per-story notes: out of scope** — you already tag notes free-form.
-- The rule "no duplicates in a folder" is untouched.
-
-**Open**
-- A scattered list (`1, 4`) fills each slot — that's the point. But a big contiguous range (`1-3`) may collapse to **one** labeled entry to avoid N identical covers. Settle it against a real MegaPack.
-- To spec: "Number by current order", the "2, 4" multi-edit (above), CSV export (one row, list in the column).
-- Multi-author MegaPacks: the compound-author problem is separate and pre-existing — not solved here.
+- In cover view, drag a rectangle (or lasso) to select the covers inside it.
 
 **How (technical)**
-- `seriesPosition` becomes a parseable list / range, expanded at sort time into display instances (the `_instanceId` render-layer idea — not duplicate records).
-- Generalized: `seriesMemberships: [{series, positions:[…]}]` — a normal book is one entry with one position (uniform data; the UI compacts it).
-- Ratified direction 2026-09-15.
-
-#### Folder menu: Move to Top / Move to Bottom
-
-_Why it matters:_ Quicker than dragging a folder a long way.
-
-#### Folder dragging: where you drop decides pinned, and the level
-
-_Why it matters:_ Folders land somewhere other than where the guide line showed, and sorting reshuffles folders you arranged by hand.
-
-**What you see** (Ron, 2026-10-14)
-1. **Wrong level at an expanded folder's edge.** Drag a folder to just above a top-level folder that sits below an
-   *expanded* folder: it lands **inside** the expanded folder (after its last subfolder), not at the top level.
-2. **Dropped into the pins, placed below them.** Drag a folder (a subfolder of a pinned folder, or an unpinned
-   top-level folder) into the pinned area: it lands **below** the pinned folders, unpinned. _(That's the August
-   "wall" rule working as designed — now reversed, see Decided.)_
-3. **Sorting reorders a pinned folder's subfolders.** Switch to Name A→Z / Z→A: subfolders inside a pinned folder
-   re-sort. And they show no 📌, so you can't tell whether they're pinned.
-
-**Decided** (Ron + UX, 2026-10-14 — design of record: docs/design/FOLDER-ORDERING.md, "drag decides pinning")
-1. **Where you drop decides.** Dropping among the pins **pins** it (at that spot); dragging a pinned folder below
-   the pins **unpins** it. A **divider** under the last pinned folder marks the edge; the guide line shows a **📌** in
-   the pinned zone; **one undo** and a message ("Pinned 'X'"). Right-click Pin / Unpin stays.
-2. **Sorted mode, dragged out of the pins:** lands at its sorted position; its manual position becomes the **top,
-   just below the pins** (the existing rule for every new arrival).
-3. **Pinned means hand-arranged, all the way down.** A pinned folder's subfolders (and theirs) keep their manual
-   order in every sort mode; new or dropped subfolders inside are placed by hand (new ones at the top). Each shows a
-   **faded, non-clickable 📌** with the tooltip "Kept in manual order because 'X' is pinned". The parent's 📌 stays
-   the real, clickable control.
-4. **The level at an expanded folder's edge:** top half of the next top-level row → **top level** (full-width guide
-   line); bottom half of the last subfolder row → **inside** (indented guide line). If nesting is deeper there, add
-   horizontal pointer position to pick the level (the outliner convention).
-
-**History**
-- Replaces "Dragging a subfolder to the top level drops it in the wrong place" (2026-08-03): Ron suspects that one is
-  fixed (7.6.0 moved new folders to the top); case 1 above is what's left.
-
-**How (technical)**
-- Pins are per level today: `f.pinned` on any folder; each parent's children are pins-first, then the global sort
-  (readerwrangler.js ~3052–3087). Rule 3 changes that for children of a pinned ancestor — decide how existing
-  per-child pins migrate.
-- Drag-to-pin / unpin needs the drop handlers to stop snapping at the boundary (the "wall"), and the drop position to
-  set or clear `pinned` as one undo step.
-- Check how the drop target's level is computed today before changing it (case 1 suggests row halves are ignored
-  at that edge).
-
-#### Book Lists: arrange by series number
-
-_Why it matters:_ Put a list in series order once, then adjust it by hand.
-
-**What you'd get**
-- In Manual mode, "Arrange by series #" bakes the series-number order into the list's manual order — a one-time rearrange, not a live sort.
-- The Book List version of a folder's sort-then-keep.
-
-**Not to confuse with**
-- The existing "Number by current order", which sets each book's series **number**, not the list's order.
-
-#### Left pane: put the jump-to-top / bottom buttons by the scrollbar
-
-_Why it matters:_ They sit at the bottom left today, not where you'd look for them.
-
-**What you see**
-- Both jump buttons (to top / to bottom) sit at the bottom-left of the left pane. You expected top-at-top and bottom-at-bottom, by the scrollbar.
-
-**Options**
-- Move the pair to the right, near the scrollbar (where scroll controls conventionally live).
-- Or one "back to top" button that appears when you scroll down.
-
-**Decided**
-- No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
+- Extends `explorerSelectedItems`.
 
 ---
 
@@ -1382,231 +1595,6 @@ _Why it matters:_ Today it shows confusing errors instead of saying what to do.
 **How (technical)**
 - In the fetchers' retry path, recognize check-shaped answers: HTML where JSON was expected, a validate-captcha redirect, a robot-check 503.
 
-### Costs
-
-_Formerly: Launch economics_
-
-#### Move to Cloudflare's $5/month plan around launch
-
-_Why it matters:_ The free plan supports only a handful of users.
-
-**What we know** (RELAY-ECONOMICS.md, 2026-08-28)
-- After 7.5.0's savings, the flat $5 plan covers about 250 users like you; the free plan about 6–10 — and it's shared between production and dev.
-- So this is now just the act of upgrading at the right moment, at or shortly before launch.
-
-## 🔧 Relay follow-ups
-
-_Formerly: 🔧 7.0.0 follow-ups (relay)_
-
-### Relay Setup's connection test checks the wrong relay on dev
-
-_Why it matters:_ On your local copy or the dev site it tests production, so its answer can be wrong.
-
-**What you see**
-- On your local copy or the dev site: File → Relay Setup → the connection test reports on the **production** relay, not the dev relay your copy actually uses. So "connected" / "revoked" there can be wrong for dev.
-
-**To do**
-- Use the same relay address every other relay call uses — one place that answers "which relay", not a second fixed address. Small.
-
-**How (technical)**
-- readerwrangler.js ~1774 (the `case 'test':` branch) fetches a fixed `https://readerwrangler-relay.readerwrangler.workers.dev/…` (verified 2026-10-14).
-- Use the dev-aware `window._RW_RELAY_WORKER_URL` (set near the top of readerwrangler.js for localhost and the dev site). Found 2026-10-12.
-
-### Relay storage: stop leftovers piling up, and report usage correctly (in progress)
-
-_Why it matters:_ Leftovers eat into the free storage limit, and the daily email was reporting the wrong total.
-
-**The problem** (found 2026-10-03/04; full write-up: docs/design/RELAY-WRITE-REDESIGN.md §14a)
-- Each Restore left an ~18 MB package behind on the relay.
-- The daily usage email showed **one** relay's storage (production or dev), never the sum, and printed "no data" as 0. The real total was ~572 MB — 56% of the 1 GB free limit — while emails said 219.7 / 326 / 0.
-- About 265 MB was recoverable leftovers.
-
-**The plan** (agreed 2026-10-13, revised 2026-10-14)
-- ✅ **A — contributor mode** (7.21.0): a prerequisite.
-- ✅ **B1 — the app cleans up after every save** (7.21.1): the package a save absorbed is deleted inside the save itself, and duplicates are removed. Proven on dev. Production's old leftovers go on its next save, or via the B2 cleanup.
-- ~~Send to Production~~ — considered and rejected 2026-10-13 (docs/design/SEND-TO-PRODUCTION.md).
-- 🔨 **B2 — the relay worker** (branch `feature/relay-worker-b2`, alpha.4 running on **dev only**; production still runs the old worker). Built so far:
-  - Both relays send the daily email, covering **production + dev + the total** against the account-wide free limits. Dev's subject starts "[Dev]".
-  - Threshold alerts compare the total (production only sends them).
-  - A daily storage check that **reports** what a cleanup would delete, and deletes nothing.
-  - A key-count check: Cloudflare's count is the day's **highest**, so "live ≤ it" reads as consistent.
-  - Every email also arrives as formatted HTML. Worker statistics are labeled prod- / dev-.
-  - The worker's version is in every email (the pre-commit check enforces the bump).
-  - Each schedule runs only its own job. Any other schedule does nothing and is counted **in red** at the top of the next summary.
-- ⏭️ **C — a shared notepad** for both relays (no user data): dev becomes a backup alerter (sends "[Dev] backup alert" if a limit crossing it has seen for over an hour has no production alert recorded), plus a "production is alive" check (alert if production's daily summary is more than 26 hours old).
-
-**Next steps**
-1. **Tonight, 6:55 PM:**
-   - Exactly **one** production email (old format) — settles the 10-13 duplicate.
-   - The "[Dev]" summary, opening with the red section if the stray 10-minute schedule still fired.
-   - Compare dev's storage figure with the Cloudflare dashboard.
-2. **In a day or two: put the report-only worker on production** (asks you first). Production has the **real** leftovers, so its report is the real test. Expect:
-   - "Would delete": the interrupted save `…21fc`.
-   - "Kept": the never-imported Restore `…3560`.
-   - Possibly one storage alert on its first threshold check.
-3. **After a few days of both reports being right: release 7.22.0 (report-only).** Update RELAY-WRITE-REDESIGN §14a (fixes 2 and 3 built as report-only; its two open questions are answered — each relay checks its own storage, and Cloudflare's key count is a daily maximum), CHANGELOG (your word on the copy), squash / tag / push to both, post-mortem.
-4. **Deleting = the next release, on its own branch.**
-   - It needs a per-run budget: a free-plan run gets 50 outside calls, and every storage call counts — one 18-part leftover alone is 19 deletes. Spread big cleanups over days.
-   - Test on dev with **deliberately planted** leftovers on the test channel `22222222…` (dev has none of its own); confirm it removes exactly those; a few days on dev; then production.
-5. **Then C.**
-
-**Lessons learned**
-- Cloudflare had three schedule incidents (2026-10-12, 10-13, 10-14) that delayed schedule changes by **hours** — the replaced 10-minute test schedule kept mailing.
-- **Never test with a temporary schedule again.** Test with the on-demand summary instead (PowerShell; one email each; Resend allows 100 a day):
-  `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))`
-- **Never deploy the relay from main** (or a branch off it) until B2 merges: main still has the old worker.
-
-**Rules**
-- Every deploy asks you first (the pre-approved production deploy was removed from local permissions).
-- Leave production channel `58c1bfd7…` alone — another user's data; it expires Dec 7.
-
-**Background** (the 2026-10-13 inventory)
-- Production unchanged since Sep 9: the interrupted save `…21fc`, the unabsorbed Restore `…3560`, an old-format device-state copy.
-- Dev's ~160 MB of Restore packages were reclaimed by the 2026-10-12 Imports (an Import retries cleaning earlier absorbed runs — so the leak was permanent only on a channel that never imports, like production). Dev had 7 device-state copies.
-- The Sep 27 dev runs have been imported — that hold is lifted.
-
-**How (technical)**
-- Inventory tool: `.private/analyze-relay-keys.js` (key dumps hold channel IDs — credentials — so delete them after use).
-- B1 lives in `commitGeneration` (relay-client.js) with `absorbedRuns` deduped.
-- Deploy dev: `npx wrangler deploy --env dev`, from `relay/` on the B2 branch.
-- B2 alpha.4 = commit `e753679`. The deployment is named by `RELAY_ENV` (prod / dev) in wrangler.toml; the worker's version is `WORKER_VERSION`; the key check compares Cloudflare's `keyCount`.
-
-### Let a new user's first big fetch resume after an interruption
-
-_Why it matters:_ A first 3,000-book fetch that dies near the end starts over from scratch.
-
-**What happens**
-- A new user's first fetch fills in details for ~3,000 books with no resume point. If it dies at book 2,800, it starts over.
-
-**What you'd get**
-- The fetch sends its progress in stages, so a re-run skips what's already done. 7.0's upload design makes this natural.
-
-**Status**
-- Hits each user exactly once — low priority; nice to have before launch. (From the 2026-08-21 outside review, item 1.)
-
-**How (technical)**
-- Send enrichment progress as mailbox letters in stages, so a resumed run's skip-hint already knows what's done.
-
-### Numbers the app and relay must agree on: add a check that they match
-
-_Why it matters:_ The same rules are typed separately in two programs; change one and forget the other, and things quietly go wrong.
-
-**What this is about**
-- ReaderWrangler is two separate programs: **the app** (in your browser) and **the relay** (on Cloudflare).
-- A few numbers and rules must be **identical in both**, but each is typed separately in each program's code. Nothing
-  complains if they differ.
-
-**Shared today**
-1. **How long an upload waits on the relay: 90 days.** The relay deletes an upload after 90 days; the app uses the same
-   90 days to decide when it can forget which uploads it already imported. If the relay kept uploads longer but the app
-   weren't changed, the app could forget it imported an old upload and **import it again** — re-applying old changes.
-2. **The format of upload IDs.** The relay builds each ID from a time, the device and a random part (like
-   `1760500000000-dRon-ab12`); the app reads the time back out of it.
-
-**Three more arrive with the relay storage work** (branch `feature/relay-worker-b2`)
-- The relay's daily storage check must judge leftovers by **exactly** the app's own cleanup rules: the 1-hour grace
-  period, "keep the newest 2 copies", and reading the time out of an ID.
-- If they differ, the check would report the app's normal copies as leftovers — and once deleting is on, could delete them.
-
-**Decided** (Ron, 2026-10-14) — option (c)
-- A **commit check** reads both programs and refuses a commit when any pair differs. Same style as the table-of-contents
-  check; about 30 lines; nothing changes in how either program loads.
-- Rejected: (a) leave it to comments and memory; (b) one shared file both load — cleanest in principle, but it means
-  restructuring how the app loads its relay code.
-- **Build it with the relay storage work (B2)**, where the three new copies come from. It lives in `git-hooks/` (see
-  "Save our working process in git").
-
-**How (technical)**
-- Pairs: `LETTER_TTL` (worker, seconds) ↔ `LETTER_TTL_MS` (relay-client.js); the minted-ID format (`MINTED_ID_REGEX` /
-  `mintId` in the worker ↔ `idTimestamp` in relay-client.js); B2's `SWEEP_GRACE_MS` ↔ `GC_GRACE_MS`, `SWEEP_KEEP_GENS`
-  ↔ `KEEP_GENS`, and the worker's `idTimestamp` ↔ the client's.
-- Units differ (seconds vs ms) — the check must compare values, not text.
-
-## 💰 Price checking
-
-_Formerly: 💰 Price sweep scoping + staleness display (agreed 2026-08-21, from external sync review item 2)_
-
-### Notice when a Kindle edition appears for a print-only book
-
-_Why it matters:_ So you can switch to the Kindle edition without losing its folders, lists and tags.
-
-**What you'd get**
-- A print book you're waiting on can be marked "watch for Kindle".
-- An occasional slow check notices when a Kindle edition appears, and **offers** (never forces) to swap to it, carrying over its folders, Book Lists, tags and price goal — a cousin of the wishlist → owned upgrade.
-
-**Low priority, because most cases are already covered**
-- Amazon's author-follow emails announce new formats (e.g. Heinlein).
-- For Kindle books Amazon withdrew, the price **reappearing** in the normal price check is itself the signal (The Destroyer's 18 withdrawn titles).
-- The only uncovered gap: a print placeholder → a new Kindle edition.
-
-**Check first**
-- Does the batch lookup report other editions of a print ASIN, or does this need a product-page visit per book?
-
-**How (technical)**
-- `formatWatch: 'kindle'` on print placeholders; likely shares a mechanism with the slow refresh below. (Outside review item 6.)
-
-### Now and then, refresh ratings for books you might buy
-
-_Why it matters:_ Ratings are frozen at the first fetch — fine for owned books, a little stale for buying decisions.
-
-**What you'd get**
-- Optional: about monthly (or every Nth fetch), refresh ratings and review counts for books you could still buy.
-- Safe to interrupt: results are sent as an upload run, so a closed tab tears nothing — it carries on next time.
-
-**Not this**
-- The outside review's per-book adaptive refresh timing — a fine solution to a scale problem we don't have.
-
-**How (technical)**
-- Reuse the scoped list from the price-sweep work and batch calls. (Outside review item 3.)
-
-## 🔜 Soon
-
-_Formerly: 🔜 Next (6.12.x follow-ups)_
-
-### Undo, deleting and multiple windows
-
-#### Finish routing every change through one shared path, with undo
-
-_Why it matters:_ A few actions — deleting tags or Searches, renaming — still can't be undone.
-
-**Done** (6.13.1)
-- Folder delete, book move / copy (every menu and drag), folder moves (menu, cut-paste, drag), Book List create / delete, and an undo message for every action.
-
-**Left** (lower priority — less likely to drift)
-- Deleting a **tag**, deleting a **Search**.
-- Renaming a folder or a Book List — make it undoable.
-- Redo for copying a folder (a TODO in the code).
-- Optional: fold the folder-move part of moving items into the one folder-move operation.
-
-**How (technical)**
-- Shared operations: `deleteFolder`, `moveItems`, `reparentFolder`. The redo TODO is in `COPY_PASTE_FOLDER`. Design: docs/design/OPERATIONS-REFACTOR.md; feeds MODULE-SPLIT.
-
-#### The Delete key should delete the folders you've selected
-
-_Why it matters:_ Today it only deletes the folder you're inside.
-
-**What you see**
-- Select folders in the right pane's list (e.g. the Folders view) and press Delete: nothing happens to them — only the folder you're *inside* is deleted.
-
-**What you'd get**
-- One selected folder → deleted, as from its menu.
-- Several → one confirmation, and one undo for the lot.
-- **Don't ship single-only** — that's more confusing than neither.
-
-**How (technical)**
-- Today it uses `selectedFolderId` instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch confirm and one compound undo — best once there's a `deleteFolders(folders)` operation. Surfaced during the operations refactor.
-
-#### Keep reading the old save format (a standing decision, not a task)
-
-_Why it matters:_ Some users update late; these reads are cheap. Recorded so nobody removes them on a schedule.
-
-**Decided** (Ron, 2026-09-04)
-- GoatCounter shows real users who update on their own schedule. Keep the code that reads the old save format **indefinitely**.
-- Revisit only with evidence that nobody's left on it — never "after N releases".
-
-**How (technical)**
-- The legacy `FOLDERS_KEY` / `BOOKLISTS_KEY` migration reads; dated comments explain them.
-
 #### Protect against editing in two tabs at once
 
 _Why it matters:_ Two open tabs can overwrite each other's work — a real data-loss risk.
@@ -1623,56 +1611,37 @@ _Why it matters:_ Two open tabs can overwrite each other's work — a real data-
 **How (technical)**
 - Web Locks for the read-only second tab, reload-then-promote, live / freeze viewer. Design: docs/design/MULTI-INSTANCE.md §4.
 
-#### Warn when another browser has newer changes
+#### Let a new user's first big fetch resume after an interruption
 
-_Why it matters:_ Two browsers on one account can drift apart without anyone noticing.
+_Why it matters:_ A first 3,000-book fetch that dies near the end starts over from scratch.
 
 **What happens**
-- Copy a backup into a second browser and both now use one relay. Each edits its own copy and nothing tells you.
+- A new user's first fetch fills in details for ~3,000 books with no resume point. If it dies at book 2,800, it starts over.
 
 **What you'd get**
-- When a browser becomes active again, it compares itself with the relay. If it's behind, it offers: **Catch up & edit here** / **Just view** / **Leave as-is**.
+- The fetch sends its progress in stages, so a re-run skips what's already done. 7.0's upload design makes this natural.
 
-**Decided**
-- **Low priority — "Tier 1".** Builds on the two-tab task above (one idea of "who's the editor": in-browser between tabs, across browsers via the relay).
-- **Live two-way sync is rejected** — it would need push infrastructure and a merge engine for organization.
+**Status**
+- Hits each user exactly once — low priority; nice to have before launch. (From the 2026-08-21 outside review, item 1.)
 
 **How (technical)**
-- Compare the relay's serialized-state stamp; adopt the relay's organization; an optional soft relay lease.
-- The real work: give the desktop a way to **adopt** device-state (today `getDeviceState` on desktop is only a connection test), plus a per-channel lease record.
-- Design: docs/design/MULTI-INSTANCE.md §6 (2026-09-22).
+- Send enrichment progress as mailbox letters in stages, so a resumed run's skip-hint already knows what's done.
 
-### Book List menus and undo history
+#### Relay Setup: disconnect, or reset credentials
 
-_Formerly: Auto-Organize ergonomics_
+_Why it matters:_ A clean way to stop syncing, or to start over with new credentials.
 
-#### Book List menu: remove Move / Copy, and block dragging onto folders
+### Costs
 
-_Why it matters:_ Moving a Book List entry into a folder makes no sense, and once caused a membership mess.
+_Formerly: Launch economics_
 
-**What you'd get**
-- In a Book List view, the book right-click menu drops **Move to** and **Copy to**. It keeps Add to Book List, Remove from list, Edit and reordering.
-- Dragging (plain or Ctrl) from a Book List onto a folder is blocked.
+#### Move to Cloudflare's $5/month plan around launch
 
-**Why**
-- A Book List entry is a shortcut; moving a shortcut into a folder is incoherent. On 2026-08-08 a "move" from a Book List to the Inbox left books in the Inbox, a folder **and** the list at once.
+_Why it matters:_ The free plan supports only a handful of users.
 
-#### Undo history sometimes empties by itself
-
-_Why it matters:_ Losing undo mid-session is alarming; the cause is still unknown.
-
-**What happened**
-- Twice (2026-08-07 and 08), the undo history emptied with no undo or redo by you.
-
-**What we know** (2026-09-01)
-- No code path clears it — it lives only in memory and only drops its oldest steps at the limit. So **some invisible page reload** is the only explanation.
-- Suspect: the TinySuspender extension discarding and restoring the tab. Your settings argue against it for those two times (60-minute idle timeout; you were actively switching tabs). A forgotten manual reload is the other possibility.
-
-**Next time it happens**
-- Check the console history and Data Status's "last checked" — a discarded tab clears both.
-
-**Do now regardless**
-- Whitelist localhost and readerwrangler.com in TinySuspender. A suspended ReaderWrangler tab can also tear an upload when you leave it.
+**What we know** (RELAY-ECONOMICS.md, 2026-08-28)
+- After 7.5.0's savings, the flat $5 plan covers about 250 users like you; the free plan about 6–10 — and it's shared between production and dev.
+- So this is now just the act of upgrading at the right moment, at or shortly before launch.
 
 ---
 
@@ -1730,7 +1699,7 @@ _Why it matters:_ A small but noticeable delay on every click while searching or
 **How (technical)**
 - The cached list is `explorerDisplayItems` (a useMemo); profile with DevTools Performance.
 
-### Relay and data safety
+### Relay and sync
 
 _Formerly: Relay / data robustness_
 
@@ -1758,10 +1727,6 @@ _Why it matters:_ Optional: smaller uploads for small changes.
 
 **Spec:** docs/design/RELAY-DELTA.md.
 
-#### Relay Setup: disconnect, or reset credentials
-
-_Why it matters:_ A clean way to stop syncing, or to start over with new credentials.
-
 #### ✅ Ask before restoring when relay credentials don't match
 
 _Why it matters:_ A backup from another channel shouldn't silently switch your sync.
@@ -1770,6 +1735,25 @@ _Why it matters:_ A backup from another channel shouldn't silently switch your s
 
 **Leftover idea** (from that design doc)
 - The bookmarklet could check the channel before fetching and warn if it's revoked — a separate case, not a mismatch. File it separately if wanted.
+
+#### Warn when another browser has newer changes
+
+_Why it matters:_ Two browsers on one account can drift apart without anyone noticing.
+
+**What happens**
+- Copy a backup into a second browser and both now use one relay. Each edits its own copy and nothing tells you.
+
+**What you'd get**
+- When a browser becomes active again, it compares itself with the relay. If it's behind, it offers: **Catch up & edit here** / **Just view** / **Leave as-is**.
+
+**Decided**
+- **Low priority — "Tier 1".** Builds on the two-tab task above (one idea of "who's the editor": in-browser between tabs, across browsers via the relay).
+- **Live two-way sync is rejected** — it would need push infrastructure and a merge engine for organization.
+
+**How (technical)**
+- Compare the relay's serialized-state stamp; adopt the relay's organization; an optional soft relay lease.
+- The real work: give the desktop a way to **adopt** device-state (today `getDeviceState` on desktop is only a connection test), plus a per-channel lease record.
+- Design: docs/design/MULTI-INSTANCE.md §6 (2026-09-22).
 
 ### Features
 
@@ -1853,6 +1837,43 @@ _Why it matters:_ Share data with the reading sites people already use.
 
 _Why it matters:_ Books slide aside live to show where a drop will land.
 
+### Prices
+
+_Formerly: 💰 Price checking (Price sweep scoping + staleness display, agreed 2026-08-21, from external sync review item 2)_
+
+#### Notice when a Kindle edition appears for a print-only book
+
+_Why it matters:_ So you can switch to the Kindle edition without losing its folders, lists and tags.
+
+**What you'd get**
+- A print book you're waiting on can be marked "watch for Kindle".
+- An occasional slow check notices when a Kindle edition appears, and **offers** (never forces) to swap to it, carrying over its folders, Book Lists, tags and price goal — a cousin of the wishlist → owned upgrade.
+
+**Low priority, because most cases are already covered**
+- Amazon's author-follow emails announce new formats (e.g. Heinlein).
+- For Kindle books Amazon withdrew, the price **reappearing** in the normal price check is itself the signal (The Destroyer's 18 withdrawn titles).
+- The only uncovered gap: a print placeholder → a new Kindle edition.
+
+**Check first**
+- Does the batch lookup report other editions of a print ASIN, or does this need a product-page visit per book?
+
+**How (technical)**
+- `formatWatch: 'kindle'` on print placeholders; likely shares a mechanism with the slow refresh below. (Outside review item 6.)
+
+#### Now and then, refresh ratings for books you might buy
+
+_Why it matters:_ Ratings are frozen at the first fetch — fine for owned books, a little stale for buying decisions.
+
+**What you'd get**
+- Optional: about monthly (or every Nth fetch), refresh ratings and review counts for books you could still buy.
+- Safe to interrupt: results are sent as an upload run, so a closed tab tears nothing — it carries on next time.
+
+**Not this**
+- The outside review's per-book adaptive refresh timing — a fine solution to a scale problem we don't have.
+
+**How (technical)**
+- Reuse the scoped list from the price-sweep work and batch calls. (Outside review item 3.)
+
 ### Technical clean-up
 
 _Formerly: Tech / performance_
@@ -1907,6 +1928,8 @@ _Why it matters:_ Small finishing touches.
 **Left**
 - Keyboard navigation in the left pane.
 - Consistent shadow direction.
+
+---
 
 ## 🧊 Someday
 

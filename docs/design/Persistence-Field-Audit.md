@@ -155,6 +155,10 @@ Stored folder objects carry only persistent fields; counts are computed
   (like `savedSearches`), restored on load only when the blob carries them, and
   retiring the unguarded writer. `BOOKLISTS_KEY` is now read-once as a one-time
   migration source. The folder double-store (F1) remains the last asymmetry.
+  **Standing decision (Ron, 2026-09-04; moved here from TODO 2026-10-14): keep the legacy `FOLDERS_KEY` /
+  `BOOKLISTS_KEY` migration reads INDEFINITELY.** GoatCounter shows real users who update on their own schedule; the
+  reads are cheap and dated comments explain them. Revisit only with evidence that nobody is left on the old format —
+  never on a "after N releases" schedule.
 - **F3 — The book rename map is triplicated** (S5/S6/S7 forward, S8 inverse).
   Four hand-kept copies of the same internal↔external mapping. Prime Tier-2 target.
 - **F4 — `hidden` vs `isHidden` mismatch in the merge.** ✅ **RESOLVED (alpha.30).**
