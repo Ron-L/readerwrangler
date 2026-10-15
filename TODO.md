@@ -94,7 +94,7 @@
       - [Create a FAQ page](#create-a-faq-page)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
       - [✅ Document how to recover from disasters](#document-how-to-recover-from-disasters)
-      - [CONTRIBUTING.md: replace the retired Claude Skills sections](#contributingmd-replace-the-retired-claude-skills-sections)
+      - [✅ CONTRIBUTING.md: replace the retired Claude Skills sections](#contributingmd-replace-the-retired-claude-skills-sections)
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
       - [Warn before uploading a much smaller library (demo safety)](#warn-before-uploading-a-much-smaller-library-demo-safety)
@@ -252,7 +252,8 @@ _Why it matters:_ After every reboot you hunt for the server command, and today'
 - Use **`py`**, not `python`, in the file and docs (`py` → 3.14 on your PC; `python` → an older 3.13).
 
 **Also**
-- Update CONTRIBUTING.md's server lines, and drop its Python 2 line (dead since 2020).
+- ~~Update CONTRIBUTING.md's server lines, and drop its Python 2 line~~ — done ahead in the 2026-10-15 rewrite: it
+  already describes `start-server.bat` / `serve.py`; check the wording against what gets built.
 
 **Status:** deferred by Ron 2026-10-06 until after the overlay branch (which shipped as 7.18.0).
 
@@ -1670,9 +1671,15 @@ _Why it matters:_ Users need clear steps when credentials or data are lost.
 - How to recover relay credentials.
 - That backups include your credentials.
 
-#### CONTRIBUTING.md: replace the retired Claude Skills sections
+#### ✅ CONTRIBUTING.md: replace the retired Claude Skills sections
 
 _Why it matters:_ About 110 lines of CONTRIBUTING.md describe a "Claude Skills" setup that hasn't existed since January — a contributor following them would be lost.
+
+**Status:** done 2026-10-15 — went further than this task (Ron: "go ahead with all"): the whole file was rewritten
+(668 → 218 lines). Gone: the pre-6.0.0 download-a-file flow, the old installer page, five dead links, the Skills/LOG.md
+sections, letter-versioning and `origin`-based git rules. New: an accurate overview, setup (commit checks → local
+server → contributor mode → bookmarklets from Relay Setup), testing, an up-to-date file list, "How we work", "Working
+with Claude Code". Delete at the next release.
 
 **What you see** (found 2026-10-15, while adding the commit-checks section)
 1. "For Claude Development Sessions", "Setting Up Claude Skills" and "Core Ground Rules (Quick Reference)" describe
