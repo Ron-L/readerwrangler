@@ -679,7 +679,10 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
      fired **12 times**, 10:00–11:50 AM, then stopped — Cloudflare applied the 6:36 AM change ~5 hours late. The
      stray fires cost no emails.
    - Still open: compare dev's storage figure with the Cloudflare dashboard.
-2. **In a day or two: put the report-only worker on production** (asks you first). Production has the **real** leftovers, so its report is the real test. Expect:
+2. ✅ **The report-only worker is on production** — deployed 2026-10-15 9:18 AM (Ron's go; version `3e2d7d39`, code =
+   B2 alpha.4; checked: no open Cloudflare incident first). Production has the **real** leftovers, so its first
+   report is the real test. **Still to check** (tonight's 6:55 PM production summary, or on demand — see "Lessons
+   learned", with the production address):
    - "Would delete": the interrupted save `…21fc`.
    - "Kept": the never-imported Restore `…3560`.
    - Possibly one storage alert on its first threshold check.
