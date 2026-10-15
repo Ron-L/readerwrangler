@@ -91,6 +91,25 @@ Click the status line at the top and load your downloaded JSON file.
 
 ## For Developers: Contributing to ReaderWrangler
 
+### First: turn on the commit checks (one-time setup)
+
+After cloning, run this once in the project folder:
+
+```bash
+git config core.hooksPath git-hooks
+```
+
+From then on, git runs these checks on every commit and refuses the commit if one fails. The checks themselves
+live in `git-hooks/` — each script explains itself at the top; this list is only a summary:
+
+1. **Version stamps** (`version-guard.py`) — a change to the app, the phone app, the relay worker, a shared module or
+   the stylesheet must also move its version number (otherwise the browser keeps serving the old copy).
+2. **Undefined names** (`check-names.js`) — refuses app code that uses a name nothing defines (a mistake a syntax
+   check can't see). Needs `npm i --no-save @babel/core @babel/preset-react` once.
+3. **TODO table of contents** (`check-toc.js`) — TODO.md's table of contents must match its headers.
+
+To skip the checks for one deliberate commit: `git commit --no-verify`.
+
 There are three development workflows available, depending on your testing needs.
 
 ### Development Option A: Local Testing (Recommended)
@@ -280,7 +299,8 @@ Before contributing, familiarize yourself with the technical architecture and de
 
 **Development:**
 - `readerwrangler.code-workspace` - VS Code workspace configuration
-- `.git/hooks/pre-commit` - Auto-rebuilds SKILL zips on commit
+- `git-hooks/` - The commit checks (see "First: turn on the commit checks" above)
+- `.claude/` - Claude Code project settings, hooks and commands (personal approvals in `settings.local.json` are not saved)
 
 ---
 
@@ -326,6 +346,11 @@ Before contributing, familiarize yourself with the technical architecture and de
 **When to Update:** When completing tasks, discovering new work, or planning features
 
 ### For Claude Development Sessions
+
+> ⚠️ **Out of date (noted 2026-10-15).** The SKILL-*.md files described below were retired on 2026-01-25 — their
+> rules now live in `CLAUDE.md` (this project's) and `../CLAUDE.md` (cross-project). This section, "Setting Up Claude
+> Skills" and "Core Ground Rules" are due for a rewrite (TODO: "CONTRIBUTING.md: replace the retired Claude Skills
+> sections").
 
 #### SKILL-Development-Ground-Rules.md
 **Purpose:** Core development workflow rules and protocols
@@ -395,6 +420,9 @@ Claude Code compacts (summarizes) the conversation when token usage hits ~80%. T
 
 ### Setting Up Claude Skills
 
+> ⚠️ **Out of date** — see the note under "For Claude Development Sessions". There are no skill zips or skill-building
+> hook anymore; the commit checks are described under "First: turn on the commit checks".
+
 This project uses Claude Skills to maintain workflow consistency across sessions. Skills are specialized context files that Claude loads before each conversation.
 
 **Required Skills:**
@@ -430,6 +458,9 @@ build-skill-organizer.bat
 3. Upload new .zip to Claude Skills interface (will prompt to replace existing)
 
 ### Core Ground Rules (Quick Reference)
+
+> ⚠️ **Out of date** — the current rules are in `CLAUDE.md` and `../CLAUDE.md`; see the note under "For Claude
+> Development Sessions".
 
 For complete details, see SKILL-Development-Ground-Rules.md. Here's a quick reference:
 

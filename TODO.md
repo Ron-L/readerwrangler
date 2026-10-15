@@ -91,6 +91,7 @@
       - [Create a FAQ page](#create-a-faq-page)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
       - [✅ Document how to recover from disasters](#document-how-to-recover-from-disasters)
+      - [CONTRIBUTING.md: replace the retired Claude Skills sections](#contributingmd-replace-the-retired-claude-skills-sections)
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
       - [Warn before uploading a much smaller library (demo safety)](#warn-before-uploading-a-much-smaller-library-demo-safety)
@@ -176,7 +177,20 @@ bottom are my suggested placements (2026-10-14) for tasks moved in from elsewher
 
 _Why it matters:_ My memory, the commit checks and the pre-build checklist live only on this PC — lost with it, and nothing would warn us.
 
-**What's at risk today** (inventory 2026-10-14)
+**Already done** (2026-10-15 — steps 1–4 below)
+1. `git-hooks/` holds the commit wiring + all three checks (moved from `.git/hooks`, `.claude/hooks`, `scripts/`);
+   `git config core.hooksPath git-hooks`. Proved: a stale TODO table was refused by the NEW location. (`43de253`)
+2. `.claude/hooks/` (the pre-build checklist), `.claude/commands/sitemap.md` and a shared `.claude/settings.json`
+   (holding the hook wiring, moved from the personal file) are saved in git; only `settings.local.json` is excluded.
+   Proved: the checklist fired with the wiring only in the shared file. (`db5dcaa`)
+3. Memory (56 files) + Ron's `settings.local.json` backed up to `.private/claude-backup/` with restore steps, pushed
+   to the private repo (`c76def8`).
+4. CONTRIBUTING.md: a "First: turn on the commit checks" section (setup command + what each check does); the stale
+   hook line fixed; the retired Claude Skills sections flagged out-of-date (their rewrite is its own task).
+
+**Left** — the "Later (smaller)" items at the bottom.
+
+**What was at risk** (inventory 2026-10-14 — before the steps above)
 
 | What | Where it lives | What it does |
 |---|---|---|
@@ -1546,6 +1560,22 @@ _Why it matters:_ Users need clear steps when credentials or data are lost.
 **Should cover**
 - How to recover relay credentials.
 - That backups include your credentials.
+
+#### CONTRIBUTING.md: replace the retired Claude Skills sections
+
+_Why it matters:_ About 110 lines of CONTRIBUTING.md describe a "Claude Skills" setup that hasn't existed since January — a contributor following them would be lost.
+
+**What you see** (found 2026-10-15, while adding the commit-checks section)
+1. "For Claude Development Sessions", "Setting Up Claude Skills" and "Core Ground Rules (Quick Reference)" describe
+   `SKILL-*.md` files, skill zips, `build-skill-*.bat` and a hook that rebuilds the zips.
+2. Those files were retired on 2026-01-25 (folded into CLAUDE.md; later split into this project's `CLAUDE.md` and the
+   cross-project `../CLAUDE.md`). The sections now carry an "out of date" warning.
+
+**To do**
+1. Replace them with a short "Working with Claude Code" section pointing at `CLAUDE.md`, `docs/PRINCIPLES.md`,
+   `.claude/` (shared hooks and settings) and `docs/design/SESSION-TOOLING.md`.
+2. Check the rest of CONTRIBUTING.md for other stale parts while there (e.g. its server commands — see "Start the local
+   server automatically").
 
 ### Safety and data protection
 
