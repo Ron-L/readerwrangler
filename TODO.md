@@ -131,6 +131,7 @@
       - [Connect with Goodreads / StoryGraph](#connect-with-goodreads--storygraph)
       - [Animated drag-and-drop](#animated-drag-and-drop)
       - [Import book details from a pasted list or spreadsheet](#import-book-details-from-a-pasted-list-or-spreadsheet)
+      - [Capture book ideas from your phone (Share → ReaderWrangler)](#capture-book-ideas-from-your-phone-share--readerwrangler)
     - [Prices](#prices)
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
       - [Now and then, refresh ratings for books you might buy](#now-and-then-refresh-ratings-for-books-you-might-buy)
@@ -1959,6 +1960,34 @@ _Why it matters:_ A way to bring in information from outside Amazon.
 - Paste a list or load a CSV; ReaderWrangler matches the rows to your books.
 
 **Spec:** docs/design/Metadata-Import.md.
+
+#### Capture book ideas from your phone (Share → ReaderWrangler)
+
+_Why it matters:_ Recommendations you meet on your phone (a Claude.ai answer, a review) can't reach ReaderWrangler until you're back at the desktop — today you email yourself.
+
+**What you see** (Ron, 2026-10-15)
+- Reading in bed, Claude.ai suggested books like *Cronus* (P. Djèlí Clark); nothing on the phone could add them to the
+  wishlist or a Book List. A bookmarklet on phone Chrome technically works but is far too clumsy for a dozen links.
+
+**What you'd get**
+1. **Share → ReaderWrangler** in Android's share sheet (the phone version installed to the home screen registers as a
+   share target): one tap from Claude.ai, the Amazon app, an article.
+2. What you share — a link, an ASIN, or plain text — travels through the **relay** like a wishlist add, and the desktop
+   shows it in a short **"To look up"** list on the next Import: links/ASINs become wishlist entries; plain text you
+   resolve with a click (search Amazon, add, put in a Book List).
+3. A whole Claude answer can be shared at once and worked through on the desktop. Picking titles out of free text
+   automatically stays human — too unreliable.
+
+**Caveats**
+- Android / Chrome only (iPhone doesn't support web-app share targets). Plain-text items carry no book details until
+  resolved. Medium-sized: a phone capture screen, a new relay letter kind, a desktop list.
+
+**Status:** after launch (Ron, 2026-10-15: "there comes a time in every project where you have to shoot the engineer
+and release it").
+
+**How (technical)**
+- Web Share Target (`share_target` in the phone app's manifest); a single-letter mailbox run (as the wishlist fetcher
+  sends) carrying `{url|asin|text}`; the desktop's Import routes those letters to the "To look up" list.
 
 ### Prices
 
