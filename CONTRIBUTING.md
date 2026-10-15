@@ -65,9 +65,16 @@ The app must be served over `http://` — browsers block much of what it does on
   `start-server.bat` in your Startup folder (Win+R → `shell:startup`).
 - **Elsewhere:** `python serve.py` (or `py serve.py`) in the project folder.
 
-`serve.py` is Python's standard web server with one difference: it **refuses every folder whose name starts with a
-dot** (`.private`, `.git`, `.claude`, …) so private files are never shown to other devices on your network. It still
-listens on the whole home network on purpose — that's how a phone tests your local copy.
+`serve.py` is Python's standard web server, except that it serves **only what the real site serves** (production
+publishes exactly the files in git and never lists folders). It refuses:
+
+1. anything inside a folder (or any file) whose name starts with a dot — `.private`, `.git`, `.claude`, …;
+2. anything git ignores — e.g. your backups (`readerwrangler-backup-*.json`), which hold your relay credentials;
+3. folder listings.
+
+Refused paths get a plain "not found" (each is logged as REFUSED in the server window). It still listens on the whole
+home network on purpose — that's how a phone tests your local copy — which is exactly why it must not hand out private
+files. It needs git installed (it asks git what's ignored).
 
 Then open http://localhost:8000/readerwrangler.html.
 

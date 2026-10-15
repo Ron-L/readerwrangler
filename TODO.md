@@ -242,6 +242,19 @@ _Why it matters:_ My memory, the commit checks and the pre-build checklist live 
 
 _Why it matters:_ After every reboot you hunt for the server command, and today's server also shows private files to other devices at home.
 
+**Already done** (2026-10-15)
+1. `serve.py` — serves only what the real site serves: refuses dot-folders/files (`.private`, `.git`, `.claude`…),
+   anything git ignores (backups hold relay credentials), and folder listings; each refusal logged as REFUSED.
+   Tested on port 8001: app files 200; `.private`, `.git`, `.claude/settings.local.json`, a backup, an encoded-dot path,
+   `docs/../.private`, folder listings all 404. (Design widened from "refuse `.private` + `.git`" — Ron, 2026-10-15.)
+2. `start-server.bat` — double-click to start (visible window), close to stop; used by the Startup shortcut too.
+   (Kept because `.py` files have no "run" association on Ron's PC — double-clicking one wouldn't run it.)
+3. CONTRIBUTING.md describes both.
+
+**Left** (Ron)
+1. Stop the old server (close its window), then double-click `start-server.bat` and check the app loads.
+2. Win+R → `shell:startup` → in that folder, right-click → New → Shortcut → browse to `start-server.bat` → Finish.
+
 **What you'd get**
 - A shortcut in Windows' Startup folder runs a small file kept in the project, which starts the local server in a **visible** window at logon.
 
