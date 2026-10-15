@@ -5,14 +5,14 @@
     - [High priority](#high-priority)
       - [Save our working process in git, so losing this PC can't erase it](#save-our-working-process-in-git-so-losing-this-pc-cant-erase-it)
       - [Start the local server automatically, without exposing private files](#start-the-local-server-automatically-without-exposing-private-files)
-      - [Make sure an Import never wipes fields only ReaderWrangler sets](#make-sure-an-import-never-wipes-fields-only-readerwrangler-sets)
+      - [✅ Make sure an Import never wipes fields only ReaderWrangler sets](#make-sure-an-import-never-wipes-fields-only-readerwrangler-sets)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
       - ["Add Bibliography to Wishlist" is greyed out on an author's All Books tab](#add-bibliography-to-wishlist-is-greyed-out-on-an-authors-all-books-tab)
       - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
       - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
       - [Series numbers](#series-numbers)
-        - [Set different series numbers on several books at once ("2, 4")](#set-different-series-numbers-on-several-books-at-once-2-4)
+        - [✅ Set different series numbers on several books at once ("2, 4")](#set-different-series-numbers-on-several-books-at-once-2-4)
         - [One book in several series positions (omnibus, anthology, MegaPack)](#one-book-in-several-series-positions-omnibus-anthology-megapack)
       - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
       - [Drag a box to select covers](#drag-a-box-to-select-covers)
@@ -28,9 +28,8 @@
       - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
       - [Trusting the fetch](#trusting-the-fetch)
         - [Fetch: report exactly how your library compares with Amazon](#fetch-report-exactly-how-your-library-compares-with-amazon)
-        - [Hide returned loans and borrows](#hide-returned-loans-and-borrows)
       - [Honest ownership changes: buying, samples, loans](#honest-ownership-changes-buying-samples-loans)
-        - [Write the wishlist / ownership rules down in one design doc](#write-the-wishlist--ownership-rules-down-in-one-design-doc)
+        - [✅ Write the wishlist / ownership rules down in one design doc](#write-the-wishlist--ownership-rules-down-in-one-design-doc)
         - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
         - [Relay Import: only books in no folder should go to the Inbox](#relay-import-only-books-in-no-folder-should-go-to-the-inbox)
         - [Let library loans and Audible Plus books upgrade to owned](#let-library-loans-and-audible-plus-books-upgrade-to-owned)
@@ -64,6 +63,7 @@
         - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
         - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
         - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
+        - [Edit Series / Position: "Mixed (2 values)" reads like "enter 2 values"](#edit-series--position-mixed-2-values-reads-like-enter-2-values)
       - [Auto-Organize: let a misfiled book go back to the Inbox](#auto-organize-let-a-misfiled-book-go-back-to-the-inbox)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
@@ -74,7 +74,6 @@
       - [Finish routing every change through one shared path, with undo](#finish-routing-every-change-through-one-shared-path-with-undo)
       - [The Delete key should delete the folders you've selected](#the-delete-key-should-delete-the-folders-youve-selected)
       - [Book List menu: remove Move / Copy, and block dragging onto folders](#book-list-menu-remove-move--copy-and-block-dragging-onto-folders)
-      - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
     - [Unsorted — suggested for Polish](#unsorted--suggested-for-polish)
       - [Group 5 — Looks done (confirm in the done-ness sweep)](#group-5--looks-done-confirm-in-the-done-ness-sweep)
         - [✅ Auto-Organize preview: show which Book Lists a book is in](#auto-organize-preview-show-which-book-lists-a-book-is-in)
@@ -91,13 +90,12 @@
       - [Refresh the landing page's before / after screenshot](#refresh-the-landing-pages-before--after-screenshot)
       - [Create a FAQ page](#create-a-faq-page)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
-      - [Document how to recover from disasters](#document-how-to-recover-from-disasters)
+      - [✅ Document how to recover from disasters](#document-how-to-recover-from-disasters)
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
       - [Warn before uploading a much smaller library (demo safety)](#warn-before-uploading-a-much-smaller-library-demo-safety)
       - [A button to rebuild the library from Amazon](#a-button-to-rebuild-the-library-from-amazon)
       - [Pin the exact versions of outside code libraries](#pin-the-exact-versions-of-outside-code-libraries)
-      - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
       - [Protect against editing in two tabs at once](#protect-against-editing-in-two-tabs-at-once)
       - [Let a new user's first big fetch resume after an interruption](#let-a-new-users-first-big-fetch-resume-after-an-interruption)
@@ -121,11 +119,9 @@
       - [Show reading progress](#show-reading-progress)
       - [Book recommendations](#book-recommendations)
       - [Show who a book is shared with (Family Library)](#show-who-a-book-is-shared-with-family-library)
-      - [Auto-Organize: file co-written books under each author](#auto-organize-file-co-written-books-under-each-author)
       - [Two-pane split view](#two-pane-split-view)
       - [Support stores besides Amazon](#support-stores-besides-amazon)
       - [Several people on one installation](#several-people-on-one-installation)
-      - [Smart collections (rule-based)](#smart-collections-rule-based)
       - [✅ More ways to filter by Kindle collections](#more-ways-to-filter-by-kindle-collections)
       - [Reading statistics](#reading-statistics)
       - [✅ More export options (printable list)](#more-export-options-printable-list)
@@ -143,6 +139,9 @@
       - [Clean up developer console messages](#clean-up-developer-console-messages)
       - [Check nothing was lost between versions 4 and 5](#check-nothing-was-lost-between-versions-4-and-5)
       - [Leftover desktop polish (left-pane keyboard, shadows)](#leftover-desktop-polish-left-pane-keyboard-shadows)
+  - [👀 Watching](#watching)
+    - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
+    - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
   - [🧊 Someday](#someday)
     - [Test on Safari (desktop and iPhone)](#test-on-safari-desktop-and-iphone)
 
@@ -245,9 +244,11 @@ _Why it matters:_ After every reboot you hunt for the server command, and today'
 - Don't use `--bind 127.0.0.1` (phone tests over the home network).
 - Today's command (the one you hunt for in developers.md): `python -m http.server 8000 --directory C:\Users\Ron\Projects\ReaderWrangler`. CONTRIBUTING's dead line is the Python 2 `SimpleHTTPServer` one. On your PC (2026-10-06): `py` → 3.14.7.
 
-#### Make sure an Import never wipes fields only ReaderWrangler sets
+#### ✅ Make sure an Import never wipes fields only ReaderWrangler sets
 
 _Why it matters:_ Two fields were being wiped on every Import; check no other field has the same gap, and decide whether backups should keep them.
+
+**Status:** done — 7.16.0–7.17.0. The real fix was **centralizing**: one field table (bookFields.js) replaced several out-of-sync copies of "which field is whose". Those two wizard fields are protected from Import, now travel with backups and to other devices, and an automatic check flags any new field (verified 2026-10-15; Ron agreed). Delete at the next release.
 
 **Done so far** (7.16.0)
 - The Tag from Collections wizard's two remembered settings were wiped on every Import. They're now protected, with a test locking that in.
@@ -264,6 +265,13 @@ _Why it matters:_ Two fields were being wiped on every Import; check no other fi
 #### Turn more of our working rules into automatic checks (my tooling)
 
 _Why it matters:_ Rules that depend on memory keep failing; automatic checks don't. This affects only how I work, not the app.
+
+**Already done**
+- Item 1: the pre-build checklist now watches all app code (2026-10-08).
+- Since then, more checks run on every commit: the undefined-names check, the version stamps (now incl. the relay worker), and the TODO table of contents.
+
+**Left**
+- Items 2 and 3 below, and the rule-by-rule sort of PRINCIPLES.md.
 
 **The idea** (Ron, 2026-09-22, after "assuming bit us again")
 - Go through docs/PRINCIPLES.md rule by rule and sort each one:
@@ -374,9 +382,11 @@ _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar'
 
 Build "2, 4" first; the multi-position one is larger and uses the same series-number editing.
 
-##### Set different series numbers on several books at once ("2, 4")
+##### ✅ Set different series numbers on several books at once ("2, 4")
 
 _Why it matters:_ Needed when you own scattered volumes of a series.
+
+**Status:** done — since 6.16.0: select the books, right-click → Edit ▸ → "Set numbers (13, 13.5, 14…)…", type a comma list; it's applied in display order and insists on exactly one number per book (verified in code + CHANGELOG 2026-10-15; Ron agreed). Delete at the next release.
 
 **What you'd get**
 - In a multi-book edit, type "2, 4" and the numbers go to the selected books in display order.
@@ -606,6 +616,12 @@ _Why it matters:_ Each row has two click targets that do different things, with 
 
 _Why it matters:_ A wrong date label can lead you to restore the wrong backup.
 
+**Already done**
+- "yesterday" and "N days ago" labels exist (7.4.0).
+
+**Left**
+- The age is counted in 24-hour blocks (readerwrangler.js ~12174), which is exactly the bug: a backup from 6:54 PM yesterday reads "today" until 6:54 PM. Compare local calendar days instead.
+
 **What you see**
 - A backup from 9/21 6:54 PM was labeled **"— today"** on 9/22. Not a time-zone effect: it was yesterday everywhere.
 
@@ -648,20 +664,6 @@ _Why it matters:_ So the fetch can honestly say "your library matches Amazon exa
 - 101 tie-timestamp clusters covering 279 books were seen — harmless.
 - Amazon's total is the API's `totalCount` (acquisition records, not titles).
 
-##### Hide returned loans and borrows
-
-_Why it matters:_ Returned Prime, Kindle Unlimited and library loans clutter the library.
-
-**What you'd get**
-- A **"Returned"** ownership filter, hidden by default (a toggle shows them).
-- A bulk move-to-folder for the ones you want to keep.
-
-**Watch out**
-- **Not** via the ASIN exclusion list — that would block borrowing the book again.
-
-**How (technical)**
-- The fetcher flags borrow records with `activeBorrow === false`. Design: docs/design/RETURNED-BORROWS.md.
-
 #### Honest ownership changes: buying, samples, loans
 
 _Why it matters:_ When a book changes kind — bought, a sample, a loan, a book in the Trash — ReaderWrangler should notice, tell you, and never lose your settings.
@@ -682,9 +684,11 @@ When a book changes kind — wishlist → bought, sample → bought, a loan, a b
 - 7.10.0: Save as Spreadsheet (CSV). _A reply to the user who asked for it is still owed (Ron's channel)._
 - 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
 
-##### Write the wishlist / ownership rules down in one design doc
+##### ✅ Write the wishlist / ownership rules down in one design doc
 
 _Why it matters:_ So the rules are settled once and never argued again.
+
+**Status:** done — docs/design/OWNERSHIP-MODEL.md — the wishlist model plus §3 "Transition matrix (fetch-driven; ratified 2026-09-04)" (verified 2026-10-15; Ron agreed). Delete at the next release.
 
 _Written first, alongside "Fetch should update books it already knows"._
 
@@ -722,6 +726,13 @@ _The foundation — the summaries below depend on it._
 ##### Relay Import: only books in no folder should go to the Inbox
 
 _Why it matters:_ A restore once copied the whole library into the Inbox.
+
+**Already done**
+- Deleted books are already left out of the new-book list (readerwrangler.js ~6607).
+
+**Left**
+- Send to the Inbox only books that are in **no folder** (today: anything new to the book store; readerwrangler.js ~5572–5581).
+- The pre-launch test for restoring into an empty book store (PRELAUNCH-TEST-GATE suite 4).
 
 **What happened** (diagnosed 2026-09-04)
 - On Sep 3, Import from Relay ran as a restore against an emptied book store. Every book looked "new", so all 3,076 were copied into the Inbox — even though your folders still held them.
@@ -798,6 +809,13 @@ _Polish end of the batch._
 ##### Keep price goals when a book is bought, and say so
 
 _Why it matters:_ Goals must never vanish silently; optionally offer a one-click "clear these goals".
+
+**Already done**
+- Goals are kept when a book is bought.
+- 7.19.0: after an Import, "Clear those N goals" clears them in one click (undoable).
+
+**Left**
+- A line in the 🕐 message history saying which books kept their goals (today only "Cleared N price goals" is logged, after the click).
 
 _Polish end of the batch._
 
@@ -976,6 +994,13 @@ _Why it matters:_ Today it takes All Books + a filter + finding your way back.
 ##### Delete a book from All Books (removes it everywhere)
 
 _Why it matters:_ Today you have to remove a book from each folder and list separately.
+
+**Already done**
+- 7.11.0: Delete works from All Books (DEL or right-click) — removes the book from every folder and puts it in the Trash; restoring puts it back in its folders.
+
+**Left**
+- The confirmation doesn't say how many places the book is in.
+- Book Lists aren't in the restore snapshot — their entries are only hidden while the book is deleted.
 
 **What you'd get**
 - Delete from All Books moves the book to the Trash, removing it from **every** folder and Book List at once.
@@ -1169,6 +1194,12 @@ _Why it matters:_ Some fields aren't self-explanatory — e.g. that Collections 
 
 _Why it matters:_ Today the format is only known after the book's details are filled in.
 
+**Already done**
+- 6.12.0: adding a single book from its page records the format.
+
+**Left**
+- Books added from a **series page** and from the **bibliography** fetcher still get no format (amazon-wishlist-fetcher.js ~570–583, author-bibliography-fetcher.js ~529/632, series-page-fetcher.js ~466).
+
 **How (technical)**
 - Capture the binding from the product page (`bindingInformation`) when the book is added to the wishlist.
 
@@ -1185,6 +1216,22 @@ _Why it matters:_ They sit at the bottom left today, not where you'd look for th
 
 **Decided**
 - No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
+
+##### Edit Series / Position: "Mixed (2 values)" reads like "enter 2 values"
+
+_Why it matters:_ The hint is easy to misread as an instruction about how many values to type.
+
+**What you see** (Ron, 2026-10-15)
+1. Select 2 books with different series, right-click → Edit ▸ → Series… (or Position…).
+2. The box shows "Mixed (2 values)". It means "these books currently have 2 different values", but it reads like
+   "enter 2 values" — Ron took it that way while looking for the "2, 4" feature (which is Edit ▸ → "Set numbers…").
+
+**What you'd get**
+- Wording that says what it means, e.g. "Currently 2 different series — type one to use for all".
+
+**How (technical)**
+- The placeholder `Mixed (${uniqueValues.size} values)` in the bulk-edit dialog (readerwrangler.js ~13396), shared by
+  Author / Series / Position / Format.
 
 #### Auto-Organize: let a misfiled book go back to the Inbox
 
@@ -1305,6 +1352,13 @@ _Why it matters:_ On your local copy or the dev site it tests production, so its
 
 _Why it matters:_ A few actions — deleting tags or Searches, renaming — still can't be undone.
 
+**Already done**
+- 7.11.0: deleting tags, the whole rename family (folders, tags, Searches, Book Lists), and saving / deleting a Search all joined the shared path with undo.
+
+**Left**
+- Redo for copying a folder (today: "Cannot redo copy operation", readerwrangler.js ~8276).
+- Optional: fold the folder-move part of moving items into the one folder-move operation.
+
 **Done** (6.13.1)
 - Folder delete, book move / copy (every menu and drag), folder moves (menu, cut-paste, drag), Book List create / delete, and an undo message for every action.
 
@@ -1342,23 +1396,6 @@ _Why it matters:_ Moving a Book List entry into a folder makes no sense, and onc
 
 **Why**
 - A Book List entry is a shortcut; moving a shortcut into a folder is incoherent. On 2026-08-08 a "move" from a Book List to the Inbox left books in the Inbox, a folder **and** the list at once.
-
-#### Undo history sometimes empties by itself
-
-_Why it matters:_ Losing undo mid-session is alarming; the cause is still unknown.
-
-**What happened**
-- Twice (2026-08-07 and 08), the undo history emptied with no undo or redo by you.
-
-**What we know** (2026-09-01)
-- No code path clears it — it lives only in memory and only drops its oldest steps at the limit. So **some invisible page reload** is the only explanation.
-- Suspect: the TinySuspender extension discarding and restoring the tab. Your settings argue against it for those two times (60-minute idle timeout; you were actively switching tabs). A forgotten manual reload is the other possibility.
-
-**Next time it happens**
-- Check the console history and Data Status's "last checked" — a discarded tab clears both.
-
-**Do now regardless**
-- Whitelist localhost and readerwrangler.com in TinySuspender. A suspended ReaderWrangler tab can also tear an upload when you leave it.
 
 ### Unsorted — suggested for Polish
 
@@ -1492,9 +1529,11 @@ _Why it matters:_ Lets users get answers without waiting for you.
 
 **Spec:** docs/design/SUPPORT-GPT.md.
 
-#### Document how to recover from disasters
+#### ✅ Document how to recover from disasters
 
 _Why it matters:_ Users need clear steps when credentials or data are lost.
+
+**Status:** done — USER-GUIDE.md: "Backups include your relay credentials, so they double as disaster recovery", and the "New Devices & Recovery" section incl. "What if I lose my relay credentials?" (verified 2026-10-15; Ron agreed). Delete at the next release.
 
 **Should cover**
 - How to recover relay credentials.
@@ -1507,6 +1546,13 @@ _Formerly: Safety / data-integrity guards_
 #### All the pre-launch data tests pass
 
 _Why it matters:_ The core data rules must be proven before strangers rely on them.
+
+**Already done**
+- Suite 1 (merging and edit protection) exists: test/bookMerge.test.js ("the pre-launch gate for the import merge") and test/bookFields.test.js.
+
+**Left**
+- Suites 2 (Import mapping), 3 (permanent-delete markers) and 4 (load guards) from PRELAUNCH-TEST-GATE.md.
+- One command that runs them all.
 
 **What it means**
 - The test suites in docs/design/PRELAUNCH-TEST-GATE.md exist and pass: merging and edit protection, Import mapping, permanent-delete markers, load guards, relay behavior.
@@ -1547,20 +1593,6 @@ _Why it matters:_ An unannounced update to one of them could break the app overn
 
 **How (technical)**
 - Old review item 6h.
-
-#### Find out why some books end up in no folder
-
-_Why it matters:_ Rare reports of books in no folder at all; watch whether it still happens.
-
-**What we know**
-- One real user event on 6.11.5, and two more on 2026-09-03: books in the browser's book store that no folder refers to.
-- 7.7.0 removed the leading suspect: a cold start reading an out-of-date folder list that didn't yet know the newest books.
-
-**Next step**
-- **Watch** for the event after releases before spending a session on it.
-
-**How (technical)**
-- The event is `integrity-homeless`; the suspect was a stale `FOLDERS_KEY`.
 
 #### Stop cleanly when Amazon asks for a human check mid-fetch
 
@@ -1611,6 +1643,12 @@ _Why it matters:_ A first 3,000-book fetch that dies near the end starts over fr
 #### Relay Setup: disconnect, or reset credentials
 
 _Why it matters:_ A clean way to stop syncing, or to start over with new credentials.
+
+**Already done**
+- 6.9.0: Relay Setup's "Danger zone → Revoke credentials & wipe relay" — clears the keys and reopens the step that makes new ones.
+
+**Left**
+- A gentle **Disconnect** that just stops syncing on this device, without revoking or wiping anything on the relay.
 
 ### Costs
 
@@ -1766,12 +1804,6 @@ _Why it matters:_ Suggestions based on your own library.
 
 _Why it matters:_ See sharing at a glance in the book window.
 
-#### Auto-Organize: file co-written books under each author
-
-_Why it matters:_ Today a co-written book appears under only one author.
-
-**Spec:** docs/design/AUTO-ORGANIZE-COAUTHORS.md.
-
 #### Two-pane split view
 
 _Why it matters:_ Work with two folders side by side.
@@ -1789,10 +1821,6 @@ _Why it matters:_ For readers who buy elsewhere too.
 _Why it matters:_ Low priority — Save / Restore Backup already works around it.
 
 **Spec:** docs/design/archive/MULTI-USER-DESIGN.md.
-
-#### Smart collections (rule-based)
-
-_Why it matters:_ Lists that fill themselves from rules you set.
 
 #### ✅ More ways to filter by Kindle collections
 
@@ -1893,6 +1921,12 @@ _Why it matters:_ One very large file is harder to work in safely.
 
 _Why it matters:_ So a missing description reads as known, not broken.
 
+**Already done**
+- Desktop: the book details window shows "⚠️ Description not available" with an explanation (since v3.5).
+
+**Left**
+- The **phone** just hides the description section — show the same notice there (Ron, 2026-10-15: "Phone should match").
+
 **How (technical)**
 - "Phase 3 UI error handling" — missing-description banners.
 
@@ -1918,6 +1952,43 @@ _Why it matters:_ Small finishing touches.
 **Left**
 - Keyboard navigation in the left pane.
 - Consistent shadow direction.
+
+---
+
+## 👀 Watching
+
+Not work to do — conditions to watch for. Each says what to check if it happens again. (Ron, 2026-10-15)
+
+### Undo history sometimes empties by itself
+
+_Why it matters:_ Losing undo mid-session is alarming; the cause is still unknown.
+
+**What happened**
+- Twice (2026-08-07 and 08), the undo history emptied with no undo or redo by you.
+
+**What we know** (2026-09-01)
+- No code path clears it — it lives only in memory and only drops its oldest steps at the limit. So **some invisible page reload** is the only explanation.
+- Suspect: the TinySuspender extension discarding and restoring the tab. Your settings argue against it for those two times (60-minute idle timeout; you were actively switching tabs). A forgotten manual reload is the other possibility.
+
+**Next time it happens**
+- Check the console history and Data Status's "last checked" — a discarded tab clears both.
+
+**Do now regardless**
+- Whitelist localhost and readerwrangler.com in TinySuspender. A suspended ReaderWrangler tab can also tear an upload when you leave it.
+
+### Find out why some books end up in no folder
+
+_Why it matters:_ Rare reports of books in no folder at all; watch whether it still happens.
+
+**What we know**
+- One real user event on 6.11.5, and two more on 2026-09-03: books in the browser's book store that no folder refers to.
+- 7.7.0 removed the leading suspect: a cold start reading an out-of-date folder list that didn't yet know the newest books.
+
+**Next step**
+- **Watch** for the event after releases before spending a session on it.
+
+**How (technical)**
+- The event is `integrity-homeless`; the suspect was a stale `FOLDERS_KEY`.
 
 ---
 
