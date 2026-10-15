@@ -673,10 +673,12 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
 - ⏭️ **C — a shared notepad** for both relays (no user data): dev becomes a backup alerter (sends "[Dev] backup alert" if a limit crossing it has seen for over an hour has no production alert recorded), plus a "production is alive" check (alert if production's daily summary is more than 26 hours old).
 
 **Next steps**
-1. **Tonight, 6:55 PM:**
-   - Exactly **one** production email (old format) — settles the 10-13 duplicate.
-   - The "[Dev]" summary, opening with the red section if the stray 10-minute schedule still fired.
-   - Compare dev's storage figure with the Cloudflare dashboard.
+1. ✅ **The 2026-10-14 6:55 PM checks** (Ron, 2026-10-15):
+   - Exactly **one** production email — the 10-13 duplicate was a one-off during Cloudflare's schedule incident.
+   - The "[Dev]" summary arrived (the new daily schedule works) with the red section: the stray 10-minute schedule
+     fired **12 times**, 10:00–11:50 AM, then stopped — Cloudflare applied the 6:36 AM change ~5 hours late. The
+     stray fires cost no emails.
+   - Still open: compare dev's storage figure with the Cloudflare dashboard.
 2. **In a day or two: put the report-only worker on production** (asks you first). Production has the **real** leftovers, so its report is the real test. Expect:
    - "Would delete": the interrupted save `…21fc`.
    - "Kept": the never-imported Restore `…3560`.
