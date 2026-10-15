@@ -681,11 +681,10 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
    - Still open: compare dev's storage figure with the Cloudflare dashboard.
 2. ✅ **The report-only worker is on production** — deployed 2026-10-15 9:18 AM (Ron's go; version `3e2d7d39`, code =
    B2 alpha.4; checked: no open Cloudflare incident first). Production has the **real** leftovers, so its first
-   report is the real test. **Still to check** (tonight's 6:55 PM production summary, or on demand — see "Lessons
-   learned", with the production address):
-   - "Would delete": the interrupted save `…21fc`.
-   - "Kept": the never-imported Restore `…3560`.
-   - Possibly one storage alert on its first threshold check.
+   report was the real test — **✅ verified 2026-10-15** (Ron ran the on-demand summary on production):
+   - "Would delete": the interrupted save `…21fc` ✅. "Kept": 1 multi-part run not yet imported (`…3560`) ✅.
+   - Key check 53 = 53 (current). No storage alert. Total storage 372.9 MB (37.3%).
+   - Watch: dev's storage fell 197.2 → 142.5 MB in a day — probably dev data expiring; see whether it keeps moving.
 3. **After a few days of both reports being right: release 7.22.0 (report-only).** Update RELAY-WRITE-REDESIGN §14a (fixes 2 and 3 built as report-only; its two open questions are answered — each relay checks its own storage, and Cloudflare's key count is a daily maximum), CHANGELOG (your word on the copy), squash / tag / push to both, post-mortem.
 4. **Deleting = the next release, on its own branch.**
    - It needs a per-run budget: a free-plan run gets 50 outside calls, and every storage call counts — one 18-part leftover alone is 19 deletes. Spread big cleanups over days.
