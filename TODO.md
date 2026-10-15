@@ -63,7 +63,7 @@
         - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
         - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
         - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
-        - [Edit Series / Position: "Mixed (2 values)" reads like "enter 2 values"](#edit-series--position-mixed-2-values-reads-like-enter-2-values)
+        - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
       - [Auto-Organize: let a misfiled book go back to the Inbox](#auto-organize-let-a-misfiled-book-go-back-to-the-inbox)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
@@ -1217,21 +1217,29 @@ _Why it matters:_ They sit at the bottom left today, not where you'd look for th
 **Decided**
 - No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
 
-##### Edit Series / Position: "Mixed (2 values)" reads like "enter 2 values"
+##### Bulk Edit hints that read like "you can type several values"
 
-_Why it matters:_ The hint is easy to misread as an instruction about how many values to type.
+_Why it matters:_ Two hints in the multi-book Edit boxes are easy to misread as "type more than one value here".
 
 **What you see** (Ron, 2026-10-15)
-1. Select 2 books with different series, right-click → Edit ▸ → Series… (or Position…).
-2. The box shows "Mixed (2 values)". It means "these books currently have 2 different values", but it reads like
-   "enter 2 values" — Ron took it that way while looking for the "2, 4" feature (which is Edit ▸ → "Set numbers…").
+1. Select 2 books with **different** series → right-click → Edit ▸ → **Series…**: the box shows **"Mixed (2 values)"**.
+   It means "these books currently have 2 different series", but it reads like "enter 2 values" — Ron took it that way
+   while looking for the "2, 4" feature (which is Edit ▸ → "Set numbers…").
+2. The same "Mixed (N values)" appears in **Author…**, **Position…** and **Format…** — but only when the selected books
+   currently differ. Ron's 2 books had the same position, so Position showed its normal hint instead…
+3. …**"e.g., 1, 1.5"** — two example numbers separated by a comma, which looks like "a list is allowed". The box takes
+   only **one** number (it applies the same position to every selected book).
+4. (For reference: the book details window's Position also takes one number — a book has one position until
+   "One book in several series positions" is built.)
 
 **What you'd get**
-- Wording that says what it means, e.g. "Currently 2 different series — type one to use for all".
+1. "Mixed" wording that says what it means, e.g. "Currently 2 different series — type one to use for all".
+2. A Position example that can't look like a list, e.g. "e.g., 1.5" — and a pointer to "Set numbers…" for giving
+   each book its own number.
 
 **How (technical)**
-- The placeholder `Mixed (${uniqueValues.size} values)` in the bulk-edit dialog (readerwrangler.js ~13396), shared by
-  Author / Series / Position / Format.
+- `Mixed (${uniqueValues.size} values)` in the bulk-edit dialog (readerwrangler.js ~13396), shared by Author / Series /
+  Position / Format; Position's default `'e.g., 1, 1.5'` (~13482).
 
 #### Auto-Organize: let a misfiled book go back to the Inbox
 
