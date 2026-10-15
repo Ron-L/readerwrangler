@@ -50,6 +50,7 @@
         - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
       - [Cancelling a new folder that a filter hides should discard it](#cancelling-a-new-folder-that-a-filter-hides-should-discard-it)
       - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
+      - [Book details window: Save only when something changed; offer Save before closing with unsaved changes](#book-details-window-save-only-when-something-changed-offer-save-before-closing-with-unsaved-changes)
       - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
       - [✅ Ctrl+A in a dialog must never select the page behind it](#ctrla-in-a-dialog-must-never-select-the-page-behind-it)
       - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
@@ -1077,6 +1078,35 @@ _Why it matters:_ Today some fields save instantly and others wait for Save. One
 **How (technical)**
 - Rating / price goal / tags join `editBookFields` as staged fields; Save folds them into the one `EDIT_BOOK` undo step.
 - Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and your context-keying principle: UNDO-MODEL.md, section "fully transactional".
+
+#### Book details window: Save only when something changed; offer Save before closing with unsaved changes
+
+_Why it matters:_ An always-on Save hides whether you changed anything, and today every way out of edit mode throws your changes away without a word.
+
+**What you see** (Ron, 2026-10-15)
+1. Open a book → **Edit**: **Save** is enabled even though nothing has changed.
+2. Change something, then **Cancel** — or Esc, ✕, or a click on the background (all four do the same): the changes are
+   gone, with no warning.
+
+**Decided** (Ron + UX, 2026-10-15)
+1. **Save is disabled until something changes**, with a tooltip "No changes to save". Enter with nothing changed just
+   leaves edit mode.
+2. **With unsaved changes, every exit asks** — Cancel, Esc, ✕, background click, ◀ ▶ to another book, closing:
+   > **Save your changes to "‹title›"?**  **[Save]** · [Discard changes] · [Keep editing]
+   1. **Save is the default** (Enter) — the common case is an accidental exit, and a saved edit can be undone;
+      discarded changes can't.
+   2. "**Discard changes**", never the default, so no keystroke picks it by accident.
+   3. **Esc in this dialog = Keep editing** (back out of the question).
+   4. Only when something changed — otherwise exits just close, as now.
+   5. The same one dialog for the explicit Cancel button too (uniform beats two variants).
+3. **One "what changed?" check** drives both — the comparison Save already makes. When rating / price goal / tags
+   move into edit mode ("Book details window: changes happen only when you click Save"), they join this one check.
+
+**How (technical)**
+- `enterEditMode` / `cancelEditMode` / `saveEditMode` (readerwrangler.js ~6993–7125); `saveEditMode` already diffs
+  `editBookFields` against `modalBook` — extract that into one `bookEditChanges()` used by Save's enabled state and by
+  the exit guard. Buttons ~13567–13570; the dialog's onClose in edit mode routes to `cancelEditMode` (~13550).
+- The confirmation is a `<Dialog>` (overlay system) — not a hand-built box.
 
 #### Relay Setup: smoother sections and clearer Esc / Help behavior
 
