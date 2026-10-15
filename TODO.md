@@ -722,6 +722,23 @@ _The foundation — the summaries below depend on it._
 **What happens**
 - The fetcher skips any record whose ASIN it already knows. On 2026-09-04 a sample record for the wishlisted *Oath of Honor* was thrown away.
 - For loans it's invisible **forever** — there's no other path that would catch it.
+- **Live case (Ron, 2026-10-14/15):** three *Time Traveler's Passport* stories wishlisted months ago, then borrowed
+  through **Prime** — a fresh fetch + Import still shows them as **Wishlist**. The Prime records are skipped as
+  "🔁 Duplicate ASIN detected … (skipping)". (Fixed by hand with a console snippet for now.)
+- Why buying is different: the price check's "you bought this on ‹date›" backstop catches purchases every run; a
+  borrow has no such evidence, only the library record — the one that's skipped.
+
+**Decided** (Ron, 2026-10-15) — **one place for every ownership rule**
+- Today the rules are scattered: wishlist → owned lives in the price check, "never downgrade Owned" in the Import
+  merge, the list of temporary kinds in a third spot. Put the **whole transition matrix** (OWNERSHIP-MODEL.md §3) in
+  **one function** — "given what we have and Amazon's new evidence, what is the book now?" — called by every path
+  (the library walk, the purchase backstop, the Import merge), with tests locking it in (like the book-merge tests).
+- The ranking it implements: **Wishlist** (bottom — any real Amazon record replaces it) < the **temporary kinds**
+  (sample, Prime, Kindle Unlimited, borrowed, library loan, Audible Plus — peers: the **newest record wins**) <
+  **Owned** (top — a fetch never downgrades it). Manual Owned / Wishlist choices stay protected. A loan that ends is
+  Removed books' job (7.19.0).
+- A manual "Other… (Prime, KU…)" choice in the book window was considered and **not** wanted: once the fetch notices
+  these on its own, Amazon's facts arrive by themselves — revisit only if cases remain after the fix.
 
 **What you'd get**
 - A known book's record becomes an **update**: refresh its kind (owned / sample / loan…), purchase date and format from the record.
