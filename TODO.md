@@ -62,6 +62,7 @@
       - [Small fixes](#small-fixes)
         - [Show only hidden books](#show-only-hidden-books)
         - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
+        - [Right-click: add "Copy ASINs" below Copy Titles / Copy Authors](#right-click-add-copy-asins-below-copy-titles--copy-authors)
         - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
         - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
@@ -1253,6 +1254,22 @@ _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for t
 ##### Tooltips in the book details window
 
 _Why it matters:_ Some fields aren't self-explanatory — e.g. that Collections are read-only and come from Amazon.
+
+##### Right-click: add "Copy ASINs" below Copy Titles / Copy Authors
+
+_Why it matters:_ Getting the ASINs of several books today means opening each one; the list view's ASIN column can't be selected or copied.
+
+**What you see** (Ron, 2026-10-15 — gathering ASINs to hand to Claude)
+1. Add the ASIN column in list view: the values can't be selected, and Ctrl+C copies the books themselves (for
+   pasting into folders), not text.
+2. The book right-click menu already has **📝 Copy Title(s)** and **👤 Copy Author(s)** for a selection.
+
+**What you'd get**
+- **Copy ASIN(s)** right below them: the selected books' ASINs, one per line, in display order (same pattern).
+
+**How (technical)**
+- Next to Copy Title(s) / Copy Author(s) in the book context menu (readerwrangler.js ~19548–19580):
+  `navigator.clipboard.writeText(...)` of the selection's `asin`s, with the same count-aware label.
 
 ##### Wishlist: record the real format when a book is added
 
