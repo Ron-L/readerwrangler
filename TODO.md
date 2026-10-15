@@ -62,6 +62,7 @@
       - [Small fixes](#small-fixes)
         - [Show only hidden books](#show-only-hidden-books)
         - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
+        - [One shared tag picker: show all tags in your order (the right-click one silently stops at 10)](#one-shared-tag-picker-show-all-tags-in-your-order-the-right-click-one-silently-stops-at-10)
         - [Right-click: add "Copy ASINs" below Copy Titles / Copy Authors](#right-click-add-copy-asins-below-copy-titles--copy-authors)
         - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
         - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
@@ -1255,6 +1256,38 @@ _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for t
 ##### Tooltips in the book details window
 
 _Why it matters:_ Some fields aren't self-explanatory — e.g. that Collections are read-only and come from Amazon.
+
+##### One shared tag picker: show all tags in your order (the right-click one silently stops at 10)
+
+_Why it matters:_ A tag you use constantly ("Read", 964 books) can be missing from the list with no hint why — and the two tag pickers disagree on what to show.
+
+**What you see** (Ron, 2026-10-15)
+1. Right-click a book → **Tags**: "Read" isn't in the dropdown. Typing "Read" in "Type to search or create…" finds it,
+   with 964 books.
+
+**Why** (verified in code)
+1. There are **two separate tag pickers** that have drifted apart:
+   1. **Right-click → Tags** shows only the **first 10** tags, in your custom order from Manage Tags — a silent cut-off
+      (the code even says `// Limit to 10`). "Read" is past the 10th, so it's hidden until you type.
+   2. **The book details window → Tags** shows **all** tags, but **A→Z** — ignoring your custom order — in a short
+      scrolling box.
+2. Same class as the three copies of the search rule ("Find a book by its ASIN"): one control, copied, drifting.
+
+**Decided** (Ron + UX, 2026-10-15)
+1. **One shared tag picker**, used in both places (and anywhere else tags are picked) — one implementation.
+2. It shows **all** tags, in **your custom tag order** (Manage Tags), in a scrolling list.
+3. The search box stays at the top to narrow it ("Type to search or create…"), as the "Move to" submenu's filter box does.
+4. **No silent limit.** If a cap is ever needed, it says so: "…23 more — type to filter".
+5. Keeps what both have today: tags already on the book(s) aren't offered again; "Create ‹name›" appears only when no
+   tag by that name exists.
+
+**Workaround until then:** Tools → Manage Tags → drag "Read" into your top 10.
+
+**How (technical)**
+- Right-click picker: readerwrangler.js ~19890–19898 (`tagOrderIdx` sort, `.slice(0, 10)`, multi-book aware via
+  `tagsOnAllBooks`). Book window picker: ~14104–14115 (`localeCompare` A→Z, single book). Extract one component taking
+  the selected book ids; both call sites become thin. `tagOrderedNames()` is the order source.
+- Build it on the overlay system's list popup if it opens as a popup.
 
 ##### Right-click: add "Copy ASINs" below Copy Titles / Copy Authors
 
