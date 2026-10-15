@@ -1,0 +1,24 @@
+#!/bin/sh
+# RW pre-commit chokepoints — run BY GIT on every commit. This file and every check it calls live in git-hooks/,
+# saved in the repo (2026-10-15: they used to live in .git/hooks + .claude/hooks, which git never saves).
+# One-time setup per copy of the project:  git config core.hooksPath git-hooks
+# Deliberate exception (Ron's call only): git commit --no-verify.
+
+# 1. Version stamps: refuses a commit that touches shipped code but forgets to move its version stamp
+#    (ORGANIZER_VERSION, MOBILE_VERSION, WORKER_VERSION, the ?v= cache-busters). (git-hooks/version-guard.py)
+python git-hooks/version-guard.py || exit 1
+
+# 2. Undefined names (7.18.0-alpha.55): refuses app code that references a name nothing defines — the bug class a
+#    syntax check can't see (a declaration swallowed into a comment crashed the book details window). Also refuses an
+#    inline <script> in readerwrangler.html that doesn't parse. Runs when any .js or .html file is staged.
+#    (git-hooks/check-names.js; needs `npm i --no-save @babel/core @babel/preset-react`)
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '\.(js|html)$'; then
+    node git-hooks/check-names.js || exit 1
+fi
+
+# 3. TODO.md's table of contents (2026-10-14): refuses a staged TODO.md whose table doesn't match its headers — the
+#    VS Code extension rebuilds it only on a VS Code save, so edits made any other way leave it stale.
+#    Checks the STAGED copy. (git-hooks/check-toc.js)
+if git diff --cached --name-only --diff-filter=ACM | grep -qx 'TODO.md'; then
+    git show :TODO.md | node git-hooks/check-toc.js - TODO.md || exit 1
+fi

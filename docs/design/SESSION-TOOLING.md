@@ -24,23 +24,30 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
   (single source). Unreadable → loud `CHECKLIST SOURCE MISSING` alarm + a minimal core.
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by
   session id) so the checklist lands exactly once, at the planning→build boundary.
-- **`version-guard.py`** (pre-commit, `.git/hooks/pre-commit` → this script) — refuses a commit that stages
+- **`/sitemap`** (`.claude/commands/`) — mechanizes the class-of-sites comb (two independent pivots).
+
+## RW's commit checks (`git-hooks/` — run BY GIT, saved in the repo)
+
+Moved 2026-10-15 from `.git/hooks/` (git never saves its own hooks folder) + `.claude/hooks/` (gitignored): before
+that, losing this PC — or a fresh clone — silently lost every commit check. **One-time setup per copy of the project:
+`git config core.hooksPath git-hooks`.** `git-hooks/pre-commit` is the thin wiring; each check is its own script.
+Bypass (Ron's call): `git commit --no-verify`.
+
+- **`version-guard.py`** — refuses a commit that stages
   shipped code without moving its version stamp: `readerwrangler.js`→`ORGANIZER_VERSION`,
-  `mobile.js`→`MOBILE_VERSION`, and the module `.js` files + `readerwrangler.css` → their `?v=` cache-buster
-  in `readerwrangler.html`. Bypass (Ron's call): `git commit --no-verify`.
-- **`scripts/check-toc.js`** (pre-commit, when `TODO.md` is staged; checks the STAGED copy; versioned) — refuses a
+  `mobile.js`→`MOBILE_VERSION`, `relay/relay-worker.js`→`WORKER_VERSION` (shown in the relay's emails), and the
+  module `.js` files + `readerwrangler.css` → their `?v=` cache-buster in `readerwrangler.html`.
+- **`check-toc.js`** (when `TODO.md` is staged; checks the STAGED copy) — refuses a
   `TODO.md` whose table of contents (between `<!-- TOC -->` markers, built by the VS Code extension "Auto Markdown
   TOC" on save) doesn't match its headers by text and depth. Link targets aren't compared (the extension owns them).
   Earned 2026-10-14 when the TODO became one header per task: edits that don't go through a VS Code save leave it stale.
-- **`scripts/check-names.js`** (pre-commit, called from `.git/hooks/pre-commit` when any `.js`/`.html` is staged;
-  the script itself is VERSIONED in the repo — the hook is the thin caller) — Babel scope analysis of
+- **`check-names.js`** (when any `.js`/`.html` is staged) — Babel scope analysis of
   `readerwrangler.js` + `mobile.js`: refuses any identifier that is neither bound in scope, a browser/CDN global, nor
   defined by `readerwrangler.html` (its inline scripts + every local `<script src>`, derived automatically). Also
   refuses an inline script that doesn't parse. Earned 2026-10-06: an edit joined `const shareBtnRef = …` into a `//`
   comment — it parsed, then crashed the book details window; the first run also found a `readerwrangler.html` inline
   script broken since 7.4.0 (raw line break in a string — the load-error capture had never run). Needs
   `npm i --no-save @babel/core @babel/preset-react`; exits 2 (loud) if missing.
-- **`/sitemap`** (`.claude/commands/`) — mechanizes the class-of-sites comb (two independent pivots).
 
 ## Related
 - The gate's checklist content + the debugging law it now carries: `docs/PRINCIPLES.md` (Laws + the

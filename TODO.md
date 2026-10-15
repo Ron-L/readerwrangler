@@ -159,7 +159,7 @@
 > When you promote/descope a task, **move** its section — never leave a stub. When you agree a bug/task mid-session,
 > add a section (header + one line) before moving on. The table of contents is rebuilt by the VS Code extension
 > "Auto Markdown TOC" when the file is saved in VS Code; a pre-commit check refuses a stale one
-> (`scripts/check-toc.js`). Headers: about 80 characters, 132 at most, no internal names.
+> (`git-hooks/check-toc.js`). Headers: about 80 characters, 132 at most, no internal names.
 
 ---
 

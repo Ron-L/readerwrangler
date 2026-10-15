@@ -374,7 +374,7 @@ the worked example; `project_714_release` memory.
   revert. 7.18.0's CHANGELOG "stacked windows no longer darken twice" was proven in two greps of `v7.17.1`.
 - **A syntax check can't see an undefined name.** 7.18.0-alpha.55 crashed on `shareBtnRef is not defined` (a
   line break swallowed by an edit joined the declaration into a comment; it parsed fine). Enforcement:
-  `scripts/check-names.js` in the pre-commit hook — Babel scope analysis refuses any name nothing defines.
+  `git-hooks/check-names.js` in the pre-commit hook — Babel scope analysis refuses any name nothing defines.
 - **A pre-build-gate bounce hidden in a parallel batch ships a half-fix** (7.18.0-alpha.62: the CSS rule landed,
   the class it targets didn't). Discipline for now (`feedback_gate_bounce_batches`: first app edit ALONE; grep
   every intended change before committing) — a mechanism is still owed (Principle-to-hook audit TODO).

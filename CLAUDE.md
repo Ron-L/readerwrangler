@@ -105,22 +105,29 @@ particulars:
   `docs/PRINCIPLES.md` (the `GATE-CHECKLIST` block); the hook just pulls + prints it and **fails LOUD** if
   it can't reach it. Full local tooling + the pattern: **`docs/design/SESSION-TOOLING.md`**.
 - **`/sitemap`** (`.claude/commands/sitemap.md`) — mechanizes the class-of-sites comb.
-- **Version-guard** — a `pre-commit` hook (`.claude/hooks/version-guard.py`) refuses a commit that stages
-  shipped code without moving its version stamp. Bypass: `git commit --no-verify`.
-- **Name check** — the same `pre-commit` hook runs **`scripts/check-names.js`** (versioned) whenever a `.js`/`.html`
-  is staged: refuses app code that uses a name nothing defines (a syntax check can't see that — 7.18.0-alpha.55's
-  "shareBtnRef is not defined" crash), and any `readerwrangler.html` inline script that doesn't parse. Page-level
-  names are derived from `readerwrangler.html`'s scripts, so new modules need no upkeep. Needs
-  `npm i --no-save @babel/core @babel/preset-react` (fails loud if missing).
-- **TODO table-of-contents check** — the same `pre-commit` hook runs **`scripts/check-toc.js`** (versioned) when
-  `TODO.md` is staged: refuses a table of contents that doesn't match the headers. The table is built by the VS Code
-  extension "Auto Markdown TOC" only on a VS Code save — edits made any other way leave it stale. Fix: Ron saves the
-  file in VS Code, or Claude corrects the listed entries. TODO format: one header per task (plain words, ~80 chars,
-  132 max), a "why it matters" first line, ✅ in front when done (Ron, 2026-10-14).
 - **Timestamp stamp hook is GLOBAL, not RW-local** — it is `C:/Users/Ron/Projects/stamp.py`, wired in
   `~/.claude/settings.json` (`UserPromptSubmit`), injecting the live time each turn for **all** projects.
   See the Projects-root **`CLAUDE-TOOLING.md`**. (Corrected 2026-09-30 — the old `.claude/hooks/stamp.py`
   path was wrong and cost a chase; its absence there is *not* a sign it's missing.)
+
+## Commit checks (`git-hooks/` — run BY GIT, saved in the repo)
+
+Every check runs from **`git-hooks/pre-commit`**. One-time setup per copy of the project:
+**`git config core.hooksPath git-hooks`** (moved here from the unsaved `.git/hooks` + `.claude/hooks` on 2026-10-15).
+Bypass (Ron's call only): `git commit --no-verify`.
+
+- **Version-guard** (`git-hooks/version-guard.py`) refuses a commit that stages shipped code without moving its
+  version stamp.
+- **Name check** (`git-hooks/check-names.js`), whenever a `.js`/`.html`
+  is staged: refuses app code that uses a name nothing defines (a syntax check can't see that — 7.18.0-alpha.55's
+  "shareBtnRef is not defined" crash), and any `readerwrangler.html` inline script that doesn't parse. Page-level
+  names are derived from `readerwrangler.html`'s scripts, so new modules need no upkeep. Needs
+  `npm i --no-save @babel/core @babel/preset-react` (fails loud if missing).
+- **TODO table-of-contents check** (`git-hooks/check-toc.js`), when
+  `TODO.md` is staged: refuses a table of contents that doesn't match the headers. The table is built by the VS Code
+  extension "Auto Markdown TOC" only on a VS Code save — edits made any other way leave it stale. Fix: Ron saves the
+  file in VS Code, or Claude corrects the listed entries. TODO format: one header per task (plain words, ~80 chars,
+  132 max), a "why it matters" first line, ✅ in front when done (Ron, 2026-10-14).
 
 ---
 
