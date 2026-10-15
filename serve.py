@@ -15,7 +15,8 @@ It listens on the whole home network ON PURPOSE (a phone tests your local copy o
 must not hand out private files to every device on that network. Same address and port as before
 (http://localhost:8000), so everything the browser stores for ReaderWrangler stays put.
 
-Usage:  py serve.py [port]        (default 8000; Windows: double-click start-server.bat)
+Usage:  py serve.py [port]        (default 8000; Windows: double-click it if .py files open with Python, and a
+                                   shortcut to it in the Startup folder — Win+R -> shell:startup — starts it at logon)
         python serve.py [port]    (elsewhere)
 Needs git on the PATH (it asks git what's ignored); exits with a clear message if git isn't there.
 """

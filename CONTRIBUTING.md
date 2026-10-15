@@ -60,10 +60,11 @@ To skip the checks for one deliberate commit: `git commit --no-verify`.
 
 The app must be served over `http://` — browsers block much of what it does on a `file://` page.
 
-- **Windows:** double-click **`start-server.bat`** in the project folder. It opens a window running the server at
-  http://localhost:8000; close the window to stop it. To start it automatically at logon, put a shortcut to
-  `start-server.bat` in your Startup folder (Win+R → `shell:startup`).
-- **Elsewhere:** `python serve.py` (or `py serve.py`) in the project folder.
+- **Run `serve.py`** in the project folder: `py serve.py` (Windows) or `python serve.py`. It opens a window running
+  the server at http://localhost:8000; close the window (or press Ctrl+C) to stop it.
+- **Windows, double-click:** if `.py` files are set to open with Python (right-click a `.py` → Open with → Python →
+  Always), double-clicking `serve.py` starts it. To start it automatically at logon, put a shortcut to `serve.py` in
+  your Startup folder (Win+R → `shell:startup`).
 
 `serve.py` is Python's standard web server, except that it serves **only what the real site serves** (production
 publishes exactly the files in git and never lists folders). It refuses:
@@ -170,8 +171,7 @@ node test/overlayRegistry.test.js
 
 **Site pages** — `index.html` (landing), `features.html`, `tutorials.html`, `security.html`, `changelog.html`.
 
-**Development** — `git-hooks/` (the commit checks), `test/` (unit tests), `serve.py` + `start-server.bat` (the local
-server), `.claude/` (Claude Code settings, hooks and commands — see below), `readerwrangler.code-workspace` (VS Code).
+**Development** — `git-hooks/` (the commit checks), `test/` (unit tests), `serve.py` (the local server), `.claude/` (Claude Code settings, hooks and commands — see below), `readerwrangler.code-workspace` (VS Code).
 
 ### Sensitive files
 

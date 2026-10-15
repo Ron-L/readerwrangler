@@ -4,7 +4,7 @@
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
       - [Save our working process in git, so losing this PC can't erase it](#save-our-working-process-in-git-so-losing-this-pc-cant-erase-it)
-      - [Start the local server automatically, without exposing private files](#start-the-local-server-automatically-without-exposing-private-files)
+      - [✅ Start the local server automatically, without exposing private files](#start-the-local-server-automatically-without-exposing-private-files)
       - [✅ Make sure an Import never wipes fields only ReaderWrangler sets](#make-sure-an-import-never-wipes-fields-only-readerwrangler-sets)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
@@ -238,22 +238,19 @@ _Why it matters:_ My memory, the commit checks and the pre-build checklist live 
 **Watch out**
 - The RW repo is **public**: nothing with secrets goes in it. (Your approvals file holds only your project path — still kept personal, since it's wrong for anyone else.)
 
-#### Start the local server automatically, without exposing private files
+#### ✅ Start the local server automatically, without exposing private files
 
 _Why it matters:_ After every reboot you hunt for the server command, and today's server also shows private files to other devices at home.
 
-**Already done** (2026-10-15)
-1. `serve.py` — serves only what the real site serves: refuses dot-folders/files (`.private`, `.git`, `.claude`…),
+**Status:** done 2026-10-15. Delete at the next release.
+1. `serve.py` serves only what the real site serves: refuses dot-folders/files (`.private`, `.git`, `.claude`…),
    anything git ignores (backups hold relay credentials), and folder listings; each refusal logged as REFUSED.
    Tested on port 8001: app files 200; `.private`, `.git`, `.claude/settings.local.json`, a backup, an encoded-dot path,
    `docs/../.private`, folder listings all 404. (Design widened from "refuse `.private` + `.git`" — Ron, 2026-10-15.)
-2. `start-server.bat` — double-click to start (visible window), close to stop; used by the Startup shortcut too.
-   (Kept because `.py` files have no "run" association on Ron's PC — double-clicking one wouldn't run it.)
-3. CONTRIBUTING.md describes both.
-
-**Left** (Ron)
-1. Stop the old server (close its window), then double-click `start-server.bat` and check the app loads.
-2. Win+R → `shell:startup` → in that folder, right-click → New → Shortcut → browse to `start-server.bat` → Finish.
+2. Ron associated `.py` with Python (Open with → Python → Always), so double-clicking `serve.py` runs it; a Startup
+   shortcut "ReaderWrangler Server" → `serve.py` starts it at logon (works). A `start-server.bat` was built, then
+   removed at Ron's request — no longer needed.
+3. CONTRIBUTING.md describes it.
 
 **What you'd get**
 - A shortcut in Windows' Startup folder runs a small file kept in the project, which starts the local server in a **visible** window at logon.
@@ -265,8 +262,7 @@ _Why it matters:_ After every reboot you hunt for the server command, and today'
 - Use **`py`**, not `python`, in the file and docs (`py` → 3.14 on your PC; `python` → an older 3.13).
 
 **Also**
-- ~~Update CONTRIBUTING.md's server lines, and drop its Python 2 line~~ — done ahead in the 2026-10-15 rewrite: it
-  already describes `start-server.bat` / `serve.py`; check the wording against what gets built.
+- ~~Update CONTRIBUTING.md's server lines, and drop its Python 2 line~~ — done in the 2026-10-15 rewrite.
 
 **Status:** deferred by Ron 2026-10-06 until after the overlay branch (which shipped as 7.18.0).
 
