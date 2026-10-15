@@ -376,7 +376,7 @@ _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar'
 - Relay bar: inline `linear-gradient(135deg, #dbeafe, #ede9fe)` with `color: var(--text-primary)` (readerwrangler.js ~9360).
 - Outer container: `bg-gradient-to-br from-blue-50 to-blue-100` (~8992) — gradient classes aren't remapped; the Active bar's `mb-4` gap shows it.
 - Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
-- Grep for inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and unmapped Tailwind colors; move them to CSS variables (e.g. `var(--bg-surface)`) or add them to the dark remap. The check could sit beside `scripts/check-names.js`.
+- Grep for inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and unmapped Tailwind colors; move them to CSS variables (e.g. `var(--bg-surface)`) or add them to the dark remap. The check could sit beside `git-hooks/check-names.js`.
 
 #### Series numbers
 
