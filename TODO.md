@@ -451,9 +451,17 @@ _Why it matters:_ During testing you can't tell from the phone which build it's 
 
 **To do**
 - Show a live build marker on the phone. Small display / version-plumbing fix.
+- **Also tell the dev app apart on the home screen** (Ron, 2026-10-15). When the dev site is installed to the phone's
+  home screen it gets the same icon and name as production. Give the dev install its own: the current icon with a
+  red "DEV" overlay, and a name like "RW Dev".
 
 **How (technical)**
 - `APP_VERSION` (released, frozen during alphas) vs `ORGANIZER_VERSION` (live, desktop only) vs `MOBILE_VERSION` (moves per alpha).
+- Home-screen icon + name come from the **web app manifest** (`manifest.json`, linked at readerwrangler.html ~14);
+  Android wraps it into a "WebAPK" on install. The dev site serves the SAME files as production, so the manifest
+  must be picked at run time: a second `manifest-dev.json` (dev icon + name) and a line in the startup script that
+  points the `<link rel="manifest">` at it when `isDevSite()`. Needs the dev icon image(s) made (192/512 px).
+  Reinstall the dev app after the change for the new icon to appear.
 
 #### Drag a box to select covers
 
