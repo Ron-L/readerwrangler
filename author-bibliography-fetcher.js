@@ -1,27 +1,31 @@
 // Author Bibliography Fetcher (Schema v2.1)
-// Bulk imports all Kindle books from an Amazon author page as wishlist entries
+// Adds an author's Kindle books to your ReaderWrangler wishlist, in the language you choose.
 //
-// Extracts book data from the embedded JSON config on the author page.
-// No API calls needed - all data is available in the initial page load.
+// v2.1.0 (2026-10-16, Ron) - asks Amazon for the list itself instead of reading the page on screen:
+//   - Works from ANY tab of an author page (Home — the address with the author's name — About, or All Books): it
+//     loads the author's All Books page in the background and reads that page's built-in grid settings (`var config`).
+//   - Asks Amazon's own All Books request (POST /juvec — the one the page makes when you set its filters) for
+//     Kindle + the chosen language, PAGE_SIZE books at a time (Amazon sends book details for only the first 16 books
+//     of a page, however big the page).
+//   - Kindle only, said plainly. Amazon ignores the format filter without a language, and sends no book details for
+//     non-Kindle editions — so "All languages" = one request per language the author has.
+//   - Replaces the old page scrolling + card reading, whose Kindle check was computed but never applied (paperbacks,
+//     hardcovers and audiobooks got in) and which never recorded a format.
+//   Probed live on John Marrs + P. Djèlí Clark (2026-10-16). Request notes: .private/AMAZON-AUTHOR-PAGES.md
 //
-// Flow:
-// 1. User navigates to author page (e.g., amazon.com/stores/Author-Name/author/B001IGJOCA)
-// 2. Extract embedded config JSON from page DOM
-// 3. Filter for Kindle editions only
-// 4. Map product data to library schema
-// 5. Handle pagination if more books exist (call /juvec API)
-// 6. Read existing amazon-library.json
-// 7. Add new books (skip duplicates)
-// 8. Write file back
+// Flow: author ID from the address → load the All Books settings → you pick a language (live count) → fetch every
+// page → skip books already in your library → send the new ones as one run.
 //
 // Re-run: After pasting once, you can re-run with: importBibliography()
 
 async function importBibliography() {
     'use strict';
 
-    const FETCHER_VERSION = 'v2.0.1';
+    const FETCHER_VERSION = 'v2.1.0';
     const SCHEMA_VERSION = '2.1';
-    const LIBRARY_FILENAME = 'amazon-library.json';
+    const PAGE_SIZE = 16;      // Amazon sends book details for only the first 16 books of a page (probed 2026-10-16)
+    const MAX_PAGES = 60;      // safety stop: 960 books per language
+    const ALL_LANGUAGES = '';  // the chooser's "All languages" value
 
     // Use top-level document/window to handle iframe context
     const doc = top.document;
@@ -32,31 +36,28 @@ async function importBibliography() {
     console.log('========================================\n');
 
     // ============================================================================
+    // Helper Functions
+    // ============================================================================
+
+    function getTodayDate() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    // Amazon's language names run words together ("ChineseSimplified").
+    const languageLabel = (name) => String(name).replace(/([a-z])([A-Z])/g, '$1 $2');
+    const languageText = (language) => language === ALL_LANGUAGES ? 'in all languages' : `in ${languageLabel(language)}`;
+    const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+    // ============================================================================
     // Progress UI (toast-style overlay)
     // ============================================================================
     const progressUI = (() => {
         let overlay = null;
 
-        function create() {
-            overlay = doc.createElement('div');
-            overlay.id = 'bibliography-fetcher-progress';
-            overlay.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-                padding: 20px;
-                padding-top: 35px;
-                z-index: 10000;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                min-width: 320px;
-                max-width: 420px;
-            `;
-
-            overlay.innerHTML = `
-                <button id="closeBtn" style="
+        const closeButtonHtml = (id = '') => `
+                <button ${id ? `id="${id}"` : ''} style="
                     position: absolute;
                     top: 8px;
                     right: 8px;
@@ -67,7 +68,10 @@ async function importBibliography() {
                     cursor: pointer;
                     padding: 4px 8px;
                     line-height: 1;
-                " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'" onclick="this.parentElement.remove()">✕</button>
+                " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'" ${id ? '' : 'onclick="this.parentElement.remove()"'}>✕</button>`;
+
+        const progressHtml = () => `
+                ${closeButtonHtml()}
                 <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 10px;">
                     📚 Bibliography Importer ${FETCHER_VERSION}
                 </div>
@@ -93,7 +97,31 @@ async function importBibliography() {
                 </div>
             `;
 
+        function create() {
+            overlay = doc.createElement('div');
+            overlay.id = 'bibliography-fetcher-progress';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                padding: 20px;
+                padding-top: 35px;
+                z-index: 10000;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                min-width: 320px;
+                max-width: 420px;
+            `;
+            overlay.innerHTML = progressHtml();
             doc.body.appendChild(overlay);
+        }
+
+        // v2.1.0 - back to the progress view after the chooser replaced it
+        function showProgress() {
+            if (!overlay) create();
+            overlay.innerHTML = progressHtml();
         }
 
         function updatePhase(phase, detail = '') {
@@ -127,21 +155,78 @@ async function importBibliography() {
             }
         }
 
+        // v2.1.0 (Ron) - the one question before anything is fetched: which language. Kindle only, said plainly. The
+        // count updates as you change the language (countFor → Promise<number>; a slower answer for an earlier choice
+        // is ignored). Resolves with the chosen language (ALL_LANGUAGES for all) or null on Cancel / ✕.
+        function showChooser({ authorName, languages, defaultLanguage, countFor }) {
+            return new Promise((resolve) => {
+                if (!overlay) create();
+                const options = languages
+                    .map(l => `<option value="${escapeHtml(l)}"${l === defaultLanguage ? ' selected' : ''}>${escapeHtml(languageLabel(l))}</option>`)
+                    .join('') + `<option value="${ALL_LANGUAGES}">All languages</option>`;
+                overlay.innerHTML = `
+                    ${closeButtonHtml('rwChooserClose')}
+                    <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 10px;">
+                        📚 Bibliography Importer ${FETCHER_VERSION}
+                    </div>
+                    <div style="font-size: 15px; color: #333; margin-bottom: 4px;">
+                        Add <strong>${escapeHtml(authorName)}</strong>'s books to your wishlist
+                    </div>
+                    <div style="font-size: 13px; color: #666; margin-bottom: 12px;">Kindle books only.</div>
+                    <label style="font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                        Language:
+                        <select id="rwChooserLang" style="font-size: 14px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px;">${options}</select>
+                    </label>
+                    <div id="rwChooserCount" style="font-size: 13px; color: #667eea; margin-bottom: 14px; min-height: 18px;">Counting…</div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button id="rwChooserCancel" style="
+                            background: transparent; color: #666; border: 1px solid #ccc; padding: 8px 16px;
+                            border-radius: 8px; font-size: 14px; cursor: pointer;">Cancel</button>
+                        <button id="rwChooserAdd" style="
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;
+                            padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: bold;">Add to wishlist</button>
+                    </div>
+                `;
+                const select = overlay.querySelector('#rwChooserLang');
+                const countEl = overlay.querySelector('#rwChooserCount');
+                const addBtn = overlay.querySelector('#rwChooserAdd');
+                let ticket = 0;
+                const setAddEnabled = (on) => {
+                    addBtn.disabled = !on;
+                    addBtn.style.opacity = on ? '1' : '0.5';
+                    addBtn.style.cursor = on ? 'pointer' : 'default';
+                };
+                const recount = async () => {
+                    const mine = ++ticket;
+                    setAddEnabled(false);
+                    countEl.style.color = '#667eea';
+                    countEl.textContent = 'Counting…';
+                    try {
+                        const n = await countFor(select.value);
+                        if (mine !== ticket) return;
+                        countEl.textContent = n
+                            ? `${plural(n, 'Kindle book')} ${languageText(select.value)} — any already in your library are skipped.`
+                            : `No Kindle books ${languageText(select.value)}.`;
+                        setAddEnabled(n > 0);
+                    } catch (e) {
+                        if (mine !== ticket) return;
+                        countEl.style.color = '#c62828';
+                        countEl.textContent = e.message;
+                    }
+                };
+                const finish = (value) => { ticket++; resolve(value); };
+                select.onchange = recount;
+                overlay.querySelector('#rwChooserCancel').onclick = () => { finish(null); remove(); };
+                overlay.querySelector('#rwChooserClose').onclick = () => { finish(null); remove(); };
+                addBtn.onclick = () => { if (!addBtn.disabled) finish(select.value); };
+                recount();
+            });
+        }
+
         function showComplete(message, autoCloseMs = 15000) {
             if (!overlay) create();
             overlay.innerHTML = `
-                <button style="
-                    position: absolute;
-                    top: 8px;
-                    right: 8px;
-                    background: none;
-                    border: none;
-                    font-size: 20px;
-                    color: #999;
-                    cursor: pointer;
-                    padding: 4px 8px;
-                    line-height: 1;
-                " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'" onclick="this.parentElement.remove()">✕</button>
+                ${closeButtonHtml()}
                 <div style="font-size: 18px; font-weight: bold; color: #2e7d32; margin-bottom: 10px;">
                     ✅ Bibliography Import Complete!
                 </div>
@@ -168,18 +253,7 @@ async function importBibliography() {
         function showError(message) {
             if (!overlay) create();
             overlay.innerHTML = `
-                <button style="
-                    position: absolute;
-                    top: 8px;
-                    right: 8px;
-                    background: none;
-                    border: none;
-                    font-size: 20px;
-                    color: #999;
-                    cursor: pointer;
-                    padding: 4px 8px;
-                    line-height: 1;
-                " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'" onclick="this.parentElement.remove()">✕</button>
+                ${closeButtonHtml()}
                 <div style="font-size: 18px; font-weight: bold; color: #c62828; margin-bottom: 10px;">
                     ❌ Error
                 </div>
@@ -246,525 +320,183 @@ async function importBibliography() {
             });
         }
 
-        return { create, updatePhase, showProgressBar, updateProgress, remove, showComplete, showError, getOverlay, showRetryUpload };
+        return { create, showProgress, updatePhase, showProgressBar, updateProgress, remove, showChooser, showComplete, showError, getOverlay, showRetryUpload };
     })();
 
     // Initialize progress UI
     progressUI.create();
 
     // ============================================================================
-    // Helper Functions
+    // Amazon: the author's All Books settings + its book-list request
     // ============================================================================
 
-    function getTodayDate() {
-        return new Date().toISOString().split('T')[0];
-    }
-
-    // ============================================================================
-    // Extract Embedded Config from Page
-    // ============================================================================
-
-    function extractAuthorConfig() {
-        // Find script tags containing the author product grid config
-        const scripts = doc.querySelectorAll('script');
-
-        for (const script of scripts) {
-            const text = script.textContent || '';
-
-            // Look for the config object that contains ASINList and products
-            if (text.includes('author-productgridallbooks') && text.includes('"ASINList"')) {
-                // Extract the config object - it's assigned to a variable
-                const configMatch = text.match(/var\s+config\s*=\s*(\{[\s\S]*?\});?\s*(?:var|const|let|function|\s*$)/);
-                if (configMatch) {
-                    try {
-                        const config = JSON.parse(configMatch[1]);
-                        return config;
-                    } catch (e) {
-                        console.log('   Failed to parse config from var assignment');
-                    }
-                }
-
-                // Alternative: look for the widgetId pattern and extract config
-                const widgetMatch = text.match(/"widgetId"\s*:\s*"author-productgridallbooks[^"]*"[\s\S]*?"content"\s*:\s*(\{[\s\S]*?\})\s*,\s*"(?:endpoint|sectionType)/);
-                if (widgetMatch) {
-                    try {
-                        // This is partial, need the full config
-                    } catch (e) {
-                        // Continue searching
-                    }
-                }
-            }
-        }
-
-        // Alternative approach: look for inline JSON in the page with specific markers
-        const pageHtml = doc.documentElement.innerHTML;
-
-        // Find the content block that has ASINList and products
-        const asinListMatch = pageHtml.match(/"content"\s*:\s*\{[^}]*"ASINList"\s*:\s*\[([^\]]+)\]/);
-        const productsMatch = pageHtml.match(/"products"\s*:\s*\[(\{[\s\S]*?\})\s*\]/);
-
-        if (asinListMatch) {
-            // Try to extract a larger config block
-            const startIdx = pageHtml.indexOf('"authorId"');
-            if (startIdx !== -1) {
-                // Work backwards to find the opening brace
-                let braceCount = 0;
-                let configStart = startIdx;
-                for (let i = startIdx; i >= 0; i--) {
-                    if (pageHtml[i] === '}') braceCount++;
-                    if (pageHtml[i] === '{') {
-                        if (braceCount === 0) {
-                            configStart = i;
-                            break;
-                        }
-                        braceCount--;
-                    }
-                }
-
-                // Now find the matching closing brace
-                braceCount = 0;
-                for (let i = configStart; i < pageHtml.length; i++) {
-                    if (pageHtml[i] === '{') braceCount++;
-                    if (pageHtml[i] === '}') {
-                        braceCount--;
-                        if (braceCount === 0) {
-                            try {
-                                const configStr = pageHtml.substring(configStart, i + 1);
-                                const config = JSON.parse(configStr);
-                                if (config.content && config.content.products) {
-                                    return config;
-                                }
-                            } catch (e) {
-                                // Continue trying
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
-    function getAuthorName() {
-        // Try pageContext.brandName from config
-        const config = extractAuthorConfig();
-        if (config?.pageContext?.brandName) {
-            return config.pageContext.brandName;
-        }
-
-        // Try og:title meta tag
-        const ogTitle = doc.querySelector('meta[property="og:title"]');
-        if (ogTitle) {
-            const title = ogTitle.getAttribute('content') || '';
-            // Remove " - Amazon.com" suffix
-            return title.replace(/\s*[-–]\s*Amazon\.com.*$/i, '').trim() || 'Unknown Author';
-        }
-
-        // Try page title
-        const titleEl = doc.querySelector('title');
-        if (titleEl) {
-            const title = titleEl.textContent || '';
-            return title.replace(/\s*[-–]\s*Amazon\.com.*$/i, '').trim() || 'Unknown Author';
-        }
-
-        return 'Unknown Author';
-    }
-
+    // Both author-page addresses carry the ID: /stores/John-Marrs/author/B00F1CRG9U and /stores/author/B00F1CRG9U/allbooks
     function getAuthorId() {
-        // Try to get from URL
-        const urlMatch = win.location.href.match(/\/author\/([A-Z0-9]{10})/i);
-        if (urlMatch) {
-            return urlMatch[1].toUpperCase();
-        }
-
-        // Try from config
-        const config = extractAuthorConfig();
-        if (config?.pageContext?.authorId) {
-            return config.pageContext.authorId;
-        }
-
-        return null;
+        const match = win.location.pathname.match(/\/author\/([A-Z0-9]{10})/i);
+        return match ? match[1].toUpperCase() : null;
     }
 
-    // ============================================================================
-    // Parse Products from DOM (preferred - includes dynamically loaded items)
-    // ============================================================================
-
-    function parseProductsFromDOM() {
-        const books = [];
-        const completeness = {
-            total: 0,
-            withPrice: 0,
-            withRating: 0,
-            withCover: 0
-        };
-
-        // Find all product cards in the author's product grid
-        // The grid items are typically LI elements within the author product grid
-        const gridContainers = doc.querySelectorAll('[class*="author-productgrid"] ul, [data-component-type="author-productgrid"] ul');
-        let productItems = [];
-
-        // Try multiple possible selectors for product items
-        if (gridContainers.length > 0) {
-            for (const container of gridContainers) {
-                const items = container.querySelectorAll('li[data-asin], li[class*="product"]');
-                productItems = [...productItems, ...items];
-            }
-        }
-
-        // Alternative: find items by their structure (link to product page)
-        if (productItems.length === 0) {
-            // Look for product cards that have ASIN links
-            const allLinks = doc.querySelectorAll('a[href*="/dp/"]');
-            const seenParents = new Set();
-
-            for (const link of allLinks) {
-                // Find the parent product card (usually an li or div containing the whole product)
-                let parent = link.closest('li') || link.closest('[class*="product"]');
-                if (parent && !seenParents.has(parent)) {
-                    seenParents.add(parent);
-                    productItems.push(parent);
-                }
-            }
-        }
-
-        console.log(`   Found ${productItems.length} product items in DOM`);
-
-        for (const item of productItems) {
-            // Extract ASIN from data attribute or from link
-            let asin = item.getAttribute('data-asin');
-            if (!asin) {
-                const link = item.querySelector('a[href*="/dp/"]');
-                if (link) {
-                    const match = link.href.match(/\/dp\/([A-Z0-9]{10})/i);
-                    if (match) asin = match[1].toUpperCase();
-                }
-            }
-            if (!asin) continue;
-
-            // Skip navigation/footer items (not real book products)
-            // These are bare <li> elements or contain nav_a class links
-            if (item.tagName === 'LI' && !item.className) continue;
-            if (item.querySelector('a.nav_a')) continue;
-
-            // Check if this is a Kindle edition
-            // Look for "Kindle Edition" or "Kindle" text in the binding info
-            const bindingText = item.textContent || '';
-            const isKindle = /kindle\s*edition|kindle\s*ebook/i.test(bindingText);
-
-            // If we can't determine binding, include it (we'll check later)
-            // Many items just show "Kindle" somewhere in the text
-
-            // Extract title
-            let title = '';
-            const titleEl = item.querySelector('[class*="title"] a, h2 a, [class*="Title"] a, a[class*="title"]');
-            if (titleEl) {
-                title = titleEl.textContent?.trim() || '';
-            }
-            if (!title) {
-                // Try finding any link to the product
-                const link = item.querySelector('a[href*="/dp/"]');
-                if (link && link.textContent?.trim()) {
-                    title = link.textContent.trim();
-                }
-            }
-            if (!title) continue;
-
-            // Extract author(s) - on author pages, use the page author as primary source
-            // DOM selectors often match wrong elements like "Quick look" buttons
-            const pageAuthor = getAuthorName();
-            let authors = pageAuthor || 'Unknown Author';
-
-            // Extract cover URL (media-amazon for author pages, images-amazon for fallback)
-            let coverUrl = null;
-            const img = item.querySelector('img[src*="media-amazon"], img[src*="images-amazon"], img[data-src*="media-amazon"], img[data-src*="images-amazon"]');
-            if (img) {
-                coverUrl = img.src || img.getAttribute('data-src');
-                // Try to get higher resolution by modifying the URL
-                if (coverUrl && coverUrl.includes('._')) {
-                    // Replace common size suffixes with larger ones
-                    coverUrl = coverUrl.replace(/\._[^.]+_\./, '._SL500_.');
-                }
-            }
-
-            // Extract rating
-            let rating = null;
-            const ratingEl = item.querySelector('[class*="rating"], [aria-label*="star"], .a-icon-star');
-            if (ratingEl) {
-                const ratingText = ratingEl.getAttribute('aria-label') || ratingEl.textContent || '';
-                const ratingMatch = ratingText.match(/([\d.]+)\s*(?:out of|stars?)/i);
-                if (ratingMatch) {
-                    rating = parseFloat(ratingMatch[1]);
-                }
-            }
-
-            // Extract review count
-            let reviewCount = null;
-            const reviewEl = item.querySelector('[class*="review"], [aria-label*="rating"]');
-            if (reviewEl) {
-                const reviewText = reviewEl.textContent || '';
-                const countMatch = reviewText.match(/([\d,]+)\s*(?:ratings?|reviews?)/i);
-                if (countMatch) {
-                    reviewCount = parseInt(countMatch[1].replace(/,/g, ''), 10);
-                }
-            }
-
-            // Extract price
-            let currentPrice = null;
-            const priceEl = item.querySelector('[class*="price"], .a-price .a-offscreen, [data-price]');
-            if (priceEl) {
-                const priceText = priceEl.textContent?.trim() || priceEl.getAttribute('data-price') || '';
-                if (priceText.includes('$')) {
-                    // Parse the price value
-                    const priceMatch = priceText.match(/\$[\d.,]+/);
-                    if (priceMatch) {
-                        currentPrice = parseFloat(priceMatch[0].replace(/[$,]/g, ''));
-                    }
-                }
-            }
-
-            const book = {
-                asin,
-                onWishlist: true,
-                ownershipType: 'wishlist',
-                addedToWishlist: getTodayDate(),
-                title,
-                authors,
-                coverUrl,
-                rating,
-                reviewCount,
-                // Include price if available (as number, not string)
-                ...(currentPrice && { currentPrice, priceAsOf: getTodayDate() })
-            };
-
-            // Debug: Log suspicious entries (no cover AND no rating = likely not a book)
-            if (!coverUrl && !rating) {
-                console.warn(`   ⚠️ SUSPICIOUS ENTRY:`);
-                console.warn(`      ASIN: ${asin}`);
-                console.warn(`      Title: "${title}"`);
-                console.warn(`      Element classes: ${item.className}`);
-                console.warn(`      Parent tagName: ${item.tagName}`);
-                console.warn(`      Element HTML (first 500 chars):`);
-                console.warn(`      ${item.outerHTML.substring(0, 500)}...`);
-            }
-
-            books.push(book);
-
-            // Track completeness
-            completeness.total++;
-            if (currentPrice) completeness.withPrice++;
-            if (rating) completeness.withRating++;
-            if (coverUrl) completeness.withCover++;
-        }
-
-        return { books, completeness };
-    }
-
-    // ============================================================================
-    // Parse Products from Embedded Config (fallback)
-    // ============================================================================
-
-    function parseProductsFromConfig(config) {
-        const books = [];
-        const completeness = {
-            total: 0,
-            withPrice: 0,
-            withRating: 0,
-            withCover: 0
-        };
-
-        const products = config?.content?.products || [];
-
-        for (const product of products) {
-            // Only process Kindle editions
-            const binding = product.bindingInformation?.binding?.symbol;
-            if (binding !== 'kindle_edition') {
+    // Parse the JSON object starting at text[start] ('{'), matching braces outside strings.
+    function readObjectAt(text, start) {
+        let depth = 0, inString = false, escaped = false;
+        for (let i = start; i < text.length; i++) {
+            const c = text[i];
+            if (inString) {
+                if (escaped) escaped = false;
+                else if (c === '\\') escaped = true;
+                else if (c === '"') inString = false;
                 continue;
             }
-
-            const asin = product.asin;
-            if (!asin) continue;
-
-            // Extract title
-            const title = product.title?.displayString || '';
-            if (!title) continue;
-
-            // Extract author(s)
-            const contributors = product.byLine?.contributors || [];
-            const authors = contributors
-                .filter(c => c.roles?.some(r => r.type === 'author'))
-                .map(c => c.name)
-                .filter(Boolean)
-                .join(', ') || 'Unknown Author';
-
-            // Extract cover URL (prefer hiRes)
-            const images = product.productImages?.images || [];
-            const coverUrl = images[0]?.hiRes?.url || images[0]?.lowRes?.url || null;
-
-            // Extract rating
-            const rating = product.customerReviewsSummary?.rating?.value || null;
-
-            // Extract review count
-            const reviewCount = product.customerReviewsSummary?.count?.value || null;
-
-            // Extract price - find the Kindle buying option
-            let currentPrice = null;
-            const buyingOptions = product.buyingOptions || [];
-            for (const option of buyingOptions) {
-                // Look for KINDLE_ALC or similar Kindle buying option
-                if (option.type === 'KINDLE_ALC' || option.type === 'NEW') {
-                    const priceValue = option.price?.priceToPay?.moneyValueOrRange?.value;
-                    if (priceValue?.amount !== undefined) {
-                        currentPrice = priceValue.amount; // Store as number, not string
-                        break;
-                    }
-                }
-            }
-
-            // Extract series info if available
-            const seriesInfo = product.bookSeriesInfo;
-            const series = seriesInfo?.seriesTitle || null;
-            const seriesPosition = seriesInfo?.position || null;
-
-            const book = {
-                asin,
-                onWishlist: true,
-                ownershipType: 'wishlist',
-                addedToWishlist: getTodayDate(),
-                title,
-                authors,
-                coverUrl,
-                rating,
-                reviewCount,
-                // Include series info if available
-                ...(series && { series }),
-                ...(seriesPosition && { seriesPosition }),
-                // Include price if available
-                ...(currentPrice && { currentPrice, priceAsOf: getTodayDate() })
-            };
-
-            books.push(book);
-
-            // Track completeness
-            completeness.total++;
-            if (currentPrice) completeness.withPrice++;
-            if (rating) completeness.withRating++;
-            if (coverUrl) completeness.withCover++;
+            if (c === '"') inString = true;
+            else if (c === '{') depth++;
+            else if (c === '}' && --depth === 0) return JSON.parse(text.slice(start, i + 1));
         }
-
-        return { books, completeness };
+        throw new Error('settings object never closed');
     }
 
-    // ============================================================================
-    // Auto-Load All Books (scroll and click "Show More")
-    // ============================================================================
-
-    async function loadAllBooks() {
-        const MAX_ITERATIONS = 50;  // Safety limit
-        const SCROLL_DELAY = 500;   // ms between scrolls
-        const LOAD_DELAY = 1000;    // ms to wait for content to load after clicking
-
-        let iteration = 0;
-        let lastProductCount = 0;
-
-        // Count current products in DOM
-        function countProducts() {
-            const links = doc.querySelectorAll('a[href*="/dp/"]');
-            const seen = new Set();
-            for (const link of links) {
-                const match = link.href.match(/\/dp\/([A-Z0-9]{10})/i);
-                if (match) seen.add(match[1]);
-            }
-            return seen.size;
+    // The All Books page's built-in grid settings: one `var config = {...}` holding requestContext (the request's keys),
+    // pageContext and content (authorSearch, languageFilter, ...). Loaded in the background, so the tab you're on and
+    // anything you set on screen don't matter.
+    async function loadGridSettings(authorId) {
+        const res = await win.fetch(`${win.location.origin}/stores/author/${authorId}/allbooks`, { credentials: 'include' });
+        if (!res.ok) throw new Error(`Amazon didn't send this author's book list (error ${res.status}). Try again in a minute.`);
+        const html = await res.text();
+        const mark = html.indexOf('AuthorAllBooksProductGrid');
+        const at = mark === -1 ? -1 : html.lastIndexOf('var config', mark);
+        let grid = null;
+        try {
+            grid = at === -1 ? null : readObjectAt(html, html.indexOf('{', at));
+        } catch (e) {
+            console.warn('   Could not parse the All Books settings:', e.message);
         }
+        if (!grid?.requestContext || !grid?.pageContext || !grid?.content) {
+            throw new Error("Couldn't read this author's book list — Amazon may have changed its author pages. Please let us know.");
+        }
+        return grid;
+    }
 
-        // Find and click "Show More" button
-        function findShowMoreButton() {
-            // Try various selectors Amazon uses for "Show More" buttons
-            const selectors = [
-                'button[data-action="show-more"]',
-                '[class*="show-more"] button',
-                '[class*="showMore"] button',
-                'button:contains("Show More")',
-                'span.a-button:has(input[aria-label*="Show"])',
-                '.a-button-input[aria-label*="more"]'
-            ];
+    // One page of Kindle books in one language — the same request the All Books page makes when you set its filters.
+    // One retry: an occasional request fails for no visible reason (seen once while probing).
+    async function askAmazon(grid, language, page) {
+        const { products, ASINList, ...gridSearch } = grid.content;
+        const body = {
+            requestContext: grid.requestContext,
+            pageContext: grid.pageContext,
+            widgetType: grid.widgetType,
+            sectionType: grid.sectionType,
+            ...gridSearch,
+            authorSearch: { ...gridSearch.authorSearch, pageSize: PAGE_SIZE, page },
+            authorFilters: { format: ['kindle'], language: [language] },
+            content: { includeOutOfStock: true },
+            includeOutOfStock: true,
+            endpoint: 'ajax-data'
+        };
+        for (let attempt = 1; ; attempt++) {
+            try {
+                const res = await win.fetch(`${win.location.origin}/juvec`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'content-type': 'application/json; charset=UTF-8', accept: 'application/json, text/plain, */*' },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error(`status ${res.status}`);
+                const data = await res.json();
+                if (data.isSuccess === false) throw new Error('Amazon reported no success');
+                return { total: data.totalResultCount || 0, asins: data.ASINList || [], products: data.products || [] };
+            } catch (e) {
+                console.warn(`   Amazon request failed (${language}, page ${page}, try ${attempt}): ${e.message}`);
+                if (attempt >= 2) throw new Error("Amazon didn't answer. Try again in a minute.");
+                await new Promise(r => setTimeout(r, 1500));
+            }
+        }
+    }
 
-            for (const selector of selectors) {
-                try {
-                    const btn = doc.querySelector(selector);
-                    if (btn && btn.offsetParent !== null) return btn;
-                } catch (e) {
-                    // :contains and :has may not be supported, ignore
+    const languagesFor = (language, languages) => language === ALL_LANGUAGES ? languages : [language];
+
+    // How many Kindle books — page 1 of each language carries the total.
+    async function countBooks(grid, language, languages) {
+        let total = 0;
+        for (const lang of languagesFor(language, languages)) total += (await askAmazon(grid, lang, 1)).total;
+        return total;
+    }
+
+    // Amazon's product → a wishlist book. Only the listed book itself, and only if it's a Kindle edition: the answer
+    // also carries each book's other editions (hardcover, paperback, audiobook...).
+    function toBook(product, authorName) {
+        if (!product?.asin || product.bindingInformation?.binding?.symbol !== 'kindle_edition') return null;
+        const title = product.title?.displayString || '';
+        if (!title) return null;
+
+        const authors = (product.byLine?.contributors || [])
+            .filter(c => c.roles?.some(r => r.type === 'author'))
+            .map(c => c.name)
+            .filter(Boolean)
+            .join(', ') || authorName;
+
+        const images = product.productImages?.images || [];
+        const coverUrl = images[0]?.hiRes?.url || images[0]?.lowRes?.url || null;
+        const rating = product.customerReviewsSummary?.rating?.value || null;
+        const reviewCount = product.customerReviewsSummary?.count?.value || null;
+
+        let currentPrice = null;
+        for (const option of product.buyingOptions || []) {
+            if (option.type === 'KINDLE_ALC' || option.type === 'NEW') {
+                const priceValue = option.price?.priceToPay?.moneyValueOrRange?.value;
+                if (priceValue?.amount !== undefined) {
+                    currentPrice = priceValue.amount; // a number, not a string
+                    break;
                 }
             }
-
-            // Fallback: find by text content
-            const buttons = doc.querySelectorAll('button, input[type="submit"], .a-button-input');
-            for (const btn of buttons) {
-                const text = btn.textContent || btn.value || btn.getAttribute('aria-label') || '';
-                if (/show\s*more/i.test(text) && btn.offsetParent !== null) {
-                    return btn;
-                }
-            }
-
-            // Also check for span.a-button elements (Amazon's button style)
-            const spanButtons = doc.querySelectorAll('span.a-button');
-            for (const span of spanButtons) {
-                const text = span.textContent || '';
-                if (/show\s*more/i.test(text) && span.offsetParent !== null) {
-                    const input = span.querySelector('input, button');
-                    if (input) return input;
-                    return span;
-                }
-            }
-
-            return null;
         }
 
-        console.log('[2] Auto-loading all books...');
-        progressUI.updatePhase('Loading Books', 'Scrolling to load all books...');
+        const series = product.bookSeriesInfo?.seriesTitle || null;
+        const seriesPosition = product.bookSeriesInfo?.position || null;
 
-        while (iteration < MAX_ITERATIONS) {
-            iteration++;
-            const currentCount = countProducts();
+        return {
+            asin: product.asin.toUpperCase(),
+            onWishlist: true,
+            ownershipType: 'wishlist',
+            addedToWishlist: getTodayDate(),
+            title,
+            authors,
+            binding: 'Kindle Edition', // FORMAT-POLICY spelling
+            coverUrl,
+            rating,
+            reviewCount,
+            ...(series && { series }),
+            ...(seriesPosition && { seriesPosition }),
+            ...(currentPrice && { currentPrice, priceAsOf: getTodayDate() })
+        };
+    }
 
-            progressUI.updatePhase('Loading Books', `Found ${currentCount} books so far...`);
-            console.log(`   Iteration ${iteration}: ${currentCount} products visible`);
-
-            // Scroll to bottom to trigger lazy loading
-            win.scrollTo(0, doc.body.scrollHeight);
-            await new Promise(r => setTimeout(r, SCROLL_DELAY));
-
-            // Check for "Show More" button and click it
-            const showMoreBtn = findShowMoreButton();
-            if (showMoreBtn) {
-                console.log(`   Found "Show More" button, clicking...`);
-                showMoreBtn.click();
-                await new Promise(r => setTimeout(r, LOAD_DELAY));
+    // Every Kindle book in the chosen language(s), page by page. `unreadable` = listed but not a Kindle edition with
+    // details (expected 0 — reported, never silently dropped).
+    async function collectBooks(grid, language, languages, authorName, onProgress) {
+        const books = new Map();
+        let unreadable = 0;
+        for (const lang of languagesFor(language, languages)) {
+            for (let page = 1; page <= MAX_PAGES; page++) {
+                const { total, asins, products } = await askAmazon(grid, lang, page);
+                const byAsin = new Map(products.map(p => [p.asin, p]));
+                for (const asin of asins) {
+                    const book = toBook(byAsin.get(asin), authorName);
+                    if (book) books.set(book.asin, book);
+                    else unreadable++;
+                }
+                onProgress(books.size, lang);
+                if (asins.length < PAGE_SIZE || page * PAGE_SIZE >= total) break;
             }
-
-            // Check if we got more products
-            const newCount = countProducts();
-            if (newCount === lastProductCount && !showMoreBtn) {
-                // No new products and no Show More button - we're done
-                console.log(`   No more products to load (${newCount} total)`);
-                break;
-            }
-
-            lastProductCount = newCount;
-
-            // Small delay between iterations
-            await new Promise(r => setTimeout(r, 300));
         }
+        return { books: [...books.values()], unreadable };
+    }
 
-        // Scroll back to top for user convenience
-        win.scrollTo(0, 0);
-
-        const finalCount = countProducts();
-        console.log(`   ✅ Finished loading: ${finalCount} products in DOM\n`);
-        return finalCount;
+    // The language you use Amazon in (its request's "en-US"), if this author has books in it; else English, else the first.
+    function pickDefaultLanguage(languages, amazonLanguage) {
+        let name = null;
+        try {
+            name = new Intl.DisplayNames(['en'], { type: 'language' }).of(String(amazonLanguage || 'en').split('-')[0]);
+        } catch (e) { /* older browser: fall through */ }
+        return languages.find(l => l === name) || (languages.includes('English') ? 'English' : languages[0]);
     }
 
     // ============================================================================
@@ -789,80 +521,55 @@ async function importBibliography() {
     // ============================================================================
 
     try {
-        // Step 1: Verify we're on an author page
-        progressUI.updatePhase('Detecting Author Page', 'Checking page type...');
-        console.log('[1] Detecting author page...');
-
+        // Step 1: the author, from the address
+        progressUI.updatePhase('Finding the author', 'Reading the page address...');
+        console.log('[1] Finding the author...');
         const authorId = getAuthorId();
         if (!authorId) {
-            throw new Error('Could not find author ID. Please navigate to an Amazon author page (e.g., amazon.com/stores/Author-Name/author/B001IGJOCA)');
+            throw new Error("This isn't an Amazon author page. Click an author's name on a book page, then click the bookmarklet again.");
         }
 
-        const authorName = getAuthorName();
-        console.log(`   Author: "${authorName}"`);
-        console.log(`   ID: ${authorId}\n`);
+        // Step 2: the All Books settings (loaded in the background)
+        progressUI.updatePhase('Finding the author', "Loading the author's book list from Amazon...");
+        const grid = await loadGridSettings(authorId);
+        const authorName = grid.pageContext.brandName || 'this author';
+        const languages = grid.content.languageFilter?.length ? grid.content.languageFilter : ['English'];
+        console.log(`   Author: "${authorName}" (${authorId}) | languages: ${languages.join(', ')}\n`);
 
-        // Step 2: Auto-load all books (scroll and click "Show More")
-        await loadAllBooks();
-
-        // Step 3: Extract embedded config for metadata (optional, for reference)
-        const config = extractAuthorConfig();
-
-        // Step 4: Parse books from DOM
-        progressUI.updatePhase('Parsing Books', 'Extracting book data...');
-        console.log('[3] Parsing book data from DOM...');
-
-        let books, completeness;
-        const domResult = parseProductsFromDOM();
-
-        if (domResult.books.length > 0) {
-            books = domResult.books;
-            completeness = domResult.completeness;
-            console.log(`   ✅ Found ${books.length} books from DOM`);
-        } else if (config) {
-            // Fallback to config parsing if DOM parsing failed
-            console.log(`   DOM parsing found no items, falling back to embedded config...`);
-            const configResult = parseProductsFromConfig(config);
-            books = configResult.books;
-            completeness = configResult.completeness;
-            console.log(`   ✅ Found ${books.length} Kindle editions from config`);
-        } else {
-            throw new Error('Could not find book data on this page. Make sure you are on the author\'s "All Books" page and that products are visible.');
+        // Step 3: you choose the language
+        const language = await progressUI.showChooser({
+            authorName,
+            languages,
+            defaultLanguage: pickDefaultLanguage(languages, grid.requestContext.language),
+            countFor: (lang) => countBooks(grid, lang, languages)
+        });
+        if (language === null) {
+            console.log('   Cancelled — nothing was added.\n');
+            return;
         }
+        const inLanguage = languageText(language);
 
-        // Log data completeness
-        if (completeness.total > 0) {
-            const missingPrice = completeness.total - completeness.withPrice;
-            const missingRating = completeness.total - completeness.withRating;
-            const missingCover = completeness.total - completeness.withCover;
+        // Step 4: every page
+        progressUI.showProgress();
+        progressUI.updatePhase('Fetching books', `Asking Amazon for ${authorName}'s Kindle books ${inLanguage}...`);
+        console.log(`[2] Fetching Kindle books ${inLanguage}...`);
+        const { books, unreadable } = await collectBooks(grid, language, languages, authorName,
+            (n, lang) => progressUI.updatePhase('Fetching books', `${plural(n, 'Kindle book')} so far (${languageLabel(lang)})...`));
+        console.log(`   ✅ ${books.length} Kindle books${unreadable ? ` (${unreadable} listed without details — skipped)` : ''}\n`);
 
-            if (missingPrice > 0 || missingCover > 0) {
-                console.log(`   ℹ️  Data completeness:`);
-                console.log(`      - Cover: ${completeness.withCover}/${completeness.total} (${missingCover} missing)`);
-                console.log(`      - Price: ${completeness.withPrice}/${completeness.total} (${missingPrice} missing)`);
-                console.log(`      - Rating: ${completeness.withRating}/${completeness.total} (${missingRating} missing)`);
-                console.log(`      Note: Missing data can be filled by running Library Fetcher`);
-            }
-        }
-        console.log('');
-
-        // Step 4: Check if any books to add
         if (books.length === 0) {
-            progressUI.showComplete(`No Kindle books found for <strong>${authorName}</strong>.<br>Try scrolling down to load more books, then run again.`, 15000);
-            console.log('========================================');
-            console.log('✅ NO KINDLE BOOKS FOUND');
-            console.log('========================================\n');
+            progressUI.showComplete(`No Kindle books found for <strong>${escapeHtml(authorName)}</strong> ${inLanguage}.`, 15000);
             return;
         }
 
-        // Step 5: Read known books (canonical + pending) for duplicate detection
-        console.log('[4] Checking your library...');
+        // Step 5: read known books (canonical + pending) for duplicate detection
+        console.log('[3] Checking your library...');
         const known = await loadKnownBooks();
 
-        // Step 6: Dedup against known + pending
+        // Step 6: dedup against known + pending
         progressUI.updatePhase('Adding to Wishlist', `Processing ${books.length} books...`);
         progressUI.showProgressBar();
-        console.log(`[5] Adding ${books.length} books...`);
+        console.log(`[4] Adding ${books.length} books...`);
 
         let addedCount = 0;
         let duplicateCount = 0;
@@ -887,44 +594,41 @@ async function importBibliography() {
             console.log(`   ℹ️  Skipped ${duplicateCount} duplicates (already in library)\n`);
         }
 
-        // Step 7: Send new books as one atomic run (never rewrites the library)
+        // Step 7: send new books as one atomic run (never rewrites the library)
         if (newBooks.length > 0) {
-            console.log('[6] Sending to your library...');
+            console.log('[5] Sending to your library...');
             await sendWishlistRun(newBooks);
             ageCapCheck(known);
         }
 
-        // Step 8: Show summary
+        // Step 8: summary
+        const missingPrice = newBooks.filter(b => !b.currentPrice).length;
         console.log('========================================');
         console.log('✅ BIBLIOGRAPHY IMPORT COMPLETE!');
         console.log('========================================');
         console.log(`   Author: "${authorName}"`);
-        console.log(`   Added: ${addedCount} Kindle books`);
-        console.log(`   Skipped (duplicate): ${duplicateCount} books`);
-        // Data completeness in final summary
-        const missingPrice = completeness.total - completeness.withPrice;
+        console.log(`   Added: ${addedCount} Kindle books ${inLanguage}`);
+        console.log(`   Skipped (already in library): ${duplicateCount} books`);
         if (missingPrice > 0) {
             console.log(`   ℹ️  ${missingPrice} books missing price - run Library Fetcher to complete`);
         }
         console.log(`   Library incl. these + pending: ${known.byAsin.size} books`);
         console.log('========================================\n');
 
-        // Build summary message
-        let summaryMessage = `<strong>${authorName}</strong><br>`;
-        summaryMessage += `Added ${addedCount} Kindle books to wishlist<br>`;
-
-        if (duplicateCount > 0) {
-            summaryMessage += `<span style="color: #888; font-size: 12px;">Skipped: ${duplicateCount} already in library</span><br>`;
+        let summaryMessage = `<strong>${escapeHtml(authorName)}</strong><br>`;
+        summaryMessage += addedCount > 0
+            ? `Added ${plural(addedCount, 'Kindle book')} ${inLanguage} to your wishlist<br>`
+            : `All ${plural(books.length, 'Kindle book')} ${inLanguage} are already in your library — nothing new to add.<br>`;
+        if (addedCount > 0 && duplicateCount > 0) {
+            summaryMessage += `<span style="color: #888; font-size: 12px;">Skipped: ${duplicateCount} already in your library</span><br>`;
         }
-
-        // Note about missing data if applicable
+        if (unreadable > 0) {
+            summaryMessage += `<span style="color: #888; font-size: 12px;">Skipped: ${unreadable} listed by Amazon without book details</span><br>`;
+        }
         if (missingPrice > 0) {
             summaryMessage += `<br><span style="color: #1976d2; font-size: 11px;">`;
             summaryMessage += `ℹ️ ${missingPrice} books missing price - run Library Fetcher to complete</span>`;
         }
-
-        // Note: Removed misleading "scroll down" message - totalCount from embedded config
-        // is for ALL languages, not filtered results. Auto-scroll feature planned for future.
 
         progressUI.showComplete(summaryMessage, 20000);
 
@@ -939,7 +643,7 @@ async function importBibliography() {
         console.error(error.stack);
         console.error('========================================\n');
 
-        progressUI.showError(error.message);
+        progressUI.showError(escapeHtml(error.message));
     }
 }
 

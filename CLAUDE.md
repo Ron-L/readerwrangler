@@ -88,8 +88,10 @@ Follows the always-branch → squash → tag `vX.Y.Z` → keep-branch pattern in
 particulars:
 
 - **Remotes:** `dev` (testing) / `prod` (production) — no `origin`.
-- **Navigator/bookmarklet link changes:** Dev first → test on GitHub Pages → then Prod. Otherwise,
-  don't push to dev for routine local testing (test locally first).
+- **Bookmarklet changes that differ per environment** (anything tied to the repo address — what the LOCAL, DEV and
+  PROD bookmarklets do differently): Dev first → test on GitHub Pages → then Prod. A change that's the same for all
+  three (e.g. a fetcher fix, tested with the LOCAL bookmarklet) goes to dev and prod together (Ron, 2026-10-16).
+  Otherwise, don't push to dev for routine local testing (test locally first).
 
 | User says | Do |
 |-----------|-----|
@@ -137,8 +139,10 @@ Bypass (Ron's call only): `git commit --no-verify`.
 
 ## Reference
 
-**Folders:** `docs/api/` (Amazon library API — check before fetcher changes), `docs/design/`,
-`post-mortems/`.
+**Folders:** `docs/design/`, `post-mortems/`. **Amazon notes — check before fetcher changes:**
+`.private/Amazon-API-Reference.md` (library API; moved out of the public `docs/api/` in `ae276ea`) and
+`.private/AMAZON-AUTHOR-PAGES.md` (author pages / bibliography fetcher, 2026-10-16). Amazon's inner workings stay
+in `.private/`, never in this public repo (Ron, 2026-10-16).
 
 **`docs/PRINCIPLES.md`** — the distilled laws from all RW post-mortems (with enforcements). Consult
 when debugging stalls, before refactors/releases, and when a lesson feels familiar. New principles

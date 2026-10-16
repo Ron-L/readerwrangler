@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.21.3] - 2026-10-16
+
+### Fixed
+- **Add Bibliography to Wishlist works from every tab of an author's page.** It was greyed out on the All Books tab.
+- **It adds Kindle books only, and in the language you choose.** A small panel asks first: **Language** (only the
+  languages that author has, or All languages), shows how many Kindle books match, then **Add to wishlist**.
+  Previously it could also add paperbacks, hardcovers and audiobooks, and other-language editions.
+- **It no longer depends on what's showing on the page.** It asks Amazon for the author's list directly, so there's
+  no scrolling, no "Show More", and no need to set the page's own filters first.
+
 ## [7.21.2] - 2026-10-16
 
 ### Fixed
