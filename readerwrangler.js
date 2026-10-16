@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.21.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.21.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1412,7 +1412,7 @@
             const [seriesFilter, setSeriesFilter] = useState(''); // Filter by series name or "NOT_IN_SERIES" (NEW v3.8.0.k)
             const [dateFrom, setDateFrom] = useState(''); // Filter by acquisition date from (YYYY-MM-DD) (NEW v3.8.0.k)
             const [dateTo, setDateTo] = useState(''); // Filter by acquisition date to (YYYY-MM-DD) (NEW v3.8.0.k)
-            const [datePreset, setDatePreset] = useState(''); // Date filter preset: '' | 'last30' | 'last90' | 'lastYear' | '2025' | '2024' | '2023' | 'custom' (NEW v4.15.6)
+            const [datePreset, setDatePreset] = useState(''); // Date filter preset (v4.15.6): '' | a shared preset — see datePresetRange in uiHelpers.js (v7.21.2)
             const [tagFilter, setTagFilter] = useState([]); // v4.27.0 - Filter by tags (array of tag names, OR logic)
             const [tagRegistry, setTagRegistry] = useState({}); // v4.27.0 - Central tag registry {tagName: {label, count}}
             const [savedSearches, setSavedSearches] = useState([]); // v6.12.0 - Saved searches (live filters) [{id, name?, filters, position}] — formerly "savedViews"
@@ -2175,7 +2175,7 @@
                 if (filters.minAmazonRating) parts.push(`${filters.minAmazonRating}+★`);
                 if (filters.minMyRating) parts.push(`My ${filters.minMyRating === 'unrated' ? 'Unrated' : filters.minMyRating + '+★'}`);
                 if (filters.series?.length > 0) parts.push(filters.series.map(s => s === 'NOT_IN_SERIES' ? 'Not in series' : s).join(', '));
-                if (filters.datePreset) parts.push(filters.datePreset === 'last30' ? 'Last 30 Days' : filters.datePreset === 'last90' ? 'Last 90 Days' : filters.datePreset === 'lastYear' ? 'Last Year' : filters.datePreset);
+                if (filters.datePreset) parts.push(datePresetLabel(filters.datePreset)); // v7.21.2 - shared label (was raw "year2025")
                 if (filters.deals) parts.push('Deals');
                 return parts;
             };
@@ -2324,21 +2324,8 @@
                 if (filters.datePreset || filters.dateFrom || filters.dateTo) {
                     let fromDate = filters.dateFrom || '';
                     let toDate = filters.dateTo || '';
-                    if (filters.datePreset && filters.datePreset !== 'custom') {
-                        const today = new Date();
-                        const fmt = (d) => d.toISOString().split('T')[0];
-                        toDate = fmt(today);
-                        if (filters.datePreset === 'last30') {
-                            const d = new Date(today); d.setDate(d.getDate() - 30); fromDate = fmt(d);
-                        } else if (filters.datePreset === 'last90') {
-                            const d = new Date(today); d.setDate(d.getDate() - 90); fromDate = fmt(d);
-                        } else if (filters.datePreset === 'lastYear') {
-                            const d = new Date(today); d.setFullYear(d.getFullYear() - 1); fromDate = fmt(d);
-                        } else if (filters.datePreset.startsWith('year')) {
-                            const year = parseInt(filters.datePreset.substring(4));
-                            fromDate = `${year}-01-01`; toDate = `${year}-12-31`;
-                        }
-                    }
+                    const range = datePresetRange(filters.datePreset); // v7.21.2 - the shared presets (uiHelpers.js)
+                    if (range) { fromDate = range.from; toDate = range.to; }
                     if (fromDate || toDate) {
                         if (!book.acquired) return false;
                         const bookDate = new Date(parseInt(book.acquired)).toISOString().split('T')[0];
@@ -4287,33 +4274,9 @@
                     return;
                 }
 
-                const today = new Date();
-                const formatDate = (d) => d.toISOString().split('T')[0]; // YYYY-MM-DD
-
-                let from = '';
-                let to = formatDate(today);
-
-                if (datePreset === 'last30') {
-                    const d = new Date(today);
-                    d.setDate(d.getDate() - 30);
-                    from = formatDate(d);
-                } else if (datePreset === 'last90') {
-                    const d = new Date(today);
-                    d.setDate(d.getDate() - 90);
-                    from = formatDate(d);
-                } else if (datePreset === 'lastYear') {
-                    const d = new Date(today);
-                    d.setFullYear(d.getFullYear() - 1);
-                    from = formatDate(d);
-                } else if (datePreset.startsWith('year')) {
-                    // Year preset: yearYYYY format
-                    const year = parseInt(datePreset.substring(4));
-                    from = `${year}-01-01`;
-                    to = `${year}-12-31`;
-                }
-
-                setDateFrom(from);
-                setDateTo(to);
+                const range = datePresetRange(datePreset); // v7.21.2 - the shared presets (uiHelpers.js)
+                setDateFrom(range.from);
+                setDateTo(range.to);
             }, [datePreset]);
 
             // v5.0.0-alpha.169.5 - Unified date formatting for display
@@ -10572,13 +10535,7 @@
                                         <span>
                                             {datePreset === 'custom' && (dateFrom || dateTo)
                                                 ? `${dateFrom || '...'} to ${dateTo || '...'}`
-                                                : datePreset === 'last30' ? 'Last 30 days'
-                                                : datePreset === 'last90' ? 'Last 90 days'
-                                                : datePreset === 'lastYear' ? 'Last 12 months'
-                                                : datePreset === 'year2026' ? 'This year (2026)'
-                                                : datePreset === 'year2025' ? 'Last year (2025)'
-                                                : datePreset === 'year2024' ? '2024'
-                                                : datePreset === 'year2023' ? '2023'
+                                                : datePreset && datePreset !== 'custom' ? datePresetLabel(datePreset) // v7.21.2 - shared
                                                 : 'Date Added'}
                                         </span>
                                         <span>{dateDropdownOpen ? '▲' : '▼'}</span>
@@ -10597,29 +10554,44 @@
                                                 zIndex: 1001
                                             }}>
                                             {/* Preset options */}
-                                            {[
-                                                { value: 'last30', label: 'Last 30 days' },
-                                                { value: 'last90', label: 'Last 90 days' },
-                                                { value: 'lastYear', label: 'Last 12 months' },
-                                                { value: 'year2026', label: 'This year (2026)' },
-                                                { value: 'year2025', label: 'Last year (2025)' },
-                                                { value: 'year2024', label: '2024' },
-                                                { value: 'year2023', label: '2023' },
-                                                { value: 'custom', label: 'Custom range...' }
-                                            ].map(option => (
+                                            {/* v7.21.2 - the main choices are built from the calendar (uiHelpers.js) — no year is
+                                                typed in by hand any more */}
+                                            {datePresetOptions().map(option => (
                                                 <button
                                                     key={option.value}
-                                                    onClick={() => {
-                                                        setDatePreset(option.value);
-                                                        if (option.value !== 'custom') {
-                                                            setDateDropdownOpen(false);
-                                                        }
-                                                    }}
+                                                    onClick={() => { setDatePreset(option.value); setDateDropdownOpen(false); }}
                                                     className="w-full text-left px-3 py-1.5 hover:bg-gray-50 rounded"
                                                     style={{ fontSize: '13px' }}>
                                                     {option.label}
                                                 </button>
                                             ))}
+                                            {/* v7.21.2-alpha.3 (Ron + UX) - every EARLIER year the library has, in ONE compact dropdown (a
+                                                2001+ library made the old list 25 lines). Only real years, newest first; typing "19" in a
+                                                dropdown jumps to 2019. Picking one applies it, like the choices above. */}
+                                            {(() => {
+                                                const years = datePresetEarlierYears(books);
+                                                if (years.length === 0) return null;
+                                                const m = /^year(\d{4})$/.exec(datePreset);
+                                                const current = m && years.includes(Number(m[1])) ? m[1] : '';
+                                                return (
+                                                    <label className="w-full px-3 py-1.5 flex items-center gap-2" style={{ fontSize: '13px' }}>
+                                                        <span>Earlier year:</span>
+                                                        <select value={current}
+                                                            onChange={(e) => { if (e.target.value) { setDatePreset(`year${e.target.value}`); setDateDropdownOpen(false); } }}
+                                                            className="border border-gray-300 rounded px-1 py-0.5" style={{ fontSize: '13px' }}
+                                                            title="Books added in one earlier year — only years your library has">
+                                                            <option value="">Choose…</option>
+                                                            {years.map(yr => <option key={yr} value={yr}>{yr}</option>)}
+                                                        </select>
+                                                    </label>
+                                                );
+                                            })()}
+                                            <button
+                                                onClick={() => setDatePreset('custom')}
+                                                className="w-full text-left px-3 py-1.5 hover:bg-gray-50 rounded"
+                                                style={{ fontSize: '13px' }}>
+                                                Custom range...
+                                            </button>
 
                                             {/* Custom date inputs */}
                                             {datePreset === 'custom' && (
@@ -10710,11 +10682,7 @@
                                 {seriesFilter && (datePreset || tagFilter?.length > 0 || selectedCollections.length > 0) && <span>|</span>}
                                 {datePreset && <span>Date: {
                                     datePreset === 'custom' ? `${dateFrom || '...'} to ${dateTo || '...'}` :
-                                    datePreset === 'last30' ? 'Last 30 Days' :
-                                    datePreset === 'last90' ? 'Last 90 Days' :
-                                    datePreset === 'lastYear' ? 'Last 12 Months' :
-                                    datePreset.startsWith('year') ? datePreset.substring(4) :
-                                    datePreset
+                                    datePresetLabel(datePreset) /* v7.21.2 - shared label */
                                 }</span>}
                                 {datePreset && (tagFilter?.length > 0 || selectedCollections.length > 0 || minAmazonRating || minMyRating || selectedSeries.length > 0) && <span>|</span>}
                                 {tagFilter && tagFilter.length > 0 && <span>Tags: {tagFilter.map(t => tagRegistry[t]?.label || t).join(', ')}</span>}
@@ -11797,7 +11765,7 @@
                                             single source of truth for it); the release Version is shown alongside when they differ,
                                             so an alpha can never masquerade as the release it forked from (Ron, 2026-09-07). */}
                                         <p className="font-semibold"><a href="changelog.html" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline">Version {APP_VERSION}</a>{ORGANIZER_VERSION !== APP_VERSION && <span className="font-normal text-gray-500"> · Build v{ORGANIZER_VERSION}</span>}</p>
-                                        <p className="mt-2">Copyright © 2025, 2026 <a href="https://AlloidLabs.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline">AlloidLabs.com</a></p>
+                                        <p className="mt-2">Copyright © {COPYRIGHT_YEARS} <a href="https://AlloidLabs.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline">AlloidLabs.com</a></p>
                                     </div>
                                     <div className="text-sm text-gray-600 border-t border-gray-200 pt-4 text-left">
                                         <p>ReaderWrangler is a powerful organizer for your Kindle library. Import your library from Amazon, organize books into folders and collections, and filter by status/rating/tags.</p>

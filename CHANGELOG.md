@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.21.2] - 2026-10-16
+
+### Fixed
+- **The Date Added filter keeps up with the calendar.** **This year** and **Last year** now always mean this year
+  and last year. The menu's years were typed in by hand, so they would have gone out of date every January 1.
+- **Any earlier year your library has is one click away.** A short **Earlier year** dropdown lists only the years
+  you have books from, newest first. Previously the menu offered just 2023 and 2024; any other year took a custom range.
+- **Searches that use a year show it plainly**: "2025", not "year2025", on both the computer and the phone.
+
 ## [7.21.1] - 2026-10-13
 
 ### Fixed

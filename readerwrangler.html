@@ -134,7 +134,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Shared modules (pure JS, no Babel needed) -->
-    <script src="uiHelpers.js?v=7.17.0"></script>
+    <script src="uiHelpers.js?v=7.21.2"></script>
     <!-- v7.17.0 - The ONE book-field table (merge classes + wire mapping) + serialize/deserialize; node-unit-tested; loads before bookMerge/storage -->
     <script src="bookFields.js?v=7.19.0"></script>
     <!-- v7.17.0 - Book-merge implementation (reads the table above); node-unit-tested; loads before storage.js -->
@@ -169,7 +169,13 @@
     <script>
         // APP_VERSION - Single source of truth for cache busting
         // Update this on each release to force browsers to fetch new code
-        const APP_VERSION = "7.21.1";
+        const APP_VERSION = "7.21.2";
+
+        // v7.21.2 - Every year the code actually changed, listed — About shows "Copyright © ‹this›". A list, not a range:
+        // a year with no changes is skipped (a range like 2025–2030 would claim the gap years too), and nothing is
+        // claimed for years the code sat still. The commit check (git-hooks/version-guard.py) refuses a commit that
+        // changes shipped code in a year that isn't the LAST one listed — append it (", 2027") in that commit.
+        const COPYRIGHT_YEARS = "2025, 2026";
 
         // v7.21.0 - THE environment answers (contributor mode — spec in TODO.md, Ron 2026-10-06). Defined ONCE, here,
         // before ANY app code loads (desktop app, mobile.js, storage.js all run after this); everything else ASKS these —

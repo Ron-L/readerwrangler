@@ -3,9 +3,6 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [✅ Save our working process in git, so losing this PC can't erase it](#save-our-working-process-in-git-so-losing-this-pc-cant-erase-it)
-      - [✅ Start the local server automatically, without exposing private files](#start-the-local-server-automatically-without-exposing-private-files)
-      - [✅ Make sure an Import never wipes fields only ReaderWrangler sets](#make-sure-an-import-never-wipes-fields-only-readerwrangler-sets)
       - [🚧 Relay storage: stop leftovers piling up, and report usage correctly](#relay-storage-stop-leftovers-piling-up-and-report-usage-correctly)
         - [Numbers the app and relay must agree on: add a check that they match](#numbers-the-app-and-relay-must-agree-on-add-a-check-that-they-match)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
@@ -14,7 +11,6 @@
       - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
       - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
       - [Series numbers](#series-numbers)
-        - [✅ Set different series numbers on several books at once ("2, 4")](#set-different-series-numbers-on-several-books-at-once-2-4)
         - [One book in several series positions (omnibus, anthology, MegaPack)](#one-book-in-several-series-positions-omnibus-anthology-megapack)
       - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
       - [Drag a box to select covers](#drag-a-box-to-select-covers)
@@ -31,7 +27,6 @@
       - [Trusting the fetch](#trusting-the-fetch)
         - [Fetch: report exactly how your library compares with Amazon](#fetch-report-exactly-how-your-library-compares-with-amazon)
       - [Honest ownership changes: buying, samples, loans](#honest-ownership-changes-buying-samples-loans)
-        - [✅ Write the wishlist / ownership rules down in one design doc](#write-the-wishlist--ownership-rules-down-in-one-design-doc)
         - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
         - [Relay Import: only books in no folder should go to the Inbox](#relay-import-only-books-in-no-folder-should-go-to-the-inbox)
         - [Let library loans and Audible Plus books upgrade to owned](#let-library-loans-and-audible-plus-books-upgrade-to-owned)
@@ -52,7 +47,6 @@
       - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
       - [Book details window: Save only when something changed; offer Save before closing with unsaved changes](#book-details-window-save-only-when-something-changed-offer-save-before-closing-with-unsaved-changes)
       - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
-      - [✅ Ctrl+A in a dialog must never select the page behind it](#ctrla-in-a-dialog-must-never-select-the-page-behind-it)
       - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
       - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
@@ -78,10 +72,6 @@
       - [The Delete key should delete the folders you've selected](#the-delete-key-should-delete-the-folders-youve-selected)
       - [Book List menu: remove Move / Copy, and block dragging onto folders](#book-list-menu-remove-move--copy-and-block-dragging-onto-folders)
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
-    - [Unsorted — suggested for Polish](#unsorted--suggested-for-polish)
-      - [Group 5 — Looks done (confirm in the done-ness sweep)](#group-5--looks-done-confirm-in-the-done-ness-sweep)
-        - [✅ Auto-Organize preview: show which Book Lists a book is in](#auto-organize-preview-show-which-book-lists-a-book-is-in)
-        - [✅ Folder menu: Move to Top / Move to Bottom](#folder-menu-move-to-top--move-to-bottom)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Security page: finish the high-contrast light theme](#security-page-finish-the-high-contrast-light-theme)
@@ -90,12 +80,9 @@
       - [Wording pass: explain Book List shortcuts and Linked Copies](#wording-pass-explain-book-list-shortcuts-and-linked-copies)
       - [Rename "Relay" to "Cloud Sync" everywhere users see it](#rename-relay-to-cloud-sync-everywhere-users-see-it)
       - [Update and record the sizzle reel](#update-and-record-the-sizzle-reel)
-      - [✅ Add "Watch Tutorials" to the Help menu](#add-watch-tutorials-to-the-help-menu)
       - [Refresh the landing page's before / after screenshot](#refresh-the-landing-pages-before--after-screenshot)
       - [Create a FAQ page](#create-a-faq-page)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
-      - [✅ Document how to recover from disasters](#document-how-to-recover-from-disasters)
-      - [✅ CONTRIBUTING.md: replace the retired Claude Skills sections](#contributingmd-replace-the-retired-claude-skills-sections)
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
       - [Warn before uploading a much smaller library (demo safety)](#warn-before-uploading-a-much-smaller-library-demo-safety)
@@ -113,8 +100,6 @@
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
     - [Relay and sync](#relay-and-sync)
-      - [✅ Safer relay saves (the relay redesign)](#safer-relay-saves-the-relay-redesign)
-      - [✅ Deleted books that stay deleted](#deleted-books-that-stay-deleted)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Cheaper small syncs (send only what changed)](#cheaper-small-syncs-send-only-what-changed)
       - [✅ Ask before restoring when relay credentials don't match](#ask-before-restoring-when-relay-credentials-dont-match)
@@ -127,9 +112,7 @@
       - [Two-pane split view](#two-pane-split-view)
       - [Support stores besides Amazon](#support-stores-besides-amazon)
       - [Several people on one installation](#several-people-on-one-installation)
-      - [✅ More ways to filter by Kindle collections](#more-ways-to-filter-by-kindle-collections)
       - [Reading statistics](#reading-statistics)
-      - [✅ More export options (printable list)](#more-export-options-printable-list)
       - [Connect with Goodreads / StoryGraph](#connect-with-goodreads--storygraph)
       - [Animated drag-and-drop](#animated-drag-and-drop)
       - [Import book details from a pasted list or spreadsheet](#import-book-details-from-a-pasted-list-or-spreadsheet)
@@ -174,120 +157,9 @@
 
 _Formerly: 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-16)_
 
-In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**. The three **Unsorted** groups at the
-bottom are my suggested placements (2026-10-14) for tasks moved in from elsewhere — Ron places them.
+In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**.
 
 ### High priority
-
-#### ✅ Save our working process in git, so losing this PC can't erase it
-
-_Why it matters:_ My memory, the commit checks and the pre-build checklist live only on this PC — lost with it, and nothing would warn us.
-
-**Already done** (2026-10-15 — steps 1–4 below)
-1. `git-hooks/` holds the commit wiring + all three checks (moved from `.git/hooks`, `.claude/hooks`, `scripts/`);
-   `git config core.hooksPath git-hooks`. Proved: a stale TODO table was refused by the NEW location. (`43de253`)
-2. `.claude/hooks/` (the pre-build checklist), `.claude/commands/sitemap.md` and a shared `.claude/settings.json`
-   (holding the hook wiring, moved from the personal file) are saved in git; only `settings.local.json` is excluded.
-   Proved: the checklist fired with the wiring only in the shared file. (`db5dcaa`)
-3. Memory (56 files) + Ron's `settings.local.json` backed up to `.private/claude-backup/` with restore steps, pushed
-   to the private repo (`c76def8`).
-4. CONTRIBUTING.md: a "First: turn on the commit checks" section (setup command + what each check does); the stale
-   hook line fixed; the retired Claude Skills sections flagged out-of-date (their rewrite is its own task).
-
-**Status:** done 2026-10-15 (Ron). Delete at the next release.
-
-**What was at risk** (inventory 2026-10-14 — before the steps above)
-
-| What | Where it lives | What it does |
-|---|---|---|
-| **My memory — all ~54 files** | `~/.claude/projects/c--Users-Ron-Projects-ReaderWrangler/memory/` | everything I remember between sessions |
-| Pre-build checklist hooks | RW `.claude/hooks/gate-check.py`, `gate-reset.py` | the checklist bounce before code edits |
-| Their wiring + this PC's approvals | RW `.claude/settings.local.json` | turns those hooks on; holds your approved commands |
-| Version-stamp check | RW `.claude/hooks/version-guard.py` | refuses a commit whose version didn't move |
-| Commit-check wiring | RW `.git/hooks/pre-commit` | runs every commit check (git never saves its own hooks folder) |
-| `/sitemap` command | RW `.claude/commands/sitemap.md` | the class-of-sites comb |
-| Timestamp hook wiring | `~/.claude/settings.json` | runs `stamp.py` each turn |
-
-**Already safe** (in git and pushed)
-- RW: `CLAUDE.md`, `docs/PRINCIPLES.md` (incl. the checklist text), `docs/design/SESSION-TOOLING.md`, `scripts/check-names.js`, `scripts/check-toc.js`.
-- The Projects folder's own repo (GitHub `homelab-notes`): the cross-project `CLAUDE.md`, `CLAUDE-TOOLING.md`, `stamp.py`.
-- `.private` (its own private repo): secrets, research notes, the relay inventory tool.
-
-**Decided** (Ron, 2026-10-14)
-1. **Folders named for who runs them:**
-   - `git-hooks/` (in the repo) — run **by git** on each commit: the commit wiring, the version check, the names check, the table-of-contents check, and the app/relay match check (see "Numbers the app and relay must agree on"). Move `scripts/check-*.js` and `version-guard.py` here.
-   - `.claude/hooks/` — run **by Claude Code**: the pre-build checklist. Stays where it is, but is saved in git.
-2. **Point git at the saved folder:** `git config core.hooksPath git-hooks` — a one-time setting per copy of the project.
-3. **Settings split** (the way Claude Code intends):
-   - `.claude/settings.json` → **in the repo**: the hook wiring (already portable — it uses `$CLAUDE_PROJECT_DIR`, not your path) plus any approvals that make sense for anyone, written with relative paths.
-   - `.claude/settings.local.json` → **stays out of the public repo** (your absolute paths are right only for you) but is **backed up to `.private`**, so a rebuild doesn't mean re-approving dozens of prompts.
-4. **Memory backed up to `.private`** (private repo).
-5. **CONTRIBUTING.md lists the checks — never copies them.** A short list of what each check does and why, plus the one setup command. The scripts stay the source of truth (a copy would drift).
-
-**To do**
-1. Create `git-hooks/`; move the commit wiring, `version-guard.py` and both check scripts into it; update the paths they use.
-2. `git config core.hooksPath git-hooks`; prove it: a commit that should be refused is refused.
-3. Un-ignore `.claude/` except `settings.local.json`; move the hook wiring from `settings.local.json` into `settings.json`; commit `.claude/hooks/`, `.claude/commands/`, `.claude/settings.json`.
-4. Back up memory and `settings.local.json` into `.private`; push it.
-5. CONTRIBUTING.md: replace the out-of-date hook section (it says the pre-commit hook "auto-rebuilds SKILL zips" — it doesn't anymore) with the list + setup command.
-6. Update CLAUDE.md's tooling section and SESSION-TOOLING.md to the new locations.
-
-**Follow-ups** — the three small "Later" items moved to their own task: "Working-process safety net: three small follow-ups" (Polish).
-
-**Watch out**
-- The RW repo is **public**: nothing with secrets goes in it. (Your approvals file holds only your project path — still kept personal, since it's wrong for anyone else.)
-
-#### ✅ Start the local server automatically, without exposing private files
-
-_Why it matters:_ After every reboot you hunt for the server command, and today's server also shows private files to other devices at home.
-
-**Status:** done 2026-10-15. Delete at the next release.
-1. `serve.py` serves only what the real site serves: refuses dot-folders/files (`.private`, `.git`, `.claude`…),
-   anything git ignores (backups hold relay credentials), and folder listings; each refusal logged as REFUSED.
-   Tested on port 8001: app files 200; `.private`, `.git`, `.claude/settings.local.json`, a backup, an encoded-dot path,
-   `docs/../.private`, folder listings all 404. (Design widened from "refuse `.private` + `.git`" — Ron, 2026-10-15.)
-2. Ron associated `.py` with Python (Open with → Python → Always), so double-clicking `serve.py` runs it; a Startup
-   shortcut "ReaderWrangler Server" → `serve.py` starts it at logon (works). A `start-server.bat` was built, then
-   removed at Ron's request — no longer needed.
-3. CONTRIBUTING.md describes it.
-
-**What you'd get**
-- A shortcut in Windows' Startup folder runs a small file kept in the project, which starts the local server in a **visible** window at logon.
-
-**Decided** (Ron, 2026-10-06)
-- **Keep the address `localhost:8000`.** Changing it (e.g. an Apache alias) would orphan everything the browser stores for ReaderWrangler — library, organization, relay credentials — and break phone testing.
-- **Visible window**, not hidden or minimized.
-- **Security fix:** today's plain server shows the WHOLE project folder — including `.private/` (secrets) and `.git/` — to any device on the home network. Can't restrict it to this PC alone (that breaks phone testing), so instead a tiny server script refuses those two folders.
-- Use **`py`**, not `python`, in the file and docs (`py` → 3.14 on your PC; `python` → an older 3.13).
-
-**Also**
-- ~~Update CONTRIBUTING.md's server lines, and drop its Python 2 line~~ — done in the 2026-10-15 rewrite.
-
-**Status:** deferred by Ron 2026-10-06 until after the overlay branch (which shipped as 7.18.0).
-
-**How (technical)**
-- A versioned `serve.py`: standard `http.server` plus a handler that answers `/.private/…` and `/.git/…` with 404. Same port and origin.
-- A versioned `.bat` launching it; a Startup-folder shortcut to the `.bat`.
-- Don't use `--bind 127.0.0.1` (phone tests over the home network).
-- Today's command (the one you hunt for in developers.md): `python -m http.server 8000 --directory C:\Users\Ron\Projects\ReaderWrangler`. CONTRIBUTING's dead line is the Python 2 `SimpleHTTPServer` one. On your PC (2026-10-06): `py` → 3.14.7.
-
-#### ✅ Make sure an Import never wipes fields only ReaderWrangler sets
-
-_Why it matters:_ Two fields were being wiped on every Import; check no other field has the same gap, and decide whether backups should keep them.
-
-**Status:** done — 7.16.0–7.17.0. The real fix was **centralizing**: one field table (bookFields.js) replaced several out-of-sync copies of "which field is whose". Those two wizard fields are protected from Import, now travel with backups and to other devices, and an automatic check flags any new field (verified 2026-10-15; Ron agreed). Delete at the next release.
-
-**Done so far** (7.16.0)
-- The Tag from Collections wizard's two remembered settings were wiped on every Import. They're now protected, with a test locking that in.
-
-**Still open**
-1. **The general check:** any field the app sets that isn't sent along with your organization must be protected from Import, or Import silently wipes it. Walk the list of what's sent against the field table and check every field.
-2. **Save / Restore and other devices still lose those two settings** — they aren't sent at all. If keeping the wizard's state across a backup matters, add them to what's sent and read back. Decide if it's in scope.
-
-**How (technical)**
-- Fields: `collectionTagSeen`, `collectionTags`; were incoming-wins (`'amazon'`), now local-wins (`'user'`) in the bookMerge registry, with a gate test.
-- The rule: an app-written field missing from the device-state push payload must be `'user'`.
-- Payload builder readerwrangler.js ~5560–5594; import parser ~6186 / ~6270. (2026-09-22)
 
 #### 🚧 Relay storage: stop leftovers piling up, and report usage correctly
 
@@ -416,7 +288,7 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 - Since then, more checks run on every commit: the undefined-names check, the version stamps (now incl. the relay worker), and the TODO table of contents.
 
 **Left**
-- Items 2 and 3 below, and the rule-by-rule sort of PRINCIPLES.md.
+- Item 3 below, and the rule-by-rule sort of PRINCIPLES.md.
 
 **The idea** (Ron, 2026-09-22, after "assuming bit us again")
 - Go through docs/PRINCIPLES.md rule by rule and sort each one:
@@ -426,7 +298,7 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 
 **Open items**
 1. ✅ The pre-build checklist only watched two files — widened to all app code on 2026-10-08.
-2. **When an edit is bounced by the checklist inside a batch of edits, that one edit silently goes missing** (alpha.62 shipped half a fix). No obvious mechanism yet — a hook can't know which edits were intended. Needs design.
+2. ✅ **When an edit is bounced by the checklist inside a batch of edits, that one edit silently goes missing** (alpha.62 shipped half a fix; tried twice more on 7.21.2). Done 2026-10-16: the bounce now refuses the WHOLE batch (every app-code edit within 5 seconds of it), so the batch is re-sent as a whole.
 3. **My code safety check can be skipped by accident** (7.19.0 post-mortem). The checklist only fires for my normal editing tool; edits made with a find-and-replace command skip it. Make it fire for those too. Small.
 
 **How (technical)**
@@ -526,16 +398,6 @@ _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar'
 #### Series numbers
 
 Build "2, 4" first; the multi-position one is larger and uses the same series-number editing.
-
-##### ✅ Set different series numbers on several books at once ("2, 4")
-
-_Why it matters:_ Needed when you own scattered volumes of a series.
-
-**Status:** done — since 6.16.0: select the books, right-click → Edit ▸ → "Set numbers (13, 13.5, 14…)…", type a comma list; it's applied in display order and insists on exactly one number per book (verified in code + CHANGELOG 2026-10-15; Ron agreed). Delete at the next release.
-
-**What you'd get**
-- In a multi-book edit, type "2, 4" and the numbers go to the selected books in display order.
-- Needed for David Drake's Raj Whitehall books — gaps in what you own mean "renumber by current order" can't do it.
 
 ##### One book in several series positions (omnibus, anthology, MegaPack)
 
@@ -836,20 +698,6 @@ When a book changes kind — wishlist → bought, sample → bought, a loan, a b
 - 7.9.0: one unified Auto-Organize (two pieces deferred — the first two tasks below).
 - 7.10.0: Save as Spreadsheet (CSV). _A reply to the user who asked for it is still owed (Ron's channel)._
 - 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
-
-##### ✅ Write the wishlist / ownership rules down in one design doc
-
-_Why it matters:_ So the rules are settled once and never argued again.
-
-**Status:** done — docs/design/OWNERSHIP-MODEL.md — the wishlist model plus §3 "Transition matrix (fetch-driven; ratified 2026-09-04)" (verified 2026-10-15; Ron agreed). Delete at the next release.
-
-_Written first, alongside "Fetch should update books it already knows"._
-
-**What you'd get**
-- A design doc (a sibling of FORMAT-POLICY) holding the wishlist model and the table of which kind can change into which.
-
-**History**
-- A suspected "divider between Move to / Copy to" problem was cleared by the Inbox diagnosis below.
 
 ##### Fetch should update books it already knows, not skip them
 
@@ -1178,16 +1026,6 @@ _Why it matters:_ Its sections jump open so abruptly they look like new windows,
 
 **How (technical)**
 - Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog.
-
-#### ✅ Ctrl+A in a dialog must never select the page behind it
-
-_Why it matters:_ A few controls inside dialogs could let Ctrl+A highlight the whole page behind the dialog.
-
-**Status:** done — Ron confirmed 2026-10-14 (7.19.0 reworked Ctrl+A around "the area you last clicked"). Delete at the next release.
-
-**History** (the original plan, for reference)
-- Found and fixed in Bulk Edit's Series field (7.18.0-alpha.21); the page-level handler always blocks the browser's own select-all when a dialog is up (alpha.22), but only if the key reaches it.
-- The plan was a two-way sweep for controls that stop the key, or one capture-phase guard at the page level that no control can bypass.
 
 #### Arrow keys should move through the Series suggestion lists
 
@@ -1567,26 +1405,6 @@ _Why it matters:_ Closes the last gaps left after "Save our working process in g
 - Memory backup today: copy `~/.claude/projects/c--Users-Ron-Projects-ReaderWrangler/memory/*.md` into
   `.private/claude-backup/memory/`, commit, push (see that folder's README).
 
-### Unsorted — suggested for Polish
-
-#### Group 5 — Looks done (confirm in the done-ness sweep)
-
-The folder right-click menu already has Move to Top and Move to Bottom (seen 2026-10-14).
-
-##### ✅ Auto-Organize preview: show which Book Lists a book is in
-
-_Why it matters:_ You see a book's folders but not its Book Lists while deciding where it goes.
-
-**Status:** done — Ron confirmed 2026-10-14. Delete at the next release.
-
-##### ✅ Folder menu: Move to Top / Move to Bottom
-
-_Why it matters:_ Quicker than dragging a folder a long way.
-
-**Status:** done — Ron confirmed 2026-10-15 (the folder right-click menu has both). Delete at the next release.
-
----
-
 ## 🚦 Before public launch
 
 _Formerly: 🚦 Pre-Launch (must-do before public launch)_
@@ -1672,12 +1490,6 @@ _Why it matters:_ The promo video shows the old way of organizing.
 1. Update the script for Book Lists and Searches.
 2. Record and produce.
 
-#### ✅ Add "Watch Tutorials" to the Help menu
-
-_Why it matters:_ Makes the tutorials easy to find.
-
-**Status:** done — verified 2026-10-14: Help → Watch Tutorials opens tutorials.html. Delete at the next release.
-
 #### Refresh the landing page's before / after screenshot
 
 _Why it matters:_ The "after" picture predates the redesign.
@@ -1698,38 +1510,6 @@ _Why it matters:_ Lets users get answers without waiting for you.
 - A custom GPT that answers ReaderWrangler questions, linked from the Help menu.
 
 **Spec:** docs/design/SUPPORT-GPT.md.
-
-#### ✅ Document how to recover from disasters
-
-_Why it matters:_ Users need clear steps when credentials or data are lost.
-
-**Status:** done — USER-GUIDE.md: "Backups include your relay credentials, so they double as disaster recovery", and the "New Devices & Recovery" section incl. "What if I lose my relay credentials?" (verified 2026-10-15; Ron agreed). Delete at the next release.
-
-**Should cover**
-- How to recover relay credentials.
-- That backups include your credentials.
-
-#### ✅ CONTRIBUTING.md: replace the retired Claude Skills sections
-
-_Why it matters:_ About 110 lines of CONTRIBUTING.md describe a "Claude Skills" setup that hasn't existed since January — a contributor following them would be lost.
-
-**Status:** done 2026-10-15 — went further than this task (Ron: "go ahead with all"): the whole file was rewritten
-(668 → 218 lines). Gone: the pre-6.0.0 download-a-file flow, the old installer page, five dead links, the Skills/LOG.md
-sections, letter-versioning and `origin`-based git rules. New: an accurate overview, setup (commit checks → local
-server → contributor mode → bookmarklets from Relay Setup), testing, an up-to-date file list, "How we work", "Working
-with Claude Code". Delete at the next release.
-
-**What you see** (found 2026-10-15, while adding the commit-checks section)
-1. "For Claude Development Sessions", "Setting Up Claude Skills" and "Core Ground Rules (Quick Reference)" describe
-   `SKILL-*.md` files, skill zips, `build-skill-*.bat` and a hook that rebuilds the zips.
-2. Those files were retired on 2026-01-25 (folded into CLAUDE.md; later split into this project's `CLAUDE.md` and the
-   cross-project `../CLAUDE.md`). The sections now carry an "out of date" warning.
-
-**To do**
-1. Replace them with a short "Working with Claude Code" section pointing at `CLAUDE.md`, `docs/PRINCIPLES.md`,
-   `.claude/` (shared hooks and settings) and `docs/design/SESSION-TOOLING.md`.
-2. Check the rest of CONTRIBUTING.md for other stale parts while there (e.g. its server commands — see "Start the local
-   server automatically").
 
 ### Safety and data protection
 
@@ -1914,18 +1694,6 @@ _Why it matters:_ A small but noticeable delay on every click while searching or
 
 _Formerly: Relay / data robustness_
 
-#### ✅ Safer relay saves (the relay redesign)
-
-_Why it matters:_ Saves that can't be half-written.
-
-**Status:** done — shipped in 7.0.0 (2026-08-17) as the "corruption-proof" sync rebuild (verified in the CHANGELOG 2026-10-14; Ron: "sounds like the whole 7.0.0 redesign"). Delete at the next release. Design: docs/design/RELAY-WRITE-REDESIGN.md.
-
-#### ✅ Deleted books that stay deleted
-
-_Why it matters:_ A permanently deleted book shouldn't come back on the next fetch.
-
-**Status:** done — shipped in 7.0.0: "Deletes stay deleted… deliberately re-adding it later still works" (verified in the CHANGELOG 2026-10-14). Delete at the next release. Design: docs/design/TOMBSTONE-DELETE.md.
-
 #### Edit Kindle collections from ReaderWrangler
 
 _Why it matters:_ Change your Kindle collections without going to Amazon.
@@ -2014,21 +1782,9 @@ _Why it matters:_ Low priority — Save / Restore Backup already works around it
 
 **Spec:** docs/design/archive/MULTI-USER-DESIGN.md.
 
-#### ✅ More ways to filter by Kindle collections
-
-_Why it matters:_ Filter by read status, collection name, or "in no collection".
-
-**Status:** done — all three filters exist (verified in the code 2026-10-14: the read-status filter, the Collections filter by name, and its "Uncollected" choice). Delete at the next release.
-
 #### Reading statistics
 
 _Why it matters:_ A dashboard of your reading.
-
-#### ✅ More export options (printable list)
-
-_Why it matters:_ Get your library out in other forms.
-
-**Status:** done as far as wanted — Save as Spreadsheet (CSV) shipped in 7.10.0. Ron, 2026-10-14: "I can't imagine anything safer than CSV… I'd call it done." A print-friendly list was the other idea; dropped. Delete at the next release.
 
 #### Connect with Goodreads / StoryGraph
 

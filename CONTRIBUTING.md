@@ -141,6 +141,7 @@ each bookmarklet is fixed to one source. Both send to the **dev** relay.
 ```bash
 node test/bookMerge.test.js
 node test/bookFields.test.js
+node test/datePresets.test.js
 node test/organizeEngine.test.js
 node test/overlayRegistry.test.js
 ```

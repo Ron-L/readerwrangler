@@ -8,7 +8,9 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-10-13 (through release 7.21.0)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-10-16 (through release 7.21.2)** — all sections human-reviewed (§1–21).
+7.21.2: Date Added choices (This year / Last year follow the calendar; Earlier year dropdown) — new Q in §5.
+7.21.1: no user-visible wording changed (sync storage cleanup).
 7.21.0: self-hosting / contributor mode — new Q in §14.
 7.20.0: new Tools menu — every "File →" / "View →" path to a moved item (Auto-Organize, Removed books, Manage Tags,
 Tag from Collections, Reset App) now reads "Tools →".
@@ -162,6 +164,11 @@ type. Recent filter combos live in its dropdown (apply, save, or remove them).
 tags, Kindle Collections, series, Amazon rating, your rating, date added — plus **Show
 Hidden** (a three-state control: hide hidden / show all / *only* hidden) and **Goal Met**
 (books at or below your price goal). Filters combine.
+
+**What are the Date Added choices?** Last 30 days, Last 90 days, Last 12 months, **This year** and **Last year**
+(these two always follow the calendar — on January 1 they move on by themselves), then **Earlier year**: a small
+dropdown listing only the years your library has books from, newest first. **Custom range…** takes any two dates.
+"Date added" is when the book arrived in your Amazon library. A Search saved with one fixed year keeps that year.
 
 **Why does my folder look empty?!** A filter is almost certainly active — filters *persist*
 as you click between folders (that's what makes them useful), and folder counts switch to

@@ -58,6 +58,9 @@ Follows the generic semver+alpha rules in `../CLAUDE.md`. RW's specific stamps:
 - **CSS cache-buster** (`readerwrangler.html`): `readerwrangler.css?v=X.Y.Z` must match
   ORGANIZER_VERSION on every commit that modifies `readerwrangler.css`.
 - **index.html** Schema.org `softwareVersion` — update to match APP_VERSION at release.
+- **COPYRIGHT_YEARS** (`readerwrangler.html`) — every year the code changed, as a list: `"2025, 2026"` (About shows it
+  as is). A list, not a range — a skipped year isn't claimed. The version-guard refuses the first shipped-code commit
+  of a new year until that year is appended, so the claim grows only when the code does (Ron, 2026-10-16).
 
 ---
 
