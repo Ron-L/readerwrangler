@@ -302,7 +302,7 @@ Right-click a wishlist book > **Set Price Goal** to set a target price. When the
 
 ### Series & Author Bulk Import
 
-Use the **Series Download** or **Author Bibliography** bookmarklets on Amazon to import an entire series or author's catalog to your wishlist in one click.
+On an Amazon series page or an author's page, click the bookmarklet and choose **Add Series to Wishlist** or **Add Bibliography to Wishlist** to add a whole series or an author's books to your wishlist at once. For an author, you choose the language first (only the languages that author has, or All languages) and see how many Kindle books match; it adds Kindle books only, and skips any already in your library. Any tab of the author's page works.
 
 ### Folder Organization Strategies
 
