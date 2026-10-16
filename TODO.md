@@ -919,6 +919,11 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
    - "Would delete": the interrupted save `…21fc` ✅. "Kept": 1 multi-part run not yet imported (`…3560`) ✅.
    - Key check 53 = 53 (current). No storage alert. Total storage 372.9 MB (37.3%).
    - Watch: dev's storage fell 197.2 → 142.5 MB in a day — probably dev data expiring; see whether it keeps moving.
+   - 2026-10-15 evening: after a day of fetches + Imports, dev rose to **288.9 MB** (total 519.3 = 51.9% → the 50%
+     storage alert fired, as designed). Dev's check flagged **3 extra device-state generations from that day** (~17 MB
+     each) — the one-hour grace kept them because the last saves came within the hour (design §14a F2); the next save
+     after they age, or the coming deleting step, removes them. The rest was the day's peak (keys 262 at the high
+     point, 248 at report time). No leak.
 3. **After a few days of both reports being right (~2026-10-17/18): release 7.22.0 (report-only).**
    **FIRST: merge main into `feature/relay-worker-b2`** — the branch predates `git-hooks/` (2026-10-15), and with
    `core.hooksPath git-hooks` a commit there would run NO checks, silently. Resolve the doc conflicts (TODO.md,
