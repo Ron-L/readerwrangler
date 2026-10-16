@@ -71,11 +71,13 @@ def shipped_code_staged(files):
 
 
 def staged_copyright_year():
-    """COPYRIGHT_YEAR from the STAGED readerwrangler.html (so a commit that bumps it passes)."""
+    """The LAST year in COPYRIGHT_YEARS ("2025, 2026") from the STAGED readerwrangler.html (so a commit that appends
+    the new year passes). None if the constant is missing."""
     out = subprocess.run(["git", "show", ":" + HTML], capture_output=True, text=True,
                          encoding="utf-8", errors="replace").stdout or ""
-    m = re.search(r"const\s+COPYRIGHT_YEAR\s*=\s*(\d{4})", out)
-    return int(m.group(1)) if m else None
+    m = re.search(r"const\s+COPYRIGHT_YEARS\s*=\s*[\"']([^\"']*)[\"']", out)
+    years = [int(y) for y in re.findall(r"\d{4}", m.group(1))] if m else []
+    return years[-1] if years else None
 
 
 def main():
@@ -104,17 +106,17 @@ def main():
     if "readerwrangler.css" in names and not (html_staged and html_buster_bumped("readerwrangler.css")):
         errors.append(f"readerwrangler.css is staged but its `readerwrangler.css?v=` cache-buster in {HTML} was not bumped.")
 
-    # v7.21.2 (Ron, 2026-10-16) - COPYRIGHT_YEAR (readerwrangler.html) = the LAST year the code changed; About shows
-    # "2025–COPYRIGHT_YEAR". The first commit of shipped code in a new year must move it — so the copyright claim
-    # advances only when the code really does (and stops if the code goes static).
+    # v7.21.2 (Ron, 2026-10-16) - COPYRIGHT_YEARS (readerwrangler.html) lists every year the code changed ("2025, 2026");
+    # About shows it as is. A list, not a range: skipped years aren't claimed. The first commit of shipped code in a new
+    # year must append that year — so the claim grows only when the code really changes.
     if shipped_code_staged(files):
         year_now = datetime.date.today().year
-        year_set = staged_copyright_year()
-        if year_set is None:
-            errors.append(f"COPYRIGHT_YEAR not found in the staged {HTML} (expected `const COPYRIGHT_YEAR = YYYY;`).")
-        elif year_now > year_set:
-            errors.append(f"shipped code changed in {year_now}, but COPYRIGHT_YEAR in {HTML} is still {year_set} "
-                          f"- set it to {year_now} in this commit.")
+        year_last = staged_copyright_year()
+        if year_last is None:
+            errors.append(f'COPYRIGHT_YEARS not found in the staged {HTML} (expected `const COPYRIGHT_YEARS = "2025, 2026";`).')
+        elif year_now > year_last:
+            errors.append(f"shipped code changed in {year_now}, but COPYRIGHT_YEARS in {HTML} ends at {year_last} "
+                          f'- append ", {year_now}" in this commit.')
 
     if errors:
         sys.stderr.write("\n[VERSION-GUARD] commit blocked - a runtime change needs its version stamp moved:\n")

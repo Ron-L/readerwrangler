@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.21.2-alpha.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.21.2-alpha.2";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -11746,7 +11746,7 @@
                                             single source of truth for it); the release Version is shown alongside when they differ,
                                             so an alpha can never masquerade as the release it forked from (Ron, 2026-09-07). */}
                                         <p className="font-semibold"><a href="changelog.html" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline">Version {APP_VERSION}</a>{ORGANIZER_VERSION !== APP_VERSION && <span className="font-normal text-gray-500"> · Build v{ORGANIZER_VERSION}</span>}</p>
-                                        <p className="mt-2">Copyright © {COPYRIGHT_YEAR > 2025 ? `2025–${COPYRIGHT_YEAR}` : '2025'} <a href="https://AlloidLabs.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline">AlloidLabs.com</a></p>
+                                        <p className="mt-2">Copyright © {COPYRIGHT_YEARS} <a href="https://AlloidLabs.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline">AlloidLabs.com</a></p>
                                     </div>
                                     <div className="text-sm text-gray-600 border-t border-gray-200 pt-4 text-left">
                                         <p>ReaderWrangler is a powerful organizer for your Kindle library. Import your library from Amazon, organize books into folders and collections, and filter by status/rating/tags.</p>
