@@ -87,47 +87,33 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return None
 
 
-def owns_its_window():
-    """True when this script has a console window all to itself — started by double-click, a Startup shortcut or the
-    Windows search bar — so that window will VANISH the moment the script exits. False when it runs inside an
-    existing cmd/terminal (the window stays anyway) or under another program (a pause would hang the caller).
-    Windows reports how many processes share the console: just us (+ the py launcher) = our own window."""
-    if os.name != "nt":
-        return False
-    try:
-        import ctypes
-        n = ctypes.windll.kernel32.GetConsoleProcessList((ctypes.c_uint * 8)(), 8)
-        return 0 < n <= 2  # 0 = no console at all (run by another tool) — never pause then
-    except Exception:
-        return False
-
-
-def fail(message):
-    """Exit with a message the reader can actually see (Ron's pattern, 2026-10-15): if the window is our own, keep it
-    open until Enter — otherwise a double-clicked script's error flashes and disappears."""
-    print(message, file=sys.stderr)
-    if owns_its_window():
-        input("\nPress Enter to close this window.")
-    sys.exit(1)
-
-
 def main():
     if not git_available():
-        fail("serve.py: git isn't available here, so it can't tell which files are private.\n"
-             "Install git (or run this from inside the cloned repo) and start it again.")
+        sys.exit("serve.py: git isn't available here, so it can't tell which files are private.\n"
+                 "Install git (or run this from inside the cloned repo) and start it again.")
     try:
         server = Server(("", PORT), Handler)
     except OSError as e:
-        fail(f"serve.py: can't start on port {PORT} - {e}\n"
-             f"Usually another server (an older one?) is already using port {PORT}: close it, then start this again.")
+        sys.exit(f"serve.py: can't start on port {PORT} - {e}\n"
+                 f"Usually another server (an older one?) is already using port {PORT}: close it, then start this again.")
     print(f"ReaderWrangler local server: http://localhost:{PORT}/readerwrangler.html")
     print("Serving only what the real site serves (no dot-folders, nothing git ignores, no folder listings).")
     print("Close this window (or press Ctrl+C) to stop.")
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\nStopped.")
+    server.serve_forever()
 
 
 if __name__ == "__main__":
-    main()
+    # keepopen (the pytools submodule, 2026-10-16) keeps a double-clicked window open when startup fails, so the
+    # message can be read — never inside a terminal or under another program; Ctrl+C stops quietly.
+    try:
+        from pytools.keepopen import run
+    except ImportError:
+        print("serve.py needs the pytools submodule. In the project folder run:\n"
+              "    git submodule update --init\n"
+              "then start it again.", file=sys.stderr)
+        try:
+            input("\nPress Enter to close this window.")
+        except (EOFError, KeyboardInterrupt):   # no keyboard (run by another tool) — just exit
+            pass
+        sys.exit(1)
+    run(main)

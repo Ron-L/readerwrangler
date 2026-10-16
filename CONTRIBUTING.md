@@ -39,11 +39,18 @@ the **dev** relay, so testing never touches real data.
 
 ## Getting set up
 
-### 1. Clone, then turn on the commit checks (one time)
+### 1. Clone (with its submodule), then turn on the commit checks (one time)
 
 ```bash
+git clone --recurse-submodules <repo-url>
+cd <the cloned folder>
 git config core.hooksPath git-hooks
 ```
+
+`--recurse-submodules` also fetches **`pytools/`** — small shared Python helpers that live in their own repo
+(https://github.com/Ron-L/pytools) and are used here as a git submodule (`serve.py` uses its `keepopen`). Already
+cloned without it? Run `git submodule update --init` in the project folder. To pick up a newer pytools later:
+`git submodule update --remote pytools`, then commit the new pointer.
 
 From then on, git runs these checks on every commit and refuses the commit if one fails. The checks live in
 `git-hooks/` — each script explains itself at the top; this list is only a summary:
@@ -171,7 +178,7 @@ node test/overlayRegistry.test.js
 
 **Site pages** — `index.html` (landing), `features.html`, `tutorials.html`, `security.html`, `changelog.html`.
 
-**Development** — `git-hooks/` (the commit checks), `test/` (unit tests), `serve.py` (the local server), `.claude/` (Claude Code settings, hooks and commands — see below), `readerwrangler.code-workspace` (VS Code).
+**Development** — `git-hooks/` (the commit checks), `test/` (unit tests), `serve.py` (the local server), `pytools/` (shared Python helpers — a git submodule), `.claude/` (Claude Code settings, hooks and commands — see below), `readerwrangler.code-workspace` (VS Code).
 
 ### Sensitive files
 
