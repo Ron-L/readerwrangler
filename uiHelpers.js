@@ -177,16 +177,18 @@ const bookAcquiredYear = (book) => {
     return isNaN(d) ? null : d.getUTCFullYear();
 };
 
-// The menu: rolling windows, This year / Last year, then every EARLIER year the library actually has books from,
-// newest first — so no year is ever typed in by hand. 'custom' is the caller's own last entry.
-const datePresetOptions = (books, today = new Date()) => {
+// The menu's main choices: rolling windows + This year / Last year (no year typed in by hand). 'custom' is the
+// caller's own last entry.
+const datePresetOptions = (today = new Date()) =>
+    ['last30', 'last90', 'lastYear', 'thisYear', 'prevYear'].map(value => ({ value, label: datePresetLabel(value, today) }));
+
+// v7.21.2-alpha.3 (Ron + UX) - the years BEFORE last year that the library actually has books from, newest first —
+// offered in one compact "Earlier year" dropdown, not as a long list (a 2001+ library made the menu 25 lines).
+const datePresetEarlierYears = (books, today = new Date()) => {
     const y = today.getFullYear();
     const years = new Set();
     for (const b of books || []) { const yr = bookAcquiredYear(b); if (yr && yr < y - 1) years.add(yr); }
-    return [
-        ...['last30', 'last90', 'lastYear', 'thisYear', 'prevYear'].map(value => ({ value, label: datePresetLabel(value, today) })),
-        ...[...years].sort((a, b) => b - a).map(yr => ({ value: `year${yr}`, label: String(yr) })),
-    ];
+    return [...years].sort((a, b) => b - a);
 };
 
 // Node export for unit tests / shared modules (no-op in the browser classic-script context,
@@ -195,6 +197,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         parsePrice, getAmazonUrl, isWishlisted, normalizeBook,
         calculateFreshness, formatRelativeTime,
-        datePresetRange, datePresetLabel, datePresetOptions, bookAcquiredYear,
+        datePresetRange, datePresetLabel, datePresetOptions, datePresetEarlierYears, bookAcquiredYear,
     };
 }

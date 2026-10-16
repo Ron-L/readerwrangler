@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.21.2-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.21.2-alpha.3";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -10554,25 +10554,44 @@
                                                 zIndex: 1001
                                             }}>
                                             {/* Preset options */}
-                                            {/* v7.21.2 - built from the calendar + your library's own years (uiHelpers.js) —
-                                                no year is typed in by hand any more */}
-                                            {[
-                                                ...datePresetOptions(books),
-                                                { value: 'custom', label: 'Custom range...' }
-                                            ].map(option => (
+                                            {/* v7.21.2 - the main choices are built from the calendar (uiHelpers.js) — no year is
+                                                typed in by hand any more */}
+                                            {datePresetOptions().map(option => (
                                                 <button
                                                     key={option.value}
-                                                    onClick={() => {
-                                                        setDatePreset(option.value);
-                                                        if (option.value !== 'custom') {
-                                                            setDateDropdownOpen(false);
-                                                        }
-                                                    }}
+                                                    onClick={() => { setDatePreset(option.value); setDateDropdownOpen(false); }}
                                                     className="w-full text-left px-3 py-1.5 hover:bg-gray-50 rounded"
                                                     style={{ fontSize: '13px' }}>
                                                     {option.label}
                                                 </button>
                                             ))}
+                                            {/* v7.21.2-alpha.3 (Ron + UX) - every EARLIER year the library has, in ONE compact dropdown (a
+                                                2001+ library made the old list 25 lines). Only real years, newest first; typing "19" in a
+                                                dropdown jumps to 2019. Picking one applies it, like the choices above. */}
+                                            {(() => {
+                                                const years = datePresetEarlierYears(books);
+                                                if (years.length === 0) return null;
+                                                const m = /^year(\d{4})$/.exec(datePreset);
+                                                const current = m && years.includes(Number(m[1])) ? m[1] : '';
+                                                return (
+                                                    <label className="w-full px-3 py-1.5 flex items-center gap-2" style={{ fontSize: '13px' }}>
+                                                        <span>Earlier year:</span>
+                                                        <select value={current}
+                                                            onChange={(e) => { if (e.target.value) { setDatePreset(`year${e.target.value}`); setDateDropdownOpen(false); } }}
+                                                            className="border border-gray-300 rounded px-1 py-0.5" style={{ fontSize: '13px' }}
+                                                            title="Books added in one earlier year — only years your library has">
+                                                            <option value="">Choose…</option>
+                                                            {years.map(yr => <option key={yr} value={yr}>{yr}</option>)}
+                                                        </select>
+                                                    </label>
+                                                );
+                                            })()}
+                                            <button
+                                                onClick={() => setDatePreset('custom')}
+                                                className="w-full text-left px-3 py-1.5 hover:bg-gray-50 rounded"
+                                                style={{ fontSize: '13px' }}>
+                                                Custom range...
+                                            </button>
 
                                             {/* Custom date inputs */}
                                             {datePreset === 'custom' && (

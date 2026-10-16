@@ -1,7 +1,7 @@
 // Unit tests for the shared "Date Added" presets (uiHelpers.js, v7.21.2) — run: node test/datePresets.test.js
 // Fixed "today" values so the tests never drift with the calendar.
 const assert = require('assert');
-const { datePresetRange, datePresetLabel, datePresetOptions } = require('../uiHelpers.js');
+const { datePresetRange, datePresetLabel, datePresetOptions, datePresetEarlierYears } = require('../uiHelpers.js');
 
 let n = 0;
 const t = (name, fn) => { fn(); n++; console.log('  ✓ ' + name); };
@@ -33,15 +33,19 @@ t('none / custom → no preset range; custom labeled', () => {
     assert.strictEqual(datePresetLabel('custom'), 'Custom range');
 });
 
-t('the menu: rolling + This/Last year, then only EARLIER years the library has, newest first', () => {
+t('the menu: rolling windows + This/Last year, built from the calendar', () => {
+    const opts = datePresetOptions(day('2026-10-16'));
+    assert.deepStrictEqual(opts.map(o => o.value), ['last30', 'last90', 'lastYear', 'thisYear', 'prevYear']);
+    assert.strictEqual(opts[3].label, 'This year (2026)');
+    assert.strictEqual(opts[4].label, 'Last year (2025)');
+});
+
+t('"Earlier year" offers only years BEFORE last year that the library has, newest first (alpha.3)', () => {
     const ms = (s) => String(Date.parse(s + 'T12:00:00Z'));
     const books = [{ acquired: ms('2019-03-01') }, { acquired: ms('2023-05-01') }, { acquired: ms('2023-07-01') },
                    { acquired: ms('2026-02-01') }, { acquired: ms('2025-02-01') }, { acquired: 'junk' }, {}];
-    const opts = datePresetOptions(books, day('2026-10-16'));
-    assert.deepStrictEqual(opts.map(o => o.value),
-        ['last30', 'last90', 'lastYear', 'thisYear', 'prevYear', 'year2023', 'year2019']);
-    assert.strictEqual(opts[3].label, 'This year (2026)');
-    assert.strictEqual(opts[5].label, '2023');
+    assert.deepStrictEqual(datePresetEarlierYears(books, day('2026-10-16')), [2023, 2019]);
+    assert.deepStrictEqual(datePresetEarlierYears([], day('2026-10-16')), []); // none → the row is hidden
 });
 
 console.log(`${n} passed`);
