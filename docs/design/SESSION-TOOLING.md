@@ -20,9 +20,11 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
 
 - **`gate-check.py`** (PreToolUse) — the **pre-build gate**. On the first edit of shipped code (any `.js` at the
   repo root + `relay/relay-worker.js` — `is_app_source()`, a rule not a list; widened 2026-10-08) each turn it prints the checklist and denies once; re-issuing the identical edit proceeds.
-  **Whole-batch bounce** (2026-10-16): every other shipped-code edit arriving within 5 s of that bounce (= the same
-  batch) is refused too, so a batch never applies by halves — the bounced edit used to go missing while the rest
-  landed (alpha.62; twice more on 7.21.2). Gap: a batch that pauses past 5 s between edits (a permission prompt). The
+  **Whole-batch bounce** (2026-10-16): every other shipped-code edit in the SAME batch is refused too, so a batch never
+  applies by halves — the bounced edit used to go missing while the rest landed (alpha.62; twice more on 7.21.2).
+  "Same batch" = same assistant message id, looked up in the session transcript (`batch_of()`; Ron's idea). Probed: the
+  hook gets `tool_use_id` + `transcript_path`, and a call is NOT always in the transcript when its own hook runs — but
+  the bounced call is by the time a later one arrives. A 5-second window is only the fallback when the lookup fails. The
   checklist is **not** in the hook — it's pulled from the `GATE-CHECKLIST` block in `docs/PRINCIPLES.md`
   (single source). Unreadable → loud `CHECKLIST SOURCE MISSING` alarm + a minimal core.
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by

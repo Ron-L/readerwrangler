@@ -14,10 +14,11 @@ checklist lands exactly once, at the planning->build boundary.
 
 WHOLE-BATCH BOUNCE (Ron, 2026-10-16): when the first app edit arrives in a batch of several, bouncing only that one let
 the REST land -- the bounced change then went missing (alpha.62 shipped half a fix; it tried again twice on 7.21.2).
-So the bounce stamps the time, and every other app-source edit arriving within BATCH_WINDOW_S of it is refused too:
-the batch fails as a whole, loudly, and is re-sent as a whole. The window is FIXED from the bounce (a refusal never
-extends it), so a quick re-send is refused at most once more, never in a loop. Known gap: if a batch pauses longer
-than the window between its app edits (e.g. a permission prompt in between), a later edit can still land.
+So every other app-source edit in the SAME batch is refused too: the batch fails as a whole, loudly, and is re-sent
+as a whole. "Same batch" = same assistant message, read from the session transcript (every call in one batch shares
+its message id; a re-send has a new one) -- Ron's idea, 2026-10-16, after the first version's 5-second timer refused
+a fast re-send on its first real use. The timer remains only as the fallback when the transcript can't answer
+(window FIXED from the bounce, so a re-send is refused at most once more, never in a loop).
 
 Fail-safe: ANY error or unexpected input -> allow (exit 0). A gate bug must never block real work.
 """
@@ -87,6 +88,42 @@ def allow():
     sys.exit(0)
 
 
+def batch_of(transcript_path, tool_use_id):
+    """The id of the assistant message that carries this tool call -- i.e. its batch -- or None if not (yet) written.
+    Reads only the transcript's tail (it grows to many MB)."""
+    if not (transcript_path and tool_use_id and os.path.exists(transcript_path)):
+        return None
+    with open(transcript_path, "rb") as f:
+        f.seek(0, 2)
+        f.seek(max(0, f.tell() - 4000000))
+        tail = f.read().decode("utf-8", "replace")
+    for line in reversed(tail.splitlines()):
+        if tool_use_id not in line:
+            continue
+        try:
+            msg = json.loads(line).get("message") or {}
+        except Exception:
+            continue
+        if any(isinstance(c, dict) and c.get("id") == tool_use_id for c in msg.get("content") or []):
+            return msg.get("id")
+    return None
+
+
+def same_batch_as_bounce(bounced_path, data):
+    """Was this call sent in the same batch as the bounced one? By the batch's real identity when the transcript has
+    both calls (a call isn't always written yet when ITS OWN hook runs -- probed 2026-10-16 -- but the bounced one is
+    by the time a later call arrives); otherwise by the time window."""
+    try:
+        rec = json.load(open(bounced_path))
+    except Exception:
+        return False
+    tp = data.get("transcript_path")
+    a, b = batch_of(tp, rec.get("tool_use_id")), batch_of(tp, data.get("tool_use_id"))
+    if a and b:
+        return a == b
+    return 0 <= time.time() - float(rec.get("t", 0)) <= BATCH_WINDOW_S
+
+
 def deny(reason):
     print(json.dumps({
         "hookSpecificOutput": {
@@ -124,11 +161,7 @@ def main():
         if not os.path.exists(flag):
             # Not the first app-source edit of the turn -- but if it rode in the SAME batch as the bounced one,
             # refuse it too, so the batch never applies by halves.
-            try:
-                since = time.time() - float(open(bounced).read().strip())
-            except Exception:
-                return allow()
-            if 0 <= since <= BATCH_WINDOW_S:
+            if same_batch_as_bounce(bounced, data):
                 return deny(
                     "[PRE-BUILD GATE -- BATCH BOUNCED] This edit was sent in the same batch as an edit the pre-build\n"
                     "checklist just bounced, so it was refused too -- NOTHING in that batch's app-code edits applied\n"
@@ -136,11 +169,11 @@ def main():
                     "from that batch. (If a re-send is refused again, it came too fast -- send it once more.)")
             return allow()
 
-        # First app-source edit of the turn: stamp the bounce time BEFORE consuming the flag (so a parallel call that
-        # finds the flag gone already sees the stamp), then deny once.
+        # First app-source edit of the turn: record the bounce (its call id + time) BEFORE consuming the flag (so a
+        # parallel call that finds the flag gone already sees the record), then deny once.
         try:
             with open(bounced, "w") as f:
-                f.write(repr(time.time()))
+                json.dump({"t": time.time(), "tool_use_id": data.get("tool_use_id")}, f)
         except Exception:
             pass
         try:
