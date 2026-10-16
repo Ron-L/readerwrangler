@@ -191,7 +191,9 @@ sorts looked perfect until Larry Bond). Ron's first minute with a feature has ca
 every release; ship rough for feel-testing rather than polishing a private model. Corollaries: test where
 the *behavior* lives (touch tooltips on a phone, Ctrl+Drag on Windows, ask-where-to-save on AND off), and
 know the **dev-machine blind spots** — paths whose correct local behavior is "never runs" are untested by
-construction; say so before shipping.
+construction; say so before shipping. **A list built from the user's data has the user's range** — "only the years
+your library has" ran back to 2001 on Ron's library (7.21.2): size every data-driven list for the biggest real library,
+not the test one.
 **Enforcement**: the alpha cadence itself; test instructions with precise expected values — magnitude AND
 shape (`feedback_debugging` Rule 4).
 
@@ -258,7 +260,9 @@ plus an adversarial cold review — 7.0.0's review found two correctness-critica
 "Saved" must mean saved (picker before toast), "newer" must mean a different generation (not a timestamp
 race), a commit message must describe what's in the commit (one claimed 8 edits and contained none), and
 timestamps come from the tool, never extrapolation — a fabricated header drifted 4½ hours and corrupted an
-analysis. When a compliance ritual gets easy to fake, that's the moment it's about to matter.
+analysis. When a compliance ritual gets easy to fake, that's the moment it's about to matter. **Tie related events
+by an identity, not a time window** — the gate's "same batch = within 5 s" refused a fast re-send on its first real
+use (7.21.2); the batch's shared message id is what actually knows.
 **Enforcement**: `feedback_mechanical_honesty` memory; the heredoc ban (three-for-three earned a ban, not a
 caution); receipts-and-honesty as a feature genre.
 
