@@ -118,7 +118,10 @@ cosmetic" dropped a CSS class a live handler matched on — the assuming, not th
 The assumption can be about a **solution**, not just a fact: "this mechanism prevents X" is a claim to
 verify before selling it — check the mechanism actually *enforces* what you promise (7.15.3: "field-name
 constants everywhere" was pitched as killing the name-mismatch class, but plain-JS constants return
-`undefined` on a typo, enforcing nothing — a runtime validator was the real tool).
+`undefined` on a typo, enforcing nothing — a runtime validator was the real tool). **Read the path that
+actually runs**, not the one that looks right: 7.21.3's fetcher had a strict Kindle check on its *backup* path
+and a computed-but-unused one on its main path ("we'll check later" — nothing did), so "Kindle-only is built
+in" was false and paperbacks got in. A comment promising later work is not code.
 **Ron's standing trade (2026-09-21): OVER-confirm — spend the tokens and the time; that cost is always
 smaller than a mistake built on incomplete memory or an assumption. He would rather wait.**
 **Enforcement**: `feedback_verify_dont_assume` + `feedback_wait_for_answer` memory; the pre-build gate's
