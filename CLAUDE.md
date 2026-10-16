@@ -127,7 +127,8 @@ Bypass (Ron's call only): `git commit --no-verify`.
   `TODO.md` is staged: refuses a table of contents that doesn't match the headers. The table is built by the VS Code
   extension "Auto Markdown TOC" only on a VS Code save — edits made any other way leave it stale. Fix: Ron saves the
   file in VS Code, or Claude corrects the listed entries. TODO format: one header per task (plain words, ~80 chars,
-  132 max), a "why it matters" first line, ✅ in front when done (Ron, 2026-10-14).
+  132 max), a "why it matters" first line, ✅ in front when done (Ron, 2026-10-14), 🚧 in front while in progress —
+  kept at the top of its section, after any ✅ ones (Ron, 2026-10-15).
 
 ---
 
