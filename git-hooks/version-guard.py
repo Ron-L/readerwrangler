@@ -23,6 +23,7 @@ so they carry an INTERNAL const that bumps every alpha instead.
 
 Deliberate exception (Ron's call only, per CLAUDE.md): git commit --no-verify.
 """
+import datetime
 import subprocess
 import sys
 import re
@@ -61,6 +62,22 @@ def html_buster_bumped(basename):
     return any(pat.search(ln) for ln in added_lines(HTML))
 
 
+NOT_SHIPPED_DIRS = ("git-hooks/", "test/", "docs/", "v4/", "tutorials/", ".claude/", "pytools/", "post-mortems/")
+
+
+def shipped_code_staged(files):
+    """Any staged .js / .html / .css that is part of the product (the app, phone app, modules, fetchers, worker, pages)."""
+    return any(f.endswith((".js", ".html", ".css")) and not f.startswith(NOT_SHIPPED_DIRS) for f in files)
+
+
+def staged_copyright_year():
+    """COPYRIGHT_YEAR from the STAGED readerwrangler.html (so a commit that bumps it passes)."""
+    out = subprocess.run(["git", "show", ":" + HTML], capture_output=True, text=True,
+                         encoding="utf-8", errors="replace").stdout or ""
+    m = re.search(r"const\s+COPYRIGHT_YEAR\s*=\s*(\d{4})", out)
+    return int(m.group(1)) if m else None
+
+
 def main():
     files = staged_files()
     # Match on basename so the guard is location-agnostic.
@@ -86,6 +103,18 @@ def main():
 
     if "readerwrangler.css" in names and not (html_staged and html_buster_bumped("readerwrangler.css")):
         errors.append(f"readerwrangler.css is staged but its `readerwrangler.css?v=` cache-buster in {HTML} was not bumped.")
+
+    # v7.21.2 (Ron, 2026-10-16) - COPYRIGHT_YEAR (readerwrangler.html) = the LAST year the code changed; About shows
+    # "2025–COPYRIGHT_YEAR". The first commit of shipped code in a new year must move it — so the copyright claim
+    # advances only when the code really does (and stops if the code goes static).
+    if shipped_code_staged(files):
+        year_now = datetime.date.today().year
+        year_set = staged_copyright_year()
+        if year_set is None:
+            errors.append(f"COPYRIGHT_YEAR not found in the staged {HTML} (expected `const COPYRIGHT_YEAR = YYYY;`).")
+        elif year_now > year_set:
+            errors.append(f"shipped code changed in {year_now}, but COPYRIGHT_YEAR in {HTML} is still {year_set} "
+                          f"- set it to {year_now} in this commit.")
 
     if errors:
         sys.stderr.write("\n[VERSION-GUARD] commit blocked - a runtime change needs its version stamp moved:\n")
