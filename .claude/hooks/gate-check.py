@@ -12,9 +12,19 @@ broken reference announces itself. (Ron, 2026-09-30: no duplication to drift; an
 Design: the flag is created by gate-reset.py on Stop/SessionStart; this hook consumes it, so the
 checklist lands exactly once, at the planning->build boundary.
 
+WHOLE-BATCH BOUNCE (Ron, 2026-10-16): when the first app edit arrives in a batch of several, bouncing only that one let
+the REST land -- the bounced change then went missing (alpha.62 shipped half a fix; it tried again twice on 7.21.2).
+So the bounce stamps the time, and every other app-source edit arriving within BATCH_WINDOW_S of it is refused too:
+the batch fails as a whole, loudly, and is re-sent as a whole. The window is FIXED from the bounce (a refusal never
+extends it), so a quick re-send is refused at most once more, never in a loop. Known gap: if a batch pauses longer
+than the window between its app edits (e.g. a permission prompt in between), a later edit can still land.
+
 Fail-safe: ANY error or unexpected input -> allow (exit 0). A gate bug must never block real work.
 """
-import sys, os, json, tempfile
+import sys, os, json, tempfile, time
+
+BATCH_WINDOW_S = 5.0   # a batch's calls run back-to-back (well under a second); a re-send after reading the bounce
+                       # takes a full reply, normally longer than this
 
 # App source = SHIPPED code: every .js directly in the repo root (the app, its modules, the bookmarklet
 # fetchers, reset.js) plus the deployed relay worker. A RULE, not a list, so a new module is covered the day
@@ -77,6 +87,17 @@ def allow():
     sys.exit(0)
 
 
+def deny(reason):
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }))
+    sys.exit(0)
+
+
 def main():
     try:
         raw = sys.stdin.read()
@@ -97,24 +118,38 @@ def main():
         flag = os.path.join(tempfile.gettempdir(),
                             "rw-gate-pending-%s.flag" % session)
 
-        if not os.path.exists(flag):
-            return allow()  # not the first app-source edit of the turn
+        bounced = os.path.join(tempfile.gettempdir(),
+                               "rw-gate-bounced-%s.stamp" % session)
 
-        # First app-source edit of the turn: consume the flag and deny once.
+        if not os.path.exists(flag):
+            # Not the first app-source edit of the turn -- but if it rode in the SAME batch as the bounced one,
+            # refuse it too, so the batch never applies by halves.
+            try:
+                since = time.time() - float(open(bounced).read().strip())
+            except Exception:
+                return allow()
+            if 0 <= since <= BATCH_WINDOW_S:
+                return deny(
+                    "[PRE-BUILD GATE -- BATCH BOUNCED] This edit was sent in the same batch as an edit the pre-build\n"
+                    "checklist just bounced, so it was refused too -- NOTHING in that batch's app-code edits applied\n"
+                    "(non-app edits in the batch, e.g. docs, did). After the checklist, RE-SEND EVERY app-code edit\n"
+                    "from that batch. (If a re-send is refused again, it came too fast -- send it once more.)")
+            return allow()
+
+        # First app-source edit of the turn: stamp the bounce time BEFORE consuming the flag (so a parallel call that
+        # finds the flag gone already sees the stamp), then deny once.
+        try:
+            with open(bounced, "w") as f:
+                f.write(repr(time.time()))
+        except Exception:
+            pass
         try:
             os.remove(flag)
         except Exception:
             pass
 
-        out = {
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": checklist_text(),
-            }
-        }
-        print(json.dumps(out))
-        sys.exit(0)
+        return deny(checklist_text() + "\n\n[BATCH] Any other app-code edit sent together with this one is refused "
+                    "too -- re-send ALL of them, not just this one.")
     except Exception:
         return allow()
 

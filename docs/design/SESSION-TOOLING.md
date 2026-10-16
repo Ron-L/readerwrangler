@@ -16,10 +16,13 @@ drifted across three copies (the hook, the PRINCIPLES intro, and each Law's enfo
 pulls that block; edit the checklist once and the gate auto-syncs. If the block/file/markers break, the
 gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
 
-## RW's local hooks (`.claude/hooks/`, gitignored; wired in `.claude/settings.local.json`)
+## RW's session hooks (`.claude/hooks/`, saved in git; wired in `.claude/settings.json`)
 
 - **`gate-check.py`** (PreToolUse) — the **pre-build gate**. On the first edit of shipped code (any `.js` at the
-  repo root + `relay/relay-worker.js` — `is_app_source()`, a rule not a list; widened 2026-10-08) each turn it prints the checklist and denies once; re-issuing the identical edit proceeds. The
+  repo root + `relay/relay-worker.js` — `is_app_source()`, a rule not a list; widened 2026-10-08) each turn it prints the checklist and denies once; re-issuing the identical edit proceeds.
+  **Whole-batch bounce** (2026-10-16): every other shipped-code edit arriving within 5 s of that bounce (= the same
+  batch) is refused too, so a batch never applies by halves — the bounced edit used to go missing while the rest
+  landed (alpha.62; twice more on 7.21.2). Gap: a batch that pauses past 5 s between edits (a permission prompt). The
   checklist is **not** in the hook — it's pulled from the `GATE-CHECKLIST` block in `docs/PRINCIPLES.md`
   (single source). Unreadable → loud `CHECKLIST SOURCE MISSING` alarm + a minimal core.
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by

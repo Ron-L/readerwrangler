@@ -416,7 +416,7 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 - Since then, more checks run on every commit: the undefined-names check, the version stamps (now incl. the relay worker), and the TODO table of contents.
 
 **Left**
-- Items 2 and 3 below, and the rule-by-rule sort of PRINCIPLES.md.
+- Item 3 below, and the rule-by-rule sort of PRINCIPLES.md.
 
 **The idea** (Ron, 2026-09-22, after "assuming bit us again")
 - Go through docs/PRINCIPLES.md rule by rule and sort each one:
@@ -426,7 +426,7 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 
 **Open items**
 1. ✅ The pre-build checklist only watched two files — widened to all app code on 2026-10-08.
-2. **When an edit is bounced by the checklist inside a batch of edits, that one edit silently goes missing** (alpha.62 shipped half a fix). No obvious mechanism yet — a hook can't know which edits were intended. Needs design.
+2. ✅ **When an edit is bounced by the checklist inside a batch of edits, that one edit silently goes missing** (alpha.62 shipped half a fix; tried twice more on 7.21.2). Done 2026-10-16: the bounce now refuses the WHOLE batch (every app-code edit within 5 seconds of it), so the batch is re-sent as a whole.
 3. **My code safety check can be skipped by accident** (7.19.0 post-mortem). The checklist only fires for my normal editing tool; edits made with a find-and-replace command skip it. Make it fire for those too. Small.
 
 **How (technical)**
