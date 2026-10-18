@@ -7,21 +7,20 @@
         - [Numbers the app and relay must agree on: add a check that they match](#numbers-the-app-and-relay-must-agree-on-add-a-check-that-they-match)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
-      - ["Add Bibliography to Wishlist" is greyed out on an author's All Books tab](#add-bibliography-to-wishlist-is-greyed-out-on-an-authors-all-books-tab)
-      - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
+      - [✅ "Add Bibliography to Wishlist" is greyed out on an author's All Books tab](#add-bibliography-to-wishlist-is-greyed-out-on-an-authors-all-books-tab)
+      - [Search improvements](#search-improvements)
+        - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
+        - [Search everywhere without leaving the current folder](#search-everywhere-without-leaving-the-current-folder)
       - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
-      - [Series numbers](#series-numbers)
-        - [One book in several series positions (omnibus, anthology, MegaPack)](#one-book-in-several-series-positions-omnibus-anthology-megapack)
+      - [Series positions: one Position dialog, and one book at several positions (omnibus)](#series-positions-one-position-dialog-and-one-book-at-several-positions-omnibus)
       - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
       - [Drag a box to select covers](#drag-a-box-to-select-covers)
-      - [Faster back-to-back fetches: refresh everything at most once a day](#faster-back-to-back-fetches-refresh-everything-at-most-once-a-day)
+      - [Faster fetches: read the whole library once, after your books are uploaded](#faster-fetches-read-the-whole-library-once-after-your-books-are-uploaded)
       - [Book Lists and Searches: pin and sort them like Folders](#book-lists-and-searches-pin-and-sort-them-like-folders)
       - [A type-to-filter box for the left pane](#a-type-to-filter-box-for-the-left-pane)
       - [Everyday organizing](#everyday-organizing)
         - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
         - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
-        - [Search everywhere without leaving the current folder](#search-everywhere-without-leaving-the-current-folder)
-      - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
       - [Tag from Collections: clear up the checkbox vs. preview confusion](#tag-from-collections-clear-up-the-checkbox-vs-preview-confusion)
       - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
       - [Trusting the fetch](#trusting-the-fetch)
@@ -82,6 +81,7 @@
       - [Update and record the sizzle reel](#update-and-record-the-sizzle-reel)
       - [Refresh the landing page's before / after screenshot](#refresh-the-landing-pages-before--after-screenshot)
       - [Create a FAQ page](#create-a-faq-page)
+      - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
@@ -102,9 +102,11 @@
     - [Relay and sync](#relay-and-sync)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Cheaper small syncs (send only what changed)](#cheaper-small-syncs-send-only-what-changed)
-      - [✅ Ask before restoring when relay credentials don't match](#ask-before-restoring-when-relay-credentials-dont-match)
+      - [Bookmarklet: warn before fetching if your Channel ID no longer works](#bookmarklet-warn-before-fetching-if-your-channel-id-no-longer-works)
       - [Warn when another browser has newer changes](#warn-when-another-browser-has-newer-changes)
     - [Features](#features)
+      - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
+      - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
       - [Finish keyboard accessibility](#finish-keyboard-accessibility)
       - [Show reading progress](#show-reading-progress)
       - [Book recommendations](#book-recommendations)
@@ -298,7 +300,7 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 
 **Open items**
 1. ✅ The pre-build checklist only watched two files — widened to all app code on 2026-10-08.
-2. ✅ **When an edit is bounced by the checklist inside a batch of edits, that one edit silently goes missing** (alpha.62 shipped half a fix; tried twice more on 7.21.2). Done 2026-10-16: the bounce now refuses the WHOLE batch (every app-code edit within 5 seconds of it), so the batch is re-sent as a whole.
+2. ✅ **When an edit is bounced by the checklist inside a batch of edits, that one edit silently goes missing** (alpha.62 shipped half a fix; tried twice more on 7.21.2). Done 2026-10-16: the bounce now refuses the WHOLE batch, so the batch is re-sent as a whole. "Same batch" is read from the session's own record (every edit sent together shares one message), not guessed from a timer — Ron's idea, after the first version's 5-second timer refused a quick re-send.
 3. **My code safety check can be skipped by accident** (7.19.0 post-mortem). The checklist only fires for my normal editing tool; edits made with a find-and-replace command skip it. Make it fire for those too. Small.
 
 **How (technical)**
@@ -321,6 +323,10 @@ _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them as
 3. **Dialogs underneath are frozen for use.** Their buttons and fields do nothing until the top dialog closes, because the top one may be mid-change.
 4. **But every dialog can be dragged, including the ones underneath.** Moving a window changes nothing, so it's always safe. Windows doesn't allow this: you have to close back down, move the first window, and rebuild the stack.
 5. **Clicking a frozen dialog does nothing.** Above all, it must not close the top dialog. Only a click on empty background closes it. A brief flash of the top dialog is an optional hint.
+6. **Where you can grab it: anywhere that isn't a control or text you might select** (Ron left this to me, 2026-10-16). Pressing on text and moving the mouse must keep selecting text — you copy from descriptions, reviews and notes. So you drag by the title bar, headings, labels, margins and empty space; the move cursor shows only there.
+7. **Points 4 and 5 are built together:** a click on the background layer first checks whether a dialog lies under the pointer — if so it's a drag (on its grab areas) or nothing, never a close. Dialogs underneath show the move cursor on the same grab areas as the top one.
+8. **Stays on screen when the window shrinks too:** a dialog left off screen is pulled back so its grab strip shows.
+9. **Computer only.** On the phone dialogs fill the screen, so no dragging there.
 
 **Watch out**
 - "Every dialog" covers two kinds: the standard dialogs, and the older message boxes (OK/Cancel, type-a-name, progress; about 45 places use them), which are built differently. Drag must work in both. The alternative is rebuilding the message boxes as standard dialogs first, which is its own task under "After launch".
@@ -330,21 +336,26 @@ _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them as
 - Build drag once in the shared `<Dialog>` (readerwrangler.js ~61) so every dialog gets it at once. The old per-dialog drag code (`dialogDrag`) is already gone.
 - Names from the 2026-09-28 decisions: a `cursor:move` affordance; the off-window opt-in is a `dragBounds:'free'` option.
 - Message boxes share their window chrome in `attachDialogDismiss` (readerwrangler.js ~237); add drag there.
-- A click on a lower dialog actually lands on the top dialog's full-window background layer (readerwrangler.js ~69–71). The background-click close must ignore clicks that fall over another dialog.
+- A click on a lower dialog actually lands on the top dialog's full-window background layer (readerwrangler.js ~69–71). The background-click close must ignore clicks that fall over another dialog (`document.elementsFromPoint` under the layer).
+- "Not selectable text" (point 6) reuses the 7.19 Ctrl+A area marks: `data-select-text` (text) and `data-select-items` (checklists) — readerwrangler.js ~55–60 — plus inputs, buttons, links, lists. No second list to keep in step.
 - New user feature, so it gets its own branch and release.
 
-#### "Add Bibliography to Wishlist" is greyed out on an author's All Books tab
+#### ✅ "Add Bibliography to Wishlist" is greyed out on an author's All Books tab
 
 _Why it matters:_ The bookmarklet doesn't recognize that kind of author page, so the button can't be used there.
+
+**Status:** done — released in 7.21.3 (2026-10-16), and more: works from every tab, asks Amazon for the list directly, Kindle only, you choose the language. Delete at the next release.
 
 **What you see**
 - On Amazon, click an author's name (e.g. John Marrs), open their author page's **All Books** tab, filter English + Kindle, then click the ReaderWrangler bookmarklet.
 - The **⭐ Add Bibliography to Wishlist** button is disabled.
 - Example address: `https://www.amazon.com/stores/author/B00F1CRG9U/allbooks?…`
 
-**Likely cause** (found in the code, not yet tested live)
+**Cause** (confirmed in the code 2026-10-16, not yet tested live)
 - The bookmarklet recognizes an author page only when its address contains the author's **name**: `/stores/John-Marrs/author/B00F1CRG9U`.
 - The All Books tab's address has no name and adds `/allbooks`, so it isn't recognized.
+- The bibliography fetcher itself already finds the author in both shapes (it looks for `/author/` + the ID), so only the bookmarklet's menu check needs the fix.
+- **Unknown:** whether the fetch honors the English + Kindle filters you set on that page, or always takes everything it finds (and so may add other-language editions). Find out in the live test.
 
 **To do**
 1. Accept both address shapes (name optional).
@@ -354,22 +365,48 @@ _Why it matters:_ The bookmarklet doesn't recognize that kind of author page, so
 - The check is in bookmarklet-nav-hub.js (~line 68): `/\/stores\/[^/]+\/author\/[A-Z0-9]{10}/i`.
 - Fetcher / nav-hub change: bump their versions; test on the DEV bookmarklet first (a navigator change), then PROD.
 
-#### Find a book by its ASIN in the search box
+#### Search improvements
+
+The right pane's search box: one shared matching rule (incl. ASIN), and searching everywhere without losing your place. Build both parts together — they answer the same question: "is this book in my library?"
+
+##### Find a book by its ASIN in the search box
 
 _Why it matters:_ Handy for checking whether one specific book is in your library.
 
 **What you'd get**
 - Type a book's ASIN (e.g. `B08P52K2PZ`) into the search box at the top of the right pane, and it finds the book. Today the box matches only title, author and series.
-- The box's placeholder and tooltip mention ASIN.
+- The box's placeholder and tooltip say what it searches: "Title, author, series, notes, tags or ASIN".
 
-**Watch out**
-- The matching rule exists in **three copies**: the live search, saved Searches, and the phone's search (which also matches notes and tags). Make it **one** shared rule that all three use.
+**Decided** (Ron, 2026-10-16)
+1. **One shared matching rule everywhere** — the search box and saved Searches, on the computer and the phone.
+2. **It matches title, author, series, your notes and tag names** (as the phone's search box already does), **plus an exact ASIN**: only a complete 10-character ASIN, any case. No partial ASINs — almost every Kindle ASIN starts with "B0", so "B0" would match nearly everything.
+3. Known side effect, accepted: an existing saved Search may pick up a few extra books whose notes or tag names contain its word.
+4. **Build together with "Search everywhere without leaving the current folder"** (next task): a complete ASIN searches Everywhere automatically.
+
+**Bug this fixes** (found 2026-10-16): the rule exists in **four** copies that disagree — computer search box and saved Searches: title/author/series; phone saved Searches: title/author only (**no series**); phone search box: title/author/series/notes/tags. So a saved Search for a series name finds the books on the computer and nothing on the phone.
 
 **Status:** Ron, 2026-10-12 (came up testing removed books). Small.
 
 **How (technical)**
-- Copies: readerwrangler.js ~10044 (live filter), `bookMatchesFilters` ~2196 (saved Searches), mobile.js ~2289.
-- One `bookMatchesText(book, term)` in uiHelpers, with ASIN as exact or prefix match, case-insensitive.
+- Copies: readerwrangler.js ~10020 (live filter), `bookMatchesFilters` ~2269 (saved Searches), mobile.js ~343 (`bookMatchesFilters`, saved Searches), mobile.js ~2287 (search box).
+- One `bookMatchesText(book, term, tagLabel)` in uiHelpers (tag names need the tag list — pass a lookup); ASIN = exact match of a 10-character term, case-insensitive.
+
+##### Search everywhere without leaving the current folder
+
+_Why it matters:_ Answers "is this book in my library?" without losing your place.
+
+**What you'd get** (Ron, 2026-08-29)
+- The search box still searches the current folder by default. While searching, a toggle shows: **This folder | Everywhere** (as in Finder / Explorer).
+- "Everywhere" shows matches from the whole library in the right pane, temporarily. Clearing the search returns you to the folder, scroll position untouched.
+- **Discoverability:** when nothing matches, offer *"No matches in ‹folder› — Search everywhere?"* as a one-click link (as Gmail and Amazon do).
+- Results work with the existing "where does this book live" popup, so the answer arrives with locations.
+
+**Decided** (Ron + UX, 2026-10-16) — moved here from "Everyday organizing"
+- **Build together with "Find a book by its ASIN in the search box"** (above): both answer "is this book in my library?"
+- **A complete ASIN searches Everywhere automatically** — an ASIN is unique, so "this folder only" is never what you mean. The toggle shows **Everywhere** so you can see why.
+
+**How (technical)**
+- Reuse the view-folder filter-stash plumbing for the temporary view.
 
 #### Dark theme: fix the unreadable bar and the light strips
 
@@ -384,24 +421,39 @@ _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar'
 - Dark mode works by swapping a specific list of colors. Anything colored outside that list stays light.
 - The relay bar's background is a fixed light gradient; the app's outer background is a gradient style that isn't on the list.
 
-**To do**
-- A sweep, not two spot fixes: find every fixed light color in the screens and move each onto the theme. Check each one in Dark afterwards.
-- **Mechanism idea:** a commit-time check that flags new fixed light backgrounds, next to the existing name check.
+**Decided** (Ron, 2026-10-16)
+1. **Four themes, two screens.** The computer and the phone both have Light, Dark, High-contrast light and High-contrast dark. A fixed light color breaks High-contrast dark exactly like Dark — check Dark **and** High-contrast dark, on the computer **and** the phone.
+2. **The commit-time check comes first and produces the list.** Run once over today's code, it lists every fixed color (15 hard-coded backgrounds/gradients in readerwrangler.js alone, plus color classes the dark theme doesn't cover) — that list *is* the sweep. Fix everything on it; from then on the same check refuses new ones. It covers the app's own screens only: the bookmarklet's panels run on Amazon's pages, outside our themes, so their fixed colors are right.
+3. **Fix by naming colors, not by adding override rules** ("excellent idea" — Ron). Today Dark overrides a list of 76 specific style classes, and anything missing from the list silently stays light; that list only grows. Instead, each color gets a name defined once per theme ("surface background", "info bar"...) and the screens use the name. A name missing from a theme then shows up in every theme as soon as it's used (no background at all), not just in Dark — and the commit check can verify that every name used is defined in all four themes.
 
 **How (technical)**
 - Dark remaps Tailwind classes in readerwrangler.css (`[data-theme="dark"] .bg-white {…}` etc.).
 - Relay bar: inline `linear-gradient(135deg, #dbeafe, #ede9fe)` with `color: var(--text-primary)` (readerwrangler.js ~9360).
 - Outer container: `bg-gradient-to-br from-blue-50 to-blue-100` (~8992) — gradient classes aren't remapped; the Active bar's `mb-4` gap shows it.
 - Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
-- Grep for inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and unmapped Tailwind colors; move them to CSS variables (e.g. `var(--bg-surface)`) or add them to the dark remap. The check could sit beside `git-hooks/check-names.js`.
+- The check (beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`): flag inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and Tailwind color classes with no theme mapping, in readerwrangler.js / mobile.js / readerwrangler.css (NOT the fetchers / nav hub); and flag any `var(--name)` that isn't defined for all four `[data-theme]` values. Move each hit to a CSS variable (e.g. `var(--bg-surface)`); retire remap rules as their classes go.
+- Themes: readerwrangler.css `[data-theme="dark"|"hc-light"|"hc-dark"]`; phone adds its own variables at mobile.js ~57–59.
 
-#### Series numbers
+#### Series positions: one Position dialog, and one book at several positions (omnibus)
 
-Build "2, 4" first; the multi-position one is larger and uses the same series-number editing.
+_Why it matters:_ Three menu items do nearly the same job under different names (Ron couldn't find the one he needed), and a collection should appear at each place it belongs in its series.
 
-##### One book in several series positions (omnibus, anthology, MegaPack)
+**Today's confusion** (found 2026-10-16) — the book right-click menu's **Edit ▸** submenu has **Position...** (one number for every selected book), **Number by current order...** (1, 2, 3… in the order shown, plus an optional series name) and, three items further down, **Set numbers (13, 13.5, 14…)...** (a comma list, one number per book). Ron tried "1, 4" and "1-3" in **Position...** and the box blocked the comma and dash — while its hint text reads "e.g., 1, 1.5", which looks like a list. Each feature was added at a different time as a new menu item; nobody looked at the whole submenu.
 
-_Why it matters:_ A collection should appear at each place it belongs in its series.
+**Decided — one Position dialog** (Ron + UX, 2026-10-16)
+1. **Edit ▸ Position... is the only one.** Number by current order... and Set numbers... leave the menu; Edit ▸ becomes Author..., Series..., Position..., Format...
+2. **It takes a list; each item maps to one selected book, in the order shown.** `13, 13.5, 14` = three books, one number each. A range `7-15` = 9 items (7, 8 … 15), one per book. **Brackets put several positions on one book:** `(4-6)` = an omnibus. Example: `1,2,3,4,(4-6),7-15` = 14 items for 14 books, the 5th being the omnibus. The same number on two books is fine (Ron owns #4 alone *and* the 4–6 omnibus, bought on sale).
+3. **Live preview in the dialog:** each selected book by title with the number(s) it will get, updated as you type. A count mismatch is said plainly ("14 numbers for 15 books — one short") and **Apply** stays off until the counts match.
+4. **"Fill 1, 2, 3… in the order shown"** is a button in the dialog that writes `1-N` into the box, ready to edit — not a separate feature.
+5. **One book selected:** whatever you type is that book's positions — `1-3` is the omnibus — and `(1-3)` works too (Ron: don't punish what the multi-book form taught you). **The book details window's Position field uses the same rule** — one parser everywhere.
+6. **One number with several books selected** (`3`, 5 books) gives them all that number, as today; the preview shows "All 5 books → 3".
+7. **No series name in this dialog** (Ron + UX): Series... sits right beside it. If the selected books have no series name, the preview adds one line: "These books have no series name — set it with Edit ▸ Series...".
+8. **All of it ships together, omnibus included** (Ron): no in-between version to learn.
+9. **Showing an omnibus in a series sort: one entry per unbroken run.** `7-9` shows once, labeled "7–9", at 7 — not three identical covers. `1, 4` shows at 1 **and** 4. `1-3, 5` shows twice ("1–3", "5"). *Side Jobs* `2.5, 4.5, 4.6, 5.5` → three entries ("2.5", "4.5–4.6", "5.5"), each between the right volumes.
+
+**Watch out**
+- Amazon's fetch also writes series and position. A hand-entered list (`7-9`) must survive later fetches — the "your edit beats Amazon's" protection hand-edited fields have — or the next library refresh quietly undoes it. Verify when built.
+- Until this ships, the Position... hint "e.g., 1, 1.5" keeps inviting a list it blocks (readerwrangler.js ~13365).
 
 **What you'd get**
 - **One** book record holding **several** series positions, shown once at **each** position when sorted by series.
@@ -421,8 +473,7 @@ _Why it matters:_ A collection should appear at each place it belongs in its ser
 - The rule "no duplicates in a folder" is untouched.
 
 **Open**
-- A scattered list (`1, 4`) fills each slot — that's the point. But a big contiguous range (`1-3`) may collapse to **one** labeled entry to avoid N identical covers. Settle it against a real MegaPack.
-- To spec: "Number by current order", the "2, 4" multi-edit (above), CSV export (one row, list in the column).
+- To spec: CSV export (one row, the list in the column). (Settled 2026-10-16 above: how runs display, and "Number by current order" / "Set numbers" folding into the Position dialog.)
 - Multi-author MegaPacks: the compound-author problem is separate and pre-existing — not solved here.
 
 **How (technical)**
@@ -438,53 +489,73 @@ _Why it matters:_ During testing you can't tell from the phone which build it's 
 - The phone's About shows "App v…" — the last **released** version, which by design doesn't change during testing — and "Mobile v…".
 - The desktop shows the live test build (e.g. 7.16.0-alpha.6). The phone can't, since it's a different file. The mobile number does change with each test build, but the "App v" line looks stale.
 
-**To do**
-- Show a live build marker on the phone. Small display / version-plumbing fix.
-- **Also tell the dev app apart on the home screen** (Ron, 2026-10-15). When the dev site is installed to the phone's
-  home screen it gets the same icon and name as production. Give the dev install its own: the current icon with a
-  red "DEV" overlay, and a name like "RW Dev".
+**The real gap** (found 2026-10-16): the phone's "Mobile v…" moves only when the phone's own file changes, but the phone also runs the shared pieces (date presets, storage, sync). A test build that changes only those leaves **both** phone numbers unchanged — 7.21.2's alpha.1 → .3 all showed "Mobile v1.10.1-alpha.1".
+
+**Decided** (Ron, 2026-10-16)
+1. **One live build number for both screens, defined once** — a "Build" stamp in readerwrangler.html, which both load. Both About boxes show it the same way: "Version 7.21.3 · Build 7.22.0-alpha.2".
+2. **The commit check refuses any app-code commit that doesn't move it**, so it can't go stale. It retires two hand-kept stamps: the desktop's own build number (`ORGANIZER_VERSION`) and the rule that the phone number copies the desktop's "-alpha.N" ending. "Mobile v" can stay as a plain release number, or go. Update CLAUDE.md's versioning section when this ships.
+3. **Tell the installs apart on the home screen** (Ron, 2026-10-15): production keeps its icon and name; the **dev** install gets the icon with a red "DEV" overlay and the name "RW Dev"; and plan now for a **local** install (the PC's server over home Wi-Fi — not used yet, but don't close it off): its own overlay ("LOCAL") and name "RW Local".
 
 **How (technical)**
 - `APP_VERSION` (released, frozen during alphas) vs `ORGANIZER_VERSION` (live, desktop only) vs `MOBILE_VERSION` (moves per alpha).
 - Home-screen icon + name come from the **web app manifest** (`manifest.json`, linked at readerwrangler.html ~14);
   Android wraps it into a "WebAPK" on install. The dev site serves the SAME files as production, so the manifest
-  must be picked at run time: a second `manifest-dev.json` (dev icon + name) and a line in the startup script that
-  points the `<link rel="manifest">` at it when `isDevSite()`. Needs the dev icon image(s) made (192/512 px).
-  Reinstall the dev app after the change for the new icon to appear.
+  must be picked at run time: `manifest-dev.json` and `manifest-local.json` (own icon + name each) and a line in the
+  startup script that points the `<link rel="manifest">` at the right one via `isDevSite()` / `isLocalServer()`
+  (readerwrangler.html ~190). Needs the icon images made (192/512 px, DEV and LOCAL). Reinstall after the change for
+  the new icon to appear. Watch out: a local install's address is the PC's home-network address, which can change.
+- Build stamp: the version-guard (`git-hooks/version-guard.py`) already knows which staged files are app code
+  (`shipped_code_staged`) — require the Build stamp line to change whenever that's true, narrowed to what the app
+  itself loads (not pages like security.html or the fetchers, which have their own versions).
 
 #### Drag a box to select covers
 
 _Why it matters:_ Faster than clicking covers one by one.
 
 **What you'd get**
-- In cover view, drag a rectangle (or lasso) to select the covers inside it.
+- In cover view, drag a box to select the covers inside it — the way Windows Explorer does.
+
+**Decided** (Ron + UX, 2026-10-16)
+1. **Start the box on empty space only** — the gaps between covers, the margins, below the last row. Pressing on a cover and dragging still moves the book, exactly as today.
+2. **Plain drag replaces the selection; Ctrl+drag adds to it** (the same split as click vs Ctrl+click).
+3. **Live:** covers highlight as the box passes over them. **Esc** cancels the box and puts back the selection you had before.
+4. **Auto-scroll:** dragging past the top or bottom edge scrolls the library, so a box can cover more than one screen.
+5. **A rectangle, no lasso.** It can span group headers (e.g. two series groups). Computer only — on the phone, dragging is scrolling.
+6. **Looks like Explorer's:** a see-through light-blue fill with a thin **solid** border — never dashed (a dashed outline is the "marching ants" on cut books). Its colors are named per theme (see the Dark theme task): in Dark / High-contrast dark, a brighter see-through blue that stays visible.
 
 **How (technical)**
 - Extends `explorerSelectedItems`.
+- The library hides off-screen rows during a drag to stay fast with 10,000+ books (drag virtualization, readerwrangler.js ~1530) — so work out which books the box covers from the grid's layout (row/column positions), not from what's drawn; otherwise auto-scroll misses books.
 
-#### Faster back-to-back fetches: refresh everything at most once a day
+#### Faster fetches: read the whole library once, after your books are uploaded
 
-_Why it matters:_ Grabbing one new book still re-prices and re-checks the whole library every time.
+_Why it matters:_ Every fetch makes you wait about a minute before you can import, even to grab one new book — most of it a full-library scan that runs twice.
 
 **What you see** (Ron, 2026-09-19, patching $0.99 series holes: buy → download → import, again and again)
-- Each fetch re-prices every wishlist book, re-checks every book's details, and runs the full removed-books scan — wasteful when run back to back.
+- Each fetch takes ~1 minute before its books are uploaded, then keeps going with the removed-books check.
 
-**Decided**
-- **Always:** fetch what's new, and fill in the new books' details (series, cover, description) — you need them to file the books.
-- **At most once a day:** the whole-library passes — re-pricing the wishlist, re-checking existing books, the removed-books scan. A day matches when prices start showing as stale (KB §16), so price-watching doesn't suffer.
-- **When it skips, it says so** in the fetch's completion window, with one click to run them anyway: *"Skipped the full refresh (prices, details, removed-books check) — already done today. Do it now?"*
-- **No Shift/Alt-click shortcut** for this — Windows reports those keys unreliably on clicks, and nobody would discover it.
+**Why** (measured 2026-10-16 from Ron's fetch log: 3,251 books in ReaderWrangler, 2,860 in Amazon's library)
+1. **The timing table hides most of the wait.** Its steps add to 14 s (prices 9 s, genres 3 s, the rest ~1 s); the total is 1 min 6 s. The missing ~52 s is the **"🩹 Recovery sweep"** — a full scan of the Amazon library (~96 pages), **before** the upload, not in the table.
+2. **The sweep runs on every fetch by mistake.** It should fire only when ReaderWrangler's book count differs from Amazon's, but the count includes wishlist books, which Amazon's library list never has (3,251 vs 2,860) — so they never match.
+3. **The removed-books check then scans the same full library again**, after the upload. Every fetch reads the whole library twice. (The code's own comment: "ideally folded into the orphan scan, which already does a full pass.")
+- The fetcher already keeps "new books" apart from the rest: new titles are incremental, details only for new books + the few still missing a description, genres only where missing, prices only for books whose price matters.
 
-**Before building**
-- Check whether the fetcher already separates "fill in NEW books" from "re-price / re-check ALL". If they're tangled together, separating them is the real work.
+**Decided** (Ron, 2026-10-16)
+1. **One full-library pass instead of two, after the upload.** One scan answers both questions: books Amazon has that we're missing (recover them) and books we have that Amazon no longer lists (removed books). Your new books are uploaded before it starts — the wait before you can import drops from ~1 minute to ~15 seconds.
+2. **Then at most once a day** for that pass and the wishlist re-pricing. A day matches when prices start showing as stale (KB §16), so price-watching doesn't suffer. **Always:** new books and their details (series, cover, description) — you need them to file the books.
+3. **When it skips, it says so** in the fetch's completion window, with one click to run them anyway: *"Skipped the full refresh (prices, removed-books check) — already done today. Do it now?"*
+4. **The timing table lists every step**, the full-library pass included — it hid 52 of 66 seconds.
+5. **No Shift/Alt-click shortcut** for this — Windows reports those keys unreliably on clicks, and nobody would discover it.
 
 **Also**
 - Build together with "Fetch summary should report books you bought" (On hold section) — same completion window.
 - When shipped, update SUPPORT-KB §16: "prices are as fresh as your last fetch" and "every wishlist book is re-priced each run" stop being true.
 
 **How (technical)**
-- Remember `lastFullPassAt` (relay, or browser storage on Amazon's site).
-- A fetcher (bookmarklet) change, maybe with app/relay help for the stored time and the dialog.
+- Recovery sweep: amazon-library-fetcher.js ~1728–1790 (`shouldSweep` compares `existingBooks.length + newBooks.length`, wishlist included, with `stats.libraryTotalCount`). Orphan scan (Phase 5): ~2780. Fold the sweep into Phase 5: one ASIN listing → recover (Amazon has, we don't) + orphans (we have, Amazon doesn't). Recovered books then go in the follow-up run Phase 5 already sends.
+- Timing: add the full-library pass to `stats.timing` and the ⏱️ TIMING table.
+- Remember `lastFullPassAt` in the relay (shared by all your computers), not browser storage.
+- A fetcher (bookmarklet) change, same for all three bookmarklets.
 
 #### Book Lists and Searches: pin and sort them like Folders
 
@@ -499,7 +570,9 @@ _Why it matters:_ A long Book Lists column is hard to search; Folders already ha
 - Your top tier is the `New To Read - *` work lists (Prime clearing first); series To-Read lists below.
 - Today you hunt with Ctrl+F, which costs a switch of thought.
 
-**Status:** queued behind the book details window rework.
+**Decided** (Ron, 2026-10-16)
+- **Build together with "A type-to-filter box for the left pane"** (next task) as one left-pane release: pins for **priority**, the filter box for **finding** (it fixes the Ctrl+F hunt more directly than a Name sort), Name / Manual sort for scanning.
+- The old "queued behind the book details window rework" line is dropped — no known dependency (Ron).
 
 #### A type-to-filter box for the left pane
 
@@ -508,13 +581,14 @@ _Why it matters:_ With many folders, Book Lists and Searches, typing a few lette
 **What you'd get**
 - One box that narrows **Folders + Book Lists + Searches** by name — the strongest pure "find" at scale. The bigger sibling of the pin/sort task above.
 
-**Open questions**
-- Where it sits: one box for the whole pane, or one per section?
-- Keyboard: how you reach it (a shortcut?).
-- Does it clear when you navigate somewhere?
-- How it works with collapsed sections.
+**Decided** (Ron + UX, 2026-10-16) — built together with the pin/sort task above
+1. **Where:** one box at the top of the left pane, filtering Folders, Book Lists and Searches at once; matches stay under their own section headings (you don't always know which section a name is in).
+2. **Collapsed sections:** while filtering, a section with a match opens and a section with none hides; clearing the box puts every section back as you had it.
+3. **Keyboard:** **/** jumps into the box, **Esc** clears it. Ctrl+F stays the browser's own find.
+4. **It doesn't clear when you navigate** (find one list, open it, then the next) — but while active it stays **visible**: the box shows your text with a ✕, so a narrowed pane never looks like missing lists (the same rule as the right pane's filters).
+5. **A matching nested folder shows with its parent folders** (dimmed), so you see where it lives.
 
-**Status:** Ron, 2026-09-10.
+**Status:** Ron, 2026-09-10; design settled 2026-10-16.
 
 #### Everyday organizing
 
@@ -546,6 +620,12 @@ _Why it matters:_ Folders land somewhere other than where the guide line showed,
 4. **The level at an expanded folder's edge:** top half of the next top-level row → **top level** (full-width guide
    line); bottom half of the last subfolder row → **inside** (indented guide line). If nesting is deeper there, add
    horizontal pointer position to pick the level (the outliner convention).
+5. **Existing pins inside a pinned folder** (Ron + UX, 2026-10-16): a subfolder that already has its own real pin
+   inside a pinned folder becomes **faded like its siblings**, and today's order is kept as its manual order — nothing
+   moves on screen. One real pin per branch is the control.
+6. **The drop always decides, never memory** (Ron): drag a subfolder to the top level's pinned area → it gets a real
+   pin; drag a top-level folder into a pinned folder → it gets the faded pin. No folder remembers an earlier pin
+   setting — "where you drop decides" stays the one rule.
 
 **History**
 - Replaces "Dragging a subfolder to the top level drops it in the wrong place" (2026-08-03): Ron suspects that one is
@@ -553,8 +633,8 @@ _Why it matters:_ Folders land somewhere other than where the guide line showed,
 
 **How (technical)**
 - Pins are per level today: `f.pinned` on any folder; each parent's children are pins-first, then the global sort
-  (readerwrangler.js ~3052–3087). Rule 3 changes that for children of a pinned ancestor — decide how existing
-  per-child pins migrate.
+  (readerwrangler.js ~3052–3087). Rule 3 changes that for children of a pinned ancestor; existing per-child pins
+  there migrate per Decided 5 (clear the child's `pinned`, keep its current order as its manual position).
 - Drag-to-pin / unpin needs the drop handlers to stop snapping at the boundary (the "wall"), and the drop position to
   set or clear `pinned` as one undo step.
 - Check how the drop target's level is computed today before changing it (case 1 suggests row halves are ignored
@@ -567,45 +647,10 @@ _Why it matters:_ An author can split in two, making a series look incomplete.
 **What happened**
 - "Jodi  Taylor" (two spaces) and "Jodi Taylor" became two authors: 2 of 7 Time Police books were mis-authored, and the series looked incomplete in the Auto-Organize preview.
 
-**To do**
-- Collapse repeated spaces and trim, on fetch, Import and edit.
-- A **one-time cleanup** of existing data.
-
-##### Search everywhere without leaving the current folder
-
-_Why it matters:_ Answers "is this book in my library?" without losing your place.
-
-**What you'd get** (Ron, 2026-08-29)
-- The search box still searches the current folder by default. While searching, a toggle shows: **This folder | Everywhere** (as in Finder / Explorer).
-- "Everywhere" shows matches from the whole library in the right pane, temporarily. Clearing the search returns you to the folder, scroll position untouched.
-- **Discoverability:** when nothing matches, offer *"No matches in ‹folder› — Search everywhere?"* as a one-click link (as Gmail and Amazon do).
-- Results work with the existing "where does this book live" popup, so the answer arrives with locations.
-
-**How (technical)**
-- Reuse the view-folder filter-stash plumbing for the temporary view.
-
-#### "Read in Kindle": open a book in the Kindle app or Cloud Reader
-
-_Why it matters:_ Jump straight from ReaderWrangler to reading the book.
-
-**What you'd get**
-- A **Read** action on books you **own** (not wishlist or sample entries — those keep "Open in Amazon"):
-  - **Phone:** opens the book in the Android Kindle app.
-  - **Desktop:** opens Kindle Cloud Reader (read.amazon.com) at the book. Optionally also "Open in Kindle app" for Kindle-for-PC users (the browser asks "Open Kindle?").
-- **Not** a built-in reader — you still read on the Paperwhite.
-
-**Limits**
-- **Tested and failed (2026-09-19):** opening a book in the Android app does **not** move it to the top of the Paperwhite's list. So it only helps people who read in the app or Cloud Reader; Paperwhite-only readers gain nothing. Prioritize accordingly.
-- The links are **unofficial** — Amazon could break them. Keep a fallback to the book's Amazon page, and test per platform and app version.
-- Needs the **Kindle edition's** ASIN; a print-only owned book won't open. Some titles can't be read in Cloud Reader at all, and there's no way to tell in advance.
-- **Country matters:** non-US accounts need read.amazon.co.uk / .co.jp etc. Ask for the user's marketplace, or default to .com and rely on the fallback.
-
-**How (technical)**
-- Android (preferred, with fallback): `intent://book?action=open&asin=<ASIN>#Intent;scheme=kindle;package=com.amazon.kindle;S.browser_fallback_url=https%3A%2F%2Fwww.amazon.com%2Fdp%2F<ASIN>;end`
-- Android bare form: `kindle://book?action=open&asin=<ASIN>` — must come from a tap (Chrome blocks it otherwise); behavior has shifted between app versions (may land on the details page instead of opening the book).
-- Desktop: `https://read.amazon.com/?asin=<ASIN>` (opens if signed in; resumes at your last position).
-- Fallback: `https://www.amazon.com/dp/<ASIN>`.
-- Background research: the `reference_read_in_kindle` memory (Ron's 2026-09-19 research).
+**Decided** (Ron + UX, 2026-10-16)
+- Collapse repeated spaces and trim author names **once, in the shared book clean-up every book passes through on load and arrival** (`normalizeBook` in uiHelpers.js — the same step that fixes "Kindle" → "Kindle Edition"). One line covers fetch, Import, edit, Restore and the phone.
+- That also makes the **one-time cleanup** automatic: existing books are fixed the next time they load — no separate tool.
+- Only spaces are tidied — a name is never split or reordered (the "never parse authors" rule stands).
 
 #### Tag from Collections: clear up the checkbox vs. preview confusion
 
@@ -1502,6 +1547,25 @@ _Why it matters:_ Common questions answered in one place.
 - faq.html with sections: Security / Privacy, Data / Backup, Troubleshooting, Library, General.
 - Linked from the Help menu, README, and the features and tutorials page footers.
 
+#### Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome
+
+_Why it matters:_ Assumptions baked into the product are nowhere stated — a UK reader, or someone expecting paperbacks, finds out only by failing.
+
+**The facts** (each verified in the code or docs, 2026-10-16)
+1. **Amazon's US store only.** Every fetcher talks to amazon.com (library: `amazon.com/kindle-reader-api`; collections: `amazon.com/hz/mycd/digital-console/ajax`; series: Amazon's series list); the bookmarklet menu checks `amazon.com/yourbooks`; prices are read as US dollars.
+2. **Formats** — the library fetch brings in **everything** in your Amazon library, every format (Kindle purchases, samples, Prime, Kindle Unlimited, loans — and print, audio, even a DVD bought on Amazon); series and author adds take Kindle editions only; **the one-book Add Book to Wishlist takes any format** (deliberately — a paperback can hold a place until a Kindle edition exists). Undoing the Kindle-only preference: After launch task "Formats other than Kindle".
+3. **The app is in English.** The books can be in any language.
+4. **Browsers:** tested on **Chrome**. **Edge** should work (it's built on the same engine as Chrome). **Firefox** was confirmed working once, long ago, but isn't regularly tested. Safari is untested. _(Today the docs contradict each other: User Guide "Firefox is also fully supported", README / features page "Tested: Chrome, Edge, Firefox", SUPPORT-KB "We only test Chrome" — make them all say the above.)_
+5. **Fetching needs a computer** (the bookmarklet runs on Amazon's site in a desktop browser); the phone views and organizes. Verify the exact phone limits before writing them.
+
+**Where it goes** (Ron, 2026-10-16)
+1. A short **"What ReaderWrangler works with"** section in the User Guide.
+2. One line on the landing page and features page ("For Kindle readers using Amazon.com").
+3. One question in SUPPORT-KB.
+4. A developer list in docs/reference/ARCHITECTURE.md — every spot a future change (another country, another app language) would touch.
+
+Ron's word on the wording first.
+
 #### Build the support assistant (custom GPT)
 
 _Why it matters:_ Lets users get answers without waiting for you.
@@ -1706,14 +1770,17 @@ _Why it matters:_ Optional: smaller uploads for small changes.
 
 **Spec:** docs/design/RELAY-DELTA.md.
 
-#### ✅ Ask before restoring when relay credentials don't match
+#### Bookmarklet: warn before fetching if your Channel ID no longer works
 
-_Why it matters:_ A backup from another channel shouldn't silently switch your sync.
+_Why it matters:_ A fetch can take minutes; if the relay won't accept your Channel ID (revoked or deleted), you should hear that before the fetch, not after.
 
-**Status:** done — shipped in 7.14.3 (2026-09-20): "Restoring a backup no longer silently changes your sync credentials" (verified in the CHANGELOG and docs/design/RELAY-CRED-MISMATCH.md, which says "✅ SHIPPED"). Delete at the next release.
+**The idea** (left over from "Ask before restoring when relay credentials don't match", shipped 7.14.3; Ron filed it on its own 2026-10-16)
+- Before fetching, the bookmarklet quickly asks the relay whether your channel is still good. If not, it says so plainly and points you to **Relay Setup**, instead of fetching first.
 
-**Leftover idea** (from that design doc)
-- The bookmarklet could check the channel before fetching and warn if it's revoked — a separate case, not a mismatch. File it separately if wanted.
+**Check first:** what the bookmarklet does today when the channel is revoked — at which point it finds out, and what it tells you. Not yet checked.
+
+**How (technical)**
+- docs/design/RELAY-CRED-MISMATCH.md "Future": ping `/status/{channelId}` before fetching; warn on 403/404.
 
 #### Warn when another browser has newer changes
 
@@ -1737,6 +1804,51 @@ _Why it matters:_ Two browsers on one account can drift apart without anyone not
 ### Features
 
 _Formerly: Features_
+
+#### "Read in Kindle": open a book in the Kindle app or Cloud Reader
+
+_Why it matters:_ Jump straight from ReaderWrangler to reading the book — for people who read in the Kindle app or Cloud Reader.
+
+**Placed here** (Ron, 2026-10-16): moved from High priority — it does nothing for Paperwhite reading, but it's the natural button for app / Cloud Reader readers.
+
+**What you'd get**
+- A **Read** action on books you **own** (not wishlist or sample entries — those keep "Open in Amazon"):
+  - **Phone:** opens the book in the Android Kindle app.
+  - **Desktop:** opens Kindle Cloud Reader (read.amazon.com) at the book. Optionally also "Open in Kindle app" for Kindle-for-PC users (the browser asks "Open Kindle?").
+- **Not** a built-in reader — you still read on the Paperwhite.
+
+**Limits**
+- **Tested and failed (2026-09-19):** opening a book in the Android app does **not** move it to the top of the Paperwhite's list. So it only helps people who read in the app or Cloud Reader; Paperwhite-only readers gain nothing.
+- The **phone** link is **unofficial** — Amazon could break it. Keep a fallback to the book's Amazon page, and test per app version. The **computer** link is Amazon's own: its author-page data carries a "Read Now" link of the form `https://read.amazon.com?asin=…` (seen 2026-10-16).
+- Needs the **Kindle edition's** ASIN; a print-only owned book won't open. Some titles can't be read in Cloud Reader at all, and there's no way to tell in advance.
+- Countries: not this task's problem — ReaderWrangler as a whole is US-store only today (see "Say plainly what ReaderWrangler works with").
+
+**How (technical)**
+- Android (preferred, with fallback): `intent://book?action=open&asin=<ASIN>#Intent;scheme=kindle;package=com.amazon.kindle;S.browser_fallback_url=https%3A%2F%2Fwww.amazon.com%2Fdp%2F<ASIN>;end`
+- Android bare form: `kindle://book?action=open&asin=<ASIN>` — must come from a tap (Chrome blocks it otherwise); behavior has shifted between app versions (may land on the details page instead of opening the book).
+- Desktop: `https://read.amazon.com/?asin=<ASIN>` (opens if signed in; resumes at your last position).
+- Fallback: `https://www.amazon.com/dp/<ASIN>`.
+- Background research: the `reference_read_in_kindle` memory (Ron's 2026-09-19 research).
+
+#### Formats other than Kindle: undo my Kindle-only preference
+
+_Why it matters:_ "Kindle only" is Ron's own preference baked into the series and author adds (Ron, 2026-10-16: "We took MY preference and baked it in") — other readers may want paperbacks, hardcovers or audiobooks; and the library fetch has no way to keep out formats you don't track.
+
+**Today**
+- The **series** and **author** adds take Kindle editions only; the **one-book Add Book to Wishlist** takes whatever format the page shows — keep that exception either way (Ron adds a paperback as a placeholder when there's no Kindle edition yet).
+- **The library fetch already brings in EVERY format** (confirmed 2026-10-16 from Ron's library, Format column): ~80 non-Kindle items — 47 Board Book, ~12 Paperback, ~12 Mass Market Paperback, 4 Map, 2 Audio CD, 1 each CD-ROM, DVD, Product Bundle, Spiral-bound, and one "Shoes" (a board book Amazon mislabels). Mostly gifts Ron's wife bought. _(Corrected twice today: I first claimed Amazon's library was Kindle-only — it isn't; its fixed exclusion hides the "V" and "Permanently Remove" tag groups, not formats — see "Fetcher: name and explain Amazon's library filter".)_
+- So the library has the **opposite** problem: things you don't track (gifts, a DVD) come in with no way to keep them out.
+
+**Shape** (Ron + UX, 2026-10-16) — **after launch, depending on demand**
+1. **One "Formats I track" setting** — checkboxes (☑ Kindle ☐ Paperback ☐ Hardcover ☐ Audiobook …), saved with your sync settings so every fetcher obeys it. It works **both ways**: series / author adds bring in the formats you track (not just Kindle), and the library fetch leaves out the ones you don't (your gift board books, the DVD).
+2. The author and series panels show it pre-checked; you can change it for that one run.
+3. **A Format filter in ReaderWrangler's right pane** — books already carry a format (the editable Format field), so it has something to work from. Today the only way to see them is the Format column + sorting.
+4. To decide when built: the default for new users, and what happens to already-fetched books in formats you then untick (hide them? leave them?).
+
+**Watch out**
+- **Author add — settled 2026-10-16 (probed on P. Djèlí Clark): print works exactly like Kindle.** `{format:["paperback"], language:["English"]}` → 18 books, page 1 = 16/16 with full details. `language: ["All Languages"]` is a real value (paperback 31, Kindle 38) — so "All languages" is ONE request, not one per language (a small win for the shipped fetcher). My earlier "no details for non-Kindle" was wrong (it was the 16-per-page cap) — correct the claim in author-bibliography-fetcher.js's header comment and `.private/AMAZON-AUTHOR-PAGES.md`.
+- Format words seen: `kindle`, `paperback` (author filter); Amazon's library filter lists Kindle Edition, Paperback, Hardcover, Board Book, Audible Audiobook.
+- The series add asks Amazon for `binding=kindle_edition` (series-page-fetcher.js ~319).
 
 #### Finish keyboard accessibility
 
