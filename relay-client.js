@@ -402,16 +402,15 @@
       body: JSON.stringify({ gen })
     });
 
-    // GC: keep-2 (incl. this one), never the pointed gen (server guards too), grace for
-    // slow readers mid-assembly. Best-effort; TTL is the ultimate backstop for dstate.
+    // GC: keep-2 (incl. this one), never the pointed gen (server guards too); older finished copies go now (v7.23.0 —
+    // no grace, see KEEP_GENS). Best-effort; TTL is the ultimate backstop for dstate.
     try {
-      const graceMs = (opts && opts.gcGraceMs != null) ? opts.gcGraceMs : GC_GRACE_MS;
+      const graceMs = (opts && opts.gcGraceMs != null) ? opts.gcGraceMs : ORPHAN_GRACE_MS; // unfinished copies only
       const listedJson = await (await relayFetch(`/dstate/${_channelId}/list`)).json();
       const gens = Array.from(new Set([gen, ...listedJson.gens]))
         .sort((a, b) => idTimestamp(b) - idTimestamp(a));
       for (const old of gens.slice(KEEP_GENS)) {
         if (old === gen) continue;
-        if (Date.now() - idTimestamp(old) < graceMs) continue;
         try { await relayFetch(`/dstate/${_channelId}/${old}`, { method: 'DELETE' }); } catch { /* pointed or racing */ }
       }
       // v7.5.1 - Orphan sweep: torn pushes (tab killed between chunk and manifest) leave
@@ -510,12 +509,18 @@
   //   - the generation manifest carries absorbedRuns (a SET, never a scalar watermark)
   //   - readers take the pointer; on any failure fall back to newest complete generation,
   //     then to the legacy single-generation format
-  //   - GC keeps the 2 newest complete generations, never the pointed one, 1h grace
+  //   - GC keeps the 2 newest complete generations, never the pointed one; older ones go at once (unfinished: 10-min grace)
 
   const LETTER_SIZE = 5 * 1024 * 1024;      // 5 MB per letter (batching rule — design H3)
   const INLINE_LETTER_MAX = 1 * 1024 * 1024; // encrypted payloads under this go as ONE self-committing letter
+  // v7.23.0 (Ron, 2026-10-15) - THE cleanup rule, mirrored by the worker's nightly cleanup (relay-worker.js SWEEP_*; the
+  // commit check git-hooks/check-shared-numbers.js refuses a commit where the two differ):
+  //   - keep the KEEP_GENS newest FINISHED copies (+ never the pointed one); older ones go IMMEDIATELY — no grace. Nothing
+  //     needs copy 3+: a reader whose copy vanishes mid-download falls back to the newest complete one (readCanonical),
+  //     and the old 1-hour grace made copies unlimited during a burst of saves (each ~35 MB; 2026-10-15: 3 extra).
+  //   - an UNFINISHED copy (no manifest yet) keeps ORPHAN_GRACE_MS — it may be another tab's save in progress.
   const KEEP_GENS = 2;
-  const GC_GRACE_MS = 60 * 60 * 1000;        // never GC a generation younger than 1h (design M2)
+  const ORPHAN_GRACE_MS = 10 * 60 * 1000;
   const LETTER_TTL_MS = 90 * 24 * 60 * 60 * 1000; // mirrors the worker's 90d letter TTL (absorbed-set pruning horizon)
   const DEVICE_KEY = 'readerwrangler-relay-device';
 
@@ -812,10 +817,10 @@
       body: JSON.stringify({ gen })
     });
 
-    // GC: keep the KEEP_GENS newest, never the pointed one (server also guards), 1h grace.
-    // Best-effort — a failed GC just means the next writer sweeps more.
+    // GC: keep the KEEP_GENS newest, never the pointed one (server also guards); older finished copies go now (v7.23.0 —
+    // no grace, see KEEP_GENS). Best-effort — a failed GC just means the next writer sweeps more.
     try {
-      const graceMs = (opts && opts.gcGraceMs != null) ? opts.gcGraceMs : GC_GRACE_MS;
+      const graceMs = (opts && opts.gcGraceMs != null) ? opts.gcGraceMs : ORPHAN_GRACE_MS; // unfinished copies only
       // Union the just-committed gen into the candidate set: KV list may not show it yet
       // (eventual consistency), and it must count as one of the keep-2 or a sweep right
       // after commit keeps 2 listed gens PLUS this one.
@@ -824,7 +829,6 @@
         .sort((a, b) => idTimestamp(b) - idTimestamp(a));
       for (const old of gens.slice(KEEP_GENS)) {
         if (old === gen) continue;
-        if (Date.now() - idTimestamp(old) < graceMs) continue;
         try { await relayFetch(`/gen/${_channelId}/${old}`, { method: 'DELETE' }); } catch { /* pointed or racing */ }
       }
       // v7.5.1 - Orphan sweep (see the dstate GC twin): reap past-grace manifest-less

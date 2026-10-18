@@ -208,7 +208,7 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
    **FIRST: merge main into `feature/relay-worker-b2`** — the branch predates `git-hooks/` (2026-10-15), and with
    `core.hooksPath git-hooks` a commit there would run NO checks, silently. Resolve the doc conflicts (TODO.md,
    CLAUDE.md, SESSION-TOOLING.md) in main's favor. Then: drop "-alpha" from `WORKER_VERSION`, update RELAY-WRITE-REDESIGN §14a (fixes 2 and 3 built as report-only; its two open questions are answered — each relay checks its own storage, and Cloudflare's key count is a daily maximum), CHANGELOG (your word on the copy), squash / tag / push to both, post-mortem.
-4. **Deleting = the next release, on its own branch** — it also changes the **app's** cleanup rule (decided Ron 2026-10-15):
+4. 🚧 **Deleting = the next release, on its own branch** (`feature/relay-delete`, 7.23.0 — building 2026-10-18) — it also changes the **app's** cleanup rule (decided Ron 2026-10-15):
    - **Keep only the newest 2 finished copies** (+ the live one); delete older ones **immediately — no one-hour grace**.
      Why: nothing needs copies 3+ — a reader whose copy vanishes mid-download falls back to the newest complete copy
      (relay-client.js `readCanonical` ~729–750), and the grace made copies unlimited: each save adds ~35 MB (library +
@@ -239,7 +239,7 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
 - Cloudflare had three schedule incidents (2026-10-12, 10-13, 10-14) that delayed schedule changes by **hours** — the replaced 10-minute test schedule kept mailing.
 - **Never test with a temporary schedule again.** Test with the on-demand summary instead (PowerShell; one email each; Resend allows 100 a day):
   `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))`
-- **Never deploy the relay from main** (or a branch off it) until B2 merges: main still has the old worker.
+- ~~Never deploy the relay from main until B2 merges~~ — lifted 2026-10-18: B2 merged in 7.22.0, main carries the current worker.
 
 **Rules**
 - Every deploy asks you first (the pre-approved production deploy was removed from local permissions).
