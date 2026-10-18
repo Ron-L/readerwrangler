@@ -79,7 +79,7 @@ const CF_LIMITS = {
 // Cloudflare's KV actionType → our counter. An action type not listed here is reported in the email, never dropped.
 const KV_ACTION_FIELDS = { read: 'kvReads', write: 'kvWrites', delete: 'kvDeletes', list: 'kvLists' };
 
-const WORKER_VERSION = '7.23.0-alpha.1'; // printed in every daily summary, so an email shows which deploy sent it
+const WORKER_VERSION = '7.23.0-alpha.2'; // printed in every daily summary, so an email shows which deploy sent it
 
 // THE list of relays (7.22.0, design §14a fix 2). One codebase, deployed twice; RELAY_ENV in wrangler.toml says which
 // deployment this is. Every daily summary reports ALL relays here (the free limits are shared account-wide); each
@@ -1286,6 +1286,15 @@ async function inspectStorage(env) {
     try { await inspectChannel(ch, c, Date.now(), readJson, findings, notes); }
     catch (err) { if (err.message !== OUT_OF_BUDGET) throw err; unchecked.push(`${ch.slice(0, 8)}…`); }
   }
+  // 7.23.0-alpha.2 - a block WITHOUT a revocation proof isn't necessarily an auto-block: dev holds two owner revocations
+  // (2026-09-01) whose proofs are gone. Each block records its own reason — read it for the rare unpaired ones only.
+  kinds.blockReasons = {};
+  for (const ch of [...kinds.blocked].filter(c => !kinds.proofs.has(c))) {
+    let reason;
+    try { reason = (await readJson(`blocklist:${ch}`) || {}).reason || 'unreadable'; }
+    catch (err) { if (err.message !== OUT_OF_BUDGET) throw err; reason = 'not read (read budget reached)'; }
+    kinds.blockReasons[reason] = (kinds.blockReasons[reason] || 0) + 1;
+  }
   return { keyCount: names.length, complete, kinds, channelCount: channels.size, findings, notes, unchecked, reads,
            calls: listCalls + reads };
 }
@@ -1400,12 +1409,18 @@ function formatStorageCheck(self, inv, usage, cleanup) {
 // (Ron, 2026-10-18). Unexpected counts and unknown keys show in red. Channel ids never appear (they're credentials).
 function otherKeyLines(self, k) {
   const alerts = self.sendsThresholdAlerts; // the storage-alert level + today's alert records live only on that relay
-  const revoked = [...k.blocked].filter(ch => k.proofs.has(ch)).length;
-  const autoBlocked = k.blocked.size - revoked;
+  const withProof = [...k.blocked].filter(ch => k.proofs.has(ch)).length;
+  const reasons = { ...(k.blockReasons || {}) };          // unpaired blocks only, by the reason each one records
+  const noProofRevoked = reasons['user-revoked'] || 0; delete reasons['user-revoked'];
+  const autoBlocked = reasons['rate-limit-auto'] || 0;   delete reasons['rate-limit-auto'];
+  const otherReasons = Object.entries(reasons).map(([r, n]) => `${n} "${r}"`).join(', ');
   const proofOnly = [...k.proofs].filter(ch => !k.blocked.has(ch)).length;
   const flag = (bad, line) => bad ? red(line) : line;
   const out = ['Other keys:',
-    flag(autoBlocked > 0, `  Blocked channels: ${k.blocked.size} - revoked by their owner ${revoked} (each with its revocation proof), auto-blocked for abuse ${autoBlocked} - 0 auto-blocked is what is expected`),
+    flag(autoBlocked > 0 || otherReasons !== '',
+      `  Blocked channels: ${k.blocked.size} - revoked by their owner ${withProof + noProofRevoked}` +
+      (noProofRevoked ? ` (${noProofRevoked} without a stored proof; their block records say owner-revoked)` : '') +
+      `, auto-blocked for abuse ${autoBlocked}${otherReasons ? `, other: ${otherReasons}` : ''} - 0 auto-blocked is what is expected`),
     `  First-used records: ${k.firstUsed} - one per channel that has ever saved (they never expire)`,
     `  Test-alert counter: ${k.testAlert} - ${k.testAlert ? '1 is what is expected' : 'none sent from this relay yet (fine)'}`,
     flag(k.storageBand !== (alerts ? 1 : 0), `  Storage-alert level: ${k.storageBand} - ${alerts ? '1 is what is expected' : '0 is what is expected (only production sends storage alerts)'}`),

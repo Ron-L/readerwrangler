@@ -24,9 +24,13 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
   applies by halves — the bounced edit used to go missing while the rest landed (alpha.62; twice more on 7.21.2).
   "Same batch" = same assistant message id, looked up in the session transcript (`batch_of()`; Ron's idea). Probed: the
   hook gets `tool_use_id` + `transcript_path`, and the FIRST call of a message is NOT in the transcript when its own
-  hook runs — but the bounced call is by the time a later one arrives. So: both found → same message id = same batch;
-  bounced found + this one not = this one opens a NEW message = a re-send → allowed (fixed 2026-10-18, after the
-  timer refused 7.22.0's re-sent edit). The 5-second window decides only when even the bounced call can't be found.
+  hook runs — and a message's calls run AS THEY STREAM IN, so whether a later call's own entry is written yet is a
+  race too. The rule (2026-10-18, second fix): find the bounced call's message, then ask **which message is the newest
+  in the transcript now** — still the bounced one = same batch = refused; a newer one = a re-send = allowed. A
+  message's start (thinking / text / first call) is always written before its later calls. (The first fix, "this
+  call not found = new message", let a batch half-apply on 7.23.0-alpha.2; replayed against that batch's real
+  timeline, the second fix refuses both its later edits and allows the re-send.) A re-send whose message begins with
+  the call itself is refused once — the safe side. The 5-second window decides only when the bounced call can't be found.
   The lookup reads the transcript's last 4 MB — fine live (the bounce is recent); old ids fall out of it. The
   checklist is **not** in the hook — it's pulled from the `GATE-CHECKLIST` block in `docs/PRINCIPLES.md`
   (single source). Unreadable → loud `CHECKLIST SOURCE MISSING` alarm + a minimal core.

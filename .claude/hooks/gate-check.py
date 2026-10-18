@@ -109,6 +109,27 @@ def batch_of(transcript_path, tool_use_id):
     return None
 
 
+def newest_message(transcript_path):
+    """The id of the newest assistant message in the transcript (its thinking, text or a call — whatever was written
+    last), or None."""
+    if not (transcript_path and os.path.exists(transcript_path)):
+        return None
+    with open(transcript_path, "rb") as f:
+        f.seek(0, 2)
+        f.seek(max(0, f.tell() - 4000000))
+        tail = f.read().decode("utf-8", "replace")
+    for line in reversed(tail.splitlines()):
+        if '"assistant"' not in line:
+            continue
+        try:
+            row = json.loads(line)
+        except Exception:
+            continue
+        if row.get("type") == "assistant" and (row.get("message") or {}).get("id"):
+            return row["message"]["id"]
+    return None
+
+
 def same_batch_as_bounce(bounced_path, data):
     """Was this call sent in the same batch as the bounced one? By the batch's real identity when the transcript has
     both calls (a call isn't written yet when ITS OWN hook runs if it's the first call of its message -- probed
@@ -119,14 +140,17 @@ def same_batch_as_bounce(bounced_path, data):
     except Exception:
         return False
     tp = data.get("transcript_path")
-    a, b = batch_of(tp, rec.get("tool_use_id")), batch_of(tp, data.get("tool_use_id"))
-    if a and b:
-        return a == b
-    if a and not b:
-        # The bounced call's message is written but this call isn't in ANY message yet → it is the FIRST call of a NEW
-        # message (a call's own entry isn't written when its hook runs; a later call in the same batch is). That is a
-        # re-send — allow it. (2026-10-18: the 7.22.0 release's re-sent version edit was refused here by the timer.)
-        return False
+    a = batch_of(tp, rec.get("tool_use_id"))
+    if a:
+        # Same batch iff the NEWEST assistant message in the transcript is still the bounced call's message. A message's
+        # calls run as they stream in, so whether THIS call's own entry is written yet is a race (2026-10-18, 7.23.0-
+        # alpha.2: a batch half-applied under the old "this call not found = new message" rule) — but a message's start
+        # (its thinking / text / first call) is always written before its later calls. A re-send is a NEWER message.
+        # Uncertain case: a re-send whose message begins with the call itself → still looks like the bounced message →
+        # refused once (the safe direction); the next re-send is a newer message again.
+        cur = newest_message(tp)
+        if cur:
+            return cur == a
     return 0 <= time.time() - float(rec.get("t", 0)) <= BATCH_WINDOW_S
 
 
