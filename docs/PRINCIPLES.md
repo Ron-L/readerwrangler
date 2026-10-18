@@ -121,7 +121,9 @@ constants everywhere" was pitched as killing the name-mismatch class, but plain-
 `undefined` on a typo, enforcing nothing — a runtime validator was the real tool). **Read the path that
 actually runs**, not the one that looks right: 7.21.3's fetcher had a strict Kindle check on its *backup* path
 and a computed-but-unused one on its main path ("we'll check later" — nothing did), so "Kindle-only is built
-in" was false and paperbacks got in. A comment promising later work is not code.
+in" was false and paperbacks got in. A comment promising later work is not code. **A plan written days ago is an assumption at execution
+time** (7.22.0): "resolve the doc conflicts in main's favor" would have dropped the branch's own CLAUDE.md
+rule — re-check each step against the files as they are now, not as they were when the plan was written.
 **Ron's standing trade (2026-09-21): OVER-confirm — spend the tokens and the time; that cost is always
 smaller than a mistake built on incomplete memory or an assumption. He would rather wait.**
 **Enforcement**: `feedback_verify_dont_assume` + `feedback_wait_for_answer` memory; the pre-build gate's
@@ -145,6 +147,11 @@ already clamped it — so the probe "confirmed" the innocent layer for **five al
 event/state, NOT a value handed downstream. And the tell that would have ended it on day one: **a logged
 input that stays CONSTANT while the real input varies means you're measuring downstream — go upstream.**
 (The click `x` read `1186` in every dump while Ron clicked all over the right edge.)
+**7.22.0 reprise — the test suite must include the case the fix exists for.** The gate's batch-by-message fix
+was simulated in six cases (same batch, other batch, timer both ways…) and all passed — but none was "a
+re-send", the very case the fix was for. A re-send is the FIRST call of a new message, which the probe had
+already shown isn't in the transcript yet; the fix refused it on its first real use. List the motivating
+scenario as test case #1 before writing any others.
 **Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule; pre-build gate item 12.
 
 ### 4. After 3 iterations, question the abstraction
@@ -265,7 +272,8 @@ race), a commit message must describe what's in the commit (one claimed 8 edits 
 timestamps come from the tool, never extrapolation — a fabricated header drifted 4½ hours and corrupted an
 analysis. When a compliance ritual gets easy to fake, that's the moment it's about to matter. **Tie related events
 by an identity, not a time window** — the gate's "same batch = within 5 s" refused a fast re-send on its first real
-use (7.21.2); the batch's shared message id is what actually knows.
+use (7.21.2); the batch's shared message id is what actually knows. **Write a result after it happens,
+not before** (7.22.0: "redeployed to both relays" went into the TODO ahead of the deploys — caught pre-push).
 **Enforcement**: `feedback_mechanical_honesty` memory; the heredoc ban (three-for-three earned a ban, not a
 caution); receipts-and-honesty as a feature genre.
 
