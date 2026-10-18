@@ -15,7 +15,7 @@
 (function() {
     'use strict';
 
-    const NAV_HUB_VERSION = 'v2.1.1'; // v2.1.0 - logo (with emoji fallback) replaces the 📚 header; v2.1.1 - block+margin-auto centering (host pages that make img display:block — e.g. the app's own Tailwind preflight — defeated text-align)
+    const NAV_HUB_VERSION = 'v2.2.0'; // v2.2.0 - author pages recognized on every tab (All Books / About drop the name from the address); v2.1.0 - logo (with emoji fallback) replaces the 📚 header; v2.1.1 - block+margin-auto centering (host pages that make img display:block — e.g. the app's own Tailwind preflight — defeated text-align)
 
     // Read TARGET_ENV from window (injected by bookmarklet)
     // Default to 'PROD' for backwards compatibility with old bookmarklets
@@ -65,7 +65,9 @@
     const onCollectionsPage = currentUrl.includes('amazon.com/hz/mycd/digital-console');
     const onProductPage = /\/dp\/|\/gp\/product\/|\/gp\/aw\/d\//.test(currentUrl);
     const onSeriesPage = document.querySelectorAll('.series-childAsin-item').length > 0;
-    const onAuthorPage = /\/stores\/[^/]+\/author\/[A-Z0-9]{10}/i.test(currentUrl);
+    // v2.2.0 - both author-page addresses: /stores/John-Marrs/author/B00F1CRG9U (Home) and /stores/author/B00F1CRG9U/allbooks
+    // (the All Books / About tabs drop the name) — the All Books tab used to leave the button greyed out
+    const onAuthorPage = /\/stores\/(?:[^/]+\/)?author\/[A-Z0-9]{10}/i.test(currentUrl);
     const onWishlistPage = onProductPage || onSeriesPage || onAuthorPage;
 
     // Helper: custom error dialog with Retry + Close (replaces native alert for load failures) v1.7.0
@@ -236,7 +238,7 @@
                 : '⭐ Add Book/Series/Bibliography to Wishlist';
 
     const wishlistTooltip = onAuthorPage
-        ? 'Add all Kindle books by this author to your wishlist'
+        ? "Add this author's Kindle books to your wishlist — you choose the language first"
         : onSeriesPage
             ? 'Add all unowned books from this series to your wishlist'
             : onProductPage

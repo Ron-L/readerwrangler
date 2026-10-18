@@ -123,7 +123,7 @@
             <ol class="list-decimal list-inside text-gray-600 space-y-2">
                 <li>Shows a navigation dialog with options</li>
                 <li>When you click "Refresh Library Data", it loads the fetcher script</li>
-                <li>The script reads your book data from the Amazon page you're viewing</li>
+                <li>The script gets your book data from Amazon.com, signed in as you: adding one book reads the page you're viewing; refreshing your library or collections, or adding a series or an author's books, asks Amazon.com for the data directly, the same way Amazon's own pages do. Those requests go only to Amazon.com.</li>
                 <li>Your data is encrypted in the browser using your personal encryption keys</li>
                 <li>The encrypted data is uploaded to the relay (a Cloudflare Worker)</li>
                 <li>The ReaderWrangler app downloads and decrypts it using the same keys</li>

@@ -132,11 +132,71 @@ const formatRelativeTime = (dateString) => {
     return `${diffDays}d ago`;
 };
 
+// v7.21.2 - THE "Date Added" filter presets, shared by desktop + phone: the choices, their date ranges, their labels.
+// Replaces 3 copies of the range math and 4 drifting label copies (two printed the raw value "year2025"), plus a
+// hand-typed year menu that would have gone stale every January 1.
+//   'last30' / 'last90' / 'lastYear' (= last 12 months)     — rolling windows ending today
+//   'thisYear' / 'prevYear'                                   — calendar years that ROLL with the clock (Ron: "This year
+//                                                               means *this* year whatever the year is")
+//   'yearYYYY'                                                — one fixed year (also every saved Search from before)
+//   'custom'                                                  — the caller's own dateFrom / dateTo
+// Dates are 'YYYY-MM-DD' strings; books are compared on their UTC date, as before.
+const isoDay = (d) => d.toISOString().split('T')[0];
+
+const datePresetRange = (preset, today = new Date()) => {
+    if (!preset || preset === 'custom') return null;
+    const y = today.getFullYear();
+    const back = (days) => { const d = new Date(today); d.setDate(d.getDate() - days); return isoDay(d); };
+    if (preset === 'last30') return { from: back(30), to: isoDay(today) };
+    if (preset === 'last90') return { from: back(90), to: isoDay(today) };
+    if (preset === 'lastYear') { const d = new Date(today); d.setFullYear(y - 1); return { from: isoDay(d), to: isoDay(today) }; }
+    if (preset === 'thisYear') return { from: `${y}-01-01`, to: `${y}-12-31` };
+    if (preset === 'prevYear') return { from: `${y - 1}-01-01`, to: `${y - 1}-12-31` };
+    const m = /^year(\d{4})$/.exec(preset);
+    if (m) return { from: `${m[1]}-01-01`, to: `${m[1]}-12-31` };
+    return { from: '', to: isoDay(today) }; // unknown value: as before — nothing after today
+};
+
+const datePresetLabel = (preset, today = new Date()) => {
+    const y = today.getFullYear();
+    if (preset === 'last30') return 'Last 30 days';
+    if (preset === 'last90') return 'Last 90 days';
+    if (preset === 'lastYear') return 'Last 12 months';
+    if (preset === 'thisYear') return `This year (${y})`;
+    if (preset === 'prevYear') return `Last year (${y - 1})`;
+    if (preset === 'custom') return 'Custom range';
+    const m = /^year(\d{4})$/.exec(preset || '');
+    return m ? m[1] : (preset || '');
+};
+
+// The year a book was added (UTC, matching the filter's comparison), or null.
+const bookAcquiredYear = (book) => {
+    const ms = parseInt(book && book.acquired, 10);
+    if (!Number.isFinite(ms)) return null;
+    const d = new Date(ms);
+    return isNaN(d) ? null : d.getUTCFullYear();
+};
+
+// The menu's main choices: rolling windows + This year / Last year (no year typed in by hand). 'custom' is the
+// caller's own last entry.
+const datePresetOptions = (today = new Date()) =>
+    ['last30', 'last90', 'lastYear', 'thisYear', 'prevYear'].map(value => ({ value, label: datePresetLabel(value, today) }));
+
+// v7.21.2-alpha.3 (Ron + UX) - the years BEFORE last year that the library actually has books from, newest first —
+// offered in one compact "Earlier year" dropdown, not as a long list (a 2001+ library made the menu 25 lines).
+const datePresetEarlierYears = (books, today = new Date()) => {
+    const y = today.getFullYear();
+    const years = new Set();
+    for (const b of books || []) { const yr = bookAcquiredYear(b); if (yr && yr < y - 1) years.add(yr); }
+    return [...years].sort((a, b) => b - a);
+};
+
 // Node export for unit tests / shared modules (no-op in the browser classic-script context,
 // where these are plain globals). v7.16.0 - added so bookFields.js (the wire packer/unpacker) + its test can reach them.
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         parsePrice, getAmazonUrl, isWishlisted, normalizeBook,
         calculateFreshness, formatRelativeTime,
+        datePresetRange, datePresetLabel, datePresetOptions, datePresetEarlierYears, bookAcquiredYear,
     };
 }

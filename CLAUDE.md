@@ -38,8 +38,10 @@ console warning flags an anchored popup whose button lacks it.
 * Backup terminology: **"Save/Restore"**, not "Import/Export".
 * **"Toast"** = small floating text near the status bar, not an overlay dialog.
 * Sync vocabulary exposed to users: **Relay, Credentials, Channel ID, Passphrase, bookmarklet,
-  Import from Relay, Download Library/Collections, Data Status** — mirror these exact words (don't
-  invent "Cloud Storage"); "cloud" appears once, only as the plain-English intro in SUPPORT-KB §1.
+  Import from Relay, Download Library/Collections, Data Status** — mirror these exact words on their named
+  surfaces (don't invent "Cloud Storage"). Plain "cloud" is fine in ordinary prose ("syncs through the cloud") — the
+  2026-08-28 vocabulary rule (7.0.1–7.4.0 PM). Pre-launch, these names become "Cloud Sync" (TODO: Rename "Relay" to
+  "Cloud Sync") — update this rule when that ships.
 
 ---
 
@@ -58,6 +60,9 @@ Follows the generic semver+alpha rules in `../CLAUDE.md`. RW's specific stamps:
 - **CSS cache-buster** (`readerwrangler.html`): `readerwrangler.css?v=X.Y.Z` must match
   ORGANIZER_VERSION on every commit that modifies `readerwrangler.css`.
 - **index.html** Schema.org `softwareVersion` — update to match APP_VERSION at release.
+- **COPYRIGHT_YEARS** (`readerwrangler.html`) — every year the code changed, as a list: `"2025, 2026"` (About shows it
+  as is). A list, not a range — a skipped year isn't claimed. The version-guard refuses the first shipped-code commit
+  of a new year until that year is appended, so the claim grows only when the code does (Ron, 2026-10-16).
 
 ---
 
@@ -74,7 +79,7 @@ Follows the generic semver+alpha rules in `../CLAUDE.md`. RW's specific stamps:
   `WORKFLOW-PATTERNS.md` (usage patterns). The sweep is a COMB: grep the KB for every term the
   release touched (renamed labels, changed behaviors, new UI) and update each hit; bump the KB's
   "up to date as of" stamp.
-- **TODO.md**: delete all checked `- [x]` items (now recorded in CHANGELOG) — TODO is future-only.
+- **TODO.md**: delete every ✅ section (done tasks — now recorded in CHANGELOG) — TODO is future-only.
 - (Then the generic: PM always → update PRINCIPLES.md + memory, per `../CLAUDE.md`.)
 
 ---
@@ -85,8 +90,10 @@ Follows the always-branch → squash → tag `vX.Y.Z` → keep-branch pattern in
 particulars:
 
 - **Remotes:** `dev` (testing) / `prod` (production) — no `origin`.
-- **Navigator/bookmarklet link changes:** Dev first → test on GitHub Pages → then Prod. Otherwise,
-  don't push to dev for routine local testing (test locally first).
+- **Bookmarklet changes that differ per environment** (anything tied to the repo address — what the LOCAL, DEV and
+  PROD bookmarklets do differently): Dev first → test on GitHub Pages → then Prod. A change that's the same for all
+  three (e.g. a fetcher fix, tested with the LOCAL bookmarklet) goes to dev and prod together (Ron, 2026-10-16).
+  Otherwise, don't push to dev for routine local testing (test locally first).
 
 | User says | Do |
 |-----------|-----|
@@ -105,24 +112,39 @@ particulars:
   `docs/PRINCIPLES.md` (the `GATE-CHECKLIST` block); the hook just pulls + prints it and **fails LOUD** if
   it can't reach it. Full local tooling + the pattern: **`docs/design/SESSION-TOOLING.md`**.
 - **`/sitemap`** (`.claude/commands/sitemap.md`) — mechanizes the class-of-sites comb.
-- **Version-guard** — a `pre-commit` hook (`.claude/hooks/version-guard.py`) refuses a commit that stages
-  shipped code without moving its version stamp. Bypass: `git commit --no-verify`.
-- **Name check** — the same `pre-commit` hook runs **`scripts/check-names.js`** (versioned) whenever a `.js`/`.html`
-  is staged: refuses app code that uses a name nothing defines (a syntax check can't see that — 7.18.0-alpha.55's
-  "shareBtnRef is not defined" crash), and any `readerwrangler.html` inline script that doesn't parse. Page-level
-  names are derived from `readerwrangler.html`'s scripts, so new modules need no upkeep. Needs
-  `npm i --no-save @babel/core @babel/preset-react` (fails loud if missing).
 - **Timestamp stamp hook is GLOBAL, not RW-local** — it is `C:/Users/Ron/Projects/stamp.py`, wired in
   `~/.claude/settings.json` (`UserPromptSubmit`), injecting the live time each turn for **all** projects.
   See the Projects-root **`CLAUDE-TOOLING.md`**. (Corrected 2026-09-30 — the old `.claude/hooks/stamp.py`
   path was wrong and cost a chase; its absence there is *not* a sign it's missing.)
 
+## Commit checks (`git-hooks/` — run BY GIT, saved in the repo)
+
+Every check runs from **`git-hooks/pre-commit`**. One-time setup per copy of the project:
+**`git config core.hooksPath git-hooks`** (moved here from the unsaved `.git/hooks` + `.claude/hooks` on 2026-10-15).
+Bypass (Ron's call only): `git commit --no-verify`.
+
+- **Version-guard** (`git-hooks/version-guard.py`) refuses a commit that stages shipped code without moving its
+  version stamp.
+- **Name check** (`git-hooks/check-names.js`), whenever a `.js`/`.html`
+  is staged: refuses app code that uses a name nothing defines (a syntax check can't see that — 7.18.0-alpha.55's
+  "shareBtnRef is not defined" crash), and any `readerwrangler.html` inline script that doesn't parse. Page-level
+  names are derived from `readerwrangler.html`'s scripts, so new modules need no upkeep. Needs
+  `npm i --no-save @babel/core @babel/preset-react` (fails loud if missing).
+- **TODO table-of-contents check** (`git-hooks/check-toc.js`), when
+  `TODO.md` is staged: refuses a table of contents that doesn't match the headers. The table is built by the VS Code
+  extension "Auto Markdown TOC" only on a VS Code save — edits made any other way leave it stale. Fix: Ron saves the
+  file in VS Code, or Claude corrects the listed entries. TODO format: one header per task (plain words, ~80 chars,
+  132 max), a "why it matters" first line, ✅ in front when done (Ron, 2026-10-14), 🚧 in front while in progress —
+  kept at the top of its section, after any ✅ ones (Ron, 2026-10-15).
+
 ---
 
 ## Reference
 
-**Folders:** `docs/api/` (Amazon library API — check before fetcher changes), `docs/design/`,
-`post-mortems/`.
+**Folders:** `docs/design/`, `post-mortems/`. **Amazon notes — check before fetcher changes:**
+`.private/Amazon-API-Reference.md` (library API; moved out of the public `docs/api/` in `ae276ea`) and
+`.private/AMAZON-AUTHOR-PAGES.md` (author pages / bibliography fetcher, 2026-10-16). Amazon's inner workings stay
+in `.private/`, never in this public repo (Ron, 2026-10-16).
 
 **`docs/PRINCIPLES.md`** — the distilled laws from all RW post-mortems (with enforcements). Consult
 when debugging stalls, before refactors/releases, and when a lesson feels familiar. New principles

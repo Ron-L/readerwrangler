@@ -116,9 +116,41 @@ Two separate ordering systems, asymmetric ON PURPOSE:
   good, a trifle surprising — very discoverable." Practical consequence: arrange first, then pin in
   any order — the arrangement is preserved. Pin/Unpin is multi-select aware (clicked folder's
   direction applies to the whole selection).
-- **The pin boundary is a wall for drags, in BOTH directions** (Chrome pinned-tabs / Slack
+- ~~**The pin boundary is a wall for drags, in BOTH directions** (Chrome pinned-tabs / Slack
   convention): dragging an unpinned folder into the pinned zone snaps it to just below the zone
   (caret only ever shown at the boundary); dragging a pinned folder below the boundary snaps it
   back to the bottom of the zone. Within the zone, drag reorders pins freely (a small manual list
   in every sort mode). **Pinning is a state, position is a consequence — drags move position,
-  menus change state** (right-click Pin / Unpin only).
+  menus change state** (right-click Pin / Unpin only).~~ **REVERSED 2026-10-14 — see below.**
+
+## Decisions — drag decides pinning; pinned means hand-arranged (2026-10-14, Ron + UX)
+
+**Why the wall rule was reversed:** Ron used it, forgot it, and was surprised when a folder dropped among the pins
+snapped below them. In a drag, what you see must be what you get; a rule you have to remember isn't discoverable.
+Accidental pins are kept rare and cheap by the cues and the undo below. (Not built yet — TODO: "Folder dragging:
+where you drop decides pinned, and the level".)
+
+1. **Where you drop decides.** Dropping a folder **among the pins pins it** (at that spot); dragging a pinned folder
+   **below the pins unpins it**. Cues: a **divider** under the last pinned folder (above = pinned, below = not — it
+   makes the boundary pixel unambiguous); the drag guide line shows a **📌** while it's in the pinned zone. Each is
+   **one undo**, with a message ("Pinned 'X'" / "Unpinned 'X'"). Right-click Pin / Unpin stays.
+2. **Sorted mode, dragged out of the pins:** the folder lands at its **sorted** position; its stored **manual**
+   position is the **top, just below the pins** — the existing "new arrivals land at the top of the stored manual
+   order" rule, so there's one rule for everything. Into the pins in any mode: placed where dropped (the pinned zone
+   is a small manual list in every mode).
+3. **Pinned means hand-arranged, all the way down.** A pinned folder's subfolders (and theirs) keep their **manual**
+   order in every sort mode — sorting by Name no longer reorders them. Dropping or creating a subfolder inside a
+   pinned folder is a manual placement (new ones at the top). Each such subfolder shows a **faded, non-clickable 📌**
+   with a tooltip ("Kept in manual order because 'X' is pinned") — it tells you sorting won't move it without
+   testing, while not looking like a switch: a single subfolder can't be unpinned on its own under this rule. The
+   parent's 📌 stays the real, clickable control. (Ron overruled "an icon on every row is clutter": the pinned zone is
+   small, and a missing pin raises the question "are these pinned?".)
+4. **The level at the edge of an expanded folder** (dragging between its last subfolder and the next top-level
+   folder): the **top half of the next top-level row = top level** (a full-width guide line); the **bottom half of the
+   last subfolder row = inside that folder** (an indented guide line). The line's indent always shows where it
+   lands. If nesting is deeper than one level there, add the outliner convention: horizontal pointer position picks
+   the level.
+
+Implementation note: today pins are per level (`f.pinned` on any folder; each parent's children are partitioned
+pins-first, then the global sort — readerwrangler.js ~3052–3087). Rule 3 changes that comparator for children of a
+pinned ancestor; check how existing per-child pins should migrate.

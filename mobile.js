@@ -1,6 +1,6 @@
 // mobile.js — ReaderWrangler Mobile Viewer
 // MOBILE_VERSION tracks mobile-specific iterations
-const MOBILE_VERSION = '1.10.0'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
+const MOBILE_VERSION = '1.10.1'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
 console.log(`✅ Mobile viewer ${MOBILE_VERSION} | APP_VERSION: ${APP_VERSION}`);
 
 // v1.7.0 - Which server is this copy talking to? Derived from the page's own address, so an
@@ -384,15 +384,8 @@ function bookMatchesFilters(book, filters) {
     if (filters.datePreset || filters.dateFrom || filters.dateTo) {
         let fromDate = filters.dateFrom || '';
         let toDate = filters.dateTo || '';
-        if (filters.datePreset && filters.datePreset !== 'custom') {
-            const today = new Date();
-            const fmt = (d) => d.toISOString().split('T')[0];
-            toDate = fmt(today);
-            if (filters.datePreset === 'last30') { const d = new Date(today); d.setDate(d.getDate() - 30); fromDate = fmt(d); }
-            else if (filters.datePreset === 'last90') { const d = new Date(today); d.setDate(d.getDate() - 90); fromDate = fmt(d); }
-            else if (filters.datePreset === 'lastYear') { const d = new Date(today); d.setFullYear(d.getFullYear() - 1); fromDate = fmt(d); }
-            else if (filters.datePreset.startsWith('year')) { const year = parseInt(filters.datePreset.substring(4)); fromDate = `${year}-01-01`; toDate = `${year}-12-31`; }
-        }
+        const range = datePresetRange(filters.datePreset); // v7.21.2 - the shared presets (uiHelpers.js)
+        if (range) { fromDate = range.from; toDate = range.to; }
         if (fromDate || toDate) {
             if (!book.acquired) return false;
             const bookDate = parseBookDate(book.acquired).toISOString().split('T')[0];
@@ -420,7 +413,7 @@ function searchChips(filters, tagRegistry) {
     if (filters.minAmazonRating) parts.push(`${filters.minAmazonRating}+★`);
     if (filters.minMyRating) parts.push(`My ${filters.minMyRating === 'unrated' ? 'Unrated' : filters.minMyRating + '+★'}`);
     if (filters.series?.length > 0) parts.push(filters.series.map(s => s === 'NOT_IN_SERIES' ? 'Not in series' : s).join(', '));
-    if (filters.datePreset) parts.push(filters.datePreset === 'last30' ? 'Last 30 Days' : filters.datePreset === 'last90' ? 'Last 90 Days' : filters.datePreset === 'lastYear' ? 'Last Year' : filters.datePreset);
+    if (filters.datePreset) parts.push(datePresetLabel(filters.datePreset)); // v7.21.2 - shared label (was raw "year2025")
     if (filters.deals) parts.push('Deals');
     return parts;
 }

@@ -16,7 +16,9 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
-.claude/
+# Claude Code: the hooks, commands and shared settings ARE saved (2026-10-15); only the personal approvals file isn't
+# (its paths are right only for one machine — Ron's copy is backed up in the private .private repo).
+.claude/settings.local.json
 
 # Logs
 *.log

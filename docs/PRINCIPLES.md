@@ -118,7 +118,10 @@ cosmetic" dropped a CSS class a live handler matched on — the assuming, not th
 The assumption can be about a **solution**, not just a fact: "this mechanism prevents X" is a claim to
 verify before selling it — check the mechanism actually *enforces* what you promise (7.15.3: "field-name
 constants everywhere" was pitched as killing the name-mismatch class, but plain-JS constants return
-`undefined` on a typo, enforcing nothing — a runtime validator was the real tool).
+`undefined` on a typo, enforcing nothing — a runtime validator was the real tool). **Read the path that
+actually runs**, not the one that looks right: 7.21.3's fetcher had a strict Kindle check on its *backup* path
+and a computed-but-unused one on its main path ("we'll check later" — nothing did), so "Kindle-only is built
+in" was false and paperbacks got in. A comment promising later work is not code.
 **Ron's standing trade (2026-09-21): OVER-confirm — spend the tokens and the time; that cost is always
 smaller than a mistake built on incomplete memory or an assumption. He would rather wait.**
 **Enforcement**: `feedback_verify_dont_assume` + `feedback_wait_for_answer` memory; the pre-build gate's
@@ -191,7 +194,9 @@ sorts looked perfect until Larry Bond). Ron's first minute with a feature has ca
 every release; ship rough for feel-testing rather than polishing a private model. Corollaries: test where
 the *behavior* lives (touch tooltips on a phone, Ctrl+Drag on Windows, ask-where-to-save on AND off), and
 know the **dev-machine blind spots** — paths whose correct local behavior is "never runs" are untested by
-construction; say so before shipping.
+construction; say so before shipping. **A list built from the user's data has the user's range** — "only the years
+your library has" ran back to 2001 on Ron's library (7.21.2): size every data-driven list for the biggest real library,
+not the test one.
 **Enforcement**: the alpha cadence itself; test instructions with precise expected values — magnitude AND
 shape (`feedback_debugging` Rule 4).
 
@@ -258,7 +263,9 @@ plus an adversarial cold review — 7.0.0's review found two correctness-critica
 "Saved" must mean saved (picker before toast), "newer" must mean a different generation (not a timestamp
 race), a commit message must describe what's in the commit (one claimed 8 edits and contained none), and
 timestamps come from the tool, never extrapolation — a fabricated header drifted 4½ hours and corrupted an
-analysis. When a compliance ritual gets easy to fake, that's the moment it's about to matter.
+analysis. When a compliance ritual gets easy to fake, that's the moment it's about to matter. **Tie related events
+by an identity, not a time window** — the gate's "same batch = within 5 s" refused a fast re-send on its first real
+use (7.21.2); the batch's shared message id is what actually knows.
 **Enforcement**: `feedback_mechanical_honesty` memory; the heredoc ban (three-for-three earned a ban, not a
 caution); receipts-and-honesty as a feature genre.
 
@@ -374,7 +381,7 @@ the worked example; `project_714_release` memory.
   revert. 7.18.0's CHANGELOG "stacked windows no longer darken twice" was proven in two greps of `v7.17.1`.
 - **A syntax check can't see an undefined name.** 7.18.0-alpha.55 crashed on `shareBtnRef is not defined` (a
   line break swallowed by an edit joined the declaration into a comment; it parsed fine). Enforcement:
-  `scripts/check-names.js` in the pre-commit hook — Babel scope analysis refuses any name nothing defines.
+  `git-hooks/check-names.js` in the pre-commit hook — Babel scope analysis refuses any name nothing defines.
 - **A pre-build-gate bounce hidden in a parallel batch ships a half-fix** (7.18.0-alpha.62: the CSS rule landed,
   the class it targets didn't). Discipline for now (`feedback_gate_bounce_batches`: first app edit ALONE; grep
   every intended change before committing) — a mechanism is still owed (Principle-to-hook audit TODO).

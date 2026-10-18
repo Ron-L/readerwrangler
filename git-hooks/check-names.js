@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/check-names.js — refuse app code that references a NAME NOTHING DEFINES.
+// git-hooks/check-names.js — refuse app code that references a NAME NOTHING DEFINES.
 //
 // WHY (7.18.0-alpha.55): an edit swallowed a line break and joined `const shareBtnRef = useRef(null)` onto the end
 // of a `//` comment. The file still PARSED (the Babel syntax check passed), but opening the book details window
@@ -12,7 +12,7 @@
 // new shared module needs no upkeep here. Any other unbound name in an app file is reported, with its line(s).
 // Ignored on purpose: lowercase JSX tags (<div>), and `typeof X` (feature detection may name an absent global).
 //
-// Usage:  node scripts/check-names.js [file …]     (default: readerwrangler.js mobile.js)
+// Usage:  node git-hooks/check-names.js [file …]     (default: readerwrangler.js mobile.js)
 // Exit:   0 clean · 1 unbound names found · 2 setup problem (fails LOUD, never silently passes).
 'use strict';
 const fs = require('fs');
@@ -120,7 +120,7 @@ for (const t of targets) {
 }
 if (problems) {
     console.error(`\ncheck-names: REFUSED — ${problems} undefined name(s). A missing declaration, a typo, or code swallowed into a comment.\n` +
-        '  (If a name is a genuine browser global missing from the list, add it to BROWSER in scripts/check-names.js.)');
+        '  (If a name is a genuine browser global missing from the list, add it to BROWSER in git-hooks/check-names.js.)');
     process.exit(1);
 }
 console.log(`check-names: OK — ${targets.join(', ')} reference no undefined names (${pageNames.size} page-level names from readerwrangler.html).`);
