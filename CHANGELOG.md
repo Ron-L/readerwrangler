@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.22.0] - 2026-10-18
+
+### Behind the scenes — no change for you
+This release updates only the **Relay**, the service that carries your data between Amazon, your computer and your
+phone. Nothing in the app changes, and there's nothing for you to do.
+- **The Relay now checks its storage every day** and reports anything left over from interrupted or replaced saves.
+  For now it only reports — nothing is deleted. The next release turns the cleanup on.
+- **The daily usage report shows the real total** across the live and test Relays, so storage limits are watched
+  accurately.
+
 ## [7.21.3] - 2026-10-16
 
 ### Fixed
