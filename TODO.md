@@ -209,6 +209,17 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
    `core.hooksPath git-hooks` a commit there would run NO checks, silently. Resolve the doc conflicts (TODO.md,
    CLAUDE.md, SESSION-TOOLING.md) in main's favor. Then: drop "-alpha" from `WORKER_VERSION`, update RELAY-WRITE-REDESIGN §14a (fixes 2 and 3 built as report-only; its two open questions are answered — each relay checks its own storage, and Cloudflare's key count is a daily maximum), CHANGELOG (your word on the copy), squash / tag / push to both, post-mortem.
 4. 🚧 **Deleting = the next release, on its own branch** (`feature/relay-delete`, 7.23.0 — building 2026-10-18) — it also changes the **app's** cleanup rule (decided Ron 2026-10-15):
+   - **Status 2026-10-18:** alpha.2 on DEV (deleting), production still report-only. **Dev tests passed:** 50 labeled
+     keys planted on channel `TEST-PLANTED-2026-10-18` (each says so; 7-day expiry) → on-demand run 1 deleted exactly 20
+     (budget), run 2 exactly the remaining 16; the 14 "keep" keys untouched. Live relay test 59/59. App rule on a real
+     save: 3 saves within minutes → 2 phone copies, the few-minutes-old third deleted at once (the old rule kept it an
+     hour). alpha.1's red "auto-blocked 2" was my wrong inference — two 2026-09-01 owner revocations without proofs;
+     alpha.2 reads each unpaired block's recorded reason.
+   - **NEXT:** a few nightly dev runs (expect nothing new; the 14 test keys stay as a keep-rules check — except the
+     "in progress" copy dated ~1 day ahead, which SHOULD be deleted from 10-19's night on as a stale unfinished copy) →
+     production's switch (`CLEANUP = "delete"` in wrangler.toml, a deploy, Ron's yes) → release 7.23.0.
+   - Small follow-up: `relay/test-phase1.mjs` leaves one unimported run on the `22222222…` test channel each run (17 → 18
+     on 10-18); they expire after 90 days — make the test clean up after itself.
    - **Keep only the newest 2 finished copies** (+ the live one); delete older ones **immediately — no one-hour grace**.
      Why: nothing needs copies 3+ — a reader whose copy vanishes mid-download falls back to the newest complete copy
      (relay-client.js `readCanonical` ~729–750), and the grace made copies unlimited: each save adds ~35 MB (library +
