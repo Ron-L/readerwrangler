@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.22.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.22.1-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -7360,6 +7360,9 @@
             // v7.20.0-alpha.2 - open Tag from Collections fresh from the current books (was 35 lines inline in the menu item).
             // v6.10.0-alpha.14/15 logic, unchanged: all collections checked; "New books only" if it has run before; removals
             // = collection-tags whose collection a book no longer has, all checked (the user confirms).
+            // v7.22.1 - THE "is there anything to tag from" test, shared by the Tools menu item and the link in Manage Tags.
+            const canTagFromCollections = books.some(b => (b.collections || []).length > 0)
+                || books.some(b => (b.collectionTags || []).length > 0);
             const openTagFromCollections = () => {
                 const collectionsMap = {};
                 books.forEach(b => {
@@ -9433,8 +9436,7 @@
                                                 <MenuDivider />
                                                 <MenuBarItem onClick={menuAction(() => setTagManagementOpen(true))}>🏷️ Manage Tags…</MenuBarItem>
                                                 {/* v6.10.0-alpha.14 - Tag from Collections wizard (setup: openTagFromCollections) — needs collections or collection-tags */}
-                                                <MenuBarItem onClick={menuAction(openTagFromCollections)}
-                                                    disabled={!books.some(b => (b.collections || []).length > 0) && !books.some(b => (b.collectionTags || []).length > 0)}>
+                                                <MenuBarItem onClick={menuAction(openTagFromCollections)} disabled={!canTagFromCollections}>
                                                     🏷️ Tag from Collections…
                                                 </MenuBarItem>
                                                 <MenuDivider />
@@ -12828,20 +12830,31 @@
                         // Get books for the selected removal group
                         const removalBooks = isViewingRemoval ? removalGroups[tfcSelectedRemoval].books : [];
 
+                        // v7.22.1 - THE "which books will this collection tag": the books shown (New books only respected),
+                        // minus the ones unchecked on the right, minus the ones that already have the tag. One function for the
+                        // summary, the right pane's heading, the Apply button's label AND Apply itself — they used to be two
+                        // copies, free to drift. (Whether the COLLECTION is checked is the caller's question.)
+                        const collTagId = (name) => name.toLowerCase().replace(/\s+/g, '-');
+                        const booksToTag = (name) => {
+                            const collBooks = collectionsMap[name] || [];
+                            const shown = tfcNewBooksOnly ? collBooks.filter(b => !b.collectionTagSeen) : collBooks;
+                            const unchecked = tfcUncheckedBooks[name] || new Set();
+                            const tagId = collTagId(name);
+                            return shown.filter(b => !unchecked.has(b.id) && !(b.tags || []).includes(tagId));
+                        };
+
                         // Compute addition summary
                         const checkedCollectionNames = collectionNames.filter(name => tfcCheckedCollections.has(name));
                         let totalNewTags = 0;
                         let totalBooksToTag = 0;
+                        let collectionsTagging = 0;
                         checkedCollectionNames.forEach(name => {
-                            const collBooks = collectionsMap[name] || [];
-                            const filtered = tfcNewBooksOnly ? collBooks.filter(b => !b.collectionTagSeen) : collBooks;
-                            const uncheckedSet = tfcUncheckedBooks[name] || new Set();
-                            const checkedBooks = filtered.filter(b => !uncheckedSet.has(b.id));
-                            const tagId = name.toLowerCase().replace(/\s+/g, '-');
+                            const tagId = collTagId(name);
                             const tagExists = tagRegistry[tagId] && tagRegistry[tagId].label.toLowerCase() === name.toLowerCase();
                             if (!tagExists) totalNewTags++;
-                            const booksNeedingTag = checkedBooks.filter(b => !(b.tags || []).includes(tagId));
-                            totalBooksToTag += booksNeedingTag.length;
+                            const n = booksToTag(name).length;
+                            totalBooksToTag += n;
+                            if (n > 0) collectionsTagging++;
                         });
 
                         // Compute removal summary
@@ -12935,7 +12948,8 @@
                                                     return (
                                                         <div
                                                             key={name}
-                                                            className={`flex items-center px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 border-l-2 border-blue-600' : 'hover:bg-gray-50 border-l-2 border-transparent'}`}
+                                                            title="Click the name to see its books on the right; the checkbox decides whether Apply uses this collection"
+                                                            className={`flex items-center px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-gray-100 border-l-4 border-gray-700' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}
                                                             onClick={() => { setTfcSelectedCollection(name); setTfcSelectedRemoval(null); }}>
                                                             <input
                                                                 type="checkbox"
@@ -12949,11 +12963,13 @@
                                                                 onClick={(e) => e.stopPropagation()}
                                                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
                                                             />
-                                                            <span className="ml-2 flex-1 text-sm text-gray-900 truncate">{name}</span>
+                                                            <span className={`ml-2 flex-1 text-sm text-gray-900 truncate ${isSelected ? 'font-semibold' : ''}`}>{name}</span>
                                                             <span className="text-xs text-gray-500 ml-1 flex-shrink-0">
                                                                 ({displayCount}{tfcNewBooksOnly && newCount === 0 ? ' new' : ''})
                                                             </span>
                                                             {tagExists && <span className="text-xs text-green-600 ml-1 flex-shrink-0">(tag exists)</span>}
+                                                            {/* v7.22.1 - "being shown" = the dark left bar, bold name and this arrow; "will be used" = the checkbox only */}
+                                                            <span className={`ml-1 flex-shrink-0 text-gray-700 ${isSelected ? '' : 'invisible'}`} aria-hidden="true">›</span>
                                                         </div>
                                                     );
                                                 })}
@@ -13059,20 +13075,33 @@
                                         ) : (
                                             /* Collection view */
                                             <div className="p-2">
-                                                <div className="flex items-center justify-between px-3 py-1 text-xs text-gray-500 border-b border-gray-200 mb-1">
-                                                    <span>Books in "{tfcSelectedCollection}" ({visibleBooks.length})</span>
-                                                    {/* v7.19.0-alpha.4 - section toggle (Ron): over the CHECKABLE books (already-tagged ones have no box) */}
-                                                    {(() => {
-                                                        const tagId = tfcSelectedCollection.toLowerCase().replace(/\s+/g, '-');
-                                                        const checkable = visibleBooks.filter(b => !(b.tags || []).includes(tagId));
-                                                        if (checkable.length === 0) return null;
-                                                        const un = tfcUncheckedBooks[tfcSelectedCollection] || new Set();
-                                                        const all = checkable.every(b => !un.has(b.id));
-                                                        return <SelectAllToggle allChecked={all} onToggle={() => setTfcUncheckedBooks(prev => ({ ...prev, [tfcSelectedCollection]: all ? new Set(checkable.map(b => b.id)) : new Set() }))} />;
-                                                    })()}
-                                                </div>
+                                                {/* v7.22.1 (Ron + UX) - the heading says what Apply will do with THIS collection, so unchecking it on
+                                                    the left visibly changes the right side (the two used to look unrelated). */}
+                                                {tfcCheckedCollections.has(tfcSelectedCollection) ? (
+                                                    <div className="flex items-center justify-between px-3 py-1 text-xs text-gray-600 border-b border-gray-200 mb-1">
+                                                        <span>Books in "{tfcSelectedCollection}" — {(() => { const n = booksToTag(tfcSelectedCollection).length; return n === 0 ? 'none will get the tag' : `${n} will get the tag "${tfcSelectedCollection}"`; })()} (uncheck any to skip)</span>
+                                                        {/* v7.19.0-alpha.4 - section toggle (Ron): over the CHECKABLE books (already-tagged ones have no box) */}
+                                                        {(() => {
+                                                            const tagId = collTagId(tfcSelectedCollection);
+                                                            const checkable = visibleBooks.filter(b => !(b.tags || []).includes(tagId));
+                                                            if (checkable.length === 0) return null;
+                                                            const un = tfcUncheckedBooks[tfcSelectedCollection] || new Set();
+                                                            const all = checkable.every(b => !un.has(b.id));
+                                                            return <SelectAllToggle allChecked={all} onToggle={() => setTfcUncheckedBooks(prev => ({ ...prev, [tfcSelectedCollection]: all ? new Set(checkable.map(b => b.id)) : new Set() }))} />;
+                                                        })()}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-xs text-amber-800 bg-amber-50 border-b border-amber-200 mb-1">
+                                                        <span>"{tfcSelectedCollection}" isn't selected — its books won't be tagged</span>
+                                                        <button onClick={() => setTfcCheckedCollections(prev => new Set(prev).add(tfcSelectedCollection))}
+                                                            className="px-2 py-0.5 bg-white border border-amber-300 rounded text-amber-900 hover:bg-amber-100 flex-shrink-0">
+                                                            Include this collection
+                                                        </button>
+                                                    </div>
+                                                )}
                                                 {visibleBooks.map(book => {
-                                                    const tagId = tfcSelectedCollection.toLowerCase().replace(/\s+/g, '-');
+                                                    const tagId = collTagId(tfcSelectedCollection);
+                                                    const collectionIncluded = tfcCheckedCollections.has(tfcSelectedCollection);
                                                     const alreadyTagged = (book.tags || []).includes(tagId);
                                                     const uncheckedSet = tfcUncheckedBooks[tfcSelectedCollection] || new Set();
                                                     const isUnchecked = uncheckedSet.has(book.id);
@@ -13080,12 +13109,13 @@
                                                     return (
                                                         <label
                                                             key={book.id}
-                                                            className={`flex items-center px-3 py-1.5 rounded cursor-pointer transition-colors ${alreadyTagged ? 'opacity-50' : 'hover:bg-gray-50'}`}>
+                                                            className={`flex items-center px-3 py-1.5 rounded transition-colors ${alreadyTagged || !collectionIncluded ? 'opacity-50' : 'cursor-pointer hover:bg-gray-50'}`}>
                                                             {alreadyTagged ? (
                                                                 <span className="w-4 h-4 flex items-center justify-center text-green-600 flex-shrink-0">✓</span>
                                                             ) : (
                                                                 <input
                                                                     type="checkbox"
+                                                                    disabled={!collectionIncluded}
                                                                     checked={!isUnchecked}
                                                                     onChange={(e) => {
                                                                         setTfcUncheckedBooks(prev => {
@@ -13153,29 +13183,21 @@
                                                         return bookUpdates[id];
                                                     };
 
-                                                    // --- Tag additions ---
+                                                    // --- Tag additions --- (v7.22.1: booksToTag = the same list the summary + button count)
                                                     checkedCollectionNames.forEach(name => {
-                                                        const tagId = name.toLowerCase().replace(/\s+/g, '-');
-                                                        const tagLabel = name;
-                                                        const collBooks = collectionsMap[name] || [];
-                                                        const filtered = tfcNewBooksOnly ? collBooks.filter(b => !b.collectionTagSeen) : collBooks;
-                                                        const uncheckedSet = tfcUncheckedBooks[name] || new Set();
-                                                        const checkedBooks = filtered.filter(b => !uncheckedSet.has(b.id));
+                                                        const tagId = collTagId(name);
 
                                                         // Create tag if it doesn't exist
                                                         if (!newTagRegistry[tagId]) {
-                                                            newTagRegistry[tagId] = { label: tagLabel, count: 0 };
+                                                            newTagRegistry[tagId] = { label: name, count: 0 };
                                                             tagsCreated++;
                                                         }
 
-                                                        // Tag each checked book that doesn't already have this tag
-                                                        checkedBooks.forEach(b => {
-                                                            if (!(b.tags || []).includes(tagId)) {
-                                                                const upd = ensureUpdate(b.id);
-                                                                upd.addTags.push(tagId);
-                                                                upd.addCollectionTags.push(tagId);
-                                                                booksTagged++;
-                                                            }
+                                                        booksToTag(name).forEach(b => {
+                                                            const upd = ensureUpdate(b.id);
+                                                            upd.addTags.push(tagId);
+                                                            upd.addCollectionTags.push(tagId);
+                                                            booksTagged++;
                                                         });
                                                     });
 
@@ -13279,7 +13301,10 @@
                                                 }}
                                                 disabled={!hasChanges}
                                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${!hasChanges ? 'bg-blue-300 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
-                                                Apply
+                                                {/* v7.22.1 (Ron + UX) - the button carries the total, live as you check / uncheck */}
+                                                {totalBooksToTag > 0
+                                                    ? `Tag ${totalBooksToTag} book${totalBooksToTag !== 1 ? 's' : ''} from ${collectionsTagging} collection${collectionsTagging !== 1 ? 's' : ''}`
+                                                    : 'Apply'}
                                             </button>
                                         </div>
                                     </div>
@@ -18073,6 +18098,16 @@
                                         onChange={(e) => setTagInputValue(e.target.value)}
                                     />
                                 </div>
+                                {/* v7.22.1 (Ron + UX) - reach Tag from Collections from where you think about tags — a link here, not a
+                                    second menu entry (Tools lists both). Swaps windows rather than stacking two big ones. */}
+                                {canTagFromCollections && (
+                                    <div className="border-t border-gray-200 px-3 py-2 text-sm">
+                                        <button onClick={() => { setTagManagementOpen(false); setEditingTagId(null); openTagFromCollections(); }}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline">
+                                            Create tags from your Kindle collections…
+                                        </button>
+                                    </div>
+                                )}
                         </Dialog>
                     )}
 
