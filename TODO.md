@@ -648,13 +648,22 @@ _Why it matters:_ Each row has two click targets that do different things, with 
 - Clicking the **name** means "show this collection's books on the right".
 - Unchecking a box doesn't change the right side — only clicking a name does. And "checked" and "being shown" use the same row highlight, so you can't see the two states (it fooled you).
 
-**Unsettled — don't prescribe a fix yet**
-- First decide what the right side is **for**: a preview? the set Apply will use?
-- Then make the two states look different — or unify them (the right side follows the checkboxes / your last action, with a header like "Viewing: X").
-- Design pass before any code.
+**What the right side is** (read in the code, 2026-10-16): not just a preview — part of Apply. Each book has its own
+checkbox (checked by default); unchecking one skips it when its collection is applied. **Apply** tags the books of every
+CHECKED collection, minus the books unchecked on the right.
 
-**Also** (Ron, 2026-09-22)
-- A UX opinion wanted: should the wizard **also** be reachable from the Manage Tags menu — and where? Evaluate, don't just wire it in.
+**Decided** (Ron + UX, 2026-10-18) — branch `fix/tfc-clarity`, release 7.22.1
+1. **The right side's heading says what Apply will do with this collection.** Checked: *"Books in 'Sci-Fi' — 12 will get
+   the tag 'sci-fi' (uncheck any to skip)"*. Unchecked: *"'Sci-Fi' isn't selected — its books won't be tagged"*, with an
+   **Include this collection** button, and the book checkboxes dimmed. Unchecking a collection then visibly changes the
+   right side (what fooled Ron).
+2. **Two different looks:** "being shown" = a solid left bar + light background; "will be used" = the checkbox only — no
+   shared highlight.
+3. **Apply's label carries the total:** *"Tag 47 books from 3 collections"*, live as you check / uncheck.
+4. **From Manage Tags** (Ron's 2026-09-22 question): no second menu entry (Tools lists both since 7.20) — a link INSIDE
+   the Manage Tags window: *"Create tags from your Kindle collections…"*.
+5. Fold the two copies of "which books a collection will tag" (the summary ~12835 and Apply ~13158) into ONE function
+   that both use — so the button's count and what Apply does can't drift.
 
 **How (technical)**
 - The "shown" state is `tfcSelectedCollection`.
