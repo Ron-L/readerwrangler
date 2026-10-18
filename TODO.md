@@ -203,7 +203,7 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
      each) — the one-hour grace kept them because the last saves came within the hour (design §14a F2); the next save
      after they age, or the coming deleting step, removes them. The rest was the day's peak (keys 262 at the high
      point, 248 at report time). No leak.
-3. ✅ **Released 7.22.0 (report-only), 2026-10-18** — both reports right 10-14 → 10-17; production's 27 "other" keys identified (all by design); worker redeployed to both relays as `7.22.0`. The original plan for this step:
+3. ✅ **Released 7.22.0 (report-only), 2026-10-18** — both reports right 10-14 → 10-17; production's 27 "other" keys identified (all by design); worker version `7.22.0` (same code as alpha.4) — redeployed to both relays after the release with Ron's yes for each. The original plan for this step:
    **After a few days of both reports being right (~2026-10-17/18): release 7.22.0 (report-only).**
    **FIRST: merge main into `feature/relay-worker-b2`** — the branch predates `git-hooks/` (2026-10-15), and with
    `core.hooksPath git-hooks` a commit there would run NO checks, silently. Resolve the doc conflicts (TODO.md,
