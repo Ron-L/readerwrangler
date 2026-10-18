@@ -221,6 +221,18 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
    The deleting itself:
    - It needs a per-run budget: a free-plan run gets 50 outside calls, and every storage call counts — one 18-part leftover alone is 19 deletes. Spread big cleanups over days.
    - Test on dev with **deliberately planted** leftovers on the test channel `22222222…` (dev has none of its own); confirm it removes exactly those; a few days on dev; then production.
+   - **The report names every kind of key, each with whether its count is EXPECTED** (Ron, 2026-10-18 — today's
+     email lumps 27 of production's 53 keys as "other"). Production on 2026-10-18 held, all by design: 11 blocked
+     channels + 11 revocation proofs (one pair per revoked channel — Ron's credential rotations), 3 "first used"
+     records, 1 test-alert counter, 1 storage-alert level. Wording per kind, e.g.:
+     - "Revoked channels: 11 (blocked records 11, revocation proofs 11 — expected: always in pairs)"
+     - "First-used records: 3 — expected: one per channel that has ever saved"
+     - "Test-alert counter: 1 — 1 is what is expected"
+     - "Storage-alert level: 1 — 1 is what is expected (production only; dev expects 0)"
+     - Also: rate-limit counters (expire within 2 hours — a few during activity is expected), today's alert records
+       (production only, 0–2 expected), the stray-schedule tally (0 or 1).
+     - **Anything outside these expectations — or any key of a kind the report doesn't know — shows in red.**
+     - Where: `groupKeys` / the storage-check section of relay-worker.js (~1200–1230, ~1323).
 5. **Then C.**
 
 **Lessons learned**
