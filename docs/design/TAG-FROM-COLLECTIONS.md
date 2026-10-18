@@ -15,11 +15,13 @@ on the books in that collection. Re-run after new purchases: "New books only" sh
    collection when you Apply") and a **name** ("show its books on the right"). Unchecking a box didn't change the right
    side; "checked" and "being shown" looked alike. It fooled Ron (2026-10-14, again 2026-10-18 on 7.22.1-alpha.1).
 2. **The right side showed one collection at a time**, so you never saw everything Apply would do.
-3. **A data bug (found 2026-10-18): the wizard misses existing tags whose name has capitals.** Tags get their internal
-   key two ways — the book details window and the bulk editor keep capitals ("Read" → key `Read`, readerwrangler.js
-   ~14064, ~14120, ~19847, ~19913), Manage Tags and this wizard lowercase it (`read`, ~18080). So the wizard looks up
-   `read`, misses your `Read`, says "will create a new tag" — and **Apply would create a second "Read" tag** and put the
-   books on that one. That breaks v1's own rule ("same name exists → add to it, don't create a duplicate").
+3. **The wizard matches collections to tags by a computed internal key, not by name** (found 2026-10-18 with Ron's
+   data). "Non fiction" (a Kindle collection) and "Non-Fiction" (Ron's own, unrelated tag) both make the key
+   `non-fiction`, so: the summary (which compares names) said *"Will create 1 new tag"*, while **Apply (which compares
+   keys) would have put Ron's "Non-Fiction" tag on 39 books**, and books with Non-Fiction showed as "already tagged" in
+   the Non fiction collection. Summary and Apply disagreed about whether a tag exists — two copies again.
+   (A first theory — capital letters in keys — was checked against Ron's data and ruled out: all 11 of his keys are
+   lowercase, no duplicate names. The capital-letter path is still possible in code, see 2.6.)
 4. **A tag could be created with no books on it**, just because its collection was checked.
 5. **Removals of tags were pre-checked** — one click on Apply removed them.
 
@@ -49,13 +51,23 @@ on the books in that collection. Re-run after new purchases: "New books only" sh
 
 ### 2.2 Left: "Kindle collections — each becomes a tag"
 
+**THE matching rule (Ron + UX, 2026-10-18), shown as one line under the header:**
+> *Each collection goes onto the tag with exactly its name (capitals included); if there's none, a new tag is created.*
+
+It looks only at names as they are **right now** — no memory of history, internal keys play no part. So: rename tag
+A → A1, and a new book in collection A is offered **"A → new tag A"**; rename back to A and collection A feeds A again;
+rename A → B and C → A, and collection A goes onto **tag A (formerly C)**. **Renaming a tag makes it yours** — the
+wizard no longer ties it to a collection (see 2.5).
+
 1. **One click target per row.** Clicking anywhere on a row (box or name) toggles its checkbox. There is no "being
    shown" state and no row highlight — the right side shows all checked collections at once.
-2. Each row: checkbox, the collection name, its count — "(7 new)" with New books only, "(12)" without.
+2. Each row: checkbox, the collection name, its count — "(7 new)" with New books only, "(12)" without — and **where it
+   lands**: **"→ tag Read"** (exists) or **"→ new tag Comics"**. If a tag differing only in capitals exists, the row
+   adds *"(a tag 'Comics' also exists — a separate tag)"* so a near-twin is never a surprise.
 3. **A collection with nothing to show** (0 books under "New books only") is **greyed out, its checkbox disabled, and
    kept in its alphabetical place** — hiding it would make collections seem to vanish; moving it would reshuffle the
    list when "New books only" flips. Tooltip: *"No new books here — turn off 'New books only' to see all of its books."*
-4. "(tag exists)" stays, now correct (see 2.6).
+4. "(tag exists)" becomes the "→ tag X" / "→ new tag X" destination above, decided by the matching rule.
 5. **Select: All | Some | None** works as today (over the enabled rows).
 
 ### 2.3 Right: "Changes Apply will make"
@@ -94,18 +106,48 @@ on the books in that collection. Re-run after new purchases: "New books only" sh
    the right; clicking a "−" chip keeps that one.
 3. Ron (2026-10-18) uses tags for much more than collections; removing them should never happen by one Apply click.
    Kept (opt-in) for people who mirror their Kindle collections as tags.
+4. **A renamed tag is never offered for removal** — it's yours now (2.2). A candidate is a wizard-added tag whose
+   **current name exactly matches a collection** the book is no longer in. (Today the removal check compares computed
+   keys, readerwrangler.js ~7382 and ~12808 — switch both to the exact-name rule.) Nothing here limits deleting or
+   renaming tags in Manage Tags.
 4. **Help notes:** to remove a tag from many books, use **All Books → filter by the tag → select → right-click → Tags**
    — goes into SUPPORT-KB (it feeds the help assistant).
 
-### 2.6 Tag identity — one way to find or make a tag
+### 2.6 Tag identity — exact text, everywhere in the app (Ron + UX, 2026-10-18)
 
-1. **One shared function: find the tag with this name, ignoring capitals; create it only if none exists.** All six
-   places that create tags use it (book details ×2, bulk editor ×2, Manage Tags, this wizard), so "Read" and "read"
-   can never become two tags again.
-2. Existing keys are not renamed (that would touch every book and every Search) — lookups go by name.
-3. **Duplicate check before building:** list any existing tags whose names match ignoring capitals (an earlier wizard run
-   may already have made a pair). If any exist, Ron decides what to do with them before the fix ships (merging is its
-   own small task).
+One rule app-wide, not a wizard rule plus a limitation elsewhere (today Manage Tags refuses "read" if "Read" exists):
+
+1. **"Is this the same tag?" = exact text, capitals included.** "Read" and "read" are two tags. Never grouped, never
+   renamed for you — capitals may mean something to you, and grouping is hard to undo.
+2. **"Find a tag as I type" ignores capitals** (the tag pickers' search, the phone's search): typing "read" finds both.
+   Finding forgiving, identity exact.
+3. **A safeguard, not a refusal:** typing a new tag that differs from an existing one only in capitals asks once —
+   *"A tag 'Read' already exists. Create 'read' as a separate tag?"* **Create** / **Use 'Read'** (catches a Caps Lock
+   slip). In the wizard the row's note (2.2) does this job instead of a prompt.
+4. **A→Z ignores capitals**, so near-twins sit side by side (already true — `localeCompare`; keep it).
+5. **Every tag gets its own internal key**, unique even when two names differ only in capitals (one shared "find or
+   create a tag" function guarantees it). Existing keys are never renamed (that would touch every book and Search).
+6. **Renaming to a name that already exists exactly is refused** ("A tag named 'Read' already exists") — two tags with
+   the same exact name would make "the tag with exactly its name" ambiguous. Today rename has no such check.
+7. **Duplicate check done 2026-10-18:** Ron's 11 tags have no names matching each other even ignoring capitals.
+
+**Site map** (the class-of-sites sweep, 2026-10-18 — two independent searches: every write to the tag list, and every
+comparison of tag names; they agree). Line numbers on branch `fix/tfc-clarity` at `6574d32`.
+
+| # | Screen | Creates / renames at | Name check today | Becomes |
+|---|--------|----------------------|------------------|---------|
+| A | Book details → Tags, Enter | ~14064 | ~14040 (lowercase compare) | shared find-or-create + safeguard |
+| B | Book details → Tags, pick "create" | ~14120 | ~14101 (lowercase) | same |
+| C | Right-click → Tags → Add Tag, Enter | ~19847 | ~19821 (lowercase) | same |
+| D | Right-click → Tags list, "create" | ~19913 | ~19904 (lowercase) | same |
+| E | Manage Tags → Create new tag… | ~18080 | ~18083 (lowercase, refuses) | same |
+| F | Tag from Collections → Apply | ~13192 | ~12853, ~12946 (by computed key) | exact-name rule (2.2) |
+| G | Manage Tags → rename | `renameTag` ~2065 (callers ~17994, ~18002) | none | refuse an exact duplicate (6) |
+| H | Removal candidates (wizard) | ~7382, ~12808 (computed keys) | — | exact-name rule (2.5) |
+
+Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660, undo/redo ~7789–8377, drag order
+~1447, deletes ~17910 / ~18043, the phone app (load only, mobile.js ~2635). Finding-as-you-type stays capital-blind:
+~14043, ~14105, ~19897, mobile.js ~2293.
 
 ## 3. Data model (unchanged from v1)
 
@@ -114,8 +156,7 @@ on the books in that collection. Re-run after new purchases: "New books only" sh
 - `book.collectionTags = ["read", …]` — tag keys **this wizard** assigned. Removal candidates come only from here; a
   declined removal drops the key from `collectionTags` only (the tag becomes yours).
 - `book.collections = [{ name }]` — from the Kindle collections fetch, read-only, replaced on each import.
-- With 2.6, `collectionTags` holds the key of the tag actually used (the existing `Read` if it exists), not a computed
-  lowercase key.
+- With 2.2 / 2.6, `collectionTags` holds the key of the tag actually used (found by exact name), not a computed key.
 
 ## 4. Apply (what happens)
 
@@ -130,8 +171,14 @@ on the books in that collection. Re-run after new purchases: "New books only" sh
 
 ## 5. Verification (test steps for the alpha)
 
-1. Ron's **Read** collection (7 newly read books): None → check Read → 7 "+ Read" chips, header *Read (7)*, button
-   *"Tag 7 books from 1 collection"*; Apply → the books get the **existing** "Read" tag (no second tag); Ctrl+Z undoes.
+1. Ron's **Read** collection (7 newly read books): None → check Read → row says "→ tag Read", 7 "+ Read" chips, header
+   *Read (7)*, button *"Tag 7 books from 1 collection"*; Apply → the books get the **existing** "Read" tag (no second
+   tag); Ctrl+Z undoes.
+1a. **"Non fiction"** (New books only off): row says **"→ new tag Non fiction"** (NOT Ron's "Non-Fiction"); no book
+   shows "already tagged" because of Non-Fiction; Apply would create a separate "Non fiction" tag. (Don't apply it —
+   Ron has his own plan for these books.)
+1b. Exact text elsewhere: Manage Tags → create "read" while "Read" exists → the safeguard asks; **Create** makes a
+   separate tag, **Use 'Read'** doesn't. Rename "Next" to "Read" → refused.
 2. Check a second collection → its column appears; a book in both shows two chips; the total adds up.
 3. Click a "+" chip → "skip"; total drops by 1; Apply leaves that book without that tag.
 4. Click a tag header → books with a change in that column come first; click Title → A–Z.
@@ -141,11 +188,17 @@ on the books in that collection. Re-run after new purchases: "New books only" sh
 8. Manage Tags → "Create tags from your Kindle collections…" opens this window.
 9. After Apply: Manage Tags shows no duplicate names.
 
-## 6. Open questions
+## 6. Settled questions (Ron, 2026-10-18)
 
-1. Should a column header also allow "skip all in this column"? (Unchecking the collection does nearly the same.)
-   Proposed: no — keep one control per job.
-2. Chip look: reuse the app's existing tag-chip style, so a tag looks the same here as everywhere else.
+1. **No "skip all in this column"** on the headers — unchecking the collection does that; one control per job.
+2. **Chips reuse the app's existing tag-chip style** ("ABSOLUTELY") — a tag looks the same here as everywhere else.
+
+## 7. Related, filed separately (not in 7.22.1)
+
+- **Tag order everywhere follows Manage Tags** (Ron + UX, 2026-10-18): the Tags filter and every tag list show tags in
+  the order Manage Tags is set to; the hidden header-click cycle becomes a visible **Order: A→Z | Most used | Manual**;
+  drag handles appear only in Manual; the manual order changes only in Manual view (viewing A→Z never touches a saved
+  manual order). → added to the TODO task "One shared tag picker: show all tags in your order".
 
 ## History
 
