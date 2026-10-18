@@ -23,8 +23,11 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
   **Whole-batch bounce** (2026-10-16): every other shipped-code edit in the SAME batch is refused too, so a batch never
   applies by halves — the bounced edit used to go missing while the rest landed (alpha.62; twice more on 7.21.2).
   "Same batch" = same assistant message id, looked up in the session transcript (`batch_of()`; Ron's idea). Probed: the
-  hook gets `tool_use_id` + `transcript_path`, and a call is NOT always in the transcript when its own hook runs — but
-  the bounced call is by the time a later one arrives. A 5-second window is only the fallback when the lookup fails. The
+  hook gets `tool_use_id` + `transcript_path`, and the FIRST call of a message is NOT in the transcript when its own
+  hook runs — but the bounced call is by the time a later one arrives. So: both found → same message id = same batch;
+  bounced found + this one not = this one opens a NEW message = a re-send → allowed (fixed 2026-10-18, after the
+  timer refused 7.22.0's re-sent edit). The 5-second window decides only when even the bounced call can't be found.
+  The lookup reads the transcript's last 4 MB — fine live (the bounce is recent); old ids fall out of it. The
   checklist is **not** in the hook — it's pulled from the `GATE-CHECKLIST` block in `docs/PRINCIPLES.md`
   (single source). Unreadable → loud `CHECKLIST SOURCE MISSING` alarm + a minimal core.
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by

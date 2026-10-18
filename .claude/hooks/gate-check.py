@@ -111,8 +111,9 @@ def batch_of(transcript_path, tool_use_id):
 
 def same_batch_as_bounce(bounced_path, data):
     """Was this call sent in the same batch as the bounced one? By the batch's real identity when the transcript has
-    both calls (a call isn't always written yet when ITS OWN hook runs -- probed 2026-10-16 -- but the bounced one is
-    by the time a later call arrives); otherwise by the time window."""
+    both calls (a call isn't written yet when ITS OWN hook runs if it's the first call of its message -- probed
+    2026-10-16 -- but the bounced one is by the time a later call arrives). Bounced call found + this one not = this one
+    opens a new message = a re-send. Only when even the bounced call can't be found does the time window decide."""
     try:
         rec = json.load(open(bounced_path))
     except Exception:
@@ -121,6 +122,11 @@ def same_batch_as_bounce(bounced_path, data):
     a, b = batch_of(tp, rec.get("tool_use_id")), batch_of(tp, data.get("tool_use_id"))
     if a and b:
         return a == b
+    if a and not b:
+        # The bounced call's message is written but this call isn't in ANY message yet → it is the FIRST call of a NEW
+        # message (a call's own entry isn't written when its hook runs; a later call in the same batch is). That is a
+        # re-send — allow it. (2026-10-18: the 7.22.0 release's re-sent version edit was refused here by the timer.)
+        return False
     return 0 <= time.time() - float(rec.get("t", 0)) <= BATCH_WINDOW_S
 
 
