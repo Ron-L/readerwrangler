@@ -31,6 +31,11 @@
  *   test-alert-counter                 → test alert sequence number
  *   usage-alert:{YYYY-MM-DD}           → counter-threshold alerts already sent today (TTL: 2 days)
  *   usage-alert:storage-band           → last alerted storage band: 0/25/50/75/90 (no TTL)
+ *   cron-mistriggers                   → schedules that fired but aren't this relay's, since the last summary (TTL: 7 days)
+ *   (both usage-alert keys exist only in PRODUCTION's namespace — only prod sends threshold alerts; since 7.22.0
+ *    they track the TOTAL across both relays)
+ *
+ * Deployed twice from this one file (wrangler.toml): RELAY_ENV = "prod" | "dev" names the deployment — see RELAYS.
  */
 
 const LIBRARY_TTL = 864000;    // 10 days in seconds (legacy fetcher→app relay data)
@@ -60,14 +65,48 @@ const RATE_LIMIT_SAMPLE = 5;          // v7.5.0 - persist the counter 1-in-N (co
                                       // best-effort/approximate; sampling changes no semantics,
                                       // only granularity (200/hr limit ± ~5).
 
-// Cloudflare free tier daily limits
+// Cloudflare free tier daily limits — ACCOUNT-WIDE (both relays share them), so alerts compare the TOTAL.
+// Storage is in decimal MB (bytes / 1,000,000) to match the Cloudflare dashboard; "1 GB" is taken as 1,000 MB (the
+// stricter reading — Cloudflare doesn't say which GB it means). Until 7.22.0 the email divided by 1024² (design §14a F6).
 const CF_LIMITS = {
   requests:   { limit: 100000, label: 'Worker requests' },
   kvReads:    { limit: 100000, label: 'KV reads' },
   kvWrites:   { limit: 1000,   label: 'KV writes' },
   kvDeletes:  { limit: 1000,   label: 'KV deletes' },
-  kvStorageMB:{ limit: 1024,   label: 'KV storage' },
+  kvLists:    { limit: 1000,   label: 'KV lists' },
+  kvStorageMB:{ limit: 1000,   label: 'KV storage' },
 };
+// Cloudflare's KV actionType → our counter. An action type not listed here is reported in the email, never dropped.
+const KV_ACTION_FIELDS = { read: 'kvReads', write: 'kvWrites', delete: 'kvDeletes', list: 'kvLists' };
+
+const WORKER_VERSION = '7.22.0'; // printed in every daily summary, so an email shows which deploy sent it
+
+// THE list of relays (7.22.0, design §14a fix 2). One codebase, deployed twice; RELAY_ENV in wrangler.toml says which
+// deployment this is. Every daily summary reports ALL relays here (the free limits are shared account-wide); each
+// worker inspects only its OWN storage (it can only reach its own bound namespace). Names/ids mirror wrangler.toml.
+const RELAYS = {
+  prod: { label: 'Production', worker: 'readerwrangler-relay',     kvId: '4a445b412fb34860a896cfc145a67b9b',
+          sendsThresholdAlerts: true },
+  dev:  { label: 'Dev',        worker: 'readerwrangler-relay-dev', kvId: '58116108eead40d18a55e59d799472b3',
+          sendsThresholdAlerts: false }, // prod alone alerts for now (step C adds a dev backup alerter)
+};
+// Each schedule's ONE job (7.22.0-alpha.4). A schedule not listed here — or the threshold check on a relay that doesn't
+// alert — does NOTHING but get counted: on 2026-10-13/14 a Cloudflare incident kept firing dev's old 10-minute test
+// schedule for hours after it was replaced, mailing a summary every time. Matched by the schedule's TEXT (Cloudflare
+// hands the firing schedule to scheduled() as event.cron), never by clock time — so a late run is still recognized.
+// Schedules must also match wrangler.toml.
+const SUMMARY_CRON = '55 23 * * *';
+const THRESHOLD_CRON = '*/30 * * * *';
+const MISTRIGGER_KEY = 'cron-mistriggers';  // { crons: { "<cron>": count }, first, last } since the last summary
+const MISTRIGGER_WRITE_CAP = 24;            // tally saves between summaries — a stuck every-minute schedule must not
+                                            // eat the 1,000/day KV write quota; past the cap the email says "24 or more"
+
+// This deployment's RELAYS entry. Fails LOUD on a missing/unknown RELAY_ENV (the cron error mail names the fix).
+function thisRelay(env) {
+  const relay = RELAYS[env.RELAY_ENV];
+  if (!relay) throw new Error(`RELAY_ENV is "${env.RELAY_ENV}" — must be ${Object.keys(RELAYS).join(' or ')} (set in wrangler.toml)`);
+  return { key: env.RELAY_ENV, ...relay };
+}
 const THRESHOLDS = [25, 50, 75, 90];
 
 export default {
@@ -102,11 +141,10 @@ export default {
   async scheduled(event, env, ctx) {
     const cron = event.cron;
     try {
-      if (cron === '55 23 * * *') {
-        await sendDailySummary(env);
-      } else {
-        await checkUsageThresholds(env);
-      }
+      const self = thisRelay(env);
+      if (cron === SUMMARY_CRON) await sendDailySummary(env);
+      else if (cron === THRESHOLD_CRON && self.sendsThresholdAlerts) await checkUsageThresholds(env);
+      else await recordMistrigger(env, cron); // not this relay's schedule — count it, run nothing
     } catch (err) {
       await sendAlert(env, 'Cron error', `Cron "${cron}" failed: ${err.message}\nTime: ${new Date().toISOString()}`);
     }
@@ -284,6 +322,17 @@ async function route(request, path, env) {
     await env.RELAY_KV.put(countKey, String(count));
     await sendAlert(env, `Test Alert #${count}`, `Test alert #${count} from the ReaderWrangler relay worker.\nSent: ${new Date().toISOString()}`);
     return jsonResponse({ ok: true, message: `Alert #${count} sent` });
+  }
+
+  // POST /run-summary?key={TEST_ALERT_KEY} — send the daily summary NOW (7.22.0): the way to test it. A temporary test
+  // schedule is not — Cloudflare can take 15 minutes to hours to apply (or remove) a schedule change.
+  match = path.match(/^\/run-summary$/);
+  if (match && request.method === 'POST') {
+    if (!env.TEST_ALERT_KEY || new URL(request.url).searchParams.get('key') !== env.TEST_ALERT_KEY) {
+      return jsonResponse({ error: 'Unauthorized' }, 401);
+    }
+    await sendDailySummary(env);
+    return jsonResponse({ ok: true, message: 'Summary sent' });
   }
 
   return new Response('Not Found', { status: 404 });
@@ -808,9 +857,11 @@ async function checkRateLimit(env, channelId) {
 
 // --- Telemetry ---
 
+// Events are labeled prod-/dev- by the relay that fired them (7.22.0) — the same labels the app's trackEvent uses.
 async function fireGoatCounter(env, eventName) {
+    const prefix = RELAYS[env.RELAY_ENV] ? env.RELAY_ENV : 'unknown'; // never throws: telemetry must not fail a request
     try {
-        await fetch(`https://readerwrangler.goatcounter.com/count?p=/event/${eventName}`, {
+        await fetch(`https://readerwrangler.goatcounter.com/count?p=/event/${prefix}-${eventName}`, {
             method: 'GET',
             headers: { 'User-Agent': 'ReaderWrangler-Relay/1.0' }
         });
@@ -819,8 +870,10 @@ async function fireGoatCounter(env, eventName) {
 
 // --- Email Alerts ---
 
+// Every email from a relay other than production starts its subject with that relay's label — "[Dev] …" (7.22.0).
 async function sendAlert(env, subject, message) {
     if (!env.ALERT_TO_EMAIL || !env.RESEND_API_KEY) return;
+    const tag = env.RELAY_ENV === 'prod' ? '' : `[${(RELAYS[env.RELAY_ENV] || { label: 'Unknown relay' }).label}] `;
     try {
         await fetch('https://api.resend.com/emails', {
             method: 'POST',
@@ -831,8 +884,12 @@ async function sendAlert(env, subject, message) {
             body: JSON.stringify({
                 from: 'ReaderWrangler Relay <alerts@readerwrangler.com>',
                 to: [env.ALERT_TO_EMAIL],
-                subject: `🚨 ${subject}`,
-                text: message
+                subject: `${tag}🚨 ${subject}`,
+                text: message.split(RED_START).join('').split(RED_END).join(''),
+                // 7.22.0 - plus a preformatted HTML copy: mail programs reflow plain text (Outlook joined lines of the
+                // summary); <pre> keeps every line break and the table's columns, in any client. red() lines show red.
+                html: `<pre style="font-family:Consolas,Menlo,monospace;font-size:13px">${escapeHtml(message)
+                    .split(RED_START).join('<span style="color:#c00;font-weight:bold">').split(RED_END).join('</span>')}</pre>`
             })
         });
     } catch { /* best-effort — don't let alert failure break the request */ }
@@ -855,69 +912,78 @@ async function queryCloudflareGraphQL(env, query, variables) {
   return json.data;
 }
 
+// Usage for EVERY relay in RELAYS plus the account total (7.22.0, design §14a fix 2). The old version queried the
+// account with no namespace filter and kept the first row — ONE relay's figure, never the sum (F4) — and printed a
+// missing reading as 0 (F5). Now: one GraphQL request (aliased per relay — one subrequest), storage per namespace
+// taken from the newest daily row (Cloudflare's documented shape), and a missing storage reading stays null.
+// Counters stay 0 when Cloudflare returns no rows (it omits empty groups); storage, a level, is never shown as 0.
+//   → { relays: { prod: {requests, kvReads, …, kvStorageMB, storageKeys, storageDate}, dev: {…} },
+//       total: {requests, …, kvStorageMB}, storagePartial, otherWorkers: {name: requests}, otherActions: {type: n} }
 async function fetchUsage(env) {
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const accountId = env.CF_ACCOUNT_ID;
-
-  // Worker requests
-  const reqData = await queryCloudflareGraphQL(env, `
-    query ($accountTag: string!, $date: string!) {
-      viewer {
-        accounts(filter: { accountTag: $accountTag }) {
-          workersInvocationsAdaptive(filter: { date: $date }, limit: 1) {
-            sum { requests }
-          }
-        }
-      }
-    }
-  `, { accountTag: accountId, date: todayStr });
-
-  const reqRows = reqData.viewer.accounts[0]?.workersInvocationsAdaptive || [];
-  const requests = reqRows.length ? reqRows[0].sum.requests : 0;
-
-  // KV operations
-  const kvData = await queryCloudflareGraphQL(env, `
-    query ($accountTag: string!, $date: string!) {
-      viewer {
-        accounts(filter: { accountTag: $accountTag }) {
-          kvOperationsAdaptiveGroups(filter: { date: $date }, limit: 10) {
+  const today = new Date().toISOString().slice(0, 10);
+  const since = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+  const relayKeys = Object.keys(RELAYS);
+  const perRelay = relayKeys.map(k => `
+          ${k}Ops: kvOperationsAdaptiveGroups(filter: { namespaceId: "${RELAYS[k].kvId}", date: $date }, limit: 20) {
             dimensions { actionType }
             sum { requests }
           }
-        }
-      }
-    }
-  `, { accountTag: accountId, date: todayStr });
-
-  const kvOps = kvData.viewer.accounts[0]?.kvOperationsAdaptiveGroups || [];
-  let kvReads = 0, kvWrites = 0, kvDeletes = 0;
-  for (const row of kvOps) {
-    const action = row.dimensions.actionType;
-    const count = row.sum.requests;
-    if (action === 'read') kvReads = count;
-    else if (action === 'write') kvWrites = count;
-    else if (action === 'delete') kvDeletes = count;
-  }
-
-  // KV storage
-  const storageData = await queryCloudflareGraphQL(env, `
-    query ($accountTag: string!, $date: string!) {
+          ${k}Storage: kvStorageAdaptiveGroups(filter: { namespaceId: "${RELAYS[k].kvId}", date_geq: $since, date_leq: $date },
+                                               limit: 3, orderBy: [date_DESC]) {
+            dimensions { date }
+            max { byteCount keyCount }
+          }`).join('');
+  const data = await queryCloudflareGraphQL(env, `
+    query ($accountTag: string!, $date: Date!, $since: Date!) {
       viewer {
         accounts(filter: { accountTag: $accountTag }) {
-          kvStorageAdaptiveGroups(filter: { date: $date }, limit: 1) {
-            max { byteCount }
-          }
+          workers: workersInvocationsAdaptive(filter: { date: $date }, limit: 100) {
+            dimensions { scriptName }
+            sum { requests }
+          }${perRelay}
         }
       }
     }
-  `, { accountTag: accountId, date: todayStr });
+  `, { accountTag: env.CF_ACCOUNT_ID, date: today, since });
+  const acct = data.viewer.accounts[0] || {};
 
-  const storageRows = storageData.viewer.accounts[0]?.kvStorageAdaptiveGroups || [];
-  const storageBytes = storageRows.length ? storageRows[0].max.byteCount : 0;
-  const kvStorageMB = Math.round(storageBytes / (1024 * 1024) * 10) / 10;
+  const requestsByWorker = {};
+  for (const row of acct.workers || []) {
+    const name = row.dimensions.scriptName;
+    requestsByWorker[name] = (requestsByWorker[name] || 0) + row.sum.requests;
+  }
 
-  return { requests, kvReads, kvWrites, kvDeletes, kvStorageMB };
+  const relays = {};
+  const otherActions = {};
+  for (const k of relayKeys) {
+    const u = { requests: requestsByWorker[RELAYS[k].worker] || 0, kvReads: 0, kvWrites: 0, kvDeletes: 0, kvLists: 0 };
+    for (const row of acct[`${k}Ops`] || []) {
+      const field = KV_ACTION_FIELDS[row.dimensions.actionType];
+      if (field) u[field] += row.sum.requests;
+      else otherActions[`${k} ${row.dimensions.actionType}`] = row.sum.requests;
+    }
+    const newest = (acct[`${k}Storage`] || [])[0];
+    u.kvStorageMB = newest ? Math.round(newest.max.byteCount / 1e5) / 10 : null;
+    u.storageKeys = newest ? newest.max.keyCount : null;
+    u.storageDate = newest ? newest.dimensions.date : null;
+    relays[k] = u;
+  }
+
+  const otherWorkers = {};
+  for (const [name, n] of Object.entries(requestsByWorker)) {
+    if (!relayKeys.some(k => RELAYS[k].worker === name)) otherWorkers[name] = n;
+  }
+
+  const total = {};
+  for (const metric of Object.keys(CF_LIMITS)) {
+    const parts = relayKeys.map(k => relays[k][metric]).filter(v => v != null);
+    total[metric] = parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) * 10) / 10 : null;
+  }
+  // Requests are an account-wide limit: other workers on the account count against it too.
+  total.requests += Object.values(otherWorkers).reduce((a, b) => a + b, 0);
+  const storagePartial = relayKeys.some(k => relays[k].kvStorageMB == null);
+
+  return { relays, total, storagePartial, otherWorkers, otherActions };
 }
 
 // Highest threshold band at-or-below pct (0 = below every threshold)
@@ -952,16 +1018,17 @@ async function checkUsageThresholds(env) {
   const raw = await env.RELAY_KV.get(stateKey);
   const alerted = raw ? JSON.parse(raw) : {};
 
+  // 7.22.0 - every comparison is against the TOTAL across both relays (the free limits are account-wide).
   let alertsSent = false;
   for (const [key, { limit, label }] of Object.entries(CF_LIMITS)) {
     if (key === 'kvStorageMB') continue; // level metric — band logic below
-    const current = usage[key];
+    const current = usage.total[key];
     const band = bandOf((current / limit) * 100);
     if (band === 0) continue;
 
     if (!alerted[`${key}:${band}`]) {
       await sendAlert(env, `Usage threshold: ${label} at ${band}%`,
-        `${label} has reached ${band}% of the daily free tier limit.\n` +
+        `${label} has reached ${band}% of the daily free tier limit (production + dev combined).\n` +
         `Current: ${current.toLocaleString()} / ${limit.toLocaleString()}\n` +
         `Time: ${new Date().toISOString()}`
       );
@@ -981,14 +1048,15 @@ async function checkUsageThresholds(env) {
 
 async function checkStorageBand(env, usage) {
   const { limit, label } = CF_LIMITS.kvStorageMB;
-  const current = usage.kvStorageMB;
+  const current = usage.total.kvStorageMB;
+  if (current == null) return; // no reading for either relay — nothing honest to alert on
   const pct = (current / limit) * 100;
   const band = bandOf(pct);
 
   const stored = parseInt(await env.RELAY_KV.get(STORAGE_BAND_KEY), 10) || 0;
   if (band > stored) {
     await sendAlert(env, `Usage alert: ${label} is ${pct.toFixed(1)}%`,
-      `${label} is at ${current.toLocaleString()} MB of the ${limit.toLocaleString()} MB free tier cap (${pct.toFixed(1)}%) — up into the ${band}% band.\n` +
+      `${label} is at ${current.toLocaleString()} MB of the ${limit.toLocaleString()} MB free tier cap (${pct.toFixed(1)}%, production + dev combined${usage.storagePartial ? ' — one relay had no reading, so at least this much' : ''}) — up into the ${band}% band.\n` +
       `Storage is a level, not a daily counter: no repeat alerts while it stays in this band. ` +
       `The daily summary tracks the exact figure (including drops).\n` +
       `Time: ${new Date().toISOString()}`
@@ -1001,7 +1069,9 @@ async function checkStorageBand(env, usage) {
 // storage band so a genuine later re-climb alerts again. Hysteresis stops boundary flap.
 async function rebaselineStorageBand(env, usage) {
   const { limit } = CF_LIMITS.kvStorageMB;
-  const pct = (usage.kvStorageMB / limit) * 100;
+  // A partial total (one relay unread) could understate and wrongly downgrade — only a complete reading may lower it.
+  if (usage.total.kvStorageMB == null || usage.storagePartial) return;
+  const pct = (usage.total.kvStorageMB / limit) * 100;
   const band = bandOf(pct);
   const stored = parseInt(await env.RELAY_KV.get(STORAGE_BAND_KEY), 10) || 0;
   if (band < stored && pct < stored - STORAGE_BAND_HYSTERESIS) {
@@ -1009,29 +1079,261 @@ async function rebaselineStorageBand(env, usage) {
   }
 }
 
+// 7.22.0 - BOTH relays send this (dev's subject says "[Dev]"); both report usage for ALL relays + the total, and each
+// adds the storage check of its OWN namespace. Each section fails on its own: an error is printed, never a silent skip.
 async function sendDailySummary(env) {
-  if (!env.CF_API_TOKEN || !env.CF_ACCOUNT_ID) return;
+  const self = thisRelay(env);
+  const today = new Date().toISOString().slice(0, 10);
+  const sections = [
+    `ReaderWrangler Relay - Daily Summary\nDate: ${today} (UTC) - sent by the ${self.label} relay (worker ${WORKER_VERSION})`
+  ];
 
-  const usage = await fetchUsage(env);
-  const todayStr = new Date().toISOString().slice(0, 10);
-
-  const lines = [];
-  for (const [key, { limit, label }] of Object.entries(CF_LIMITS)) {
-    const current = usage[key];
-    const pct = ((current / limit) * 100).toFixed(1);
-    const unitSuffix = key === 'kvStorageMB' ? ' MB' : '';
-    const currentStr = current.toLocaleString() + unitSuffix;
-    const limitStr = limit.toLocaleString() + unitSuffix;
-    lines.push(`${label.padEnd(16)} ${currentStr.padStart(10)} / ${limitStr.padStart(10)}  (${pct}%)`);
+  let usage = null;
+  if (env.CF_API_TOKEN && env.CF_ACCOUNT_ID) {
+    try { usage = await fetchUsage(env); sections.push(formatUsage(usage)); }
+    catch (err) { sections.push(`USAGE COULD NOT BE READ: ${err.message}`); }
+  } else {
+    sections.push('USAGE NOT AVAILABLE: this worker has no CF_API_TOKEN / CF_ACCOUNT_ID.');
   }
 
-  const body = `ReaderWrangler Relay - Daily Usage Summary\nDate: ${todayStr}\n\n${lines.join('\n')}`;
-  await sendAlert(env, `Daily usage summary - ${todayStr}`, body);
+  try { sections.push(formatStorageCheck(self, await inspectStorage(env), usage)); }
+  catch (err) { sections.push(`STORAGE CHECK (${self.label}) FAILED: ${err.message}`); }
 
-  await rebaselineStorageBand(env, usage); // full-day reading = the only trustworthy downgrade
+  let mistriggers = null;
+  try { mistriggers = await mistriggerSection(env, self); }
+  catch (err) { mistriggers = red(`SCHEDULE CHECK FAILED: ${err.message}`); }
+  if (mistriggers) sections.splice(1, 0, mistriggers); // right under the header — it's the thing to act on
+
+  await sendAlert(env, `Daily usage summary - ${today}`, sections.join('\n\n'));
+  if (mistriggers) await env.RELAY_KV.delete(MISTRIGGER_KEY); // reported → start a fresh tally
+
+  // The remembered storage band is prod's threshold-alert state — only the relay that alerts maintains it.
+  if (self.sendsThresholdAlerts && usage) await rebaselineStorageBand(env, usage); // full-day reading = the only trustworthy downgrade
+}
+
+// A schedule fired that isn't one of this relay's jobs. Tally it (by schedule text) for the next summary; at most
+// MISTRIGGER_WRITE_CAP saves between summaries, so even a stuck every-minute schedule can't drain the write quota.
+async function recordMistrigger(env, cron) {
+  const tally = JSON.parse(await env.RELAY_KV.get(MISTRIGGER_KEY) || 'null') || { crons: {}, saves: 0 };
+  if (tally.saves >= MISTRIGGER_WRITE_CAP) return;
+  const now = new Date().toISOString();
+  tally.crons[cron] = (tally.crons[cron] || 0) + 1;
+  tally.saves++;
+  tally.first = tally.first || now;
+  tally.last = now;
+  await env.RELAY_KV.put(MISTRIGGER_KEY, JSON.stringify(tally), { expirationTtl: 7 * 86400 });
+}
+
+// The summary's red section (or null): the mistrigger tally since the last summary. Caller clears it after mailing.
+async function mistriggerSection(env, self) {
+  const tally = JSON.parse(await env.RELAY_KV.get(MISTRIGGER_KEY) || 'null');
+  if (!tally || !Object.keys(tally.crons).length) return null;
+  const capped = tally.saves >= MISTRIGGER_WRITE_CAP;
+  const jobs = [SUMMARY_CRON, ...(self.sendsThresholdAlerts ? [THRESHOLD_CRON] : [])].map(c => `"${c}"`).join(', ');
+  return [
+    `SCHEDULE PROBLEM - Cloudflare ran schedules that are not this relay's (its own: ${jobs}). They did nothing.`,
+    ...Object.entries(tally.crons).map(([c, n]) => `  "${c}" fired ${n}${capped ? ' or more' : ''} time(s)`),
+    `  first ${tally.first}, last counted ${tally.last} (UTC). Likely an old schedule Cloudflare still runs after a change`,
+    `  (cloudflarestatus.com) - compare with the worker's Trigger events on the dashboard.`,
+  ].map(red).join('\n');
+}
+
+// Marks a line to show in RED in the HTML copy of an email (the plain-text copy shows it unmarked). See sendAlert.
+const RED_START = '\u0001', RED_END = '\u0002';
+const red = line => `${RED_START}${line}${RED_END}`;
+
+function fmtNum(n) {
+  return n == null ? 'no data' : n.toLocaleString('en-US', { maximumFractionDigits: 1 });
+}
+
+function formatUsage(usage) {
+  const relayKeys = Object.keys(RELAYS);
+  const row = (label, cells) => label.padEnd(18) + cells.map(c => String(c).padStart(12)).join('');
+  const lines = [
+    'USAGE TODAY - both relays. The free limits are shared by the whole account, so Total is what counts.',
+    row('', [...relayKeys.map(k => RELAYS[k].label), 'Total', 'Free limit', 'Used']),
+  ];
+  for (const [metric, { limit, label }] of Object.entries(CF_LIMITS)) {
+    const total = usage.total[metric];
+    const partial = metric === 'kvStorageMB' && usage.storagePartial && total != null;
+    lines.push(row(label + (metric === 'kvStorageMB' ? ' (MB)' : ''), [
+      ...relayKeys.map(k => fmtNum(usage.relays[k][metric])),
+      fmtNum(total) + (partial ? '*' : ''),
+      fmtNum(limit),
+      total == null ? '-' : `${((total / limit) * 100).toFixed(1)}%`,
+    ]));
+  }
+  if (usage.storagePartial) lines.push('* a relay had no storage reading, so the total is at least this much');
+  lines.push('Storage readings: ' + relayKeys.map(k => {
+    const u = usage.relays[k];
+    return u.storageDate ? `${RELAYS[k].label} ${u.storageDate} (${fmtNum(u.storageKeys)} keys)` : `${RELAYS[k].label} none in 3 days`;
+  }).join(', '));
+  const others = Object.entries(usage.otherWorkers);
+  if (others.length) lines.push('Other workers on the account (in the requests Total): ' + others.map(([n, c]) => `${n} ${fmtNum(c)}`).join(', '));
+  const unknown = Object.entries(usage.otherActions);
+  if (unknown.length) lines.push('UNRECOGNIZED KV action types (NOT counted above): ' + unknown.map(([n, c]) => `${n} ${fmtNum(c)}`).join(', '));
+  return lines.join('\n');
+}
+
+// --- Daily storage check (7.22.0, design §14a fix 3) — REPORT ONLY: lists what a cleanup WOULD delete, deletes nothing ---
+// The rules mirror the app's own cleanup (relay-client.js commitGeneration + its device-state twin), so any hit means a
+// save that was interrupted or never followed by another — not a judgment call:
+//   - a mailbox run of 2+ letters that the CURRENT library generation lists as absorbed, once that generation is over
+//     an hour old (the saving device has had its chance to reclaim the run itself)
+//   - a generation with no manifest (an interrupted save), over an hour old
+//   - a committed generation beyond the newest 2, over an hour old
+// NEVER: a mailbox run nothing has absorbed (it may be the only copy of a change), or the generation a pointer names.
+// A store whose pointer is missing or unreadable is not judged at all.
+// Cost: one KV list per 1,000 keys + up to SWEEP_READ_BUDGET gets, and only for channels that have something to judge.
+// A free-plan invocation gets 50 subrequests — KV calls and fetches (GraphQL, the email) alike.
+const SWEEP_GRACE_MS = 60 * 60 * 1000; // mirrors relay-client.js GC_GRACE_MS
+const SWEEP_KEEP_GENS = 2;             // mirrors relay-client.js KEEP_GENS
+const SWEEP_READ_BUDGET = 25;
+
+function idTimestamp(mintedId) { // mirrors relay-client.js idTimestamp
+  return parseInt(String(mintedId).split('-')[0], 10) || 0;
+}
+const dateOf = id => new Date(idTimestamp(id)).toISOString().slice(0, 10);
+const shortId = id => `…${String(id).slice(-4)}`;
+
+// Group every key name in the namespace by channel; count each kind (the key check reconciles against these).
+function groupKeys(names) {
+  const channels = new Map(); // channelId → { runs: Map(runId → {letters, manifest}), gen: Map(gen → {chunks, manifest}), dstate: Map }
+  const kinds = { library: 0, deviceState: 0, mailbox: 0, pointers: 0, olderFormat: 0, other: 0 };
+  const channel = ch => {
+    if (!channels.has(ch)) channels.set(ch, { runs: new Map(), gen: new Map(), dstate: new Map() });
+    return channels.get(ch);
+  };
+  for (const name of names) {
+    const p = name.split(':');
+    const [, ch, kind, id, part] = p;
+    if (p[0] !== 'relay' || p.length < 3) { kinds.other++; continue; }
+    if (kind === 'mail' && p.length === 5) {                                  // relay:{ch}:mail:{runId}:{seq|manifest}
+      kinds.mailbox++;
+      const runs = channel(ch).runs;
+      const run = runs.get(id) || { letters: 0, manifest: false };
+      if (part === 'manifest') run.manifest = true; else run.letters++;
+      runs.set(id, run);
+    } else if ((kind === 'gen' || kind === 'dstate') && p.length >= 5) {     // relay:{ch}:{gen|dstate}:{gen}:{chunk:i|manifest}
+      kinds[kind === 'gen' ? 'library' : 'deviceState']++;
+      const gens = channel(ch)[kind];
+      const g = gens.get(id) || { chunks: 0, manifest: false };
+      if (part === 'manifest') g.manifest = true; else g.chunks++;
+      gens.set(id, g);
+    } else if (kind === 'pointer' || kind === 'dstate-pointer') {
+      kinds.pointers++;
+    } else if (kind === 'manifest' || kind === 'chunk' || kind === 'device-state') { // pre-7.0 single-copy layout (TTL'd)
+      kinds.olderFormat++;
+    } else {
+      kinds.other++;                                                          // revocation proofs etc.
+    }
+  }
+  return { channels, kinds };
+}
+
+async function inspectStorage(env) {
+  const names = [];
+  let cursor, complete = false;
+  for (let page = 0; page < LIST_PAGE_CAP; page++) {
+    const res = await env.RELAY_KV.list({ cursor });
+    for (const k of res.keys) names.push(k.name);
+    if (res.list_complete) { complete = true; break; }
+    cursor = res.cursor;
+  }
+  const { channels, kinds } = groupKeys(names);
+
+  let reads = 0;
+  const OUT_OF_BUDGET = 'out of read budget';
+  const readJson = async key => { // null = missing, undefined = unreadable
+    if (reads >= SWEEP_READ_BUDGET) throw new Error(OUT_OF_BUDGET);
+    reads++;
+    const raw = await env.RELAY_KV.get(key);
+    if (raw == null) return null;
+    try { return JSON.parse(raw); } catch { return undefined; }
+  };
+
+  const findings = [], notes = [], unchecked = [];
+  for (const [ch, c] of channels) {
+    try { await inspectChannel(ch, c, Date.now(), readJson, findings, notes); }
+    catch (err) { if (err.message !== OUT_OF_BUDGET) throw err; unchecked.push(`${ch.slice(0, 8)}…`); }
+  }
+  return { keyCount: names.length, complete, kinds, channelCount: channels.size, findings, notes, unchecked, reads };
+}
+
+async function inspectChannel(ch, c, now, readJson, findings, notes) {
+  const who = `channel ${ch.slice(0, 8)}…`;
+  const pastGrace = id => now - idTimestamp(id) >= SWEEP_GRACE_MS;
+  for (const [seg, store, what] of [['gen', GEN_STORES.canonical, 'library'], ['dstate', GEN_STORES.dstate, 'device-state']]) {
+    const gens = c[seg];
+    const committed = [...gens].filter(([, g]) => g.manifest).map(([id]) => id)
+      .sort((a, b) => idTimestamp(b) - idTimestamp(a));
+    const extra = committed.slice(SWEEP_KEEP_GENS).filter(pastGrace);
+    const torn = [...gens].filter(([, g]) => !g.manifest).map(([id]) => id).filter(pastGrace);
+    const bulkRuns = seg === 'gen' ? [...c.runs].filter(([, r]) => r.letters >= 2) : [];
+    if (!extra.length && !torn.length && !bulkRuns.length) continue; // nothing to judge — spend no reads
+
+    const pointer = await readJson(`relay:${ch}:${store.ptr}`);
+    if (!pointer || !pointer.gen) { notes.push(`${who}: ${what} pointer missing or unreadable - not judged`); continue; }
+    for (const id of extra) {
+      if (id !== pointer.gen) findings.push(`${who}: extra ${what} generation ${shortId(id)} (${dateOf(id)}, ${gens.get(id).chunks} part(s)) - beyond the newest ${SWEEP_KEEP_GENS}`);
+    }
+    for (const id of torn) {
+      if (id !== pointer.gen) findings.push(`${who}: interrupted ${what} save ${shortId(id)} (${dateOf(id)}, ${gens.get(id).chunks} part(s), no manifest)`);
+    }
+    if (!bulkRuns.length) continue;
+
+    const incomplete = bulkRuns.filter(([, r]) => !r.manifest).length;
+    if (incomplete) notes.push(`${who}: ${incomplete} incomplete mailbox run(s) (never finished sending) - kept, they expire on their own`);
+    const committedRuns = bulkRuns.filter(([, r]) => r.manifest);
+    if (!committedRuns.length) continue;
+    if (now - (pointer.flippedAt || idTimestamp(pointer.gen)) < SWEEP_GRACE_MS) {
+      notes.push(`${who}: library saved within the last hour - its mailbox runs are judged next time`);
+      continue;
+    }
+    const manifest = await readJson(`relay:${ch}:gen:${pointer.gen}:manifest`);
+    if (!manifest || !Array.isArray(manifest.absorbedRuns)) { notes.push(`${who}: current library manifest unreadable - mailbox not judged`); continue; }
+    const absorbed = new Set(manifest.absorbedRuns);
+    let waiting = 0;
+    for (const [runId, r] of committedRuns) {
+      if (absorbed.has(runId)) findings.push(`${who}: absorbed mailbox run ${shortId(runId)} (${dateOf(runId)}, ${r.letters} letters) - already in the library`);
+      else waiting++;
+    }
+    if (waiting) notes.push(`${who}: ${waiting} multi-part mailbox run(s) not yet imported - kept`);
+  }
+}
+
+function formatStorageCheck(self, inv, usage) {
+  const lines = [`STORAGE CHECK - ${self.label} relay's own storage (REPORT ONLY: nothing was deleted)`];
+  const cf = usage && usage.relays[self.key];
+  let check = `Keys counted just now: ${inv.keyCount.toLocaleString('en-US')}${inv.complete ? '' : '+ (stopped at the listing cap)'}`;
+  if (cf && cf.storageKeys != null) {
+    // Cloudflare's keyCount is the day's HIGHEST count (max over the day), not a snapshot: keys that expired or were
+    // deleted since (e.g. 2-hour rate-limit counters) leave the live count below it. Only live > highest is suspect.
+    const diff = inv.keyCount - cf.storageKeys;
+    check += `. Cloudflare's highest count for ${cf.storageDate}: ${cf.storageKeys.toLocaleString('en-US')} - ` + (diff > 0
+      ? `LIVE IS ${diff} HIGHER, so Cloudflare's reading lags - the storage figure above may be out of date.`
+      : diff === 0 ? 'the same, so the storage figure above is current.'
+      : `${-diff} fewer now (keys expired or deleted since its high point) - consistent.`);
+  } else {
+    check += '. No Cloudflare reading to compare.';
+  }
+  lines.push(check);
+  const k = inv.kinds;
+  lines.push(`  library generations ${k.library}, device-state generations ${k.deviceState}, mailbox ${k.mailbox}, ` +
+    `pointers ${k.pointers}, older format (expires on its own) ${k.olderFormat}, other ${k.other}`);
+  lines.push(inv.findings.length
+    ? `Would delete (${inv.findings.length}):\n` + inv.findings.map(f => `  - ${f}`).join('\n')
+    : `Would delete: nothing (${inv.channelCount} channel(s) checked).`);
+  if (inv.notes.length) lines.push('Kept / not judged:\n' + inv.notes.map(n => `  - ${n}`).join('\n'));
+  if (inv.unchecked.length) lines.push(`NOT FULLY CHECKED (read budget of ${SWEEP_READ_BUDGET} reached): ${inv.unchecked.join(', ')}`);
+  return lines.join('\n');
 }
 
 // --- Helpers ---
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 function validateChannelId(id) {
   return UUID_REGEX.test(id);

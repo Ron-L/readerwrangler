@@ -55,6 +55,8 @@ Follows the generic semver+alpha rules in `../CLAUDE.md`. RW's specific stamps:
   locally via http.server, never against readerwrangler.com).
 - **MOBILE_VERSION** (`mobile.js`) — own X.Y.Z scheme, but any alpha commit that modifies mobile.js
   appends the SAME `-alpha.N` suffix as that commit's ORGANIZER_VERSION. Drop the suffix at release.
+- **WORKER_VERSION** (`relay/relay-worker.js`) — the relay worker's own stamp, same X.Y.Z-alpha.N scheme; printed in
+  every relay email so an email shows which deploy sent it. Bump with every worker change (the version-guard enforces it).
 - **CSS cache-buster** (`readerwrangler.html`): `readerwrangler.css?v=X.Y.Z` must match
   ORGANIZER_VERSION on every commit that modifies `readerwrangler.css`.
 - **index.html** Schema.org `softwareVersion` — update to match APP_VERSION at release.

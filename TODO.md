@@ -7,7 +7,6 @@
         - [Numbers the app and relay must agree on: add a check that they match](#numbers-the-app-and-relay-must-agree-on-add-a-check-that-they-match)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
-      - [✅ "Add Bibliography to Wishlist" is greyed out on an author's All Books tab](#add-bibliography-to-wishlist-is-greyed-out-on-an-authors-all-books-tab)
       - [Search improvements](#search-improvements)
         - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
         - [Search everywhere without leaving the current folder](#search-everywhere-without-leaving-the-current-folder)
@@ -204,7 +203,8 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
      each) — the one-hour grace kept them because the last saves came within the hour (design §14a F2); the next save
      after they age, or the coming deleting step, removes them. The rest was the day's peak (keys 262 at the high
      point, 248 at report time). No leak.
-3. **After a few days of both reports being right (~2026-10-17/18): release 7.22.0 (report-only).**
+3. ✅ **Released 7.22.0 (report-only), 2026-10-18** — both reports right 10-14 → 10-17; production's 27 "other" keys identified (all by design); worker version `7.22.0` (same code as alpha.4) — redeployed to both relays after the release with Ron's yes for each. The original plan for this step:
+   **After a few days of both reports being right (~2026-10-17/18): release 7.22.0 (report-only).**
    **FIRST: merge main into `feature/relay-worker-b2`** — the branch predates `git-hooks/` (2026-10-15), and with
    `core.hooksPath git-hooks` a commit there would run NO checks, silently. Resolve the doc conflicts (TODO.md,
    CLAUDE.md, SESSION-TOOLING.md) in main's favor. Then: drop "-alpha" from `WORKER_VERSION`, update RELAY-WRITE-REDESIGN §14a (fixes 2 and 3 built as report-only; its two open questions are answered — each relay checks its own storage, and Cloudflare's key count is a daily maximum), CHANGELOG (your word on the copy), squash / tag / push to both, post-mortem.
@@ -351,31 +351,6 @@ _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them as
 - A click on a lower dialog actually lands on the top dialog's full-window background layer (readerwrangler.js ~69–71). The background-click close must ignore clicks that fall over another dialog (`document.elementsFromPoint` under the layer).
 - "Not selectable text" (point 6) reuses the 7.19 Ctrl+A area marks: `data-select-text` (text) and `data-select-items` (checklists) — readerwrangler.js ~55–60 — plus inputs, buttons, links, lists. No second list to keep in step.
 - New user feature, so it gets its own branch and release.
-
-#### ✅ "Add Bibliography to Wishlist" is greyed out on an author's All Books tab
-
-_Why it matters:_ The bookmarklet doesn't recognize that kind of author page, so the button can't be used there.
-
-**Status:** done — released in 7.21.3 (2026-10-16), and more: works from every tab, asks Amazon for the list directly, Kindle only, you choose the language. Delete at the next release.
-
-**What you see**
-- On Amazon, click an author's name (e.g. John Marrs), open their author page's **All Books** tab, filter English + Kindle, then click the ReaderWrangler bookmarklet.
-- The **⭐ Add Bibliography to Wishlist** button is disabled.
-- Example address: `https://www.amazon.com/stores/author/B00F1CRG9U/allbooks?…`
-
-**Cause** (confirmed in the code 2026-10-16, not yet tested live)
-- The bookmarklet recognizes an author page only when its address contains the author's **name**: `/stores/John-Marrs/author/B00F1CRG9U`.
-- The All Books tab's address has no name and adds `/allbooks`, so it isn't recognized.
-- The bibliography fetcher itself already finds the author in both shapes (it looks for `/author/` + the ID), so only the bookmarklet's menu check needs the fix.
-- **Unknown:** whether the fetch honors the English + Kindle filters you set on that page, or always takes everything it finds (and so may add other-language editions). Find out in the live test.
-
-**To do**
-1. Accept both address shapes (name optional).
-2. Then test the bibliography fetch itself on the All Books page — its layout may differ from the author home page, and the English/Kindle filters may change what's on screen.
-
-**How (technical)**
-- The check is in bookmarklet-nav-hub.js (~line 68): `/\/stores\/[^/]+\/author\/[A-Z0-9]{10}/i`.
-- Fetcher / nav-hub change: bump their versions; test on the DEV bookmarklet first (a navigator change), then PROD.
 
 #### Search improvements
 
