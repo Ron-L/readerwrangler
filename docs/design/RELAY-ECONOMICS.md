@@ -43,9 +43,26 @@ letters per user → the 1 GB free storage caps around ~25 users regardless of w
 couple hundred active users. Next structural step if growth demands it is Phase 2 (Durable
 Object per channel — moves counters and coordination out of KV entirely).
 
+**Update 2026-10-18 — storage per user was badly underestimated; writes were not.** Pricing re-checked
+(unchanged: $5/mo includes 10M reads, 1M writes+deletes+lists, 1 GB; then $5/M writes, $0.50/M reads,
+$0.50/GB-mo; no higher tier — Enterprise is a custom contract). Ron's real numbers from the 7.22.0 daily
+emails (10-16, a heavy two-release testing day): **166 writes+deletes+lists, 714 reads, 413 requests** →
+~5,000 / 21,000 / 12,400 a month. **Storage: ~230 MB on production for one user** (3,251 books with
+descriptions + reviews; each save ≈ 35 MB library + phone copy), ~150 MB expected once the deleting
+release keeps only the newest 2 copies — **not the ~40 MB below**. So:
+- **Writes bind first: ~200 Ron-heavy users on the $5 plan** (reads ~470, requests ~800). Typical users,
+  who don't test two releases a day, stretch it further.
+- **Storage is the cost that grows, not the ceiling:** ~$0.07/month per Ron-sized library (~$0.02 for a
+  typical 500–1,000-book one). Example: 1,000 heavy users ≈ $25 writes + ~$75 storage ≈ **$100/month,
+  ~10¢ per user**. At scale storage is most of the bill — the deleting release and the delta-sync idea
+  (RELAY-DELTA) are the levers.
+- **Free plan:** writes allow ~6 Ron-like users a day, but **storage is already ~half used by Ron alone**
+  (prod + dev together ~485–520 MB; dev's testing shares the account's 1 GB). A second heavy user could
+  exceed it — the "go Paid at launch" posture stands.
+
 ---
 
-- Real data 2026-07-03: one ~2.5h organizing session = **495 / 1,000 KV writes** — and that daily cap is **SHARED across ALL users** (one Cloudflare account), not per-user. Storage ~**40 MB/user** → ~25 users fills the 1 GB free tier. (The earlier "50–100 free users" estimate was off ~20–50× for the onboarding-organizing burst.)
+- Real data 2026-07-03: one ~2.5h organizing session = **495 / 1,000 KV writes** — and that daily cap is **SHARED across ALL users** (one Cloudflare account), not per-user. Storage ~**40 MB/user** → ~25 users fills the 1 GB free tier. _(Superseded 2026-10-18: a Ron-sized library is ~150–230 MB — see the update above.)_ (The earlier "50–100 free users" estimate was off ~20–50× for the onboarding-organizing burst.)
 - **Root cause (fixed):** the device-state push (readerwrangler.js ~L3100) was debounced only **15s**, so active organizing (natural >15s pauses) fired `putDeviceState` ~3–4×/min → ~500 writes/session. Not per-action — per-pause.
 - **Fix (shipped, alpha.58):** raised the debounce to 60s AND flush on **tab blur / visibilitychange / beforeunload** instead of periodic ticking — cuts writes ~15–50×. (Optional future: a manual "Sync now.")
 - ~~Still TODO — revisit the free-vs-paid launch plan with real numbers~~ **DONE — see the 2026-08-28 capacity analysis above** (limits verified, levers shipped 7.5.0). Payload trimming folded into the RELAY-DELTA idea (design-only).
