@@ -228,7 +228,28 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
 1. **No "skip all in this column"** on the headers — unchecking the collection does that; one control per job.
 2. **Chips reuse the app's existing tag-chip style** ("ABSOLUTELY") — a tag looks the same here as everywhere else.
 
+### 2.11 alpha.3 test round — decisions so far (Ron, 2026-10-19 evening; discussion continues topic by topic)
+
+1. **Layout — controls sit with what they change (agreed):** Select All | Some | None moves into the LEFT pane's header
+   (it only changes the left checkboxes — across the top it read as global); both checkboxes move into the RIGHT pane's
+   header (both change what the right side shows); the top bar disappears. Keep the right header compact (checkboxes
+   on one line; the "click a chip…" hint into the column headers' tooltip) — Ron judges it when he sees it.
+2. **Bottom-of-list items stay visible (agreed):** anything at the bottom of a scrolling list stays pinned in view,
+   like right-click → Tags → "Manage Tags…" already is. In 7.22.1 for the two tag places: the Tags **filter** list
+   gets an always-visible "Manage Tags…" (missing today), and this window's removal note (if it stays in the left
+   pane — topic 3 may move it to the bottom status line). The app-wide sweep is a separate TODO (§7).
+3. **Still to discuss, in this order:** wording of the two checkboxes / the "Also"s / "wizard" in the name; the removal
+   message's place; seeing the removals (− chips, +Tag vs −Tag sorting apart); multi-key sorting (3-state cycle per
+   column, Shift-click adds a key, like the list view); skips remembered after unchecking + re-checking a collection;
+   toasts (one combined "created tag X and added it to …", and the word "tag" in undo text); the right-click Tags list
+   hiding tags already on a book (a wizard-added tag can't be re-applied by hand); tag order in the filter and the
+   right-click list (follow Manage Tags — already filed); tooltips running into Chrome's developer tools (dev-only).
+
 ## 7. Related, filed separately (not in 7.22.1)
+
+- **Sweep: every scrolling list keeps its bottom items (actions, notes) always visible** (Ron, 2026-10-19) — e.g. a
+  "Manage …" link or an explanatory note at the end of a list must never scroll out of sight. Comb every list/menu
+  with a trailing item; pin each. (The two tag places are fixed in 7.22.1 — §2.11.) → add to TODO.md (Polish).
 
 - **Tag order everywhere follows Manage Tags** (Ron + UX, 2026-10-18): the Tags filter and every tag list show tags in
   the order Manage Tags is set to; the hidden header-click cycle becomes a visible **Order: A→Z | Most used | Manual**;
