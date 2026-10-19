@@ -21,7 +21,9 @@ on the books in that collection. Re-run after new purchases: "New books only" sh
    keys) would have put Ron's "Non-Fiction" tag on 39 books**, and books with Non-Fiction showed as "already tagged" in
    the Non fiction collection. Summary and Apply disagreed about whether a tag exists — two copies again.
    (A first theory — capital letters in keys — was checked against Ron's data and ruled out: all 11 of his keys are
-   lowercase, no duplicate names. The capital-letter path is still possible in code, see 2.6.)
+   lowercase, no duplicate names. Reading the code confirmed it: every creation site lowercases the key. The real flaw
+   is that DIFFERENT names can make the SAME key — "Non fiction" / "Non-Fiction", "Read" / "read" — fixed by giving
+   every tag its own key, 2.6.)
 4. **A tag could be created with no books on it**, just because its collection was checked.
 5. **Removals of tags were pre-checked** — one click on Apply removed them.
 
