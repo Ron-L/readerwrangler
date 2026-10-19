@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Arms the per-turn pre-build gate. Runs on Stop (end of each assistant turn) and
-SessionStart (so the first turn is covered too). Creates the flag file that
-gate-check.py consumes on the first app-source edit of the next turn.
+Arms the per-turn pre-build gate (→ ARMED; see gate-check.py's state machine). Runs on Stop (end of each assistant
+turn) and SessionStart (so the first turn is covered too). Creates the ARMED flag that gate-check.py consumes on the
+first app-source edit of the next turn, and clears any leftover REFUSING flag (normally PostToolBatch clears it; this
+makes sure a turn can never start stuck refusing).
 
 Fail-safe: any error is swallowed (exit 0). Arming must never break a turn.
 """
@@ -20,6 +21,9 @@ def main():
                             "rw-gate-pending-%s.flag" % session)
         with open(flag, "w") as f:
             f.write("armed")
+        refusing = os.path.join(tempfile.gettempdir(), "rw-gate-refusing-%s.flag" % session)
+        if os.path.exists(refusing):
+            os.remove(refusing)
     except Exception:
         pass
     sys.exit(0)
