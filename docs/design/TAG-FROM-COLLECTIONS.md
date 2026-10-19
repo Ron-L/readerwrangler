@@ -5,7 +5,7 @@ see "History" at the end; v1's full text is in git). The **data model is unchang
 
 **What it is:** a window (**Tools → Tag from Collections…**) that turns Kindle collections into ReaderWrangler tags.
 Collections come from Amazon and can't be edited here; tags are yours. Each collection becomes a tag of the same name,
-on the books in that collection. Re-run after new purchases: "New books only" shows just the books you haven't seen.
+on the books in that collection. Re-run after new purchases: the right side shows only books that would change.
 
 ---
 
@@ -35,7 +35,8 @@ on the books in that collection. Re-run after new purchases: "New books only" sh
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │ 🏷️ Tag from Collections                                                      [×] │
 ├──────────────────────────────────────────────────────────────────────────────────┤
-│ Select: [All|Some|None]   ☑ New books only   ☐ Also remove tags whose book left  │
+│ Select: [All|Some|None]   ☐ Also show books that already have their tag          │
+│                           ☐ Also remove tags whose book left                     │
 │                                                that collection on Kindle         │
 ├──────────────────────────┬───────────────────────────────────────────────────────┤
 │ Kindle collections       │ Changes Apply will make                               │
@@ -63,12 +64,12 @@ wizard no longer ties it to a collection (see 2.5).
 
 1. **One click target per row.** Clicking anywhere on a row (box or name) toggles its checkbox. There is no "being
    shown" state and no row highlight — the right side shows all checked collections at once.
-2. Each row: checkbox, the collection name, its count — "(7 new)" with New books only, "(12)" without — and **where it
+2. Each row: checkbox, the collection name, its count — "(7 to tag of 971)" — and **where it
    lands**: **"→ tag Read"** (exists) or **"→ new tag Comics"**. If a tag differing only in capitals exists, the row
    adds *"(a tag 'Comics' also exists — a separate tag)"* so a near-twin is never a surprise.
-3. **A collection with nothing to show** (0 books under "New books only") is **greyed out, its checkbox disabled, and
+3. **A collection with nothing to show** (every book already has its tag, and "Also show…" is off) is **greyed out, its checkbox disabled, and
    kept in its alphabetical place** — hiding it would make collections seem to vanish; moving it would reshuffle the
-   list when "New books only" flips. Tooltip: *"No new books here — turn off 'New books only' to see all of its books."*
+   list when "Also show…" flips. Tooltip: *"Every book here already has the tag — tick 'Also show books that already have their tag' to see them."*
 4. "(tag exists)" becomes the "→ tag X" / "→ new tag X" destination above, decided by the matching rule.
 5. **Select: All | Some | None** works as today (over the enabled rows).
 
@@ -89,7 +90,7 @@ wizard no longer ties it to a collection (see 2.5).
 5. **No filter on the right** — the left checkboxes already ARE the column filter. A second filter would be two
    controls for one job.
 6. **Wide or long:** past about 6 columns the right side scrolls sideways with titles staying put; a first-ever run
-   (everything new) can list hundreds of rows — fine to scroll; later "New books only" runs are small.
+   can list hundreds of rows — fine to scroll; later runs list only what changed since.
 7. Titles keep their click-to-open-details link (7.19.0).
 
 ### 2.4 The Apply button and summary
@@ -151,9 +152,41 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
 ~1447, deletes ~17910 / ~18043, the phone app (load only, mobile.js ~2635). Finding-as-you-type stays capital-blind:
 ~14043, ~14105, ~19897, mobile.js ~2293.
 
+### 2.7 Counts (Ron, 2026-10-19)
+
+- The right side's heading: **"Tagging 7 of 48 books shown (1 collection)"** — 48 = the rows you can see (set by the
+  left checkboxes and "Also show books that already have their tag"), skipped ones included; 7 = books that will get
+  a tag. Counted in **books**, not tags (a book getting two tags is one line). The button: **"Tag 7 books from 1
+  collection"**.
+
+### 2.8 "New books only" — removed (Ron + UX, 2026-10-19)
+
+1. It worked through a hidden per-book "seen" flag (`collectionTagSeen`) you could neither see nor reset — and it
+   confused Ron in testing. v2's per-collection checkboxes express the real decisions visibly.
+2. **Replaced by:** the right side shows **only changes** by default; a visible checkbox **"Also show books that already
+   have their tag"** adds the ✓ rows (e.g. all 48 Non fiction books).
+3. **The window opens with nothing checked** — without the hidden memory, everything-checked would offer the 504
+   "+ 2BRead Fiction / Classics…" chips Ron always declines. You check what you came for.
+4. A book you skip inside a collection you use is offered again next time — honest and visible.
+5. **The stored field is retired in code (alpha.4)**, not by a one-off snippet (a returning user would bring it back):
+   stripped in the shared book clean-up (`normalizeBook`, on every load and arrival — old backups included) and removed
+   from the field table, so saves, backups and syncs stop carrying it.
+
+### 2.9 Undo removes a tag the action created (Ron + UX, 2026-10-19 — reverses 7.10.1's "unused = harmless")
+
+- Undoing "create a tag and put it on books" (any creation path, and the wizard's Apply) also removes the tag — **if no
+  book carries it after the undo** (if you've put it on another book meanwhile, it stays). Redo recreates it. Nothing
+  is lost (it has no books); the tag lists aren't left littered by an action you took back.
+- Mechanism: the undo record of a tag change (`SET_BOOK_FIELDS`) carries `createdTags`.
+
+### 2.10 The capitals prompt words its buttons by context (Ron + UX, 2026-10-19)
+
+- **Tagging books** (right-click, book details): **Add "Read" instead** / **Create "read"** — both do something.
+- **Manage Tags** (nothing to tag): **Cancel** / **Create "read"** — "Use 'Read'" promised an action that didn't exist.
+
 ## 3. Data model (unchanged from v1)
 
-- `book.collectionTagSeen = true` — set for every book **shown** in the wizard when Apply is clicked (checked or not):
+- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.22.1-alpha.4). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
   you saw it, so it isn't "new" next time. Internal, not shown, not editable.
 - `book.collectionTags = ["read", …]` — tag keys **this wizard** assigned. Removal candidates come only from here; a
   declined removal drops the key from `collectionTags` only (the tag becomes yours).
@@ -166,7 +199,7 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
    book's `collectionTags`).
 2. Removals (only if switched on): each "−" chip removes the tag from `tags` and `collectionTags`; a kept one drops it
    from `collectionTags` only.
-3. Every shown book gets `collectionTagSeen = true`.
+3. (Removed 7.22.1-alpha.3: no more "seen" marking — see §2.8.)
 4. One undoable step (as today); a toast names what was done.
 5. **One calculation** decides "which books will get which tag" — used by the chips, the header counts, the button and
    Apply itself (7.22.1-alpha.1 already merged v1's two copies).
@@ -176,7 +209,7 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
 1. Ron's **Read** collection (7 newly read books): None → check Read → row says "→ tag Read", 7 "+ Read" chips, header
    *Read (7)*, button *"Tag 7 books from 1 collection"*; Apply → the books get the **existing** "Read" tag (no second
    tag); Ctrl+Z undoes.
-1a. **"Non fiction"** (New books only off): row says **"→ new tag Non fiction"** (NOT Ron's "Non-Fiction"); no book
+1a. **"Non fiction"**: row says **"→ new tag Non fiction"** (NOT Ron's "Non-Fiction"); no book
    shows "already tagged" because of Non-Fiction; Apply would create a separate "Non fiction" tag. (Don't apply it —
    Ron has his own plan for these books.)
 1b. Exact text elsewhere: Manage Tags → create "read" while "Read" exists → the safeguard asks; **Create** makes a
@@ -184,7 +217,7 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
 2. Check a second collection → its column appears; a book in both shows two chips; the total adds up.
 3. Click a "+" chip → "skip"; total drops by 1; Apply leaves that book without that tag.
 4. Click a tag header → books with a change in that column come first; click Title → A–Z.
-5. "New books only" on → a collection with 0 new books is greyed and can't be checked; off → it's enabled.
+5. A collection whose books all have the tag is greyed and can't be checked; tick "Also show books that already have their tag" → it's enabled and its ✓ rows appear.
 6. Removals off (default) → no amber rows or "−" chips anywhere; tick the box → they appear.
 7. A collection whose books all already have the tag → no column, no tag created, button unchanged.
 8. Manage Tags → "Create tags from your Kindle collections…" opens this window.

@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.22.1-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.22.1-alpha.3";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1288,7 +1288,8 @@
             const [tagFromCollectionsOpen, setTagFromCollectionsOpen] = useState(false);
             const [tfcCheckedCollections, setTfcCheckedCollections] = useState(new Set()); // checked collection names
             const [tfcUncheckedBooks, setTfcUncheckedBooks] = useState({}); // {collectionName: Set of bookIds whose "+ tag" chip is skipped}
-            const [tfcNewBooksOnly, setTfcNewBooksOnly] = useState(false); // "New books only" toggle
+            // v7.22.1 (§2.8) - "New books only" (a hidden per-book "seen" flag) is gone; this visible toggle replaced it
+            const [tfcShowTagged, setTfcShowTagged] = useState(false); // "Also show books that already have their tag"
             const [tfcSort, setTfcSort] = useState('title'); // v7.22.1 - right side's sort: 'title' | a column (collection) name
             // v6.10.0-alpha.15 - Removal tracking for Tag from Collections (v7.22.1 - OPT-IN, off each time the window opens)
             const [tfcIncludeRemovals, setTfcIncludeRemovals] = useState(false);
@@ -1454,8 +1455,10 @@
                 return `${base}-${i}`;
             };
             // Find the tag with exactly this name, or create it. Resolves { key, label, created } — or null if cancelled.
-            // The returned key is ALWAYS the key stored (callers tag books with it).
-            const findOrCreateTag = async (rawName, count = 0) => {
+            // The returned key is ALWAYS the key stored (callers tag books with it). opts.forBooks: the caller puts the tag
+            // on books (right-click, book details) — so "use the existing twin" is a real action: "Add 'Read' instead".
+            // Without books (Manage Tags) choosing the twin would do nothing, so that choice is just Cancel (§2.10).
+            const findOrCreateTag = async (rawName, count = 0, opts = {}) => {
                 const name = String(rawName || '').trim();
                 if (!name) return null;
                 const exact = tagKeyByExactName(name);
@@ -1464,7 +1467,8 @@
                 if (twin) {
                     const choice = await showChoiceDialog('A similar tag exists',
                         `A tag "${twin[1].label}" already exists. Create "${name}" as a separate tag?`,
-                        [{ label: `Use "${twin[1].label}"`, value: 'use' }, { label: `Create "${name}"`, value: 'create', primary: true }]);
+                        [opts.forBooks ? { label: `Add "${twin[1].label}" instead`, value: 'use' } : { label: 'Cancel', value: null },
+                         { label: `Create "${name}"`, value: 'create', primary: true }]);
                     if (choice === null) return null;
                     if (choice === 'use') return { key: twin[0], label: twin[1].label, created: false };
                 }
@@ -1480,12 +1484,13 @@
                 setContextSubmenu(null);
                 setTagInputValue('');
                 (async () => {
-                    const made = await findOrCreateTag(typedName, 1);
+                    const made = await findOrCreateTag(typedName, 1, { forBooks: true });
                     if (!made) return;
                     const book = books.find(b => b.id === bookId) || modalBook;
-                    if ((book.tags || []).includes(made.key)) return; // "Use" picked a tag this book already has
+                    if ((book.tags || []).includes(made.key)) return; // "Add … instead" picked a tag this book already has
                     const newTags = [...(book.tags || []), made.key];
-                    recordTagChange([bookId], { [bookId]: { tags: newTags } }, `Add "${made.label}" to ${bookCountLabel([bookId])}`); // v7.10.1-alpha.4
+                    recordTagChange([bookId], { [bookId]: { tags: newTags } }, `Add "${made.label}" to ${bookCountLabel([bookId])}`, // v7.10.1-alpha.4
+                        made.created ? { createdTags: { [made.key]: { label: made.label, count: 0 } } } : {});
                     setBooks(prev => {
                         const updated = prev.map(b => b.id === bookId ? { ...b, tags: newTags } : b);
                         saveBooksToIndexedDB(updated);
@@ -7380,7 +7385,10 @@
             // v7.19.0 - it was always generic ("set these fields on these books"), so it's named for that now —
             // SET_BOOK_FIELDS (was SET_TAGS; undo history is in-memory only, so no stored record carries the old
             // name). Keep (removed-books window) uses it too; recordTagChange stays as the tag call sites' name.
-            const recordBookFieldChange = (bookIds, nextFieldsById, label) => {
+            // v7.22.1 (Ron + UX, docs/design/TAG-FROM-COLLECTIONS.md §2.9) - opts.createdTags = { key: { label, count } } for tags
+            // THIS action created: undo removes each one no book still carries; redo puts it back. (7.10.1 left them —
+            // "unused = harmless" — but an undone action shouldn't leave tags littering every tag list.)
+            const recordBookFieldChange = (bookIds, nextFieldsById, label, opts = {}) => {
                 const prevFieldsById = {};
                 bookIds.forEach(id => {
                     const b = books.find(x => x.id === id);
@@ -7391,7 +7399,8 @@
                     });
                     prevFieldsById[id] = prev;
                 });
-                recordAction({ type: 'SET_BOOK_FIELDS', bookIds: [...bookIds], prevFieldsById, nextFieldsById, label });
+                const createdTags = opts.createdTags && Object.keys(opts.createdTags).length ? { ...opts.createdTags } : null;
+                recordAction({ type: 'SET_BOOK_FIELDS', bookIds: [...bookIds], prevFieldsById, nextFieldsById, label, createdTags });
             };
             const recordTagChange = recordBookFieldChange;
             // v7.19.0 - Keep: accept books that are no longer in your Amazon library — they stay filed and are never
@@ -7445,10 +7454,10 @@
                 return groups;
             };
             const openTagFromCollections = () => {
-                const names = new Set();
-                books.forEach(b => (b.collections || []).forEach(c => names.add(c.name)));
-                setTfcNewBooksOnly(books.some(b => b.collectionTagSeen));
-                setTfcCheckedCollections(names);
+                // v7.22.1 (§2.8) - opens with NOTHING checked: you check what you came for (with no hidden "seen" memory,
+                // everything-checked would offer every collection you always decline)
+                setTfcShowTagged(false);
+                setTfcCheckedCollections(new Set());
                 setTfcUncheckedBooks({});
                 setTfcSort('title');
                 setTfcIncludeRemovals(false);                                         // v7.22.1 - opt-in, off each time
@@ -7826,6 +7835,13 @@
                         });
                         if (modalBookRef.current && action.bookIds.includes(modalBookRef.current.id)) {
                             setModalBook(prev => prev ? { ...prev, ...action.prevFieldsById[prev.id] } : prev);
+                        }
+                        // v7.22.1 (§2.9) - remove the tags this action created, unless a book still carries one after the undo
+                        if (action.createdTags) {
+                            const tagsAfterUndo = b => (action.bookIds.includes(b.id) && action.prevFieldsById[b.id] && 'tags' in action.prevFieldsById[b.id])
+                                ? (action.prevFieldsById[b.id].tags || []) : (b.tags || []);
+                            const unused = Object.keys(action.createdTags).filter(key => !books.some(b => tagsAfterUndo(b).includes(key)));
+                            if (unused.length) setTagRegistry(prev => { const next = { ...prev }; unused.forEach(k => delete next[k]); return next; });
                         }
                         break;
                     case 'RESOLVE_DUPLICATES': // v7.10.1-alpha.4 - resurrect removed copies + exact folder arrays
@@ -8367,6 +8383,12 @@
                         }
                         break;
                     case 'SET_BOOK_FIELDS': // v7.10.1-alpha.4 (was SET_TAGS)
+                        // v7.22.1 (§2.9) - put back the tags this action created (undo removed the unused ones)
+                        if (action.createdTags) setTagRegistry(prev => {
+                            const next = { ...prev };
+                            Object.entries(action.createdTags).forEach(([k, t]) => { if (!next[k]) next[k] = { ...t }; });
+                            return next;
+                        });
                         setBooks(prev => {
                             const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, ...action.nextFieldsById[b.id] } : b);
                             saveBooksToIndexedDB(updated);
@@ -12869,9 +12891,12 @@
                         const destKey = (name) => tagKeyByExactName(name);   // existing tag's key, or null = Apply creates "name"
                         const destLabel = (name) => { const k = destKey(name); return k ? tagRegistry[k].label : name; };
                         const twinLabel = (name) => { const t = Object.values(tagRegistry).find(x => x && x.label !== name && x.label.toLowerCase() === name.toLowerCase()); return t ? t.label : null; };
-                        const shownBooks = (name) => { const all = collectionsMap[name] || []; return tfcNewBooksOnly ? all.filter(b => !b.collectionTagSeen) : all; };
-                        const shownIds = {}; collectionNames.forEach(name => { shownIds[name] = new Set(shownBooks(name).map(b => b.id)); });
                         const hasTagKey = (b, key) => !!key && (b.tags || []).includes(key);
+                        // v7.22.1 (§2.8) - a collection's books that would CHANGE (they lack its tag); "Also show books that already
+                        // have their tag" adds the rest. (Was "New books only" — a hidden per-book "seen" flag, now gone.)
+                        const lacking = (name) => { const key = destKey(name); return (collectionsMap[name] || []).filter(b => !hasTagKey(b, key)); };
+                        const shownBooks = (name) => tfcShowTagged ? (collectionsMap[name] || []) : lacking(name);
+                        const shownIds = {}; collectionNames.forEach(name => { shownIds[name] = new Set(shownBooks(name).map(b => b.id)); });
                         // THE "which books will this collection tag" — the chips, the column counts, the button and Apply all use it
                         const booksToTag = (name) => {
                             const key = destKey(name);
@@ -12891,17 +12916,21 @@
 
                         // Summary: only real changes (§2.4 — a collection with nothing to add creates no tag)
                         const checkedCollectionNames = collectionNames.filter(name => tfcCheckedCollections.has(name) && shownIds[name].size > 0);
+                        // Counted in BOOKS, not tags (§2.7): a book getting two tags is one line, counted once
                         let totalNewTags = 0;
-                        let totalBooksToTag = 0;
                         let collectionsTagging = 0;
+                        const booksTaggedIds = new Set();
                         checkedCollectionNames.forEach(name => {
-                            const n = booksToTag(name).length;
-                            if (n === 0) return;
-                            totalBooksToTag += n;
+                            const list = booksToTag(name);
+                            if (list.length === 0) return;
+                            list.forEach(b => booksTaggedIds.add(b.id));
                             collectionsTagging++;
                             if (!destKey(name)) totalNewTags++;
                         });
-                        const totalBooksToUntag = removalLabels.reduce((sum, l) => sum + booksToUntag(l).length, 0);
+                        const totalBooksToTag = booksTaggedIds.size;
+                        const booksUntagIds = new Set();
+                        removalLabels.forEach(l => booksToUntag(l).forEach(b => booksUntagIds.add(b.id)));
+                        const totalBooksToUntag = booksUntagIds.size;
                         const hasChanges = totalBooksToTag > 0 || totalBooksToUntag > 0;
 
                         // The right side: one row per book, one column per checked collection with books shown, plus each checked
@@ -13000,14 +13029,15 @@
                                                 className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500" />
                                             <span>Also remove tags whose book left that collection on Kindle</span>
                                         </label>
-                                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded">
+                                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                                            title="Off: the right side lists only books that would get a tag. On: it also lists the books that already have their collection's tag (shown with ✓)">
                                             <input
                                                 type="checkbox"
-                                                checked={tfcNewBooksOnly}
-                                                onChange={(e) => setTfcNewBooksOnly(e.target.checked)}
+                                                checked={tfcShowTagged}
+                                                onChange={(e) => setTfcShowTagged(e.target.checked)}
                                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                             />
-                                            <span>New books only</span>
+                                            <span>Also show books that already have their tag</span>
                                         </label>
                                     </div>
                                 </div>
@@ -13033,7 +13063,7 @@
                                             const twin = key ? null : twinLabel(name);
                                             return (
                                                 <label key={name}
-                                                    title={enabled ? undefined : "No new books here — turn off 'New books only' to see all of its books"}
+                                                    title={enabled ? undefined : "Every book here already has the tag — tick 'Also show books that already have their tag' to see them"}
                                                     className={`flex items-start gap-2 px-3 py-2 border-b border-gray-100 ${enabled ? 'cursor-pointer hover:bg-gray-50' : 'opacity-50 cursor-default'}`}>
                                                     <input
                                                         type="checkbox"
@@ -13044,7 +13074,7 @@
                                                     />
                                                     <span className="flex-1 min-w-0">
                                                         <span className="block text-sm text-gray-900 truncate">
-                                                            {name} <span className="text-xs text-gray-500">({tfcNewBooksOnly ? `${shown} new` : total})</span>
+                                                            {name} <span className="text-xs text-gray-500">({lacking(name).length} to tag of {total})</span>
                                                         </span>
                                                         <span className="block text-xs text-gray-500">
                                                             → {key ? <>tag <b>{tagRegistry[key].label}</b></> : <>new tag <b>{name}</b></>}
@@ -13089,7 +13119,15 @@
                                     <div data-dialog-body className="flex-1 min-w-0 flex flex-col">
                                         <div className="px-3 pt-2 pb-1.5 border-b border-gray-200">
                                             <span className="text-sm font-semibold text-gray-800">Changes Apply will make</span>
-                                            {columns.length > 0 && <span className="ml-2 text-xs text-gray-500">— click a chip to skip it; click a column name to bring its changes to the top</span>}
+                                            {/* v7.22.1 (Ron, §2.7) - every line counts (skipped ones too); counted in books */}
+                                            {columns.length > 0 && (
+                                                <span className="ml-2 text-sm text-gray-700">
+                                                    — Tagging {totalBooksToTag} of {rows.length} book{rows.length !== 1 ? 's' : ''} shown
+                                                    {' '}({collectionsTagging} collection{collectionsTagging !== 1 ? 's' : ''})
+                                                    {totalBooksToUntag > 0 && <span className="text-amber-700">, removing a tag from {totalBooksToUntag}</span>}
+                                                </span>
+                                            )}
+                                            {columns.length > 0 && <div className="text-xs text-gray-500">Click a chip to skip it; click a column name to bring its changes to the top.</div>}
                                         </div>
                                         {columns.length === 0 ? (
                                             <div className="text-center text-gray-500 py-8 px-4">
@@ -13169,7 +13207,7 @@
                                                         if (!bookUpdates[id]) bookUpdates[id] = {
                                                             addTags: [], addCollectionTags: [],
                                                             removeTags: [], removeCollectionTags: [],
-                                                            promoteCollectionTags: [], collectionTagSeen: true
+                                                            promoteCollectionTags: []
                                                         };
                                                         return bookUpdates[id];
                                                     };
@@ -13215,20 +13253,17 @@
                                                         });
                                                     });
 
-                                                    // Mark ALL visible books as seen (even unchecked ones)
-                                                    collectionNames.forEach(name => {
-                                                        const collBooks = collectionsMap[name] || [];
-                                                        const filtered = tfcNewBooksOnly ? collBooks.filter(b => !b.collectionTagSeen) : collBooks;
-                                                        filtered.forEach(b => ensureUpdate(b.id));
-                                                    });
+                                                    // (v7.22.1 - no "seen" marking any more: "New books only" is gone — §2.8)
 
                                                     // Apply tag registry
                                                     setTagRegistry(newTagRegistry);
 
                                                     // v7.10.1-alpha.4 - undoable (audit gap): compute each affected book's next
                                                     // fields from CURRENT state and record before applying (fields-based SET_TAGS
-                                                    // carries collectionTags/collectionTagSeen too). Registry additions are left
-                                                    // in place on undo (an unused tag entry is harmless).
+                                                    // carries collectionTags too). v7.22.1 (§2.9): the tags Apply CREATED ride in
+                                                    // the record, so undo removes them again (if no book carries them).
+                                                    const createdTags = {};
+                                                    Object.keys(newTagRegistry).forEach(k => { if (!tagRegistry[k]) createdTags[k] = { ...newTagRegistry[k] }; });
                                                     {
                                                         const affectedIds = Object.keys(bookUpdates).filter(id => books.some(b => b.id === id));
                                                         const nextById = {};
@@ -13242,9 +13277,9 @@
                                                             upd.addCollectionTags.forEach(t => { if (!newCTags.includes(t)) newCTags.push(t); });
                                                             upd.removeCollectionTags.forEach(t => { newCTags = newCTags.filter(x => x !== t); });
                                                             upd.promoteCollectionTags.forEach(t => { newCTags = newCTags.filter(x => x !== t); });
-                                                            nextById[id] = { tags: newTags, collectionTags: newCTags, collectionTagSeen: true };
+                                                            nextById[id] = { tags: newTags, collectionTags: newCTags };
                                                         });
-                                                        if (affectedIds.length > 0) recordTagChange(affectedIds, nextById, `Tag from Collections (${affectedIds.length} book${affectedIds.length !== 1 ? 's' : ''})`);
+                                                        if (affectedIds.length > 0) recordTagChange(affectedIds, nextById, `Tag from Collections (${affectedIds.length} book${affectedIds.length !== 1 ? 's' : ''})`, { createdTags });
                                                     }
 
                                                     // Apply book updates
@@ -13261,7 +13296,7 @@
                                                             upd.addCollectionTags.forEach(t => { if (!newCTags.includes(t)) newCTags.push(t); });
                                                             upd.removeCollectionTags.forEach(t => { newCTags = newCTags.filter(x => x !== t); });
                                                             upd.promoteCollectionTags.forEach(t => { newCTags = newCTags.filter(x => x !== t); });
-                                                            return { ...b, tags: newTags, collectionTags: newCTags, collectionTagSeen: true };
+                                                            return { ...b, tags: newTags, collectionTags: newCTags };
                                                         });
                                                         saveBooksToIndexedDB(updated);
                                                         return updated;
@@ -19768,13 +19803,13 @@
                                                                         const selectedBookIds = getSelectedBookIds();
                                                                         const typedName = tagInputValue;
                                                                         (async () => {
-                                                                            const made = await findOrCreateTag(typedName, selectedBookIds.length);
+                                                                            const made = await findOrCreateTag(typedName, selectedBookIds.length, { forBooks: true });
                                                                             if (!made) return;
                                                                             const tagId = made.key;
-                                                                            // v7.10.1-alpha.4 - undoable (a new registry entry stays on undo; unused = harmless)
+                                                                            // v7.10.1-alpha.4 - undoable (a tag it created is removed again on undo if no book carries it — §2.9)
                                                                             const affected = selectedBookIds.filter(id => { const b = books.find(x => x.id === id); return b && !(b.tags || []).includes(tagId); });
                                                                             const nextById = {}; affected.forEach(id => { const b = books.find(x => x.id === id); nextById[id] = { tags: [...(b.tags || []), tagId] }; });
-                                                                            if (affected.length > 0) recordTagChange(affected, nextById, `Add "${made.label}" to ${bookCountLabel(affected)}`);
+                                                                            if (affected.length > 0) recordTagChange(affected, nextById, `Add "${made.label}" to ${bookCountLabel(affected)}`, made.created ? { createdTags: { [made.key]: { label: made.label, count: 0 } } } : {});
                                                                             setBooks(prev => {
                                                                                 const updated = prev.map(b => (selectedBookIds.includes(b.id) && !(b.tags || []).includes(tagId))
                                                                                     ? { ...b, tags: [...(b.tags || []), tagId] } : b);
@@ -19830,13 +19865,13 @@
                                                                                 setExplorerBookContextMenu(null);
                                                                                 setContextSubmenu(null);
                                                                                 (async () => {
-                                                                                    const made = await findOrCreateTag(typedName, selectedBookIds.length); // asks once on a capitals twin
+                                                                                    const made = await findOrCreateTag(typedName, selectedBookIds.length, { forBooks: true }); // asks once on a capitals twin
                                                                                     if (!made) return;
                                                                                     const tagId = made.key;
-                                                                                    // v7.10.1-alpha.4 - undoable (a new registry entry stays on undo; unused = harmless)
+                                                                                    // v7.10.1-alpha.4 - undoable (a tag it created is removed again on undo if no book carries it — §2.9)
                                                                                     const affected = selectedBookIds.filter(id => { const b = books.find(x => x.id === id); return b && !(b.tags || []).includes(tagId); });
                                                                                     const nextById = {}; affected.forEach(id => { const b = books.find(x => x.id === id); nextById[id] = { tags: [...(b.tags || []), tagId] }; });
-                                                                                    if (affected.length > 0) recordTagChange(affected, nextById, `Add "${made.label}" to ${bookCountLabel(affected)}`);
+                                                                                    if (affected.length > 0) recordTagChange(affected, nextById, `Add "${made.label}" to ${bookCountLabel(affected)}`, made.created ? { createdTags: { [made.key]: { label: made.label, count: 0 } } } : {});
                                                                                     setBooks(prev => {
                                                                                         const updated = prev.map(b => (selectedBookIds.includes(b.id) && !(b.tags || []).includes(tagId))
                                                                                             ? { ...b, tags: [...(b.tags || []), tagId] } : b);
