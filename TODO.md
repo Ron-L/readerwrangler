@@ -25,7 +25,6 @@
       - [Honest ownership changes: buying, samples, loans](#honest-ownership-changes-buying-samples-loans)
         - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
         - [Relay Import: only books in no folder should go to the Inbox](#relay-import-only-books-in-no-folder-should-go-to-the-inbox)
-        - [Let library loans and Audible Plus books upgrade to owned](#let-library-loans-and-audible-plus-books-upgrade-to-owned)
         - [Buying a book that's in the Trash should bring it back](#buying-a-book-thats-in-the-trash-should-bring-it-back)
         - [Fetch summary should report books you bought](#fetch-summary-should-report-books-you-bought)
         - [Import summary: count every ownership change, by kind](#import-summary-count-every-ownership-change-by-kind)
@@ -736,17 +735,25 @@ _The foundation — the summaries below depend on it._
   Removed books' job (7.19.0).
 - A manual "Other… (Prime, KU…)" choice in the book window was considered and **not** wanted: once the fetch notices
   these on its own, Amazon's facts arrive by themselves — revisit only if cases remain after the fix.
+- Details of the rules (merged 2026-10-20 from this task's old "Rules" list): **never downgrade Owned** — full fetches
+  include old sample records; "newest record wins" compares the record's date with the **stored** purchase date; your
+  own edits are respected. Refreshing the purchase date also fixes a re-walk quirk in how the fetcher remembers where it
+  stopped. The existing "past purchase" upgrade becomes just a backstop.
+- **Absorbs the old task "Let library loans and Audible Plus books upgrade to owned"** (Ron + UX, 2026-10-20): today
+  those two kinds can never become Owned, even after you buy the book — the fetcher's list of temporary kinds
+  (`TEMP_OWNERSHIP`, amazon-library-fetcher.js ~2277; written for fetcher 4.11.8, never updated for the kinds added in
+  5.2.0; verified still missing 2026-10-14) lacks them, so a bought library loan never upgrades, and loans without a
+  price goal are skipped by the price check. The one function, with library loan and Audible Plus in its temporary
+  rank, replaces that list — fixing it separately would patch a list this task deletes.
 
 **What you'd get**
 - A known book's record becomes an **update**: refresh its kind (owned / sample / loan…), purchase date and format from the record.
-- wishlist → sample / loan becomes visible.
+- wishlist → sample / loan becomes visible; a library loan or Audible Plus book you then buy becomes Owned.
 
-**Rules**
-- **Never downgrade a purchased book** (full fetches include old sample records).
-- The newest record wins: compare the record's date with the **stored** purchase date.
-- Respect anything you edited yourself.
-- Refreshing the purchase date also fixes a re-walk quirk in how the fetcher remembers where it stopped.
-- The existing "past purchase" upgrade becomes just a backstop.
+**How it's tested** (added 2026-10-20 — Ron's live case was fixed by hand, so it's gone)
+- **Automated:** the one function gets a test for every row of the transition matrix (OWNERSHIP-MODEL.md §3).
+- **Live:** the next real sample or borrow of a wishlisted book should show its new kind after one fetch + Import —
+  wait for one, or arrange one (borrow a wishlisted Prime / Kindle Unlimited book).
 
 **How (technical)**
 - amazon-library-fetcher.js (~1422–1425 when filed): `seenASINs` is seeded with every known ASIN, so known records are dup-skipped.
@@ -776,17 +783,6 @@ _Why it matters:_ A restore once copied the whole library into the Inbox.
 
 **How (technical)**
 - Filter `newBookIds` through `getAllBookIdsInFolders()` and skip `isDeleted` (js ~4770 / ~4824 when filed).
-
-##### Let library loans and Audible Plus books upgrade to owned
-
-_Why it matters:_ Those two kinds can never become "owned" today, even after you buy the book.
-
-**What happens**
-- The fetcher's list of "temporary" kinds that can upgrade to owned was written for fetcher 4.11.8 and never updated for the kinds added in 5.2.0.
-- So a library loan you later buy never upgrades, and loans without a price goal are skipped by the price check.
-
-**How (technical)**
-- Add `publicLibraryLending` and `audiblePlus` to `TEMP_OWNERSHIP` (amazon-library-fetcher.js ~2277; verified still missing 2026-10-14).
 
 ##### Buying a book that's in the Trash should bring it back
 
