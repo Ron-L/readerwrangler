@@ -85,8 +85,19 @@ breath as the agreement, so it survives a break or a compaction. ✅ = built in 
    skipped books shows the standard **partial mark (▬)** instead of ✓ — skips are visible without scrolling; clicking
    a partial box unchecks it. Same rule for the removal section (unchecking a removal tag clears its "kept" choices;
    ▬ while some are kept). **Select All** = every collection with all its books (earlier skips go — see the open
-   question on undoing that, below). Mechanism: a collection's skips live INSIDE its "checked" entry (one map, checked
-   = has an entry), not in a second list — unchecking deletes the entry, so stale skips can't exist (Law 17).
+   undo, next bullet). Mechanism: a collection's skips live INSIDE its "checked" entry (one map, checked = has an
+   entry), not in a second list — unchecking deletes the entry, so stale skips can't exist (Law 17).
+   - **Undo inside the window** (Ron, 2026-10-20: "Select All erasing selections you made… are there conventions for
+     making it undoable?"). The main undo leaves selection out — the convention everywhere and our ratified rule
+     (UNDO-MODEL: view state isn't undoable). But this window's choices aren't just a selection: they're **the plan
+     Apply will carry out — a draft**, and a draft's edits get undo. So: **Ctrl+Z / Ctrl+Y inside Tag from
+     Collections undo / redo its choices** (checks, skips, All / None, the removal choices); the history lives and
+     dies with the window; the library's undo is untouched (the fence already blocks it here — today Ctrl+Z only
+     shows the "nothing to undo here" toast). Precedent: UNDO-MODEL's scoped undo for dialogs that record their own
+     changes (book details, Manage Tags). **Findable:** when a bulk click erases choices, the status line says so with
+     a link — *"Select All un-skipped 20 books — Undo (Ctrl+Z)"*. Cost: the history is a list of earlier versions of
+     the one choices map. (Elsewhere — selected books in a folder — is a separate TODO, "Restore the previous
+     selection", Photoshop's Reselect convention.)
 
 **Data (its own alpha — it touches the data layer and its tests, so it gets its own test round)**
 8. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
@@ -128,8 +139,7 @@ its outcome goes into the build list and the topic is struck out here. My positi
    ascending / descending per column and Shift-click for the next key, like the list view.)
 6. ~~**Skips remembered after unchecking and re-checking a collection** (test 2).~~ **Agreed 2026-10-20 → build list
    item 7.** (Ron: the earlier skips survived an uncheck + re-check; he expected a reset, as they can hide at the
-   bottom.) **Still open from it — undoing a choice that erased others** (Ron: "Select All erasing selections you
-   made… here as well as everywhere (in a folder for instance). Are there conventions for making it undoable?").
+   bottom.) Follow-up agreed the same day: **undo inside the window** → item 7; the folder case → TODO.
 7. **Toasts for create + apply, and "tag" in the undo text** (test 4). Ron: tagging showed no toast, but its undo did
    — they should match. Better: one combined toast, *"Created tag xyz and added it to 'Title'"* (or "to N books").
    The undo toast read *Undone: Add "zzz" to 'All Manner of Thing…'* — put the word **tag** before the tag's name
