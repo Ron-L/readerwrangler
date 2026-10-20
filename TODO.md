@@ -216,9 +216,13 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
      save: 3 saves within minutes → 2 phone copies, the few-minutes-old third deleted at once (the old rule kept it an
      hour). alpha.1's red "auto-blocked 2" was my wrong inference — two 2026-09-01 owner revocations without proofs;
      alpha.2 reads each unpaired block's recorded reason.
-   - **NEXT:** a few nightly dev runs (expect nothing new; the 14 test keys stay as a keep-rules check — except the
-     "in progress" copy dated ~1 day ahead, which SHOULD be deleted from 10-19's night on as a stale unfinished copy) →
-     production's switch (`CLEANUP = "delete"` in wrangler.toml, a deploy, Ron's yes) → release 7.23.0.
+   - **Status 2026-10-20:** dev's 10-19 night deleted the "+1 day" unfinished test copy on schedule, plus three real
+     extra copies left by a branch still on the old 1-hour app rule (the safety net working). **alpha.3 on BOTH relays,
+     deleting** (Ron's yes): dev `c4e26196`, production `b29af659` (`CLEANUP = "delete"`); the email now says the limit
+     counts storage keys, the list counts items.
+   - **NEXT:** tonight's emails — production should delete exactly `…21fc` (the Sep 9 torn save) → release 7.23.0
+     (drop "-alpha" from `WORKER_VERSION` and redeploy both, CHANGELOG backend-only in Ron's words, squash / tag / push
+     to both, post-mortem).
    - Small follow-up: `relay/test-phase1.mjs` leaves one unimported run on the `22222222…` test channel each run (17 → 18
      on 10-18); they expire after 90 days — make the test clean up after itself.
    - **Keep only the newest 2 finished copies** (+ the live one); delete older ones **immediately — no one-hour grace**.
