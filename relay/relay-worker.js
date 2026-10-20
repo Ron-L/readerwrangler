@@ -79,7 +79,7 @@ const CF_LIMITS = {
 // Cloudflare's KV actionType → our counter. An action type not listed here is reported in the email, never dropped.
 const KV_ACTION_FIELDS = { read: 'kvReads', write: 'kvWrites', delete: 'kvDeletes', list: 'kvLists' };
 
-const WORKER_VERSION = '7.23.0-alpha.2'; // printed in every daily summary, so an email shows which deploy sent it
+const WORKER_VERSION = '7.23.0-alpha.3'; // printed in every daily summary, so an email shows which deploy sent it
 
 // THE list of relays (7.22.0, design §14a fix 2). One codebase, deployed twice; RELAY_ENV in wrangler.toml says which
 // deployment this is. Every daily summary reports ALL relays here (the free limits are shared account-wide); each
@@ -1397,7 +1397,14 @@ function formatStorageCheck(self, inv, usage, cleanup) {
     const by = s => inv.findings.filter(f => f.status === s);
     lines.push(...list('Deleted', by('deleted')), ...list('Partly deleted - continues next run', by('partly')),
                ...list('Left for the next run', by('left')));
-    lines.push(`  (${cleanup.deleted} of this run's ${cleanup.budget} deletions used - the limit per run is ${SWEEP_MAX_DELETES})`);
+    // 7.23.0-alpha.3 - the limit counts storage KEYS, the list counts ITEMS (one saved copy can be several keys) — say so,
+    // or "Deleted (4)" beside "7 … used" reads as 3 missing (Ron, 2026-10-20).
+    const touched = by('deleted').length + by('partly').length;
+    const limit = `the limit this run was ${cleanup.budget} key(s)` +
+      (cleanup.budget < SWEEP_MAX_DELETES ? ` (usually ${SWEEP_MAX_DELETES}; the check itself used the rest)` : '');
+    lines.push(touched
+      ? `  (${cleanup.deleted} storage key(s) removed for ${touched === 1 ? 'this item' : `these ${touched} items`} - one saved copy can be several keys; ${limit})`
+      : `  (no storage keys removed this run - ${limit})`);
     if (cleanup.stoppedBy) lines.push(red(`DELETING STOPPED EARLY: ${cleanup.stoppedBy} - the rest waits for the next run`));
   }
   if (inv.notes.length) lines.push('Kept / not judged:\n' + inv.notes.map(n => `  - ${n}`).join('\n'));
