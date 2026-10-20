@@ -14,7 +14,7 @@
       - [Series positions: one Position dialog, and one book at several positions (omnibus)](#series-positions-one-position-dialog-and-one-book-at-several-positions-omnibus)
       - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
       - [Drag a box to select covers](#drag-a-box-to-select-covers)
-      - [Faster fetches: read the whole library once, after your books are uploaded](#faster-fetches-read-the-whole-library-once-after-your-books-are-uploaded)
+      - [Faster fetches that report exactly how your library compares with Amazon](#faster-fetches-that-report-exactly-how-your-library-compares-with-amazon)
       - [Book Lists and Searches: pin and sort them like Folders](#book-lists-and-searches-pin-and-sort-them-like-folders)
       - [A type-to-filter box for the left pane](#a-type-to-filter-box-for-the-left-pane)
       - [Everyday organizing](#everyday-organizing)
@@ -22,8 +22,6 @@
         - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
       - [Tag from Collections, round 2: clearer window, safer tags (decided 2026-10-20)](#tag-from-collections-round-2-clearer-window-safer-tags-decided-2026-10-20)
       - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
-      - [Trusting the fetch](#trusting-the-fetch)
-        - [Fetch: report exactly how your library compares with Amazon](#fetch-report-exactly-how-your-library-compares-with-amazon)
       - [Honest ownership changes: buying, samples, loans](#honest-ownership-changes-buying-samples-loans)
         - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
         - [Relay Import: only books in no folder should go to the Inbox](#relay-import-only-books-in-no-folder-should-go-to-the-inbox)
@@ -500,9 +498,12 @@ _Why it matters:_ Faster than clicking covers one by one.
 - Extends `explorerSelectedItems`.
 - The library hides off-screen rows during a drag to stay fast with 10,000+ books (drag virtualization, readerwrangler.js ~1530) — so work out which books the box covers from the grid's layout (row/column positions), not from what's drawn; otherwise auto-scroll misses books.
 
-#### Faster fetches: read the whole library once, after your books are uploaded
+#### Faster fetches that report exactly how your library compares with Amazon
 
-_Why it matters:_ Every fetch makes you wait about a minute before you can import, even to grab one new book — most of it a full-library scan that runs twice.
+_Why it matters:_ Every fetch makes you wait about a minute before you can import, even to grab one new book — most of it a full-library scan that runs twice. And the fetch still can't honestly say "your library matches Amazon exactly", or list the differences.
+
+_Merged 2026-10-20 (Ron + UX) with "Fetch: report exactly how your library compares with Amazon" (spec'd 2026-09-03): the
+same full-library pass gives both the speed and the report — one task, two build steps, in order._
 
 **What you see** (Ron, 2026-09-19, patching $0.99 series holes: buy → download → import, again and again)
 - Each fetch takes ~1 minute before its books are uploaded, then keeps going with the removed-books check.
@@ -513,12 +514,26 @@ _Why it matters:_ Every fetch makes you wait about a minute before you can impor
 3. **The removed-books check then scans the same full library again**, after the upload. Every fetch reads the whole library twice. (The code's own comment: "ideally folded into the orphan scan, which already does a full pass.")
 - The fetcher already keeps "new books" apart from the rest: new titles are incremental, details only for new books + the few still missing a description, genres only where missing, prices only for books whose price matters.
 
-**Decided** (Ron, 2026-10-16)
+**Step 1 — one pass, at most once a day: the speed** (decided Ron, 2026-10-16)
 1. **One full-library pass instead of two, after the upload.** One scan answers both questions: books Amazon has that we're missing (recover them) and books we have that Amazon no longer lists (removed books). Your new books are uploaded before it starts — the wait before you can import drops from ~1 minute to ~15 seconds.
-2. **Then at most once a day** for that pass and the wishlist re-pricing. A day matches when prices start showing as stale (KB §16), so price-watching doesn't suffer. **Always:** new books and their details (series, cover, description) — you need them to file the books.
-3. **When it skips, it says so** in the fetch's completion window, with one click to run them anyway: *"Skipped the full refresh (prices, removed-books check) — already done today. Do it now?"*
-4. **The timing table lists every step**, the full-library pass included — it hid 52 of 66 seconds.
-5. **No Shift/Alt-click shortcut** for this — Windows reports those keys unreliably on clicks, and nobody would discover it.
+2. **It compares sets of books, not counts** (the count-based sweep compared things that can never be equal — retire it):
+   - on Amazon but not here → missing books → fetch them by ASIN, upload as a small follow-up run;
+   - here but not on Amazon → **candidates** for "removed" → re-check just those before flagging.
+3. **Then at most once a day** for that pass and the wishlist re-pricing. A day matches when prices start showing as stale (KB §16), so price-watching doesn't suffer. **Always:** new books and their details (series, cover, description) — you need them to file the books.
+4. **When it skips, it says so** in the fetch's completion window, with one click to run them anyway: *"Skipped the full refresh (prices, removed-books check) — already done today. Do it now?"*
+5. **The timing table lists every step**, the full-library pass included — it hid 52 of 66 seconds.
+6. **No Shift/Alt-click shortcut** for this — Windows reports those keys unreliably on clicks, and nobody would discover it.
+
+**Step 2 — the honest report, built on that pass** (spec'd 2026-09-03 by live investigation)
+- **The goal:** your library matches Amazon **exactly** — 2,801 = 2,801 unique owned books — once both sides are counted the same way.
+1. **Same scope on both sides, unique books.** ReaderWrangler's side excludes the wishlist (337). Amazon's side is de-duplicated: Amazon's total counts **purchase records**, not books (15 sample-then-buy pairs in your data), so use it only as a progress estimate.
+2. **Keep Amazon's standard filters everywhere.** Log the filtered-vs-unfiltered difference each fetch (13 today) as an early warning if Amazon reclassifies things.
+3. **What you see** (in the same completion window as step 1): a two-way "Removed-books check" report — each direction hidden when it's 0, no "orphan" jargon, an ℹ️ note that they're "still safe in ReaderWrangler". When both are 0: *"Your library matches Amazon exactly."*
+
+**Already done** (toward the report)
+- 7.7.0 (2026-09-04) stopped the false alarms: 13 "removed" books were physical items (maps, a DVD, "Shoes") the scan wouldn't count.
+- The false-orphan bug itself was fixed in fetcher v5.2.7.
+- Two other suspects were checked and ruled out (see TODO notes).
 
 **Also**
 - Build together with "Fetch summary should report books you bought" (On hold section) — same completion window.
@@ -529,6 +544,7 @@ _Why it matters:_ Every fetch makes you wait about a minute before you can impor
 - Timing: add the full-library pass to `stats.timing` and the ⏱️ TIMING table.
 - Remember `lastFullPassAt` in the relay (shared by all your computers), not browser storage.
 - A fetcher (bookmarklet) change, same for all three bookmarklets.
+- Comparison details (filters, totals): see TODO notes.
 
 #### Book Lists and Searches: pin and sort them like Folders
 
@@ -673,35 +689,6 @@ fall for the quickie trap again")
 3. **Delete the dead `formatRelativeTime`** so nobody reuses the buggy copy.
 4. **An automated test** across midnight (11:59 PM vs 12:01 AM) and a daylight-saving date. Ron's check: any backup
    file saved yesterday reads "yesterday".
-
-#### Trusting the fetch
-
-So what ReaderWrangler shows matches what you actually have on Amazon.
-
-##### Fetch: report exactly how your library compares with Amazon
-
-_Why it matters:_ So the fetch can honestly say "your library matches Amazon exactly", or list the differences.
-
-**The goal**
-- Your library matches Amazon **exactly** — 2,801 = 2,801 unique owned books — once both sides are counted the same way.
-
-**Rules** (spec'd 2026-09-03 by live investigation)
-1. **Compare sets of unique books, same scope on both sides.** ReaderWrangler's side excludes the wishlist (337). Amazon's side is de-duplicated: Amazon's total counts **purchase records**, not books (15 sample-then-buy pairs in your data), so use it only as a progress estimate.
-2. **Keep Amazon's standard filters everywhere.** Log the filtered-vs-unfiltered difference each fetch (13 today) as an early warning if Amazon reclassifies things.
-3. **Retire the count-based sweep** — it compared things that can never be equal. Instead:
-   - on Amazon but not here → missing books → fetch them by ASIN, upload as a small follow-up run;
-   - here but not on Amazon → **candidates** for "removed" → re-check just those before flagging.
-4. **What you see:** a two-way "Removed-books check" report — each direction hidden when it's 0, no "orphan" jargon, an ℹ️ note that they're "still safe in ReaderWrangler". The line "Your library matches Amazon exactly" becomes achievable.
-
-**Already done**
-- 7.7.0 (2026-09-04) stopped the false alarms: 13 "removed" books were physical items (maps, a DVD, "Shoes") the scan wouldn't count.
-- The false-orphan bug itself was fixed in fetcher v5.2.7.
-- Two other suspects were checked and ruled out (see TODO notes).
-
-**Still there** (checked 2026-10-14)
-- The old count-based sweep still runs (the 🩹 recovery sweep, amazon-library-fetcher.js ~1741).
-
-**How (technical)** — see TODO notes.
 
 #### Honest ownership changes: buying, samples, loans
 
