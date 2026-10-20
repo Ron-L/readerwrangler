@@ -763,26 +763,32 @@ _The foundation — the summaries below depend on it._
 
 _Why it matters:_ A restore once copied the whole library into the Inbox.
 
-**Already done**
-- Deleted books are already left out of the new-book list (readerwrangler.js ~6607).
-
-**Left**
-- Send to the Inbox only books that are in **no folder** (today: anything new to the book store; readerwrangler.js ~5572–5581).
-- The pre-launch test for restoring into an empty book store (PRELAUNCH-TEST-GATE suite 4).
+**A backstop** (Ron asked, 2026-10-20: "what is an example of a book that is new but already in a folder?"). In normal
+use the two rules agree — a book a fetch brings is new AND in no folder. They differ only when your books and your
+folders get out of step: the app keeps them in two separate browser stores (books in one, folders and lists in
+another), so if the books store is emptied or lost while the folders survive, every book looks "new" to Import. That's
+a recovery moment — exactly when a mess in the Inbox hurts most.
 
 **What happened** (diagnosed 2026-09-04)
-- On Sep 3, Import from Relay ran as a restore against an emptied book store. Every book looked "new", so all 3,076 were copied into the Inbox — even though your folders still held them.
+- On Sep 3, Import from Relay ran as a restore against an emptied book store. Every book looked "new", so all 3,076
+  were copied into the Inbox — even though your folders still held them.
 - Cleaned up the same day: you restored the 9/3 13:05 backup; only 4 genuinely double-filed books needed hand-fixing.
 
-**The fix**
-- The test for "goes to the Inbox" must be **"is in no folder"**, not "is new to the book store". Also skip deleted books.
-
-**To do**
-- Add "restore into an empty book store" to the pre-launch test suite (PRELAUNCH-TEST-GATE, suite 4).
-- Retest after the fix: delete the book store, Import from Relay → the Inbox count is unchanged.
+**Decided** (tidied 2026-10-20: its "Left", "The fix" and "To do" said the same two things three times)
+1. **"Goes to the Inbox" = in no folder (and not deleted)** — not "new to the book store". Deleted books are already
+   left out (readerwrangler.js ~6638); the folder check is what's missing (still true 2026-10-20: Import adds every book
+   new to the store, ~5603).
+2. **Add "Import into an empty book store → the Inbox is unchanged" to the pre-launch tests** (PRELAUNCH-TEST-GATE.md
+   suite 4 — it covers a cold start with no books, not this Import case).
+3. **Test safely:** the automated test is the main check. A by-hand retest ("empty the book store, Import from Relay →
+   the Inbox count is unchanged") starts with **File → Save** (a backup) and runs only when no fetch is waiting to be
+   imported — it works on your real library.
+4. **Independent of the batch's foundation** ("Fetch should update books it already knows") — it's about where Import
+   puts books, not what kind they are; build it whenever convenient.
 
 **How (technical)**
-- Filter `newBookIds` through `getAllBookIdsInFolders()` and skip `isDeleted` (js ~4770 / ~4824 when filed).
+- Filter the Import's `newBookIds` (readerwrangler.js ~5603) to books in no folder. The `getAllBookIdsInFolders()`
+  named when this was filed no longer exists (checked 2026-10-20) — build the set from the folders at that point.
 
 ##### Buying a book that's in the Trash should bring it back
 
