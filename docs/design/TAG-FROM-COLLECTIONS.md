@@ -241,11 +241,14 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
    2. **The rule — three kinds:** actions on the whole list (Manage…, Create…, Select All / Clear All) are **always
       visible**, fixed above/below the scrolling part; **notes** about the list are NOT pinned (a fixed note costs a
       line forever and stops being read — put it where status is read); ordinary rows scroll.
-   3. **This window's "No tags to remove…" note** is a note → it leans to the bottom status line (to be settled in topic 3).
-   4. **The mechanism, in 7.22.1:** ONE shared scrolling list with a fixed top slot and a fixed bottom slot; the Tags
-      filter and right-click → Tags are its first two users (the filter's two copies of the "Manage Tags…" link —
-      no-tags and some-tags — become one). The app-wide sweep moves every other list onto it — TODO.md (Polish),
-      "Long lists keep their actions in view" (main, d873012).
+   3. **In 7.22.1 — only this window's "No tags to remove…" note.** It's part of this window, so it doesn't wait for
+      the sweep; by the rule it's a note, not an action, so it isn't pinned — it leans to the bottom status line (to
+      be settled in topic 3).
+   4. **Deferred to the TODO (Ron, same evening):** the mechanism — ONE shared scrolling list with a fixed top slot and
+      a fixed bottom slot — and the Tags filter's fix with it. The filter has always scrolled this way (no regression;
+      scrolling down is the workaround), building the piece now would grow this release again, and it pairs with
+      "One shared tag picker", so both tag lists move onto it together. TODO.md (Polish): "Long lists keep their
+      actions in view (Manage…, Select All) while you scroll".
 3. **Still to discuss, in this order:** wording of the two checkboxes / the "Also"s / "wizard" in the name; the removal
    message's place; seeing the removals (− chips, +Tag vs −Tag sorting apart); multi-key sorting (3-state cycle per
    column, Shift-click adds a key, like the list view); skips remembered after unchecking + re-checking a collection;
@@ -255,9 +258,9 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
 
 ## 7. Related, filed separately (not in 7.22.1)
 
-- **Sweep: every other list moves onto the shared scrolling list** so its actions stay in view (Ron, 2026-10-19) —
-  filed in TODO.md (Polish): "Long lists keep their actions in view (Manage…, Select All) while you scroll". The
-  shared piece and the two tag lists are in 7.22.1 (§2.11 item 2).
+- **One shared scrolling list with fixed top/bottom, then every list moves onto it** so its actions stay in view
+  (Ron, 2026-10-19) — TODO.md (Polish): "Long lists keep their actions in view (Manage…, Select All) while you
+  scroll". Starts with the Tags filter; right-click → Tags is the model. Only this window's note is in 7.22.1 (§2.11).
 
 - **Tag order everywhere follows Manage Tags** (Ron + UX, 2026-10-18): the Tags filter and every tag list show tags in
   the order Manage Tags is set to; the hidden header-click cycle becomes a visible **Order: A→Z | Most used | Manual**;
