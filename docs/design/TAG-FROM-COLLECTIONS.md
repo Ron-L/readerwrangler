@@ -173,11 +173,22 @@ its outcome goes into the build list and the topic is struck out here. My positi
 8. ~~**The right-click Tags list hides tags already on the book** (test 5).~~ **Agreed 2026-10-20 → build list item
    9.** (Ron: he couldn't re-apply a wizard-added tag by hand to make it his; should the menu offer it, or should the
    help describe the 2 ways round it? Checking it found the remove + re-add way didn't work — now fixed by rule.)
-9. **Tag order in the filter and the right-click list** (your note). Ron: the Tags filter and right-click → Tags are
-   NOT in Manage Tags order; book details → Tags is. (Already filed — §7 and the TODO "One shared tag picker".)
-10. **Tooltips running into Chrome's developer tools** (a note, developers only). Ron: with developer tools docked on
-    the right, tooltips run into them; they stay inside the browser window, but should stay inside their pane. Not a
-    big deal.
+9. ~~**Tag order in the filter and the right-click list** (your note).~~ **Agreed 2026-10-20: nothing new in 7.24.0
+   — already filed** (§7; TODO "One shared tag picker"). Confirmed in code: the filter and right-click use the saved
+   manual order; book details sorts A→Z; Manage Tags OPENS sorted A→Z by name (`tagSortColumn` 'name'), so what you
+   see there matches book details while the other two follow a manual order it isn't showing. The filed fix — one
+   visible Order: A→Z | Most used | Manual, followed by every tag list — is exactly this.
+10. ~~**Tooltips running into Chrome's developer tools** (a note, developers only).~~ **Agreed 2026-10-20: no
+    action.** All 11 tooltips in this window are the browser's own (`title`); Chrome places them on the screen, not
+    the page, so the app can't keep them inside a pane — same on every site. Only a hand-built tooltip could; not
+    worth it for a developer-only effect.
+
+**All ten topics closed (2026-10-20).** Build order (Ron agreed):
+1. **7.24.0-alpha.5 — the window:** build list items 1–9 (layout, status line, wording, ↻ / ✓, removals, the shared
+   sort, the checkbox tree + undo inside the window, confirmations, touching a tag by hand makes it yours) — plus the
+   "7.22.1" → "7.24.0" sweep of code comments and this doc. Ends with test steps (§5) written from the list.
+2. **7.24.0-alpha.6 — the data change:** item 10 (retire the hidden "seen" field), its own test round.
+3. Then the release (items 11–14).
 
 ## 1. Why v2
 
