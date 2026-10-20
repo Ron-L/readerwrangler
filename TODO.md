@@ -47,6 +47,7 @@
       - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
       - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
       - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
+      - [Long lists keep their actions in view (Manage…, Select All) while you scroll](#long-lists-keep-their-actions-in-view-manage-select-all-while-you-scroll)
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
       - [Book Lists](#book-lists)
         - [A management view for Book Lists](#a-management-view-for-book-lists)
@@ -659,13 +660,22 @@ _Why it matters:_ Each row has two click targets that do different things, with 
 - Clicking the **name** means "show this collection's books on the right".
 - Unchecking a box doesn't change the right side — only clicking a name does. And "checked" and "being shown" use the same row highlight, so you can't see the two states (it fooled you).
 
-**Unsettled — don't prescribe a fix yet**
-- First decide what the right side is **for**: a preview? the set Apply will use?
-- Then make the two states look different — or unify them (the right side follows the checkboxes / your last action, with a header like "Viewing: X").
-- Design pass before any code.
+**What the right side is** (read in the code, 2026-10-16): not just a preview — part of Apply. Each book has its own
+checkbox (checked by default); unchecking one skips it when its collection is applied. **Apply** tags the books of every
+CHECKED collection, minus the books unchecked on the right.
 
-**Also** (Ron, 2026-09-22)
-- A UX opinion wanted: should the wizard **also** be reachable from the Manage Tags menu — and where? Evaluate, don't just wire it in.
+**Decided** (Ron + UX, 2026-10-18) — branch `fix/tfc-clarity`, release 7.22.1
+1. **The right side's heading says what Apply will do with this collection.** Checked: *"Books in 'Sci-Fi' — 12 will get
+   the tag 'sci-fi' (uncheck any to skip)"*. Unchecked: *"'Sci-Fi' isn't selected — its books won't be tagged"*, with an
+   **Include this collection** button, and the book checkboxes dimmed. Unchecking a collection then visibly changes the
+   right side (what fooled Ron).
+2. **Two different looks:** "being shown" = a solid left bar + light background; "will be used" = the checkbox only — no
+   shared highlight.
+3. **Apply's label carries the total:** *"Tag 47 books from 3 collections"*, live as you check / uncheck.
+4. **From Manage Tags** (Ron's 2026-09-22 question): no second menu entry (Tools lists both since 7.20) — a link INSIDE
+   the Manage Tags window: *"Create tags from your Kindle collections…"*.
+5. Fold the two copies of "which books a collection will tag" (the summary ~12835 and Apply ~13158) into ONE function
+   that both use — so the button's count and what Apply does can't drift.
 
 **How (technical)**
 - The "shown" state is `tfcSelectedCollection`.
@@ -1114,6 +1124,43 @@ _Why it matters:_ With 20+ Book Lists, the lower ones are cut off and can't be r
 **How (technical)**
 - An opt-in option on `<Popover>` for button dropdowns: when it can't fit below, pick the roomier side, cap the height, scroll.
 - Today it pins to the top of the window and hangs off the bottom. The fly-out rule is CursorPopup's "never add overflow".
+
+#### Long lists keep their actions in view (Manage…, Select All) while you scroll
+
+_Why it matters:_ An action at the end of a long list scrolls out of sight — it looks missing, so it's never used.
+
+**What you see** (Ron, 2026-10-19)
+1. The **Tags** filter in the bar above the books: "Manage Tags…" seemed to be missing. It's there — at the very
+   bottom; the whole menu scrolls as one piece, so with a dozen tags it sits below the cut-off. "Select All / Clear
+   All" at the top scrolls away the same way.
+2. Right-click a book → **Tags** does it right: only the tag rows scroll; "Manage Tags…" stays put below them.
+
+**The rule** (Ron + UX, 2026-10-19) — sort what sits at the top or bottom of a list into three kinds:
+1. **Actions on the whole list** ("Manage Tags…", "Create…", Select All / Clear All): **always visible** — fixed
+   above or below the scrolling part.
+2. **Notes about the list** ("No tags to remove…"): **not** pinned — a fixed note costs a line forever and stops
+   being read. Put it where people look for status (e.g. a window's status line).
+3. **Ordinary rows** that happen to be first or last: scroll normally.
+
+**The mechanism, not a cleanup:** ONE shared scrolling list with a fixed top slot and a fixed bottom slot. Fixing
+each list by hand doesn't stop the next new list from repeating it; with one shared piece, every new list gets it.
+1. **Build the piece**, then move every list with top/bottom actions onto it.
+2. **Known places so far** (found 2026-10-19 — a start, not the full list):
+   1. **The Tags filter** (bar above the books) — **broken:** the whole menu scrolls as one piece (capped at 300px,
+      readerwrangler.js ~9868–9877), taking "Select All / Clear All" (top, ~9906) and "Manage Tags…" (bottom, ~9977)
+      out of sight. It also has two copies of the "Manage Tags…" link (no tags ~9900 / some tags ~9977) — make one.
+   2. **Right-click a book → Tags** — **already right, the model:** only the tag rows scroll (~19857); "Manage Tags…"
+      sits below them (~19933).
+   3. **Tag from Collections' "No tags to remove…" note** — handled in 7.22.1, not here: it's a note, so it moves to
+      the window's status line rather than being pinned.
+3. **Find the rest with the comb** — two independent searches (lists that scroll; trailing "Manage…" / "Create…" / "…"
+   items) plus a walk of every menu, right-click menu, dropdown and dialog list. Publish the list of places before
+   calling it done.
+4. **Pair it with "One shared tag picker"** (Small fixes) so both tag lists move onto the piece together.
+
+**Related:** "The 'Save results' menu runs off the screen" (above — the same list could carry its fit-and-scroll
+fix) and "One shared tag picker" (Small fixes — it would sit on this piece). Deferred from 7.22.1 by Ron, 2026-10-19
+(no regression; scrolling down is the workaround).
 
 #### Removing a recent search should offer Undo
 

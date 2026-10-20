@@ -1,31 +1,36 @@
 #!/usr/bin/env python3
 """
-PreToolUse gate (trial). Fires on Edit/Write to APP SOURCE only.
-On the FIRST app-source edit of a turn, denies once with the pre-build checklist,
-then clears the per-turn flag so the immediate re-issue of the same edit proceeds.
+PreToolUse gate. Fires on Edit/Write to APP SOURCE only.
+On the FIRST app-source edit of a turn it shows the pre-build checklist by refusing the edit; the edit is then re-sent.
 
 The checklist is NOT stored here. It is the SINGLE SOURCE in docs/PRINCIPLES.md, between the
 <!-- GATE-CHECKLIST-START --> / <!-- GATE-CHECKLIST-END --> markers; this hook is just a printer that
 pulls that block. If it cannot be read, the hook prints a LOUD failure (never a silent degrade) so a
 broken reference announces itself. (Ron, 2026-09-30: no duplication to drift; and make the failure active.)
 
-Design: the flag is created by gate-reset.py on Stop/SessionStart; this hook consumes it, so the
-checklist lands exactly once, at the planning->build boundary.
+THE STATE MACHINE (2026-10-19, Ron + Claude) — three states, moved only by real signals, no guessing:
 
-WHOLE-BATCH BOUNCE (Ron, 2026-10-16): when the first app edit arrives in a batch of several, bouncing only that one let
-the REST land -- the bounced change then went missing (alpha.62 shipped half a fix; it tried again twice on 7.21.2).
-So every other app-source edit in the SAME batch is refused too: the batch fails as a whole, loudly, and is re-sent
-as a whole. "Same batch" = same assistant message, read from the session transcript (every call in one batch shares
-its message id; a re-send has a new one) -- Ron's idea, 2026-10-16, after the first version's 5-second timer refused
-a fast re-send on its first real use. The timer remains only as the fallback when the transcript can't answer
-(window FIXED from the bounce, so a re-send is refused at most once more, never in a loop).
+    ARMED ──first app edit──▶ REFUSING ──PostToolBatch──▶ CLEAR
+      ▲                     (every app edit in              │
+      └──── Stop / SessionStart (gate-reset.py) ────────────┘
+              this batch is refused)
+
+  - ARMED     (file rw-gate-pending-<session>.flag)   set by gate-reset.py at each turn's end and at session start.
+  - REFUSING  (file rw-gate-refusing-<session>.flag)  set here by the first app edit; EVERY app edit while it exists
+                                                      is refused, however the batch is streamed or timed.
+  - CLEAR     (neither file)                          set by gate-batch-end.py on PostToolBatch, which Claude Code fires
+                                                      once a whole batch of tool calls has finished, before the next
+                                                      model call (probed 2026-10-19: once per batch, after its slowest
+                                                      call, listing every call). The re-send is the next batch → allowed.
+
+Why: when the first app edit arrives in a batch of several, refusing only that one let the REST land, and the change
+applied by halves (alpha.62; twice more on 7.21.2). Two earlier fixes GUESSED where a batch ends — a 5-second timer,
+then the session transcript's message ids — and both failed (edits stream in and are written with unpredictable
+timing; 7.23.0-alpha.2 and 7.22.1-alpha.3 half-applied). PostToolBatch is the signal those guesses stood in for.
 
 Fail-safe: ANY error or unexpected input -> allow (exit 0). A gate bug must never block real work.
 """
-import sys, os, json, tempfile, time
-
-BATCH_WINDOW_S = 5.0   # a batch's calls run back-to-back (well under a second); a re-send after reading the bounce
-                       # takes a full reply, normally longer than this
+import sys, os, json, tempfile
 
 # App source = SHIPPED code: every .js directly in the repo root (the app, its modules, the bookmarklet
 # fetchers, reset.js) plus the deployed relay worker. A RULE, not a list, so a new module is covered the day
@@ -53,6 +58,12 @@ def repo_root():
         return env
     # <root>/.claude/hooks/gate-check.py -> up three
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def state_file(session, state):
+    """The temp-dir file that marks a state ('pending' = ARMED, 'refusing' = REFUSING) for this session. gate-reset.py
+    and gate-batch-end.py compute the identical paths."""
+    return os.path.join(tempfile.gettempdir(), "rw-gate-%s-%s.flag" % (state, session))
 
 
 def load_checklist():
@@ -88,72 +99,6 @@ def allow():
     sys.exit(0)
 
 
-def batch_of(transcript_path, tool_use_id):
-    """The id of the assistant message that carries this tool call -- i.e. its batch -- or None if not (yet) written.
-    Reads only the transcript's tail (it grows to many MB)."""
-    if not (transcript_path and tool_use_id and os.path.exists(transcript_path)):
-        return None
-    with open(transcript_path, "rb") as f:
-        f.seek(0, 2)
-        f.seek(max(0, f.tell() - 4000000))
-        tail = f.read().decode("utf-8", "replace")
-    for line in reversed(tail.splitlines()):
-        if tool_use_id not in line:
-            continue
-        try:
-            msg = json.loads(line).get("message") or {}
-        except Exception:
-            continue
-        if any(isinstance(c, dict) and c.get("id") == tool_use_id for c in msg.get("content") or []):
-            return msg.get("id")
-    return None
-
-
-def newest_message(transcript_path):
-    """The id of the newest assistant message in the transcript (its thinking, text or a call — whatever was written
-    last), or None."""
-    if not (transcript_path and os.path.exists(transcript_path)):
-        return None
-    with open(transcript_path, "rb") as f:
-        f.seek(0, 2)
-        f.seek(max(0, f.tell() - 4000000))
-        tail = f.read().decode("utf-8", "replace")
-    for line in reversed(tail.splitlines()):
-        if '"assistant"' not in line:
-            continue
-        try:
-            row = json.loads(line)
-        except Exception:
-            continue
-        if row.get("type") == "assistant" and (row.get("message") or {}).get("id"):
-            return row["message"]["id"]
-    return None
-
-
-def same_batch_as_bounce(bounced_path, data):
-    """Was this call sent in the same batch as the bounced one? By the batch's real identity when the transcript has
-    both calls (a call isn't written yet when ITS OWN hook runs if it's the first call of its message -- probed
-    2026-10-16 -- but the bounced one is by the time a later call arrives). Bounced call found + this one not = this one
-    opens a new message = a re-send. Only when even the bounced call can't be found does the time window decide."""
-    try:
-        rec = json.load(open(bounced_path))
-    except Exception:
-        return False
-    tp = data.get("transcript_path")
-    a = batch_of(tp, rec.get("tool_use_id"))
-    if a:
-        # Same batch iff the NEWEST assistant message in the transcript is still the bounced call's message. A message's
-        # calls run as they stream in, so whether THIS call's own entry is written yet is a race (2026-10-18, 7.23.0-
-        # alpha.2: a batch half-applied under the old "this call not found = new message" rule) — but a message's start
-        # (its thinking / text / first call) is always written before its later calls. A re-send is a NEWER message.
-        # Uncertain case: a re-send whose message begins with the call itself → still looks like the bounced message →
-        # refused once (the safe direction); the next re-send is a newer message again.
-        cur = newest_message(tp)
-        if cur:
-            return cur == a
-    return 0 <= time.time() - float(rec.get("t", 0)) <= BATCH_WINDOW_S
-
-
 def deny(reason):
     print(json.dumps({
         "hookSpecificOutput": {
@@ -178,41 +123,28 @@ def main():
         if not file_path or not is_app_source(file_path):
             return allow()
 
-        # Flag lives in the system temp dir (NOT the repo). The runtime does not
-        # reliably pass scratchpad_dir, so use a deterministic temp path keyed by
-        # session id -- gate-reset.py computes the identical path.
         session = data.get("session_id") or "default"
-        flag = os.path.join(tempfile.gettempdir(),
-                            "rw-gate-pending-%s.flag" % session)
+        armed, refusing = state_file(session, "pending"), state_file(session, "refusing")
 
-        bounced = os.path.join(tempfile.gettempdir(),
-                               "rw-gate-bounced-%s.stamp" % session)
+        if os.path.exists(refusing):                      # REFUSING: another app edit of the bounced batch
+            return deny(
+                "[PRE-BUILD GATE -- BATCH REFUSED] This app-code edit came in the same batch as the one the checklist\n"
+                "just refused, so it was refused too -- NONE of this batch's app-code edits applied (non-app edits,\n"
+                "e.g. docs, did). After the checklist, RE-SEND EVERY app-code edit from the batch.")
 
-        if not os.path.exists(flag):
-            # Not the first app-source edit of the turn -- but if it rode in the SAME batch as the bounced one,
-            # refuse it too, so the batch never applies by halves.
-            if same_batch_as_bounce(bounced, data):
-                return deny(
-                    "[PRE-BUILD GATE -- BATCH BOUNCED] This edit was sent in the same batch as an edit the pre-build\n"
-                    "checklist just bounced, so it was refused too -- NOTHING in that batch's app-code edits applied\n"
-                    "(non-app edits in the batch, e.g. docs, did). After the checklist, RE-SEND EVERY app-code edit\n"
-                    "from that batch. (If a re-send is refused again, it came too fast -- send it once more.)")
-            return allow()
+        if os.path.exists(armed):                         # ARMED → REFUSING: the first app edit of the turn
+            try:
+                open(refusing, "w").close()               # REFUSING before ARMED is consumed: no edit can slip between
+            except Exception:
+                pass
+            try:
+                os.remove(armed)
+            except Exception:
+                pass
+            return deny(checklist_text() + "\n\n[BATCH] Every other app-code edit in this batch is refused too -- "
+                        "re-send ALL of them, not just this one.")
 
-        # First app-source edit of the turn: record the bounce (its call id + time) BEFORE consuming the flag (so a
-        # parallel call that finds the flag gone already sees the record), then deny once.
-        try:
-            with open(bounced, "w") as f:
-                json.dump({"t": time.time(), "tool_use_id": data.get("tool_use_id")}, f)
-        except Exception:
-            pass
-        try:
-            os.remove(flag)
-        except Exception:
-            pass
-
-        return deny(checklist_text() + "\n\n[BATCH] Any other app-code edit sent together with this one is refused "
-                    "too -- re-send ALL of them, not just this one.")
+        return allow()                                    # CLEAR
     except Exception:
         return allow()
 

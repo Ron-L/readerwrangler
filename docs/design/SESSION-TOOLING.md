@@ -20,20 +20,19 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
 
 - **`gate-check.py`** (PreToolUse) — the **pre-build gate**. On the first edit of shipped code (any `.js` at the
   repo root + `relay/relay-worker.js` — `is_app_source()`, a rule not a list; widened 2026-10-08) each turn it prints the checklist and denies once; re-issuing the identical edit proceeds.
-  **Whole-batch bounce** (2026-10-16): every other shipped-code edit in the SAME batch is refused too, so a batch never
-  applies by halves — the bounced edit used to go missing while the rest landed (alpha.62; twice more on 7.21.2).
-  "Same batch" = same assistant message id, looked up in the session transcript (`batch_of()`; Ron's idea). Probed: the
-  hook gets `tool_use_id` + `transcript_path`, and the FIRST call of a message is NOT in the transcript when its own
-  hook runs — and a message's calls run AS THEY STREAM IN, so whether a later call's own entry is written yet is a
-  race too. The rule (2026-10-18, second fix): find the bounced call's message, then ask **which message is the newest
-  in the transcript now** — still the bounced one = same batch = refused; a newer one = a re-send = allowed. A
-  message's start (thinking / text / first call) is always written before its later calls. (The first fix, "this
-  call not found = new message", let a batch half-apply on 7.23.0-alpha.2; replayed against that batch's real
-  timeline, the second fix refuses both its later edits and allows the re-send.) A re-send whose message begins with
-  the call itself is refused once — the safe side. The 5-second window decides only when the bounced call can't be found.
-  The lookup reads the transcript's last 4 MB — fine live (the bounce is recent); old ids fall out of it. The
+  **Whole-batch refusal — a three-state switch moved by real signals** (2026-10-19, Ron + Claude): **ARMED** (set by
+  `gate-reset.py` at each turn's end / session start) → the first app edit flips it to **REFUSING** and gets the
+  checklist; **every** app edit while REFUSING is refused, however the batch streams or is timed → **`gate-batch-end.py`
+  on PostToolBatch** (fires once a whole batch has finished, before the next model call — probed 2026-10-19) flips it
+  to **CLEAR**, so the re-send (the next batch) goes through. The reset also clears a leftover REFUSING. Why: refusing
+  only the first edit let the rest of a batch land (alpha.62; twice on 7.21.2). Two earlier fixes GUESSED where a batch
+  ends — a 5-second timer, then the session transcript's message ids — and both failed (7.23.0-alpha.2, 7.22.1-alpha.3)
+  because edits stream in and are written with unpredictable timing; that guessing code is deleted. A hook can't
+  "hold" an edit while Claude thinks (Claude only sees a hook's message in a call's result), so the checklist must
+  arrive by refusing — the switch makes the refusal whole. The
   checklist is **not** in the hook — it's pulled from the `GATE-CHECKLIST` block in `docs/PRINCIPLES.md`
   (single source). Unreadable → loud `CHECKLIST SOURCE MISSING` alarm + a minimal core.
+- **`gate-batch-end.py`** (PostToolBatch) — REFUSING → CLEAR once the refused batch is over (2026-10-19).
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by
   session id) so the checklist lands exactly once, at the planning→build boundary.
 - **`/sitemap`** (`.claude/commands/`) — mechanizes the class-of-sites comb (two independent pivots).
