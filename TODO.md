@@ -536,7 +536,8 @@ same full-library pass gives both the speed and the report — one task, two bui
 - Two other suspects were checked and ruled out (see TODO notes).
 
 **Also**
-- Build together with "Fetch summary should report books you bought" (On hold section) — same completion window.
+- Build together with "Fetch summary should report books you bought" (in "Honest ownership changes", below) — same
+  completion window.
 - When shipped, update SUPPORT-KB §16: "prices are as fresh as your last fetch" and "every wishlist book is re-priced each run" stop being true.
 
 **How (technical)**
@@ -695,19 +696,18 @@ fall for the quickie trap again")
 _Why it matters:_ When a book changes kind — bought, a sample, a loan, a book in the Trash — ReaderWrangler should notice, tell you, and never lose your settings.
 
 **What this is**
-- One batch, ratified 2026-09-04 and held until Ron said go (formerly its own section, "⏸️ On hold: honest ownership
-  changes"). Its tasks are below, **in build order**: the rules doc and the foundation first, then the data fixes,
-  then the summaries (the polish end — there's nothing honest to report until the fetch notices changes).
-
-**History** (from the old section)
-
-When a book changes kind — wishlist → bought, sample → bought, a loan, a book in the Trash — ReaderWrangler should notice, show it, and never lose your settings. Ratified 2026-09-04; **held until you say go**. When it starts, **"Fetch should update books it already knows" goes first** (the old stack's note: "item 6 first").
+- One batch, ratified 2026-09-04 (formerly its own section, "⏸️ On hold: honest ownership changes"). **Status: queued**
+  (Ron, 2026-10-20 — no longer on hold). Its tasks are below, **in build order**: the rules doc and the foundation
+  first, then the data fixes, then the summaries (the polish end — there's nothing honest to report until the fetch
+  notices changes). **"Fetch should update books it already knows" goes first.**
 
 **Already shipped from this batch**
-- 7.7.2 (2026-09-07): Imports reclaim old upload storage. Proof outstanding: the first production Import on 7.7.2 or later should log "🧹 Reclaimed 7 absorbed bulk run(s)" (~124 MB). _(7.21.1 now does this on every save, so this proof may be moot.)_
+- 7.7.2 (2026-09-07): Imports reclaim old upload storage. Its outstanding proof is **settled**: 7.21.1 reclaims on every
+  save, and since 7.23.0 (2026-10-20) production's nightly storage check confirms nothing is left over.
 - 7.8.0 (2026-09-08): the ownership dialog redesign, the undo fence, undo messages that name what they undo.
-- 7.9.0: one unified Auto-Organize (two pieces deferred — the first two tasks below).
-- 7.10.0: Save as Spreadsheet (CSV). _A reply to the user who asked for it is still owed (Ron's channel)._
+- 7.9.0: one unified Auto-Organize. Two pieces were deferred on purpose and are their own tasks (Polish): "Auto-Organize:
+  let a misfiled book go back to the Inbox" and "Auto-Organize: Shift-click ranges should follow what you see".
+- 7.10.0: Save as Spreadsheet (CSV) — the user who asked for it was sent a reply (no response).
 - 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
 
 ##### Fetch should update books it already knows, not skip them
