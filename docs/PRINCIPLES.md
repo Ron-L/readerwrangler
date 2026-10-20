@@ -124,6 +124,7 @@ and a computed-but-unused one on its main path ("we'll check later" — nothing 
 in" was false and paperbacks got in. A comment promising later work is not code. **A plan written days ago is an assumption at execution
 time** (7.22.0): "resolve the doc conflicts in main's favor" would have dropped the branch's own CLAUDE.md
 rule — re-check each step against the files as they are now, not as they were when the plan was written.
+(7.23.0: the plan's "CHANGELOG: backend only" was false by release — `relay-client.js` is app code and its rule changed.)
 **Ron's standing trade (2026-09-21): OVER-confirm — spend the tokens and the time; that cost is always
 smaller than a mistake built on incomplete memory or an assumption. He would rather wait.**
 **Enforcement**: `feedback_verify_dont_assume` + `feedback_wait_for_answer` memory; the pre-build gate's
@@ -274,6 +275,8 @@ analysis. When a compliance ritual gets easy to fake, that's the moment it's abo
 by an identity, not a time window** — the gate's "same batch = within 5 s" refused a fast re-send on its first real
 use (7.21.2); the batch's shared message id is what actually knows. **Write a result after it happens,
 not before** (7.22.0: "redeployed to both relays" went into the TODO ahead of the deploys — caught pre-push).
+**A stamp nothing checks is a promise, not a mechanism** (7.23.0: the help notes' "up to date through 7.21.2" sat
+while 7.21.3 and 7.22.0 shipped — 7.21.3's Bibliography change had no entry for four days; visible, and unread).
 **Enforcement**: `feedback_mechanical_honesty` memory; the heredoc ban (three-for-three earned a ban, not a
 caution); receipts-and-honesty as a feature genre.
 
@@ -281,8 +284,12 @@ caution); receipts-and-honesty as a feature genre.
 The "Runaway Robot" law: after compaction, rules must be re-read with the Read tool (a claimed reading was
 once caught with a line-count quiz), permissions do not carry over, and design details do not survive
 summarization (a dialog was once built entirely wrong from a summary — "You did not get the plan": ask for
-the design again instead).
-**Enforcement**: CLAUDE.md compaction protocol; persistent files (CLAUDE.md, design docs, memory) as the
+the design again instead). **A summary keeps the decisions but loses the argument** (2026-10-19): the first reply
+after a mid-discussion compaction recorded Ron's new idea, gave no opinion and committed unasked — the pushback it
+skipped was the valuable part; and an instruction said only aloud ("fix the 2 tag things in this task") drifted.
+**Enforcement**: CLAUDE.md compaction protocol (since 2026-10-19 it carries the DISCUSSION IN FLIGHT: each open topic,
+my position, Ron's pushback); a release's **build list at the top of its design doc** — a topic closes only when its
+line is written (`feedback_build_list_in_design_doc`); persistent files (CLAUDE.md, design docs, memory) as the
 only state that survives.
 
 ### 14. Look backward before inventing forward; investigate before estimating
