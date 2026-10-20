@@ -22,9 +22,16 @@ breath as the agreement, so it survives a break or a compaction. ✅ = built in 
 1. **Layout:** Select All | Some | None moves into the left pane's header; both checkboxes move into the right pane's
    header (on one line; the "click a chip…" hint goes into the column headers' tooltip); the top bar is removed.
    (Ron, 2026-10-19 — §2.11 item 1; Ron judges the right header's crowding when he sees it.)
-2. **The "No tags to remove…" note moves to the status line at the bottom** (where "Will create 0 new tags and tag 7
-   books" is), instead of the end of the left list where it scrolls out of sight. (Ron's proposal, alpha.3 feedback
-   #1; agreed in principle with tonight's rule "notes aren't pinned" — §2.11 item 2. Exact wording: topic 3 below.)
+2. **The removal answer lives in the status line at the bottom** (where "Will create 0 new tags and tag 7 books" is);
+   the note at the end of the left list is removed (it scrolled out of sight). (Ron's proposal, alpha.3 feedback #1;
+   wording agreed in topic 3, Ron + UX, 2026-10-20.) While "Remove tags…" is ticked the status line ALWAYS has a
+   removal line:
+   - something to remove: *"Will remove tags from 3 books"* (amber, as today — counted in books, §2.7);
+   - nothing to remove: *"No tags to remove: no book tagged by Tag from Collections has left its collection."*;
+   - unticked: no removal line. With nothing else changing, *"No changes to apply"* shows with the removal line under
+     it (both true; the second explains the first).
+   Why: the answer appears where you read "what will Apply do", right after the tick — its presence answers "did my
+   tick do anything?". The old text's "this window" is gone (topic 2).
 3. **The two checkboxes' wording** (topic 2 — Ron + UX, 2026-10-20; no "Also", no "wizard": the name stays **Tag from
    Collections** everywhere):
    - ☐ **Remove tags from books that left the collection on Kindle** — tooltip: *"Only tags added by Tag from
@@ -73,9 +80,8 @@ its outcome goes into the build list and the topic is struck out here. My positi
    list items 3–4.** (Ron's notes: the removal checkbox took three reads; shorten the show checkbox; is "Also"
    useful; "wizard" in the name — which came from reading the show checkbox as limited to tool-added tags, like the
    removal one is.)
-3. **The "No tags to remove" message** (your 1). Ron: at the end of the left list it's subtle — unless you're scrolled
-   to the bottom (or the list is short), the only clue is the scrollbar changing a little. Put it in the status line
-   instead. (Agreed in principle → build list item 2; left to settle: its exact words.)
+3. ~~**The "No tags to remove" message** (your 1).~~ **Agreed 2026-10-20 → build list item 2.** (Ron: at the end of
+   the left list it's subtle — the only clue is the scrollbar changing a little; put it in the status line.)
 4. **Seeing the removals** (your 3). Ron: how do I easily see the books whose tags will be removed? Show the tag on the
    right with a minus ("− Tag"). With "Also show books already tagged" off you'd see only pluses and minuses; if
    sorting kept **+TagA and −TagA apart**, the removals could be isolated easily.
