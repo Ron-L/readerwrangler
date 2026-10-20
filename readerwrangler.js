@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.23.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.24.0";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1286,12 +1286,13 @@
             const [shareEmailChoice, setShareEmailChoice] = useState(null); // v7.14.0 - { subject, body }; share-by-email choice dialog (replaces the mailto-auto-fire + failure-fallback)
             // v6.10.0-alpha.14 - Tag from Collections wizard
             const [tagFromCollectionsOpen, setTagFromCollectionsOpen] = useState(false);
-            const [tfcSelectedCollection, setTfcSelectedCollection] = useState(null); // highlighted collection in left pane
             const [tfcCheckedCollections, setTfcCheckedCollections] = useState(new Set()); // checked collection names
-            const [tfcUncheckedBooks, setTfcUncheckedBooks] = useState({}); // {collectionName: Set of unchecked bookIds}
-            const [tfcNewBooksOnly, setTfcNewBooksOnly] = useState(false); // "New books only" toggle
-            // v6.10.0-alpha.15 - Removal tracking for Tag from Collections
-            const [tfcSelectedRemoval, setTfcSelectedRemoval] = useState(null); // selected removal group tag label
+            const [tfcUncheckedBooks, setTfcUncheckedBooks] = useState({}); // {collectionName: Set of bookIds whose "+ tag" chip is skipped}
+            // v7.24.0 (§2.8) - "New books only" (a hidden per-book "seen" flag) is gone; this visible toggle replaced it
+            const [tfcShowTagged, setTfcShowTagged] = useState(false); // "Also show books that already have their tag"
+            const [tfcSort, setTfcSort] = useState('title'); // v7.24.0 - right side's sort: 'title' | a column (collection) name
+            // v6.10.0-alpha.15 - Removal tracking for Tag from Collections (v7.24.0 - OPT-IN, off each time the window opens)
+            const [tfcIncludeRemovals, setTfcIncludeRemovals] = useState(false);
             const [tfcCheckedRemovals, setTfcCheckedRemovals] = useState(new Set()); // removal group labels checked for removal
             const [tfcUncheckedRemovalBooks, setTfcUncheckedRemovalBooks] = useState({}); // {tagLabel: Set of bookIds to keep}
             const [editBookFields, setEditBookFields] = useState({ title: '', author: '', series: '', seriesPosition: '', userNote: '', ownership: 'keep', binding: '' }); // v7.7.0-alpha.13 Format; v7.8.0-alpha.3 ownership = 'keep'|'purchased'|'wishlist'|'reset' (OWNERSHIP-MODEL.md §4)
@@ -1434,6 +1435,69 @@
                     if (ob != null) return 1;
                     return idx[a] - idx[b];
                 });
+            };
+            // v7.24.0 (Ron + UX, docs/design/TAG-FROM-COLLECTIONS.md §2.6) - THE tag identity rules, app-wide:
+            //   - "is this the same tag?" = EXACT text, capitals included ("Read" and "read" are two tags; never grouped)
+            //   - "find a tag as I type" ignores capitals (the pickers' search) — that stays at each picker
+            //   - every tag gets its OWN internal key, even when two names differ only in capitals or spaces/hyphens
+            //     (the old key = lowercased name made "Non fiction" and "Non-Fiction" collide)
+            //   - creating a name that differs from an existing tag only in capitals asks once (a Caps Lock slip), never refuses
+            const tagKeyByExactName = (name) => {
+                const n = String(name || '').trim();
+                const hit = Object.entries(tagRegistry).find(([, t]) => t && t.label === n);
+                return hit ? hit[0] : null;
+            };
+            const freshTagKey = (name, registry = tagRegistry) => {
+                const base = String(name).trim().toLowerCase().replace(/\s+/g, '-');
+                if (!registry[base]) return base;
+                let i = 2;
+                while (registry[`${base}-${i}`]) i++;
+                return `${base}-${i}`;
+            };
+            // Find the tag with exactly this name, or create it. Resolves { key, label, created } — or null if cancelled.
+            // The returned key is ALWAYS the key stored (callers tag books with it). opts.forBooks: the caller puts the tag
+            // on books (right-click, book details) — so "use the existing twin" is a real action: "Add 'Read' instead".
+            // Without books (Manage Tags) choosing the twin would do nothing, so that choice is just Cancel (§2.10).
+            const findOrCreateTag = async (rawName, count = 0, opts = {}) => {
+                const name = String(rawName || '').trim();
+                if (!name) return null;
+                const exact = tagKeyByExactName(name);
+                if (exact) return { key: exact, label: name, created: false };
+                const twin = Object.entries(tagRegistry).find(([, t]) => t && t.label.toLowerCase() === name.toLowerCase());
+                if (twin) {
+                    const choice = await showChoiceDialog('A similar tag exists',
+                        `A tag "${twin[1].label}" already exists. Create "${name}" as a separate tag?`,
+                        [opts.forBooks ? { label: `Add "${twin[1].label}" instead`, value: 'use' } : { label: 'Cancel', value: null },
+                         { label: `Create "${name}"`, value: 'create', primary: true }]);
+                    if (choice === null) return null;
+                    if (choice === 'use') return { key: twin[0], label: twin[1].label, created: false };
+                }
+                const key = freshTagKey(name);
+                setTagRegistry(prev => ({ ...prev, [key]: { label: name, count } }));
+                return { key, label: name, created: true };
+            };
+            // v7.24.0 - the book details window's "create a tag and add it to this book" (its Enter key and its Create row
+            // were two copies). Closes the tag menu first; the capitals prompt (if any) comes next.
+            const addNewTagToModalBook = (typedName) => {
+                const bookId = modalBook && modalBook.id;
+                if (!bookId) return;
+                setContextSubmenu(null);
+                setTagInputValue('');
+                (async () => {
+                    const made = await findOrCreateTag(typedName, 1, { forBooks: true });
+                    if (!made) return;
+                    const book = books.find(b => b.id === bookId) || modalBook;
+                    if ((book.tags || []).includes(made.key)) return; // "Add … instead" picked a tag this book already has
+                    const newTags = [...(book.tags || []), made.key];
+                    recordTagChange([bookId], { [bookId]: { tags: newTags } }, `Add "${made.label}" to ${bookCountLabel([bookId])}`, // v7.10.1-alpha.4
+                        made.created ? { createdTags: { [made.key]: { label: made.label, count: 0 } } } : {});
+                    setBooks(prev => {
+                        const updated = prev.map(b => b.id === bookId ? { ...b, tags: newTags } : b);
+                        saveBooksToIndexedDB(updated);
+                        return updated;
+                    });
+                    setModalBook(prev => (prev && prev.id === bookId) ? { ...prev, tags: newTags } : prev);
+                })();
             };
             const reorderTags = (draggedId, targetId) => {
                 if (!draggedId || draggedId === targetId) return;
@@ -2066,6 +2130,10 @@
                 const entry = tagRegistry[tagId];
                 const nm = (newLabel || '').trim();
                 if (!entry || !nm || nm === entry.label) return false;
+                // v7.24.0 - identity is EXACT text: two tags may never share an exact name (it would make "the tag with exactly
+                // this name" — e.g. Tag from Collections' matching rule — ambiguous). A capitals-only difference is allowed.
+                const clash = tagKeyByExactName(nm);
+                if (clash && clash !== tagId) { showToast(`A tag named "${nm}" already exists`); return true; }
                 if (!renameGuardPasses(`tag:${tagId}:${nm}`)) return true;
                 recordAction({ type: 'RENAME_TAG', tagId, prevLabel: entry.label, newLabel: nm, label: `Rename tag '${entry.label.slice(0, 40)}' to '${nm.slice(0, 40)}'` });
                 setTagRegistry(prev => prev[tagId] ? { ...prev, [tagId]: { ...prev[tagId], label: nm } } : prev);
@@ -7317,7 +7385,10 @@
             // v7.19.0 - it was always generic ("set these fields on these books"), so it's named for that now —
             // SET_BOOK_FIELDS (was SET_TAGS; undo history is in-memory only, so no stored record carries the old
             // name). Keep (removed-books window) uses it too; recordTagChange stays as the tag call sites' name.
-            const recordBookFieldChange = (bookIds, nextFieldsById, label) => {
+            // v7.24.0 (Ron + UX, docs/design/TAG-FROM-COLLECTIONS.md §2.9) - opts.createdTags = { key: { label, count } } for tags
+            // THIS action created: undo removes each one no book still carries; redo puts it back. (7.10.1 left them —
+            // "unused = harmless" — but an undone action shouldn't leave tags littering every tag list.)
+            const recordBookFieldChange = (bookIds, nextFieldsById, label, opts = {}) => {
                 const prevFieldsById = {};
                 bookIds.forEach(id => {
                     const b = books.find(x => x.id === id);
@@ -7328,7 +7399,8 @@
                     });
                     prevFieldsById[id] = prev;
                 });
-                recordAction({ type: 'SET_BOOK_FIELDS', bookIds: [...bookIds], prevFieldsById, nextFieldsById, label });
+                const createdTags = opts.createdTags && Object.keys(opts.createdTags).length ? { ...opts.createdTags } : null;
+                recordAction({ type: 'SET_BOOK_FIELDS', bookIds: [...bookIds], prevFieldsById, nextFieldsById, label, createdTags });
             };
             const recordTagChange = recordBookFieldChange;
             // v7.19.0 - Keep: accept books that are no longer in your Amazon library — they stay filed and are never
@@ -7360,35 +7432,37 @@
             // v7.20.0-alpha.2 - open Tag from Collections fresh from the current books (was 35 lines inline in the menu item).
             // v6.10.0-alpha.14/15 logic, unchanged: all collections checked; "New books only" if it has run before; removals
             // = collection-tags whose collection a book no longer has, all checked (the user confirms).
+            // v7.24.0 - THE "is there anything to tag from" test, shared by the Tools menu item and the link in Manage Tags.
+            const canTagFromCollections = books.some(b => (b.collections || []).length > 0)
+                || books.some(b => (b.collectionTags || []).length > 0);
+            // v7.24.0 (docs/design/TAG-FROM-COLLECTIONS.md §2.5) - THE removal candidates, used by the window and its setup:
+            // a tag THIS wizard added (book.collectionTags) whose CURRENT name exactly matches a Kindle collection the book is no
+            // longer in. A renamed tag matches no collection, so it's never offered — it's yours. Grouped by tag name.
+            const tfcRemovalGroups = () => {
+                const collectionNamesInLibrary = new Set();
+                books.forEach(b => (b.collections || []).forEach(c => collectionNamesInLibrary.add(c.name)));
+                const groups = {};
+                books.forEach(b => {
+                    const inColls = new Set((b.collections || []).map(c => c.name));
+                    (b.collectionTags || []).forEach(key => {
+                        const t = tagRegistry[key];
+                        if (!t || !collectionNamesInLibrary.has(t.label) || inColls.has(t.label) || !(b.tags || []).includes(key)) return;
+                        if (!groups[t.label]) groups[t.label] = { tagKey: key, books: [] };
+                        groups[t.label].books.push(b);
+                    });
+                });
+                return groups;
+            };
             const openTagFromCollections = () => {
-                const collectionsMap = {};
-                books.forEach(b => {
-                    (b.collections || []).forEach(c => {
-                        if (!collectionsMap[c.name]) collectionsMap[c.name] = [];
-                        collectionsMap[c.name].push(b);
-                    });
-                });
-                setTfcNewBooksOnly(books.some(b => b.collectionTagSeen));
-                setTfcCheckedCollections(new Set(Object.keys(collectionsMap)));
+                // v7.24.0 (§2.8) - opens with NOTHING checked: you check what you came for (with no hidden "seen" memory,
+                // everything-checked would offer every collection you always decline)
+                setTfcShowTagged(false);
+                setTfcCheckedCollections(new Set());
                 setTfcUncheckedBooks({});
-                setTfcSelectedCollection(Object.keys(collectionsMap)[0] || null);
-                const removalGroups = {};
-                books.forEach(b => {
-                    const cTags = b.collectionTags || [];
-                    if (cTags.length === 0) return;
-                    const currentCollNames = (b.collections || []).map(c => c.name.toLowerCase().replace(/\s+/g, '-'));
-                    cTags.forEach(tagId => {
-                        if (!currentCollNames.includes(tagId)) {
-                            const tagData = tagRegistry[tagId];
-                            const label = tagData ? tagData.label : tagId;
-                            if (!removalGroups[label]) removalGroups[label] = { tagId, books: [] };
-                            removalGroups[label].books.push(b);
-                        }
-                    });
-                });
-                setTfcCheckedRemovals(new Set(Object.keys(removalGroups)));
+                setTfcSort('title');
+                setTfcIncludeRemovals(false);                                         // v7.24.0 - opt-in, off each time
+                setTfcCheckedRemovals(new Set(Object.keys(tfcRemovalGroups())));    // ticking the opt-in shows them checked
                 setTfcUncheckedRemovalBooks({});
-                setTfcSelectedRemoval(null);
                 setTagFromCollectionsOpen(true);
             };
             const keepRemovedBooks = (bookIds) => setKeptRemovedBooks(bookIds, true);
@@ -7761,6 +7835,13 @@
                         });
                         if (modalBookRef.current && action.bookIds.includes(modalBookRef.current.id)) {
                             setModalBook(prev => prev ? { ...prev, ...action.prevFieldsById[prev.id] } : prev);
+                        }
+                        // v7.24.0 (§2.9) - remove the tags this action created, unless a book still carries one after the undo
+                        if (action.createdTags) {
+                            const tagsAfterUndo = b => (action.bookIds.includes(b.id) && action.prevFieldsById[b.id] && 'tags' in action.prevFieldsById[b.id])
+                                ? (action.prevFieldsById[b.id].tags || []) : (b.tags || []);
+                            const unused = Object.keys(action.createdTags).filter(key => !books.some(b => tagsAfterUndo(b).includes(key)));
+                            if (unused.length) setTagRegistry(prev => { const next = { ...prev }; unused.forEach(k => delete next[k]); return next; });
                         }
                         break;
                     case 'RESOLVE_DUPLICATES': // v7.10.1-alpha.4 - resurrect removed copies + exact folder arrays
@@ -8302,6 +8383,12 @@
                         }
                         break;
                     case 'SET_BOOK_FIELDS': // v7.10.1-alpha.4 (was SET_TAGS)
+                        // v7.24.0 (§2.9) - put back the tags this action created (undo removed the unused ones)
+                        if (action.createdTags) setTagRegistry(prev => {
+                            const next = { ...prev };
+                            Object.entries(action.createdTags).forEach(([k, t]) => { if (!next[k]) next[k] = { ...t }; });
+                            return next;
+                        });
                         setBooks(prev => {
                             const updated = prev.map(b => action.bookIds.includes(b.id) ? { ...b, ...action.nextFieldsById[b.id] } : b);
                             saveBooksToIndexedDB(updated);
@@ -9433,8 +9520,7 @@
                                                 <MenuDivider />
                                                 <MenuBarItem onClick={menuAction(() => setTagManagementOpen(true))}>🏷️ Manage Tags…</MenuBarItem>
                                                 {/* v6.10.0-alpha.14 - Tag from Collections wizard (setup: openTagFromCollections) — needs collections or collection-tags */}
-                                                <MenuBarItem onClick={menuAction(openTagFromCollections)}
-                                                    disabled={!books.some(b => (b.collections || []).length > 0) && !books.some(b => (b.collectionTags || []).length > 0)}>
+                                                <MenuBarItem onClick={menuAction(openTagFromCollections)} disabled={!canTagFromCollections}>
                                                     🏷️ Tag from Collections…
                                                 </MenuBarItem>
                                                 <MenuDivider />
@@ -12785,9 +12871,12 @@
                         );
                     })()}
 
-                    {/* v6.10.0-alpha.14 - Tag from Collections Wizard (v6.10.0-alpha.15 - collectionTags + removal) */}
+                    {/* v6.10.0-alpha.14 - Tag from Collections Wizard (v6.10.0-alpha.15 - collectionTags + removal)
+                        v7.24.0 - v2 (Ron + UX; design of record docs/design/TAG-FROM-COLLECTIONS.md): one click target per row (the
+                        checkbox); the right side shows EVERY checked collection's changes at once, one aligned tag column each, chips
+                        "+ / ✓ / skipped / −"; THE matching rule = a collection goes onto the tag with EXACTLY its name, right now. */}
                     {tagFromCollectionsOpen && (() => {
-                        // Build collections data from current books
+                        // Collections from the current books
                         const collectionsMap = {};
                         books.forEach(b => {
                             (b.collections || []).forEach(c => {
@@ -12795,95 +12884,127 @@
                                 collectionsMap[c.name].push(b);
                             });
                         });
-                        // Filter out empty collections
-                        const collectionNames = Object.keys(collectionsMap).filter(name => collectionsMap[name].length > 0).sort();
+                        const collectionNames = Object.keys(collectionsMap).filter(name => collectionsMap[name].length > 0).sort((a, b) => a.localeCompare(b));
 
-                        // Build removal groups: books with collectionTags that no longer match their collections
-                        const removalGroups = {};
-                        books.forEach(b => {
-                            const cTags = b.collectionTags || [];
-                            if (cTags.length === 0) return;
-                            const currentCollIds = (b.collections || []).map(c => c.name.toLowerCase().replace(/\s+/g, '-'));
-                            cTags.forEach(tagId => {
-                                if (!currentCollIds.includes(tagId)) {
-                                    const tagData = tagRegistry[tagId];
-                                    const label = tagData ? tagData.label : tagId;
-                                    if (!removalGroups[label]) removalGroups[label] = { tagId, books: [] };
-                                    removalGroups[label].books.push(b);
-                                }
-                            });
-                        });
-                        const removalLabels = Object.keys(removalGroups).sort();
+                        // THE matching rule (§2.2): the tag with EXACTLY the collection's name (capitals included), as names are now.
+                        // Internal keys play no part — "Non fiction" never lands on a "Non-Fiction" tag.
+                        const destKey = (name) => tagKeyByExactName(name);   // existing tag's key, or null = Apply creates "name"
+                        const destLabel = (name) => { const k = destKey(name); return k ? tagRegistry[k].label : name; };
+                        const twinLabel = (name) => { const t = Object.values(tagRegistry).find(x => x && x.label !== name && x.label.toLowerCase() === name.toLowerCase()); return t ? t.label : null; };
+                        const hasTagKey = (b, key) => !!key && (b.tags || []).includes(key);
+                        // v7.24.0 (§2.8) - a collection's books that would CHANGE (they lack its tag); "Also show books that already
+                        // have their tag" adds the rest. (Was "New books only" — a hidden per-book "seen" flag, now gone.)
+                        const lacking = (name) => { const key = destKey(name); return (collectionsMap[name] || []).filter(b => !hasTagKey(b, key)); };
+                        const shownBooks = (name) => tfcShowTagged ? (collectionsMap[name] || []) : lacking(name);
+                        const shownIds = {}; collectionNames.forEach(name => { shownIds[name] = new Set(shownBooks(name).map(b => b.id)); });
+                        // THE "which books will this collection tag" — the chips, the column counts, the button and Apply all use it
+                        const booksToTag = (name) => {
+                            const key = destKey(name);
+                            const skipped = tfcUncheckedBooks[name] || new Set();
+                            return shownBooks(name).filter(b => !hasTagKey(b, key) && !skipped.has(b.id));
+                        };
 
-                        // Determine what the right pane shows: collection or removal group
-                        const isViewingRemoval = tfcSelectedRemoval && removalGroups[tfcSelectedRemoval];
-                        const isViewingCollection = tfcSelectedCollection && !isViewingRemoval;
+                        // Removals (§2.5) — only when the top bar's opt-in is ticked (tfcRemovalGroups = THE rule)
+                        const removalGroups = tfcIncludeRemovals ? tfcRemovalGroups() : {};
+                        const removalLabels = Object.keys(removalGroups).sort((a, b) => a.localeCompare(b));
+                        const removalIds = {}; removalLabels.forEach(l => { removalIds[l] = new Set(removalGroups[l].books.map(b => b.id)); });
+                        const booksToUntag = (label) => {
+                            if (!tfcCheckedRemovals.has(label)) return [];
+                            const kept = tfcUncheckedRemovalBooks[label] || new Set();
+                            return removalGroups[label].books.filter(b => !kept.has(b.id));
+                        };
 
-                        // Get books for the selected collection, applying "New books only" filter
-                        const selectedCollBooks = isViewingCollection ? (collectionsMap[tfcSelectedCollection] || []) : [];
-                        const visibleBooks = isViewingCollection
-                            ? (tfcNewBooksOnly ? selectedCollBooks.filter(b => !b.collectionTagSeen) : selectedCollBooks)
-                            : [];
-
-                        // Get books for the selected removal group
-                        const removalBooks = isViewingRemoval ? removalGroups[tfcSelectedRemoval].books : [];
-
-                        // Compute addition summary
-                        const checkedCollectionNames = collectionNames.filter(name => tfcCheckedCollections.has(name));
+                        // Summary: only real changes (§2.4 — a collection with nothing to add creates no tag)
+                        const checkedCollectionNames = collectionNames.filter(name => tfcCheckedCollections.has(name) && shownIds[name].size > 0);
+                        // Counted in BOOKS, not tags (§2.7): a book getting two tags is one line, counted once
                         let totalNewTags = 0;
-                        let totalBooksToTag = 0;
+                        let collectionsTagging = 0;
+                        const booksTaggedIds = new Set();
                         checkedCollectionNames.forEach(name => {
-                            const collBooks = collectionsMap[name] || [];
-                            const filtered = tfcNewBooksOnly ? collBooks.filter(b => !b.collectionTagSeen) : collBooks;
-                            const uncheckedSet = tfcUncheckedBooks[name] || new Set();
-                            const checkedBooks = filtered.filter(b => !uncheckedSet.has(b.id));
-                            const tagId = name.toLowerCase().replace(/\s+/g, '-');
-                            const tagExists = tagRegistry[tagId] && tagRegistry[tagId].label.toLowerCase() === name.toLowerCase();
-                            if (!tagExists) totalNewTags++;
-                            const booksNeedingTag = checkedBooks.filter(b => !(b.tags || []).includes(tagId));
-                            totalBooksToTag += booksNeedingTag.length;
+                            const list = booksToTag(name);
+                            if (list.length === 0) return;
+                            list.forEach(b => booksTaggedIds.add(b.id));
+                            collectionsTagging++;
+                            if (!destKey(name)) totalNewTags++;
                         });
+                        const totalBooksToTag = booksTaggedIds.size;
+                        const booksUntagIds = new Set();
+                        removalLabels.forEach(l => booksToUntag(l).forEach(b => booksUntagIds.add(b.id)));
+                        const totalBooksToUntag = booksUntagIds.size;
+                        const hasChanges = totalBooksToTag > 0 || totalBooksToUntag > 0;
 
-                        // Compute removal summary
-                        let totalBooksToUntag = 0;
-                        removalLabels.forEach(label => {
-                            if (!tfcCheckedRemovals.has(label)) return;
-                            const group = removalGroups[label];
-                            const uncheckedSet = tfcUncheckedRemovalBooks[label] || new Set();
-                            totalBooksToUntag += group.books.filter(b => !uncheckedSet.has(b.id)).length;
+                        // The right side: one row per book, one column per checked collection with books shown, plus each checked
+                        // removal group (sharing its collection's column when that collection is checked too).
+                        const checkedRemovalLabels = removalLabels.filter(l => tfcCheckedRemovals.has(l));
+                        const columns = [...new Set([...checkedCollectionNames, ...checkedRemovalLabels])];
+                        const rowById = new Map();
+                        checkedCollectionNames.forEach(name => shownBooks(name).forEach(b => rowById.set(b.id, b)));
+                        checkedRemovalLabels.forEach(l => removalGroups[l].books.forEach(b => rowById.set(b.id, b)));
+                        // What Apply does to this book for this column: 'add' | 'skip' | 'has' | 'remove' | 'keep' | null
+                        const cellOf = (b, name) => {
+                            if (removalIds[name] && tfcCheckedRemovals.has(name) && removalIds[name].has(b.id)) {
+                                return (tfcUncheckedRemovalBooks[name] || new Set()).has(b.id) ? 'keep' : 'remove';
+                            }
+                            if (!checkedCollectionNames.includes(name) || !shownIds[name].has(b.id)) return null;
+                            if (hasTagKey(b, destKey(name))) return 'has';
+                            return (tfcUncheckedBooks[name] || new Set()).has(b.id) ? 'skip' : 'add';
+                        };
+                        const changes = (b, name) => { const c = cellOf(b, name); return c === 'add' || c === 'remove'; };
+                        const rows = [...rowById.values()].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+                        if (tfcSort !== 'title' && columns.includes(tfcSort)) {
+                            rows.sort((a, b) => (changes(b, tfcSort) ? 1 : 0) - (changes(a, tfcSort) ? 1 : 0)); // stable: title order within
+                        }
+
+                        const toggleIn = (setter, name, id) => setter(prev => {
+                            const s = new Set(prev[name] || []);
+                            if (s.has(id)) s.delete(id); else s.add(id);
+                            return { ...prev, [name]: s };
                         });
-
-                        const hasChanges = totalNewTags > 0 || totalBooksToTag > 0 || totalBooksToUntag > 0;
+                        const toggleSet = (setter, name) => setter(prev => {
+                            const s = new Set(prev);
+                            if (s.has(name)) s.delete(name); else s.add(name);
+                            return s;
+                        });
+                        const enabledNames = collectionNames.filter(name => shownIds[name].size > 0);
+                        // The app's tag chip (book details), varied by what Apply does
+                        const chipBase = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap';
+                        const chip = (b, name) => {
+                            const c = cellOf(b, name);
+                            const label = removalIds[name] && (c === 'remove' || c === 'keep') ? name : destLabel(name);
+                            if (c === 'has') return <span className={`${chipBase} bg-gray-100 text-gray-500`} title="Already has this tag — nothing changes">✓ {label}</span>;
+                            if (c === 'add') return <button onClick={() => toggleIn(setTfcUncheckedBooks, name, b.id)} className={`${chipBase} bg-blue-100 text-blue-800 hover:bg-blue-200`} title="Apply adds this tag — click to skip it for this book">+ {label}</button>;
+                            if (c === 'skip') return <button onClick={() => toggleIn(setTfcUncheckedBooks, name, b.id)} className={`${chipBase} bg-white text-gray-400 border border-gray-300 line-through`} title="Skipped — click to add it after all">+ {label}</button>;
+                            if (c === 'remove') return <button onClick={() => toggleIn(setTfcUncheckedRemovalBooks, name, b.id)} className={`${chipBase} bg-amber-100 text-amber-800 hover:bg-amber-200`} title="Apply removes this tag (the book left this collection on Kindle) — click to keep it">− {label}</button>;
+                            if (c === 'keep') return <button onClick={() => toggleIn(setTfcUncheckedRemovalBooks, name, b.id)} className={`${chipBase} bg-white text-gray-400 border border-gray-300 line-through`} title="Kept — click to remove it after all">− {label}</button>;
+                            return null;
+                        };
 
                         return (
                         <Dialog onClose={() => setTagFromCollectionsOpen(false)} showClose={false}
                             selectAll={{ // v7.19.0-alpha.3 - Ctrl+A checks every item in the list you're working in
-                                collections: () => setTfcCheckedCollections(new Set(collectionNames)),   // = the top bar's "All"
+                                collections: () => setTfcCheckedCollections(new Set(enabledNames)),   // = the top bar's "All"
                                 removals: () => setTfcCheckedRemovals(new Set(removalLabels)),
-                                books: () => { // every book shown in the right pane (clears that group's unchecked set)
-                                    if (isViewingRemoval) setTfcUncheckedRemovalBooks(prev => ({ ...prev, [tfcSelectedRemoval]: new Set() }));
-                                    else if (isViewingCollection) setTfcUncheckedBooks(prev => ({ ...prev, [tfcSelectedCollection]: new Set() }));
-                                },
                             }}
-                            panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '750px' }}>
+                            panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '1000px' }}>
                                 {/* Header */}
                                 <div className="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
                                     <h2 data-select-text id="modal-tfc" className="text-xl font-bold text-gray-900">🏷️ Tag from Collections</h2>
                                     <button onClick={() => setTagFromCollectionsOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" title="Close" aria-label="Close">×</button>
                                 </div>
 
-                                {/* Top bar: Select All/None + New books only */}
-                                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-300">
+                                {/* Top bar: Select All/None + New books only + the removal opt-in */}
+                                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-gray-50 border-b border-gray-300">
                                     <div className="flex gap-3 items-center">
                                         <span className="text-xs text-gray-500">Select:</span>
                                         <div className="flex border border-gray-300 rounded overflow-hidden">
                                             {(() => {
-                                                const isAll = tfcCheckedCollections.size === collectionNames.length && collectionNames.length > 0;
-                                                const isNone = tfcCheckedCollections.size === 0;
+                                                const nChecked = enabledNames.filter(n => tfcCheckedCollections.has(n)).length;
+                                                const isAll = nChecked === enabledNames.length && enabledNames.length > 0;
+                                                const isNone = nChecked === 0;
                                                 return (
                                                     <>
                                                         <button
-                                                            onClick={() => setTfcCheckedCollections(new Set(collectionNames))}
+                                                            onClick={() => setTfcCheckedCollections(new Set(enabledNames))}
                                                             className={`px-3 py-1 text-xs transition-colors ${isAll ? 'bg-blue-600 text-white font-semibold' : 'bg-white text-gray-700 hover:bg-gray-100'}`}>
                                                             All
                                                         </button>
@@ -12901,211 +13022,149 @@
                                             })()}
                                         </div>
                                     </div>
-                                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded">
-                                        <input
-                                            type="checkbox"
-                                            checked={tfcNewBooksOnly}
-                                            onChange={(e) => setTfcNewBooksOnly(e.target.checked)}
-                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                        />
-                                        <span>New books only</span>
-                                    </label>
+                                    <div className="flex flex-wrap items-center gap-4">
+                                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                                            title="Off by default. Only tags THIS window added because a book was in a Kindle collection, where the book has since left that collection on Kindle. Tags you made yourself — or renamed — are never touched.">
+                                            <input type="checkbox" checked={tfcIncludeRemovals} onChange={(e) => setTfcIncludeRemovals(e.target.checked)}
+                                                className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500" />
+                                            <span>Also remove tags whose book left that collection on Kindle</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+                                            title="Off: the right side lists only books that would get a tag. On: it also lists the books that already have their collection's tag (shown with ✓)">
+                                            <input
+                                                type="checkbox"
+                                                checked={tfcShowTagged}
+                                                onChange={(e) => setTfcShowTagged(e.target.checked)}
+                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                            <span>Also show books that already have their tag</span>
+                                        </label>
+                                    </div>
                                 </div>
 
                                 {/* Two-pane body */}
-                                <div className="flex" style={{ height: '400px' }}>
-                                    {/* Left pane: Collections list + Removal section */}
-                                    <div data-select-items="collections" className="w-2/5 border-r border-gray-300 overflow-y-auto">
-                                        {collectionNames.length === 0 && removalLabels.length === 0 ? (
+                                <div className="flex" style={{ height: '440px' }}>
+                                    {/* Left: Kindle collections — one click target per row (the checkbox) */}
+                                    <div data-select-items="collections" className="w-80 flex-shrink-0 border-r border-gray-300 overflow-y-auto">
+                                        <div className="sticky top-0 z-10 bg-white px-3 pt-2 pb-1.5 border-b border-gray-200">
+                                            <div className="text-sm font-semibold text-gray-800">Kindle collections</div>
+                                            <div className="text-xs text-gray-500">Each goes onto the tag with exactly its name; if there's none, a new tag is created.</div>
+                                        </div>
+                                        {collectionNames.length === 0 ? (
                                             <div className="text-center text-gray-500 py-8 px-4">
                                                 <p>No collections found</p>
                                                 <p className="text-sm text-gray-400 mt-2">Import your Kindle library to see collections</p>
                                             </div>
+                                        ) : collectionNames.map(name => {
+                                            const total = collectionsMap[name].length;
+                                            const shown = shownIds[name].size;
+                                            const enabled = shown > 0;
+                                            const key = destKey(name);
+                                            const twin = key ? null : twinLabel(name);
+                                            return (
+                                                <label key={name}
+                                                    title={enabled ? undefined : "Every book here already has the tag — tick 'Also show books that already have their tag' to see them"}
+                                                    className={`flex items-start gap-2 px-3 py-2 border-b border-gray-100 ${enabled ? 'cursor-pointer hover:bg-gray-50' : 'opacity-50 cursor-default'}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        disabled={!enabled}
+                                                        checked={enabled && tfcCheckedCollections.has(name)}
+                                                        onChange={() => toggleSet(setTfcCheckedCollections, name)}
+                                                        className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
+                                                    />
+                                                    <span className="flex-1 min-w-0">
+                                                        <span className="block text-sm text-gray-900 truncate">
+                                                            {name} <span className="text-xs text-gray-500">({lacking(name).length} to tag of {total})</span>
+                                                        </span>
+                                                        <span className="block text-xs text-gray-500">
+                                                            → {key ? <>tag <b>{tagRegistry[key].label}</b></> : <>new tag <b>{name}</b></>}
+                                                            {twin && <> (a tag "{twin}" also exists — a separate tag)</>}
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+
+                                        {/* Removed from Kindle — only when the top bar's opt-in is ticked */}
+                                        {tfcIncludeRemovals && (removalLabels.length === 0 ? (
+                                            <div className="px-3 py-2 text-xs text-gray-500 border-t border-amber-200 bg-amber-50">
+                                                No tags to remove — no book has left a collection this window tagged it from.
+                                            </div>
                                         ) : (
-                                            <>
-                                                {collectionNames.map(name => {
-                                                    const collBooks = collectionsMap[name] || [];
-                                                    const newCount = collBooks.filter(b => !b.collectionTagSeen).length;
-                                                    const displayCount = tfcNewBooksOnly ? newCount : collBooks.length;
-                                                    const isSelected = isViewingCollection && tfcSelectedCollection === name;
-                                                    const isChecked = tfcCheckedCollections.has(name);
-                                                    const tagId = name.toLowerCase().replace(/\s+/g, '-');
-                                                    const tagExists = tagRegistry[tagId] && tagRegistry[tagId].label.toLowerCase() === name.toLowerCase();
-
-                                                    return (
-                                                        <div
-                                                            key={name}
-                                                            className={`flex items-center px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 border-l-2 border-blue-600' : 'hover:bg-gray-50 border-l-2 border-transparent'}`}
-                                                            onClick={() => { setTfcSelectedCollection(name); setTfcSelectedRemoval(null); }}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isChecked}
-                                                                onChange={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const newSet = new Set(tfcCheckedCollections);
-                                                                    if (e.target.checked) newSet.add(name); else newSet.delete(name);
-                                                                    setTfcCheckedCollections(newSet);
-                                                                }}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
-                                                            />
-                                                            <span className="ml-2 flex-1 text-sm text-gray-900 truncate">{name}</span>
-                                                            <span className="text-xs text-gray-500 ml-1 flex-shrink-0">
-                                                                ({displayCount}{tfcNewBooksOnly && newCount === 0 ? ' new' : ''})
-                                                            </span>
-                                                            {tagExists && <span className="text-xs text-green-600 ml-1 flex-shrink-0">(tag exists)</span>}
-                                                        </div>
-                                                    );
-                                                })}
-
-                                                {/* Removed from Kindle section */}
-                                                {removalLabels.length > 0 && (
-                                                    <div data-select-items="removals">
-                                                        <div className="flex items-center justify-between px-3 py-2 bg-amber-50 border-t border-b border-amber-200 text-xs font-semibold text-amber-800 mt-1">
-                                                            <span>Removed from Kindle</span>
-                                                            {/* v7.19.0-alpha.4 (Ron + UX) - its OWN toggle: the top bar's All|Some|None ADDS tags; this
-                                                                section REMOVES them — one "All" must never schedule both. */}
-                                                            <SelectAllToggle allChecked={removalLabels.every(l => tfcCheckedRemovals.has(l))}
-                                                                onToggle={() => setTfcCheckedRemovals(removalLabels.every(l => tfcCheckedRemovals.has(l)) ? new Set() : new Set(removalLabels))} />
-                                                        </div>
-                                                        {removalLabels.map(label => {
-                                                            const group = removalGroups[label];
-                                                            const isSelected = isViewingRemoval && tfcSelectedRemoval === label;
-                                                            const isChecked = tfcCheckedRemovals.has(label);
-                                                            const uncheckedSet = tfcUncheckedRemovalBooks[label] || new Set();
-                                                            const activeCount = group.books.filter(b => !uncheckedSet.has(b.id)).length;
-
-                                                            return (
-                                                                <div
-                                                                    key={'removal-' + label}
-                                                                    className={`flex items-center px-3 py-2 cursor-pointer transition-colors ${isSelected ? 'bg-amber-50 border-l-2 border-amber-600' : 'hover:bg-gray-50 border-l-2 border-transparent'}`}
-                                                                    onClick={() => { setTfcSelectedRemoval(label); setTfcSelectedCollection(null); }}>
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={isChecked}
-                                                                        onChange={(e) => {
-                                                                            e.stopPropagation();
-                                                                            const newSet = new Set(tfcCheckedRemovals);
-                                                                            if (e.target.checked) newSet.add(label); else newSet.delete(label);
-                                                                            setTfcCheckedRemovals(newSet);
-                                                                        }}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                        className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 flex-shrink-0"
-                                                                    />
-                                                                    <span className="ml-2 flex-1 text-sm text-amber-900 truncate">⚠️ {label}</span>
-                                                                    <span className="text-xs text-amber-700 ml-1 flex-shrink-0">({isChecked ? activeCount : group.books.length})</span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
+                                            <div data-select-items="removals">
+                                                <div className="flex items-center justify-between px-3 py-2 bg-amber-50 border-t border-b border-amber-200 text-xs font-semibold text-amber-800 mt-1">
+                                                    <span>Removed from Kindle</span>
+                                                    {/* v7.19.0-alpha.4 (Ron + UX) - its OWN toggle: the top bar's All|Some|None ADDS tags; this
+                                                        section REMOVES them — one "All" must never schedule both. */}
+                                                    <SelectAllToggle allChecked={removalLabels.every(l => tfcCheckedRemovals.has(l))}
+                                                        onToggle={() => setTfcCheckedRemovals(removalLabels.every(l => tfcCheckedRemovals.has(l)) ? new Set() : new Set(removalLabels))} />
+                                                </div>
+                                                {removalLabels.map(label => (
+                                                    <label key={'removal-' + label} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-amber-50 border-b border-amber-100">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={tfcCheckedRemovals.has(label)}
+                                                            onChange={() => toggleSet(setTfcCheckedRemovals, label)}
+                                                            className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 flex-shrink-0"
+                                                        />
+                                                        <span className="flex-1 text-sm text-amber-900 truncate">⚠️ {label}</span>
+                                                        <span className="text-xs text-amber-700 flex-shrink-0">({removalGroups[label].books.length})</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        ))}
                                     </div>
 
-                                    {/* Right pane: Books in selected collection or removal group */}
-                                    <div data-select-items="books" data-dialog-body className="w-3/5 overflow-y-auto">
-                                        {!isViewingCollection && !isViewingRemoval ? (
-                                            <div className="text-center text-gray-500 py-8">
-                                                <p>Select a collection to see its books</p>
-                                            </div>
-                                        ) : isViewingRemoval ? (
-                                            /* Removal group view */
-                                            <div className="p-2">
-                                                <div className="flex items-center justify-between px-3 py-1 text-xs text-amber-700 border-b border-amber-200 mb-1">
-                                                    <span>No longer in "{tfcSelectedRemoval}" on Kindle ({removalBooks.length} book{removalBooks.length !== 1 ? 's' : ''})</span>
-                                                    {/* v7.19.0-alpha.4 - section toggle (Ron): Clear = keep every tag, Select all = remove from all */}
-                                                    {(() => {
-                                                        const un = tfcUncheckedRemovalBooks[tfcSelectedRemoval] || new Set();
-                                                        const all = removalBooks.every(b => !un.has(b.id));
-                                                        return <SelectAllToggle allChecked={all} onToggle={() => setTfcUncheckedRemovalBooks(prev => ({ ...prev, [tfcSelectedRemoval]: all ? new Set(removalBooks.map(b => b.id)) : new Set() }))} />;
-                                                    })()}
-                                                </div>
-                                                <div className="px-3 py-1.5 text-xs text-gray-500 mb-1">
-                                                    Checked = remove tag. Unchecked = keep tag (becomes yours).
-                                                </div>
-                                                {removalBooks.map(book => {
-                                                    const uncheckedSet = tfcUncheckedRemovalBooks[tfcSelectedRemoval] || new Set();
-                                                    const isUnchecked = uncheckedSet.has(book.id);
-
-                                                    return (
-                                                        <label
-                                                            key={book.id}
-                                                            className="flex items-center px-3 py-1.5 rounded cursor-pointer transition-colors hover:bg-amber-50">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={!isUnchecked}
-                                                                onChange={(e) => {
-                                                                    setTfcUncheckedRemovalBooks(prev => {
-                                                                        const newMap = { ...prev };
-                                                                        const set = new Set(newMap[tfcSelectedRemoval] || []);
-                                                                        if (e.target.checked) set.delete(book.id); else set.add(book.id);
-                                                                        newMap[tfcSelectedRemoval] = set;
-                                                                        return newMap;
-                                                                    });
-                                                                }}
-                                                                className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 flex-shrink-0"
-                                                            />
-                                                            <span className="ml-2 text-sm truncate">{renderBookTitleLink(book, removalBooks, 'text-gray-900')}</span>
-                                                        </label>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : visibleBooks.length === 0 ? (
+                                    {/* Right: every change Apply will make — one row per book, one aligned column per tag */}
+                                    <div data-dialog-body className="flex-1 min-w-0 flex flex-col">
+                                        <div className="px-3 pt-2 pb-1.5 border-b border-gray-200">
+                                            <span className="text-sm font-semibold text-gray-800">Changes Apply will make</span>
+                                            {/* v7.24.0 (Ron, §2.7) - every line counts (skipped ones too); counted in books */}
+                                            {columns.length > 0 && (
+                                                <span className="ml-2 text-sm text-gray-700">
+                                                    — Tagging {totalBooksToTag} of {rows.length} book{rows.length !== 1 ? 's' : ''} shown
+                                                    {' '}({collectionsTagging} collection{collectionsTagging !== 1 ? 's' : ''})
+                                                    {totalBooksToUntag > 0 && <span className="text-amber-700">, removing a tag from {totalBooksToUntag}</span>}
+                                                </span>
+                                            )}
+                                            {columns.length > 0 && <div className="text-xs text-gray-500">Click a chip to skip it; click a column name to bring its changes to the top.</div>}
+                                        </div>
+                                        {columns.length === 0 ? (
                                             <div className="text-center text-gray-500 py-8 px-4">
-                                                <p>No {tfcNewBooksOnly ? 'new ' : ''}books in "{tfcSelectedCollection}"</p>
-                                                {tfcNewBooksOnly && <p className="text-sm text-gray-400 mt-2">All books in this collection were seen in a previous run</p>}
+                                                <p>Check a collection on the left to see what Apply will do</p>
                                             </div>
                                         ) : (
-                                            /* Collection view */
-                                            <div className="p-2">
-                                                <div className="flex items-center justify-between px-3 py-1 text-xs text-gray-500 border-b border-gray-200 mb-1">
-                                                    <span>Books in "{tfcSelectedCollection}" ({visibleBooks.length})</span>
-                                                    {/* v7.19.0-alpha.4 - section toggle (Ron): over the CHECKABLE books (already-tagged ones have no box) */}
-                                                    {(() => {
-                                                        const tagId = tfcSelectedCollection.toLowerCase().replace(/\s+/g, '-');
-                                                        const checkable = visibleBooks.filter(b => !(b.tags || []).includes(tagId));
-                                                        if (checkable.length === 0) return null;
-                                                        const un = tfcUncheckedBooks[tfcSelectedCollection] || new Set();
-                                                        const all = checkable.every(b => !un.has(b.id));
-                                                        return <SelectAllToggle allChecked={all} onToggle={() => setTfcUncheckedBooks(prev => ({ ...prev, [tfcSelectedCollection]: all ? new Set(checkable.map(b => b.id)) : new Set() }))} />;
-                                                    })()}
-                                                </div>
-                                                {visibleBooks.map(book => {
-                                                    const tagId = tfcSelectedCollection.toLowerCase().replace(/\s+/g, '-');
-                                                    const alreadyTagged = (book.tags || []).includes(tagId);
-                                                    const uncheckedSet = tfcUncheckedBooks[tfcSelectedCollection] || new Set();
-                                                    const isUnchecked = uncheckedSet.has(book.id);
-
-                                                    return (
-                                                        <label
-                                                            key={book.id}
-                                                            className={`flex items-center px-3 py-1.5 rounded cursor-pointer transition-colors ${alreadyTagged ? 'opacity-50' : 'hover:bg-gray-50'}`}>
-                                                            {alreadyTagged ? (
-                                                                <span className="w-4 h-4 flex items-center justify-center text-green-600 flex-shrink-0">✓</span>
-                                                            ) : (
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={!isUnchecked}
-                                                                    onChange={(e) => {
-                                                                        setTfcUncheckedBooks(prev => {
-                                                                            const newMap = { ...prev };
-                                                                            const set = new Set(newMap[tfcSelectedCollection] || []);
-                                                                            if (e.target.checked) set.delete(book.id); else set.add(book.id);
-                                                                            newMap[tfcSelectedCollection] = set;
-                                                                            return newMap;
-                                                                        });
-                                                                    }}
-                                                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
-                                                                />
-                                                            )}
-                                                            <span className="ml-2 text-sm truncate">
-                                                                {renderBookTitleLink(book, visibleBooks, alreadyTagged ? 'text-gray-400' : 'text-gray-900')}
-                                                            </span>
-                                                            {alreadyTagged && <span className="text-xs text-gray-400 ml-auto flex-shrink-0">already tagged</span>}
-                                                        </label>
-                                                    );
-                                                })}
+                                            <div className="flex-1 overflow-auto">
+                                                <table className="text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+                                                    <thead>
+                                                        <tr>
+                                                            <th onClick={() => setTfcSort('title')}
+                                                                className="sticky top-0 left-0 z-20 bg-white border-b border-gray-200 text-left px-3 py-1.5 text-xs font-semibold text-gray-600 cursor-pointer select-none whitespace-nowrap"
+                                                                title="Sort by title">
+                                                                Title{tfcSort === 'title' ? ' ▲' : ''}
+                                                            </th>
+                                                            {columns.map(name => (
+                                                                <th key={name} onClick={() => setTfcSort(name)}
+                                                                    className="sticky top-0 z-10 bg-white border-b border-gray-200 text-left px-2 py-1.5 text-xs font-semibold text-gray-600 cursor-pointer select-none whitespace-nowrap"
+                                                                    title="Click to bring this column's changes to the top">
+                                                                    {checkedCollectionNames.includes(name) ? destLabel(name) : name} ({rows.filter(b => changes(b, name)).length}){tfcSort === name ? ' ▼' : ''}
+                                                                </th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {rows.map(b => (
+                                                            <tr key={b.id} className="group">
+                                                                <td className="sticky left-0 bg-white group-hover:bg-gray-50 px-3 py-1 max-w-[18rem] truncate">
+                                                                    {renderBookTitleLink(b, rows, 'text-gray-900')}
+                                                                </td>
+                                                                {columns.map(name => (
+                                                                    <td key={name} className="px-2 py-1 group-hover:bg-gray-50 whitespace-nowrap">{chip(b, name)}</td>
+                                                                ))}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
                                             </div>
                                         )}
                                     </div>
@@ -13148,38 +13207,33 @@
                                                         if (!bookUpdates[id]) bookUpdates[id] = {
                                                             addTags: [], addCollectionTags: [],
                                                             removeTags: [], removeCollectionTags: [],
-                                                            promoteCollectionTags: [], collectionTagSeen: true
+                                                            promoteCollectionTags: []
                                                         };
                                                         return bookUpdates[id];
                                                     };
 
-                                                    // --- Tag additions ---
+                                                    // --- Tag additions --- (v7.24.0: booksToTag = the same list the chips, counts + button use)
                                                     checkedCollectionNames.forEach(name => {
-                                                        const tagId = name.toLowerCase().replace(/\s+/g, '-');
-                                                        const tagLabel = name;
-                                                        const collBooks = collectionsMap[name] || [];
-                                                        const filtered = tfcNewBooksOnly ? collBooks.filter(b => !b.collectionTagSeen) : collBooks;
-                                                        const uncheckedSet = tfcUncheckedBooks[name] || new Set();
-                                                        const checkedBooks = filtered.filter(b => !uncheckedSet.has(b.id));
-
-                                                        // Create tag if it doesn't exist
-                                                        if (!newTagRegistry[tagId]) {
-                                                            newTagRegistry[tagId] = { label: tagLabel, count: 0 };
+                                                        const toTag = booksToTag(name);
+                                                        if (toTag.length === 0) return;               // §2.4: no book → no tag created
+                                                        // THE matching rule: the tag with EXACTLY this name; else a new one with its OWN key
+                                                        let tagId = destKey(name);
+                                                        if (!tagId) {
+                                                            tagId = freshTagKey(name, newTagRegistry);
+                                                            newTagRegistry[tagId] = { label: name, count: 0 };
                                                             tagsCreated++;
                                                         }
 
-                                                        // Tag each checked book that doesn't already have this tag
-                                                        checkedBooks.forEach(b => {
-                                                            if (!(b.tags || []).includes(tagId)) {
-                                                                const upd = ensureUpdate(b.id);
-                                                                upd.addTags.push(tagId);
-                                                                upd.addCollectionTags.push(tagId);
-                                                                booksTagged++;
-                                                            }
+                                                        toTag.forEach(b => {
+                                                            const upd = ensureUpdate(b.id);
+                                                            upd.addTags.push(tagId);
+                                                            upd.addCollectionTags.push(tagId);
+                                                            booksTagged++;
                                                         });
                                                     });
 
-                                                    // --- Tag removals ---
+                                                    // --- Tag removals --- (v7.24.0: removalGroups is EMPTY unless the top bar's opt-in is ticked,
+                                                    // so with it off nothing is removed AND nothing is promoted — you didn't see them)
                                                     removalLabels.forEach(label => {
                                                         const group = removalGroups[label];
                                                         const isChecked = tfcCheckedRemovals.has(label);
@@ -13189,30 +13243,27 @@
                                                             const upd = ensureUpdate(b.id);
                                                             if (isChecked && !uncheckedSet.has(b.id)) {
                                                                 // Confirmed removal: remove from both tags and collectionTags
-                                                                upd.removeTags.push(group.tagId);
-                                                                upd.removeCollectionTags.push(group.tagId);
+                                                                upd.removeTags.push(group.tagKey);
+                                                                upd.removeCollectionTags.push(group.tagKey);
                                                                 booksUntagged++;
                                                             } else {
-                                                                // Declined removal: promote to user-owned (remove from collectionTags only)
-                                                                upd.promoteCollectionTags.push(group.tagId);
+                                                                // Seen and declined: promote to user-owned (remove from collectionTags only)
+                                                                upd.promoteCollectionTags.push(group.tagKey);
                                                             }
                                                         });
                                                     });
 
-                                                    // Mark ALL visible books as seen (even unchecked ones)
-                                                    collectionNames.forEach(name => {
-                                                        const collBooks = collectionsMap[name] || [];
-                                                        const filtered = tfcNewBooksOnly ? collBooks.filter(b => !b.collectionTagSeen) : collBooks;
-                                                        filtered.forEach(b => ensureUpdate(b.id));
-                                                    });
+                                                    // (v7.24.0 - no "seen" marking any more: "New books only" is gone — §2.8)
 
                                                     // Apply tag registry
                                                     setTagRegistry(newTagRegistry);
 
                                                     // v7.10.1-alpha.4 - undoable (audit gap): compute each affected book's next
                                                     // fields from CURRENT state and record before applying (fields-based SET_TAGS
-                                                    // carries collectionTags/collectionTagSeen too). Registry additions are left
-                                                    // in place on undo (an unused tag entry is harmless).
+                                                    // carries collectionTags too). v7.24.0 (§2.9): the tags Apply CREATED ride in
+                                                    // the record, so undo removes them again (if no book carries them).
+                                                    const createdTags = {};
+                                                    Object.keys(newTagRegistry).forEach(k => { if (!tagRegistry[k]) createdTags[k] = { ...newTagRegistry[k] }; });
                                                     {
                                                         const affectedIds = Object.keys(bookUpdates).filter(id => books.some(b => b.id === id));
                                                         const nextById = {};
@@ -13226,9 +13277,9 @@
                                                             upd.addCollectionTags.forEach(t => { if (!newCTags.includes(t)) newCTags.push(t); });
                                                             upd.removeCollectionTags.forEach(t => { newCTags = newCTags.filter(x => x !== t); });
                                                             upd.promoteCollectionTags.forEach(t => { newCTags = newCTags.filter(x => x !== t); });
-                                                            nextById[id] = { tags: newTags, collectionTags: newCTags, collectionTagSeen: true };
+                                                            nextById[id] = { tags: newTags, collectionTags: newCTags };
                                                         });
-                                                        if (affectedIds.length > 0) recordTagChange(affectedIds, nextById, `Tag from Collections (${affectedIds.length} book${affectedIds.length !== 1 ? 's' : ''})`);
+                                                        if (affectedIds.length > 0) recordTagChange(affectedIds, nextById, `Tag from Collections (${affectedIds.length} book${affectedIds.length !== 1 ? 's' : ''})`, { createdTags });
                                                     }
 
                                                     // Apply book updates
@@ -13245,7 +13296,7 @@
                                                             upd.addCollectionTags.forEach(t => { if (!newCTags.includes(t)) newCTags.push(t); });
                                                             upd.removeCollectionTags.forEach(t => { newCTags = newCTags.filter(x => x !== t); });
                                                             upd.promoteCollectionTags.forEach(t => { newCTags = newCTags.filter(x => x !== t); });
-                                                            return { ...b, tags: newTags, collectionTags: newCTags, collectionTagSeen: true };
+                                                            return { ...b, tags: newTags, collectionTags: newCTags };
                                                         });
                                                         saveBooksToIndexedDB(updated);
                                                         return updated;
@@ -13279,7 +13330,10 @@
                                                 }}
                                                 disabled={!hasChanges}
                                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${!hasChanges ? 'bg-blue-300 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
-                                                Apply
+                                                {/* v7.24.0 (Ron + UX) - the button carries the total, live as you check / uncheck */}
+                                                {totalBooksToTag > 0
+                                                    ? `Tag ${totalBooksToTag} book${totalBooksToTag !== 1 ? 's' : ''} from ${collectionsTagging} collection${collectionsTagging !== 1 ? 's' : ''}`
+                                                    : 'Apply'}
                                             </button>
                                         </div>
                                     </div>
@@ -14009,10 +14063,9 @@
                                                                                     setTagInputValue('');
                                                                                 } else if (e.key === 'Enter') {
                                                                                     // v4.27.0-alpha.5 - Enter selects top match or creates new tag
-                                                                                    const inputValue = tagInputValue.toLowerCase().trim();
+                                                                                    const inputValue = tagInputValue.toLowerCase().trim(); // FINDING ignores capitals
                                                                                     if (!inputValue) return;
-                                                                                    const allTagsExactMatch = Object.entries(tagRegistry)
-                                                                                        .find(([id, data]) => data.label.toLowerCase() === inputValue);
+                                                                                    const allTagsExactMatch = tagKeyByExactName(tagInputValue); // v7.24.0 - identity is EXACT text
                                                                                     const existingTags = Object.entries(tagRegistry)
                                                                                         .filter(([id, data]) =>
                                                                                             data.label.toLowerCase().includes(inputValue) &&
@@ -14035,25 +14088,7 @@
                                                                                         setModalBook(prev => ({ ...prev, tags: newTags }));
                                                                                         setTagInputValue('');
                                                                                     } else if (!allTagsExactMatch) {
-                                                                                        // Create new tag
-                                                                                        const newTagId = inputValue.replace(/\s+/g, '-');
-                                                                                        const newTagLabel = tagInputValue.trim();
-                                                                                        setTagRegistry(prev => ({
-                                                                                            ...prev,
-                                                                                            [newTagId]: { label: newTagLabel, count: 1 }
-                                                                                        }));
-                                                                                        const newTags = [...(modalBook.tags || []), newTagId];
-                                                                                        recordTagChange([modalBook.id], { [modalBook.id]: { tags: newTags } }, `Add "${newTagLabel}" to ${bookCountLabel([modalBook.id])}`); // v7.10.1-alpha.4
-                                                                                        setBooks(prev => {
-                                                                                            const updated = prev.map(b =>
-                                                                                                b.id === modalBook.id ? { ...b, tags: newTags } : b
-                                                                                            );
-                                                                                            saveBooksToIndexedDB(updated);
-                                                                                            return updated;
-                                                                                        });
-                                                                                        setModalBook(prev => ({ ...prev, tags: newTags }));
-                                                                                        setContextSubmenu(null);
-                                                                                        setTagInputValue('');
+                                                                                        addNewTagToModalBook(tagInputValue); // v7.24.0 - shared with the "Create" row below
                                                                                     }
                                                                                     // If tag already on book, do nothing
                                                                                 }
@@ -14070,10 +14105,10 @@
                                                                     </div>
                                                                     <div className="max-h-[200px] overflow-y-auto border-t border-gray-200">
                                                                         {(() => {
-                                                                            const inputValue = tagInputValue.toLowerCase().trim();
-                                                                            // Check ALL tags for exact match (not just filtered), to prevent duplicates
-                                                                            const allTagsExactMatch = Object.entries(tagRegistry)
-                                                                                .find(([id, data]) => data.label.toLowerCase() === inputValue);
+                                                                            const inputValue = tagInputValue.toLowerCase().trim(); // FINDING ignores capitals
+                                                                            // v7.24.0 - identity is EXACT text: "Create" shows unless a tag with exactly this name exists
+                                                                            const exactKey = tagKeyByExactName(tagInputValue);
+                                                                            const allTagsExactMatch = exactKey ? [exactKey, tagRegistry[exactKey]] : null;
                                                                             // Filter to tags matching input AND not already on this book
                                                                             const existingTags = Object.entries(tagRegistry)
                                                                                 .filter(([id, data]) =>
@@ -14091,28 +14126,7 @@
                                                                                     {showCreate && (
                                                                                         <button
                                                                                             className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 text-blue-600 flex items-center gap-2"
-                                                                                            onClick={() => {
-                                                                                                const newTagId = inputValue.replace(/\s+/g, '-');
-                                                                                                const newTagLabel = tagInputValue.trim();
-                                                                                                // Add to tag registry
-                                                                                                setTagRegistry(prev => ({
-                                                                                                    ...prev,
-                                                                                                    [newTagId]: { label: newTagLabel, count: 1 }
-                                                                                                }));
-                                                                                                // Add to book
-                                                                                                const newTags = [...(modalBook.tags || []), newTagId];
-                                                                                                recordTagChange([modalBook.id], { [modalBook.id]: { tags: newTags } }, `Add "${newTagLabel}" to ${bookCountLabel([modalBook.id])}`); // v7.10.1-alpha.4
-                                                                                                setBooks(prev => {
-                                                                                                    const updated = prev.map(b =>
-                                                                                                        b.id === modalBook.id ? { ...b, tags: newTags } : b
-                                                                                                    );
-                                                                                                    saveBooksToIndexedDB(updated);
-                                                                                                    return updated;
-                                                                                                });
-                                                                                                setModalBook(prev => ({ ...prev, tags: newTags }));
-                                                                                                setContextSubmenu(null);
-                                                                                                setTagInputValue('');
-                                                                                            }}>
+                                                                                            onClick={() => addNewTagToModalBook(tagInputValue)}>
                                                                                             <span>➕</span> Create "{tagInputValue.trim()}"
                                                                                         </button>
                                                                                     )}
@@ -18052,20 +18066,15 @@
                                             if (e.key === 'Enter') {
                                                 const inputValue = tagInputValue.trim();
                                                 if (!inputValue) return;
-                                                const newTagId = inputValue.toLowerCase().replace(/\s+/g, '-');
-                                                // Check for duplicate
-                                                const exists = Object.entries(tagRegistry)
-                                                    .find(([id, data]) => data.label.toLowerCase() === inputValue.toLowerCase());
-                                                if (exists) {
-                                                    showToast(`Tag "${exists[1].label}" already exists`);
-                                                } else {
-                                                    setTagRegistry(prev => ({
-                                                        ...prev,
-                                                        [newTagId]: { label: inputValue, count: 0 }
-                                                    }));
-                                                    showToast(`Created tag "${inputValue}"`);
-                                                }
                                                 setTagInputValue('');
+                                                // v7.24.0 - identity is EXACT text: an identical name already exists → say so; a name that
+                                                // differs only in capitals → findOrCreateTag asks once (it used to refuse those outright)
+                                                if (tagKeyByExactName(inputValue)) { showToast(`Tag "${inputValue}" already exists`); return; }
+                                                (async () => {
+                                                    const made = await findOrCreateTag(inputValue);
+                                                    if (made && made.created) showToast(`Created tag "${made.label}"`);
+                                                    else if (made) showToast(`Kept the existing tag "${made.label}"`);
+                                                })();
                                             } else if (e.key === 'Escape') {
                                                 setTagInputValue('');
                                             }
@@ -18073,6 +18082,16 @@
                                         onChange={(e) => setTagInputValue(e.target.value)}
                                     />
                                 </div>
+                                {/* v7.24.0 (Ron + UX) - reach Tag from Collections from where you think about tags — a link here, not a
+                                    second menu entry (Tools lists both). Swaps windows rather than stacking two big ones. */}
+                                {canTagFromCollections && (
+                                    <div className="border-t border-gray-200 px-3 py-2 text-sm">
+                                        <button onClick={() => { setTagManagementOpen(false); setEditingTagId(null); openTagFromCollections(); }}
+                                            className="text-blue-600 hover:text-blue-800 hover:underline">
+                                            Create tags from your Kindle collections…
+                                        </button>
+                                    </div>
+                                )}
                         </Dialog>
                     )}
 
@@ -19778,60 +19797,26 @@
                                                                         setContextSubmenu(null);
                                                                         setTagInputValue('');
                                                                     } else if (e.key === 'Enter') {
-                                                                        const inputValue = tagInputValue.toLowerCase().trim();
-                                                                        if (!inputValue) return;
-
-                                                                        // Check for exact match in registry
-                                                                        const exactMatch = Object.entries(tagRegistry)
-                                                                            .find(([id, data]) => data.label.toLowerCase() === inputValue);
-
+                                                                        if (!tagInputValue.trim()) return;
+                                                                        // v7.24.0 - the tag with EXACTLY this name (capitals included), or a new one via findOrCreateTag
+                                                                        // (asks once if a tag differs only in capitals). One path: add it to the selected books that lack it.
                                                                         const selectedBookIds = getSelectedBookIds();
-
-                                                                        if (exactMatch) {
-                                                                            // Add existing tag to books that don't have it
-                                                                            const [tagId] = exactMatch;
-                                                                            let addedCount = 0;
-                                                                            // v7.10.1-alpha.4 - undoable
-                                                                            {
-                                                                                const affected = selectedBookIds.filter(id => { const b = books.find(x => x.id === id); return b && !(b.tags || []).includes(tagId); });
-                                                                                const nextById = {}; affected.forEach(id => { const b = books.find(x => x.id === id); nextById[id] = { tags: [...(b.tags || []), tagId] }; });
-                                                                                if (affected.length > 0) recordTagChange(affected, nextById, `Add "${tagRegistry[tagId]?.label || tagId}" to ${bookCountLabel(affected)}`);
-                                                                            }
+                                                                        const typedName = tagInputValue;
+                                                                        (async () => {
+                                                                            const made = await findOrCreateTag(typedName, selectedBookIds.length, { forBooks: true });
+                                                                            if (!made) return;
+                                                                            const tagId = made.key;
+                                                                            // v7.10.1-alpha.4 - undoable (a tag it created is removed again on undo if no book carries it — §2.9)
+                                                                            const affected = selectedBookIds.filter(id => { const b = books.find(x => x.id === id); return b && !(b.tags || []).includes(tagId); });
+                                                                            const nextById = {}; affected.forEach(id => { const b = books.find(x => x.id === id); nextById[id] = { tags: [...(b.tags || []), tagId] }; });
+                                                                            if (affected.length > 0) recordTagChange(affected, nextById, `Add "${made.label}" to ${bookCountLabel(affected)}`, made.created ? { createdTags: { [made.key]: { label: made.label, count: 0 } } } : {});
                                                                             setBooks(prev => {
-                                                                                const updated = prev.map(b => {
-                                                                                    if (selectedBookIds.includes(b.id) && !(b.tags || []).includes(tagId)) {
-                                                                                        addedCount++;
-                                                                                        return { ...b, tags: [...(b.tags || []), tagId] };
-                                                                                    }
-                                                                                    return b;
-                                                                                });
-                                                                                saveBooksToIndexedDB(updated);
-                                                                                 return updated;
-                                                                            });
-                                                                                        } else {
-                                                                            const newTagId = inputValue.replace(/\s+/g, '-');
-                                                                            const newTagLabel = tagInputValue.trim();
-                                                                            setTagRegistry(prev => ({
-                                                                                ...prev,
-                                                                                [newTagId]: { label: newTagLabel, count: selectedBookIds.length }
-                                                                            }));
-                                                                            // v7.10.1-alpha.4 - undoable (registry entry stays on undo; unused = harmless)
-                                                                            {
-                                                                                const nextById = {}; selectedBookIds.forEach(id => { const b = books.find(x => x.id === id); if (b) nextById[id] = { tags: [...(b.tags || []), newTagId] }; });
-                                                                                const affected = selectedBookIds.filter(id => nextById[id]);
-                                                                                if (affected.length > 0) recordTagChange(affected, nextById, `Add "${newTagLabel}" to ${bookCountLabel(affected)}`);
-                                                                            }
-                                                                            setBooks(prev => {
-                                                                                const updated = prev.map(b => {
-                                                                                    if (selectedBookIds.includes(b.id)) {
-                                                                                        return { ...b, tags: [...(b.tags || []), newTagId] };
-                                                                                    }
-                                                                                    return b;
-                                                                                });
+                                                                                const updated = prev.map(b => (selectedBookIds.includes(b.id) && !(b.tags || []).includes(tagId))
+                                                                                    ? { ...b, tags: [...(b.tags || []), tagId] } : b);
                                                                                 saveBooksToIndexedDB(updated);
                                                                                 return updated;
                                                                             });
-                                                                        }
+                                                                        })();
                                                                         setTagInputValue('');
                                                                         setExplorerBookContextMenu(null);
                                                                         setContextSubmenu(null);
@@ -19865,9 +19850,8 @@
                                                                 .sort((a, b) => (tagOrderIdx.get(a[0]) ?? 1e9) - (tagOrderIdx.get(b[0]) ?? 1e9))
                                                                 .slice(0, 10); // Limit to 10
 
-                                                            const exactMatchExists = Object.entries(tagRegistry)
-                                                                .some(([id, data]) => data.label.toLowerCase() === inputValue);
-                                                            const showCreate = inputValue && !exactMatchExists;
+                                                            // v7.24.0 - "Create" shows unless a tag with EXACTLY this name exists (capitals count)
+                                                            const showCreate = inputValue && !tagKeyByExactName(tagInputValue);
 
                                                             return (
                                                                 <div className="max-h-[150px] overflow-y-auto">
@@ -19875,32 +19859,26 @@
                                                                         <div
                                                                             className="px-3 py-1.5 hover:bg-blue-50 cursor-pointer text-blue-600 text-sm flex items-center gap-2"
                                                                             onClick={() => {
-                                                                                const newTagId = inputValue.replace(/\s+/g, '-');
-                                                                                const newTagLabel = tagInputValue.trim();
                                                                                 const selectedBookIds = getSelectedBookIds();
-                                                                                setTagRegistry(prev => ({
-                                                                                    ...prev,
-                                                                                    [newTagId]: { label: newTagLabel, count: selectedBookIds.length }
-                                                                                }));
-                                                                                // v7.10.1-alpha.4 - undoable (registry entry stays on undo; unused = harmless)
-                                                                                {
-                                                                                    const nextById = {}; selectedBookIds.forEach(id => { const b = books.find(x => x.id === id); if (b) nextById[id] = { tags: [...(b.tags || []), newTagId] }; });
-                                                                                    const affected = selectedBookIds.filter(id => nextById[id]);
-                                                                                    if (affected.length > 0) recordTagChange(affected, nextById, `Add "${newTagLabel}" to ${bookCountLabel(affected)}`);
-                                                                                }
-                                                                                setBooks(prev => {
-                                                                                    const updated = prev.map(b => {
-                                                                                        if (selectedBookIds.includes(b.id)) {
-                                                                                            return { ...b, tags: [...(b.tags || []), newTagId] };
-                                                                                        }
-                                                                                        return b;
-                                                                                    });
-                                                                                    saveBooksToIndexedDB(updated);
-                                                                                    return updated;
-                                                                                });
+                                                                                const typedName = tagInputValue;
                                                                                 setTagInputValue('');
                                                                                 setExplorerBookContextMenu(null);
                                                                                 setContextSubmenu(null);
+                                                                                (async () => {
+                                                                                    const made = await findOrCreateTag(typedName, selectedBookIds.length, { forBooks: true }); // asks once on a capitals twin
+                                                                                    if (!made) return;
+                                                                                    const tagId = made.key;
+                                                                                    // v7.10.1-alpha.4 - undoable (a tag it created is removed again on undo if no book carries it — §2.9)
+                                                                                    const affected = selectedBookIds.filter(id => { const b = books.find(x => x.id === id); return b && !(b.tags || []).includes(tagId); });
+                                                                                    const nextById = {}; affected.forEach(id => { const b = books.find(x => x.id === id); nextById[id] = { tags: [...(b.tags || []), tagId] }; });
+                                                                                    if (affected.length > 0) recordTagChange(affected, nextById, `Add "${made.label}" to ${bookCountLabel(affected)}`, made.created ? { createdTags: { [made.key]: { label: made.label, count: 0 } } } : {});
+                                                                                    setBooks(prev => {
+                                                                                        const updated = prev.map(b => (selectedBookIds.includes(b.id) && !(b.tags || []).includes(tagId))
+                                                                                            ? { ...b, tags: [...(b.tags || []), tagId] } : b);
+                                                                                        saveBooksToIndexedDB(updated);
+                                                                                        return updated;
+                                                                                    });
+                                                                                })();
                                                                             }}>
                                                                             <span>➕</span>
                                                                             <span>Create "{tagInputValue.trim()}"</span>

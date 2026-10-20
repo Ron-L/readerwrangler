@@ -8,7 +8,9 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-10-20 (through release 7.23.0)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-10-20 (through release 7.24.0)** — all sections human-reviewed (§1–21).
+7.24.0: Tag from Collections redesigned + exact-text tag names + undo removes a created tag — §9 rewritten (new Qs:
+"Read" vs "read", undo of a new tag, removing a tag from many books).
 7.23.0: no user-visible wording changed (the Relay and the app delete leftover sync copies).
 7.22.0: no user-visible wording changed (the Relay's daily storage report).
 7.21.3: Add Bibliography to Wishlist (every author tab; Kindle only; a Language panel first) — new Q in §14 (swept
@@ -322,14 +324,44 @@ the tag keep working (they follow the tag, not its spelling). Undoable, with a r
 active filter, and any saved Search that depended on it is removed too — the receipt spells
 out the fallout, and one undo reverses all of it.
 
-**What's Tag from Collections?** Tools → **Tag from Collections…** turns your Kindle
-Collections into RW tags in one reviewed pass — pick which collections become tags and apply.
-On later runs, "New books only" limits the pass to books that joined collections since last
-time, and the wizard also flags books whose collection membership *ended* so their
-collection-tags can be retired. Not sure what a book is? **Click its title** for its details
-(7.19.0). Each list — collections, the "Removed from Kindle" section, the books pane — has its
-own **Select all / Clear** link, and **Ctrl+A** checks whichever list you clicked in (the top
-All | Some | None adds tags; the Removed-from-Kindle section removes them, so it has its own).
+**Are "Read" and "read" the same tag? (7.24.0)** No — a tag's name is its exact text, capitals included, everywhere
+in the app. Finding a tag as you type ignores capitals (typing "read" lists "Read"), but creating one is exact. If you
+type a new name that differs from an existing tag only in capitals, ReaderWrangler asks once: *"A tag "Read" already
+exists. Create "read" as a separate tag?"* — **Add "Read" instead** / **Create "read"** when tagging books (in Manage
+Tags: **Cancel** / **Create**). Clicking the existing "Read" in the suggestions adds it with no question. Renaming a tag
+to a name another tag already has exactly is refused. (Before 7.24.0 names were matched ignoring capitals, so "Non
+fiction" and "Non-Fiction" could be mistaken for one tag.)
+
+**I undid adding a new tag — why did the tag disappear from my tag list? (7.24.0)** Undoing an action that *created* a
+tag also removes the tag, if no book carries it after the undo (redo brings it back). If you've put it on another book
+meanwhile, it stays.
+
+**How do I remove a tag from many books at once?** All Books → filter by the tag (Tags filter in the bar above the
+books) → select the books (Ctrl+A) → right-click → **Tags** → click the tag to remove it from all of them. Undoable.
+
+**What's Tag from Collections? (window redesigned in 7.24.0)** Tools → **Tag from Collections…** (or the link
+*"Create tags from your Kindle collections…"* in Manage Tags) turns your Kindle Collections into tags in one reviewed
+pass:
+1. **Left — "Kindle collections":** tick the collections you want. **Each goes onto the tag with exactly its name;
+   if there's none, a new tag is created** — every row says where it lands ("→ tag Read" or "→ new tag Comics", with a
+   note if a tag differing only in capitals exists). Clicking anywhere on a row ticks it. A collection whose books all
+   have the tag already is greyed out. The window opens with nothing ticked.
+2. **Right — "Changes Apply will make":** one row per book, one column per ticked collection, so you see everything
+   Apply will do at once. **+ Read** = will be added (click it to skip that one book — it shows struck through; click
+   again to restore); **✓ Read** = already has it; **− Read** = will be removed (only if removals are on). Only books
+   that would change are listed — tick **"Also show books that already have their tag"** to see the rest. Click a
+   column header to bring that column's changes to the top; **click a title** for the book's details (‹ › steps through
+   the list).
+3. **Apply** — the button says what it will do: *"Tag 9 books from 2 collections"*. A tag is created only if at least
+   one book gets it. One Ctrl+Z undoes the whole Apply, including any tag it created.
+4. **Removing tags is off unless you tick "Also remove tags whose book left that collection on Kindle".** Then a tag
+   *this tool added* comes off a book that has since left that collection on Kindle — shown as **− Tag** chips and in
+   the left list's amber section; click a − chip to keep that one. Tags you added yourself, and tags you renamed, are
+   never offered for removal. (Before 7.24.0 these removals were pre-ticked.)
+5. **Ctrl+A** ticks every row of the list you're working in (collections, or the removal section).
+
+"New books only" is gone (7.24.0): it relied on a hidden per-book memory you couldn't see or reset. Re-running the
+tool now simply lists the books that would change.
 
 **Why would I want that, if I can already filter by Collections?** Because collections are
 *Amazon-side* data: read-only in ReaderWrangler, editable only on your Kindle (see §14).

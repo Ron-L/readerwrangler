@@ -126,6 +126,7 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 <!-- SYNC: Keep "Recent Features" in sync with features.html -->
 ## Recent Features
 
+- **Collections into tags, with nothing hidden (7.24)** — Tag from Collections now shows every change before you Apply — one column per collection, a + for each book that gets the tag — and never removes a tag unless you ask. And tag names respect capitals: "Read" and "read" are different tags, and a Caps Lock slip asks before making a twin.
 - **Know when books leave your Amazon library (7.19)** — Returned loans, deleted samples and delisted books no longer sit there unexplained: ReaderWrangler flags them after an import and lets you keep or remove each one, from **Tools → Removed books…**. Plus Select All that acts on just the part of a window you're working in, and an undo that shows what it will do next.
 - **Backups stay whole (7.16–7.17)** — Save and Restore no longer quietly drop parts of your library; collection-based tags, trash, price goals, read status and more all come back intact. Very old (pre-2026) backups now say so plainly instead of importing blanks. 7.17 locks it in — backup, phone sync, and update-merging now share one definition of your book details, so this can't creep back.
 - **Email a friend, without the dead end (7.14)** — Sharing a book by email now asks how you want to send it: your email app, Gmail on the web, or copy-to-clipboard — instead of guessing and sometimes stranding you in a redirect loop. The copy option always works, so no one gets stuck.
