@@ -87,7 +87,7 @@ publishes exactly the files in git and never lists folders). It refuses:
 
 Refused paths get a plain "not found" (each is logged as REFUSED in the server window). It still listens on the whole
 home network on purpose — that's how a phone tests your local copy — which is exactly why it must not hand out anything
-the real site doesn't serve. It needs git installed (it asks git what's ignored).
+the real site doesn't serve (e.g. the directories beginning with a dot, git-ignored files, etc.). It needs git installed (it asks git what's ignored).
 
 Then open http://localhost:8000/readerwrangler.html.
 
