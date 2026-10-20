@@ -84,8 +84,8 @@ breath as the agreement, so it survives a break or a compaction. ✅ = built in 
    convention: uncheck the parent → its skips are cleared; check it → all its books. A checked collection with
    skipped books shows the standard **partial mark (▬)** instead of ✓ — skips are visible without scrolling; clicking
    a partial box unchecks it. Same rule for the removal section (unchecking a removal tag clears its "kept" choices;
-   ▬ while some are kept). **Select All** = every collection with all its books (earlier skips go — see the open
-   undo, next bullet). Mechanism: a collection's skips live INSIDE its "checked" entry (one map, checked = has an
+   ▬ while some are kept). **Select All** = every collection with all its books (earlier skips go — Ctrl+Z
+   brings them back: next bullet). Mechanism: a collection's skips live INSIDE its "checked" entry (one map, checked = has an
    entry), not in a second list — unchecking deletes the entry, so stale skips can't exist (Law 17).
    - **Undo inside the window** (Ron, 2026-10-20: "Select All erasing selections you made… are there conventions for
      making it undoable?"). The main undo leaves selection out — the convention everywhere and our ratified rule
