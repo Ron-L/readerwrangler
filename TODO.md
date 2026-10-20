@@ -20,7 +20,7 @@
       - [Everyday organizing](#everyday-organizing)
         - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
         - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
-      - [Tag from Collections: clear up the checkbox vs. preview confusion](#tag-from-collections-clear-up-the-checkbox-vs-preview-confusion)
+      - [Tag from Collections, round 2: clearer window, safer tags (decided 2026-10-20)](#tag-from-collections-round-2-clearer-window-safer-tags-decided-2026-10-20)
       - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
       - [Trusting the fetch](#trusting-the-fetch)
         - [Fetch: report exactly how your library compares with Amazon](#fetch-report-exactly-how-your-library-compares-with-amazon)
@@ -624,34 +624,31 @@ _Why it matters:_ An author can split in two, making a series look incomplete.
 - That also makes the **one-time cleanup** automatic: existing books are fixed the next time they load — no separate tool.
 - Only spaces are tidied — a name is never split or reordered (the "never parse authors" rule stands).
 
-#### Tag from Collections: clear up the checkbox vs. preview confusion
+#### Tag from Collections, round 2: clearer window, safer tags (decided 2026-10-20)
 
-_Why it matters:_ Each row has two click targets that do different things, with nothing to tell them apart.
+_Why it matters:_ 7.24.0 fixed the confusing window; testing it surfaced smaller rough edges — and one real gap: a tag
+the tool added stays the tool's even after you remove and re-add it by hand.
 
-**What you see** (in the Tag from Collections wizard's left list)
-- The **checkbox** means "include this collection when you Apply".
-- Clicking the **name** means "show this collection's books on the right".
-- Unchecking a box doesn't change the right side — only clicking a name does. And "checked" and "being shown" use the same row highlight, so you can't see the two states (it fooled you).
+**Where it stands:** 7.24.0 shipped the redesigned window (all changes at once, exact-text tag names app-wide, removals
+opt-in, undo removes a created tag). Ron's test round on it produced ten topics, all decided 2026-10-20. The decisions
+and their reasoning are the **build list** at the top of docs/design/TAG-FROM-COLLECTIONS.md (items 1–10) — read it
+before building; this task is the plan. One concern per alpha (Law 6), smallest reach first:
 
-**What the right side is** (read in the code, 2026-10-16): not just a preview — part of Apply. Each book has its own
-checkbox (checked by default); unchecking one skips it when its collection is applied. **Apply** tags the books of every
-CHECKED collection, minus the books unchecked on the right.
-
-**Decided** (Ron + UX, 2026-10-18) — branch `fix/tfc-clarity`, release 7.22.1
-1. **The right side's heading says what Apply will do with this collection.** Checked: *"Books in 'Sci-Fi' — 12 will get
-   the tag 'sci-fi' (uncheck any to skip)"*. Unchecked: *"'Sci-Fi' isn't selected — its books won't be tagged"*, with an
-   **Include this collection** button, and the book checkboxes dimmed. Unchecking a collection then visibly changes the
-   right side (what fooled Ron).
-2. **Two different looks:** "being shown" = a solid left bar + light background; "will be used" = the checkbox only — no
-   shared highlight.
-3. **Apply's label carries the total:** *"Tag 47 books from 3 collections"*, live as you check / uncheck.
-4. **From Manage Tags** (Ron's 2026-09-22 question): no second menu entry (Tools lists both since 7.20) — a link INSIDE
-   the Manage Tags window: *"Create tags from your Kindle collections…"*.
-5. Fold the two copies of "which books a collection will tag" (the summary ~12835 and Apply ~13158) into ONE function
-   that both use — so the button's count and what Apply does can't drift.
-
-**How (technical)**
-- The "shown" state is `tfcSelectedCollection`.
+1. **The window** (build list items 1–5) — Select All | Some | None into the left pane's header, both checkboxes into
+   the right pane's header; the "No tags to remove…" answer in the status line; checkbox wording ("Remove tags from
+   books that left the collection on Kindle" / "Show books already tagged" — no "Also", no "wizard"); **↻ Read** (added
+   by Tag from Collections) vs **✓ Read** (yours); how to see only the removals.
+2. **One shared sort, here AND in the list view** (item 6) — click / again reverses / third click off; Shift-click adds
+   up to 3 keys; tag columns sort by mark. Changes the list view too (third click turns a sort off).
+3. **The checkbox tree + undo inside the window** (item 7) — unchecking a collection clears its skips; a partial box
+   (▬) while some are skipped; Ctrl+Z / Ctrl+Y undo the window's choices; the status line names what a bulk click
+   erased.
+4. **Tag changes confirm themselves; touching a tag by hand makes it yours** (items 8–9) — one shared tag-change
+   function shows the confirmation from the same text as its undo (*Created tag "zzz" and added it to 'Title'*); any
+   hand change of a tag drops it from the tool's record. Touches every tag change in the app: run the class-of-sites
+   comb and publish the list first.
+5. **Retire the hidden "seen" field** (item 10) — unused since 7.24.0; strip it in the shared book clean-up and the
+   field table. Its own test round (data layer).
 
 #### Restore dialog calls yesterday's backup "today"
 

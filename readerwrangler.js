@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.24.0-alpha.4";  // Build version for this file
+        const ORGANIZER_VERSION = "7.24.0";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -1288,10 +1288,10 @@
             const [tagFromCollectionsOpen, setTagFromCollectionsOpen] = useState(false);
             const [tfcCheckedCollections, setTfcCheckedCollections] = useState(new Set()); // checked collection names
             const [tfcUncheckedBooks, setTfcUncheckedBooks] = useState({}); // {collectionName: Set of bookIds whose "+ tag" chip is skipped}
-            // v7.22.1 (§2.8) - "New books only" (a hidden per-book "seen" flag) is gone; this visible toggle replaced it
+            // v7.24.0 (§2.8) - "New books only" (a hidden per-book "seen" flag) is gone; this visible toggle replaced it
             const [tfcShowTagged, setTfcShowTagged] = useState(false); // "Also show books that already have their tag"
-            const [tfcSort, setTfcSort] = useState('title'); // v7.22.1 - right side's sort: 'title' | a column (collection) name
-            // v6.10.0-alpha.15 - Removal tracking for Tag from Collections (v7.22.1 - OPT-IN, off each time the window opens)
+            const [tfcSort, setTfcSort] = useState('title'); // v7.24.0 - right side's sort: 'title' | a column (collection) name
+            // v6.10.0-alpha.15 - Removal tracking for Tag from Collections (v7.24.0 - OPT-IN, off each time the window opens)
             const [tfcIncludeRemovals, setTfcIncludeRemovals] = useState(false);
             const [tfcCheckedRemovals, setTfcCheckedRemovals] = useState(new Set()); // removal group labels checked for removal
             const [tfcUncheckedRemovalBooks, setTfcUncheckedRemovalBooks] = useState({}); // {tagLabel: Set of bookIds to keep}
@@ -1436,7 +1436,7 @@
                     return idx[a] - idx[b];
                 });
             };
-            // v7.22.1 (Ron + UX, docs/design/TAG-FROM-COLLECTIONS.md §2.6) - THE tag identity rules, app-wide:
+            // v7.24.0 (Ron + UX, docs/design/TAG-FROM-COLLECTIONS.md §2.6) - THE tag identity rules, app-wide:
             //   - "is this the same tag?" = EXACT text, capitals included ("Read" and "read" are two tags; never grouped)
             //   - "find a tag as I type" ignores capitals (the pickers' search) — that stays at each picker
             //   - every tag gets its OWN internal key, even when two names differ only in capitals or spaces/hyphens
@@ -1476,7 +1476,7 @@
                 setTagRegistry(prev => ({ ...prev, [key]: { label: name, count } }));
                 return { key, label: name, created: true };
             };
-            // v7.22.1 - the book details window's "create a tag and add it to this book" (its Enter key and its Create row
+            // v7.24.0 - the book details window's "create a tag and add it to this book" (its Enter key and its Create row
             // were two copies). Closes the tag menu first; the capitals prompt (if any) comes next.
             const addNewTagToModalBook = (typedName) => {
                 const bookId = modalBook && modalBook.id;
@@ -2130,7 +2130,7 @@
                 const entry = tagRegistry[tagId];
                 const nm = (newLabel || '').trim();
                 if (!entry || !nm || nm === entry.label) return false;
-                // v7.22.1 - identity is EXACT text: two tags may never share an exact name (it would make "the tag with exactly
+                // v7.24.0 - identity is EXACT text: two tags may never share an exact name (it would make "the tag with exactly
                 // this name" — e.g. Tag from Collections' matching rule — ambiguous). A capitals-only difference is allowed.
                 const clash = tagKeyByExactName(nm);
                 if (clash && clash !== tagId) { showToast(`A tag named "${nm}" already exists`); return true; }
@@ -7385,7 +7385,7 @@
             // v7.19.0 - it was always generic ("set these fields on these books"), so it's named for that now —
             // SET_BOOK_FIELDS (was SET_TAGS; undo history is in-memory only, so no stored record carries the old
             // name). Keep (removed-books window) uses it too; recordTagChange stays as the tag call sites' name.
-            // v7.22.1 (Ron + UX, docs/design/TAG-FROM-COLLECTIONS.md §2.9) - opts.createdTags = { key: { label, count } } for tags
+            // v7.24.0 (Ron + UX, docs/design/TAG-FROM-COLLECTIONS.md §2.9) - opts.createdTags = { key: { label, count } } for tags
             // THIS action created: undo removes each one no book still carries; redo puts it back. (7.10.1 left them —
             // "unused = harmless" — but an undone action shouldn't leave tags littering every tag list.)
             const recordBookFieldChange = (bookIds, nextFieldsById, label, opts = {}) => {
@@ -7432,10 +7432,10 @@
             // v7.20.0-alpha.2 - open Tag from Collections fresh from the current books (was 35 lines inline in the menu item).
             // v6.10.0-alpha.14/15 logic, unchanged: all collections checked; "New books only" if it has run before; removals
             // = collection-tags whose collection a book no longer has, all checked (the user confirms).
-            // v7.22.1 - THE "is there anything to tag from" test, shared by the Tools menu item and the link in Manage Tags.
+            // v7.24.0 - THE "is there anything to tag from" test, shared by the Tools menu item and the link in Manage Tags.
             const canTagFromCollections = books.some(b => (b.collections || []).length > 0)
                 || books.some(b => (b.collectionTags || []).length > 0);
-            // v7.22.1 (docs/design/TAG-FROM-COLLECTIONS.md §2.5) - THE removal candidates, used by the window and its setup:
+            // v7.24.0 (docs/design/TAG-FROM-COLLECTIONS.md §2.5) - THE removal candidates, used by the window and its setup:
             // a tag THIS wizard added (book.collectionTags) whose CURRENT name exactly matches a Kindle collection the book is no
             // longer in. A renamed tag matches no collection, so it's never offered — it's yours. Grouped by tag name.
             const tfcRemovalGroups = () => {
@@ -7454,13 +7454,13 @@
                 return groups;
             };
             const openTagFromCollections = () => {
-                // v7.22.1 (§2.8) - opens with NOTHING checked: you check what you came for (with no hidden "seen" memory,
+                // v7.24.0 (§2.8) - opens with NOTHING checked: you check what you came for (with no hidden "seen" memory,
                 // everything-checked would offer every collection you always decline)
                 setTfcShowTagged(false);
                 setTfcCheckedCollections(new Set());
                 setTfcUncheckedBooks({});
                 setTfcSort('title');
-                setTfcIncludeRemovals(false);                                         // v7.22.1 - opt-in, off each time
+                setTfcIncludeRemovals(false);                                         // v7.24.0 - opt-in, off each time
                 setTfcCheckedRemovals(new Set(Object.keys(tfcRemovalGroups())));    // ticking the opt-in shows them checked
                 setTfcUncheckedRemovalBooks({});
                 setTagFromCollectionsOpen(true);
@@ -7836,7 +7836,7 @@
                         if (modalBookRef.current && action.bookIds.includes(modalBookRef.current.id)) {
                             setModalBook(prev => prev ? { ...prev, ...action.prevFieldsById[prev.id] } : prev);
                         }
-                        // v7.22.1 (§2.9) - remove the tags this action created, unless a book still carries one after the undo
+                        // v7.24.0 (§2.9) - remove the tags this action created, unless a book still carries one after the undo
                         if (action.createdTags) {
                             const tagsAfterUndo = b => (action.bookIds.includes(b.id) && action.prevFieldsById[b.id] && 'tags' in action.prevFieldsById[b.id])
                                 ? (action.prevFieldsById[b.id].tags || []) : (b.tags || []);
@@ -8383,7 +8383,7 @@
                         }
                         break;
                     case 'SET_BOOK_FIELDS': // v7.10.1-alpha.4 (was SET_TAGS)
-                        // v7.22.1 (§2.9) - put back the tags this action created (undo removed the unused ones)
+                        // v7.24.0 (§2.9) - put back the tags this action created (undo removed the unused ones)
                         if (action.createdTags) setTagRegistry(prev => {
                             const next = { ...prev };
                             Object.entries(action.createdTags).forEach(([k, t]) => { if (!next[k]) next[k] = { ...t }; });
@@ -12872,7 +12872,7 @@
                     })()}
 
                     {/* v6.10.0-alpha.14 - Tag from Collections Wizard (v6.10.0-alpha.15 - collectionTags + removal)
-                        v7.22.1 - v2 (Ron + UX; design of record docs/design/TAG-FROM-COLLECTIONS.md): one click target per row (the
+                        v7.24.0 - v2 (Ron + UX; design of record docs/design/TAG-FROM-COLLECTIONS.md): one click target per row (the
                         checkbox); the right side shows EVERY checked collection's changes at once, one aligned tag column each, chips
                         "+ / ✓ / skipped / −"; THE matching rule = a collection goes onto the tag with EXACTLY its name, right now. */}
                     {tagFromCollectionsOpen && (() => {
@@ -12892,7 +12892,7 @@
                         const destLabel = (name) => { const k = destKey(name); return k ? tagRegistry[k].label : name; };
                         const twinLabel = (name) => { const t = Object.values(tagRegistry).find(x => x && x.label !== name && x.label.toLowerCase() === name.toLowerCase()); return t ? t.label : null; };
                         const hasTagKey = (b, key) => !!key && (b.tags || []).includes(key);
-                        // v7.22.1 (§2.8) - a collection's books that would CHANGE (they lack its tag); "Also show books that already
+                        // v7.24.0 (§2.8) - a collection's books that would CHANGE (they lack its tag); "Also show books that already
                         // have their tag" adds the rest. (Was "New books only" — a hidden per-book "seen" flag, now gone.)
                         const lacking = (name) => { const key = destKey(name); return (collectionsMap[name] || []).filter(b => !hasTagKey(b, key)); };
                         const shownBooks = (name) => tfcShowTagged ? (collectionsMap[name] || []) : lacking(name);
@@ -13119,7 +13119,7 @@
                                     <div data-dialog-body className="flex-1 min-w-0 flex flex-col">
                                         <div className="px-3 pt-2 pb-1.5 border-b border-gray-200">
                                             <span className="text-sm font-semibold text-gray-800">Changes Apply will make</span>
-                                            {/* v7.22.1 (Ron, §2.7) - every line counts (skipped ones too); counted in books */}
+                                            {/* v7.24.0 (Ron, §2.7) - every line counts (skipped ones too); counted in books */}
                                             {columns.length > 0 && (
                                                 <span className="ml-2 text-sm text-gray-700">
                                                     — Tagging {totalBooksToTag} of {rows.length} book{rows.length !== 1 ? 's' : ''} shown
@@ -13212,7 +13212,7 @@
                                                         return bookUpdates[id];
                                                     };
 
-                                                    // --- Tag additions --- (v7.22.1: booksToTag = the same list the chips, counts + button use)
+                                                    // --- Tag additions --- (v7.24.0: booksToTag = the same list the chips, counts + button use)
                                                     checkedCollectionNames.forEach(name => {
                                                         const toTag = booksToTag(name);
                                                         if (toTag.length === 0) return;               // §2.4: no book → no tag created
@@ -13232,7 +13232,7 @@
                                                         });
                                                     });
 
-                                                    // --- Tag removals --- (v7.22.1: removalGroups is EMPTY unless the top bar's opt-in is ticked,
+                                                    // --- Tag removals --- (v7.24.0: removalGroups is EMPTY unless the top bar's opt-in is ticked,
                                                     // so with it off nothing is removed AND nothing is promoted — you didn't see them)
                                                     removalLabels.forEach(label => {
                                                         const group = removalGroups[label];
@@ -13253,14 +13253,14 @@
                                                         });
                                                     });
 
-                                                    // (v7.22.1 - no "seen" marking any more: "New books only" is gone — §2.8)
+                                                    // (v7.24.0 - no "seen" marking any more: "New books only" is gone — §2.8)
 
                                                     // Apply tag registry
                                                     setTagRegistry(newTagRegistry);
 
                                                     // v7.10.1-alpha.4 - undoable (audit gap): compute each affected book's next
                                                     // fields from CURRENT state and record before applying (fields-based SET_TAGS
-                                                    // carries collectionTags too). v7.22.1 (§2.9): the tags Apply CREATED ride in
+                                                    // carries collectionTags too). v7.24.0 (§2.9): the tags Apply CREATED ride in
                                                     // the record, so undo removes them again (if no book carries them).
                                                     const createdTags = {};
                                                     Object.keys(newTagRegistry).forEach(k => { if (!tagRegistry[k]) createdTags[k] = { ...newTagRegistry[k] }; });
@@ -13330,7 +13330,7 @@
                                                 }}
                                                 disabled={!hasChanges}
                                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${!hasChanges ? 'bg-blue-300 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
-                                                {/* v7.22.1 (Ron + UX) - the button carries the total, live as you check / uncheck */}
+                                                {/* v7.24.0 (Ron + UX) - the button carries the total, live as you check / uncheck */}
                                                 {totalBooksToTag > 0
                                                     ? `Tag ${totalBooksToTag} book${totalBooksToTag !== 1 ? 's' : ''} from ${collectionsTagging} collection${collectionsTagging !== 1 ? 's' : ''}`
                                                     : 'Apply'}
@@ -14065,7 +14065,7 @@
                                                                                     // v4.27.0-alpha.5 - Enter selects top match or creates new tag
                                                                                     const inputValue = tagInputValue.toLowerCase().trim(); // FINDING ignores capitals
                                                                                     if (!inputValue) return;
-                                                                                    const allTagsExactMatch = tagKeyByExactName(tagInputValue); // v7.22.1 - identity is EXACT text
+                                                                                    const allTagsExactMatch = tagKeyByExactName(tagInputValue); // v7.24.0 - identity is EXACT text
                                                                                     const existingTags = Object.entries(tagRegistry)
                                                                                         .filter(([id, data]) =>
                                                                                             data.label.toLowerCase().includes(inputValue) &&
@@ -14088,7 +14088,7 @@
                                                                                         setModalBook(prev => ({ ...prev, tags: newTags }));
                                                                                         setTagInputValue('');
                                                                                     } else if (!allTagsExactMatch) {
-                                                                                        addNewTagToModalBook(tagInputValue); // v7.22.1 - shared with the "Create" row below
+                                                                                        addNewTagToModalBook(tagInputValue); // v7.24.0 - shared with the "Create" row below
                                                                                     }
                                                                                     // If tag already on book, do nothing
                                                                                 }
@@ -14106,7 +14106,7 @@
                                                                     <div className="max-h-[200px] overflow-y-auto border-t border-gray-200">
                                                                         {(() => {
                                                                             const inputValue = tagInputValue.toLowerCase().trim(); // FINDING ignores capitals
-                                                                            // v7.22.1 - identity is EXACT text: "Create" shows unless a tag with exactly this name exists
+                                                                            // v7.24.0 - identity is EXACT text: "Create" shows unless a tag with exactly this name exists
                                                                             const exactKey = tagKeyByExactName(tagInputValue);
                                                                             const allTagsExactMatch = exactKey ? [exactKey, tagRegistry[exactKey]] : null;
                                                                             // Filter to tags matching input AND not already on this book
@@ -18067,7 +18067,7 @@
                                                 const inputValue = tagInputValue.trim();
                                                 if (!inputValue) return;
                                                 setTagInputValue('');
-                                                // v7.22.1 - identity is EXACT text: an identical name already exists → say so; a name that
+                                                // v7.24.0 - identity is EXACT text: an identical name already exists → say so; a name that
                                                 // differs only in capitals → findOrCreateTag asks once (it used to refuse those outright)
                                                 if (tagKeyByExactName(inputValue)) { showToast(`Tag "${inputValue}" already exists`); return; }
                                                 (async () => {
@@ -18082,7 +18082,7 @@
                                         onChange={(e) => setTagInputValue(e.target.value)}
                                     />
                                 </div>
-                                {/* v7.22.1 (Ron + UX) - reach Tag from Collections from where you think about tags — a link here, not a
+                                {/* v7.24.0 (Ron + UX) - reach Tag from Collections from where you think about tags — a link here, not a
                                     second menu entry (Tools lists both). Swaps windows rather than stacking two big ones. */}
                                 {canTagFromCollections && (
                                     <div className="border-t border-gray-200 px-3 py-2 text-sm">
@@ -19798,7 +19798,7 @@
                                                                         setTagInputValue('');
                                                                     } else if (e.key === 'Enter') {
                                                                         if (!tagInputValue.trim()) return;
-                                                                        // v7.22.1 - the tag with EXACTLY this name (capitals included), or a new one via findOrCreateTag
+                                                                        // v7.24.0 - the tag with EXACTLY this name (capitals included), or a new one via findOrCreateTag
                                                                         // (asks once if a tag differs only in capitals). One path: add it to the selected books that lack it.
                                                                         const selectedBookIds = getSelectedBookIds();
                                                                         const typedName = tagInputValue;
@@ -19850,7 +19850,7 @@
                                                                 .sort((a, b) => (tagOrderIdx.get(a[0]) ?? 1e9) - (tagOrderIdx.get(b[0]) ?? 1e9))
                                                                 .slice(0, 10); // Limit to 10
 
-                                                            // v7.22.1 - "Create" shows unless a tag with EXACTLY this name exists (capitals count)
+                                                            // v7.24.0 - "Create" shows unless a tag with EXACTLY this name exists (capitals count)
                                                             const showCreate = inputValue && !tagKeyByExactName(tagInputValue);
 
                                                             return (

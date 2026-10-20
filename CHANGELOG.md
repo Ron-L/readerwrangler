@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.24.0] - 2026-10-20
+
+### Changed
+- **Tag from Collections shows everything Apply will do, at once.** Tick the Kindle collections you want on the left;
+  the right lists every book that will change, one column per collection: **+** = the tag will be added (click it to
+  skip that book), **✓** = the book already has it. Each collection says which tag it will go onto — an existing tag
+  with exactly its name, or a new one — and the button says the total: *"Tag 9 books from 2 collections"*.
+- **Removing tags is now your choice, not the default.** Tags this tool added come off a book that left its collection
+  on Kindle only if you tick **"Also remove tags whose book left that collection on Kindle"** — and tags you added or
+  renamed yourself are never touched. They used to be pre-selected.
+- **No more empty tags.** A collection's tag is created only if at least one book gets it.
+- **"New books only" is gone.** It relied on a hidden memory you couldn't see or reset; the window now simply lists
+  the books that would change, and opens with nothing ticked.
+
+### Fixed
+- **"Read" and "read" are two different tags, everywhere.** A tag's name is its exact text, capitals included. Before,
+  names were matched ignoring capitals, so a Kindle collection "Non fiction" could have been put onto your own
+  "Non-Fiction" tag. Typing a new name that differs from an existing tag only in capitals now asks once, so a Caps Lock
+  slip can't make a near-twin by accident. Renaming a tag to a name that's already taken is refused.
+- **Undoing a new tag removes it.** Undo of an action that created a tag also takes the tag off your tag list, if no
+  book carries it any more.
+
 ## [7.23.0] - 2026-10-20
 
 ### Behind the scenes — no change for you

@@ -1,7 +1,12 @@
 # Tag from Collections — Design
 
-_v2 design (Ron + UX, 2026-10-18) for 7.22.1, branch `fix/tfc-clarity`. Replaces the v1 layout (6.10.0, 2026-08 —
-see "History" at the end; v1's full text is in git). The **data model is unchanged** from v1 and is restated below._
+_v2 design (Ron + UX, 2026-10-18), branch `fix/tfc-clarity`. Replaces the v1 layout (6.10.0, 2026-08 — see "History"
+at the end; v1's full text is in git). The **data model is unchanged** from v1 and is restated below._
+
+> **Status (2026-10-20): v2 SHIPPED in 7.24.0** — alphas 1–3 (§2.1–2.10: the window, exact-text tag names app-wide,
+> removals opt-in, undo removes a created tag). Ron's alpha.3 test round was then decided topic by topic; that work is
+> **round 2**, filed as the TODO task *"Tag from Collections, round 2: clearer window, safer tags"* in five steps. The
+> build list below is its record of decisions (not built yet); the TODO is the plan.
 
 **What it is:** a window (**Tools → Tag from Collections…**) that turns Kindle collections into ReaderWrangler tags.
 Collections come from Amazon and can't be edited here; tags are yours. Each collection becomes a tag of the same name,
@@ -9,10 +14,11 @@ on the books in that collection. Re-run after new purchases: the right side show
 
 ---
 
-## 7.24.0 build list — agreed, not yet built
+## Round 2 build list — agreed, not yet built (filed in the TODO; was "7.24.0 build list")
 
-_Renumbered 2026-10-20: 7.22.1 grew into a minor release (Ron), and 7.23.0 shipped first → **7.24.0**; the alphas keep
-counting (`7.24.0-alpha.4` = alpha.3 + main merged in). Older "7.22.1" mentions below are updated at the next alpha._
+_2026-10-20: 7.24.0 grew into a minor release and 7.23.0 shipped first → v2 shipped as **7.24.0**, and these items moved
+to a later release (Ron: "declare that part done and log the rest under the TODO"). "7.24.0" below means the release
+these were first planned for; "At release" items 11–14 were done for 7.24.0 itself._
 
 _The working plan (Ron + Claude, 2026-10-19). **A topic isn't closed until its line is here** — written in the same
 breath as the agreement, so it survives a break or a compaction. ✅ = built in an alpha (say which). The test steps
@@ -186,7 +192,7 @@ its outcome goes into the build list and the topic is struck out here. My positi
 **All ten topics closed (2026-10-20).** Build order (Ron agreed):
 1. **7.24.0-alpha.5 — the window:** build list items 1–9 (layout, status line, wording, ↻ / ✓, removals, the shared
    sort, the checkbox tree + undo inside the window, confirmations, touching a tag by hand makes it yours) — plus the
-   "7.22.1" → "7.24.0" sweep of code comments and this doc. Ends with test steps (§5) written from the list.
+   "7.24.0" → "7.24.0" sweep of code comments and this doc. Ends with test steps (§5) written from the list.
 2. **7.24.0-alpha.6 — the data change:** item 10 (retire the hidden "seen" field), its own test round.
 3. Then the release (items 11–14).
 
@@ -194,7 +200,7 @@ its outcome goes into the build list and the topic is struck out here. My positi
 
 1. **Two click targets per row, nothing to tell them apart.** In v1 each collection row has a **checkbox** ("use this
    collection when you Apply") and a **name** ("show its books on the right"). Unchecking a box didn't change the right
-   side; "checked" and "being shown" looked alike. It fooled Ron (2026-10-14, again 2026-10-18 on 7.22.1-alpha.1).
+   side; "checked" and "being shown" looked alike. It fooled Ron (2026-10-14, again 2026-10-18 on 7.24.0-alpha.1).
 2. **The right side showed one collection at a time**, so you never saw everything Apply would do.
 3. **The wizard matches collections to tags by a computed internal key, not by name** (found 2026-10-18 with Ron's
    data). "Non fiction" (a Kindle collection) and "Non-Fiction" (Ron's own, unrelated tag) both make the key
@@ -387,7 +393,7 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
    2. **The rule — three kinds:** actions on the whole list (Manage…, Create…, Select All / Clear All) are **always
       visible**, fixed above/below the scrolling part; **notes** about the list are NOT pinned (a fixed note costs a
       line forever and stops being read — put it where status is read); ordinary rows scroll.
-   3. **In 7.22.1 — only this window's "No tags to remove…" note.** It's part of this window, so it doesn't wait for
+   3. **In 7.24.0 — only this window's "No tags to remove…" note.** It's part of this window, so it doesn't wait for
       the sweep; by the rule it's a note, not an action, so it isn't pinned — it moves to the bottom status line
       (Ron's own proposal; exact words in topic 3).
    4. **Deferred to the TODO (Ron, same evening):** the mechanism — ONE shared scrolling list with a fixed top slot and
@@ -422,10 +428,10 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
    book's `collectionTags`).
 2. Removals (only if switched on): each "−" chip removes the tag from `tags` and `collectionTags`; a kept one drops it
    from `collectionTags` only.
-3. (Removed 7.22.1-alpha.3: no more "seen" marking — see §2.8.)
+3. (Removed 7.24.0-alpha.3: no more "seen" marking — see §2.8.)
 4. One undoable step (as today); a toast names what was done.
 5. **One calculation** decides "which books will get which tag" — used by the chips, the header counts, the button and
-   Apply itself (7.22.1-alpha.1 already merged v1's two copies).
+   Apply itself (7.24.0-alpha.1 already merged v1's two copies).
 
 ## 5. Verification (test steps for the alpha)
 
@@ -451,11 +457,11 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
 1. **No "skip all in this column"** on the headers — unchecking the collection does that; one control per job.
 2. **Chips reuse the app's existing tag-chip style** ("ABSOLUTELY") — a tag looks the same here as everywhere else.
 
-## 7. Related, filed separately (not in 7.22.1)
+## 7. Related, filed separately (not in 7.24.0)
 
 - **One shared scrolling list with fixed top/bottom, then every list moves onto it** so its actions stay in view
   (Ron, 2026-10-19) — TODO.md (Polish): "Long lists keep their actions in view (Manage…, Select All) while you
-  scroll". Starts with the Tags filter; right-click → Tags is the model. Only this window's note is in 7.22.1
+  scroll". Starts with the Tags filter; right-click → Tags is the model. Only this window's note is in 7.24.0
   (build list item 2).
 
 - **Tag order everywhere follows Manage Tags** (Ron + UX, 2026-10-18): the Tags filter and every tag list show tags in
@@ -468,5 +474,5 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
 - **v1 (6.10.0, 2026-08):** two panes — collections with checkboxes on the left; click a name to see that ONE
   collection's books on the right, each with a checkbox; "Removed from Kindle" section pre-checked; File menu (moved to
   Tools in 7.20.0). Full v1 text: `git log -- docs/design/TAG-FROM-COLLECTIONS.md`.
-- **7.22.1-alpha.1 (2026-10-18):** an interim polish of v1 (heading per collection, total on the button, Manage Tags
+- **7.24.0-alpha.1 (2026-10-18):** an interim polish of v1 (heading per collection, total on the button, Manage Tags
   link, one shared calculation) — tested by Ron, which led to v2.
