@@ -179,7 +179,9 @@ markup change can silently break a handler elsewhere in the file. 7.15.0: a menu
 `position:fixed` from the `fixed` CSS **class** to an inline style and dropped the class; the
 close-on-outside handler matched `e.target.closest('.fixed')`, so every menu item's click died on
 mousedown — **no console error, 6 alphas to find.** A class/attribute an element wears may be
-load-bearing for code that never appears in the diff.
+load-bearing for code that never appears in the diff. **The opposite failure — a blanket replace — judges no
+instance at all** (7.24.0: `s/7.22.1/7.24.0/` was right for 28 code comments but also rewrote the design doc's
+history to claim alphas "7.24.0-alpha.1–3" that never existed; caught on review). Enumerate first, then decide each.
 **Enforcement**: `feedback_investigate_completely` memory; grep-the-class before declaring done —
 for a markup change, grep the class/attr name across the file for remote matchers *before* editing.
 
@@ -187,6 +189,11 @@ for a markup change, grep the class/attr name across the file for remote matcher
 What keeps 25-alpha runs bisectable and revertible, and what makes "which build am I running?" answerable
 (invisible changes + no build marker = guaranteed mystery). Alphas are tested locally or on dev — never
 against prod (APP_VERSION doesn't bump during alphas, so prod serves stale JS no matter how hard you reload).
+**Switching branches changes what localhost serves** (7.24.0: Ron's "silent read → Read" was the 7.23.0 relay branch,
+which predates the capitals prompt — Claude had switched branches for the relay work). After any branch switch, say
+which build localhost now serves; on a surprising result, check the build marker first.
+**A "quick" task gets a scope checkpoint at its second alpha**: ship what works and file the rest? (7.24.0: a TODO-review
+"quickie" grew to 3 alphas and a 10-topic round over 3 days before Ron asked; v2 had been shippable since alpha.3.)
 **Enforcement**: CLAUDE.md versioning workflow; `feedback_alpha_testing` memory.
 
 ### 7. Version discipline: file version ≠ app version; bump the number, then suffix
