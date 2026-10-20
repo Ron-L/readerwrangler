@@ -234,10 +234,18 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
    (it only changes the left checkboxes — across the top it read as global); both checkboxes move into the RIGHT pane's
    header (both change what the right side shows); the top bar disappears. Keep the right header compact (checkboxes
    on one line; the "click a chip…" hint into the column headers' tooltip) — Ron judges it when he sees it.
-2. **Bottom-of-list items stay visible (agreed):** anything at the bottom of a scrolling list stays pinned in view,
-   like right-click → Tags → "Manage Tags…" already is. In 7.22.1 for the two tag places: the Tags **filter** list
-   gets an always-visible "Manage Tags…" (missing today), and this window's removal note (if it stays in the left
-   pane — topic 3 may move it to the bottom status line). The app-wide sweep is a separate TODO (§7).
+2. **A list's actions stay visible (agreed, refined with Ron's yes the same evening):**
+   1. **Found in the code:** the Tags **filter** already HAS "Manage Tags…" at its bottom — the whole menu scrolls
+      as one piece (capped at 300px), so with ~a dozen tags it sits below the cut-off and looks missing; "Select All /
+      Clear All" at its top scrolls away too. Right-click → Tags does it right (only the tag rows scroll).
+   2. **The rule — three kinds:** actions on the whole list (Manage…, Create…, Select All / Clear All) are **always
+      visible**, fixed above/below the scrolling part; **notes** about the list are NOT pinned (a fixed note costs a
+      line forever and stops being read — put it where status is read); ordinary rows scroll.
+   3. **This window's "No tags to remove…" note** is a note → it leans to the bottom status line (to be settled in topic 3).
+   4. **The mechanism, in 7.22.1:** ONE shared scrolling list with a fixed top slot and a fixed bottom slot; the Tags
+      filter and right-click → Tags are its first two users (the filter's two copies of the "Manage Tags…" link —
+      no-tags and some-tags — become one). The app-wide sweep moves every other list onto it — TODO.md (Polish),
+      "Long lists keep their actions in view" (main, d873012).
 3. **Still to discuss, in this order:** wording of the two checkboxes / the "Also"s / "wizard" in the name; the removal
    message's place; seeing the removals (− chips, +Tag vs −Tag sorting apart); multi-key sorting (3-state cycle per
    column, Shift-click adds a key, like the list view); skips remembered after unchecking + re-checking a collection;
@@ -247,9 +255,9 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
 
 ## 7. Related, filed separately (not in 7.22.1)
 
-- **Sweep: every scrolling list keeps its bottom items (actions, notes) always visible** (Ron, 2026-10-19) — e.g. a
-  "Manage …" link or an explanatory note at the end of a list must never scroll out of sight. Comb every list/menu
-  with a trailing item; pin each. (The two tag places are fixed in 7.22.1 — §2.11.) → add to TODO.md (Polish).
+- **Sweep: every other list moves onto the shared scrolling list** so its actions stay in view (Ron, 2026-10-19) —
+  filed in TODO.md (Polish): "Long lists keep their actions in view (Manage…, Select All) while you scroll". The
+  shared piece and the two tag lists are in 7.22.1 (§2.11 item 2).
 
 - **Tag order everywhere follows Manage Tags** (Ron + UX, 2026-10-18): the Tags filter and every tag list show tags in
   the order Manage Tags is set to; the hidden header-click cycle becomes a visible **Order: A→Z | Most used | Manual**;
