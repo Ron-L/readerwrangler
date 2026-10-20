@@ -47,6 +47,7 @@
       - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
       - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
       - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
+      - [Long lists keep their actions in view (Manage…, Select All) while you scroll](#long-lists-keep-their-actions-in-view-manage-select-all-while-you-scroll)
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
       - [Book Lists](#book-lists)
         - [A management view for Book Lists](#a-management-view-for-book-lists)
@@ -208,38 +209,21 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
    **FIRST: merge main into `feature/relay-worker-b2`** — the branch predates `git-hooks/` (2026-10-15), and with
    `core.hooksPath git-hooks` a commit there would run NO checks, silently. Resolve the doc conflicts (TODO.md,
    CLAUDE.md, SESSION-TOOLING.md) in main's favor. Then: drop "-alpha" from `WORKER_VERSION`, update RELAY-WRITE-REDESIGN §14a (fixes 2 and 3 built as report-only; its two open questions are answered — each relay checks its own storage, and Cloudflare's key count is a daily maximum), CHANGELOG (your word on the copy), squash / tag / push to both, post-mortem.
-4. **Deleting = the next release, on its own branch** — it also changes the **app's** cleanup rule (decided Ron 2026-10-15):
-   - **Keep only the newest 2 finished copies** (+ the live one); delete older ones **immediately — no one-hour grace**.
-     Why: nothing needs copies 3+ — a reader whose copy vanishes mid-download falls back to the newest complete copy
-     (relay-client.js `readCanonical` ~729–750), and the grace made copies unlimited: each save adds ~35 MB (library +
-     phone copy), so a burst of fetch → Import cycles could stack hundreds of MB (2026-10-15: 3 extra phone copies).
-   - **Unfinished copies (no manifest yet) keep a grace, shortened to 10 minutes** — one may be another tab's save in
-     progress. (Settles the design's open "grace age (1 h?)" question — update RELAY-WRITE-REDESIGN §5 / §15.)
-   - Where: `commitGeneration` + the device-state twin in relay-client.js (`GC_GRACE_MS`), and the worker's check
-     (`SWEEP_GRACE_MS` for extras → 0, unfinished → 10 min) — same rule both sides (see "Numbers the app and relay
-     must agree on"). Ships with the worker's deleting step so both change in lockstep.
-   The deleting itself:
-   - It needs a per-run budget: a free-plan run gets 50 outside calls, and every storage call counts — one 18-part leftover alone is 19 deletes. Spread big cleanups over days.
-   - Test on dev with **deliberately planted** leftovers on the test channel `22222222…` (dev has none of its own); confirm it removes exactly those; a few days on dev; then production.
-   - **The report names every kind of key, each with whether its count is EXPECTED** (Ron, 2026-10-18 — today's
-     email lumps 27 of production's 53 keys as "other"). Production on 2026-10-18 held, all by design: 11 blocked
-     channels + 11 revocation proofs (one pair per revoked channel — Ron's credential rotations), 3 "first used"
-     records, 1 test-alert counter, 1 storage-alert level. Wording per kind, e.g.:
-     - "Revoked channels: 11 (blocked records 11, revocation proofs 11 — expected: always in pairs)"
-     - "First-used records: 3 — expected: one per channel that has ever saved"
-     - "Test-alert counter: 1 — 1 is what is expected"
-     - "Storage-alert level: 1 — 1 is what is expected (production only; dev expects 0)"
-     - Also: rate-limit counters (expire within 2 hours — a few during activity is expected), today's alert records
-       (production only, 0–2 expected), the stray-schedule tally (0 or 1).
-     - **Anything outside these expectations — or any key of a kind the report doesn't know — shows in red.**
-     - Where: `groupKeys` / the storage-check section of relay-worker.js (~1200–1230, ~1323).
+4. ✅ **Released 7.23.0 (deleting), 2026-10-20** — both relays delete leftovers nightly (keep the newest 2 finished
+   copies, no grace; unfinished copies 10 minutes; ≤20 keys per run), and the app applies the same rule at each save
+   (relay-client.js; the commit check `git-hooks/check-shared-numbers.js` keeps the two in step). Proven on dev
+   10-18 → 10-19 (planted test keys; three real extras); production switched 2026-10-20. Every key kind is named in the
+   email with its expected count. Why two cleaners: RELAY-WRITE-REDESIGN §14a.
+   - **Still open:** confirm production's first deleting night deletes exactly `…21fc` (the Sep 9 torn save).
+   - Small follow-up: `relay/test-phase1.mjs` leaves one unimported run on the `22222222…` test channel each run (17 → 18
+     on 10-18); they expire after 90 days — make the test clean up after itself.
 5. **Then C.**
 
 **Lessons learned**
 - Cloudflare had three schedule incidents (2026-10-12, 10-13, 10-14) that delayed schedule changes by **hours** — the replaced 10-minute test schedule kept mailing.
 - **Never test with a temporary schedule again.** Test with the on-demand summary instead (PowerShell; one email each; Resend allows 100 a day):
   `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))`
-- **Never deploy the relay from main** (or a branch off it) until B2 merges: main still has the old worker.
+- ~~Never deploy the relay from main until B2 merges~~ — lifted 2026-10-18: B2 merged in 7.22.0, main carries the current worker.
 
 **Rules**
 - Every deploy asks you first (the pre-approved production deploy was removed from local permissions).
@@ -1112,6 +1096,43 @@ _Why it matters:_ With 20+ Book Lists, the lower ones are cut off and can't be r
 **How (technical)**
 - An opt-in option on `<Popover>` for button dropdowns: when it can't fit below, pick the roomier side, cap the height, scroll.
 - Today it pins to the top of the window and hangs off the bottom. The fly-out rule is CursorPopup's "never add overflow".
+
+#### Long lists keep their actions in view (Manage…, Select All) while you scroll
+
+_Why it matters:_ An action at the end of a long list scrolls out of sight — it looks missing, so it's never used.
+
+**What you see** (Ron, 2026-10-19)
+1. The **Tags** filter in the bar above the books: "Manage Tags…" seemed to be missing. It's there — at the very
+   bottom; the whole menu scrolls as one piece, so with a dozen tags it sits below the cut-off. "Select All / Clear
+   All" at the top scrolls away the same way.
+2. Right-click a book → **Tags** does it right: only the tag rows scroll; "Manage Tags…" stays put below them.
+
+**The rule** (Ron + UX, 2026-10-19) — sort what sits at the top or bottom of a list into three kinds:
+1. **Actions on the whole list** ("Manage Tags…", "Create…", Select All / Clear All): **always visible** — fixed
+   above or below the scrolling part.
+2. **Notes about the list** ("No tags to remove…"): **not** pinned — a fixed note costs a line forever and stops
+   being read. Put it where people look for status (e.g. a window's status line).
+3. **Ordinary rows** that happen to be first or last: scroll normally.
+
+**The mechanism, not a cleanup:** ONE shared scrolling list with a fixed top slot and a fixed bottom slot. Fixing
+each list by hand doesn't stop the next new list from repeating it; with one shared piece, every new list gets it.
+1. **Build the piece**, then move every list with top/bottom actions onto it.
+2. **Known places so far** (found 2026-10-19 — a start, not the full list):
+   1. **The Tags filter** (bar above the books) — **broken:** the whole menu scrolls as one piece (capped at 300px,
+      readerwrangler.js ~9868–9877), taking "Select All / Clear All" (top, ~9906) and "Manage Tags…" (bottom, ~9977)
+      out of sight. It also has two copies of the "Manage Tags…" link (no tags ~9900 / some tags ~9977) — make one.
+   2. **Right-click a book → Tags** — **already right, the model:** only the tag rows scroll (~19857); "Manage Tags…"
+      sits below them (~19933).
+   3. **Tag from Collections' "No tags to remove…" note** — handled in 7.22.1, not here: it's a note, so it moves to
+      the window's status line rather than being pinned.
+3. **Find the rest with the comb** — two independent searches (lists that scroll; trailing "Manage…" / "Create…" / "…"
+   items) plus a walk of every menu, right-click menu, dropdown and dialog list. Publish the list of places before
+   calling it done.
+4. **Pair it with "One shared tag picker"** (Small fixes) so both tag lists move onto the piece together.
+
+**Related:** "The 'Save results' menu runs off the screen" (above — the same list could carry its fit-and-scroll
+fix) and "One shared tag picker" (Small fixes — it would sit on this piece). Deferred from 7.22.1 by Ron, 2026-10-19
+(no regression; scrolling down is the workaround).
 
 #### Removing a recent search should offer Undo
 

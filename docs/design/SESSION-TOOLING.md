@@ -19,7 +19,7 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
 ## RW's session hooks (`.claude/hooks/`, saved in git; wired in `.claude/settings.json`)
 
 - **`gate-check.py`** (PreToolUse) — the **pre-build gate**. On the first edit of shipped code (any `.js` at the
-  repo root + `relay/relay-worker.js` — `is_app_source()`, a rule not a list; widened 2026-10-08) each turn it prints the checklist and denies once; re-issuing the identical edit proceeds.
+  repo root + `relay/relay-worker.js` — `is_app_source()`, a rule not a list; widened 2026-10-08) each turn it prints the checklist and refuses that batch's app edits; re-sending them (the next batch) proceeds.
   **Whole-batch refusal — a three-state switch moved by real signals** (2026-10-19, Ron + Claude): **ARMED** (set by
   `gate-reset.py` at each turn's end / session start) → the first app edit flips it to **REFUSING** and gets the
   checklist; **every** app edit while REFUSING is refused, however the batch streams or is timed → **`gate-batch-end.py`
@@ -47,7 +47,9 @@ Bypass (Ron's call): `git commit --no-verify`.
 - **`version-guard.py`** — refuses a commit that stages
   shipped code without moving its version stamp: `readerwrangler.js`→`ORGANIZER_VERSION`,
   `mobile.js`→`MOBILE_VERSION`, `relay/relay-worker.js`→`WORKER_VERSION` (shown in the relay's emails), and the
-  module `.js` files + `readerwrangler.css` → their `?v=` cache-buster in `readerwrangler.html`.
+  module `.js` files + `readerwrangler.css` → their `?v=` cache-buster in `readerwrangler.html`. **A release sweeps the
+  help notes** (2026-10-20): a commit that moves `APP_VERSION` is refused unless `docs/design/SUPPORT-KB.md`'s stamp says
+  "through release <that version>" — the stamp used to be a promise nothing checked (7.21.3 went unswept for 4 days).
 - **`check-toc.js`** (when `TODO.md` is staged; checks the STAGED copy) — refuses a
   `TODO.md` whose table of contents (between `<!-- TOC -->` markers, built by the VS Code extension "Auto Markdown
   TOC" on save) doesn't match its headers by text and depth. Link targets aren't compared (the extension owns them).

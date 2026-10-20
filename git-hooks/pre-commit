@@ -16,7 +16,14 @@ if git diff --cached --name-only --diff-filter=ACM | grep -qE '\.(js|html)$'; th
     node git-hooks/check-names.js || exit 1
 fi
 
-# 3. TODO.md's table of contents (2026-10-14): refuses a staged TODO.md whose table doesn't match its headers — the
+# 3. Numbers the app and the relay must agree on (7.23.0): refuses a commit where relay-client.js and
+#    relay/relay-worker.js disagree on the 90-day upload life, "keep 2 copies", the unfinished-copy grace, or how the
+#    time is read out of an id — the worker's nightly cleanup deletes by those rules. (git-hooks/check-shared-numbers.js)
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(relay-client\.js|relay/relay-worker\.js)$'; then
+    node git-hooks/check-shared-numbers.js || exit 1
+fi
+
+# 4. TODO.md's table of contents (2026-10-14): refuses a staged TODO.md whose table doesn't match its headers — the
 #    VS Code extension rebuilds it only on a VS Code save, so edits made any other way leave it stale.
 #    Checks the STAGED copy. (git-hooks/check-toc.js)
 if git diff --cached --name-only --diff-filter=ACM | grep -qx 'TODO.md'; then
