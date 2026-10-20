@@ -148,7 +148,6 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 - **A calmer book editor** — In edit mode, nothing changes until you press Save — and one undo reverses the whole save
 - **Fetch & import reports that tell the whole story** — "3 wishlist books now owned, 1 became a sample," in the dialog and the toast history
 - **Find your list faster** — Pinning and sorting for Book Lists and Searches, just like folders
-- **Safe multi-tab** — A second ReaderWrangler tab becomes a read-only viewer instead of a hazard
 
 ## Future Features
 

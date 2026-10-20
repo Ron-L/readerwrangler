@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.23.0] - 2026-10-20
+
+### Behind the scenes — no change for you
+This release keeps sync storage tidy. Nothing you see changes, and there's nothing for you to do.
+- **The Relay now cleans up after itself every night.** Leftovers from interrupted or replaced saves are deleted
+  automatically — even for a library whose app is never opened again. (The last release only reported them.)
+- **The app cleans up sooner when it saves.** It keeps the two newest copies of your library and deletes older ones
+  right away, instead of waiting an hour — so a busy session of fetches no longer piles up copies.
+
 ## [7.22.0] - 2026-10-18
 
 ### Behind the scenes — no change for you

@@ -79,7 +79,7 @@ const CF_LIMITS = {
 // Cloudflare's KV actionType → our counter. An action type not listed here is reported in the email, never dropped.
 const KV_ACTION_FIELDS = { read: 'kvReads', write: 'kvWrites', delete: 'kvDeletes', list: 'kvLists' };
 
-const WORKER_VERSION = '7.22.0'; // printed in every daily summary, so an email shows which deploy sent it
+const WORKER_VERSION = '7.23.0'; // printed in every daily summary, so an email shows which deploy sent it
 
 // THE list of relays (7.22.0, design §14a fix 2). One codebase, deployed twice; RELAY_ENV in wrangler.toml says which
 // deployment this is. Every daily summary reports ALL relays here (the free limits are shared account-wide); each
@@ -1096,8 +1096,13 @@ async function sendDailySummary(env) {
     sections.push('USAGE NOT AVAILABLE: this worker has no CF_API_TOKEN / CF_ACCOUNT_ID.');
   }
 
-  try { sections.push(formatStorageCheck(self, await inspectStorage(env), usage)); }
-  catch (err) { sections.push(`STORAGE CHECK (${self.label}) FAILED: ${err.message}`); }
+  // 7.23.0 - check, then (CLEANUP = "delete" in wrangler.toml) delete within the run's budget, then report — the email
+  // goes out even if the check or a delete fails.
+  try {
+    const inv = await inspectStorage(env);
+    const cleanup = env.CLEANUP === 'delete' ? await cleanStorage(env, inv) : null;
+    sections.push(formatStorageCheck(self, inv, usage, cleanup));
+  } catch (err) { sections.push(red(`STORAGE CHECK (${self.label}) FAILED: ${err.message}`)); }
 
   let mistriggers = null;
   try { mistriggers = await mistriggerSection(env, self); }
@@ -1175,20 +1180,29 @@ function formatUsage(usage) {
   return lines.join('\n');
 }
 
-// --- Daily storage check (7.22.0, design §14a fix 3) — REPORT ONLY: lists what a cleanup WOULD delete, deletes nothing ---
-// The rules mirror the app's own cleanup (relay-client.js commitGeneration + its device-state twin), so any hit means a
-// save that was interrupted or never followed by another — not a judgment call:
+// --- Daily storage check + cleanup (7.22.0 report-only; 7.23.0 deletes, design §14a fix 3) ---
+// The rules are the app's own cleanup rules (relay-client.js commitGeneration + its device-state twin — KEEP_GENS /
+// ORPHAN_GRACE_MS; git-hooks/check-shared-numbers.js refuses a commit where the two differ), so any hit means a save
+// that was interrupted or never followed by another — not a judgment call:
+//   - a committed generation beyond the newest 2 (no grace — the app deletes those at once too)
+//   - a generation with no manifest (an interrupted save), over 10 minutes old
 //   - a mailbox run of 2+ letters that the CURRENT library generation lists as absorbed, once that generation is over
-//     an hour old (the saving device has had its chance to reclaim the run itself)
-//   - a generation with no manifest (an interrupted save), over an hour old
-//   - a committed generation beyond the newest 2, over an hour old
+//     10 minutes old (the saving device has had its chance to reclaim the run itself)
 // NEVER: a mailbox run nothing has absorbed (it may be the only copy of a change), or the generation a pointer names.
 // A store whose pointer is missing or unreadable is not judged at all.
-// Cost: one KV list per 1,000 keys + up to SWEEP_READ_BUDGET gets, and only for channels that have something to judge.
-// A free-plan invocation gets 50 subrequests — KV calls and fetches (GraphQL, the email) alike.
-const SWEEP_GRACE_MS = 60 * 60 * 1000; // mirrors relay-client.js GC_GRACE_MS
-const SWEEP_KEEP_GENS = 2;             // mirrors relay-client.js KEEP_GENS
+// CLEANUP (wrangler.toml var) = "delete" deletes what it finds, within a per-run budget; anything else (or missing) only
+// reports — the safe default. Deletion order lets a budget stop safely mid-item: a generation loses its MANIFEST first
+// (readers stop seeing it at once; its remaining parts are then an interrupted save, finished next run), a mailbox run
+// loses its letters first and its manifest LAST (so it stays recognizably absorbed until it's gone).
+// Cost: one KV list per 1,000 keys + up to SWEEP_READ_BUDGET gets (only for channels with something to judge) + the
+// deletes. Cloudflare's docs disagree on whether KV calls count toward a free-plan run's 50 subrequests (2026-02
+// changelog: KV is in a separate 1,000) — until a test settles it, the whole run stays under SWEEP_CALL_CEILING.
+const SWEEP_KEEP_GENS = 2;                    // mirrors relay-client.js KEEP_GENS
+const SWEEP_ORPHAN_GRACE_MS = 10 * 60 * 1000; // mirrors relay-client.js ORPHAN_GRACE_MS (unfinished copies)
+const SWEEP_ABSORBED_GRACE_MS = SWEEP_ORPHAN_GRACE_MS; // after a commit, before the worker judges its absorbed runs
 const SWEEP_READ_BUDGET = 25;
+const SWEEP_MAX_DELETES = 20;   // per run — a big backlog clears over several nights
+const SWEEP_CALL_CEILING = 45;  // KV calls of the whole storage check + cleanup; leaves room for the email / statistics
 
 function idTimestamp(mintedId) { // mirrors relay-client.js idTimestamp
   return parseInt(String(mintedId).split('-')[0], 10) || 0;
@@ -1196,46 +1210,61 @@ function idTimestamp(mintedId) { // mirrors relay-client.js idTimestamp
 const dateOf = id => new Date(idTimestamp(id)).toISOString().slice(0, 10);
 const shortId = id => `…${String(id).slice(-4)}`;
 
-// Group every key name in the namespace by channel; count each kind (the key check reconciles against these).
+// Group every key name in the namespace by channel (keeping each generation's / run's actual key names, so a cleanup
+// deletes exactly what was found) and count every KIND of key — the report names each with its expected count (7.23.0,
+// Ron: "it needs to be clear if it is expected or not"). The layout is documented at the top of this file.
 function groupKeys(names) {
-  const channels = new Map(); // channelId → { runs: Map(runId → {letters, manifest}), gen: Map(gen → {chunks, manifest}), dstate: Map }
-  const kinds = { library: 0, deviceState: 0, mailbox: 0, pointers: 0, olderFormat: 0, other: 0 };
+  const channels = new Map(); // channelId → { runs: Map(runId → run), gen: Map(gen → g), dstate: Map(gen → g) }
+  const kinds = { library: 0, deviceState: 0, mailbox: 0, pointers: 0, olderFormat: 0,
+                  blocked: new Set(), proofs: new Set(), firstUsed: 0, rateLimit: 0, testAlert: 0, storageBand: 0,
+                  alertsToday: 0, mistriggers: 0, unknown: [] };
   const channel = ch => {
     if (!channels.has(ch)) channels.set(ch, { runs: new Map(), gen: new Map(), dstate: new Map() });
     return channels.get(ch);
   };
   for (const name of names) {
     const p = name.split(':');
-    const [, ch, kind, id, part] = p;
-    if (p[0] !== 'relay' || p.length < 3) { kinds.other++; continue; }
-    if (kind === 'mail' && p.length === 5) {                                  // relay:{ch}:mail:{runId}:{seq|manifest}
-      kinds.mailbox++;
-      const runs = channel(ch).runs;
-      const run = runs.get(id) || { letters: 0, manifest: false };
-      if (part === 'manifest') run.manifest = true; else run.letters++;
-      runs.set(id, run);
-    } else if ((kind === 'gen' || kind === 'dstate') && p.length >= 5) {     // relay:{ch}:{gen|dstate}:{gen}:{chunk:i|manifest}
-      kinds[kind === 'gen' ? 'library' : 'deviceState']++;
-      const gens = channel(ch)[kind];
-      const g = gens.get(id) || { chunks: 0, manifest: false };
-      if (part === 'manifest') g.manifest = true; else g.chunks++;
-      gens.set(id, g);
-    } else if (kind === 'pointer' || kind === 'dstate-pointer') {
-      kinds.pointers++;
-    } else if (kind === 'manifest' || kind === 'chunk' || kind === 'device-state') { // pre-7.0 single-copy layout (TTL'd)
-      kinds.olderFormat++;
-    } else {
-      kinds.other++;                                                          // revocation proofs etc.
-    }
+    const [head, ch, kind, id, part] = p;
+    if (head === 'relay' && p.length >= 3) {
+      if (kind === 'mail' && p.length === 5) {                                // relay:{ch}:mail:{runId}:{seq|manifest}
+        kinds.mailbox++;
+        const runs = channel(ch).runs;
+        const run = runs.get(id) || { letters: 0, manifest: false, letterNames: [], manifestName: null };
+        if (part === 'manifest') { run.manifest = true; run.manifestName = name; } else { run.letters++; run.letterNames.push(name); }
+        runs.set(id, run);
+      } else if ((kind === 'gen' || kind === 'dstate') && p.length >= 5) {   // relay:{ch}:{gen|dstate}:{gen}:{chunk:i|manifest}
+        kinds[kind === 'gen' ? 'library' : 'deviceState']++;
+        const gens = channel(ch)[kind];
+        const g = gens.get(id) || { chunks: 0, manifest: false, chunkNames: [], manifestName: null };
+        if (part === 'manifest') { g.manifest = true; g.manifestName = name; } else { g.chunks++; g.chunkNames.push(name); }
+        gens.set(id, g);
+      } else if (kind === 'pointer' || kind === 'dstate-pointer') {
+        kinds.pointers++;
+      } else if (kind === 'manifest' || kind === 'chunk' || kind === 'device-state') { // pre-7.0 single-copy layout (TTL'd)
+        kinds.olderFormat++;
+      } else if (kind === 'revocation-proof' && p.length === 3) {
+        kinds.proofs.add(ch);
+      } else {
+        kinds.unknown.push(name);
+      }
+    } else if (head === 'blocklist' && p.length === 2) kinds.blocked.add(ch);
+    else if (head === 'lifecycle' && p.length === 3 && kind === 'used') kinds.firstUsed++;
+    else if (head === 'ratelimit' && p.length === 2) kinds.rateLimit++;
+    else if (name === 'test-alert-counter') kinds.testAlert++;
+    else if (name === 'usage-alert:storage-band') kinds.storageBand++;
+    else if (head === 'usage-alert' && p.length === 2 && /^\d{4}-\d{2}-\d{2}$/.test(ch)) kinds.alertsToday++;
+    else if (name === MISTRIGGER_KEY) kinds.mistriggers++;
+    else kinds.unknown.push(name);
   }
   return { channels, kinds };
 }
 
 async function inspectStorage(env) {
   const names = [];
-  let cursor, complete = false;
+  let cursor, complete = false, listCalls = 0;
   for (let page = 0; page < LIST_PAGE_CAP; page++) {
     const res = await env.RELAY_KV.list({ cursor });
+    listCalls++;
     for (const k of res.keys) names.push(k.name);
     if (res.list_complete) { complete = true; break; }
     cursor = res.cursor;
@@ -1257,28 +1286,43 @@ async function inspectStorage(env) {
     try { await inspectChannel(ch, c, Date.now(), readJson, findings, notes); }
     catch (err) { if (err.message !== OUT_OF_BUDGET) throw err; unchecked.push(`${ch.slice(0, 8)}…`); }
   }
-  return { keyCount: names.length, complete, kinds, channelCount: channels.size, findings, notes, unchecked, reads };
+  // 7.23.0-alpha.2 - a block WITHOUT a revocation proof isn't necessarily an auto-block: dev holds two owner revocations
+  // (2026-09-01) whose proofs are gone. Each block records its own reason — read it for the rare unpaired ones only.
+  kinds.blockReasons = {};
+  for (const ch of [...kinds.blocked].filter(c => !kinds.proofs.has(c))) {
+    let reason;
+    try { reason = (await readJson(`blocklist:${ch}`) || {}).reason || 'unreadable'; }
+    catch (err) { if (err.message !== OUT_OF_BUDGET) throw err; reason = 'not read (read budget reached)'; }
+    kinds.blockReasons[reason] = (kinds.blockReasons[reason] || 0) + 1;
+  }
+  return { keyCount: names.length, complete, kinds, channelCount: channels.size, findings, notes, unchecked, reads,
+           calls: listCalls + reads };
 }
 
+// Each finding = { text, keys } — `keys` in the order a cleanup deletes them (see the header above).
 async function inspectChannel(ch, c, now, readJson, findings, notes) {
   const who = `channel ${ch.slice(0, 8)}…`;
-  const pastGrace = id => now - idTimestamp(id) >= SWEEP_GRACE_MS;
+  const pastOrphanGrace = id => now - idTimestamp(id) >= SWEEP_ORPHAN_GRACE_MS;
   for (const [seg, store, what] of [['gen', GEN_STORES.canonical, 'library'], ['dstate', GEN_STORES.dstate, 'device-state']]) {
     const gens = c[seg];
     const committed = [...gens].filter(([, g]) => g.manifest).map(([id]) => id)
       .sort((a, b) => idTimestamp(b) - idTimestamp(a));
-    const extra = committed.slice(SWEEP_KEEP_GENS).filter(pastGrace);
-    const torn = [...gens].filter(([, g]) => !g.manifest).map(([id]) => id).filter(pastGrace);
+    const extra = committed.slice(SWEEP_KEEP_GENS);                     // no grace — the app deletes these at once too
+    const torn = [...gens].filter(([, g]) => !g.manifest).map(([id]) => id).filter(pastOrphanGrace);
     const bulkRuns = seg === 'gen' ? [...c.runs].filter(([, r]) => r.letters >= 2) : [];
     if (!extra.length && !torn.length && !bulkRuns.length) continue; // nothing to judge — spend no reads
 
     const pointer = await readJson(`relay:${ch}:${store.ptr}`);
     if (!pointer || !pointer.gen) { notes.push(`${who}: ${what} pointer missing or unreadable - not judged`); continue; }
     for (const id of extra) {
-      if (id !== pointer.gen) findings.push(`${who}: extra ${what} generation ${shortId(id)} (${dateOf(id)}, ${gens.get(id).chunks} part(s)) - beyond the newest ${SWEEP_KEEP_GENS}`);
+      const g = gens.get(id);
+      if (id !== pointer.gen) findings.push({ text: `${who}: extra ${what} generation ${shortId(id)} (${dateOf(id)}, ${g.chunks} part(s)) - beyond the newest ${SWEEP_KEEP_GENS}`,
+                                              keys: [g.manifestName, ...g.chunkNames] });
     }
     for (const id of torn) {
-      if (id !== pointer.gen) findings.push(`${who}: interrupted ${what} save ${shortId(id)} (${dateOf(id)}, ${gens.get(id).chunks} part(s), no manifest)`);
+      const g = gens.get(id);
+      if (id !== pointer.gen) findings.push({ text: `${who}: interrupted ${what} save ${shortId(id)} (${dateOf(id)}, ${g.chunks} part(s), no manifest)`,
+                                              keys: [...g.chunkNames] });
     }
     if (!bulkRuns.length) continue;
 
@@ -1286,8 +1330,8 @@ async function inspectChannel(ch, c, now, readJson, findings, notes) {
     if (incomplete) notes.push(`${who}: ${incomplete} incomplete mailbox run(s) (never finished sending) - kept, they expire on their own`);
     const committedRuns = bulkRuns.filter(([, r]) => r.manifest);
     if (!committedRuns.length) continue;
-    if (now - (pointer.flippedAt || idTimestamp(pointer.gen)) < SWEEP_GRACE_MS) {
-      notes.push(`${who}: library saved within the last hour - its mailbox runs are judged next time`);
+    if (now - (pointer.flippedAt || idTimestamp(pointer.gen)) < SWEEP_ABSORBED_GRACE_MS) {
+      notes.push(`${who}: library saved within the last 10 minutes - its mailbox runs are judged next time`);
       continue;
     }
     const manifest = await readJson(`relay:${ch}:gen:${pointer.gen}:manifest`);
@@ -1295,15 +1339,36 @@ async function inspectChannel(ch, c, now, readJson, findings, notes) {
     const absorbed = new Set(manifest.absorbedRuns);
     let waiting = 0;
     for (const [runId, r] of committedRuns) {
-      if (absorbed.has(runId)) findings.push(`${who}: absorbed mailbox run ${shortId(runId)} (${dateOf(runId)}, ${r.letters} letters) - already in the library`);
+      if (absorbed.has(runId)) findings.push({ text: `${who}: absorbed mailbox run ${shortId(runId)} (${dateOf(runId)}, ${r.letters} letters) - already in the library`,
+                                               keys: [...r.letterNames, r.manifestName] });
       else waiting++;
     }
     if (waiting) notes.push(`${who}: ${waiting} multi-part mailbox run(s) not yet imported - kept`);
   }
 }
 
-function formatStorageCheck(self, inv, usage) {
-  const lines = [`STORAGE CHECK - ${self.label} relay's own storage (REPORT ONLY: nothing was deleted)`];
+// Delete what inspectStorage found, in each finding's key order, within this run's budget (SWEEP_MAX_DELETES and the
+// SWEEP_CALL_CEILING left after the check's own calls). Stops cleanly on any error; the rest waits for the next run.
+// Sets finding.status: 'deleted' | 'partly' | 'left'; returns { deleted, budget, stoppedBy }.
+async function cleanStorage(env, inv) {
+  const budget = Math.max(0, Math.min(SWEEP_MAX_DELETES, SWEEP_CALL_CEILING - inv.calls));
+  let left = budget, deleted = 0, stoppedBy = null;
+  for (const f of inv.findings) {
+    let done = 0;
+    for (const key of f.keys) {
+      if (stoppedBy || left === 0) break;
+      try { await env.RELAY_KV.delete(key); } catch (err) { stoppedBy = err.message || String(err); break; }
+      left--; deleted++; done++;
+    }
+    f.status = done === f.keys.length ? 'deleted' : done > 0 ? 'partly' : 'left';
+  }
+  return { deleted, budget, stoppedBy };
+}
+
+function formatStorageCheck(self, inv, usage, cleanup) {
+  const lines = [cleanup
+    ? `STORAGE CHECK + CLEANUP - ${self.label} relay's own storage`
+    : `STORAGE CHECK - ${self.label} relay's own storage (REPORT ONLY: nothing was deleted)`];
   const cf = usage && usage.relays[self.key];
   let check = `Keys counted just now: ${inv.keyCount.toLocaleString('en-US')}${inv.complete ? '' : '+ (stopped at the listing cap)'}`;
   if (cf && cf.storageKeys != null) {
@@ -1320,13 +1385,61 @@ function formatStorageCheck(self, inv, usage) {
   lines.push(check);
   const k = inv.kinds;
   lines.push(`  library generations ${k.library}, device-state generations ${k.deviceState}, mailbox ${k.mailbox}, ` +
-    `pointers ${k.pointers}, older format (expires on its own) ${k.olderFormat}, other ${k.other}`);
-  lines.push(inv.findings.length
-    ? `Would delete (${inv.findings.length}):\n` + inv.findings.map(f => `  - ${f}`).join('\n')
-    : `Would delete: nothing (${inv.channelCount} channel(s) checked).`);
+    `pointers ${k.pointers}, older format (expires on its own) ${k.olderFormat}`);
+  lines.push(...otherKeyLines(self, k));
+
+  const list = (title, fs) => fs.length ? [`${title} (${fs.length}):`, ...fs.map(f => `  - ${f.text}`)] : [];
+  if (!inv.findings.length) {
+    lines.push(`${cleanup ? 'Nothing to delete' : 'Would delete: nothing'} (${inv.channelCount} channel(s) checked).`);
+  } else if (!cleanup) {
+    lines.push(...list('Would delete', inv.findings));
+  } else {
+    const by = s => inv.findings.filter(f => f.status === s);
+    lines.push(...list('Deleted', by('deleted')), ...list('Partly deleted - continues next run', by('partly')),
+               ...list('Left for the next run', by('left')));
+    // 7.23.0-alpha.3 - the limit counts storage KEYS, the list counts ITEMS (one saved copy can be several keys) — say so,
+    // or "Deleted (4)" beside "7 … used" reads as 3 missing (Ron, 2026-10-20).
+    const touched = by('deleted').length + by('partly').length;
+    const limit = `the limit this run was ${cleanup.budget} key(s)` +
+      (cleanup.budget < SWEEP_MAX_DELETES ? ` (usually ${SWEEP_MAX_DELETES}; the check itself used the rest)` : '');
+    lines.push(touched
+      ? `  (${cleanup.deleted} storage key(s) removed for ${touched === 1 ? 'this item' : `these ${touched} items`} - one saved copy can be several keys; ${limit})`
+      : `  (no storage keys removed this run - ${limit})`);
+    if (cleanup.stoppedBy) lines.push(red(`DELETING STOPPED EARLY: ${cleanup.stoppedBy} - the rest waits for the next run`));
+  }
   if (inv.notes.length) lines.push('Kept / not judged:\n' + inv.notes.map(n => `  - ${n}`).join('\n'));
   if (inv.unchecked.length) lines.push(`NOT FULLY CHECKED (read budget of ${SWEEP_READ_BUDGET} reached): ${inv.unchecked.join(', ')}`);
   return lines.join('\n');
+}
+
+// Every kind of key that isn't a library / device-state / mailbox / pointer, each with whether its count is EXPECTED
+// (Ron, 2026-10-18). Unexpected counts and unknown keys show in red. Channel ids never appear (they're credentials).
+function otherKeyLines(self, k) {
+  const alerts = self.sendsThresholdAlerts; // the storage-alert level + today's alert records live only on that relay
+  const withProof = [...k.blocked].filter(ch => k.proofs.has(ch)).length;
+  const reasons = { ...(k.blockReasons || {}) };          // unpaired blocks only, by the reason each one records
+  const noProofRevoked = reasons['user-revoked'] || 0; delete reasons['user-revoked'];
+  const autoBlocked = reasons['rate-limit-auto'] || 0;   delete reasons['rate-limit-auto'];
+  const otherReasons = Object.entries(reasons).map(([r, n]) => `${n} "${r}"`).join(', ');
+  const proofOnly = [...k.proofs].filter(ch => !k.blocked.has(ch)).length;
+  const flag = (bad, line) => bad ? red(line) : line;
+  const out = ['Other keys:',
+    flag(autoBlocked > 0 || otherReasons !== '',
+      `  Blocked channels: ${k.blocked.size} - revoked by their owner ${withProof + noProofRevoked}` +
+      (noProofRevoked ? ` (${noProofRevoked} without a stored proof; their block records say owner-revoked)` : '') +
+      `, auto-blocked for abuse ${autoBlocked}${otherReasons ? `, other: ${otherReasons}` : ''} - 0 auto-blocked is what is expected`),
+    `  First-used records: ${k.firstUsed} - one per channel that has ever saved (they never expire)`,
+    `  Test-alert counter: ${k.testAlert} - ${k.testAlert ? '1 is what is expected' : 'none sent from this relay yet (fine)'}`,
+    flag(k.storageBand !== (alerts ? 1 : 0), `  Storage-alert level: ${k.storageBand} - ${alerts ? '1 is what is expected' : '0 is what is expected (only production sends storage alerts)'}`),
+    flag(k.alertsToday > (alerts ? 2 : 0), `  Recent alert records: ${k.alertsToday} - ${alerts ? '0 to 2 is what is expected (they expire after 2 days)' : '0 is what is expected (only production sends alerts)'}`),
+    `  Rate-limit counters: ${k.rateLimit} - they expire within 2 hours; a few after recent activity is expected`,
+    flag(k.mistriggers > 1, `  Stray-schedule tally: ${k.mistriggers} - 0 or 1 is what is expected`)];
+  if (proofOnly) out.push(red(`  Revocation proofs without a block: ${proofOnly} - 0 is what is expected`));
+  if (k.unknown.length) {
+    const shown = k.unknown.slice(0, 5).map(n => n.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '{channel}'));
+    out.push(red(`  UNKNOWN keys: ${k.unknown.length} - none is what is expected: ${shown.join(', ')}${k.unknown.length > 5 ? ', …' : ''}`));
+  }
+  return out;
 }
 
 // --- Helpers ---

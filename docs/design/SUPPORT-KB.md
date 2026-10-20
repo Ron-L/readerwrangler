@@ -8,7 +8,11 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-10-16 (through release 7.21.2)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-10-20 (through release 7.23.0)** — all sections human-reviewed (§1–21).
+7.23.0: no user-visible wording changed (the Relay and the app delete leftover sync copies).
+7.22.0: no user-visible wording changed (the Relay's daily storage report).
+7.21.3: Add Bibliography to Wishlist (every author tab; Kindle only; a Language panel first) — new Q in §14 (swept
+late, 2026-10-20: missed at 7.21.3's release).
 7.21.2: Date Added choices (This year / Last year follow the calendar; Earlier year dropdown) — new Q in §5.
 7.21.1: no user-visible wording changed (sync storage cleanup).
 7.21.0: self-hosting / contributor mode — new Q in §14.
@@ -554,6 +558,16 @@ for a change to reach the Relay before Import can read it.
 8. **Collections and read status come FROM the Kindle/Amazon side** — fetch Collections to
    refresh them; they're edited on your Kindle/Amazon, not in RW. Amazon's automatic "read"
    status (fires around 99%) is separate from any collection you happen to name "Read".
+
+**How do I add all of an author's books to my wishlist? (7.21.3)** Open the author's page on Amazon (any tab of it —
+All Books included), click the bookmarklet and choose **⭐ Add Bibliography to Wishlist**. A small panel asks one
+question first: **Language** — only the languages that author has, plus **All languages** — and shows how many
+**Kindle books** match ("… — any already in your library are skipped"). Click **Add to wishlist**. It adds **Kindle
+books only** (no paperbacks, hardcovers or audiobooks) and skips books already in your library, so re-running it after
+an author's new release adds just the new one. The page's own filters, scrolling and "Show More" don't matter — it asks
+Amazon for the author's list directly. Like any wishlist add, the books go straight to the Relay: **Import from Relay**
+brings them in. Before 7.21.3 it was greyed out on the All Books tab and could also add print, audio and
+other-language editions — if an older run left those, delete them by hand.
 
 **I run ReaderWrangler on my own computer (self-hosting) — which relay does it use? (7.21.0)** The normal one, exactly
 like readerwrangler.com: a self-hosted copy behaves like the real site (badge **LOCAL** in the header, so you can tell

@@ -59,7 +59,10 @@ From then on, git runs these checks on every commit and refuses the commit if on
    the stylesheet must also move its version number (otherwise the browser keeps serving the old copy).
 2. **Undefined names** (`check-names.js`) — refuses app code that uses a name nothing defines (a mistake a syntax
    check can't see). Needs `npm i --no-save @babel/core @babel/preset-react` once.
-3. **TODO table of contents** (`check-toc.js`) — TODO.md's table of contents must match its headers.
+3. **Numbers the app and the relay share** (`check-shared-numbers.js`) — `relay-client.js` and `relay/relay-worker.js`
+   must agree on how long uploads live, how many saved copies to keep, the grace for an unfinished copy, and how a
+   time is read out of an id (the relay's nightly cleanup deletes by those rules).
+4. **TODO table of contents** (`check-toc.js`) — TODO.md's table of contents must match its headers.
 
 To skip the checks for one deliberate commit: `git commit --no-verify`.
 

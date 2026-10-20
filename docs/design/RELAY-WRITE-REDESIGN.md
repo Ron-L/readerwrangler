@@ -1,6 +1,6 @@
 # Relay Write Redesign — Atomic, Mailbox-Delivered, Deterministically Merged Sync
 
-**Status:** Phase 1 IMPLEMENTED and released in 7.0.0 (2026-08-17) — worker endpoints, client commit pattern (`relay-client.js`), all 5 fetchers on mailbox letters, app merge-on-import/tombstones/reset runs, bulk-run GC. Verified by `relay/test-phase1.mjs` (39 checks) + a full live pass on the dev worker. Phases 1b (device-state journal) and 2 (Durable Object/quotas) remain design-only. **2026-10-04: storage-leak audit — see §14a** (Restore never reclaims its absorbed run; leftovers are only swept by the next save; the usage email reports one bucket, not the total). Fix 1 shipped 7.21.1; fixes 2–3 shipped (report-only) 7.22.0; deletion is the next release — §14a "Status".
+**Status:** Phase 1 IMPLEMENTED and released in 7.0.0 (2026-08-17) — worker endpoints, client commit pattern (`relay-client.js`), all 5 fetchers on mailbox letters, app merge-on-import/tombstones/reset runs, bulk-run GC. Verified by `relay/test-phase1.mjs` (39 checks) + a full live pass on the dev worker. Phases 1b (device-state journal) and 2 (Durable Object/quotas) remain design-only. **2026-10-04: storage-leak audit — see §14a** (Restore never reclaims its absorbed run; leftovers are only swept by the next save; the usage email reports one bucket, not the total). Fix 1 shipped 7.21.1; fixes 2–3 shipped (report-only) 7.22.0; deleting switched on for both relays 2026-10-20 (7.23.0) — §14a "Status".
 **Date:** 2026-08-13 (design v2, post external review — 2 critical, 4 high, 5 medium findings incorporated; see revision note at end)
 **Scope:** The Cloudflare relay write path (the chunked library store and device-state store). Does **not** change local storage, the UI, or the Amazon scrapers themselves.
 
@@ -129,7 +129,7 @@ A "generation" is one complete version of a store.
 2. **Write the chunks** under `…:{gen}:chunk:{i}`. Each chunk carries `i of N` and a per-chunk `sha256:` (integrity localization only — **not** load-bearing; the manifest's whole-payload checksum is the authoritative check [review, over-eng. #4]).
 3. **Write the manifest last** — `…:{gen}:manifest` = `{ gen, chunkCount N, sha256(whole payload), workerTimestamp, absorbedRuns (canonical only, Section 9d) }`. This single-key put **is the atomic commit**.
 4. **Advance the pointer** — `…:pointer` = `{gen}`, a single-key put. Readers start here (cheap GET, no `list` — [review H4]). A pointer race between concurrent writers is benign: it can only point at an *older complete* generation; readers get slightly-stale-but-consistent data, self-healing on the next write.
-5. **GC, don't accumulate:** the *next* writer deletes generations that are (a) not among the two newest complete, (b) not currently pointed to, and (c) older than a **grace age (~1 h)** — so a slow reader mid-assembly never loses its generation [review M2]. Explicit deletes are fine — the deletes pool (1,000/day) is barely touched [review nit].
+5. **GC, don't accumulate:** the *next* writer deletes generations that are (a) not among the two newest complete, (b) not currently pointed to, and (c) older than a **grace age (~1 h)** — so a slow reader mid-assembly never loses its generation [review M2]. **Revised 7.23.0 (Ron, 2026-10-15): no grace for finished copies beyond the newest 2** — a reader whose copy vanishes falls back to the newest complete one, and the grace let copies pile up without limit during bursts (§14a F2); **unfinished copies (no manifest) keep a 10-minute grace** (another tab's save may be in progress). The worker's nightly cleanup applies the same rules (§14a Status). Explicit deletes are fine — the deletes pool (1,000/day) is barely touched [review nit].
 
 **Reading a store:**
 - GET the pointer → GET that manifest → GET chunks → verify (all N present, whole-payload checksum).
@@ -325,13 +325,34 @@ device-state must be **planned for chunking** — do not assume 25 MB holds for 
 
 **Existing leftovers** are cleared by the first save on each channel after fix 1 ships, or by the sweep once deletion is enabled. Never Import from Relay on dev to "test" this while the Sep 27 orphan test runs are pending.
 
-### Status (2026-10-18)
+### Status (2026-10-20)
 
 - **Fix 1 — SHIPPED in 7.21.1 (2026-10-13).** Reclamation moved into `commitGeneration`, with `absorbedRuns` deduped (F1, F3). Proven on dev.
 - **Fix 2 — SHIPPED in 7.22.0 (2026-10-18).** Storage per namespace (prod + dev, newest row of `date_geq`/`date_leq`), each bucket + the **Total**, "no data" never 0 (F5), decimal MB (F6), and the key-count cross-check. Answered: **Cloudflare's `keyCount`/`byteCount` are the day's MAXIMUM** — so a busy day's figure is its peak, and the next quiet day shows the level it ended at (seen 10-16 → 10-17: dev 288.9 → 253.9 MB with zero activity). The email says "consistent" when live ≤ the day's high.
 - **Fix 3 — SHIPPED REPORT-ONLY in 7.22.0.** Each relay runs its own daily check (dev has its own worker deployment and schedule — the open "dev has no crons" question is settled that way), listing what it *would* delete. It matched the hand inventory 2026-10-14 → 10-17 on both relays (production: exactly the Sep 9 torn save `…21fc`). Schedules are dispatched by their exact text; a schedule that isn't the relay's own does nothing and is counted in red (Cloudflare's schedule incidents, 10-12 → 10-14).
 - **Production's "other" keys identified (2026-10-18):** of 53 keys, 27 were "other" — 11 revoked channels × (blocked record + revocation proof), 3 "first used" records, the test-alert counter, the storage-alert level. All by design. The deleting release names every kind with its expected count.
 - **Next — the deleting release** (TODO "Relay storage", step 4): deletion switched on, and the rule changes on BOTH sides — keep the newest 2 finished copies with **no grace** (the 1 h grace made copies unlimited during bursts — F2's "grace window" case, seen again 2026-10-15), unfinished copies keep a **10-minute** grace (settles §5 / §15's "grace age" question).
+- **Deleting — ON on both relays (2026-10-20, 7.23.0-alpha.3).** Dev since 10-18 (planted test keys: 50 → 20 + 16
+  deleted, 14 kept; the "+1 day" unfinished copy went on its night, 10-19). Production switched with Ron's yes after
+  a week of identical reports (prod worker version `b29af659`; its one item: the Sep 9 torn save `…21fc`). The email
+  says the per-run limit counts storage keys while the list counts items (one copy = several keys).
+
+### Why two cleaners — the app at save time AND the worker nightly (Ron asked, 2026-10-20)
+
+1. **The app cleans first, when it saves.** It has just finished the save, so it knows that moment which copies are
+   now old; storage drops straight back to 2 copies instead of carrying extras (tens of MB each) until night. It has
+   no per-run cap.
+2. **The worker cleans nightly — the safety net for what the app can never do:** a save cut off when the browser
+   closed (torn saves have no next save to sweep them — `…21fc` sat from Sep 9 until the switch), and **a channel whose
+   app never opens again** (the app only cleans when it saves). Its run is capped (`SWEEP_MAX_DELETES` 20 keys,
+   `SWEEP_CALL_CEILING` 45 storage calls — the free plan's per-run limit), so a big burst left to it alone would take
+   several nights. Seen working 10-19: three extra copies left by a branch still on the old 1-hour app rule, removed
+   that night.
+3. **Why not the worker at save time instead?** Possible, but not chosen. The 7.0.0 design deliberately leaves
+   keep-newest-2 to the app ("client discipline", relay-worker.js `handleDeleteGen`) without recording why; the reasons
+   that hold now (Claude, 2026-10-20): the save request stays small, so a cleanup slip can never fail or slow a save,
+   and a save request has the same per-run call limit. App-at-save + worker-nightly covers both "app open" and "app
+   gone" — Ron: "2B addresses my concern".
 
 ---
 
@@ -339,7 +360,7 @@ device-state must be **planned for chunking** — do not assume 25 MB holds for 
 
 - **[verify]** ~~measure a realistic large-library device-state payload size~~ **MEASURED 2026-08-27 (3,119 books): stored 16.98 MB = 67.9% of the 25 MB cap; raw JSON 46.67 MB, compression only 2.7× (dense text/URLs — gzip won't save us). ~1,400-1,500 books of headroom. Verdict: near-term — Phase 1b promoted to the active queue.**
 - **[verify]** does any fetcher consume RW-only per-book fields from the canonical (e.g., `targetPrice` for price alerts)? Gates the Section 4 "Option B" schema diet (not this phase).
-- **[decide]** exact numbers: age cap (3 d?), letter TTL (90 d?), staleness window (24 h?), grace age (1 h?), letter batch size (5 MB?).
+- **[decide]** exact numbers: age cap (3 d?), letter TTL (90 d?), staleness window (24 h?), grace age (1 h?) — **settled 7.23.0: none for finished copies beyond the newest 2, 10 min for unfinished ones** (§5) —, letter batch size (5 MB?).
 - **[decide]** tombstone revival policy (fetch re-finds a permanently-deleted owned book) — owned by `TOMBSTONE-DELETE.md`; this design only requires that tombstones exist and are honored by merges.
 - **[decide]** worker API shape: new endpoints for mail/pointer/generations vs. generalizing the existing chunk/manifest endpoints. (Implementation detail, but affects Phase 0 testing.)
 - **[verify]** (§14a) Cloudflare documents no update cadence or lag for `kvStorageAdaptiveGroups` ("adaptive sampling"). Confirm with the per-namespace query + `keyCount` check that the newest daily row is current, before trusting byte counts without per-key size tracking.

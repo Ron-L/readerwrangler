@@ -130,6 +130,9 @@ Bypass (Ron's call only): `git commit --no-verify`.
   "shareBtnRef is not defined" crash), and any `readerwrangler.html` inline script that doesn't parse. Page-level
   names are derived from `readerwrangler.html`'s scripts, so new modules need no upkeep. Needs
   `npm i --no-save @babel/core @babel/preset-react` (fails loud if missing).
+- **Shared-numbers check** (`git-hooks/check-shared-numbers.js`), when `relay-client.js` or `relay/relay-worker.js` is
+  staged: refuses a commit where the app and the worker disagree on the 90-day upload life, keep-2, the unfinished-copy
+  grace, or the id-time format — the worker's nightly cleanup deletes by those rules (7.23.0; decided Ron 2026-10-14).
 - **TODO table-of-contents check** (`git-hooks/check-toc.js`), when
   `TODO.md` is staged: refuses a table of contents that doesn't match the headers. The table is built by the VS Code
   extension "Auto Markdown TOC" only on a VS Code save — edits made any other way leave it stale. Fix: Ron saves the
