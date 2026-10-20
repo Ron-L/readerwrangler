@@ -41,6 +41,7 @@
         - [See an author's other books without leaving your spot](#see-an-authors-other-books-without-leaving-your-spot)
         - [Delete a book from All Books (removes it everywhere)](#delete-a-book-from-all-books-removes-it-everywhere)
         - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
+        - [Restore the previous selection after a stray click or Select All](#restore-the-previous-selection-after-a-stray-click-or-select-all)
       - [Cancelling a new folder that a filter hides should discard it](#cancelling-a-new-folder-that-a-filter-hides-should-discard-it)
       - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
       - [Book details window: Save only when something changed; offer Save before closing with unsaved changes](#book-details-window-save-only-when-something-changed-offer-save-before-closing-with-unsaved-changes)
@@ -960,6 +961,23 @@ _Why it matters:_ Lets you identify a book mid-scan and carry on with your selec
 - With several books selected, right-click one → **Open** shows that book's details **without** clearing the selection.
 - Today, opening from a multi-selection opens the whole selection as a shelf you step through.
 - Name the menu item per a UX pass.
+
+##### Restore the previous selection after a stray click or Select All
+
+_Why it matters:_ A careful multi-selection (Ctrl-click by Ctrl-click) is lost to one stray click, Ctrl+A, Esc or a
+folder switch — and nothing brings it back.
+
+**What you'd get** (Ron + UX, 2026-10-20)
+1. **Restore previous selection** — brings back the selection you had just before it was replaced or cleared. One
+   level (the one just lost), like Photoshop's **Select → Reselect**.
+2. Reachable from the right-click menu and a keyboard shortcut (pick one that's free when built).
+3. **Not part of Undo.** Ctrl+Z stays for changes to your library; selection is view state, and putting every click
+   into undo would make Ctrl+Z step through clicks before reaching a real change — the ratified rule in
+   docs/design/UNDO-MODEL.md ("view state … not undoable").
+
+**Why now** (2026-10-20): Tag from Collections gets undo for its own choices in 7.24.0 (its checkboxes are a draft of
+what Apply will do — docs/design/TAG-FROM-COLLECTIONS.md, build list item 7). Ron asked for the same safety "everywhere
+(in a folder for instance)" — this is that, in the convention that fits a selection.
 
 #### Cancelling a new folder that a filter hides should discard it
 
