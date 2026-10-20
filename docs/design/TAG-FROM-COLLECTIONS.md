@@ -9,6 +9,79 @@ on the books in that collection. Re-run after new purchases: the right side show
 
 ---
 
+## 7.22.1 build list — agreed, not yet built
+
+_The working plan (Ron + Claude, 2026-10-19). **A topic isn't closed until its line is here** — written in the same
+breath as the agreement, so it survives a break or a compaction. ✅ = built in an alpha (say which). The test steps
+(§5) are written from this list; the reasoning lives in the section each line points to._
+
+**The window**
+1. **Layout:** Select All | Some | None moves into the left pane's header; both checkboxes move into the right pane's
+   header (on one line; the "click a chip…" hint goes into the column headers' tooltip); the top bar is removed.
+   (Ron, 2026-10-19 — §2.11 item 1; Ron judges the right header's crowding when he sees it.)
+2. **The "No tags to remove…" note moves to the status line at the bottom** (where "Will create 0 new tags and tag 7
+   books" is), instead of the end of the left list where it scrolls out of sight. (Ron's proposal, alpha.3 feedback
+   #1; agreed in principle with tonight's rule "notes aren't pinned" — §2.11 item 2. Exact wording: topic 3 below.)
+
+**Data (its own alpha — it touches the data layer and its tests, so it gets its own test round)**
+3. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
+   arrival (old backups included) and removed from the field table. (Ron + UX, 2026-10-19 — §2.8 item 5.)
+
+**At release**
+4. Merge main into the branch first (it has the gate fix `37018df` and the TODO-review commits).
+5. CHANGELOG (Ron's word on the copy).
+6. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
+   (§2.5, help notes).
+7. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
+   deleted with the release's ✅ sweep.
+
+**Checked and NOT in 7.22.1**
+- The double-spaces-in-author-names fix — its own TODO ("Stray double spaces in author names create duplicate
+  authors"); it only shares the place in code with item 3. Verified in the session record 2026-10-19: never agreed for
+  this release.
+- The shared scrolling list with fixed top/bottom, and the Tags filter's "Manage Tags…" — deferred to the TODO (§7).
+
+## alpha.3 feedback — topics still to discuss, in this order
+
+_Ron's alpha.3 test notes (2026-10-19), grouped and ordered by Claude so each decision builds on the one before; "your
+N" / "test N" are the numbers in Ron's notes. Topic 1 (layout) is agreed → build list item 1. When a topic is agreed,
+its outcome goes into the build list and the topic is struck out here. My position on each is given when we reach it._
+
+2. **Wording: the two checkboxes, the "Also"s, "wizard" in the name** (your 2, 4, 5).
+   - Ron: "Also remove tags whose book left that collection on Kindle" took three reads. Suggests the checkbox say
+     **"Remove tags from books to match Kindle collections"**, with the long explanation as its tooltip.
+   - Ron: shorten "Also show books that already have their tag" to **"Also show books already tagged"** or "…already
+     tagged by wizard" — and if so, put "wizard" in the window's title, its Tools menu name, the link in Manage Tags,
+     the help, and anywhere else it's named.
+   - Ron: is either checkbox's "Also" really useful?
+3. **The "No tags to remove" message** (your 1). Ron: at the end of the left list it's subtle — unless you're scrolled
+   to the bottom (or the list is short), the only clue is the scrollbar changing a little. Put it in the status line
+   instead. (Agreed in principle → build list item 2; left to settle: its exact words.)
+4. **Seeing the removals** (your 3). Ron: how do I easily see the books whose tags will be removed? Show the tag on the
+   right with a minus ("− Tag"). With "Also show books already tagged" off you'd see only pluses and minuses; if
+   sorting kept **+TagA and −TagA apart**, the removals could be isolated easily.
+5. **Sorting: multiple keys, three-state cycle, Shift-click** (test 2). Ron: clicking the column's arrow doesn't reverse
+   the order; the label sort can't be turned off; clicking Title removes the label sort (it shouldn't); Title's order
+   can't be reversed. Wants every column usable as a key — off / ascending / descending — and **Shift-click adds the
+   next key**, like the list view's sorting. (UX opinion requested.)
+6. **Skips remembered after unchecking and re-checking a collection** (test 2). Ron: unchecked Non fiction, re-checked
+   it — the earlier skipped books were still skipped. He expected them reset, especially as they can be hidden at the
+   bottom of the list.
+7. **Toasts for create + apply, and "tag" in the undo text** (test 4). Ron: tagging showed no toast, but its undo did
+   — they should match. Better: one combined toast, *"Created tag xyz and added it to 'Title'"* (or "to N books").
+   The undo toast read *Undone: Add "zzz" to 'All Manner of Thing…'* — put the word **tag** before the tag's name
+   (a tag, collection, folder and Book List can all be called "Read").
+8. **The right-click Tags list hides tags already on the book** (test 5). Ron: after the wizard added "Read", he
+   couldn't re-apply "Read" by hand (to make it his, so the wizard never removes it) — the list doesn't offer tags a
+   book already has; you must remove it first, then add it (right-click, or book details). Odd restriction: should
+   the menu offer a wizard-added tag for applying by hand, or would that confuse? If not, the help must describe the
+   limitation and the 2 ways round it. (UX opinion requested.)
+9. **Tag order in the filter and the right-click list** (your note). Ron: the Tags filter and right-click → Tags are
+   NOT in Manage Tags order; book details → Tags is. (Already filed — §7 and the TODO "One shared tag picker".)
+10. **Tooltips running into Chrome's developer tools** (a note, developers only). Ron: with developer tools docked on
+    the right, tooltips run into them; they stay inside the browser window, but should stay inside their pane. Not a
+    big deal.
+
 ## 1. Why v2
 
 1. **Two click targets per row, nothing to tell them apart.** In v1 each collection row has a **checkbox** ("use this
@@ -30,6 +103,8 @@ on the books in that collection. Re-run after new purchases: the right side show
 ## 2. The design
 
 ### 2.1 Layout
+
+_As built in alpha.3. Build list item 1 changes it: the top bar goes; its controls move into the two pane headers._
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -113,7 +188,7 @@ wizard no longer ties it to a collection (see 2.5).
    **current name exactly matches a collection** the book is no longer in. (Today the removal check compares computed
    keys, readerwrangler.js ~7382 and ~12808 — switch both to the exact-name rule.) Nothing here limits deleting or
    renaming tags in Manage Tags.
-4. **Help notes:** to remove a tag from many books, use **All Books → filter by the tag → select → right-click → Tags**
+5. **Help notes:** to remove a tag from many books, use **All Books → filter by the tag → select → right-click → Tags**
    — goes into SUPPORT-KB (it feeds the help assistant).
 
 ### 2.6 Tag identity — exact text, everywhere in the app (Ron + UX, 2026-10-18)
@@ -184,9 +259,34 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
 - **Tagging books** (right-click, book details): **Add "Read" instead** / **Create "read"** — both do something.
 - **Manage Tags** (nothing to tag): **Cancel** / **Create "read"** — "Use 'Read'" promised an action that didn't exist.
 
+### 2.11 alpha.3 test round — the reasoning behind the decisions (Ron + UX, 2026-10-19 evening)
+
+_The outcomes are in the build list at the top; the open topics, with Ron's notes, are listed just below it._
+
+1. **Layout — controls sit with what they change (agreed):** Select All | Some | None moves into the LEFT pane's header
+   (it only changes the left checkboxes — across the top it read as global, misleading now that the right side has
+   its own per-book clicks); both checkboxes move into the RIGHT pane's header (both change what the right side
+   shows); the top bar disappears. Keep the right header compact (checkboxes on one line; the "click a chip…" hint
+   into the column headers' tooltip) — Ron judges it when he sees it.
+2. **A list's actions stay visible (agreed, refined with Ron's yes the same evening):**
+   1. **Found in the code:** the Tags **filter** already HAS "Manage Tags…" at its bottom — the whole menu scrolls
+      as one piece (capped at 300px), so with ~a dozen tags it sits below the cut-off and looks missing; "Select All /
+      Clear All" at its top scrolls away too. Right-click → Tags does it right (only the tag rows scroll).
+   2. **The rule — three kinds:** actions on the whole list (Manage…, Create…, Select All / Clear All) are **always
+      visible**, fixed above/below the scrolling part; **notes** about the list are NOT pinned (a fixed note costs a
+      line forever and stops being read — put it where status is read); ordinary rows scroll.
+   3. **In 7.22.1 — only this window's "No tags to remove…" note.** It's part of this window, so it doesn't wait for
+      the sweep; by the rule it's a note, not an action, so it isn't pinned — it moves to the bottom status line
+      (Ron's own proposal; exact words in topic 3).
+   4. **Deferred to the TODO (Ron, same evening):** the mechanism — ONE shared scrolling list with a fixed top slot and
+      a fixed bottom slot — and the Tags filter's fix with it. The filter has always scrolled this way (no regression;
+      scrolling down is the workaround), building the piece now would grow this release again, and it pairs with
+      "One shared tag picker", so both tag lists move onto it together. TODO.md (Polish): "Long lists keep their
+      actions in view (Manage…, Select All) while you scroll".
+
 ## 3. Data model (unchanged from v1)
 
-- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.22.1-alpha.4). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
+- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.22.1 — build list item 3). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
   you saw it, so it isn't "new" next time. Internal, not shown, not editable.
 - `book.collectionTags = ["read", …]` — tag keys **this wizard** assigned. Removal candidates come only from here; a
   declined removal drops the key from `collectionTags` only (the tag becomes yours).
@@ -228,39 +328,12 @@ Not creation or renaming (checked): first load ~4446, Reset ~6313, Restore ~6660
 1. **No "skip all in this column"** on the headers — unchecking the collection does that; one control per job.
 2. **Chips reuse the app's existing tag-chip style** ("ABSOLUTELY") — a tag looks the same here as everywhere else.
 
-### 2.11 alpha.3 test round — decisions so far (Ron, 2026-10-19 evening; discussion continues topic by topic)
-
-1. **Layout — controls sit with what they change (agreed):** Select All | Some | None moves into the LEFT pane's header
-   (it only changes the left checkboxes — across the top it read as global); both checkboxes move into the RIGHT pane's
-   header (both change what the right side shows); the top bar disappears. Keep the right header compact (checkboxes
-   on one line; the "click a chip…" hint into the column headers' tooltip) — Ron judges it when he sees it.
-2. **A list's actions stay visible (agreed, refined with Ron's yes the same evening):**
-   1. **Found in the code:** the Tags **filter** already HAS "Manage Tags…" at its bottom — the whole menu scrolls
-      as one piece (capped at 300px), so with ~a dozen tags it sits below the cut-off and looks missing; "Select All /
-      Clear All" at its top scrolls away too. Right-click → Tags does it right (only the tag rows scroll).
-   2. **The rule — three kinds:** actions on the whole list (Manage…, Create…, Select All / Clear All) are **always
-      visible**, fixed above/below the scrolling part; **notes** about the list are NOT pinned (a fixed note costs a
-      line forever and stops being read — put it where status is read); ordinary rows scroll.
-   3. **In 7.22.1 — only this window's "No tags to remove…" note.** It's part of this window, so it doesn't wait for
-      the sweep; by the rule it's a note, not an action, so it isn't pinned — it leans to the bottom status line (to
-      be settled in topic 3).
-   4. **Deferred to the TODO (Ron, same evening):** the mechanism — ONE shared scrolling list with a fixed top slot and
-      a fixed bottom slot — and the Tags filter's fix with it. The filter has always scrolled this way (no regression;
-      scrolling down is the workaround), building the piece now would grow this release again, and it pairs with
-      "One shared tag picker", so both tag lists move onto it together. TODO.md (Polish): "Long lists keep their
-      actions in view (Manage…, Select All) while you scroll".
-3. **Still to discuss, in this order:** wording of the two checkboxes / the "Also"s / "wizard" in the name; the removal
-   message's place; seeing the removals (− chips, +Tag vs −Tag sorting apart); multi-key sorting (3-state cycle per
-   column, Shift-click adds a key, like the list view); skips remembered after unchecking + re-checking a collection;
-   toasts (one combined "created tag X and added it to …", and the word "tag" in undo text); the right-click Tags list
-   hiding tags already on a book (a wizard-added tag can't be re-applied by hand); tag order in the filter and the
-   right-click list (follow Manage Tags — already filed); tooltips running into Chrome's developer tools (dev-only).
-
 ## 7. Related, filed separately (not in 7.22.1)
 
 - **One shared scrolling list with fixed top/bottom, then every list moves onto it** so its actions stay in view
   (Ron, 2026-10-19) — TODO.md (Polish): "Long lists keep their actions in view (Manage…, Select All) while you
-  scroll". Starts with the Tags filter; right-click → Tags is the model. Only this window's note is in 7.22.1 (§2.11).
+  scroll". Starts with the Tags filter; right-click → Tags is the model. Only this window's note is in 7.22.1
+  (build list item 2).
 
 - **Tag order everywhere follows Manage Tags** (Ron + UX, 2026-10-18): the Tags filter and every tag list show tags in
   the order Manage Tags is set to; the hidden header-click cycle becomes a visible **Order: A→Z | Most used | Manual**;
