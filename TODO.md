@@ -654,21 +654,24 @@ before building; this task is the plan. One concern per alpha (Law 6), smallest 
 
 _Why it matters:_ A wrong date label can lead you to restore the wrong backup.
 
-**Already done**
-- "yesterday" and "N days ago" labels exist (7.4.0).
-
-**Left**
-- The age is counted in 24-hour blocks (readerwrangler.js ~12174), which is exactly the bug: a backup from 6:54 PM yesterday reads "today" until 6:54 PM. Compare local calendar days instead.
-
 **What you see**
 - A backup from 9/21 6:54 PM was labeled **"— today"** on 9/22. Not a time-zone effect: it was yesterday everywhere.
 
-**Likely cause**
-- "Within about 24 hours = today" instead of comparing calendar days — or a mix-up between UTC and local time.
+**Verified in code** (2026-10-20): the age is counted in 24-hour blocks — `Math.floor((now − backup) / 86400000)`,
+readerwrangler.js ~12228 — so a backup from 6:54 PM yesterday reads "today" until 6:54 PM today. The class (every
+day-count in the app): the restore dialog = **the bug**; `formatRelativeTime` in uiHelpers.js has the same bug but
+**nothing calls it** (dead code); `getRelativeTime` ("3h ago", "2d ago") and the freshness thresholds are elapsed time,
+not calendar words — fine.
 
-**To do**
-1. Verify first: find where the "— today" label is made.
-2. Compare by calendar day in local time, and add "yesterday" and "N days ago".
+**Decided** (Ron + UX, 2026-10-20) — a 7.24.x fix on its own `fix/` branch, not done during the review (Ron: "let's not
+fall for the quickie trap again")
+1. **Calendar days, local time.** Ron: *at 12:01 AM, a backup from 2 minutes earlier (11:59 PM) is "yesterday".*
+2. **One shared helper in uiHelpers.js** that counts local calendar days between two dates (through local midnights, so
+   a 23- or 25-hour day at a clock change doesn't miscount) and gives the label: today / yesterday / N days ago / N
+   weeks ago. The restore dialog calls it.
+3. **Delete the dead `formatRelativeTime`** so nobody reuses the buggy copy.
+4. **An automated test** across midnight (11:59 PM vs 12:01 AM) and a daylight-saving date. Ron's check: any backup
+   file saved yesterday reads "yesterday".
 
 #### Trusting the fetch
 
