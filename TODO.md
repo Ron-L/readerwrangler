@@ -209,46 +209,14 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
    **FIRST: merge main into `feature/relay-worker-b2`** — the branch predates `git-hooks/` (2026-10-15), and with
    `core.hooksPath git-hooks` a commit there would run NO checks, silently. Resolve the doc conflicts (TODO.md,
    CLAUDE.md, SESSION-TOOLING.md) in main's favor. Then: drop "-alpha" from `WORKER_VERSION`, update RELAY-WRITE-REDESIGN §14a (fixes 2 and 3 built as report-only; its two open questions are answered — each relay checks its own storage, and Cloudflare's key count is a daily maximum), CHANGELOG (your word on the copy), squash / tag / push to both, post-mortem.
-4. 🚧 **Deleting = the next release, on its own branch** (`feature/relay-delete`, 7.23.0 — building 2026-10-18) — it also changes the **app's** cleanup rule (decided Ron 2026-10-15):
-   - **Status 2026-10-18:** alpha.2 on DEV (deleting), production still report-only. **Dev tests passed:** 50 labeled
-     keys planted on channel `TEST-PLANTED-2026-10-18` (each says so; 7-day expiry) → on-demand run 1 deleted exactly 20
-     (budget), run 2 exactly the remaining 16; the 14 "keep" keys untouched. Live relay test 59/59. App rule on a real
-     save: 3 saves within minutes → 2 phone copies, the few-minutes-old third deleted at once (the old rule kept it an
-     hour). alpha.1's red "auto-blocked 2" was my wrong inference — two 2026-09-01 owner revocations without proofs;
-     alpha.2 reads each unpaired block's recorded reason.
-   - **Status 2026-10-20:** dev's 10-19 night deleted the "+1 day" unfinished test copy on schedule, plus three real
-     extra copies left by a branch still on the old 1-hour app rule (the safety net working). **alpha.3 on BOTH relays,
-     deleting** (Ron's yes): dev `c4e26196`, production `b29af659` (`CLEANUP = "delete"`); the email now says the limit
-     counts storage keys, the list counts items.
-   - **NEXT:** tonight's emails — production should delete exactly `…21fc` (the Sep 9 torn save) → release 7.23.0
-     (drop "-alpha" from `WORKER_VERSION` and redeploy both, CHANGELOG backend-only in Ron's words, squash / tag / push
-     to both, post-mortem).
+4. ✅ **Released 7.23.0 (deleting), 2026-10-20** — both relays delete leftovers nightly (keep the newest 2 finished
+   copies, no grace; unfinished copies 10 minutes; ≤20 keys per run), and the app applies the same rule at each save
+   (relay-client.js; the commit check `git-hooks/check-shared-numbers.js` keeps the two in step). Proven on dev
+   10-18 → 10-19 (planted test keys; three real extras); production switched 2026-10-20. Every key kind is named in the
+   email with its expected count. Why two cleaners: RELAY-WRITE-REDESIGN §14a.
+   - **Still open:** confirm production's first deleting night deletes exactly `…21fc` (the Sep 9 torn save).
    - Small follow-up: `relay/test-phase1.mjs` leaves one unimported run on the `22222222…` test channel each run (17 → 18
      on 10-18); they expire after 90 days — make the test clean up after itself.
-   - **Keep only the newest 2 finished copies** (+ the live one); delete older ones **immediately — no one-hour grace**.
-     Why: nothing needs copies 3+ — a reader whose copy vanishes mid-download falls back to the newest complete copy
-     (relay-client.js `readCanonical` ~729–750), and the grace made copies unlimited: each save adds ~35 MB (library +
-     phone copy), so a burst of fetch → Import cycles could stack hundreds of MB (2026-10-15: 3 extra phone copies).
-   - **Unfinished copies (no manifest yet) keep a grace, shortened to 10 minutes** — one may be another tab's save in
-     progress. (Settles the design's open "grace age (1 h?)" question — update RELAY-WRITE-REDESIGN §5 / §15.)
-   - Where: `commitGeneration` + the device-state twin in relay-client.js (`GC_GRACE_MS`), and the worker's check
-     (`SWEEP_GRACE_MS` for extras → 0, unfinished → 10 min) — same rule both sides (see "Numbers the app and relay
-     must agree on"). Ships with the worker's deleting step so both change in lockstep.
-   The deleting itself:
-   - It needs a per-run budget: a free-plan run gets 50 outside calls, and every storage call counts — one 18-part leftover alone is 19 deletes. Spread big cleanups over days.
-   - Test on dev with **deliberately planted** leftovers on the test channel `22222222…` (dev has none of its own); confirm it removes exactly those; a few days on dev; then production.
-   - **The report names every kind of key, each with whether its count is EXPECTED** (Ron, 2026-10-18 — today's
-     email lumps 27 of production's 53 keys as "other"). Production on 2026-10-18 held, all by design: 11 blocked
-     channels + 11 revocation proofs (one pair per revoked channel — Ron's credential rotations), 3 "first used"
-     records, 1 test-alert counter, 1 storage-alert level. Wording per kind, e.g.:
-     - "Revoked channels: 11 (blocked records 11, revocation proofs 11 — expected: always in pairs)"
-     - "First-used records: 3 — expected: one per channel that has ever saved"
-     - "Test-alert counter: 1 — 1 is what is expected"
-     - "Storage-alert level: 1 — 1 is what is expected (production only; dev expects 0)"
-     - Also: rate-limit counters (expire within 2 hours — a few during activity is expected), today's alert records
-       (production only, 0–2 expected), the stray-schedule tally (0 or 1).
-     - **Anything outside these expectations — or any key of a kind the report doesn't know — shows in red.**
-     - Where: `groupKeys` / the storage-check section of relay-worker.js (~1200–1230, ~1323).
 5. **Then C.**
 
 **Lessons learned**
