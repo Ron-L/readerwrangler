@@ -785,6 +785,10 @@ a recovery moment — exactly when a mess in the Inbox hurts most.
    imported — it works on your real library.
 4. **Independent of the batch's foundation** ("Fetch should update books it already knows") — it's about where Import
    puts books, not what kind they are; build it whenever convenient.
+5. **Say it's a backstop, in the code and when it fires** (Ron, 2026-10-20): a comment at the check explaining why it
+   exists (books and folders kept in two stores can get out of step — the Sep 3 case), and a console message when it
+   actually keeps books out of the Inbox, e.g. *"Inbox backstop: 3,076 books new to the book store are already in
+   folders — not added to the Inbox"* — so a real out-of-step event is visible, not silent.
 
 **How (technical)**
 - Filter the Import's `newBookIds` (readerwrangler.js ~5603) to books in no folder. The `getAllBookIdsInFolders()`
@@ -797,8 +801,18 @@ _Why it matters:_ A book you just bought shouldn't stay hidden in the Trash.
 **What you'd get**
 - When a book in the Trash becomes owned, it comes out of the Trash automatically. (Ron: "YES! Include it.")
 
+**Decided** (Ron + UX, 2026-10-20)
+1. **Built right after "Fetch should update books it already knows", on the same path:** once one function decides
+   "this book is now Owned", leaving the Trash is what follows from that answer — every route to Owned (library walk,
+   purchase backstop, Import merge) gets it, with nothing extra to remember.
+2. **It goes back where it lived before the Trash** — what Trash → Restore already does (since 7.11) — and the
+   fetch / Import summary says so: *"1 book you bought was in the Trash — restored to 'Sci-Fi'"* (see the two summary
+   tasks below).
+3. **Not the emptied-Trash case:** a book permanently deleted and then bought again is the permanent-delete rule's job
+   (docs/design/TOMBSTONE-DELETE.md: it comes back if the new purchase is later than the deletion).
+
 **How (technical)**
-- Lives in storage.js (also listed under "Fetcher odds and ends" in Soon).
+- Lives in storage.js (the Import merge), via the one ownership function.
 
 ##### Fetch summary should report books you bought
 
@@ -1389,14 +1403,13 @@ _Why it matters:_ An unexplained code string is repeated in four places; one nam
 _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
 
 **The list**
-1. A live positive test of an ownership **upgrade**.
-2. Un-trash on ownership upgrade (also a task in "On hold").
-3. Fix the "772%" figure in the details-filled ratio.
-4. The elapsed time freezes during the "Checking Relay" (both lines) and "Recovering" phases — it only repaints when the phase or progress changes. (Ron, 2026-09-03, twice.)
-5. **A minimum pause between requests** (~400 ms). Today it's 0 because network round-trips slow things naturally — but if Amazon's servers ever got faster, we'd hammer them. Decided earlier and never recorded until 2026-09-04.
+1. Fix the "772%" figure in the details-filled ratio.
+2. The elapsed time freezes during the "Checking Relay" (both lines) and "Recovering" phases — it only repaints when the phase or progress changes. (Ron, 2026-09-03, twice.)
+3. **A minimum pause between requests** (~400 ms). Today it's 0 because network round-trips slow things naturally — but if Amazon's servers ever got faster, we'd hammer them. Decided earlier and never recorded until 2026-09-04.
 
 **How (technical)**
-- Item 2 lives in storage.js. Item 5: `FETCH_DELAY_MS`.
+- Item 3: `FETCH_DELAY_MS`. (Two items moved out 2026-10-20: the live ownership-upgrade test is now in "Fetch should
+  update books it already knows", un-trash on upgrade is "Buying a book that's in the Trash should bring it back".)
 
 #### Relay Setup's connection test checks the wrong relay on dev
 
