@@ -1133,14 +1133,23 @@ _Why it matters:_ An action at the end of a long list scrolls out of sight — i
 
 **The mechanism, not a cleanup:** ONE shared scrolling list with a fixed top slot and a fixed bottom slot. Fixing
 each list by hand doesn't stop the next new list from repeating it; with one shared piece, every new list gets it.
-1. **Now (7.22.1, Tag from Collections branch):** build the piece; the Tags filter and right-click → Tags become its
-   first two users (also removes the filter's two copies of the "Manage Tags…" link — one for no tags, one for some).
-2. **The sweep (this task):** move every other list with top/bottom actions onto it. Find them with the comb — two
-   independent searches (lists that scroll; trailing "Manage…" / "Create…" / "…" items) plus a walk of every menu,
-   right-click menu, dropdown and dialog list. Publish the list of places before calling it done.
+1. **Build the piece**, then move every list with top/bottom actions onto it.
+2. **Known places so far** (found 2026-10-19 — a start, not the full list):
+   1. **The Tags filter** (bar above the books) — **broken:** the whole menu scrolls as one piece (capped at 300px,
+      readerwrangler.js ~9868–9877), taking "Select All / Clear All" (top, ~9906) and "Manage Tags…" (bottom, ~9977)
+      out of sight. It also has two copies of the "Manage Tags…" link (no tags ~9900 / some tags ~9977) — make one.
+   2. **Right-click a book → Tags** — **already right, the model:** only the tag rows scroll (~19857); "Manage Tags…"
+      sits below them (~19933).
+   3. **Tag from Collections' "No tags to remove…" note** — handled in 7.22.1, not here: it's a note, so it moves to
+      the window's status line rather than being pinned.
+3. **Find the rest with the comb** — two independent searches (lists that scroll; trailing "Manage…" / "Create…" / "…"
+   items) plus a walk of every menu, right-click menu, dropdown and dialog list. Publish the list of places before
+   calling it done.
+4. **Pair it with "One shared tag picker"** (Small fixes) so both tag lists move onto the piece together.
 
 **Related:** "The 'Save results' menu runs off the screen" (above — the same list could carry its fit-and-scroll
-fix) and "One shared tag picker" (Small fixes — it would sit on this piece).
+fix) and "One shared tag picker" (Small fixes — it would sit on this piece). Deferred from 7.22.1 by Ron, 2026-10-19
+(no regression; scrolling down is the workaround).
 
 #### Removing a recent search should offer Undo
 
