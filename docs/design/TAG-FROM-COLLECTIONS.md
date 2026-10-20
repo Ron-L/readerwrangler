@@ -54,31 +54,49 @@ breath as the agreement, so it survives a break or a compaction. ✅ = built in 
    shows as **"− Read"** (amber) in its column (click = keep, shown struck through), and with "Show books already
    tagged" off the right side lists only rows with a change. Two ways to isolate removals, both from agreed pieces:
    - **sorting:** each mark sorts as its own group (item 4) — proposed order **−, +, struck through, ↻, ✓, blank**
-     (removals first: the riskiest change); settled in topic 5;
+     (removals first: the riskiest change); settled in topic 5 → item 6;
    - **the left checkboxes:** **None** for the collections, removal tags left ticked → the right side shows only the
      books losing a tag (works today: the right side is built from whatever is ticked). Said in the column headers'
-     tooltip and the help notes (item 9), not a new button.
+     tooltip and the help notes (item 10), not a new button.
    - **Test with a real case** (Ron has none): on the Kindle / Manage Your Content, take one book Tag from Collections
      tagged out of its collection → Download Collections → Import → it shows "− Tag"; afterwards put it back and fetch
      again. Real data, reversible, nothing planted by hand. (→ §5.)
 
+6. **Sorting — ONE shared behavior for this tool AND the list view** (topic 5, Ron chose option (a), 2026-10-20).
+   - **Mechanism:** the list view's header-click rules (readerwrangler.js ~16384) move into ONE shared helper; both
+     places call it — learned once, can't drift.
+   - **Rules (the list view's today, plus a third state):** click = that column becomes the only key; click again =
+     reversed; **third click = off**. Shift-click = add as the next key (up to 3); Shift-click again = reversed; third
+     Shift-click = that key removed. Headers show ▲ / ▼ with a small 2 / 3 on later keys; header tooltip: "Click to
+     sort • Shift+Click to add a sort key".
+   - **"Off" falls back to the view's default:** here Title A–Z; in the list view whatever that view starts with today
+     (All Books: Date Added, newest first; the library / Searches area: Name A–Z; a folder: Manual order). The list
+     view's ✕ "Return to Manual Order" stays.
+   - **This changes the list view:** today a third click there just flips the direction again; now it turns the sort
+     off. (Ron accepted the scope: one behavior beats two.)
+   - **A tag column sorts by its marks**, ascending: **− → + → struck through → ↻ → ✓ → blank** (removals first —
+     the riskiest change); descending reverses. Title: A–Z / Z–A. (Order as proposed; Ron judges it in testing.)
+   - Fixes Ron's test-2 notes: the arrow now reverses; any key can be turned off; Shift-click Title keeps the tag key
+     (a plain click replacing the sort is the spreadsheet rule — said in the tooltip).
+
 **Data (its own alpha — it touches the data layer and its tests, so it gets its own test round)**
-6. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
+7. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
    arrival (old backups included) and removed from the field table. (Ron + UX, 2026-10-19 — §2.8 item 5.)
 
 **At release**
-7. Merge main into the branch first (done once 2026-10-20 at `b7c871c`; repeat for anything main gains after).
-8. CHANGELOG (Ron's word on the copy).
-9. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
+8. Merge main into the branch first (done once 2026-10-20 at `b7c871c`; repeat for anything main gains after).
+9. CHANGELOG (Ron's word on the copy) — includes the list view's sorting change (item 6: a third click turns a sort
+   off).
+10. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
    (§2.5, help notes) — plus the ↻ / ✓ legend, the two checkboxes' meaning (items 3–4) and how to see only the
-   removals (item 5). The commit check now refuses the release unless the help notes' stamp says "through release
-   7.24.0".
-10. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
+   removals (item 5), and sorting's third click (item 6 — grep the KB's sorting answers in §4). The commit check now
+   refuses the release unless the help notes' stamp says "through release 7.24.0".
+11. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
    deleted with the release's ✅ sweep.
 
 **Checked and NOT in 7.24.0**
 - The double-spaces-in-author-names fix — its own TODO ("Stray double spaces in author names create duplicate
-  authors"); it only shares the place in code with item 6. Verified in the session record 2026-10-19: never agreed for
+  authors"); it only shares the place in code with item 7. Verified in the session record 2026-10-19: never agreed for
   this release.
 - The shared scrolling list with fixed top/bottom, and the Tags filter's "Manage Tags…" — deferred to the TODO (§7).
 
@@ -96,10 +114,9 @@ its outcome goes into the build list and the topic is struck out here. My positi
    the left list it's subtle — the only clue is the scrollbar changing a little; put it in the status line.)
 4. ~~**Seeing the removals** (your 3).~~ **Agreed 2026-10-20 → build list item 5.** (Ron: show a "− Tag"; with the
    show-tagged box off, only pluses and minuses; sort +TagA and −TagA apart.)
-5. **Sorting: multiple keys, three-state cycle, Shift-click** (test 2). Ron: clicking the column's arrow doesn't reverse
-   the order; the label sort can't be turned off; clicking Title removes the label sort (it shouldn't); Title's order
-   can't be reversed. Wants every column usable as a key — off / ascending / descending — and **Shift-click adds the
-   next key**, like the list view's sorting. (UX opinion requested.)
+5. ~~**Sorting: multiple keys, three-state cycle, Shift-click** (test 2).~~ **Agreed 2026-10-20 → build list item 6.**
+   (Ron: the arrow didn't reverse; the label sort couldn't be turned off; Title replaced the label sort; wants off /
+   ascending / descending per column and Shift-click for the next key, like the list view.)
 6. **Skips remembered after unchecking and re-checking a collection** (test 2). Ron: unchecked Non fiction, re-checked
    it — the earlier skipped books were still skipped. He expected them reset, especially as they can be hidden at the
    bottom of the list.
@@ -337,7 +354,7 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
 
 ## 3. Data model (unchanged from v1)
 
-- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.24.0 — build list item 6). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
+- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.24.0 — build list item 7). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
   you saw it, so it isn't "new" next time. Internal, not shown, not editable.
 - `book.collectionTags = ["read", …]` — tag keys **this wizard** assigned. Removal candidates come only from here; a
   declined removal drops the key from `collectionTags` only (the tag becomes yours).
