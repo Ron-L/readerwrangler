@@ -16,7 +16,7 @@ on the books in that collection. Re-run after new purchases: the right side show
 
 ## Round 2 build list — agreed, not yet built (filed in the TODO; was "7.24.0 build list")
 
-_2026-10-20: 7.24.0 grew into a minor release and 7.23.0 shipped first → v2 shipped as **7.24.0**, and these items moved
+_2026-10-20: 7.22.1 grew into a minor release and 7.23.0 shipped first → v2 shipped as **7.24.0**, and these items moved
 to a later release (Ron: "declare that part done and log the rest under the TODO"). "7.24.0" below means the release
 these were first planned for; "At release" items 11–14 were done for 7.24.0 itself._
 
@@ -192,7 +192,7 @@ its outcome goes into the build list and the topic is struck out here. My positi
 **All ten topics closed (2026-10-20).** Build order (Ron agreed):
 1. **7.24.0-alpha.5 — the window:** build list items 1–9 (layout, status line, wording, ↻ / ✓, removals, the shared
    sort, the checkbox tree + undo inside the window, confirmations, touching a tag by hand makes it yours) — plus the
-   "7.24.0" → "7.24.0" sweep of code comments and this doc. Ends with test steps (§5) written from the list.
+   "7.22.1" → "7.24.0" sweep of code comments and this doc. Ends with test steps (§5) written from the list.
 2. **7.24.0-alpha.6 — the data change:** item 10 (retire the hidden "seen" field), its own test round.
 3. Then the release (items 11–14).
 
@@ -200,7 +200,7 @@ its outcome goes into the build list and the topic is struck out here. My positi
 
 1. **Two click targets per row, nothing to tell them apart.** In v1 each collection row has a **checkbox** ("use this
    collection when you Apply") and a **name** ("show its books on the right"). Unchecking a box didn't change the right
-   side; "checked" and "being shown" looked alike. It fooled Ron (2026-10-14, again 2026-10-18 on 7.24.0-alpha.1).
+   side; "checked" and "being shown" looked alike. It fooled Ron (2026-10-14, again 2026-10-18 on 7.22.1-alpha.1).
 2. **The right side showed one collection at a time**, so you never saw everything Apply would do.
 3. **The wizard matches collections to tags by a computed internal key, not by name** (found 2026-10-18 with Ron's
    data). "Non fiction" (a Kindle collection) and "Non-Fiction" (Ron's own, unrelated tag) both make the key
@@ -428,10 +428,10 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
    book's `collectionTags`).
 2. Removals (only if switched on): each "−" chip removes the tag from `tags` and `collectionTags`; a kept one drops it
    from `collectionTags` only.
-3. (Removed 7.24.0-alpha.3: no more "seen" marking — see §2.8.)
+3. (Removed 7.22.1-alpha.3: no more "seen" marking — see §2.8.)
 4. One undoable step (as today); a toast names what was done.
 5. **One calculation** decides "which books will get which tag" — used by the chips, the header counts, the button and
-   Apply itself (7.24.0-alpha.1 already merged v1's two copies).
+   Apply itself (7.22.1-alpha.1 already merged v1's two copies).
 
 ## 5. Verification (test steps for the alpha)
 
@@ -474,5 +474,5 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
 - **v1 (6.10.0, 2026-08):** two panes — collections with checkboxes on the left; click a name to see that ONE
   collection's books on the right, each with a checkbox; "Removed from Kindle" section pre-checked; File menu (moved to
   Tools in 7.20.0). Full v1 text: `git log -- docs/design/TAG-FROM-COLLECTIONS.md`.
-- **7.24.0-alpha.1 (2026-10-18):** an interim polish of v1 (heading per collection, total on the button, Manage Tags
+- **7.22.1-alpha.1 (2026-10-18):** an interim polish of v1 (heading per collection, total on the button, Manage Tags
   link, one shared calculation) — tested by Ron, which led to v2.
