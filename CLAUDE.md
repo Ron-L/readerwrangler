@@ -146,10 +146,9 @@ Bypass (Ron's call only): `git commit --no-verify`.
 
 ## Reference
 
-**Folders:** `docs/design/`, `post-mortems/`. **Amazon notes — check before fetcher changes:**
-`.private/Amazon-API-Reference.md` (library API; moved out of the public `docs/api/` in `ae276ea`) and
-`.private/AMAZON-AUTHOR-PAGES.md` (author pages / bibliography fetcher, 2026-10-16). Amazon's inner workings stay
-in `.private/`, never in this public repo (Ron, 2026-10-16).
+**Folders:** `docs/design/`, `post-mortems/`. **Notes — check before fetcher changes:** `Amazon-Reference.md`
+(library), `AMAZON-AUTHOR-PAGES.md` (author pages / bibliography fetcher) and the **TODO notes** (details behind TODO
+tasks). That kind of detail goes in those notes, not in this repo's files (Ron, 2026-10-16/20).
 
 **`docs/PRINCIPLES.md`** — the distilled laws from all RW post-mortems (with enforcements). Consult
 when debugging stalls, before refactors/releases, and when a lesson feels familiar. New principles

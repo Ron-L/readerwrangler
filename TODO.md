@@ -54,6 +54,7 @@
         - [A management view for Book Lists](#a-management-view-for-book-lists)
         - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
       - [Small fixes](#small-fixes)
+        - [Tidy up the notes](#tidy-up-the-notes)
         - [Show only hidden books](#show-only-hidden-books)
         - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
         - [One shared tag picker: show all tags in your order (the right-click one silently stops at 10)](#one-shared-tag-picker-show-all-tags-in-your-order-the-right-click-one-silently-stops-at-10)
@@ -236,7 +237,7 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
 - The Sep 27 dev runs have been imported — that hold is lifted.
 
 **How (technical)**
-- Inventory tool: `.private/analyze-relay-keys.js` (key dumps hold channel IDs — credentials — so delete them after use).
+- Inventory tool: `analyze-relay-keys.js` (key dumps hold channel IDs — credentials — so delete them after use).
 - B1 lives in `commitGeneration` (relay-client.js) with `absorbedRuns` deduped.
 - Deploy dev: `npx wrangler deploy --env dev`, from `relay/` on the B2 branch.
 - B2 alpha.4 = commit `e753679`. The deployment is named by `RELAY_ENV` (prod / dev) in wrangler.toml; the worker's version is `WORKER_VERSION`; the key check compares Cloudflare's `keyCount`.
@@ -695,15 +696,12 @@ _Why it matters:_ So the fetch can honestly say "your library matches Amazon exa
 **Already done**
 - 7.7.0 (2026-09-04) stopped the false alarms: 13 "removed" books were physical items (maps, a DVD, "Shoes") the scan wouldn't count.
 - The false-orphan bug itself was fixed in fetcher v5.2.7.
-- Ruled out: Amazon's paging (30- and 50-page walks returned identical complete sets) and Amazon deletions (zero).
+- Two other suspects were checked and ruled out (see TODO notes).
 
 **Still there** (checked 2026-10-14)
 - The old count-based sweep still runs (the 🩹 recovery sweep, amazon-library-fetcher.js ~1741).
 
-**How (technical)**
-- Filters: hash `858f501de…` tags exactly the 13 product-null husks (unfetchable dead records, likely deleted samples); `222711ade…` tags nothing today. Maps and physical items are not hidden by the filter.
-- 101 tie-timestamp clusters covering 279 books were seen — harmless.
-- Amazon's total is the API's `totalCount` (acquisition records, not titles).
+**How (technical)** — see TODO notes.
 
 #### Honest ownership changes: buying, samples, loans
 
@@ -1195,6 +1193,10 @@ _Why it matters:_ Put a list in series order once, then adjust it by hand.
 
 #### Small fixes
 
+##### Tidy up the notes
+
+_Why it matters:_ Housekeeping — a few notes are in the wrong place. Details: see TODO notes.
+
 ##### Show only hidden books
 
 _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for them.
@@ -1483,7 +1485,7 @@ _Why it matters:_ Closes the last gaps left after "Save our working process in g
 - Item 1: the SessionStart hook already runs `gate-reset.py`; have it (or a sibling) check `git config core.hooksPath`
   and print a loud warning when it isn't `git-hooks`.
 - Memory backup today: copy `~/.claude/projects/c--Users-Ron-Projects-ReaderWrangler/memory/*.md` into
-  `.private/claude-backup/memory/`, commit, push (see that folder's README).
+  `claude-backup/memory/`, commit, push (see that folder's README).
 
 ## 🚦 Before public launch
 
@@ -1881,7 +1883,8 @@ _Why it matters:_ "Kindle only" is Ron's own preference baked into the series an
 4. To decide when built: the default for new users, and what happens to already-fetched books in formats you then untick (hide them? leave them?).
 
 **Watch out**
-- **Author add — settled 2026-10-16 (probed on P. Djèlí Clark): print works exactly like Kindle.** `{format:["paperback"], language:["English"]}` → 18 books, page 1 = 16/16 with full details. `language: ["All Languages"]` is a real value (paperback 31, Kindle 38) — so "All languages" is ONE request, not one per language (a small win for the shipped fetcher). My earlier "no details for non-Kindle" was wrong (it was the 16-per-page cap) — correct the claim in author-bibliography-fetcher.js's header comment and `.private/AMAZON-AUTHOR-PAGES.md`.
+- **Author add — settled 2026-10-16: print works exactly like Kindle**, and "All languages" can be one request (a small
+  win for the shipped fetcher). Details: AMAZON-AUTHOR-PAGES.md.
 - Format words seen: `kindle`, `paperback` (author filter); Amazon's library filter lists Kindle Edition, Paperback, Hardcover, Board Book, Audible Audiobook.
 - The series add asks Amazon for `binding=kindle_edition` (series-page-fetcher.js ~319).
 
