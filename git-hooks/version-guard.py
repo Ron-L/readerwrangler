@@ -16,6 +16,8 @@ RULE — for each STAGED code file, its version stamp must ALSO change in the sa
   relay/relay-worker.js -> WORKER_VERSION    (internal const, same file — shown in the relay's emails)
   <module>.js         -> its  <module>.js?v=  cache-buster line in readerwrangler.html
   readerwrangler.css  -> its  readerwrangler.css?v=  cache-buster line in readerwrangler.html
+  APP_VERSION change  -> docs/design/SUPPORT-KB.md's stamp says "through release <that version>" (a release must
+                         sweep the help notes; 2026-10-20)
 
 <module>.js are the local scripts readerwrangler.html loads with a ?v= buster. readerwrangler.js
 and mobile.js are the exceptions: their HTML buster is APP_VERSION (frozen during alpha testing),
@@ -80,6 +82,25 @@ def staged_copyright_year():
     return years[-1] if years else None
 
 
+KB = "docs/design/SUPPORT-KB.md"
+
+
+def staged_app_version():
+    """The new APP_VERSION if this commit changes it (a '+' line in the staged HTML diff), else None."""
+    for ln in added_lines(HTML):
+        m = re.search(r"const\s+APP_VERSION\s*=\s*[\"']([^\"']+)[\"']", ln)
+        if m:
+            return m.group(1)
+    return None
+
+
+def kb_stamp_names(version):
+    """True if the STAGED help notes' "up to date" stamp says "through release <version>"."""
+    out = subprocess.run(["git", "show", ":" + KB], capture_output=True, text=True,
+                         encoding="utf-8", errors="replace").stdout or ""
+    return re.search(r"through release " + re.escape(version) + r"\b", out) is not None
+
+
 def main():
     files = staged_files()
     # Match on basename so the guard is location-agnostic.
@@ -117,6 +138,14 @@ def main():
         elif year_now > year_last:
             errors.append(f"shipped code changed in {year_now}, but COPYRIGHT_YEARS in {HTML} ends at {year_last} "
                           f'- append ", {year_now}" in this commit.')
+
+    # 7.23.0 (Ron, 2026-10-20) - a RELEASE (APP_VERSION moves only at release) must sweep the help notes: the commit is
+    # refused unless SUPPORT-KB's "up to date" stamp says "through release <that version>". The stamp alone was a
+    # promise nothing checked — 7.21.3's Bibliography change went unswept for 4 days while it said "through 7.21.2".
+    app_version = staged_app_version() if html_staged else None
+    if app_version and not kb_stamp_names(app_version):
+        errors.append(f"APP_VERSION moves to {app_version} (a release), but {KB}'s stamp doesn't say "
+                      f'"through release {app_version}" - sweep the help notes for this release, then update the stamp.')
 
     if errors:
         sys.stderr.write("\n[VERSION-GUARD] commit blocked - a runtime change needs its version stamp moved:\n")

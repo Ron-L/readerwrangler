@@ -56,7 +56,9 @@ From then on, git runs these checks on every commit and refuses the commit if on
 `git-hooks/` — each script explains itself at the top; this list is only a summary:
 
 1. **Version stamps** (`version-guard.py`) — a change to the app, the phone app, the relay worker, a shared module or
-   the stylesheet must also move its version number (otherwise the browser keeps serving the old copy).
+   the stylesheet must also move its version number (otherwise the browser keeps serving the old copy). A release
+   (a new `APP_VERSION`) must also update the help notes' "up to date … through release X.Y.Z" line in
+   `docs/design/SUPPORT-KB.md` — after sweeping them for that release.
 2. **Undefined names** (`check-names.js`) — refuses app code that uses a name nothing defines (a mistake a syntax
    check can't see). Needs `npm i --no-save @babel/core @babel/preset-react` once.
 3. **Numbers the app and the relay share** (`check-shared-numbers.js`) — `relay-client.js` and `relay/relay-worker.js`

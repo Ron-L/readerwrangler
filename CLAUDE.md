@@ -108,7 +108,8 @@ particulars:
 - **Pre-build gate** — a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the first edit of shipped
   code each turn — **any `.js` at the repo root, plus `relay/relay-worker.js`** (a rule, so new modules are covered;
   widened 2026-10-08 from just readerwrangler.js/mobile.js) — with a checklist (mechanism, not memory). Consider it, then
-  re-issue the edit. `Stop`/`SessionStart` re-arm it per turn. The checklist is the **single source** in
+  re-send EVERY app edit from that batch (the whole batch is refused; PostToolBatch clears it for the next one).
+  `Stop`/`SessionStart` re-arm it per turn. The checklist is the **single source** in
   `docs/PRINCIPLES.md` (the `GATE-CHECKLIST` block); the hook just pulls + prints it and **fails LOUD** if
   it can't reach it. Full local tooling + the pattern: **`docs/design/SESSION-TOOLING.md`**.
 - **`/sitemap`** (`.claude/commands/sitemap.md`) — mechanizes the class-of-sites comb.
@@ -124,7 +125,8 @@ Every check runs from **`git-hooks/pre-commit`**. One-time setup per copy of the
 Bypass (Ron's call only): `git commit --no-verify`.
 
 - **Version-guard** (`git-hooks/version-guard.py`) refuses a commit that stages shipped code without moving its
-  version stamp.
+  version stamp — and a release commit (one that moves `APP_VERSION`) unless the help notes' stamp
+  (`docs/design/SUPPORT-KB.md`) says "through release <that version>" (2026-10-20).
 - **Name check** (`git-hooks/check-names.js`), whenever a `.js`/`.html`
   is staged: refuses app code that uses a name nothing defines (a syntax check can't see that — 7.18.0-alpha.55's
   "shareBtnRef is not defined" crash), and any `readerwrangler.html` inline script that doesn't parse. Page-level

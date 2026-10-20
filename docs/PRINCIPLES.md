@@ -38,7 +38,8 @@ rather than silently degrading. Keep each marker on its own line. -->
 <!-- GATE-CHECKLIST-START -->
 [PRE-BUILD GATE] (not a real denial -- a once-per-turn checkpoint).
 This is your first app-source edit this turn. Run the checklist; if the edit still
-stands, immediately RE-ISSUE the identical edit -- it will proceed (the flag is now cleared).
+stands, RE-SEND EVERY app-code edit from this batch (all of them were refused) -- the next
+batch proceeds.
 
 STRUCTURE -- is this the right shape?
  1. Extending a spaghetti section? Adding another flag/branch/case to a pile of
