@@ -50,23 +50,35 @@ breath as the agreement, so it survives a break or a compaction. ✅ = built in 
      (order settled in topic 5). A text symbol, not an emoji, so it takes the theme's text color; the difference never
      rests on color alone. Only in this tool — tag chips elsewhere don't change. (Options weighed: color, ☑/✅, ✗, (A),
      +, A-overlay, A✓/M✓, @ — §2.11 item 3.)
+5. **Seeing the removals — no new control** (topic 4, Ron + UX, 2026-10-20). Already in alpha.3: a tag being removed
+   shows as **"− Read"** (amber) in its column (click = keep, shown struck through), and with "Show books already
+   tagged" off the right side lists only rows with a change. Two ways to isolate removals, both from agreed pieces:
+   - **sorting:** each mark sorts as its own group (item 4) — proposed order **−, +, struck through, ↻, ✓, blank**
+     (removals first: the riskiest change); settled in topic 5;
+   - **the left checkboxes:** **None** for the collections, removal tags left ticked → the right side shows only the
+     books losing a tag (works today: the right side is built from whatever is ticked). Said in the column headers'
+     tooltip and the help notes (item 9), not a new button.
+   - **Test with a real case** (Ron has none): on the Kindle / Manage Your Content, take one book Tag from Collections
+     tagged out of its collection → Download Collections → Import → it shows "− Tag"; afterwards put it back and fetch
+     again. Real data, reversible, nothing planted by hand. (→ §5.)
 
 **Data (its own alpha — it touches the data layer and its tests, so it gets its own test round)**
-5. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
+6. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
    arrival (old backups included) and removed from the field table. (Ron + UX, 2026-10-19 — §2.8 item 5.)
 
 **At release**
-6. Merge main into the branch first (done once 2026-10-20 at `b7c871c`; repeat for anything main gains after).
-7. CHANGELOG (Ron's word on the copy).
-8. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
-   (§2.5, help notes) — plus the ↻ / ✓ legend and the two checkboxes' meaning (items 3–4). The commit check now
-   refuses the release unless the help notes' stamp says "through release 7.24.0".
-9. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
+7. Merge main into the branch first (done once 2026-10-20 at `b7c871c`; repeat for anything main gains after).
+8. CHANGELOG (Ron's word on the copy).
+9. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
+   (§2.5, help notes) — plus the ↻ / ✓ legend, the two checkboxes' meaning (items 3–4) and how to see only the
+   removals (item 5). The commit check now refuses the release unless the help notes' stamp says "through release
+   7.24.0".
+10. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
    deleted with the release's ✅ sweep.
 
 **Checked and NOT in 7.24.0**
 - The double-spaces-in-author-names fix — its own TODO ("Stray double spaces in author names create duplicate
-  authors"); it only shares the place in code with item 5. Verified in the session record 2026-10-19: never agreed for
+  authors"); it only shares the place in code with item 6. Verified in the session record 2026-10-19: never agreed for
   this release.
 - The shared scrolling list with fixed top/bottom, and the Tags filter's "Manage Tags…" — deferred to the TODO (§7).
 
@@ -82,9 +94,8 @@ its outcome goes into the build list and the topic is struck out here. My positi
    removal one is.)
 3. ~~**The "No tags to remove" message** (your 1).~~ **Agreed 2026-10-20 → build list item 2.** (Ron: at the end of
    the left list it's subtle — the only clue is the scrollbar changing a little; put it in the status line.)
-4. **Seeing the removals** (your 3). Ron: how do I easily see the books whose tags will be removed? Show the tag on the
-   right with a minus ("− Tag"). With "Also show books already tagged" off you'd see only pluses and minuses; if
-   sorting kept **+TagA and −TagA apart**, the removals could be isolated easily.
+4. ~~**Seeing the removals** (your 3).~~ **Agreed 2026-10-20 → build list item 5.** (Ron: show a "− Tag"; with the
+   show-tagged box off, only pluses and minuses; sort +TagA and −TagA apart.)
 5. **Sorting: multiple keys, three-state cycle, Shift-click** (test 2). Ron: clicking the column's arrow doesn't reverse
    the order; the label sort can't be turned off; clicking Title removes the label sort (it shouldn't); Title's order
    can't be reversed. Wants every column usable as a key — off / ascending / descending — and **Shift-click adds the
@@ -326,7 +337,7 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
 
 ## 3. Data model (unchanged from v1)
 
-- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.22.1 — build list item 3). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
+- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.24.0 — build list item 6). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
   you saw it, so it isn't "new" next time. Internal, not shown, not editable.
 - `book.collectionTags = ["read", …]` — tag keys **this wizard** assigned. Removal candidates come only from here; a
   declined removal drops the key from `collectionTags` only (the tag becomes yours).
