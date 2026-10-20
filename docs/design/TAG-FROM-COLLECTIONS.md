@@ -9,7 +9,10 @@ on the books in that collection. Re-run after new purchases: the right side show
 
 ---
 
-## 7.22.1 build list — agreed, not yet built
+## 7.24.0 build list — agreed, not yet built
+
+_Renumbered 2026-10-20: 7.22.1 grew into a minor release (Ron), and 7.23.0 shipped first → **7.24.0**; the alphas keep
+counting (`7.24.0-alpha.4` = alpha.3 + main merged in). Older "7.22.1" mentions below are updated at the next alpha._
 
 _The working plan (Ron + Claude, 2026-10-19). **A topic isn't closed until its line is here** — written in the same
 breath as the agreement, so it survives a break or a compaction. ✅ = built in an alpha (say which). The test steps
@@ -22,22 +25,41 @@ breath as the agreement, so it survives a break or a compaction. ✅ = built in 
 2. **The "No tags to remove…" note moves to the status line at the bottom** (where "Will create 0 new tags and tag 7
    books" is), instead of the end of the left list where it scrolls out of sight. (Ron's proposal, alpha.3 feedback
    #1; agreed in principle with tonight's rule "notes aren't pinned" — §2.11 item 2. Exact wording: topic 3 below.)
+3. **The two checkboxes' wording** (topic 2 — Ron + UX, 2026-10-20; no "Also", no "wizard": the name stays **Tag from
+   Collections** everywhere):
+   - ☐ **Remove tags from books that left the collection on Kindle** — tooltip: *"Only tags added by Tag from
+     Collections. A tag you added or renamed yourself is never removed."* (Not "to match Kindle collections" — that
+     reads as a full sync, e.g. taking a hand-added "Read" off books outside the Read collection; it never does.)
+   - ☐ **Show books already tagged** — the ✓ rows are every book that HAS the tag, however it got it (not only ones
+     this tool tagged — limiting it would make hand-tagged books vanish from their collection).
+   - In every tooltip and help note, call it **"Tag from Collections"**, never "this window" (Ron: "this window" can
+     mean this one opening of it).
+4. **Two kinds of "already has it", told apart by sight** (topic 2 follow-up — Ron's idea, 2026-10-20: a tooltip per
+   row means remembering after 5 rows; a visible mark scans and sorts). One leading mark per state, same as + / −:
+   - **↻ Read** — added by Tag from Collections (`book.collectionTags`): the "Remove tags…" option can take it off if
+     the book leaves the collection. ↻ = "follows its Kindle collection".
+   - **✓ Read** — yours (added by hand, renamed, or kept when offered for removal): never removed.
+   - Each chip's tooltip says which; the column header's tooltip gives the legend. Each mark sorts as its own group
+     (order settled in topic 5). A text symbol, not an emoji, so it takes the theme's text color; the difference never
+     rests on color alone. Only in this tool — tag chips elsewhere don't change. (Options weighed: color, ☑/✅, ✗, (A),
+     +, A-overlay, A✓/M✓, @ — §2.11 item 3.)
 
 **Data (its own alpha — it touches the data layer and its tests, so it gets its own test round)**
-3. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
+5. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
    arrival (old backups included) and removed from the field table. (Ron + UX, 2026-10-19 — §2.8 item 5.)
 
 **At release**
-4. Merge main into the branch first (it has the gate fix `37018df` and the TODO-review commits).
-5. CHANGELOG (Ron's word on the copy).
-6. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
-   (§2.5, help notes).
-7. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
+6. Merge main into the branch first (done once 2026-10-20 at `b7c871c`; repeat for anything main gains after).
+7. CHANGELOG (Ron's word on the copy).
+8. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
+   (§2.5, help notes) — plus the ↻ / ✓ legend and the two checkboxes' meaning (items 3–4). The commit check now
+   refuses the release unless the help notes' stamp says "through release 7.24.0".
+9. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
    deleted with the release's ✅ sweep.
 
-**Checked and NOT in 7.22.1**
+**Checked and NOT in 7.24.0**
 - The double-spaces-in-author-names fix — its own TODO ("Stray double spaces in author names create duplicate
-  authors"); it only shares the place in code with item 3. Verified in the session record 2026-10-19: never agreed for
+  authors"); it only shares the place in code with item 5. Verified in the session record 2026-10-19: never agreed for
   this release.
 - The shared scrolling list with fixed top/bottom, and the Tags filter's "Manage Tags…" — deferred to the TODO (§7).
 
@@ -47,13 +69,10 @@ _Ron's alpha.3 test notes (2026-10-19), grouped and ordered by Claude so each de
 N" / "test N" are the numbers in Ron's notes. Topic 1 (layout) is agreed → build list item 1. When a topic is agreed,
 its outcome goes into the build list and the topic is struck out here. My position on each is given when we reach it._
 
-2. **Wording: the two checkboxes, the "Also"s, "wizard" in the name** (your 2, 4, 5).
-   - Ron: "Also remove tags whose book left that collection on Kindle" took three reads. Suggests the checkbox say
-     **"Remove tags from books to match Kindle collections"**, with the long explanation as its tooltip.
-   - Ron: shorten "Also show books that already have their tag" to **"Also show books already tagged"** or "…already
-     tagged by wizard" — and if so, put "wizard" in the window's title, its Tools menu name, the link in Manage Tags,
-     the help, and anywhere else it's named.
-   - Ron: is either checkbox's "Also" really useful?
+2. ~~**Wording: the two checkboxes, the "Also"s, "wizard" in the name** (your 2, 4, 5).~~ **Agreed 2026-10-20 → build
+   list items 3–4.** (Ron's notes: the removal checkbox took three reads; shorten the show checkbox; is "Also"
+   useful; "wizard" in the name — which came from reading the show checkbox as limited to tool-added tags, like the
+   removal one is.)
 3. **The "No tags to remove" message** (your 1). Ron: at the end of the left list it's subtle — unless you're scrolled
    to the bottom (or the list is short), the only clue is the scrollbar changing a little. Put it in the status line
    instead. (Agreed in principle → build list item 2; left to settle: its exact words.)
@@ -155,10 +174,14 @@ wizard no longer ties it to a collection (see 2.5).
    you scroll**, and its count: *Read (7)*. Columns are aligned (an invisible grid — no lines).
 3. **The chip in each cell** — a small tag shape:
    - **"+ Read"** — Apply will add this tag to this book.
-   - **"✓ Read"** (grey) — the book already has it; nothing happens.
-   - **"skip"** (struck through) — you clicked the "+" chip: this one tag won't go on this one book. Click again to
-     restore. (This is v1's per-book unchecking, now per book × tag.)
-   - **"− Sci-Fi"** (amber) — only when removals are switched on (2.5).
+   - **"✓ Read"** (grey) — the book already has it; nothing happens. (7.24.0: split into **↻ Read** = added by Tag
+     from Collections / **✓ Read** = yours — build list item 4.)
+   - **"+ Read" struck through** (grey, outlined) — skipped: you clicked the "+" chip, so this one tag won't go on this
+     one book. Click again to restore. It keeps its mark and name — never blank (blank means "not in this
+     collection", and a blank couldn't be clicked back). (This is v1's per-book unchecking, now per book × tag.)
+     _Corrected 2026-10-20: this line used to call the chip "skip", which isn't what it shows._
+   - **"− Sci-Fi"** (amber) — only when removals are switched on (2.5). **"− Sci-Fi" struck through** = kept (click
+     again to remove after all).
    - Empty cell — the book isn't in that collection.
 4. **Sorting:** click **Title** for A–Z (the default); click a **tag header** to bring the books with a change in that
    column to the top. Spreadsheet behavior, nothing new to learn.
@@ -283,6 +306,17 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
       scrolling down is the workaround), building the piece now would grow this release again, and it pairs with
       "One shared tag picker", so both tag lists move onto it together. TODO.md (Polish): "Long lists keep their
       actions in view (Manage…, Select All) while you scroll".
+3. **Telling "added by Tag from Collections" from "yours" (2026-10-20).** The two checkboxes work on different sets —
+   removal touches only tags this tool added; "show already tagged" shows every book that has the tag — and nothing on
+   screen said so (that asymmetry is what made "wizard" in the name seem needed). Ron's case for a visible mark: a
+   tooltip per row is a memory task after ~5 rows; a mark is scanned, and sorting groups it. Options weighed against
+   three tests — readable without color (color-blind, light/dark), no clash with this window's marks, a hint of the
+   meaning: color alone fails the first; ☑ vs ✓ too alike; ✅ is an emoji (ignores the theme); ✗ means "no"; "+"
+   already means "will add"; (A) is noisy in a long column; an "A" over ✓ is too small; A✓/M✓ works but nobody calls
+   their own tags "manual"; @ works and sorts but reads as "at" / a mention. **↻** chosen (Claude's suggestion, Ron:
+   "would need to be learned as well, but that's fine") — it frames the real distinction, *tied to its Kindle
+   collection* vs *yours*, which is exactly what decides whether removal can touch it. 🔗 says it better but is an
+   emoji.
 
 ## 3. Data model (unchanged from v1)
 
