@@ -57,7 +57,7 @@ breath as the agreement, so it survives a break or a compaction. ✅ = built in 
      (removals first: the riskiest change); settled in topic 5 → item 6;
    - **the left checkboxes:** **None** for the collections, removal tags left ticked → the right side shows only the
      books losing a tag (works today: the right side is built from whatever is ticked). Said in the column headers'
-     tooltip and the help notes (item 11), not a new button.
+     tooltip and the help notes (item 12), not a new button.
    - **Test with a real case** (Ron has none): on the Kindle / Manage Your Content, take one book Tag from Collections
      tagged out of its collection → Download Collections → Import → it shows "− Tag"; afterwards put it back and fetch
      again. Real data, reversible, nothing planted by hand. (→ §5.)
@@ -99,24 +99,37 @@ breath as the agreement, so it survives a break or a compaction. ✅ = built in 
      the one choices map. (Elsewhere — selected books in a folder — is a separate TODO, "Restore the previous
      selection", Photoshop's Reselect convention.)
 
+8. **Tag changes confirm themselves — one message, used for the confirmation AND its undo** (topic 7, Ron + UX,
+   2026-10-20). Found: of 9 places that change a book's tags, only right-click add / remove (existing tag) confirm;
+   right-click **create** (Enter and the Create row), book details (add ×2, create, remove) and Tag from Collections'
+   Apply don't — while every undo does (one place). **Mechanism:** the shared tag-change function (`recordTagChange`)
+   shows the confirmation itself from the same text it records for undo (RW's move chokepoint already "pays double",
+   readerwrangler.js ~3894) — action and undo always match, and no call site can forget. **Wording** — the result,
+   with the word "tag": *Added tag "Read" to 'Title'* (undo: *Undone: Added tag "Read" to 'Title'*); *Created tag
+   "zzz" and added it to 'Title'* (or "to 3 books"); *Removed tag "Read" from 3 books*; Apply: *Tag from Collections:
+   tagged 7 books, created 1 tag* (+ *", removed a tag from 2"*). **Exception — book details:** no confirmation (RW's
+   rule "a change you just watched needs no receipt": the chip appears / disappears where you clicked); its undo text
+   uses the new wording. **Completeness:** at build time, a two-pivot search for every tag-changing site (e.g. Bulk
+   Edit) with the list published before claiming coverage.
+
 **Data (its own alpha — it touches the data layer and its tests, so it gets its own test round)**
-8. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
+9. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
    arrival (old backups included) and removed from the field table. (Ron + UX, 2026-10-19 — §2.8 item 5.)
 
 **At release**
-9. Merge main into the branch first (done once 2026-10-20 at `b7c871c`; repeat for anything main gains after).
-10. CHANGELOG (Ron's word on the copy) — includes the list view's sorting change (item 6: a third click turns a sort
+10. Merge main into the branch first (done once 2026-10-20 at `b7c871c`; repeat for anything main gains after).
+11. CHANGELOG (Ron's word on the copy) — includes the list view's sorting change (item 6: a third click turns a sort
    off).
-11. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
+12. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
    (§2.5, help notes) — plus the ↻ / ✓ legend, the two checkboxes' meaning (items 3–4) and how to see only the
    removals (item 5), and sorting's third click (item 6 — grep the KB's sorting answers in §4). The commit check now
    refuses the release unless the help notes' stamp says "through release 7.24.0".
-12. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
+13. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
    deleted with the release's ✅ sweep.
 
 **Checked and NOT in 7.24.0**
 - The double-spaces-in-author-names fix — its own TODO ("Stray double spaces in author names create duplicate
-  authors"); it only shares the place in code with item 8. Verified in the session record 2026-10-19: never agreed for
+  authors"); it only shares the place in code with item 9. Verified in the session record 2026-10-19: never agreed for
   this release.
 - The shared scrolling list with fixed top/bottom, and the Tags filter's "Manage Tags…" — deferred to the TODO (§7).
 
@@ -140,10 +153,9 @@ its outcome goes into the build list and the topic is struck out here. My positi
 6. ~~**Skips remembered after unchecking and re-checking a collection** (test 2).~~ **Agreed 2026-10-20 → build list
    item 7.** (Ron: the earlier skips survived an uncheck + re-check; he expected a reset, as they can hide at the
    bottom.) Follow-up agreed the same day: **undo inside the window** → item 7; the folder case → TODO.
-7. **Toasts for create + apply, and "tag" in the undo text** (test 4). Ron: tagging showed no toast, but its undo did
-   — they should match. Better: one combined toast, *"Created tag xyz and added it to 'Title'"* (or "to N books").
-   The undo toast read *Undone: Add "zzz" to 'All Manner of Thing…'* — put the word **tag** before the tag's name
-   (a tag, collection, folder and Book List can all be called "Read").
+7. ~~**Toasts for create + apply, and "tag" in the undo text** (test 4).~~ **Agreed 2026-10-20 → build list item 8.**
+   (Ron: tagging showed no toast but its undo did; one combined "Created tag xyz and added it to…"; put the word
+   **tag** before the name — a tag, collection, folder and Book List can all be called "Read".)
 8. **The right-click Tags list hides tags already on the book** (test 5). Ron: after the wizard added "Read", he
    couldn't re-apply "Read" by hand (to make it his, so the wizard never removes it) — the list doesn't offer tags a
    book already has; you must remove it first, then add it (right-click, or book details). Odd restriction: should
@@ -374,7 +386,7 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
 
 ## 3. Data model (unchanged from v1)
 
-- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.24.0 — build list item 8). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
+- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.24.0 — build list item 9). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
   you saw it, so it isn't "new" next time. Internal, not shown, not editable.
 - `book.collectionTags = ["read", …]` — tag keys **this wizard** assigned. Removal candidates come only from here; a
   declined removal drops the key from `collectionTags` only (the tag becomes yours).
