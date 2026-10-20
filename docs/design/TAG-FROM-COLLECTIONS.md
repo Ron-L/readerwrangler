@@ -57,7 +57,7 @@ breath as the agreement, so it survives a break or a compaction. ✅ = built in 
      (removals first: the riskiest change); settled in topic 5 → item 6;
    - **the left checkboxes:** **None** for the collections, removal tags left ticked → the right side shows only the
      books losing a tag (works today: the right side is built from whatever is ticked). Said in the column headers'
-     tooltip and the help notes (item 10), not a new button.
+     tooltip and the help notes (item 11), not a new button.
    - **Test with a real case** (Ron has none): on the Kindle / Manage Your Content, take one book Tag from Collections
      tagged out of its collection → Download Collections → Import → it shows "− Tag"; afterwards put it back and fetch
      again. Real data, reversible, nothing planted by hand. (→ §5.)
@@ -79,24 +79,33 @@ breath as the agreement, so it survives a break or a compaction. ✅ = built in 
    - Fixes Ron's test-2 notes: the arrow now reverses; any key can be turned off; Shift-click Title keeps the tag key
      (a plain click replacing the sort is the spreadsheet rule — said in the tooltip).
 
+7. **Unchecking a collection clears its skips; a partly-skipped collection shows a partial box** (topic 6, Ron + UX,
+   2026-10-20). The left list is a checkbox TREE (collection = parent, its books = children), so it follows the tree
+   convention: uncheck the parent → its skips are cleared; check it → all its books. A checked collection with
+   skipped books shows the standard **partial mark (▬)** instead of ✓ — skips are visible without scrolling; clicking
+   a partial box unchecks it. Same rule for the removal section (unchecking a removal tag clears its "kept" choices;
+   ▬ while some are kept). **Select All** = every collection with all its books (earlier skips go — see the open
+   question on undoing that, below). Mechanism: a collection's skips live INSIDE its "checked" entry (one map, checked
+   = has an entry), not in a second list — unchecking deletes the entry, so stale skips can't exist (Law 17).
+
 **Data (its own alpha — it touches the data layer and its tests, so it gets its own test round)**
-7. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
+8. **Retire the hidden "seen" field** (`collectionTagSeen`): stripped in the shared book clean-up on every load and
    arrival (old backups included) and removed from the field table. (Ron + UX, 2026-10-19 — §2.8 item 5.)
 
 **At release**
-8. Merge main into the branch first (done once 2026-10-20 at `b7c871c`; repeat for anything main gains after).
-9. CHANGELOG (Ron's word on the copy) — includes the list view's sorting change (item 6: a third click turns a sort
+9. Merge main into the branch first (done once 2026-10-20 at `b7c871c`; repeat for anything main gains after).
+10. CHANGELOG (Ron's word on the copy) — includes the list view's sorting change (item 6: a third click turns a sort
    off).
-10. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
+11. SUPPORT-KB: how to remove a tag from many books — All Books → filter by the tag → select → right-click → Tags
    (§2.5, help notes) — plus the ↻ / ✓ legend, the two checkboxes' meaning (items 3–4) and how to see only the
    removals (item 5), and sorting's third click (item 6 — grep the KB's sorting answers in §4). The commit check now
    refuses the release unless the help notes' stamp says "through release 7.24.0".
-11. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
+12. TODO.md (main): the task "Tag from Collections: clear up the checkbox vs. preview confusion" gets ✅, then is
    deleted with the release's ✅ sweep.
 
 **Checked and NOT in 7.24.0**
 - The double-spaces-in-author-names fix — its own TODO ("Stray double spaces in author names create duplicate
-  authors"); it only shares the place in code with item 7. Verified in the session record 2026-10-19: never agreed for
+  authors"); it only shares the place in code with item 8. Verified in the session record 2026-10-19: never agreed for
   this release.
 - The shared scrolling list with fixed top/bottom, and the Tags filter's "Manage Tags…" — deferred to the TODO (§7).
 
@@ -117,9 +126,10 @@ its outcome goes into the build list and the topic is struck out here. My positi
 5. ~~**Sorting: multiple keys, three-state cycle, Shift-click** (test 2).~~ **Agreed 2026-10-20 → build list item 6.**
    (Ron: the arrow didn't reverse; the label sort couldn't be turned off; Title replaced the label sort; wants off /
    ascending / descending per column and Shift-click for the next key, like the list view.)
-6. **Skips remembered after unchecking and re-checking a collection** (test 2). Ron: unchecked Non fiction, re-checked
-   it — the earlier skipped books were still skipped. He expected them reset, especially as they can be hidden at the
-   bottom of the list.
+6. ~~**Skips remembered after unchecking and re-checking a collection** (test 2).~~ **Agreed 2026-10-20 → build list
+   item 7.** (Ron: the earlier skips survived an uncheck + re-check; he expected a reset, as they can hide at the
+   bottom.) **Still open from it — undoing a choice that erased others** (Ron: "Select All erasing selections you
+   made… here as well as everywhere (in a folder for instance). Are there conventions for making it undoable?").
 7. **Toasts for create + apply, and "tag" in the undo text** (test 4). Ron: tagging showed no toast, but its undo did
    — they should match. Better: one combined toast, *"Created tag xyz and added it to 'Title'"* (or "to N books").
    The undo toast read *Undone: Add "zzz" to 'All Manner of Thing…'* — put the word **tag** before the tag's name
@@ -354,7 +364,7 @@ _The outcomes are in the build list at the top; the open topics, with Ron's note
 
 ## 3. Data model (unchanged from v1)
 
-- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.24.0 — build list item 7). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
+- ~~`book.collectionTagSeen`~~ — **retired** (2.8; stripped from data in 7.24.0 — build list item 8). It was set for every book **shown** in the wizard when Apply is clicked (checked or not):
   you saw it, so it isn't "new" next time. Internal, not shown, not editable.
 - `book.collectionTags = ["read", …]` — tag keys **this wizard** assigned. Removal candidates come only from here; a
   declined removal drops the key from `collectionTags` only (the tag becomes yours).
