@@ -47,6 +47,7 @@
       - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
       - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
       - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
+      - [Long lists keep their actions in view (Manage…, Select All) while you scroll](#long-lists-keep-their-actions-in-view-manage-select-all-while-you-scroll)
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
       - [Book Lists](#book-lists)
         - [A management view for Book Lists](#a-management-view-for-book-lists)
@@ -1112,6 +1113,34 @@ _Why it matters:_ With 20+ Book Lists, the lower ones are cut off and can't be r
 **How (technical)**
 - An opt-in option on `<Popover>` for button dropdowns: when it can't fit below, pick the roomier side, cap the height, scroll.
 - Today it pins to the top of the window and hangs off the bottom. The fly-out rule is CursorPopup's "never add overflow".
+
+#### Long lists keep their actions in view (Manage…, Select All) while you scroll
+
+_Why it matters:_ An action at the end of a long list scrolls out of sight — it looks missing, so it's never used.
+
+**What you see** (Ron, 2026-10-19)
+1. The **Tags** filter in the bar above the books: "Manage Tags…" seemed to be missing. It's there — at the very
+   bottom; the whole menu scrolls as one piece, so with a dozen tags it sits below the cut-off. "Select All / Clear
+   All" at the top scrolls away the same way.
+2. Right-click a book → **Tags** does it right: only the tag rows scroll; "Manage Tags…" stays put below them.
+
+**The rule** (Ron + UX, 2026-10-19) — sort what sits at the top or bottom of a list into three kinds:
+1. **Actions on the whole list** ("Manage Tags…", "Create…", Select All / Clear All): **always visible** — fixed
+   above or below the scrolling part.
+2. **Notes about the list** ("No tags to remove…"): **not** pinned — a fixed note costs a line forever and stops
+   being read. Put it where people look for status (e.g. a window's status line).
+3. **Ordinary rows** that happen to be first or last: scroll normally.
+
+**The mechanism, not a cleanup:** ONE shared scrolling list with a fixed top slot and a fixed bottom slot. Fixing
+each list by hand doesn't stop the next new list from repeating it; with one shared piece, every new list gets it.
+1. **Now (7.22.1, Tag from Collections branch):** build the piece; the Tags filter and right-click → Tags become its
+   first two users (also removes the filter's two copies of the "Manage Tags…" link — one for no tags, one for some).
+2. **The sweep (this task):** move every other list with top/bottom actions onto it. Find them with the comb — two
+   independent searches (lists that scroll; trailing "Manage…" / "Create…" / "…" items) plus a walk of every menu,
+   right-click menu, dropdown and dialog list. Publish the list of places before calling it done.
+
+**Related:** "The 'Save results' menu runs off the screen" (above — the same list could carry its fit-and-scroll
+fix) and "One shared tag picker" (Small fixes — it would sit on this piece).
 
 #### Removing a recent search should offer Undo
 
