@@ -48,6 +48,7 @@
         - [Tidy up the notes](#tidy-up-the-notes)
         - [Leave the affiliate tag off Amazon links on the test rig](#leave-the-affiliate-tag-off-amazon-links-on-the-test-rig)
         - [Switch the affiliate tag to "readerwrangler-20"](#switch-the-affiliate-tag-to-readerwrangler-20)
+        - [Tooltips where they help: icon-only, disabled, non-obvious, cut-off](#tooltips-where-they-help-icon-only-disabled-non-obvious-cut-off)
         - [Menus keep their items in place: disable, don't hide](#menus-keep-their-items-in-place-disable-dont-hide)
         - [A book's hover popup stays up after the book is deleted](#a-books-hover-popup-stays-up-after-the-book-is-deleted)
         - [The Trash ignores the search and filters](#the-trash-ignores-the-search-and-filters)
@@ -123,7 +124,6 @@
       - [Faster loading: build the app ahead of time](#faster-loading-build-the-app-ahead-of-time)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
       - [Show a notice when book descriptions are missing](#show-a-notice-when-book-descriptions-are-missing)
-      - [Tooltip review: Tag from Collections wizard](#tooltip-review-tag-from-collections-wizard)
       - [Clean up developer console messages](#clean-up-developer-console-messages)
       - [Check nothing was lost between versions 4 and 5](#check-nothing-was-lost-between-versions-4-and-5)
       - [Leftover desktop polish (left-pane keyboard, shadows)](#leftover-desktop-polish-left-pane-keyboard-shadows)
@@ -1405,6 +1405,30 @@ sales from Ron's WordPress articles in the Associates reports (today they're com
 - Update the examples in docs/design/SHARE-BOOK-FEATURE.md (they show the old tag); post-mortems stay as history.
 - Pairs with "Leave the affiliate tag off Amazon links on the test rig" — same function, build together.
 
+##### Tooltips where they help: icon-only, disabled, non-obvious, cut-off
+<!-- id 20261021-1608; merged 20261014-1030az -->
+
+_Why it matters:_ A control that doesn't explain itself gets skipped or misused — but a tooltip on every control is
+noise that teaches people to ignore the ones that matter.
+
+**The rule** (Ron + UX, 2026-10-21 — not "every control": a Save button whose tooltip says "Save" is noise; ~190
+tooltips exist today). A tooltip is **required** on:
+1. **Every icon-only control** (✕, 💾, 🗑, ⚙ …) — no words at all; it also needs a screen-reader label (overlaps
+   "Finish keyboard accessibility", After launch).
+2. **Every disabled control — saying why** (the rule in "Menus keep their items in place").
+3. **Any control whose effect isn't obvious from its label** (Collections is read-only; "Bake this order into Manual").
+4. **Text that gets cut off** — the tooltip shows it in full.
+Everything else: no tooltip, deliberately.
+
+**To do**
+1. **First, a commit check for rule 1** (mechanical, so it can't decay): refuse an icon-only button with no tooltip or
+   screen-reader label.
+2. **Then the sweep** for rules 2–4 (judgment): two independent searches plus a walk of every dialog and menu; publish
+   the list of places first.
+- Absorbs "Tooltip review: Tag from Collections wizard" (After launch, one line — "Make sure every control explains
+  itself"); that window's new tooltips (the ↻ / ✓ legend) are also written in its round 2. The book details window's
+  tooltips are a column in "Book details window: one Save…" step 2.
+
 ##### Menus keep their items in place: disable, don't hide
 <!-- id 20261021-1131 -->
 
@@ -2389,14 +2413,6 @@ _Why it matters:_ So a missing description reads as known, not broken.
 
 **How (technical)**
 - "Phase 3 UI error handling" — missing-description banners.
-
-#### Tooltip review: Tag from Collections wizard
-<!-- id 20261014-1030az -->
-
-_Why it matters:_ Make sure every control explains itself.
-
-**How (technical)**
-- Old review item 6e.
 
 #### Clean up developer console messages
 <!-- id 20261014-1030m -->
