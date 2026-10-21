@@ -5,6 +5,9 @@
 > its concrete checklists. Don't restate the generic rules here; add RW specifics and let the
 > Projects-root file carry the rest. RW's distilled laws + war-stories: **`docs/PRINCIPLES.md`**.
 
+**Rule 0 — this is a retirement project, not a commercial product. There is no MVP.** Get it right before announcing
+it; never trade quality for speed to launch (Ron, 2026-10-21).
+
 ---
 
 ## New dialog/modal/popup → build it on the overlay primitive (RW mechanism)
