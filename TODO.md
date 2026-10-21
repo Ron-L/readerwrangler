@@ -1195,7 +1195,8 @@ same is likely true of most of the app's type-ahead lists.
 people learn it works in some places and stop trying. Found 2026-10-21 by their prompt text (a start, not proof):
 recent searches (the search box, ~1170 — the working model); Series in book details (~13825) and in Bulk Edit
 (~13475); Tags "Type to search or create" in book details (~14162) and right-click → Tags (~19790); "Type to filter
-your folders" (~12734); "Filter authors by name…" (~12064). **When building, find them with two independent searches**
+your folders" (~12734); "Filter authors by name…" (~12064); and the planned filter box in the "Save results" menu.
+**When building, find them with two independent searches**
 (by prompt text and by the shared list popup) and publish the list before claiming coverage. **Build together with
 "One shared tag picker"** (Small fixes) — it sits on this behavior; one pass covers both tag lists.
 
@@ -1216,15 +1217,22 @@ _Why it matters:_ With 20+ Book Lists, the lower ones are cut off and can't be r
 **What you'd get**
 - The menu opens on whichever side of its button (above or below) has more room, fits that space, and scrolls — the usual approach in modern menus.
 - With more than ~10 lists, a filter box at the top — reuse the one the book right-click menu's "Move to" submenu already has.
-- Check other menus that list your own items (Book Lists, folders) for the same problem while there.
 
 **Watch out**
 - This must **not** apply to right-click menus with fly-out submenus (Move to / Copy to): a scrolling menu would clip its own fly-outs.
 
 **Status:** designed and deferred by Ron 2026-10-06.
 
+**Build on the shared scrolling list** (Ron + UX, 2026-10-21) — the one from "Long lists keep their actions in view"
+(below): its **top slot** holds the filter box (always visible while the list scrolls), the **middle** scrolls your
+Book Lists, its **bottom slot** an action like "New Book List…"; and the **fit-to-the-roomier-side** behavior lives in
+that shared piece, so every long list gets it. This menu is its first user after the tag lists. The filter box is one
+more type-ahead list for "Arrow keys should move through every type-ahead list". (The old line "check other menus
+that list your own items" moved to the long-lists task's sweep.)
+
 **How (technical)**
-- An opt-in option on `<Popover>` for button dropdowns: when it can't fit below, pick the roomier side, cap the height, scroll.
+- In the shared list piece (a `<Popover>` option for button dropdowns): when it can't fit below, pick the roomier side,
+  cap the height, scroll.
 - Today it pins to the top of the window and hangs off the bottom. The fly-out rule is CursorPopup's "never add overflow".
 
 #### Long lists keep their actions in view (Manage…, Select All) while you scroll
@@ -1257,7 +1265,9 @@ each list by hand doesn't stop the next new list from repeating it; with one sha
       the window's status line rather than being pinned.
 3. **Find the rest with the comb** — two independent searches (lists that scroll; trailing "Manage…" / "Create…" / "…"
    items) plus a walk of every menu, right-click menu, dropdown and dialog list. Publish the list of places before
-   calling it done.
+   calling it done. **Include menus that list your own items** (Book Lists, folders) and **run off the screen** —
+   moved here 2026-10-21 from "The 'Save results' menu runs off the screen", whose menu is the piece's first user
+   after the tag lists; the piece also owns fit-to-the-roomier-side.
 4. **Pair it with "One shared tag picker"** (Small fixes) so both tag lists move onto the piece together.
 
 **Related:** "The 'Save results' menu runs off the screen" (above — the same list could carry its fit-and-scroll
