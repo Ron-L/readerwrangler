@@ -1465,6 +1465,15 @@ _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for t
 - "Show Hidden" becomes three choices: **Hide hidden** / **Show all** / **Only hidden**.
 - Today it only shows or hides them, so finding the 2 hidden books among 337 is impractical.
 
+**Decided** (Ron + UX, 2026-10-21 — still a plain on/off in code: `showHidden`)
+1. **A "Hidden ▾" filter button like its neighbors** (Read Status ▾, Tags ▾, Ownership ▾) instead of the checkbox:
+   nothing new to learn, it lights up when not at the default, and its list shows the count — **"Only hidden (2)"**.
+2. **Saved Searches keep working:** they store the old on/off (`filters.showHidden`, readerwrangler.js ~4057) — *off*
+   becomes **Hide hidden**, *on* becomes **Show all**. The phone app has its own Show Hidden (mobile.js
+   `filterBooks`): it gets the three choices too, or at least reads them.
+3. **Settle the real default:** the app starts with hidden books hidden, but one place says
+   `showHidden: true, // Default to showing all books` (~6688). Decide which is right so a new user isn't surprised.
+
 ##### Tooltips in the book details window
 <!-- id 20261014-1030ba -->
 
