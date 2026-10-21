@@ -305,6 +305,9 @@ def summarize(recs, snaps):
     s.update(scope_open=scope_open, scope_arr=scope_arr, scope_done=scope_done)
     net = scope_done - scope_arr
     s['scope_weeks'] = scope_open / net if net > 0 else None
+    s['scope_weeks_no_new'] = scope_open / scope_done if scope_done > 0 else None   # if nothing new arrived
+    s['pre_dated'] = sum(1 for r in recs if r.arrived < base)
+    s['pre_undated'] = sum(1 for r in recs if r.arrived == base)
     total_net = s['done_rate'] - s['arrive_rate']
     s['hump'] = ('past the peak — shrinking' if total_net > 0.25 else
                  'near the peak — about level' if total_net > -0.25 else 'still climbing')
@@ -360,6 +363,7 @@ def svg_line(series, width=760, height=240, y_label=''):
     ytop = ((ymax // step) + 1) * step
     L, R, T, B = 44, 16, 14, 30
     W, H = width - L - R, height - T - B
+
     def X(d):
         return L + W * (d - x0).days / span
 
@@ -425,7 +429,7 @@ def svg_bars(rows, keys, width=760, height=220):
 
 PAGE = '''<title>ReaderWrangler Backlog</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="%FONTS%">
 <style>
 /* Layout: one reading column — the verdict first, then the hump, the flows, the launch burn-down, the pre-history. */
 :root {
@@ -477,8 +481,11 @@ def page(s, approx, measured, weeks, monthly, recs):
     young_note = ('<p class="note">Fewer than 4 weeks of task-by-task history — read the rates as a first '
                   'impression, not a trend.</p>') if s['weeks'] < 4 else ''
     if s['scope_weeks'] is None:
-        launch = ('The launch scope (Up next + Before launch) is <b>not shrinking yet</b> — tasks are arriving there '
+        launch = ('The launch scope (Up next + Before launch) is <b>not shrinking yet</b>: tasks are arriving there '
                   'about as fast as they are finished, or faster.')
+        if s['scope_weeks_no_new']:
+            launch += (f' If nothing new arrived, it would take about <b>{s["scope_weeks_no_new"]:.0f} weeks</b> '
+                       'at this pace.')
     else:
         eta = s['now'] + dt.timedelta(weeks=s['scope_weeks'])
         launch = (f'At this pace the launch scope empties in about <b>{s["scope_weeks"]:.0f} weeks</b> '
@@ -513,8 +520,10 @@ def page(s, approx, measured, weeks, monthly, recs):
     <span><i style="background:var(--arrive)"></i>Launch scope (Up next + Before launch)</span>
     <span><i style="background:var(--approx)"></i>Approximate (dashed)</span></div>
   <div class="chart">{hump}</div>
-  <p class="note">Before Oct 14 the line counts only tasks still listed on Oct 14, placed at the earliest date in their
-  own text — tasks finished before then aren't in it, so the real early backlog was larger.</p>
+  <p class="note">Before {s["base"]:%b %d} the dashed line is approximate: it counts the {s["pre_dated"]} tasks listed
+  on {s["base"]:%b %d} that have a date in their own text, placed at that date. {s["pre_undated"]} more had no date and
+  appear on {s["base"]:%b %d} itself (the step there is them, not a surge), and tasks finished before then aren't in it
+  at all, so the real early backlog was larger.</p>
 </section>
 <section class="panel">
   <h2>Arrivals and completions per week</h2>
@@ -534,7 +543,9 @@ def page(s, approx, measured, weeks, monthly, recs):
   <p class="note">Every bullet in each month's release notes. The long-run picture of finished work before the TODO
   had task-by-task history.</p>
 </section>'''
-    return PAGE.replace('%BODY%', body)
+    fonts = ('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600'
+             '&family=IBM+Plex+Mono:wght@400;500&display=swap')
+    return PAGE.replace('%FONTS%', fonts).replace('%BODY%', body)
 
 
 # ---------- the baseline stamp ----------
@@ -607,7 +618,8 @@ def main():
     print(f'Since {s["base"]:%Y-%m-%d} ({s["weeks"]:.1f} weeks): {s["arrived"]} arrived, {s["done"]} done, '
           f'{s["merged"]} merged, {s["dropped"]} dropped.')
     print(f'Per week: {s["arrive_rate"]:.1f} arrive, {s["done_rate"]:.1f} done. Launch scope: '
-          + (f'empties in ~{s["scope_weeks"]:.0f} weeks.' if s['scope_weeks'] else 'not shrinking yet.'))
+          + (f'empties in ~{s["scope_weeks"]:.0f} weeks.' if s['scope_weeks'] else 'not shrinking yet'
+             + (f' (~{s["scope_weeks_no_new"]:.0f} weeks if nothing new arrived).' if s['scope_weeks_no_new'] else '.')))
     for k, name in SECTIONS:
         print(f'  {name:14} {s["by_section"][k]}')
     print(f'\nPage: {OUT}')
