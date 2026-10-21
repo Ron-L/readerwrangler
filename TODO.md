@@ -999,10 +999,22 @@ _Why it matters:_ Today you have to remove a book from each folder and list sepa
 
 _Why it matters:_ Lets you identify a book mid-scan and carry on with your selection.
 
-**What you'd get**
-- With several books selected, right-click one → **Open** shows that book's details **without** clearing the selection.
-- Today, opening from a multi-selection opens the whole selection as a shelf you step through.
-- Name the menu item per a UX pass.
+**What you see** (checked in code 2026-10-21)
+- The book's right-click menu offers **Edit…** (opens its details) with one book selected; with several, the same spot
+  becomes **Edit ▶** (bulk edit). So there's no way to just *look at* one book while several are selected — and a
+  plain click on it replaces the selection with that one book.
+
+**Decided** (Ron + UX, 2026-10-21)
+1. **A "Details…" item on the book menu** opens **the book you right-clicked**, in the normal view (not edit mode), and
+   **leaves the selection exactly as it was**. "Details" matches the window's name (the book details window).
+2. **Always there, in the same place** — one book or many selected — so the menu doesn't shift (the rule in "Menus
+   keep their items in place").
+3. **‹ › inside steps through your selection** when the right-clicked book is part of it — today's "shelf", no longer
+   forced.
+4. **Pairs with "Restore the previous selection"** (below): this is the safe way to look; that one is the safety net
+   when a click wipes the selection anyway.
+5. Verify when building (not before): how a double-click on a cover treats a multi-selection today — the old note
+   "opening from a multi-selection opens the whole selection as a shelf you step through" came from that.
 
 ##### Restore the previous selection after a stray click or Select All
 
@@ -1017,8 +1029,8 @@ folder switch — and nothing brings it back.
    into undo would make Ctrl+Z step through clicks before reaching a real change — the ratified rule in
    docs/design/UNDO-MODEL.md ("view state … not undoable").
 
-**Why now** (2026-10-20): Tag from Collections gets undo for its own choices in 7.24.0 (its checkboxes are a draft of
-what Apply will do — docs/design/TAG-FROM-COLLECTIONS.md, build list item 7). Ron asked for the same safety "everywhere
+**Why now** (2026-10-20): Tag from Collections gets undo for its own choices in its round 2 (its checkboxes are a
+draft of what Apply will do — docs/design/TAG-FROM-COLLECTIONS.md, build list item 7; it did not ship in 7.24.0). Ron asked for the same safety "everywhere
 (in a folder for instance)" — this is that, in the convention that fits a selection.
 
 #### Cancelling a new folder that a filter hides should discard it
