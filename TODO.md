@@ -37,8 +37,7 @@
         - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
         - [Restore the previous selection after a stray click or Select All](#restore-the-previous-selection-after-a-stray-click-or-select-all)
       - [A folder or Book List you just created stays visible under filters](#a-folder-or-book-list-you-just-created-stays-visible-under-filters)
-      - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
-      - [Book details window: Save only when something changed; offer Save before closing with unsaved changes](#book-details-window-save-only-when-something-changed-offer-save-before-closing-with-unsaved-changes)
+      - [Book details window: one Save — nothing changes until you click it, and nothing is lost without asking](#book-details-window-one-save--nothing-changes-until-you-click-it-and-nothing-is-lost-without-asking)
       - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
       - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
       - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
@@ -1084,40 +1083,24 @@ later; both added an interruption around a rule that shouldn't apply — Law 18)
 - Keep a "just created" id set that the filtered folder / Book List lists always include; clear it when the filters
   change.
 
-#### Book details window: changes happen only when you click Save
+#### Book details window: one Save — nothing changes until you click it, and nothing is lost without asking
 
-_Why it matters:_ Today some fields save instantly and others wait for Save. One rule makes the window predictable, with one undo per Save.
+_Why it matters:_ Today some fields save instantly and others wait for Save; Save is enabled even when nothing changed;
+and every way out of edit mode throws your changes away without a word. One rule makes the window predictable, with
+one undo per Save. (Public promise: README's Coming Soon — "A calmer book editor".)
 
-**What you'd get**
-- In the book details window, **Edit → Save is the only way anything changes** — one undo per Save. Cancel throws away everything you changed.
-- Rating, price goal and tags stop being instant controls: they become read-only in view mode and editable in edit mode, saved with everything else. A new tag is created at Save.
-- **Commands stay live in both modes:** Share, the Amazon link, Status History, ◀ ▶ (previous/next book).
-- Outside the window, changes stay instant (one undo each).
+_Merged 2026-10-21 (Ron + UX) from "Book details window: changes happen only when you click Save" (ratified
+2026-09-10) and "…Save only when something changed; offer Save before closing with unsaved changes" (2026-10-15) —
+they share one "what changed?" check. Two steps, in order: step 1 is smaller and works on today's fields._
 
-**Quick access** (replaces the instant controls)
-- In list view, click the Price Goal or My Rating cell to set it in place (preset goals / custom amount, or a row of stars).
-- Decide during the build: should right-clicking a cover also offer a My Rating submenu?
+**Step 1 — Save only when something changed; ask before losing changes** (decided Ron + UX, 2026-10-15)
 
-**Steps**
-1. **Classify every control** in the window as a field (saved by Save) or a command (acts now). Publish the table for your red pen **before** any code.
-2. **Build** against the approved table — its own branch.
-
-**Status:** ratified 2026-09-10. Version number assigned when the work starts (the old "7.14.0" label is stale).
-
-**How (technical)**
-- Rating / price goal / tags join `editBookFields` as staged fields; Save folds them into the one `EDIT_BOOK` undo step.
-- Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and your context-keying principle: UNDO-MODEL.md, section "fully transactional".
-
-#### Book details window: Save only when something changed; offer Save before closing with unsaved changes
-
-_Why it matters:_ An always-on Save hides whether you changed anything, and today every way out of edit mode throws your changes away without a word.
-
-**What you see** (Ron, 2026-10-15)
+What you see (Ron, 2026-10-15):
 1. Open a book → **Edit**: **Save** is enabled even though nothing has changed.
 2. Change something, then **Cancel** — or Esc, ✕, or a click on the background (all four do the same): the changes are
    gone, with no warning.
 
-**Decided** (Ron + UX, 2026-10-15)
+Decided:
 1. **Save is disabled until something changes**, with a tooltip "No changes to save". Enter with nothing changed just
    leaves edit mode.
 2. **With unsaved changes, every exit asks** — Cancel, Esc, ✕, background click, ◀ ▶ to another book, closing:
@@ -1128,14 +1111,36 @@ _Why it matters:_ An always-on Save hides whether you changed anything, and toda
    3. **Esc in this dialog = Keep editing** (back out of the question).
    4. Only when something changed — otherwise exits just close, as now.
    5. The same one dialog for the explicit Cancel button too (uniform beats two variants).
-3. **One "what changed?" check** drives both — the comparison Save already makes. When rating / price goal / tags
-   move into edit mode ("Book details window: changes happen only when you click Save"), they join this one check.
+3. **One "what changed?" check** drives both — the comparison Save already makes. Step 2's fields join it.
+4. (2026-10-21, gate item 13) The exit question passes Law 18 — a confirmation for a genuinely destructive case (losing
+   unsaved edits), with Save as the default guessing the likely intent.
+
+**Step 2 — changes happen only when you click Save** (ratified 2026-09-10)
+1. In the book details window, **Edit → Save is the only way anything changes** — one undo per Save. Cancel throws
+   away everything you changed (after step 1's question).
+2. Rating, price goal and tags stop being instant controls: they're saved with everything else. A new tag is created at
+   Save.
+3. **Click-to-edit, so no click is dead** (2026-10-21 — the 2026-09-10 decision said "read-only in view mode", which
+   predates Laws 16 and 18: a star you can't click would be a dead control refusing a clear intent). **Clicking any field
+   in view mode switches to edit mode right there:** the 4th star → edit mode with 4 stars staged; the price goal →
+   edit mode with its box focused. Still nothing saved until Save.
+4. **Commands stay live in both modes:** Share, the Amazon link, Status History, ◀ ▶ (previous/next book).
+5. Outside the window, changes stay instant (one undo each).
+6. **Quick access** (replaces the instant controls): in list view, click the Price Goal or My Rating cell to set it in
+   place (preset goals / custom amount, or a row of stars). Decide during the build: should right-clicking a cover also
+   offer a My Rating submenu?
+7. **First, classify every control** in the window as a field (saved by Save) or a command (acts now). Publish the table
+   for Ron's red pen **before** any code. Its own branch; version number assigned when the work starts (the old
+   "7.14.0" label is stale).
 
 **How (technical)**
-- `enterEditMode` / `cancelEditMode` / `saveEditMode` (readerwrangler.js ~6993–7125); `saveEditMode` already diffs
-  `editBookFields` against `modalBook` — extract that into one `bookEditChanges()` used by Save's enabled state and by
-  the exit guard. Buttons ~13567–13570; the dialog's onClose in edit mode routes to `cancelEditMode` (~13550).
+- `enterEditMode` / `cancelEditMode` / `saveEditMode` (readerwrangler.js ~7022–7160 on 2026-10-21); `saveEditMode`
+  already diffs `editBookFields` against `modalBook` — extract that into one `bookEditChanges()` used by Save's enabled
+  state and by the exit guard. The dialog's onClose in edit mode routes to `cancelEditMode`.
 - The confirmation is a `<Dialog>` (overlay system) — not a hand-built box.
+- Step 2: rating / price goal / tags join `editBookFields` as staged fields; Save folds them into the one `EDIT_BOOK`
+  undo step. Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and Ron's context-keying principle:
+  UNDO-MODEL.md, section "fully transactional".
 
 #### Relay Setup: smoother sections and clearer Esc / Help behavior
 

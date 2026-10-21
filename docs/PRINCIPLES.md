@@ -350,7 +350,9 @@ structure so the procedure shrinks to nothing.
 **Enforcement**: pre-build gate checklist item 2; the overlay-registry design (DIALOG-DISMISSAL-AUDIT.md) as
 the worked example; `project_714_release` memory.
 
-### 18. Don't block the user — honor the intent behind the gesture (Ron's doctrine)
+### 18. THE PRIME DIRECTIVE: don't block the user — honor the intent behind the gesture (Ron's doctrine)
+_Alias by Ron, 2026-10-21. Fitting: Starfleet's Prime Directive is non-interference — here, the app doesn't
+interfere with what the user is clearly trying to do._
 When a user's gesture is clear, do it; don't refuse it because the app's *internal* model is different from theirs.
 "Not all users will share the same mental model, nor use RW the same way… there is no wrong way" (Ron, 2026-10-21) —
 an icon is an icon, and moving it across the folder / Book List boundary is a move. Three corollaries: (1) **a past
