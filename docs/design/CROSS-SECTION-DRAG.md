@@ -1,7 +1,14 @@
 # Cross-section drag: Folders ↔ Book Lists (spec)
 
-_Status: **DECIDED 2026-08-29, not built.** Separate work package from folder-ordering Phase 2/3
-(same recon session, different branch/scope). Findings verified in code 2026-08-29._
+_Status: **DECIDED 2026-08-29, not built; rules 2–3 REVISED 2026-10-21** (Ron + UX — PRINCIPLES Law 18, "don't block
+the user"). The plan of record is now the TODO task "Move and copy books anywhere — folders, Book Lists, All Books,
+Searches", which merged this spec's task. Separate work package from folder-ordering Phase 2/3 (same recon session,
+different branch/scope). Findings verified in code 2026-08-29._
+
+> **The 2026-10-21 revision in one line:** the plain-drag default here stays — **across a folder / Book List boundary a
+> drag copies** (File Explorer's "different drive" rule) — but nothing is blocked: **Shift-drag moves, Ctrl-drag
+> copies, always**, the drag label says which ("Copy to 'Sci-Fi' — hold Shift to move"), and a Book List dropped on a
+> folder is accepted. (Book List reordering became undoable in 7.10.1 — `REORDER_BOOKLISTS`.)
 
 > **When this ships, update docs/design/SUPPORT-KB.md** — §8 (Book Lists: drag rules) and §6
 > document CURRENT behavior only and deliberately omit the not-yet-built gestures (folder→list
@@ -37,14 +44,21 @@ What's broken (fix):
 ## Decisions (ratified by Ron 2026-08-29)
 
 **Principle: folders are custodial, lists are supplemental — cross-section drags are additive, and
-the UI never fakes an affordance.**
+the UI never fakes an affordance.** _(2026-10-21: still the plain-drag default, but no longer a wall — Shift-drag
+moves across the boundary; see the revision note at the top.)_
 
 1. **Book → list / list → list: keep as-is**; fix the over-count toast and the Trash leak.
-2. **Book from list view → folder: keep additive** (removing a custodial home from a list view
-   would be guesswork — which home?). Make it honest: toast "Added to X", undo records a copy.
-   Filing (a true move) is done from a folder view where the source is unambiguous.
-3. **Book List dragged outside its section: reject visibly** — no accept cursor, no rings, no
-   toasts. Kill the blanket/unconditional `preventDefault`s. Make list reorder undoable.
+2. **Book from list view → folder: a plain drag stays additive (a copy)** — toast "Added to X", undo records a copy.
+   _Revised 2026-10-21:_ **Shift-drag is a true move** — the book leaves **the list it came from** (the "which home?"
+   worry dissolves: a move takes it out of its source container, here the list; its folders are untouched). Toast
+   "Moved … to X". Filing from a folder view still works as before. ~~Filing (a true move) is done from a folder view
+   where the source is unambiguous.~~
+3. ~~**Book List dragged outside its section: reject visibly**~~ — _revised 2026-10-21:_ **a Book List dropped on a
+   folder is accepted:** a plain drag **adds** its books to the folder (dedup); **Shift-drag moves** them (they leave
+   the list; the emptied list stays). Receipts: *"Added 12 books from 'Beach Reads' to 'Sci-Fi' (3 were already
+   there)"* / *"Moved 12 books … 'Beach Reads' is now empty."* Still true from the original: **never fake an
+   affordance** — kill the blanket/unconditional `preventDefault`s; a target that won't take a drop must not light up.
+   ~~Make list reorder undoable~~ (done in 7.10.1).
 4. **Folder → existing Book List row = ADD** that folder's books (subfolders included, dedup free).
    Ring highlight on the row.
 5. **Folder → BETWEEN Book List rows = CREATE a new list there** (insertion caret = visible

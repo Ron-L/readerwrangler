@@ -351,8 +351,13 @@ move; the cure is complete moves (out of the source, into the destination, once,
 gesture; (2) **a prompt that stops the gesture is a block in a polite coat** — when the result needs a fix-up, apply
 the app's existing rule and say so (a book cut out of its last folder goes to the Inbox, and the receipt says it),
 and let Undo be the escape hatch; (3) **a block teaches people to stop trying, and the lesson outlives the fix** —
-Ron kept avoiding "Delete from All Books" long after 7.11.0 made it work. Pairs with Law 16 (perceivable at the
-point of effect): allow it, and make what happened visible.
+Ron kept avoiding "Delete from All Books" long after 7.11.0 made it work; (4) **explicit verbs do what they say; a
+guess picks the safe option** — when one gesture can mean two things (a plain drag between a folder and a Book List:
+move or copy?), default to the one that loses nothing, offer the other one key away (Shift = move, Ctrl = copy —
+File Explorer's convention), and label the drag live ("Copy to 'Sci-Fi' — hold Shift to move") so the default is a
+visible choice. Allowing everything isn't the same as guessing aggressively: a 300-book folder emptied by a plain drag
+would SURPRISE (Ron, 2026-10-21). Pairs with Law 16 (perceivable at the point of effect): allow it, and make what
+happened visible.
 **Enforcement**: `feedback_dont_block_the_user` memory; the TODO "Move and copy books anywhere" (reverses the
 2026-08 "block Book List moves" decision) as the worked example.
 

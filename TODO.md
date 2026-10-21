@@ -32,7 +32,6 @@
       - [Move and copy books anywhere — folders, Book Lists, All Books, Searches](#move-and-copy-books-anywhere--folders-book-lists-all-books-searches)
       - [Retire two leftover book fields: the hidden "seen" flag and the old price-goal field](#retire-two-leftover-book-fields-the-hidden-seen-flag-and-the-old-price-goal-field)
       - [Moving and selecting](#moving-and-selecting)
-        - [Drag between Folders and Book Lists](#drag-between-folders-and-book-lists)
         - [See an author's other books without leaving your spot](#see-an-authors-other-books-without-leaving-your-spot)
         - [Delete a book from All Books (removes it everywhere)](#delete-a-book-from-all-books-removes-it-everywhere)
         - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
@@ -889,10 +888,38 @@ half-done move, not a bad gesture: the cure is complete moves, not forbidding th
 5. **One rule, asked by every gesture** (menu, drag, keyboard) — a class of sites: list them with two independent
    searches before building, so a fourth gesture can't drift.
 
-**Watch out**
-- Reconcile with "Drag between Folders and Book Lists" (Polish → Moving and selecting) and
-  docs/design/CROSS-SECTION-DRAG.md: its "say 'Added', not 'Moved', from a list view" honesty fix becomes "say what
-  happened" — Moved for a move, Added for a copy.
+**Dragging** (Ron + UX, 2026-10-21 — File Explorer's convention: a plain drag moves on the same drive and copies to a
+different one; Ctrl always copies, Shift always moves)
+6. **A plain drag within the same kind moves** (folder → folder, Book List → Book List); **a plain drag between a
+   folder and a Book List copies — both directions.** Why copy across kinds: dropping "Sci-Fi" (300 books) on a list as
+   a move would empty the folder tree and send its only-there books to the Inbox — users would be SURPRISED; and when
+   the intent is ambiguous (file a book from "To Read" — done with it on the list, or not?), the default should lose
+   nothing (Del in a Book List removes it from that list in one key).
+7. **Shift-drag = move, Ctrl-drag = copy, always.** So nothing is blocked: a move across kinds is one key away (Ron:
+   "SHIFT drag solves that. Yay!"). The verbs that SAY move still move — Ctrl+X → paste, right-click **Move to**,
+   Shift-drag — with decisions 2–3 (a move leaves its source container; last folder → Inbox). Explicit verbs do what
+   they say; only a plain drag guesses, and it guesses safe.
+8. **The drag says what it will do, live:** the drag label reads *"Copy to 'Sci-Fi' — hold Shift to move"* /
+   *"Move to 'Sci-Fi'"* and switches as you press Shift / Ctrl (Explorer's "+ Copy to" / "→ Move to"; Law 16) — the
+   default is a visible choice, not a hidden one. (Ron: "the labels are a great idea. I think that seals the deal.")
+9. **The receipts:** a Book List moved onto a folder (Shift-drag): *"Moved 12 books from 'Beach Reads' to 'Sci-Fi' (3
+   were already there). 'Beach Reads' is now empty."* — several lists: *"…from 3 Book Lists…"*; the emptied list stays
+   (deleting a list is its own act); "removed from", never "deleted from" (deleted = the Trash). A plain drag (copy):
+   *"Added 12 books from 'Beach Reads' to 'Sci-Fi' (3 were already there)."* No duplicates in the destination.
+
+**From "Drag between Folders and Book Lists"** (merged in 2026-10-21; spec docs/design/CROSS-SECTION-DRAG.md, decided
+2026-08-29, its rules 2–3 revised 2026-10-21 to match the above)
+10. **Two new drag gestures** (still as decided): drop a folder **on** a Book List's entry in the left pane → adds the
+    folder's books to that list; drop a folder or books **between** two Book List entries in the left pane → creates a
+    new list there, named "‹folder name› - To Read" for a folder, or by the naming engine for books (e.g. "Beach
+    Reads"). Right-click → New also falls back to the current folder's name. (Spec rules 4–7 and its naming rule.)
+11. **Honesty fixes:** say what happened (Moved for a move, Added for a copy — was "always say Added from a list
+    view"); **no fake "you can drop here" signals** — a target that won't take the drop must not light up (Law 18
+    leaves far fewer such targets), including the left pane's blanket drop handling; fix the over-count in the
+    message and the leak into the Trash; make Book List reordering undoable. _Verify these three against today's code
+    when building — reordering the Book Lists themselves has been undoable since 7.10.1 (`REORDER_BOOKLISTS`), so the
+    last may be done._
+12. **On ship:** update SUPPORT-KB §8 and §6 (they describe today's behavior).
 
 **How (technical)**
 - Today: Ctrl+X is refused only in All Books / the library view (readerwrangler.js ~5223); in a Book List or Search it
@@ -932,24 +959,6 @@ _One data-layer round for both (Ron + UX, 2026-10-21) — the same mechanism and
 4. Its own test round (data layer).
 
 #### Moving and selecting
-
-##### Drag between Folders and Book Lists
-
-_Why it matters:_ Natural gestures for filling Book Lists, plus honest messages about what a drop did.
-
-**Honesty fixes**
-- From a list view, say "Added", not "Moved", in the message and its undo.
-- No fake "you can drop here" signals — including the left pane's blanket drop handling.
-- Book List reordering can be undone; fix an over-count in the message; fix a leak into the Trash.
-
-**The two new gestures** (decided 2026-08-29)
-- Drop a folder **on** a Book List row → adds the folder's books to that list.
-- Drop a folder or books **between** rows → creates a new list there: named "‹folder name› - To Read" for a folder, or by the naming engine for books (e.g. "Beach Reads").
-- Right-click → New also falls back to the current folder's name.
-
-**On ship:** update SUPPORT-KB §8 and §6 (they describe today's behavior).
-
-**Spec:** docs/design/CROSS-SECTION-DRAG.md.
 
 ##### See an author's other books without leaving your spot
 
