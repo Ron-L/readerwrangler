@@ -83,6 +83,11 @@ DEBUGGING -- are you chasing it in the right place?
     Tell: a logged value that stays CONSTANT while the input varies means you're measuring downstream.
     (Earned 7.18.0: 5 alphas "fixing" CursorPopup while the bug was a hardcoded pre-clamp in the trigger
     -- the click x never changed as Ron clicked different spots, and that tell sat in every debug dump.) [Laws 3, 4]
+
+STALENESS -- is the plan still right?
+13. Building from a TODO or design decision? Check its date against PRINCIPLES: does a law written since
+    then apply? Re-read the decision through it first (2026-10-21: a Book List move block, a filter notice
+    and a hidden menu item all predated Laws 16/18 and fell to them in review). [Laws 2, 18]
 <!-- GATE-CHECKLIST-END -->
 
 **Era note (Ron, 2026-09-04)**: some recurrence counts below are partly artifacts of earlier AI model
