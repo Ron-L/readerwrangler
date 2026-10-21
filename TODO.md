@@ -1296,8 +1296,8 @@ each list by hand doesn't stop the next new list from repeating it; with one sha
       out of sight. It also has two copies of the "Manage Tags…" link (no tags ~9900 / some tags ~9977) — make one.
    2. **Right-click a book → Tags** — **already right, the model:** only the tag rows scroll (~19857); "Manage Tags…"
       sits below them (~19933).
-   3. **Tag from Collections' "No tags to remove…" note** — handled in 7.22.1, not here: it's a note, so it moves to
-      the window's status line rather than being pinned.
+   3. **Tag from Collections' "No tags to remove…" note** — handled in "Tag from Collections, round 2" (its design's
+      build list item 2), not here: it's a note, so it moves to the window's status line rather than being pinned.
 3. **Find the rest with the comb** — two independent searches (lists that scroll; trailing "Manage…" / "Create…" / "…"
    items) plus a walk of every menu, right-click menu, dropdown and dialog list. Publish the list of places before
    calling it done. **Include menus that list your own items** (Book Lists, folders) and **run off the screen** —
@@ -1319,13 +1319,12 @@ _Why it matters:_ One click deletes a recent search with no message and no way b
 - It's gone instantly: no message, no Undo, nothing in the 🕐 message history.
 - By contrast, deleting a **saved** Search (left pane → SEARCHES → right-click → Delete Search) confirms, shows a message, and can be undone.
 
-**Decided** (Ron + UX pass, 2026-10-07)
-- Same treatment as a saved Search, **minus the confirmation**: remove at once, show "Removed · Undo", and log it in the 🕐 history.
+**Decided** (Ron + UX pass, 2026-10-07; re-checked 2026-10-21 — still true in code: `removeRecent` just filters and
+saves; passes Laws 16 and 18)
+- Same treatment as a saved Search, **minus the confirmation**: remove at once, show a message that names it —
+  *"Removed 'jodi taylor' from recent searches · Undo"* — and log it in the 🕐 history.
 - No "Are you sure?" — recents are automatic history, and a question per row would nag.
-
-**Also**
-- Route it through the shared undo/message path, not a one-off.
-- Check what else still sits outside that path — tag and Search deletes were left out of it in 6.13.1.
+- Route it through the shared undo/message path (the one tag and Search deletes use since 7.11.0), not a one-off.
 
 #### Book Lists
 
