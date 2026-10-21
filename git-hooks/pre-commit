@@ -24,7 +24,8 @@ if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(relay-client\.j
 fi
 
 # 4. TODO.md's table of contents (2026-10-14): refuses a staged TODO.md whose table doesn't match its headers — the
-#    VS Code extension rebuilds it only on a VS Code save, so edits made any other way leave it stale.
+#    VS Code extension rebuilds it only on a VS Code save, so edits made any other way leave it stale. Also refuses a
+#    task without its ID line, or a repeated ID (2026-10-21 — tools/backlog_report.py follows tasks by them).
 #    Checks the STAGED copy. (git-hooks/check-toc.js)
 if git diff --cached --name-only --diff-filter=ACM | grep -qx 'TODO.md'; then
     git show :TODO.md | node git-hooks/check-toc.js - TODO.md || exit 1

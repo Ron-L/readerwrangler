@@ -164,6 +164,7 @@ In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**
 ### High priority
 
 #### 🚧 Relay storage: stop leftovers piling up, and report usage correctly
+<!-- id 20261003-0000 -->
 
 _Why it matters:_ Leftovers eat into the free storage limit, and the daily email was reporting the wrong total.
 
@@ -241,6 +242,7 @@ _Why it matters:_ Leftovers eat into the free storage limit, and the daily email
 - B2 alpha.4 = commit `e753679`. The deployment is named by `RELAY_ENV` (prod / dev) in wrangler.toml; the worker's version is `WORKER_VERSION`; the key check compares Cloudflare's `keyCount`.
 
 ##### Numbers the app and relay must agree on: add a check that they match
+<!-- id 20261014-1030ag -->
 
 _Why it matters:_ The same rules are typed separately in two programs; change one and forget the other, and things quietly go wrong.
 
@@ -278,6 +280,7 @@ _Part of the relay storage work above — build it with B2 (decided 2026-10-14).
 - Units differ (seconds vs ms) — the check must compare values, not text.
 
 #### Turn more of our working rules into automatic checks (my tooling)
+<!-- id 20260922-0000c -->
 
 _Why it matters:_ Rules that depend on memory keep failing; automatic checks don't. This affects only how I work, not the app.
 
@@ -303,6 +306,7 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 - Item 3: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
 
 #### Trim the always-loaded rules: one home per rule, history out, a lean memory index
+<!-- id 20261021-1332 -->
 
 _Why it matters:_ The more always-on text there is, the less each rule stands out — and a rule kept in two or three
 files drifts (the single-source lesson behind the gate's design).
@@ -326,6 +330,7 @@ yes** — never silently dropped. Publish the before / after list of moved and r
 after.
 
 #### Drag any dialog out of the way
+<!-- id 20260928-0000 -->
 
 _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them aside is a habit from Quicken.
 
@@ -364,6 +369,7 @@ _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them as
 The right pane's search box: one shared matching rule (incl. ASIN), and searching everywhere without losing your place. Build both parts together — they answer the same question: "is this book in my library?"
 
 ##### Find a book by its ASIN in the search box
+<!-- id 20261012-0000 -->
 
 _Why it matters:_ Handy for checking whether one specific book is in your library.
 
@@ -386,6 +392,7 @@ _Why it matters:_ Handy for checking whether one specific book is in your librar
 - One `bookMatchesText(book, term, tagLabel)` in uiHelpers (tag names need the tag list — pass a lookup); ASIN = exact match of a 10-character term, case-insensitive.
 
 ##### Search everywhere without leaving the current folder
+<!-- id 20260829-0000a; merged 20261014-1030an -->
 
 _Why it matters:_ Answers "is this book in my library?" without losing your place.
 
@@ -419,6 +426,7 @@ leaving your spot": "Today it takes All Books + a filter + finding your way back
 - Folder case: the "common author" check Auto-Organize already uses when naming.
 
 #### Dark theme: fix the unreadable bar and the light strips
+<!-- id 20261007-0000a -->
 
 _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar's text is unreadable.
 
@@ -445,6 +453,7 @@ _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar'
 - Themes: readerwrangler.css `[data-theme="dark"|"hc-light"|"hc-dark"]`; phone adds its own variables at mobile.js ~57–59.
 
 #### Series positions: one Position dialog, and one book at several positions (omnibus)
+<!-- id 20260915-0000 -->
 
 _Why it matters:_ Three menu items do nearly the same job under different names (Ron couldn't find the one he needed), and a collection should appear at each place it belongs in its series.
 
@@ -492,6 +501,7 @@ _Why it matters:_ Three menu items do nearly the same job under different names 
 - Ratified direction 2026-09-15.
 
 #### Phone: show which test build is running
+<!-- id 20260922-0000 -->
 
 _Why it matters:_ During testing you can't tell from the phone which build it's on.
 
@@ -519,6 +529,7 @@ _Why it matters:_ During testing you can't tell from the phone which build it's 
   itself loads (not pages like security.html or the fetchers, which have their own versions).
 
 #### Drag a box to select covers
+<!-- id 20261014-1030q -->
 
 _Why it matters:_ Faster than clicking covers one by one.
 
@@ -538,6 +549,7 @@ _Why it matters:_ Faster than clicking covers one by one.
 - The library hides off-screen rows during a drag to stay fast with 10,000+ books (drag virtualization, readerwrangler.js ~1530) — so work out which books the box covers from the grid's layout (row/column positions), not from what's drawn; otherwise auto-scroll misses books.
 
 #### Faster fetches that report exactly how your library compares with Amazon
+<!-- id 20260919-0000a; merged 20260903-0000 -->
 
 _Why it matters:_ Every fetch makes you wait about a minute before you can import, even to grab one new book — most of it a full-library scan that runs twice. And the fetch still can't honestly say "your library matches Amazon exactly", or list the differences.
 
@@ -587,6 +599,7 @@ same full-library pass gives both the speed and the report — one task, two bui
 - Comparison details (filters, totals): see TODO notes.
 
 #### Book Lists and Searches: pin and sort them like Folders
+<!-- id 20260910-0000a -->
 
 _Why it matters:_ A long Book Lists column is hard to search; Folders already have pins and a Name / Manual sort.
 
@@ -604,6 +617,7 @@ _Why it matters:_ A long Book Lists column is hard to search; Folders already ha
 - The old "queued behind the book details window rework" line is dropped — no known dependency (Ron).
 
 #### A type-to-filter box for the left pane
+<!-- id 20260910-0000 -->
 
 _Why it matters:_ With many folders, Book Lists and Searches, typing a few letters is the fastest way to find one.
 
@@ -624,6 +638,7 @@ _Why it matters:_ With many folders, Book Lists and Searches, typing a few lette
 Things that trip you up while working through the Inbox backlog.
 
 ##### Folder dragging: where you drop decides pinned, and the level
+<!-- id 20260803-0000 -->
 
 _Why it matters:_ Folders land somewhere other than where the guide line showed, and sorting reshuffles folders you arranged by hand.
 
@@ -670,6 +685,7 @@ _Why it matters:_ Folders land somewhere other than where the guide line showed,
   at that edge).
 
 ##### Stray double spaces in author names create duplicate authors
+<!-- id 20261014-1030av -->
 
 _Why it matters:_ An author can split in two, making a series look incomplete.
 
@@ -682,6 +698,7 @@ _Why it matters:_ An author can split in two, making a series look incomplete.
 - Only spaces are tidied — a name is never split or reordered (the "never parse authors" rule stands).
 
 #### Tag from Collections, round 2: clearer window, safer tags (decided 2026-10-20)
+<!-- id 20261020-1409 -->
 
 _Why it matters:_ 7.24.0 fixed the confusing window; testing it surfaced smaller rough edges — and one real gap: a tag
 the tool added stays the tool's even after you remove and re-add it by hand.
@@ -708,6 +725,7 @@ before building; this task is the plan. One concern per alpha (Law 6), smallest 
    fields: the hidden 'seen' flag and the old price-goal field" (one data round for both).
 
 #### Restore dialog calls yesterday's backup "today"
+<!-- id 20260922-0000a -->
 
 _Why it matters:_ A wrong date label can lead you to restore the wrong backup.
 
@@ -731,6 +749,7 @@ fall for the quickie trap again")
    file saved yesterday reads "yesterday".
 
 #### Honest ownership changes: buying, samples, loans
+<!-- id 20261014-1700 -->
 
 _Why it matters:_ When a book changes kind — bought, a sample, a loan, a book in the Trash — ReaderWrangler should notice, tell you, and never lose your settings.
 
@@ -750,6 +769,7 @@ _Why it matters:_ When a book changes kind — bought, a sample, a loan, a book 
 - 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
 
 ##### Fetch should update books it already knows, not skip them
+<!-- id 20260904-0000a; merged 20261014-1030ac -->
 
 _Why it matters:_ A sample or loan of a wishlisted book is thrown away, so the change never shows.
 
@@ -800,6 +820,7 @@ _The foundation — the summaries below depend on it._
 - Fields: `ownershipType`, `acquisitionDate`, binding; respect `userEdited`. The watermark re-walk quirk heals with the date refresh. `pastPurchase` demoted to backstop.
 
 ##### Relay Import: only books in no folder should go to the Inbox
+<!-- id 20260904-0000e -->
 
 _Why it matters:_ A restore once copied the whole library into the Inbox.
 
@@ -835,6 +856,7 @@ a recovery moment — exactly when a mess in the Inbox hurts most.
   named when this was filed no longer exists (checked 2026-10-20) — build the set from the folders at that point.
 
 ##### Buying a book that's in the Trash should bring it back
+<!-- id 20261014-1030j -->
 
 _Why it matters:_ A book you just bought shouldn't stay hidden in the Trash.
 
@@ -855,6 +877,7 @@ _Why it matters:_ A book you just bought shouldn't stay hidden in the Trash.
 - Lives in storage.js (the Import merge), via the one ownership function.
 
 ##### Fetch summary should report books you bought
+<!-- id 20261014-1030t -->
 
 _Why it matters:_ After buying 4 wishlist books, the summary says "0 new" — the upgrades only show in the developer console.
 
@@ -872,6 +895,7 @@ report exactly how your library compares with Amazon" — same completion window
 - Today the upgrades are only logged as ⬆️ in the console.
 
 ##### Import summary: every ownership change by kind, kept in the message history
+<!-- id 20260904-0000b; merged 20260904-0000c, 20261014-1030z -->
 
 _Why it matters:_ Sample → owned upgrades are missed, wishlist → sample could be mislabeled as owned, and the summary
 disappears on refresh, leaving no record of what changed — including which books kept their price goals.
@@ -901,6 +925,7 @@ tasks: "Import summary: count every ownership change, by kind", "Keep the Import
 ### Polish
 
 #### Move and copy books anywhere — folders, Book Lists, All Books, Searches
+<!-- id 20261014-1030ad; merged 20260808-0000, 20260829-0000 -->
 
 _Why it matters:_ Today a cut from a Book List or Search quietly copies instead of moving, and Book Lists were going to
 block moves altogether — the app enforcing its internal model instead of doing what you asked.
@@ -969,6 +994,7 @@ different one; Ctrl always copies, Shift always moves)
   7.10.1-alpha.7, filed not fixed.
 
 #### Retire two leftover book fields: the hidden "seen" flag and the old price-goal field
+<!-- id 20261012-0000b -->
 
 _Why it matters:_ Clearing a price goal doesn't fully clear it everywhere, and every save, backup and sync still carries
 a hidden field nothing uses any more.
@@ -1003,6 +1029,7 @@ _One data-layer round for both (Ron + UX, 2026-10-21) — the same mechanism and
 #### Moving and selecting
 
 ##### Delete a book from All Books (removes it everywhere)
+<!-- id 20261014-1030p -->
 
 _Why it matters:_ Today you have to remove a book from each folder and list separately.
 
@@ -1022,6 +1049,7 @@ _Why it matters:_ Today you have to remove a book from each folder and list sepa
 - Reuse the membership snapshot, so restoring puts it back everywhere.
 
 ##### Open one book's details without losing a multi-selection
+<!-- id 20261014-1030ah -->
 
 _Why it matters:_ Lets you identify a book mid-scan and carry on with your selection.
 
@@ -1043,6 +1071,7 @@ _Why it matters:_ Lets you identify a book mid-scan and carry on with your selec
    "opening from a multi-selection opens the whole selection as a shelf you step through" came from that.
 
 ##### Restore the previous selection after a stray click or Select All
+<!-- id 20261020-1239 -->
 
 _Why it matters:_ A careful multi-selection (Ctrl-click by Ctrl-click) is lost to one stray click, Ctrl+A, Esc or a
 folder switch — and nothing brings it back.
@@ -1060,6 +1089,7 @@ draft of what Apply will do — docs/design/TAG-FROM-COLLECTIONS.md, build list 
 (in a folder for instance)" — this is that, in the convention that fits a selection.
 
 #### A folder or Book List you just created stays visible under filters
+<!-- id 20261014-1030a -->
 
 _Why it matters:_ With filters on, a new folder is hidden the moment you create it (it has no matching books) — the
 app filtering something you obviously didn't mean to filter.
@@ -1087,6 +1117,7 @@ later; both added an interruption around a rule that shouldn't apply — Law 18)
   change.
 
 #### Book details window: one Save — nothing changes until you click it, and nothing is lost without asking
+<!-- id 20260910-0000b; merged 20261015-1644 -->
 
 _Why it matters:_ Today some fields save instantly and others wait for Save; Save is enabled even when nothing changed;
 and every way out of edit mode throws your changes away without a word. One rule makes the window predictable, with
@@ -1146,6 +1177,7 @@ Decided:
   UNDO-MODEL.md, section "fully transactional".
 
 #### Relay Setup: smoother sections and clearer Esc / Help behavior
+<!-- id 20260928-0000a -->
 
 _Why it matters:_ Its sections jump open so abruptly they look like new windows, and Esc behaves differently in a way you can't see.
 
@@ -1173,6 +1205,7 @@ wording; one pass touches and re-tests the window once.
   ~11371 on 2026-10-21: `reason === 'esc' && relayManualCreds` closes only the section).
 
 #### Arrow keys should move through every type-ahead list
+<!-- id 20260929-0000 -->
 
 _Why it matters:_ You can't pick a series from the list with the keyboard — Down scrolls the window instead — and the
 same is likely true of most of the app's type-ahead lists.
@@ -1207,6 +1240,7 @@ your folders" (~12734); "Filter authors by name…" (~12064); and the planned fi
 - The working model is the `SearchInput` component's Down/Up/Enter/Esc handling. Stable copy "as it was": `git show 46a0cf6:readerwrangler.js`, search for `const SearchInput`.
 
 #### The "Save results" menu runs off the screen with many Book Lists
+<!-- id 20261006-0000b -->
 
 _Why it matters:_ With 20+ Book Lists, the lower ones are cut off and can't be reached.
 
@@ -1236,6 +1270,7 @@ that list your own items" moved to the long-lists task's sweep.)
 - Today it pins to the top of the window and hangs off the bottom. The fly-out rule is CursorPopup's "never add overflow".
 
 #### Long lists keep their actions in view (Manage…, Select All) while you scroll
+<!-- id 20261019-2015 -->
 
 _Why it matters:_ An action at the end of a long list scrolls out of sight — it looks missing, so it's never used.
 
@@ -1275,6 +1310,7 @@ fix) and "One shared tag picker" (Small fixes — it would sit on this piece). D
 (no regression; scrolling down is the workaround).
 
 #### Removing a recent search should offer Undo
+<!-- id 20261007-0000b -->
 
 _Why it matters:_ One click deletes a recent search with no message and no way back.
 
@@ -1296,6 +1332,7 @@ _Why it matters:_ One click deletes a recent search with no message and no way b
 Pairs with "Book Lists and Searches: pin and sort them like Folders" (High priority).
 
 ##### A management view for Book Lists
+<!-- id 20261014-1030b -->
 
 _Why it matters:_ One place to organize and order your Book Lists.
 
@@ -1305,6 +1342,7 @@ _Why it matters:_ One place to organize and order your Book Lists.
 **Spec:** docs/design/FOLDER-ORDERING.md. Related: "Book Lists and Searches: pin and sort them like Folders" (Up next).
 
 ##### Book Lists: arrange by series number
+<!-- id 20261014-1030g -->
 
 _Why it matters:_ Put a list in series order once, then adjust it by hand.
 
@@ -1318,10 +1356,12 @@ _Why it matters:_ Put a list in series order once, then adjust it by hand.
 #### Small fixes
 
 ##### Tidy up the notes
+<!-- id 20261020-1448 -->
 
 _Why it matters:_ Housekeeping — a few notes are in the wrong place. Details: see TODO notes.
 
 ##### Leave the affiliate tag off Amazon links on the test rig
+<!-- id 20261021-1401 -->
 
 _Why it matters:_ Ron's own testing clicks — and any purchase through them — count against RW's affiliate account,
 muddying the stats, and Associates doesn't pay on your own purchases (repeated ones can draw a warning).
@@ -1339,6 +1379,7 @@ muddying the stats, and Associates doesn't pay on your own purchases (repeated o
   phone app and Share included).
 
 ##### Switch the affiliate tag to "readerwrangler-20"
+<!-- id 20261021-1401a -->
 
 _Why it matters:_ A tracking ID just for the app (created by Ron 2026-10-21) separates ReaderWrangler's clicks and
 sales from Ron's WordPress articles in the Associates reports (today they're combined).
@@ -1350,6 +1391,7 @@ sales from Ron's WordPress articles in the Associates reports (today they're com
 - Pairs with "Leave the affiliate tag off Amazon links on the test rig" — same function, build together.
 
 ##### Menus keep their items in place: disable, don't hide
+<!-- id 20261021-1131 -->
 
 _Why it matters:_ People find menu items by position as much as by word — an item that appears and disappears shifts
 everything below it, and the click lands on the wrong thing (Ron, 2026-10-21: "menus that shift around [are]
@@ -1367,6 +1409,7 @@ the current situation; make each one stay and disable instead. Publish the list 
 searches, plus a walk of every menu). New items follow the rule from now on (e.g. "More by ‹author›" on a folder).
 
 ##### A book's hover popup stays up after the book is deleted
+<!-- id 20261021-1026 -->
 
 _Why it matters:_ It goes on describing a book that's gone — and could describe the wrong book.
 
@@ -1381,6 +1424,7 @@ _Why it matters:_ It goes on describing a book that's gone — and could describ
 - "Moved from Folder X" belongs in the Trash receipt instead: name the folder there.
 
 ##### The Trash ignores the search and filters
+<!-- id 20261021-1026a -->
 
 _Why it matters:_ With a filter on, every other place narrows to the matches — the Trash doesn't, which surprises.
 
@@ -1399,6 +1443,7 @@ _Why it matters:_ With a filter on, every other place narrows to the matches —
   oversight. Check whether the Trash's *contents* skip the filter by design when building.
 
 ##### Show only hidden books
+<!-- id 20260903-0000c -->
 
 _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for them.
 
@@ -1407,10 +1452,12 @@ _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for t
 - Today it only shows or hides them, so finding the 2 hidden books among 337 is impractical.
 
 ##### Tooltips in the book details window
+<!-- id 20261014-1030ba -->
 
 _Why it matters:_ Some fields aren't self-explanatory — e.g. that Collections are read-only and come from Amazon.
 
 ##### One shared tag picker: show all tags in your order (the right-click one silently stops at 10)
+<!-- id 20261015-1717 -->
 
 _Why it matters:_ A tag you use constantly ("Read", 964 books) can be missing from the list with no hint why — and the two tag pickers disagree on what to show.
 
@@ -1443,6 +1490,7 @@ _Why it matters:_ A tag you use constantly ("Read", 964 books) can be missing fr
 - Build it on the overlay system's list popup if it opens as a popup.
 
 ##### Right-click: add "Copy ASINs" below Copy Titles / Copy Authors
+<!-- id 20261015-1710 -->
 
 _Why it matters:_ Getting the ASINs of several books today means opening each one; the list view's ASIN column can't be selected or copied.
 
@@ -1459,6 +1507,7 @@ _Why it matters:_ Getting the ASINs of several books today means opening each on
   `navigator.clipboard.writeText(...)` of the selection's `asin`s, with the same count-aware label.
 
 ##### Wishlist: record the real format when a book is added
+<!-- id 20261014-1030bf -->
 
 _Why it matters:_ Today the format is only known after the book's details are filled in.
 
@@ -1472,6 +1521,7 @@ _Why it matters:_ Today the format is only known after the book's details are fi
 - Capture the binding from the product page (`bindingInformation`) when the book is added to the wishlist.
 
 ##### Left pane: put the jump-to-top / bottom buttons by the scrollbar
+<!-- id 20261014-1030aa -->
 
 _Why it matters:_ They sit at the bottom left today, not where you'd look for them.
 
@@ -1486,6 +1536,7 @@ _Why it matters:_ They sit at the bottom left today, not where you'd look for th
 - No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
 
 ##### Bulk Edit hints that read like "you can type several values"
+<!-- id 20261015-1219 -->
 
 _Why it matters:_ Two hints in the multi-book Edit boxes are easy to misread as "type more than one value here".
 
@@ -1510,6 +1561,7 @@ _Why it matters:_ Two hints in the multi-book Edit boxes are easy to misread as 
   Position / Format; Position's default `'e.g., 1, 1.5'` (~13482).
 
 #### Auto-Organize: let a misfiled book go back to the Inbox
+<!-- id 20261014-1030f -->
 
 _Why it matters:_ There's no way to send a book that Auto-Organize filed wrongly back to the Inbox.
 
@@ -1520,6 +1572,7 @@ _Why it matters:_ There's no way to send a book that Auto-Organize filed wrongly
 - Deferred from 7.9.0 on purpose (scope rule): it needs different commit machinery from ordinary filing.
 
 #### Auto-Organize: Shift-click ranges should follow what you see
+<!-- id 20261014-1030d -->
 
 _Why it matters:_ Shift-click selects by a hidden internal order that can differ from the order on screen.
 
@@ -1535,6 +1588,7 @@ _Why it matters:_ Shift-click selects by a hidden internal order that can differ
 - 6.16.0 rebuilt the range to follow display order (`getPreviewOrderedBooks`, readerwrangler.js ~9213–9246) — correct for the books being moved, but it pushes the **already-filed** books in their stored order (`preview.alreadyFiled`), not their on-screen grouping. Also check series mode against what's drawn. Deferred from 7.9.0.
 
 #### Folder right-click menu: add Auto-Organize
+<!-- id 20261014-1714 -->
 
 _Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder is a natural place to look for it.
 
@@ -1556,6 +1610,7 @@ _Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder 
 Small code-and-safety fixes; "odds and ends" includes a minimum pause between requests to Amazon.
 
 ##### Fetcher: name and explain Amazon's library filter
+<!-- id 20261014-1030u -->
 
 _Why it matters:_ An unexplained code string is repeated in four places; one named, documented setting is safer to change.
 
@@ -1597,6 +1652,7 @@ _Why it matters:_ An unexplained code string is repeated in four places; one nam
 - A fetcher change: bump `FETCHER_VERSION`.
 
 ##### Fetcher odds and ends (progress figure, frozen timer, request pacing)
+<!-- id 20260903-0000a -->
 
 _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
 
@@ -1610,6 +1666,7 @@ _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
   update books it already knows", un-trash on upgrade is "Buying a book that's in the Trash should bring it back".)
 
 #### Relay Setup's connection test checks the wrong relay on dev
+<!-- id 20261012-0000a -->
 
 _Why it matters:_ On your local copy or the dev site it tests production, so its answer can be wrong.
 
@@ -1624,6 +1681,7 @@ _Why it matters:_ On your local copy or the dev site it tests production, so its
 - Use the dev-aware `window._RW_RELAY_WORKER_URL` (set near the top of readerwrangler.js for localhost and the dev site). Found 2026-10-12.
 
 #### Finish routing every change through one shared path, with undo
+<!-- id 20261014-1030w -->
 
 _Why it matters:_ A few actions — deleting tags or Searches, renaming — still can't be undone.
 
@@ -1647,6 +1705,7 @@ _Why it matters:_ A few actions — deleting tags or Searches, renaming — stil
 - Shared operations: `deleteFolder`, `moveItems`, `reparentFolder`. The redo TODO is in `COPY_PASTE_FOLDER`. Design: docs/design/OPERATIONS-REFACTOR.md; feeds MODULE-SPLIT.
 
 #### The Delete key should delete the folders you've selected
+<!-- id 20261014-1030ay -->
 
 _Why it matters:_ Today it only deletes the folder you're inside.
 
@@ -1662,6 +1721,7 @@ _Why it matters:_ Today it only deletes the folder you're inside.
 - Today it uses `selectedFolderId` instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch confirm and one compound undo — best once there's a `deleteFolders(folders)` operation. Surfaced during the operations refactor.
 
 #### Working-process safety net: three small follow-ups
+<!-- id 20261015-1917 -->
 
 _Why it matters:_ Closes the last gaps left after "Save our working process in git" (done 2026-10-15).
 
@@ -1685,6 +1745,7 @@ _Formerly: 🚦 Pre-Launch (must-do before public launch)_
 _Formerly: Docs & onboarding_
 
 #### Security page: finish the high-contrast light theme
+<!-- id 20260909-0000 -->
 
 _Why it matters:_ The last bit of polish on the security page; low priority.
 
@@ -1696,6 +1757,7 @@ _Why it matters:_ The last bit of polish on the security page; low priority.
 - Optional: restyle it onto the site's shared styles instead of the current overrides.
 
 #### Rewrite the User Guide around Searches, Book Lists and Folders
+<!-- id 20260910-0000c -->
 
 _Why it matters:_ The guide predates today's way of organizing.
 
@@ -1717,6 +1779,7 @@ _Why it matters:_ The guide predates today's way of organizing.
 - "Holds vs. points at" = the custodial vs. supplemental model.
 
 #### User Guide: explain workarounds for fields you can't filter by
+<!-- id 20261014-1030bd -->
 
 _Why it matters:_ There's usually another way, e.g. add the column in List view and sort.
 
@@ -1724,6 +1787,7 @@ _Why it matters:_ There's usually another way, e.g. add the column in List view 
 - In the User Guide and the GPT manual: when someone can't filter by a field, show the workaround (e.g. List view → add that column → sort).
 
 #### Wording pass: explain Book List shortcuts and Linked Copies
+<!-- id 20261014-1030bg -->
 
 _Why it matters:_ Those terms confuse people unless they're explained once, clearly.
 
@@ -1734,6 +1798,7 @@ _Why it matters:_ Those terms confuse people unless they're explained once, clea
 **Spec:** docs/design/TERMINOLOGY.md. (Filed for 6.12.1.)
 
 #### Rename "Relay" to "Cloud Sync" everywhere users see it
+<!-- id 20260828-0000a -->
 
 _Why it matters:_ "Relay" is an engineering word; renaming is free before launch and expensive after.
 
@@ -1754,6 +1819,7 @@ _Why it matters:_ "Relay" is an engineering word; renaming is free before launch
 - Fold into the User Guide rewrite (above).
 
 #### Update and record the sizzle reel
+<!-- id 20261014-1030bc -->
 
 _Why it matters:_ The promo video shows the old way of organizing.
 
@@ -1762,10 +1828,12 @@ _Why it matters:_ The promo video shows the old way of organizing.
 2. Record and produce.
 
 #### Refresh the landing page's before / after screenshot
+<!-- id 20261014-1030al -->
 
 _Why it matters:_ The "after" picture predates the redesign.
 
 #### Create a FAQ page
+<!-- id 20261014-1030o -->
 
 _Why it matters:_ Common questions answered in one place.
 
@@ -1774,6 +1842,7 @@ _Why it matters:_ Common questions answered in one place.
 - Linked from the Help menu, README, and the features and tutorials page footers.
 
 #### Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome
+<!-- id 20261018-1422b -->
 
 _Why it matters:_ Assumptions baked into the product are nowhere stated — a UK reader, or someone expecting paperbacks, finds out only by failing.
 
@@ -1793,6 +1862,7 @@ _Why it matters:_ Assumptions baked into the product are nowhere stated — a UK
 Ron's word on the wording first.
 
 #### Build the support assistant (custom GPT)
+<!-- id 20261014-1030i -->
 
 _Why it matters:_ Lets users get answers without waiting for you.
 
@@ -1806,6 +1876,7 @@ _Why it matters:_ Lets users get answers without waiting for you.
 _Formerly: Safety / data-integrity guards_
 
 #### All the pre-launch data tests pass
+<!-- id 20260904-0000 -->
 
 _Why it matters:_ The core data rules must be proven before strangers rely on them.
 
@@ -1822,6 +1893,7 @@ _Why it matters:_ The core data rules must be proven before strangers rely on th
 - **Blocks launch; blocks nothing else.**
 
 #### Warn before uploading a much smaller library (demo safety)
+<!-- id 20261014-1030be -->
 
 _Why it matters:_ A leftover demo setting could replace a real library with a tiny one.
 
@@ -1834,6 +1906,7 @@ _Why it matters:_ A leftover demo setting could replace a real library with a ti
 - Old review item 6f; the demo setting is the "demo whitelist".
 
 #### A button to rebuild the library from Amazon
+<!-- id 20261014-1030 -->
 
 _Why it matters:_ Today a full reset needs the browser's developer tools.
 
@@ -1845,6 +1918,7 @@ _Why it matters:_ Today a full reset needs the browser's developer tools.
 - Old review item 6g.
 
 #### Pin the exact versions of outside code libraries
+<!-- id 20261014-1030ai -->
 
 _Why it matters:_ An unannounced update to one of them could break the app overnight.
 
@@ -1857,6 +1931,7 @@ _Why it matters:_ An unannounced update to one of them could break the app overn
 - Old review item 6h.
 
 #### Stop cleanly when Amazon asks for a human check mid-fetch
+<!-- id 20261014-1030au -->
 
 _Why it matters:_ Today it shows confusing errors instead of saying what to do.
 
@@ -1871,6 +1946,7 @@ _Why it matters:_ Today it shows confusing errors instead of saying what to do.
 - In the fetchers' retry path, recognize check-shaped answers: HTML where JSON was expected, a validate-captcha redirect, a robot-check 503.
 
 #### Protect against editing in two tabs at once
+<!-- id 20260830-0000 -->
 
 _Why it matters:_ Two open tabs can overwrite each other's work — a real data-loss risk.
 
@@ -1887,6 +1963,7 @@ _Why it matters:_ Two open tabs can overwrite each other's work — a real data-
 - Web Locks for the read-only second tab, reload-then-promote, live / freeze viewer. Design: docs/design/MULTI-INSTANCE.md §4.
 
 #### Let a new user's first big fetch resume after an interruption
+<!-- id 20260821-0000 -->
 
 _Why it matters:_ A first 3,000-book fetch that dies near the end starts over from scratch.
 
@@ -1903,6 +1980,7 @@ _Why it matters:_ A first 3,000-book fetch that dies near the end starts over fr
 - Send enrichment progress as mailbox letters in stages, so a resumed run's skip-hint already knows what's done.
 
 #### Relay Setup: disconnect, or reset credentials
+<!-- id 20261014-1030am -->
 
 _Why it matters:_ A clean way to stop syncing, or to start over with new credentials.
 
@@ -1917,6 +1995,7 @@ _Why it matters:_ A clean way to stop syncing, or to start over with new credent
 _Formerly: Launch economics_
 
 #### Move to Cloudflare's $5/month plan around launch
+<!-- id 20260828-0000 -->
 
 _Why it matters:_ The free plan supports only a handful of users.
 
@@ -1935,6 +2014,7 @@ _Formerly: 🗄️ Backlog (post-launch)_
 _Formerly: Dialog look (LOW priority — Ron 2026-10-08)_
 
 #### Rebuild the old-style message boxes as standard dialogs
+<!-- id 20261014-1030ak -->
 
 _Why it matters:_ Low priority — only worth doing if we want every dialog to share one look.
 
@@ -1957,6 +2037,7 @@ _Why it matters:_ Low priority — only worth doing if we want every dialog to s
 _Formerly: Responsiveness_
 
 #### Clicking between books lags slightly while a filter is on
+<!-- id 20261006-0000 -->
 
 _Why it matters:_ A small but noticeable delay on every click while searching or filtering.
 
@@ -1985,18 +2066,21 @@ _Why it matters:_ A small but noticeable delay on every click while searching or
 _Formerly: Relay / data robustness_
 
 #### Edit Kindle collections from ReaderWrangler
+<!-- id 20261014-1030r -->
 
 _Why it matters:_ Change your Kindle collections without going to Amazon.
 
 **Spec:** docs/design/COLLECTION-EDITING.md.
 
 #### Cheaper small syncs (send only what changed)
+<!-- id 20261014-1030k -->
 
 _Why it matters:_ Optional: smaller uploads for small changes.
 
 **Spec:** docs/design/RELAY-DELTA.md.
 
 #### Bookmarklet: warn before fetching if your Channel ID no longer works
+<!-- id 20261018-1422 -->
 
 _Why it matters:_ A fetch can take minutes; if the relay won't accept your Channel ID (revoked or deleted), you should hear that before the fetch, not after.
 
@@ -2009,6 +2093,7 @@ _Why it matters:_ A fetch can take minutes; if the relay won't accept your Chann
 - docs/design/RELAY-CRED-MISMATCH.md "Future": ping `/status/{channelId}` before fetching; warn on 403/404.
 
 #### Warn when another browser has newer changes
+<!-- id 20260922-0000d -->
 
 _Why it matters:_ Two browsers on one account can drift apart without anyone noticing.
 
@@ -2032,6 +2117,7 @@ _Why it matters:_ Two browsers on one account can drift apart without anyone not
 _Formerly: Features_
 
 #### "Read in Kindle": open a book in the Kindle app or Cloud Reader
+<!-- id 20260919-0000 -->
 
 _Why it matters:_ Jump straight from ReaderWrangler to reading the book — for people who read in the Kindle app or Cloud Reader.
 
@@ -2057,6 +2143,7 @@ _Why it matters:_ Jump straight from ReaderWrangler to reading the book — for 
 - Background research: the `reference_read_in_kindle` memory (Ron's 2026-09-19 research).
 
 #### Formats other than Kindle: undo my Kindle-only preference
+<!-- id 20261018-1422a -->
 
 _Why it matters:_ "Kindle only" is Ron's own preference baked into the series and author adds (Ron, 2026-10-16: "We took MY preference and baked it in") — other readers may want paperbacks, hardcovers or audiobooks; and the library fetch has no way to keep out formats you don't track.
 
@@ -2078,6 +2165,7 @@ _Why it matters:_ "Kindle only" is Ron's own preference baked into the series an
 - The series add asks Amazon for `binding=kindle_edition` (series-page-fetcher.js ~319).
 
 #### Finish keyboard accessibility
+<!-- id 20261014-1030v -->
 
 _Why it matters:_ Everything should be usable without a mouse.
 
@@ -2090,50 +2178,60 @@ _Why it matters:_ Everything should be usable without a mouse.
 - Focus trapping, `:focus-visible`, context-menu keys.
 
 #### Show reading progress
+<!-- id 20261014-1030aq -->
 
 _Why it matters:_ See how far along you are — in the book window, and as a list column.
 
 #### Book recommendations
+<!-- id 20261014-1030h -->
 
 _Why it matters:_ Suggestions based on your own library.
 
 **Spec:** docs/design/BOOK-RECOMMENDATIONS.md.
 
 #### Show who a book is shared with (Family Library)
+<!-- id 20261014-1030ar -->
 
 _Why it matters:_ See sharing at a glance in the book window.
 
 #### Two-pane split view
+<!-- id 20261014-1030bb -->
 
 _Why it matters:_ Work with two folders side by side.
 
 **Spec:** docs/design/archive/DUAL-PANE-SPLIT.md (filed as "V2").
 
 #### Support stores besides Amazon
+<!-- id 20261014-1030aw -->
 
 _Why it matters:_ For readers who buy elsewhere too.
 
 **Spec:** docs/reference/MULTI-STORE-ARCHITECTURE.md.
 
 #### Several people on one installation
+<!-- id 20261014-1030ao -->
 
 _Why it matters:_ Low priority — Save / Restore Backup already works around it.
 
 **Spec:** docs/design/archive/MULTI-USER-DESIGN.md.
 
 #### Reading statistics
+<!-- id 20261014-1030aj -->
 
 _Why it matters:_ A dashboard of your reading.
 
 #### Connect with Goodreads / StoryGraph
+<!-- id 20261014-1030n -->
 
 _Why it matters:_ Share data with the reading sites people already use.
 
 #### Animated drag-and-drop
+<!-- id 20261014-1030c -->
 
 _Why it matters:_ Books slide aside live to show where a drop will land.
 
 #### Import book details from a pasted list or spreadsheet
+<!-- id 20261014-1030y -->
 
 _Why it matters:_ A way to bring in information from outside Amazon.
 
@@ -2143,6 +2241,7 @@ _Why it matters:_ A way to bring in information from outside Amazon.
 **Spec:** docs/design/Metadata-Import.md.
 
 #### Capture book ideas from your phone (Share → ReaderWrangler)
+<!-- id 20261015-1714 -->
 
 _Why it matters:_ Recommendations you meet on your phone (a Claude.ai answer, a review) can't reach ReaderWrangler until you're back at the desktop — today you email yourself.
 
@@ -2175,6 +2274,7 @@ and release it").
 _Formerly: 💰 Price checking (Price sweep scoping + staleness display, agreed 2026-08-21, from external sync review item 2)_
 
 #### Wishlist prices through Amazon's official affiliate catalog API, once eligible
+<!-- id 20261021-1349 -->
 
 _Why it matters:_ An official API can't be broken by a page redesign — a sturdier source for the prices behind price
 goals.
@@ -2195,6 +2295,7 @@ it can never replace the library fetch. RW never used PA-API (checked 2026-10-21
 Details: see TODO notes.
 
 #### Notice when a Kindle edition appears for a print-only book
+<!-- id 20261014-1030ae -->
 
 _Why it matters:_ So you can switch to the Kindle edition without losing its folders, lists and tags.
 
@@ -2214,6 +2315,7 @@ _Why it matters:_ So you can switch to the Kindle edition without losing its fol
 - `formatWatch: 'kindle'` on print placeholders; likely shares a mechanism with the slow refresh below. (Outside review item 6.)
 
 #### Now and then, refresh ratings for books you might buy
+<!-- id 20261014-1030af -->
 
 _Why it matters:_ Ratings are frozen at the first fetch — fine for owned books, a little stale for buying decisions.
 
@@ -2232,6 +2334,7 @@ _Why it matters:_ Ratings are frozen at the first fetch — fine for owned books
 _Formerly: Tech / performance_
 
 #### Faster loading: build the app ahead of time
+<!-- id 20261014-1030s -->
 
 _Why it matters:_ Today the app compiles itself in the browser on every load.
 
@@ -2244,6 +2347,7 @@ _Why it matters:_ Today the app compiles itself in the browser on every load.
 - Precompile Babel + Tailwind to static files; removes in-browser Babel and Tailwind.
 
 #### Split the main code file into modules
+<!-- id 20261014-1030at -->
 
 _Why it matters:_ One very large file is harder to work in safely.
 
@@ -2253,6 +2357,7 @@ _Why it matters:_ One very large file is harder to work in safely.
 **Spec:** docs/design/MODULE-SPLIT.md.
 
 #### Show a notice when book descriptions are missing
+<!-- id 20261014-1030ap -->
 
 _Why it matters:_ So a missing description reads as known, not broken.
 
@@ -2266,6 +2371,7 @@ _Why it matters:_ So a missing description reads as known, not broken.
 - "Phase 3 UI error handling" — missing-description banners.
 
 #### Tooltip review: Tag from Collections wizard
+<!-- id 20261014-1030az -->
 
 _Why it matters:_ Make sure every control explains itself.
 
@@ -2273,14 +2379,17 @@ _Why it matters:_ Make sure every control explains itself.
 - Old review item 6e.
 
 #### Clean up developer console messages
+<!-- id 20261014-1030m -->
 
 _Why it matters:_ About 70 of them: keep, hide behind a switch, or remove each.
 
 #### Check nothing was lost between versions 4 and 5
+<!-- id 20261014-1030l -->
 
 _Why it matters:_ A feature-by-feature comparison of the two versions.
 
 #### Leftover desktop polish (left-pane keyboard, shadows)
+<!-- id 20261014-1030ab -->
 
 _Why it matters:_ Small finishing touches.
 
@@ -2295,6 +2404,7 @@ _Why it matters:_ Small finishing touches.
 Not work to do — conditions to watch for. Each says what to check if it happens again. (Ron, 2026-10-15)
 
 ### Undo history sometimes empties by itself
+<!-- id 20260807-0000 -->
 
 _Why it matters:_ Losing undo mid-session is alarming; the cause is still unknown.
 
@@ -2312,6 +2422,7 @@ _Why it matters:_ Losing undo mid-session is alarming; the cause is still unknow
 - Whitelist localhost and readerwrangler.com in TinySuspender. A suspended ReaderWrangler tab can also tear an upload when you leave it.
 
 ### Find out why some books end up in no folder
+<!-- id 20260903-0000b -->
 
 _Why it matters:_ Rare reports of books in no folder at all; watch whether it still happens.
 
@@ -2332,6 +2443,7 @@ _Why it matters:_ Rare reports of books in no folder at all; watch whether it st
 _Formerly: 🧊 Icebox (no timeline)_
 
 ### Test on Safari (desktop and iPhone)
+<!-- id 20261014-1030ax -->
 
 _Why it matters:_ Some Safari differences could break storage, the phone install, or layout.
 

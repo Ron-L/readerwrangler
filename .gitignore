@@ -73,3 +73,6 @@ SKILL-Development-Ground-Rules-Log.md
 
 # Dev tasks config (user-specific paths)
 dev-tasks.cfg
+
+# The backlog report's generated page (tools/backlog_report.py rebuilds it from git history)
+tools/backlog-report.html

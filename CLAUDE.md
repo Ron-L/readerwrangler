@@ -83,6 +83,8 @@ Follows the generic semver+alpha rules in `../CLAUDE.md`. RW's specific stamps:
   release touched (renamed labels, changed behaviors, new UI) and update each hit; bump the KB's
   "up to date as of" stamp.
 - **TODO.md**: delete every ✅ section (done tasks — now recorded in CHANGELOG) — TODO is future-only.
+- **Backlog report:** run `py tools/backlog_report.py` (after the ✅ sweep is committed) and republish its page — where
+  the backlog is on its hump, arrivals vs completions, the launch-scope burn-down (Ron, 2026-10-21).
 - (Then the generic: PM always → update PRINCIPLES.md + memory, per `../CLAUDE.md`.)
 
 ---
@@ -143,7 +145,10 @@ Bypass (Ron's call only): `git commit --no-verify`.
   extension "Auto Markdown TOC" only on a VS Code save — edits made any other way leave it stale. Fix: Ron saves the
   file in VS Code, or Claude corrects the listed entries. TODO format: one header per task (plain words, ~80 chars,
   132 max), a "why it matters" first line, ✅ in front when done (Ron, 2026-10-14), 🚧 in front while in progress —
-  kept at the top of its section, after any ✅ ones (Ron, 2026-10-15).
+  kept at the top of its section, after any ✅ ones (Ron, 2026-10-15). **Every task has an ID line right under its
+  header** — `<!-- id YYYYMMDD-HHMM -->`, the time it was filed (the stamp hook's time; a letter suffix only when that
+  minute is taken) — and a task that absorbs others lists them: `<!-- id … ; merged <id>, <id> -->`. The same check
+  refuses a missing or repeated ID; `tools/backlog_report.py` follows tasks by them (Ron, 2026-10-21).
 
 ---
 

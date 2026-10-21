@@ -54,6 +54,9 @@ Bypass (Ron's call): `git commit --no-verify`.
   `TODO.md` whose table of contents (between `<!-- TOC -->` markers, built by the VS Code extension "Auto Markdown
   TOC" on save) doesn't match its headers by text and depth. Link targets aren't compared (the extension owns them).
   Earned 2026-10-14 when the TODO became one header per task: edits that don't go through a VS Code save leave it stale.
+  **Since 2026-10-21 it also refuses a task without its ID line** (`<!-- id YYYYMMDD-HHMM -->` right under the header;
+  `; merged …` on a task that absorbed others) **or a repeated ID** — `tools/backlog_report.py` follows tasks through
+  the TODO's git history by these IDs to chart the backlog's hump (arrivals vs completions, the launch burn-down).
 - **`check-names.js`** (when any `.js`/`.html` is staged) — Babel scope analysis of
   `readerwrangler.js` + `mobile.js`: refuses any identifier that is neither bound in scope, a browser/CDN global, nor
   defined by `readerwrangler.html` (its inline scripts + every local `<script src>`, derived automatically). Also

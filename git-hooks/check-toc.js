@@ -11,6 +11,12 @@
 // them, and copying its exact link rules (emoji, dashes, apostrophes) here would be a second implementation to drift.
 // Lines inside ``` code fences are not headers.
 //
+// ALSO (2026-10-21, Ron): every TASK carries an ID line right under its header — `<!-- id 20261021-1509 -->` (when it
+// was filed; a letter suffix only for a second one in the same minute), plus `; merged <id>, <id>` on a task that
+// absorbed others. tools/backlog_report.py follows tasks by these IDs to chart the backlog's hump; a task filed without
+// one would silently fall out of the history, so it's refused here. A task = a header (level 3+, after "# TODO") whose
+// own text has a "_Why it matters:_" line. IDs must be unique (merged ones included).
+//
 // Usage:  node git-hooks/check-toc.js [file]          (default: TODO.md)
 //         git show :TODO.md | node git-hooks/check-toc.js - TODO.md   (check the STAGED copy; the name is for messages)
 // Exit:   0 in sync · 1 out of sync or no table · 2 setup problem (fails LOUD, never silently passes).
@@ -72,3 +78,31 @@ if (problems.length) {
     process.exit(1);
 }
 console.log(`check-toc: ${label} — table of contents matches all ${headers.length} headers.`);
+
+// Task IDs (see the top). Body = the lines up to the next header.
+const ID_RE = /^<!-- id (\d{8}-\d{4}[a-z]*)(?:; merged ([0-9a-z, -]+))? -->\s*$/;
+const todoLine = lines.findIndex(l => /^# TODO\b/.test(l));
+const idProblems = [], seen = new Map();
+headers.forEach((h, k) => {
+    if (h.level < 3 || h.line - 1 <= todoLine) return;
+    const bodyEnd = k + 1 < headers.length ? headers[k + 1].line - 1 : lines.length;
+    const body = lines.slice(h.line, bodyEnd);
+    if (!body.some(l => l.includes('_Why it matters:_'))) return;           // a group heading, not a task
+    const first = body.find(l => l.trim()) || '';
+    const m = first.trim().match(ID_RE);
+    if (!m) {
+        idProblems.push(`  line ${h.line}: task "${h.text}" has no ID line right under it`);
+        return;
+    }
+    for (const id of [m[1], ...(m[2] || '').split(',').map(s => s.trim()).filter(Boolean)]) {
+        if (seen.has(id)) idProblems.push(`  line ${h.line}: ID ${id} is also used at line ${seen.get(id)}`);
+        else seen.set(id, h.line);
+    }
+});
+if (idProblems.length) {
+    console.error(`check-toc: ${label} — task IDs missing or repeated:\n${idProblems.slice(0, 10).join('\n')}\n` +
+        '  Fix: add `<!-- id YYYYMMDD-HHMM -->` (when the task was filed; a letter suffix if that minute is taken) on ' +
+        'the line right under the header; a merged task lists the absorbed IDs: `<!-- id … ; merged …, … -->`.');
+    process.exit(1);
+}
+console.log(`check-toc: ${label} — all ${seen.size} task IDs present and unique.`);
