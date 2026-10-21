@@ -6,6 +6,7 @@
       - [🚧 Relay storage: stop leftovers piling up, and report usage correctly](#relay-storage-stop-leftovers-piling-up-and-report-usage-correctly)
         - [Numbers the app and relay must agree on: add a check that they match](#numbers-the-app-and-relay-must-agree-on-add-a-check-that-they-match)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
+      - [Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
       - [Search improvements](#search-improvements)
         - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
@@ -298,6 +299,29 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 
 **How (technical)**
 - Item 3: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
+
+#### Trim the always-loaded rules: one home per rule, history out, a lean memory index
+
+_Why it matters:_ The more always-on text there is, the less each rule stands out — and a rule kept in two or three
+files drifts (the single-source lesson behind the gate's design).
+
+**Baseline** (measured 2026-10-21) — loaded into EVERY turn: the Projects-root CLAUDE.md 11.5 K chars + ReaderWrangler's
+CLAUDE.md 10.8 K + the memory index (MEMORY.md) 12.4 K = **~35 K chars ≈ 9 K tokens**. On demand only: the gate
+checklist 3.5 K (first app edit of a turn), 68 memory files (388 KB, read when relevant), PRINCIPLES 43 K, TODO 154 K.
+Tokens aren't the problem (well under what crowds out work); **weight and duplication are.**
+
+**Targets** (Ron + UX, 2026-10-21)
+1. **The memory index** (a third of the always-loaded text): its 26-line "Releases" list is history (6.12 → 7.24),
+   not how to work — keep the last ~3, move the rest to an "older releases" index file; make every index line the
+   one short hook the format calls for (several are paragraphs).
+2. **Both CLAUDE.md files:** move history and rationale ("earned when…", "retired in alpha.43…") to PRINCIPLES / the
+   docs; CLAUDE.md states the rule and points.
+3. **One home per rule:** find rules that live in two or three of root CLAUDE.md, RW CLAUDE.md, PRINCIPLES and memory;
+   keep each in one place and point from the others.
+
+**Safety rule:** every removed line is either **moved to its one home** or **listed as deliberately retired, with Ron's
+yes** — never silently dropped. Publish the before / after list of moved and retired lines before committing; re-measure
+after.
 
 #### Drag any dialog out of the way
 
