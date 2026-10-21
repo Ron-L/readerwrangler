@@ -117,6 +117,7 @@
       - [Import book details from a pasted list or spreadsheet](#import-book-details-from-a-pasted-list-or-spreadsheet)
       - [Capture book ideas from your phone (Share → ReaderWrangler)](#capture-book-ideas-from-your-phone-share--readerwrangler)
     - [Prices](#prices)
+      - [Wishlist prices through Amazon's official affiliate catalog API, once eligible](#wishlist-prices-through-amazons-official-affiliate-catalog-api-once-eligible)
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
       - [Now and then, refresh ratings for books you might buy](#now-and-then-refresh-ratings-for-books-you-might-buy)
     - [Technical clean-up](#technical-clean-up)
@@ -2114,6 +2115,26 @@ and release it").
 ### Prices
 
 _Formerly: 💰 Price checking (Price sweep scoping + staleness display, agreed 2026-08-21, from external sync review item 2)_
+
+#### Wishlist prices through Amazon's official affiliate catalog API, once eligible
+
+_Why it matters:_ An official API can't be broken by a page redesign — a sturdier source for the prices behind price
+goals.
+
+**What it is** (Ron + Claude, 2026-10-21): the **Creators API**, the successor to Amazon's Product Advertising API
+(PA-API 5, retired). A **catalog** API — what Amazon sells (titles, prices, images by ASIN), never what *you* own — so
+it can never replace the library fetch. RW never used PA-API (checked 2026-10-21), so nothing is broken today.
+
+**What it would take**
+1. **Eligibility:** an Amazon Associates account — RW already has one (its "Open in Amazon" / Share links carry the
+   affiliate tag) — with **10 qualifying sales in the past 30 days** (2026-10-21: 6 ordered, 0 shipped, $0 earned —
+   none qualifying yet).
+2. **A server for the credentials** — already there: the relay worker can hold them, look prices up 10 per request,
+   and keep them only as long as Amazon allows.
+3. **Only the generic price moves.** Account-specific signals — "you bought this on ‹date›", Prime / Kindle Unlimited
+   status — stay in the signed-in fetch.
+
+Details: see TODO notes.
 
 #### Notice when a Kindle edition appears for a print-only book
 
