@@ -43,9 +43,7 @@
       - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
       - [Long lists keep their actions in view (Manage…, Select All) while you scroll](#long-lists-keep-their-actions-in-view-manage-select-all-while-you-scroll)
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
-      - [Book Lists](#book-lists)
-        - [A management view for Book Lists](#a-management-view-for-book-lists)
-        - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
+      - ["Bake this order into Manual" for a folder's books and a Book List, from the Sort menu](#bake-this-order-into-manual-for-a-folders-books-and-a-book-list-from-the-sort-menu)
       - [Small fixes](#small-fixes)
         - [Tidy up the notes](#tidy-up-the-notes)
         - [Leave the affiliate tag off Amazon links on the test rig](#leave-the-affiliate-tag-off-amazon-links-on-the-test-rig)
@@ -479,7 +477,10 @@ _Why it matters:_ Three menu items do nearly the same job under different names 
 - An omnibus that **is** volumes 1–3 (`1-3` or `1,2,3`; today's Raj Whitehall "789" workaround).
 - An anthology whose stories fall between volumes (`2.5, 4.5, 4.6, 5.5` — the Dresden *Side Jobs* pattern; today you file it at its first position with the story map in the Note).
 - A visible cue on the repeats ("also at 4.5", or a ⟳ badge) — deliberate duplication must look intentional.
-- **Manual order shows the book once** (manual positions are per book; repeats belong to series-sorted views).
+- **A folder's manual order shows the book once** (manual positions are per book; repeats belong to series-sorted
+  views). **A Book List is different — revised 2026-10-21 (Ron):** it's a reading order, so it holds **one entry per
+  run** (*"Side Jobs — 2.5"*, *"Side Jobs — 4.5"*), created when a series sort is baked into it — see "Bake this order
+  into Manual…" (Polish), which is built after this task.
 
 **Extension: several series in one book** (MegaPacks, Ron 2026-09-20)
 - A public-domain MegaPack can hold scattered volumes of several series at once (e.g. Skylark 1, 4 + Lensman 2, 4), possibly by several authors.
@@ -599,7 +600,7 @@ same full-library pass gives both the speed and the report — one task, two bui
 - Comparison details (filters, totals): see TODO notes.
 
 #### Book Lists and Searches: pin and sort them like Folders
-<!-- id 20260910-0000a -->
+<!-- id 20260910-0000a; merged 20261014-1030b -->
 
 _Why it matters:_ A long Book Lists column is hard to search; Folders already have pins and a Name / Manual sort.
 
@@ -615,6 +616,18 @@ _Why it matters:_ A long Book Lists column is hard to search; Folders already ha
 **Decided** (Ron, 2026-10-16)
 - **Build together with "A type-to-filter box for the left pane"** (next task) as one left-pane release: pins for **priority**, the filter box for **finding** (it fixes the Ctrl+F hunt more directly than a Name sort), Name / Manual sort for scanning.
 - The old "queued behind the book details window rework" line is dropped — no known dependency (Ron).
+
+**Last step: one shared section overview for Searches AND Book Lists** (Ron + UX, 2026-10-21 — merged from "A
+management view for Book Lists", spec docs/design/FOLDER-ORDERING.md: clicking a section's name shows its items as
+rows in the right pane — name, book count — sortable and reorderable, the way a folder parent shows its folders).
+- **One shared piece, same look and abilities for both** (Ron: "make it common code that works for both").
+- **Book Lists: clicking "Book Lists" does nothing today** — a dead click (Law 16); this is its fix. It's also the roomy
+  place for actions on several lists (delete, rename).
+- **Searches: the overview exists but is broken** (Ron's screenshot, 2026-10-21): the header still says "Views" (the
+  old name); 3 of the 5 rows have **blank names**; **every count is 0** (the left pane shows 42 / 1742 / 971 / 27); the
+  rows wear 🏷️ tag icons and only "Prime" shows a name. Unverified guess: it still uses the pre-6.12 model where a view
+  was a tag (looks the name up as a tag — only "Prime" exists as one — and counts that tag's books). Confirm when
+  building.
 
 #### A type-to-filter box for the left pane
 <!-- id 20260910-0000 -->
@@ -1329,31 +1342,30 @@ saves; passes Laws 16 and 18)
 - No "Are you sure?" — recents are automatic history, and a question per row would nag.
 - Route it through the shared undo/message path (the one tag and Search deletes use since 7.11.0), not a one-off.
 
-#### Book Lists
-
-Pairs with "Book Lists and Searches: pin and sort them like Folders" (High priority).
-
-##### A management view for Book Lists
-<!-- id 20261014-1030b -->
-
-_Why it matters:_ One place to organize and order your Book Lists.
-
-**What you'd get**
-- A Book Lists management view, plus one ordering approach shared by every left-pane section (Folders / Views / Book Lists).
-
-**Spec:** docs/design/FOLDER-ORDERING.md. Related: "Book Lists and Searches: pin and sort them like Folders" (Up next).
-
-##### Book Lists: arrange by series number
+#### "Bake this order into Manual" for a folder's books and a Book List, from the Sort menu
 <!-- id 20261014-1030g -->
 
-_Why it matters:_ Put a list in series order once, then adjust it by hand.
+_Why it matters:_ Put a folder or a Book List in series (or any) order once, then adjust it by hand — today that's only
+possible for the folder tree, from a menu you wouldn't look in.
 
-**What you'd get**
-- In Manual mode, "Arrange by series #" bakes the series-number order into the list's manual order — a one-time rearrange, not a live sort.
-- The Book List version of a folder's sort-then-keep.
+**What you see** (Ron, 2026-10-21): the command exists — **"Bake this order into Manual…"** — but only in the left
+pane's **FOLDERS → Name ▾** menu, and it orders the folder **tree**, not the books in a folder. Ron looked for it in the
+right pane's Sort menu ("I'd expect it in the Sort menu") and couldn't find it. It also **appears only when the sort
+isn't Manual** (readerwrangler.js `bakeOrderToManual`, ~3595; menu ~15947).
 
-**Not to confuse with**
-- The existing "Number by current order", which sets each book's series **number**, not the list's order.
+**Decided** (Ron + UX, 2026-10-21 — widened from "Book Lists: arrange by series number")
+1. **One shared "Bake this order into Manual…" in the right pane's Sort menu**, for whatever the pane shows — a
+   folder's books or a Book List. Arranging a Book List by series is then: sort by series, Bake.
+2. **Always in the menu, in the same place; disabled (with a tooltip) when the sort is already Manual** — the menu rule
+   ("Menus keep their items in place"). The left pane's existing one gets the same disabled-not-hidden fix.
+3. **A multi-position book in a Book List gets one entry per run** (Ron: a Book List "is my reading order"): baking a
+   series sort creates them, labeled with the run — *"Side Jobs — 2.5"*, *"Side Jobs — 4.5"* (the same "one entry per
+   unbroken run" rule as series sorting); after that each moves independently; removing one entry removes only that
+   occurrence. **Folders keep "once"** (manual order there is where a book is placed). These are list entries, not
+   duplicate book records. This revises one line of "Series positions…" (High priority) — **build after it.**
+
+**Not to confuse with:** "Number by current order", which sets each book's series **number** (it folds into the one
+Position dialog — see "Series positions…").
 
 #### Small fixes
 
