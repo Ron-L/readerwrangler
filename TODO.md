@@ -52,7 +52,6 @@
         - [A book's hover popup stays up after the book is deleted](#a-books-hover-popup-stays-up-after-the-book-is-deleted)
         - [The Trash ignores the search and filters](#the-trash-ignores-the-search-and-filters)
         - [Show only hidden books](#show-only-hidden-books)
-        - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
         - [One shared tag picker: show all tags in your order (the right-click one silently stops at 10)](#one-shared-tag-picker-show-all-tags-in-your-order-the-right-click-one-silently-stops-at-10)
         - [Right-click: add "Copy ASINs" below Copy Titles / Copy Authors](#right-click-add-copy-asins-below-copy-titles--copy-authors)
         - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
@@ -1133,7 +1132,7 @@ later; both added an interruption around a rule that shouldn't apply — Law 18)
   change.
 
 #### Book details window: one Save — nothing changes until you click it, and nothing is lost without asking
-<!-- id 20260910-0000b; merged 20261015-1644 -->
+<!-- id 20260910-0000b; merged 20261015-1644, 20261014-1030ba -->
 
 _Why it matters:_ Today some fields save instantly and others wait for Save; Save is enabled even when nothing changed;
 and every way out of edit mode throws your changes away without a word. One rule makes the window predictable, with
@@ -1179,8 +1178,10 @@ Decided:
 6. **Quick access** (replaces the instant controls): in list view, click the Price Goal or My Rating cell to set it in
    place (preset goals / custom amount, or a row of stars). Decide during the build: should right-clicking a cover also
    offer a My Rating submenu?
-7. **First, classify every control** in the window as a field (saved by Save) or a command (acts now). Publish the table
-   for Ron's red pen **before** any code. Its own branch; version number assigned when the work starts (the old
+7. **First, classify every control** in the window as a field (saved by Save) or a command (acts now) — **with a
+   tooltip column**: each control's tooltip wording where it isn't self-explanatory (e.g. Collections: "Read-only:
+   comes from your Kindle collections on Amazon"). Merged 2026-10-21 from "Tooltips in the book details window" — one
+   pass through the window covers behavior and wording. Publish the table for Ron's red pen **before** any code. Its own branch; version number assigned when the work starts (the old
    "7.14.0" label is stale).
 
 **How (technical)**
@@ -1474,10 +1475,6 @@ _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for t
 3. **Settle the real default:** the app starts with hidden books hidden, but one place says
    `showHidden: true, // Default to showing all books` (~6688). Decide which is right so a new user isn't surprised.
 
-##### Tooltips in the book details window
-<!-- id 20261014-1030ba -->
-
-_Why it matters:_ Some fields aren't self-explanatory — e.g. that Collections are read-only and come from Amazon.
 
 ##### One shared tag picker: show all tags in your order (the right-click one silently stops at 10)
 <!-- id 20261015-1717 -->
