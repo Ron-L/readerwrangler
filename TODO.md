@@ -711,7 +711,10 @@ before building; this task is the plan. One concern per alpha (Law 6), smallest 
 1. **The window** (build list items 1–5) — Select All | Some | None into the left pane's header, both checkboxes into
    the right pane's header; the "No tags to remove…" answer in the status line; checkbox wording ("Remove tags from
    books that left the collection on Kindle" / "Show books already tagged" — no "Also", no "wizard"); **↻ Read** (added
-   by Tag from Collections) vs **✓ Read** (yours); how to see only the removals.
+   by Tag from Collections) vs **✓ Read** (yours); how to see only the removals. **When the labels change, update
+   everything that quotes them, together** (Ron, 2026-10-21): the greyed-collection tooltip ("tick 'Also show books
+   that already have their tag'…", readerwrangler.js ~13066), the two code comments naming the label (~1292, ~12895),
+   and the help notes §9 — or the tooltip names a checkbox that no longer exists.
 2. **One shared sort, here AND in the list view** (item 6) — click / again reverses / third click off; Shift-click adds
    up to 3 keys; tag columns sort by mark. Changes the list view too (third click turns a sort off).
 3. **The checkbox tree + undo inside the window** (item 7) — unchecking a collection clears its skips; a partial box
