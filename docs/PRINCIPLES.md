@@ -342,6 +342,20 @@ structure so the procedure shrinks to nothing.
 **Enforcement**: pre-build gate checklist item 2; the overlay-registry design (DIALOG-DISMISSAL-AUDIT.md) as
 the worked example; `project_714_release` memory.
 
+### 18. Don't block the user — honor the intent behind the gesture (Ron's doctrine)
+When a user's gesture is clear, do it; don't refuse it because the app's *internal* model is different from theirs.
+"Not all users will share the same mental model, nor use RW the same way… there is no wrong way" (Ron, 2026-10-21) —
+an icon is an icon, and moving it across the folder / Book List boundary is a move. Three corollaries: (1) **a past
+incident is rarely evidence for a block** — the 2026-08-08 "move" that left a book in three places was a *half-done*
+move; the cure is complete moves (out of the source, into the destination, once, one undo), not forbidding the
+gesture; (2) **a prompt that stops the gesture is a block in a polite coat** — when the result needs a fix-up, apply
+the app's existing rule and say so (a book cut out of its last folder goes to the Inbox, and the receipt says it),
+and let Undo be the escape hatch; (3) **a block teaches people to stop trying, and the lesson outlives the fix** —
+Ron kept avoiding "Delete from All Books" long after 7.11.0 made it work. Pairs with Law 16 (perceivable at the
+point of effect): allow it, and make what happened visible.
+**Enforcement**: `feedback_dont_block_the_user` memory; the TODO "Move and copy books anywhere" (reverses the
+2026-08 "block Book List moves" decision) as the worked example.
+
 ---
 
 ## SECOND TIER — by theme (the best of the rest)

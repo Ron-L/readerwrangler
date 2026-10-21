@@ -29,7 +29,7 @@
         - [Fetch summary should report books you bought](#fetch-summary-should-report-books-you-bought)
         - [Import summary: every ownership change by kind, kept in the message history](#import-summary-every-ownership-change-by-kind-kept-in-the-message-history)
     - [Polish](#polish)
-      - [Ctrl+X from a Book List or Search quietly copies instead of cutting](#ctrlx-from-a-book-list-or-search-quietly-copies-instead-of-cutting)
+      - [Move and copy books anywhere — folders, Book Lists, All Books, Searches](#move-and-copy-books-anywhere--folders-book-lists-all-books-searches)
       - [Clearing a price goal doesn't fully clear it everywhere](#clearing-a-price-goal-doesnt-fully-clear-it-everywhere)
       - [Moving and selecting](#moving-and-selecting)
         - [Drag between Folders and Book Lists](#drag-between-folders-and-book-lists)
@@ -50,6 +50,8 @@
         - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
       - [Small fixes](#small-fixes)
         - [Tidy up the notes](#tidy-up-the-notes)
+        - [A book's hover popup stays up after the book is deleted](#a-books-hover-popup-stays-up-after-the-book-is-deleted)
+        - [The Trash ignores the search and filters](#the-trash-ignores-the-search-and-filters)
         - [Show only hidden books](#show-only-hidden-books)
         - [Tooltips in the book details window](#tooltips-in-the-book-details-window)
         - [One shared tag picker: show all tags in your order (the right-click one silently stops at 10)](#one-shared-tag-picker-show-all-tags-in-your-order-the-right-click-one-silently-stops-at-10)
@@ -66,7 +68,6 @@
       - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
       - [Finish routing every change through one shared path, with undo](#finish-routing-every-change-through-one-shared-path-with-undo)
       - [The Delete key should delete the folders you've selected](#the-delete-key-should-delete-the-folders-youve-selected)
-      - [Book List menu: remove Move / Copy, and block dragging onto folders](#book-list-menu-remove-move--copy-and-block-dragging-onto-folders)
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
@@ -858,19 +859,45 @@ tasks: "Import summary: count every ownership change, by kind", "Keep the Import
 
 ### Polish
 
-#### Ctrl+X from a Book List or Search quietly copies instead of cutting
+#### Move and copy books anywhere — folders, Book Lists, All Books, Searches
 
-_Why it matters:_ You think you moved the book, but it never leaves the list.
+_Why it matters:_ Today a cut from a Book List or Search quietly copies instead of moving, and Book Lists were going to
+block moves altogether — the app enforcing its internal model instead of doing what you asked.
 
-**What happens**
-- In a Book List or Search view, Ctrl+X a book, then paste it into a folder. It's added there, but stays in the list too.
+**The principle** (Ron, 2026-10-21): **don't block the user — honor the intent.** "Not all users will share the same
+mental model, nor use RW the same way… there is no wrong way." An icon is an icon: if you move it from here to there,
+or duplicate it, across the folder / Book List boundary, do it. Merged from "Ctrl+X from a Book List or Search quietly
+copies instead of cutting" and **reverses** "Book List menu: remove Move / Copy, and block dragging onto folders"
+(2026-08). That task's evidence — the 2026-08-08 "move" that left books in the Inbox, a folder AND the list — was a
+half-done move, not a bad gesture: the cure is complete moves, not forbidding them.
 
-**To do** (pick one)
-- Refuse with an explanatory message (as All Books already does), **or**
-- Make paste remove the book from the Book List it was cut from.
+**Decided** (Ron + UX, 2026-10-21)
+1. **A move is a true move:** out of the source, into the destination, exactly once, one undo step — every gesture
+   (right-click Move to / Copy to, drag / Ctrl-drag, Ctrl+X / Ctrl+C + paste).
+2. **A cut takes the book out of the container it was cut from:**
+   - from a **folder** → it leaves that folder;
+   - from a **Book List** → it leaves that list;
+   - from **All Books or a Search** (no container) → pasted into a **folder** it is *re-filed*: it leaves its other
+     folders (ask first, listing them, if there are 2+); pasted into a **Book List** it is just added (lists don't file
+     books). Book Lists are never touched by a move — only Delete reaches them.
+3. **A book that leaves its last folder goes to the Inbox** — "every book is in at least one folder" is a design rule
+   the app enforces (integrity.js: books with no folder are repaired into the Inbox), and the Inbox means "not filed
+   yet". No dialog; the receipt says it: *"Moved 'Dune' to 'Beach Reads' — it's no longer in any folder, so it's in the
+   Inbox."* Undo if you didn't want that.
+4. **Copy works everywhere** — it only adds the book to the destination. Book Lists keep **Move to** and **Copy to** in
+   their right-click menu.
+5. **One rule, asked by every gesture** (menu, drag, keyboard) — a class of sites: list them with two independent
+   searches before building, so a fourth gesture can't drift.
+
+**Watch out**
+- Reconcile with "Drag between Folders and Book Lists" (Polish → Moving and selecting) and
+  docs/design/CROSS-SECTION-DRAG.md: its "say 'Added', not 'Moved', from a list view" honesty fix becomes "say what
+  happened" — Moved for a move, Added for a copy.
 
 **How (technical)**
-- Cut records the view as the source, but paste-cut only removes from **folders**. Found during alpha testing (alpha.7), filed not fixed.
+- Today: Ctrl+X is refused only in All Books / the library view (readerwrangler.js ~5223); in a Book List or Search it
+  records the view as the source, but paste-cut only removes from **folders**, so the book stays in the list. Found in
+  7.10.1-alpha.7, filed not fixed.
 
 #### Clearing a price goal doesn't fully clear it everywhere
 
@@ -922,15 +949,16 @@ _Why it matters:_ Today it takes All Books + a filter + finding your way back.
 _Why it matters:_ Today you have to remove a book from each folder and list separately.
 
 **Already done**
-- 7.11.0: Delete works from All Books (DEL or right-click) — removes the book from every folder and puts it in the Trash; restoring puts it back in its folders.
+- 7.11.0: Delete works from All Books (DEL or right-click) — removes the book from every folder and puts it in the Trash; restoring puts it back in its folders. (Re-confirmed by Ron 2026-10-21 — "can't delete from All Books" had outlived its fix in memory.)
 
 **Left**
-- The confirmation doesn't say how many places the book is in.
+- The confirmation doesn't say where the book lives.
 - Book Lists aren't in the restore snapshot — their entries are only hidden while the book is deleted.
 
-**What you'd get**
+**What you'd get** (Ron, 2026-10-21: "The intent when I delete from All Books is to delete all copies")
 - Delete from All Books moves the book to the Trash, removing it from **every** folder and Book List at once.
-- The confirmation says how many places it's in.
+- **The confirmation lists every place it lives** (folders and Book Lists).
+- **One operation:** a single Undo restores every instance, Book Lists included.
 
 **How (technical)**
 - Reuse the membership snapshot, so restoring puts it back everywhere.
@@ -1180,6 +1208,38 @@ _Why it matters:_ Put a list in series order once, then adjust it by hand.
 ##### Tidy up the notes
 
 _Why it matters:_ Housekeeping — a few notes are in the wrong place. Details: see TODO notes.
+
+##### A book's hover popup stays up after the book is deleted
+
+_Why it matters:_ It goes on describing a book that's gone — and could describe the wrong book.
+
+**What you see** (Ron, 2026-10-21)
+- In All Books, hover a book (the popup shows its folder), press **Del**: the book goes to the Trash and the covers
+  shift over one, but the popup stays, now saying "Was in (before Trash): Folder X · Found in Trash". Moving the mouse
+  slightly brings up the new book's popup.
+
+**Decided** (Ron + UX)
+- The popup closes when its book leaves the view. It's tied to the cursor's position, not to the book still being
+  there; being right about the deleted book is luck — a shift could put a different book under the cursor.
+- "Moved from Folder X" belongs in the Trash receipt instead: name the folder there.
+
+##### The Trash ignores the search and filters
+
+_Why it matters:_ With a filter on, every other place narrows to the matches — the Trash doesn't, which surprises.
+
+**What you see** (Ron, 2026-10-21)
+- With a filter on, the left pane shows Inbox as "0/956" (matching / total) but Trash as "(36)" — all of it. Opening
+  the Trash shows every trashed book, not the matches.
+
+**Decided** (Ron + UX)
+1. **Inbox and Trash stay visible at 0 matches** — they're landmarks; fixed entries appearing and disappearing as you
+   type is disorienting.
+2. **The Trash follows the filter like Inbox:** its count reads matching / total ("0/36"), and opening it shows only the
+   matching books.
+
+**How (technical)**
+- `trashCount` counts every deleted book with no filter (readerwrangler.js ~2492). No recorded reason found — an
+  oversight. Check whether the Trash's *contents* skip the filter by design when building.
 
 ##### Show only hidden books
 
@@ -1443,17 +1503,6 @@ _Why it matters:_ Today it only deletes the folder you're inside.
 
 **How (technical)**
 - Today it uses `selectedFolderId` instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch confirm and one compound undo — best once there's a `deleteFolders(folders)` operation. Surfaced during the operations refactor.
-
-#### Book List menu: remove Move / Copy, and block dragging onto folders
-
-_Why it matters:_ Moving a Book List entry into a folder makes no sense, and once caused a membership mess.
-
-**What you'd get**
-- In a Book List view, the book right-click menu drops **Move to** and **Copy to**. It keeps Add to Book List, Remove from list, Edit and reordering.
-- Dragging (plain or Ctrl) from a Book List onto a folder is blocked.
-
-**Why**
-- A Book List entry is a shortcut; moving a shortcut into a folder is incoherent. On 2026-08-08 a "move" from a Book List to the Inbox left books in the Inbox, a folder **and** the list at once.
 
 #### Working-process safety net: three small follow-ups
 
