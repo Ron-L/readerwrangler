@@ -1154,15 +1154,23 @@ _Why it matters:_ Its sections jump open so abruptly they look like new windows,
 2. **A hidden level.** "Enter Credentials Manually" secretly counts as a level of its own: Esc backs out of it first instead of closing Relay Setup. Nothing shows you that.
 3. **Help looks like a replacement.** Help opens exactly on top of Relay Setup, so it doesn't read as stacked on it.
 
-**Ideas**
-1. Animate the sections opening, so the eye can follow.
-2. Either drop the hidden level (Esc just closes Relay Setup, like a background click), or make the level visible.
-3. Draggable dialogs (above) fix it naturally — drag Help aside — or open Help slightly offset.
+**Decided** (Ron + UX, 2026-10-21)
+1. **Animate the sections opening and closing** (~150–200 ms), so the eye can follow what moved; respect the system's
+   "reduce motion" setting.
+2. **Drop the hidden level: Esc closes Relay Setup**, like a background click — a section folding open isn't a layer
+   (the overlay system's Esc closes the innermost *layer*). If the manual-credentials fields hold typed-but-unsaved
+   text, closing asks the same *Save / Discard / Keep editing* question as the book details window — ideally the same
+   shared piece, so "ask before losing what you typed" works alike in every window with a form.
+3. **Open Help slightly offset** (~24 px down and right, like stacked windows) so it reads as on top of Relay Setup,
+   not replacing it; "Drag any dialog out of the way" (High priority) adds the full fix later.
 
-**Status:** noted 2026-09-28 during the overlay work; a separate, focused redesign pass.
+**Status:** noted 2026-09-28 during the overlay work; a separate, focused redesign pass. **Build it together with
+"Rename 'Relay' to 'Cloud Sync' everywhere users see it"** (Before launch) — that rename changes this window's name and
+wording; one pass touches and re-tests the window once.
 
 **How (technical)**
-- Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog.
+- Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog (readerwrangler.js
+  ~11371 on 2026-10-21: `reason === 'esc' && relayManualCreds` closes only the section).
 
 #### Arrow keys should move through the Series suggestion lists
 
