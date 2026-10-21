@@ -30,7 +30,7 @@
         - [Import summary: every ownership change by kind, kept in the message history](#import-summary-every-ownership-change-by-kind-kept-in-the-message-history)
     - [Polish](#polish)
       - [Move and copy books anywhere — folders, Book Lists, All Books, Searches](#move-and-copy-books-anywhere--folders-book-lists-all-books-searches)
-      - [Clearing a price goal doesn't fully clear it everywhere](#clearing-a-price-goal-doesnt-fully-clear-it-everywhere)
+      - [Retire two leftover book fields: the hidden "seen" flag and the old price-goal field](#retire-two-leftover-book-fields-the-hidden-seen-flag-and-the-old-price-goal-field)
       - [Moving and selecting](#moving-and-selecting)
         - [Drag between Folders and Book Lists](#drag-between-folders-and-book-lists)
         - [See an author's other books without leaving your spot](#see-an-authors-other-books-without-leaving-your-spot)
@@ -663,8 +663,8 @@ before building; this task is the plan. One concern per alpha (Law 6), smallest 
    function shows the confirmation from the same text as its undo (*Created tag "zzz" and added it to 'Title'*); any
    hand change of a tag drops it from the tool's record. Touches every tag change in the app: run the class-of-sites
    comb and publish the list first.
-5. **Retire the hidden "seen" field** (item 10) — unused since 7.24.0; strip it in the shared book clean-up and the
-   field table. Its own test round (data layer).
+5. **Retire the hidden "seen" field** (item 10) — moved 2026-10-20/21 into the Polish task "Retire two leftover book
+   fields: the hidden 'seen' flag and the old price-goal field" (one data round for both).
 
 #### Restore dialog calls yesterday's backup "today"
 
@@ -899,23 +899,37 @@ half-done move, not a bad gesture: the cure is complete moves, not forbidding th
   records the view as the source, but paste-cut only removes from **folders**, so the book stays in the list. Found in
   7.10.1-alpha.7, filed not fixed.
 
-#### Clearing a price goal doesn't fully clear it everywhere
+#### Retire two leftover book fields: the hidden "seen" flag and the old price-goal field
 
-_Why it matters:_ An old second price-goal field can keep a book counted as "has a goal" after you clear it.
+_Why it matters:_ Clearing a price goal doesn't fully clear it everywhere, and every save, backup and sync still carries
+a hidden field nothing uses any more.
 
-**What happens**
-- A few places treat a book as "has a goal" if **either** today's goal field **or** an older one is set: the Import's "kept their price goals" count, the fetcher's goal check, and the spreadsheet export.
-- Clearing a goal in the app clears only today's field. A book still carrying the old one keeps "having a goal" in those places.
+_One data-layer round for both (Ron + UX, 2026-10-21) — the same mechanism and the same kind of test. Merged from
+"Clearing a price goal doesn't fully clear it everywhere" and step 5 of "Tag from Collections, round 2"._
 
-**To do**
-1. First count whether any real book still has the old field set.
-2. If so, move it into today's field once.
-3. Retire the old field — one goal field, not two. Small.
+**1. The old price-goal field** (`targetPrice`; today's is `priceTrigger`)
+- A few places treat a book as "has a goal" if **either** field is set: the Import's "kept their price goals" count
+  (storage.js ~176), the fetcher's goal check (amazon-library-fetcher.js ~2286) and the spreadsheet export
+  (`priceTrigger ?? targetPrice`, readerwrangler.js ~6305); plus its row in bookFields.js. Clearing a goal clears only
+  today's field, so a book still carrying the old one keeps "having a goal" there. Found 2026-10-12; readers
+  re-verified 2026-10-20.
+- **Counted 2026-10-21 (Ron's library): 0 books carry the old field** (and 0 without a current goal). Keep the one-line
+  move-across anyway (an old backup could still carry it): in the shared book clean-up, a book with the old field and
+  no current goal gets it moved across once; then the old field is dropped.
 
-**How (technical)**
-- Today's field: `priceTrigger`. Old field: `targetPrice`.
-- Readers: storage.js ~174 (import count), amazon-library-fetcher.js ~2286, the spreadsheet's `priceTrigger ?? targetPrice`; plus its row in bookFields.js.
-- Found 2026-10-12.
+**2. The hidden "seen" flag** (`collectionTagSeen`)
+- Tag from Collections' "New books only" used it; unused since 7.24.0 removed that option. Every save, backup and sync
+  still carries it. Design of record: docs/design/TAG-FROM-COLLECTIONS.md (§2.8, round 2 build list item 10).
+
+**How (both)**
+1. **Strip in the shared book clean-up** (`normalizeBook`, on every load and arrival — fetch, Import, Restore, the
+   phone), not with a one-off snippet: a returning user or an old backup would bring them back.
+2. **Remove both rows from the field table** (bookFields.js), so saves, backups and syncs stop carrying them; then the
+   readers above drop them, and test/bookFields.test.js's round-trip cases (which assert both fields survive) change
+   to assert they're gone.
+3. **Order for the fetcher:** it reads books as stored on the relay, where old copies keep the old goal field until
+   their next save — the app's clean-up ships first, the fetcher's `targetPrice` check is removed after.
+4. Its own test round (data layer).
 
 #### Moving and selecting
 
