@@ -427,6 +427,57 @@ def svg_bars(rows, keys, width=760, height=220):
     return ''.join(out)
 
 
+def svg_net(rows, keys, width=760, height=230):
+    """Diverging bars around zero — rows: [(label, {key: value})]; keys: [(key, opacity)]. Above zero (green) = the
+    backlog shrank that week; below (amber) = it grew."""
+    if not rows:
+        return ''
+    top = max([1] + [abs(v) for _, d in rows for v in d.values()])
+    L, R, T, B = 36, 10, 12, 30
+    W, H = width - L - R, height - T - B
+
+    def Y(v):
+        return T + H / 2 - (H / 2) * v / top
+    gw = W / len(rows)
+    bw = min(22, gw / (len(keys) + 1))
+    out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="Net velocity per week">']
+    for v in (top, 0, -top):
+        cls = 'zero' if v == 0 else 'grid'
+        out.append(f'<line x1="{L}" x2="{width - R}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" class="{cls}"/>'
+                   f'<text x="{L - 6}" y="{Y(v) + 4:.1f}" class="tick" text-anchor="end">{v:+d}</text>'
+                   .replace('>+0<', '>0<'))
+    for i, (label, d) in enumerate(rows):
+        gx = L + i * gw + (gw - bw * len(keys)) / 2
+        for j, (k, opacity) in enumerate(keys):
+            v = d.get(k, 0)
+            y0, y1 = sorted((Y(0), Y(v)))
+            var = '--done' if v >= 0 else '--arrive'
+            out.append(f'<rect x="{gx + j * bw:.1f}" y="{y0:.1f}" width="{bw - 2:.1f}" height="{max(y1 - y0, 1):.1f}" '
+                       f'fill="var({var})" fill-opacity="{opacity}" rx="1.5"><title>{html.escape(label)}: {v:+d}'
+                       f'</title></rect>')
+        out.append(f'<text x="{L + i * gw + gw / 2:.1f}" y="{height - 8}" class="tick" '
+                   f'text-anchor="middle">{html.escape(label)}</text>')
+    out.append('</svg>')
+    return ''.join(out)
+
+
+def weekly_net(weeks, measured):
+    """Per week: net from work (done − arrived) and the backlog's real change (merges and drops included), both
+    signed so that ABOVE zero means the backlog shrank."""
+    open_on = {d: n for d, n, _ in measured}
+    days = sorted(open_on)
+    rows = []
+    for start, arrived, done, _gone in weeks:
+        end = start + dt.timedelta(days=7)
+        before = [d for d in days if d < start]
+        inside = [d for d in days if start <= d < end]
+        if not inside:
+            continue
+        first = open_on[before[-1]] if before else open_on[inside[0]]
+        rows.append((start.strftime('%b %d'), {'work': done - arrived, 'total': first - open_on[inside[-1]]}))
+    return rows
+
+
 PAGE = '''<title>ReaderWrangler Backlog</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="%FONTS%">
@@ -462,6 +513,7 @@ p { margin: 0; max-width: 68ch; }
 .chart { overflow-x: auto; }
 .chart svg { width: 100%; min-width: 520px; height: auto; display: block; }
 .grid { stroke: var(--rule); stroke-width: 1; }
+.zero { stroke: var(--muted); stroke-width: 1.2; }
 .tick { fill: var(--muted); font-family: var(--mono); font-size: 11px; }
 .legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 13px; }
 .legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
@@ -497,6 +549,7 @@ def page(s, approx, measured, weeks, monthly, recs):
     flows = svg_bars([(w.strftime('%b %d'), {'a': a, 'd': d, 'g': g}) for w, a, d, g in weeks],
                      [('a', '--arrive'), ('d', '--done'), ('g', '--gone')])
     months = svg_bars([(m[2:].replace('-', '/'), {'c': c}) for m, c in monthly.items()], [('c', '--done')])
+    net = svg_net(weekly_net(weeks, measured), [('work', 1), ('total', 0.45)])
     body = f'''
 <header style="display:grid;gap:6px">
   <h1>ReaderWrangler Backlog</h1>
@@ -532,6 +585,15 @@ def page(s, approx, measured, weeks, monthly, recs):
     <span><i style="background:var(--gone)"></i>Merged or dropped (no work done)</span></div>
   <div class="chart">{flows}</div>
   <p class="note">The hump turns over once green bars are taller than amber ones week after week.</p>
+</section>
+<section class="panel">
+  <h2>Net velocity per week (the slope)</h2>
+  <div class="legend"><span><i style="background:var(--done)"></i>Above zero: the backlog shrank</span>
+    <span><i style="background:var(--arrive)"></i>Below zero: it grew</span>
+    <span>Solid: from work (done − arrived) · Faded: real change, merges and drops included</span></div>
+  <div class="chart">{net}</div>
+  <p class="note">The peak of the hump is where these bars cross from below zero to above it and stay there. The
+  faded bar can look better than the solid one: merging or dropping tasks shrinks the list without finishing work.</p>
 </section>
 <section class="panel">
   <h2>Open tasks by section</h2>
