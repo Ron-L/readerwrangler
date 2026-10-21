@@ -48,6 +48,8 @@
         - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
       - [Small fixes](#small-fixes)
         - [Tidy up the notes](#tidy-up-the-notes)
+        - [Leave the affiliate tag off Amazon links on the test rig](#leave-the-affiliate-tag-off-amazon-links-on-the-test-rig)
+        - [Switch the affiliate tag to "readerwrangler-20"](#switch-the-affiliate-tag-to-readerwrangler-20)
         - [Menus keep their items in place: disable, don't hide](#menus-keep-their-items-in-place-disable-dont-hide)
         - [A book's hover popup stays up after the book is deleted](#a-books-hover-popup-stays-up-after-the-book-is-deleted)
         - [The Trash ignores the search and filters](#the-trash-ignores-the-search-and-filters)
@@ -1290,6 +1292,34 @@ _Why it matters:_ Put a list in series order once, then adjust it by hand.
 ##### Tidy up the notes
 
 _Why it matters:_ Housekeeping — a few notes are in the wrong place. Details: see TODO notes.
+
+##### Leave the affiliate tag off Amazon links on the test rig
+
+_Why it matters:_ Ron's own testing clicks — and any purchase through them — count against RW's affiliate account,
+muddying the stats, and Associates doesn't pay on your own purchases (repeated ones can draw a warning).
+
+**What you see** (2026-10-21): every "Open in Amazon" / Share link carries the tag on every build, localhost included
+(`getAmazonUrl` in uiHelpers.js). The Associates dashboard showed 6 orders, 0 shipped, $0 — click spikes on Oct
+12–16 match Ron's test sessions.
+
+**Decided** (Ron + Claude, 2026-10-21)
+- **Ask the existing central check — don't re-read the address:** leave the tag off when **`isTestingTraffic()`**
+  is true (readerwrangler.html, 7.21.0: contributor mode — local server AND this browser's `readerwrangler-contributor`
+  flag — or the dev site). Plain localhost is NOT enough: a self-hoster is localhost too and gets production behavior,
+  tag included (the same split contributor mode already makes for the relay and the usage statistics).
+- One place: `getAmazonUrl` asks it; nothing else builds a tagged link (verify with a search when building — the
+  phone app and Share included).
+
+##### Switch the affiliate tag to "readerwrangler-20"
+
+_Why it matters:_ A tracking ID just for the app (created by Ron 2026-10-21) separates ReaderWrangler's clicks and
+sales from Ron's WordPress articles in the Associates reports (today they're combined).
+
+**To do**
+- Change the one definition: `AMAZON_AFFILIATE_TAG` in uiHelpers.js (verified 2026-10-21: the only place in the code;
+  the old tag `rclewent-20` stays on the WordPress articles). Bump uiHelpers.js's cache-buster.
+- Update the examples in docs/design/SHARE-BOOK-FEATURE.md (they show the old tag); post-mortems stay as history.
+- Pairs with "Leave the affiliate tag off Amazon links on the test rig" — same function, build together.
 
 ##### Menus keep their items in place: disable, don't hide
 
