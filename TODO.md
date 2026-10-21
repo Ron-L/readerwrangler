@@ -39,7 +39,7 @@
       - [A folder or Book List you just created stays visible under filters](#a-folder-or-book-list-you-just-created-stays-visible-under-filters)
       - [Book details window: one Save — nothing changes until you click it, and nothing is lost without asking](#book-details-window-one-save--nothing-changes-until-you-click-it-and-nothing-is-lost-without-asking)
       - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
-      - [Arrow keys should move through the Series suggestion lists](#arrow-keys-should-move-through-the-series-suggestion-lists)
+      - [Arrow keys should move through every type-ahead list](#arrow-keys-should-move-through-every-type-ahead-list)
       - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
       - [Long lists keep their actions in view (Manage…, Select All) while you scroll](#long-lists-keep-their-actions-in-view-manage-select-all-while-you-scroll)
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
@@ -1172,9 +1172,10 @@ wording; one pass touches and re-tests the window once.
 - Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog (readerwrangler.js
   ~11371 on 2026-10-21: `reason === 'esc' && relayManualCreds` closes only the section).
 
-#### Arrow keys should move through the Series suggestion lists
+#### Arrow keys should move through every type-ahead list
 
-_Why it matters:_ You can't pick a series from the list with the keyboard — Down scrolls the window instead.
+_Why it matters:_ You can't pick a series from the list with the keyboard — Down scrolls the window instead — and the
+same is likely true of most of the app's type-ahead lists.
 
 **What you see**
 - In both Series fields — the book details window's edit mode (✏️), and Bulk Edit → Series… — open the list (type a letter or click ▼) and press Down.
@@ -1187,7 +1188,16 @@ _Why it matters:_ You can't pick a series from the list with the keyboard — Do
 - While the list is open, Down / Up never scroll the window.
 
 **The model already exists**
-- The search box's "Recent searches" list works exactly this way today. Extract that and use **one implementation for all three type-ahead lists**: both Series fields and the search box.
+- The search box's "Recent searches" list works exactly this way today. Extract that and use **one implementation for
+  every type-ahead list**.
+
+**Every type-ahead list, not three** (Ron + UX, 2026-10-21) — "Down moves, Enter picks" must work in all of them, or
+people learn it works in some places and stop trying. Found 2026-10-21 by their prompt text (a start, not proof):
+recent searches (the search box, ~1170 — the working model); Series in book details (~13825) and in Bulk Edit
+(~13475); Tags "Type to search or create" in book details (~14162) and right-click → Tags (~19790); "Type to filter
+your folders" (~12734); "Filter authors by name…" (~12064). **When building, find them with two independent searches**
+(by prompt text and by the shared list popup) and publish the list before claiming coverage. **Build together with
+"One shared tag picker"** (Small fixes) — it sits on this behavior; one pass covers both tag lists.
 
 **Status:** deferred by Ron 2026-10-06 (minor accessibility fix).
 
