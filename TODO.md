@@ -32,7 +32,6 @@
       - [Move and copy books anywhere — folders, Book Lists, All Books, Searches](#move-and-copy-books-anywhere--folders-book-lists-all-books-searches)
       - [Retire two leftover book fields: the hidden "seen" flag and the old price-goal field](#retire-two-leftover-book-fields-the-hidden-seen-flag-and-the-old-price-goal-field)
       - [Moving and selecting](#moving-and-selecting)
-        - [See an author's other books without leaving your spot](#see-an-authors-other-books-without-leaving-your-spot)
         - [Delete a book from All Books (removes it everywhere)](#delete-a-book-from-all-books-removes-it-everywhere)
         - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
         - [Restore the previous selection after a stray click or Select All](#restore-the-previous-selection-after-a-stray-click-or-select-all)
@@ -49,6 +48,7 @@
         - [Book Lists: arrange by series number](#book-lists-arrange-by-series-number)
       - [Small fixes](#small-fixes)
         - [Tidy up the notes](#tidy-up-the-notes)
+        - [Menus keep their items in place: disable, don't hide](#menus-keep-their-items-in-place-disable-dont-hide)
         - [A book's hover popup stays up after the book is deleted](#a-books-hover-popup-stays-up-after-the-book-is-deleted)
         - [The Trash ignores the search and filters](#the-trash-ignores-the-search-and-filters)
         - [Show only hidden books](#show-only-hidden-books)
@@ -373,8 +373,24 @@ _Why it matters:_ Answers "is this book in my library?" without losing your plac
 - **Build together with "Find a book by its ASIN in the search box"** (above): both answer "is this book in my library?"
 - **A complete ASIN searches Everywhere automatically** — an ASIN is unique, so "this folder only" is never what you mean. The toggle shows **Everywhere** so you can see why.
 
+**A third way in: "More by ‹author›"** (Ron + UX, 2026-10-21 — merged from "See an author's other books without
+leaving your spot": "Today it takes All Books + a filter + finding your way back")
+1. **Right-click a book → More by ‹author›** fills the search with the book's **whole author text** and switches to
+   **Everywhere**; clearing it returns you to your spot, scroll untouched (the step above). Author text is **never
+   parsed** (AUTO-ORGANIZE-UNIFIED.md): from "Jodi Taylor" it also finds her co-authored books (the search matches text
+   anywhere in the field); from "Larry Niven, Jerry Pournelle" it finds that combination — type "Niven" for just him.
+2. **Right-click a folder → More by ‹author›** when the author comes from data, not a guess: the folder's **name exactly
+   matches an author** in the library (Auto-Organize's author folders, e.g. "Jodi Taylor"), or **every book in it shares
+   one author** (a series folder like "Time Police"). Answers "what else of hers do I have outside this folder?" —
+   Inbox, wishlist, other folders.
+3. **Always in the folder menu, in the same place — disabled, not hidden, when it doesn't apply**: then it reads
+   **More by this author**, with the tooltip *"This folder holds books by several authors — right-click one of its
+   books."* (the menu rule: "Menus keep their items in place", Polish → Small fixes). On a book's menu it's always
+   enabled.
+
 **How (technical)**
 - Reuse the view-folder filter-stash plumbing for the temporary view.
+- Folder case: the "common author" check Auto-Organize already uses when naming.
 
 #### Dark theme: fix the unreadable bar and the light strips
 
@@ -960,13 +976,6 @@ _One data-layer round for both (Ron + UX, 2026-10-21) — the same mechanism and
 
 #### Moving and selecting
 
-##### See an author's other books without leaving your spot
-
-_Why it matters:_ Today it takes All Books + a filter + finding your way back.
-
-**What you'd get**
-- From a book or folder, a quick view of the author's other books.
-
 ##### Delete a book from All Books (removes it everywhere)
 
 _Why it matters:_ Today you have to remove a book from each folder and list separately.
@@ -1231,6 +1240,23 @@ _Why it matters:_ Put a list in series order once, then adjust it by hand.
 ##### Tidy up the notes
 
 _Why it matters:_ Housekeeping — a few notes are in the wrong place. Details: see TODO notes.
+
+##### Menus keep their items in place: disable, don't hide
+
+_Why it matters:_ People find menu items by position as much as by word — an item that appears and disappears shifts
+everything below it, and the click lands on the wrong thing (Ron, 2026-10-21: "menus that shift around [are]
+confusing. Often I go by position almost as much as the word").
+
+**The rule** (Ron + UX, 2026-10-21 — PRINCIPLES Law 16)
+1. An item that **can** apply to this kind of thing stays in its place, **disabled** when it doesn't apply right now,
+   with a tooltip saying why.
+2. An item that can **never** apply to this kind of thing isn't in that menu at all (a book's menu has no "Empty
+   Trash") — no shifting, because that menu always has the same items.
+3. The test is "can this kind of object ever use it?", not "does it apply this moment?"
+
+**To do:** check every menu (the menu bar's menus, every right-click menu, dropdowns) for items that come and go by
+the current situation; make each one stay and disable instead. Publish the list of places first (two independent
+searches, plus a walk of every menu). New items follow the rule from now on (e.g. "More by ‹author›" on a folder).
 
 ##### A book's hover popup stays up after the book is deleted
 

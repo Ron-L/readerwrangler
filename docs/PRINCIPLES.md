@@ -323,7 +323,10 @@ in a caption's ABSENCE, a capped list wearing a scrollbar, primary nav that hide
 survived until the sole user (who BUILT several of them) failed to perceive them within minutes of real use.
 State changes must be visible where they happen; every offered action must visibly act or visibly explain;
 hidden standing rules need a surface where they can be seen and revoked, or they don't ship (the alias
-rejection, the Reset-flag rejection).
+rejection, the Reset-flag rejection). **Position is part of how a menu is read** (Ron, 2026-10-21: "Often I go by
+position almost as much as the word"): an item that can apply to this kind of object stays in its place, **disabled**
+with a tooltip saying why when it doesn't apply right now; only an item that can never apply to that kind of object is
+left out. Items that come and go shift everything below them and misdirect the click.
 **Enforcement**: the design question at review time — "does the control announce itself where the need
 arises, and does its effect show where the eye already is?" Ron's field test catches these today; at launch
 that instrument is gone and only this question remains.
