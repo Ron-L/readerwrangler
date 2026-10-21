@@ -27,9 +27,7 @@
         - [Relay Import: only books in no folder should go to the Inbox](#relay-import-only-books-in-no-folder-should-go-to-the-inbox)
         - [Buying a book that's in the Trash should bring it back](#buying-a-book-thats-in-the-trash-should-bring-it-back)
         - [Fetch summary should report books you bought](#fetch-summary-should-report-books-you-bought)
-        - [Import summary: count every ownership change, by kind](#import-summary-count-every-ownership-change-by-kind)
-        - [Keep the Import summary in the message history](#keep-the-import-summary-in-the-message-history)
-        - [Keep price goals when a book is bought, and say so](#keep-price-goals-when-a-book-is-bought-and-say-so)
+        - [Import summary: every ownership change by kind, kept in the message history](#import-summary-every-ownership-change-by-kind-kept-in-the-message-history)
     - [Polish](#polish)
       - [Ctrl+X from a Book List or Search quietly copies instead of cutting](#ctrlx-from-a-book-list-or-search-quietly-copies-instead-of-cutting)
       - [Clearing a price goal doesn't fully clear it everywhere](#clearing-a-price-goal-doesnt-fully-clear-it-everywhere)
@@ -818,62 +816,45 @@ _Why it matters:_ A book you just bought shouldn't stay hidden in the Trash.
 
 _Why it matters:_ After buying 4 wishlist books, the summary says "0 new" — the upgrades only show in the developer console.
 
-_Polish end of the batch; after "Fetch should update books it already knows". Shares a window with "Faster back-to-back fetches"._
+_Polish end of the batch; after "Fetch should update books it already knows". Build together with "Faster fetches that
+report exactly how your library compares with Amazon" — same completion window._
 
 **What you'd get**
-- The fetch's completion window lists ownership upgrades (wishlist / sample / loan → owned).
-
-**Also**
-- Build together with "Faster back-to-back fetches" (Up next) — same completion window.
+- The fetch's completion window lists **every ownership change, by kind** — not only upgrades to Owned: e.g.
+  "3 wishlist → owned, 1 wishlist → sample, 1 wishlist → Prime loan" (once the fetch notices samples and loans).
+- **One count for both summaries** (Ron + UX, 2026-10-20): this window and the app's Import summary describe the same
+  changes at two moments; both come from the one ownership function ("Fetch should update books it already knows"),
+  so they can never disagree.
 
 **How (technical)**
 - Today the upgrades are only logged as ⬆️ in the console.
 
-##### Import summary: count every ownership change, by kind
+##### Import summary: every ownership change by kind, kept in the message history
 
-_Why it matters:_ Sample → owned upgrades are missed, and wishlist → sample could be mislabeled as owned.
+_Why it matters:_ Sample → owned upgrades are missed, wishlist → sample could be mislabeled as owned, and the summary
+disappears on refresh, leaving no record of what changed — including which books kept their price goals.
 
-_Polish end of the batch; after "Fetch should update books it already knows"._
+_Polish end of the batch; after "Fetch should update books it already knows". Merged 2026-10-20 (Ron + UX) from three
+tasks: "Import summary: count every ownership change, by kind", "Keep the Import summary in the message history",
+"Keep price goals when a book is bought, and say so"._
 
 **What you'd get**
-- The Import summary counts every change, labeled by where the book ended up — e.g. "3 wishlist → owned", "1 wishlist → sample".
-- The console line names the books (a missing title blocked a diagnosis on 2026-09-04).
+1. **Every change counted by kind**, labeled by where the book ended up — e.g. "3 wishlist → owned", "1 wishlist →
+   sample" — from the one ownership function (the same count as the fetch's window). The console line names the books
+   (a missing title blocked a diagnosis on 2026-09-04).
+2. **The whole summary is also recorded in the 🕐 message history**, including its "N kept their price goals" line,
+   **naming which books** — so a refresh doesn't erase what changed. (Today only "Cleared N price goals" is logged, and
+   only after the click.)
+
+**Already done** (the price-goal part)
+- Goals are kept when a book is bought — the rule stands: never silently destroy (Ron, 2026-09-04). Bought books
+  already need a visit to All Books to file them, so clearing goals rides along on a trip you make anyway.
+- 7.1.0: the Import summary says "N kept their price goals — clear if no longer wanted".
+- 7.19.0: "Clear those N goals" clears them in one click (undoable).
 
 **How (technical)**
-- Since 6.17.2 the summary reports "N now owned", but it's keyed on the wishlist flag flipping. Key it on `ownershipType` transitions instead.
-
-##### Keep the Import summary in the message history
-
-_Why it matters:_ The summary disappears on refresh, leaving no record of what changed.
-
-_Polish end of the batch._
-
-**What you'd get**
-- The Import summary is also recorded in the 🕐 message history.
-
-##### Keep price goals when a book is bought, and say so
-
-_Why it matters:_ Goals must never vanish silently; optionally offer a one-click "clear these goals".
-
-**Already done**
-- Goals are kept when a book is bought.
-- 7.19.0: after an Import, "Clear those N goals" clears them in one click (undoable).
-
-**Left**
-- A line in the 🕐 message history saying which books kept their goals (today only "Cleared N price goals" is logged, after the click).
-
-_Polish end of the batch._
-
-**Decided** (Ron, 2026-09-04)
-- **Keep** the goal when a book is bought — the old rule stands: never silently destroy.
-- Add a receipt line (in the 🕐 history) saying which books kept their goals.
-- Optional: a one-click **"Clear goals on these N"** in the Import summary. You pick during the build.
-
-**Why that's enough**
-- Bought books already need a manual visit to All Books to file them into reading lists, so clearing goals rides along on a trip you make anyway.
-
-**Already there**
-- Since 7.1.0 the Import summary says "N kept their price goals — clear if no longer wanted". The receipt line and the one-click clear are what's left.
+- Since 6.17.2 the summary reports "N now owned", but it's keyed on the wishlist flag flipping. Key it on
+  `ownershipType` transitions instead (the one function's result).
 
 ### Polish
 
