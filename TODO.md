@@ -35,7 +35,7 @@
         - [Delete a book from All Books (removes it everywhere)](#delete-a-book-from-all-books-removes-it-everywhere)
         - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
         - [Restore the previous selection after a stray click or Select All](#restore-the-previous-selection-after-a-stray-click-or-select-all)
-      - [Cancelling a new folder that a filter hides should discard it](#cancelling-a-new-folder-that-a-filter-hides-should-discard-it)
+      - [A folder or Book List you just created stays visible under filters](#a-folder-or-book-list-you-just-created-stays-visible-under-filters)
       - [Book details window: changes happen only when you click Save](#book-details-window-changes-happen-only-when-you-click-save)
       - [Book details window: Save only when something changed; offer Save before closing with unsaved changes](#book-details-window-save-only-when-something-changed-offer-save-before-closing-with-unsaved-changes)
       - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
@@ -1033,24 +1033,32 @@ folder switch — and nothing brings it back.
 draft of what Apply will do — docs/design/TAG-FROM-COLLECTIONS.md, build list item 7; it did not ship in 7.24.0). Ron asked for the same safety "everywhere
 (in a folder for instance)" — this is that, in the convention that fits a selection.
 
-#### Cancelling a new folder that a filter hides should discard it
+#### A folder or Book List you just created stays visible under filters
 
-_Why it matters:_ A new folder can land hidden by your filters, and there's no clean way to back out. Cancel should just remove it.
+_Why it matters:_ With filters on, a new folder is hidden the moment you create it (it has no matching books) — the
+app filtering something you obviously didn't mean to filter.
 
 **What you see**
 - With filters active, create a folder. A notice says the filters are hiding it and it won't appear in the left pane.
-- The notice has no Cancel, so the folder stays, hidden.
+  The notice has no Cancel, so the folder stays, hidden — and its rename box can open on a row you can't see.
 
-**Decided** (Ron, during 7.14.2 testing — Option A now, Option C later)
-- The notice gets 4 buttons: **Clear All Filters** / **Show All Folders** / **Leave As Is** (keep it hidden) / **Cancel**.
-- **Cancel** — and Esc, ✕, or a click on the background — deletes the just-created folder, undoably, with the message "New folder discarded".
-- **Later (Option C, separate):** warn *before* creating the folder, so nothing is created on Cancel; and stop the rename box opening on a folder row that's hidden.
+**Decided** (Ron + UX, 2026-10-21 — replaces the 7.14.2 decision: a 4-button notice now, "warn before creating"
+later; both added an interruption around a rule that shouldn't apply — Law 18)
+1. **A folder you just created stays visible, whatever the filters, until the filters change** (Excel's rule: a row you
+   just added stays visible under a filter until you re-apply it). It appears where you made it, rename box open as
+   usual.
+2. **A quiet marker explains it** when its count is 0 — e.g. *"new — no matches for your filters"* (Law 16).
+3. As soon as you change or clear the filters, it follows the normal rule.
+4. **No notice, no buttons, nothing to cancel** — Ctrl+Z undoes the creation, as for any folder. The old notice
+   (`newFolderHiddenAlert`) goes.
+5. **The same for a Book List you just created** — the left pane hides Book Lists under filters by the same rule
+   (`blHiding`, readerwrangler.js ~14719). When building, list every "just created, then hidden" path (two independent
+   searches) before claiming coverage.
 
 **How (technical)**
-- The notice is `newFolderHiddenAlert`; give its payload the new `folderId` at the 3 places that raise it (search
-  `setNewFolderHiddenAlert` — the line numbers recorded in September have drifted).
-- Delete through the existing undoable create-folder step (`CREATE_FOLDER`).
-- Option C would predict `hasActiveFilters` before creating.
+- The notice is raised from 3 places (search `setNewFolderHiddenAlert`); remove them with it.
+- Keep a "just created" id set that the filtered folder / Book List lists always include; clear it when the filters
+  change.
 
 #### Book details window: changes happen only when you click Save
 
