@@ -1842,16 +1842,26 @@ moves — see CHANGELOG); its "Why" and a second "Left" list still named those. 
 
 _Why it matters:_ Closes the last gaps left after "Save our working process in git" (done 2026-10-15).
 
-**To do**
-1. **Fail loud when a copy isn't set up:** the session-start hook warns "commit checks are not active" if `core.hooksPath` isn't `git-hooks`.
-2. Back up the global timestamp wiring (`~/.claude/settings.json`'s hook entry) — e.g. into the Projects repo.
-3. Decide whether memory is backed up **automatically** (e.g. a step in the release checklist, or a hook) rather than by hand.
+**Decided** (Ron + UX, 2026-10-22)
+1. **Warn loudly when a copy of the project isn't set up for the commit checks** (`core.hooksPath` isn't `git-hooks`
+   — a local git setting a clone never brings, which is the real "install" step; the session hooks themselves travel
+   with the repo). **In serve.py first** — every contributor runs it to test locally, including people who don't use
+   Claude Code (Ron runs it at logon) — and in the session-start hook for Claude's sessions.
+2. **Back up the global settings file** (`~/.claude/settings.json` — it wires the timestamp hook; no secrets, but
+   personal paths and project names) **into the Projects repo**, next to `stamp.py` and CLAUDE-TOOLING.md. That repo
+   (Ron-L/homelab-notes) is **private** — Ron confirmed 2026-10-22.
+3. **Memory backs itself up at every release:** a small script copies memory into the private repo's
+   `claude-backup/memory/` (and the global settings into the Projects repo), commits and pushes — run as a
+   **release-checklist step**, so the backup is never more than one release behind. Not a per-turn hook (a commit per
+   turn is noise). Why: the by-hand backup slipped a week (Oct 15 → 22: 56 files backed up of 68, 18 differing) —
+   refreshed by hand 2026-10-22 (private repo `f785de3`).
 
 **How (technical)**
-- Item 1: the SessionStart hook already runs `gate-reset.py`; have it (or a sibling) check `git config core.hooksPath`
+- Item 1: serve.py's start-up and the SessionStart hook (beside `gate-reset.py`) check `git config core.hooksPath`
   and print a loud warning when it isn't `git-hooks`.
-- Memory backup today: copy `~/.claude/projects/c--Users-Ron-Projects-ReaderWrangler/memory/*.md` into
-  `claude-backup/memory/`, commit, push (see that folder's README).
+- Item 3: what it copies today by hand — `~/.claude/projects/c--Users-Ron-Projects-ReaderWrangler/memory/*.md` into
+  `claude-backup/memory/`, plus `.claude/settings.local.json` (see that folder's README; update its "whether to
+  automate" line when built). A Python script (pytools `keepopen`), like the other tools.
 
 ## 🚦 Before public launch
 
