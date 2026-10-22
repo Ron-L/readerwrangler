@@ -5,6 +5,7 @@
     - [High priority](#high-priority)
       - [🚧 Relay storage: stop leftovers piling up, and report usage correctly](#relay-storage-stop-leftovers-piling-up-and-report-usage-correctly)
         - [Numbers the app and relay must agree on: add a check that they match](#numbers-the-app-and-relay-must-agree-on-add-a-check-that-they-match)
+      - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
@@ -65,7 +66,6 @@
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
       - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
       - [Redo should work after copying a folder](#redo-should-work-after-copying-a-folder)
-      - [The Delete key should delete the folders you've selected](#the-delete-key-should-delete-the-folders-youve-selected)
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
@@ -274,6 +274,35 @@ _Part of the relay storage work above — build it with B2 (decided 2026-10-14).
   `mintId` in the worker ↔ `idTimestamp` in relay-client.js); B2's `SWEEP_GRACE_MS` ↔ `GC_GRACE_MS`, `SWEEP_KEEP_GENS`
   ↔ `KEEP_GENS`, and the worker's `idTimestamp` ↔ the client's.
 - Units differ (seconds vs ms) — the check must compare values, not text.
+
+#### The Delete key deletes the folder you're in — not the folders you selected
+<!-- id 20261014-1030ay -->
+
+_Why it matters:_ Delete aimed at what you selected hits a different folder — and an empty one goes with no question.
+**First in line** (Ron, 2026-10-22: moved from Polish — "Yes, undo should fix it but still!"; the in-progress relay
+task stays pinned above it per the 🚧 rule).
+
+**What you see** (checked in code 2026-10-22, readerwrangler.js ~5517)
+- With no **books** selected, Delete deletes **the folder you're inside**, whatever else is selected. Select two
+  subfolders in the right pane and press Delete → it targets their **parent**. If the parent has contents, the
+  confirmation names it ("Delete 'Parent' and its 2 subfolders?") — but **an empty folder is deleted with no question**
+  (empty folders skip the confirm). Undo restores it; the target is still wrong.
+
+**Decided** (Ron + UX, 2026-10-22)
+1. **Delete acts on what's selected where you're working — never on "the folder you're in" by default:** selected
+   books; else selected folders in the right pane; else, only when the left pane has your focus, the folder
+   highlighted there. **With nothing selected, Delete does nothing** (Finder / Explorer never delete the folder you're
+   looking into).
+2. **Several folders → one confirmation listing them, and one undo for the lot** (a genuinely destructive act — the
+   Prime Directive's exception).
+3. **Don't ship single-only** — that's more confusing than neither.
+4. **One operation for every way in:** the key and the folder right-click menu's Delete both use one
+   `deleteFolders(…)` operation, so they can't disagree.
+
+**How (technical)**
+- Today: `if (e.key === 'Delete' && !isSpecialFolder && getSelectedBookIds().length === 0) await deleteFolder(currentFolder)`
+  — uses the current folder instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch
+  confirm and one compound undo — the new `deleteFolders(folders)`. Surfaced during the operations refactor.
 
 #### Turn more of our working rules into automatic checks (my tooling)
 <!-- id 20260922-0000c -->
@@ -1807,22 +1836,6 @@ moves — see CHANGELOG); its "Why" and a second "Left" list still named those. 
   `moveItems`, `reparentFolder`. Design: docs/design/OPERATIONS-REFACTOR.md.
 - Note for whoever next touches this code: fold the folder-move part of `moveItems` into the one folder-move
   operation (`reparentFolder`) — no visible change, but one path instead of two doing the same job.
-
-#### The Delete key should delete the folders you've selected
-<!-- id 20261014-1030ay -->
-
-_Why it matters:_ Today it only deletes the folder you're inside.
-
-**What you see**
-- Select folders in the right pane's list (e.g. the Folders view) and press Delete: nothing happens to them — only the folder you're *inside* is deleted.
-
-**What you'd get**
-- One selected folder → deleted, as from its menu.
-- Several → one confirmation, and one undo for the lot.
-- **Don't ship single-only** — that's more confusing than neither.
-
-**How (technical)**
-- Today it uses `selectedFolderId` instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch confirm and one compound undo — best once there's a `deleteFolders(folders)` operation. Surfaced during the operations refactor.
 
 #### Working-process safety net: three small follow-ups
 <!-- id 20261015-1917 -->
