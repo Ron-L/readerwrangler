@@ -61,7 +61,7 @@
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Fetcher housekeeping](#fetcher-housekeeping)
-        - [Fetcher: name and explain Amazon's library filter](#fetcher-name-and-explain-amazons-library-filter)
+        - [Fetcher: give the library filter one name, in one place](#fetcher-give-the-library-filter-one-name-in-one-place)
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
       - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
       - [Finish routing every change through one shared path, with undo](#finish-routing-every-change-through-one-shared-path-with-undo)
@@ -1687,10 +1687,10 @@ _Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder 
 
 Small code-and-safety fixes; "odds and ends" includes a minimum pause between requests to Amazon.
 
-##### Fetcher: name and explain Amazon's library filter
+##### Fetcher: give the library filter one name, in one place
 <!-- id 20261014-1030u -->
 
-_Why it matters:_ An unexplained code string is repeated in four places; one named, documented setting is safer to change.
+_Why it matters:_ An unexplained code string is repeated in four places; one named setting is safer to change.
 
 **Background** (checked 2026-10-14)
 - An old fetcher fix (`ee6d83c`, June 2026) had two parts. Both were lost when the fetcher was later rewritten.
@@ -1707,23 +1707,16 @@ _Why it matters:_ An unexplained code string is repeated in four places; one nam
   end-of-fetch banner (part 1 above) reports.
 
 **What the filter is**
-- When the fetcher asks Amazon for your library, it adds a filter that hides two of Amazon's internal tag groups —
-  mirroring what Amazon's own Your Books page hides.
-- Today that filter is a long, unexplained code string pasted into **4 places** in the fetcher. Changing it means
-  finding and editing all 4 identically, with nothing saying what it does.
+- When the fetcher asks for your library it applies the same default filter Amazon's own Your Books page applies.
+  Today that filter is a long code string pasted into **4 places** in the fetcher (re-counted 2026-10-22) — changing
+  it means editing all 4 identically, with nothing saying what it is. What it hides: see TODO notes.
 
-**To do**
-- Put the whole filter (both tags) in **one** named, commented constant, and use it in all 4 places. No change in
-  behavior. Small.
+**To do** (Ron + UX, 2026-10-22 — per the notes rule: the code keeps what it needs, explanations stay private)
+- Put the whole filter in **one** named constant, used in all 4 places. No change in behavior. Small.
+- **Its code comment stays neutral** — e.g. "the default filter Amazon's own Your Books page applies" — the meaning of
+  each part lives in Amazon-Reference.md (shipped code is public; the 2026-10-14 draft comment explained Amazon's tags).
 
 **How (technical)**
-- The constant (approved by Ron 2026-10-14):
-  ```js
-  // Default library view filter — hides two of Amazon's tag groups, as Amazon's own Your Books page does:
-  //   222711ade… = "V"                  (purpose unknown — tags nothing on your account today)
-  //   858f501de… = "Permanently Remove" (items flagged for removal; also exactly the 13 dead "husk" records)
-  const LIBRARY_EXCLUDE_TAGS = 'NOT (222711ade9d0f22714af93d1c8afec60 OR 858f501de8e2d7ece33f768936463ac8)';
-  ```
 - The 4 queries: amazon-library-fetcher.js ~1040 (start-up test), ~1449 (main fetch), ~1748 (recovery sweep),
   ~2805 (removed-books check).
 - Delisted = "product-null" in the code: the removed-books check adds those ASINs as present (~2869–2878).
@@ -2227,7 +2220,7 @@ _Why it matters:_ "Kindle only" is Ron's own preference baked into the series an
 
 **Today**
 - The **series** and **author** adds take Kindle editions only; the **one-book Add Book to Wishlist** takes whatever format the page shows — keep that exception either way (Ron adds a paperback as a placeholder when there's no Kindle edition yet).
-- **The library fetch already brings in EVERY format** (confirmed 2026-10-16 from Ron's library, Format column): ~80 non-Kindle items — 47 Board Book, ~12 Paperback, ~12 Mass Market Paperback, 4 Map, 2 Audio CD, 1 each CD-ROM, DVD, Product Bundle, Spiral-bound, and one "Shoes" (a board book Amazon mislabels). Mostly gifts Ron's wife bought. _(Corrected twice today: I first claimed Amazon's library was Kindle-only — it isn't; its fixed exclusion hides the "V" and "Permanently Remove" tag groups, not formats — see "Fetcher: name and explain Amazon's library filter".)_
+- **The library fetch already brings in EVERY format** (confirmed 2026-10-16 from Ron's library, Format column): ~80 non-Kindle items — 47 Board Book, ~12 Paperback, ~12 Mass Market Paperback, 4 Map, 2 Audio CD, 1 each CD-ROM, DVD, Product Bundle, Spiral-bound, and one "Shoes" (a board book Amazon mislabels). Mostly gifts Ron's wife bought. _(Corrected twice today: I first claimed Amazon's library was Kindle-only — it isn't; its default filter hides other things, not formats — see "Fetcher: give the library filter one name, in one place" and TODO notes.)_
 - So the library has the **opposite** problem: things you don't track (gifts, a DVD) come in with no way to keep them out.
 
 **Shape** (Ron + UX, 2026-10-16) — **after launch, depending on demand**
