@@ -1522,8 +1522,24 @@ _Why it matters:_ A tag you use constantly ("Read", 964 books) can be missing fr
 2. It shows **all** tags, in **your custom tag order** (Manage Tags), in a scrolling list.
 3. The search box stays at the top to narrow it ("Type to search or create…"), as the "Move to" submenu's filter box does.
 4. **No silent limit.** If a cap is ever needed, it says so: "…23 more — type to filter".
-5. Keeps what both have today: tags already on the book(s) aren't offered again; "Create ‹name›" appears only when no
-   tag by that name exists.
+5. Keeps what both have today: tags already on the book(s) aren't offered again (re-confirmed 2026-10-20, Tag from
+   Collections round 2 topic 8); **"Create ‹name›" appears unless a tag with EXACTLY that name exists** — capitals
+   count since 7.24.0 — with the capitals prompt for a near-twin ("A similar tag exists"). Don't rebuild the old
+   capital-blind check.
+
+**Decided — tag order everywhere follows Manage Tags** (Ron + UX, 2026-10-18; recorded in
+docs/design/TAG-FROM-COLLECTIONS.md §7 as "added to this task" but it never arrived — added 2026-10-22). Ron's alpha.3
+note: the Tags filter and right-click → Tags aren't in Manage Tags order (book details is A→Z).
+1. Manage Tags' hidden header-click order cycle becomes a visible **Order: A→Z | Most used | Manual**.
+2. **Every tag list follows it:** the Tags filter (bar above the books), right-click → Tags, book details → Tags.
+3. Drag handles appear only in **Manual**, and the manual order changes only in Manual — viewing A→Z never touches a
+   saved manual order.
+
+**Build as one "tag lists" release** (Ron + UX, 2026-10-22) with the tasks that change the same lists — one build,
+one test round of them instead of four: "Long lists keep their actions in view" (the shared scrolling list; pins
+"Manage Tags…"; fixes the Tags filter), "Arrow keys should move through every type-ahead list" (the picker's search
+box), and "Tag from Collections, round 2" step 4 (the shared tag-change function: confirmations, "touching a tag by
+hand makes it yours").
 
 **Workaround until then:** Tools → Manage Tags → drag "Read" into your top 10.
 
