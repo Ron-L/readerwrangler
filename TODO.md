@@ -777,8 +777,9 @@ _Why it matters:_ When a book changes kind — bought, a sample, a loan, a book 
 - 7.7.2 (2026-09-07): Imports reclaim old upload storage. Its outstanding proof is **settled**: 7.21.1 reclaims on every
   save, and since 7.23.0 (2026-10-20) production's nightly storage check confirms nothing is left over.
 - 7.8.0 (2026-09-08): the ownership dialog redesign, the undo fence, undo messages that name what they undo.
-- 7.9.0: one unified Auto-Organize. Two pieces were deferred on purpose and are their own tasks (Polish): "Auto-Organize:
-  let a misfiled book go back to the Inbox" and "Auto-Organize: Shift-click ranges should follow what you see".
+- 7.9.0: one unified Auto-Organize. Two pieces were deferred on purpose: "Auto-Organize: Shift-click ranges should
+  follow what you see" (a task, Polish) and "let a misfiled book go back to the Inbox" (dropped 2026-10-22 — right-click
+  → Move to → Inbox and Ctrl+Z already cover it).
 - 7.10.0: Save as Spreadsheet (CSV) — the user who asked for it was sent a reply (no response).
 - 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
 
