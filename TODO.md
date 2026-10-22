@@ -1626,16 +1626,19 @@ _Why it matters:_ Two hints in the multi-book Edit boxes are easy to misread as 
 3. …**"e.g., 1, 1.5"** — two example numbers separated by a comma, which looks like "a list is allowed". The box takes
    only **one** number (it applies the same position to every selected book).
 4. (For reference: the book details window's Position also takes one number — a book has one position until
-   "One book in several series positions" is built.)
+   "Series positions: one Position dialog, and one book at several positions" is built.)
 
-**What you'd get**
-1. "Mixed" wording that says what it means, e.g. "Currently 2 different series — type one to use for all".
-2. A Position example that can't look like a list, e.g. "e.g., 1.5" — and a pointer to "Set numbers…" for giving
-   each book its own number.
+**Decided** (Ron + UX, 2026-10-22 — the Position half is overtaken: the next day "Series positions…" (High priority)
+made Position take a list (`13, 13.5, 14`, ranges) with a live preview, and removes "Set numbers…" from the menu — so
+"e.g., 1, 1.5" becomes accurate, and that task already covers the hint until it ships)
+1. **"Mixed" says what it means:** e.g. *"2 different series now — type one to use for all"* — in Author…, Series…,
+   Format… (and Position… until the new dialog's preview replaces it).
+2. **Show which values, not just how many:** a tooltip on the box — *"Now: Dune · Foundation"* — knowing which ones
+   are mixed is usually the point of looking (Law 16).
 
 **How (technical)**
 - `Mixed (${uniqueValues.size} values)` in the bulk-edit dialog (readerwrangler.js ~13396), shared by Author / Series /
-  Position / Format; Position's default `'e.g., 1, 1.5'` (~13482).
+  Position / Format.
 
 #### Auto-Organize: let a misfiled book go back to the Inbox
 <!-- id 20261014-1030f -->
