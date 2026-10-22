@@ -1600,12 +1600,17 @@ _Why it matters:_ They sit at the bottom left today, not where you'd look for th
 **What you see**
 - Both jump buttons (to top / to bottom) sit at the bottom-left of the left pane. You expected top-at-top and bottom-at-bottom, by the scrollbar.
 
-**Options**
-- Move the pair to the right, near the scrollbar (where scroll controls conventionally live).
-- Or one "back to top" button that appears when you scroll down.
-
 **Decided**
 - No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
+- (Ron + UX, 2026-10-22) **▲ at the top, ▼ at the bottom, both at the right edge by the scrollbar** — where scroll
+  controls live everywhere else (Ron's own expectation). Not the single "back to top" option: the pane is long at both
+  ends.
+- **Floating over the pane's edge**, so they never push the list: ▲ shows when you're not at the top, ▼ when you're not
+  at the bottom, neither when the pane doesn't scroll. (Not the menu rule's case — a floating helper shifts nothing,
+  and a scroll button with nothing to scroll is clutter.)
+- **Home / End do the same jumps** — overlaps "Leftover desktop polish (left-pane keyboard, shadows)" (After launch).
+- **Build with the left-pane release** (pins + the filter box + the section overview — "Book Lists and Searches: pin
+  and sort them like Folders"), so the pane's chrome is decided once and the filter box and ▲ don't collide.
 
 ##### Bulk Edit hints that read like "you can type several values"
 <!-- id 20261015-1219 -->
