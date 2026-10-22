@@ -1730,10 +1730,32 @@ _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
 **The list**
 1. Fix the "772%" figure in the details-filled ratio.
 2. The elapsed time freezes during the "Checking Relay" (both lines) and "Recovering" phases — it only repaints when the phase or progress changes. (Ron, 2026-09-03, twice.)
-3. **A minimum pause between requests** (~400 ms). Today it's 0 because network round-trips slow things naturally — but if Amazon's servers ever got faster, we'd hammer them. Decided earlier and never recorded until 2026-09-04.
+3. **Never request faster than today's proven-safe pace** (rewritten 2026-10-22, Ron + UX — the original idea, whose
+   details had been lost: a fixed "~400 ms" pause *added after* each answer would stack on Amazon's own response time,
+   cost ~40 s on a full pass and protect nothing today). Today it's 0 (`FETCH_DELAY_MS = 0`); if Amazon's servers ever
+   got faster, we'd hammer them.
+   1. **A minimum gap between request STARTS** — a speed limit, not a delay: before sending, if less than the floor has
+      passed since the previous request started, wait the difference; otherwise send at once. Only the start time
+      matters, so there's no "just sent" step. If several requests go out at once, each takes the next free slot (last
+      start + floor), so they still leave one floor apart.
+   2. **Across EVERY request to Amazon**, whatever its kind and whichever fetcher sends it — not per kind.
+   3. **The floor = today's measured pace**, so the **net effect today is zero**: record each request's duration in one
+      normal full fetch, set the floor just below the typical time, and write where the number came from next to the
+      constant.
+   4. **Visible if it ever kicks in** (Ron: "an excellent addition"): when the floor actually has to wait, Amazon got
+      faster than when we measured — say so in the fetch summary or console ("paced N requests to the safe rate").
+   5. **One wrapper — `amazonFetch(…)` — that every request to Amazon goes through,** not a call each site must
+      remember (Ron's alternative "about to send" would work too, but can be forgotten). The fetchers are plain
+      scripts on Amazon's page, so wrapping the browser's request call is simple. **Lives in one shared file the
+      bookmarklet hub loads before any fetcher** — not copied into each. **A commit check refuses a direct request to
+      Amazon in the fetcher files that bypasses it.**
+
+**Decided** (Ron + UX, 2026-10-22): items 1–2 as listed (the "772%" ratio can't exceed 100% — fix the formula; the
+elapsed time redraws on a one-second tick while a fetch runs). **Build all three with "Faster fetches…"** (High
+priority) — same file, same test, and that task already rebuilds the timing table.
 
 **How (technical)**
-- Item 3: `FETCH_DELAY_MS`. (Two items moved out 2026-10-20: the live ownership-upgrade test is now in "Fetch should
+- Item 3: replaces `FETCH_DELAY_MS` (amazon-library-fetcher.js ~67). (Two items moved out 2026-10-20: the live ownership-upgrade test is now in "Fetch should
   update books it already knows", un-trash on upgrade is "Buying a book that's in the Trash should bring it back".)
 
 #### Relay Setup's connection test checks the wrong relay on dev
