@@ -1562,9 +1562,19 @@ _Why it matters:_ Getting the ASINs of several books today means opening each on
 **What you'd get**
 - **Copy ASIN(s)** right below them: the selected books' ASINs, one per line, in display order (same pattern).
 
+**Decided** (Ron + UX, 2026-10-22)
+1. **Flat, right after Copy Author(s), always present** (every book has an ASIN); receipt *"3 ASINs copied"*. Not a
+   "Copy ▸" submenu — Copy Title is used often, and a submenu adds a hop to every use.
+2. **One shared copy action:** Copy Title(s) and Copy Author(s) are near-duplicates today (build text → clipboard →
+   receipt → close menu); a third copy is the moment to make one small helper — "copy these values, with this
+   receipt" — so all three are one line each (Authors keeps its de-duplication). Same commit, under 20 lines.
+3. **The receipt says "copied" only when it was:** today both items announce "Title copied!" without waiting for the
+   clipboard, which a browser can refuse (Law 12). The helper waits; on refusal: *"Couldn't copy — your browser
+   blocked the clipboard."* Fixes all three at once.
+
 **How (technical)**
-- Next to Copy Title(s) / Copy Author(s) in the book context menu (readerwrangler.js ~19548–19580):
-  `navigator.clipboard.writeText(...)` of the selection's `asin`s, with the same count-aware label.
+- Next to Copy Title(s) / Copy Author(s) in the book context menu (readerwrangler.js ~19535–19568 on 2026-10-22):
+  `navigator.clipboard.writeText(...)` returns a promise — await it (catch the rejection) before the receipt.
 
 ##### Wishlist: record the real format when a book is added
 <!-- id 20261014-1030bf -->
