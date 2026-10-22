@@ -1749,6 +1749,11 @@ _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
       scripts on Amazon's page, so wrapping the browser's request call is simple. **Lives in one shared file the
       bookmarklet hub loads before any fetcher** — not copied into each. **A commit check refuses a direct request to
       Amazon in the fetcher files that bypasses it.**
+   6. **Make bypassing it impossible, not just discouraged** (Ron, 2026-10-22): inside OUR fetcher scripts the names
+      `fetch` / `XMLHttpRequest` are shadowed by a local that throws *"Requests to Amazon go through amazonFetch"*;
+      `amazonFetch` keeps the real one. **Never override the page's own `window.fetch`** — the page is Amazon's, and
+      its own scripts use it; replacing it would break Amazon's site for the user. (The commit check stays too: it
+      also catches an explicit `window.fetch`, and code paths a test run never reached.)
 
 **Decided** (Ron + UX, 2026-10-22): items 1–2 as listed (the "772%" ratio can't exceed 100% — fix the formula; the
 elapsed time redraws on a one-second tick while a fetch runs). **Build all three with "Faster fetches…"** (High
@@ -1766,12 +1771,23 @@ _Why it matters:_ On your local copy or the dev site it tests production, so its
 **What you see**
 - On your local copy or the dev site: File → Relay Setup → the connection test reports on the **production** relay, not the dev relay your copy actually uses. So "connected" / "revoked" there can be wrong for dev.
 
-**To do**
-- Use the same relay address every other relay call uses — one place that answers "which relay", not a second fixed address. Small.
+**Why it happened** (checked 2026-10-22): relay-client.js already has the wrapper — `relayFetch(path)` builds the
+address from the one "which relay" answer — but it doesn't offer it to the app (not in `window.RWRelay`), so the test
+called the browser's request function directly with a hard-written production address (readerwrangler.js ~1838). The
+relay's addresses are written in **five** places: production in relay-client.js:13 (the default) and the buggy ~1838;
+dev in readerwrangler.js:130, mobile.js:31 and bookmarklet-nav-hub.js:52.
 
-**How (technical)**
-- readerwrangler.js ~1774 (the `case 'test':` branch) fetches a fixed `https://readerwrangler-relay.readerwrangler.workers.dev/…` (verified 2026-10-14).
-- Use the dev-aware `window._RW_RELAY_WORKER_URL` (set near the top of readerwrangler.js for localhost and the dev site). Found 2026-10-12.
+**Decided — relay requests go only through relay-client** (Ron + UX, 2026-10-22)
+1. **relay-client offers what the app needs** — a named `testConnection(channelId)` (better than exposing raw paths),
+   so the app never builds relay addresses; the test uses it. This fixes the dev bug.
+2. **Both addresses are written once, in relay-client.js.** The app, phone and bookmarklet hub only answer "am I on
+   dev?" (each detects it its own way) — **callers never pass Dev or Prod**: a caller that chooses can choose wrong
+   (that's this bug). The relay's own test scripts in `relay/` run outside the app and don't use this.
+3. **Make bypassing it impossible** (Ron): the app page is ours, so its `window.fetch` gets a guard that **throws**
+   for a request to a relay address not coming from relay-client (*"Relay requests go through RWRelay"*);
+   everything else passes untouched. relay-client keeps the real one. An honest error, not a silent substitute.
+4. **A commit check refuses a relay address written outside relay-client.js** (app, phone, bookmarklet files).
+5. Test step: on localhost, Relay Setup's connection test names the **dev** relay.
 
 #### Finish routing every change through one shared path, with undo
 <!-- id 20261014-1030w -->
