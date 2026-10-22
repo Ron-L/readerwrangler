@@ -1581,14 +1581,16 @@ _Why it matters:_ Getting the ASINs of several books today means opening each on
 
 _Why it matters:_ Today the format is only known after the book's details are filled in.
 
-**Already done**
+**Already done** (checked 2026-10-22)
 - 6.12.0: adding a single book from its page records the format.
+- 7.21.3: **Add Bibliography to Wishlist** takes Kindle books only and records "Kindle Edition" on each
+  (author-bibliography-fetcher.js ~462).
 
-**Left**
-- Books added from a **series page** and from the **bibliography** fetcher still get no format (amazon-wishlist-fetcher.js ~570–583, author-bibliography-fetcher.js ~529/632, series-page-fetcher.js ~466).
-
-**How (technical)**
-- Capture the binding from the product page (`bindingInformation`) when the book is added to the wishlist.
+**Left — one line** (Ron + UX, 2026-10-22)
+- **Add Series to Wishlist** asks Amazon for Kindle editions only, so every book it adds is Kindle — but it never writes
+  that onto the book (series-page-fetcher.js, the book built ~464), so the app falls back to its default. Set the
+  format to **"Kindle Edition"** (FORMAT-POLICY's spelling, as the bibliography fetcher does).
+- A fetcher change shared by all three bookmarklets: dev and prod together.
 
 ##### Left pane: put the jump-to-top / bottom buttons by the scrollbar
 <!-- id 20261014-1030aa -->
