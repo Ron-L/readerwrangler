@@ -70,14 +70,12 @@
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
-      - [Rewrite the User Guide around Searches, Book Lists and Folders](#rewrite-the-user-guide-around-searches-book-lists-and-folders)
-      - [User Guide: explain workarounds for fields you can't filter by](#user-guide-explain-workarounds-for-fields-you-cant-filter-by)
       - [Wording pass: explain Book List shortcuts and Linked Copies](#wording-pass-explain-book-list-shortcuts-and-linked-copies)
       - [Rename "Relay" to "Cloud Sync" everywhere users see it](#rename-relay-to-cloud-sync-everywhere-users-see-it)
       - [Update and record the sizzle reel](#update-and-record-the-sizzle-reel)
       - [Refresh the landing page's before / after screenshot](#refresh-the-landing-pages-before--after-screenshot)
-      - [Create a FAQ page](#create-a-faq-page)
       - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
+      - [User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help](#user-guide-rewrite-it-around-searches-book-lists-and-folders-as-a-page-you-can-reach-from-help)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
@@ -1904,36 +1902,6 @@ rules, so any color it misses stays wrong in some theme — and two pages have n
 - Pages: index, features, tutorials, security, changelog, reset (readerwrangler.html is the app — the Dark theme
   task).
 
-#### Rewrite the User Guide around Searches, Book Lists and Folders
-<!-- id 20260910-0000c -->
-
-_Why it matters:_ The guide predates today's way of organizing.
-
-**What it should cover**
-- The four places: All Books / Searches / Book Lists / Folders — what each is for, and "when to use which".
-- Folders hold your books; Book Lists are shortcuts that point at them.
-- **The Book List ↔ Folder pattern:** structure lives in Folders; to-read queues live in Book Lists.
-- "Getting books out of the Inbox → use a folder, not a Book List."
-
-**Sources**
-- Examples of taming a backlog: docs/design/WORKFLOW-PATTERNS.md.
-- Facts and FAQ: docs/design/SUPPORT-KB.md (mined 2026-09-10 from every session back to May, and kept current at each release).
-
-**Also**
-- Do the "Relay → Cloud Sync" rename (next task) in the same pass, so the new names land in the docs in one go.
-- The same rewrite covers the GPT support assistant's manual.
-
-**How (technical)**
-- "Holds vs. points at" = the custodial vs. supplemental model.
-
-#### User Guide: explain workarounds for fields you can't filter by
-<!-- id 20261014-1030bd -->
-
-_Why it matters:_ There's usually another way, e.g. add the column in List view and sort.
-
-**To do**
-- In the User Guide and the GPT manual: when someone can't filter by a field, show the workaround (e.g. List view → add that column → sort).
-
 #### Wording pass: explain Book List shortcuts and Linked Copies
 <!-- id 20261014-1030bg -->
 
@@ -1941,7 +1909,7 @@ _Why it matters:_ Those terms confuse people unless they're explained once, clea
 
 **To do**
 - Use "shortcut" language in Book List messages and menus.
-- Explain "Linked Copies" once, in the manual and the GPT manual.
+- Explain "Linked Copies" once, in the User Guide (the support assistant reads the same file).
 
 **Spec:** docs/design/TERMINOLOGY.md. (Filed for 6.12.1.)
 
@@ -1964,7 +1932,7 @@ _Why it matters:_ "Relay" is an engineering word; renaming is free before launch
   both trace to the same 2026-08-28 decision in the 7.0.1–7.4.0 post-mortem.)
 
 **Also**
-- Fold into the User Guide rewrite (above).
+- Fold into the User Guide rewrite (below).
 
 #### Update and record the sizzle reel
 <!-- id 20261014-1030bc -->
@@ -1980,15 +1948,6 @@ _Why it matters:_ The promo video shows the old way of organizing.
 
 _Why it matters:_ The "after" picture predates the redesign.
 
-#### Create a FAQ page
-<!-- id 20261014-1030o -->
-
-_Why it matters:_ Common questions answered in one place.
-
-**What you'd get**
-- faq.html with sections: Security / Privacy, Data / Backup, Troubleshooting, Library, General.
-- Linked from the Help menu, README, and the features and tutorials page footers.
-
 #### Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome
 <!-- id 20261018-1422b -->
 
@@ -2002,12 +1961,71 @@ _Why it matters:_ Assumptions baked into the product are nowhere stated — a UK
 5. **Fetching needs a computer** (the bookmarklet runs on Amazon's site in a desktop browser); the phone views and organizes. Verify the exact phone limits before writing them.
 
 **Where it goes** (Ron, 2026-10-16)
-1. A short **"What ReaderWrangler works with"** section in the User Guide.
+1. A short **"What ReaderWrangler works with"** section in the User Guide (written in the User Guide task, below).
 2. One line on the landing page and features page ("For Kindle readers using Amazon.com").
 3. One question in SUPPORT-KB.
 4. A developer list in docs/reference/ARCHITECTURE.md — every spot a future change (another country, another app language) would touch.
 
 Ron's word on the wording first.
+
+#### User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help
+<!-- id 20260910-0000c; merged 20261014-1030bd, 20261014-1030o -->
+
+_Why it matters:_ The guide never mentions Book Lists (checked 2026-10-22: 0 times in 455 lines), and no reader can
+find it — it's on the site only as GitHub's plain, unthemed, unlinked copy (`readerwrangler.com/USER-GUIDE.html`); the
+Help menu has How To Use, Watch Tutorials and Keyboard Shortcuts, but no guide. The same file is what the support
+assistant will read, so it has to be complete and stay current.
+
+**Decided** (Ron, 2026-10-22, in the TODO review — "go with your ideas all the way")
+1. **One file: USER-GUIDE.md, for people, the support assistant and anyone pasting it into their own chatbot.** It
+   stays Markdown: well-headed, self-contained sections suit the assistant (an HTML page would mix menus and theme code
+   into what it reads).
+2. **A themed page shows it:** `guide.html` loads USER-GUIDE.md and displays it, using the site pages' shared named
+   colors (the task above), so all four themes work. Linked as **Help → User Guide** in the app, and from the site
+   pages' links and README. How To Use stays as the short first-run version and links to the guide for more.
+3. **One FAQ, inside the guide** — not a separate faq.html (merged the "Create a FAQ page" task). Sections: Security /
+   Privacy, Data / Backup, Troubleshooting, Library, General; question-shaped entries (what users actually type). The
+   footers and README link straight to it. Two FAQs would drift apart, as the browser claims already have.
+4. **Every feature is covered — by a check, not by memory.** Every place a user reaches a feature carries a **guide
+   section name** pointing at the guide (e.g. `guide="move-books"`) — a name, never text, so nothing is written twice:
+   menu-bar items (20), popups including right-click menus (76), dialogs (40), the confirm-style boxes (~19), and the
+   keyboard-shortcut list. A commit check refuses (a) any of those without a guide name — a place that truly needs
+   none says so with a reason (e.g. a picker inside a dialog) — and (b) any guide name with no matching section in
+   USER-GUIDE.md. It also reports guide sections nothing points at (a removed feature's leftovers). Counts from
+   2026-10-22.
+5. **The first run of that check is the sweep:** the list of places with no guide name is the rewrite's outline.
+6. **A "?" in each dialog** opens the guide at its section — cheap once the names exist; real help where you are.
+7. **Behavior with nothing to click** (a book leaving its last folder goes to the Inbox; the drag rules) can't be caught
+   by the check. When the new guide ships, add to the release checklist: the help-notes comb also covers the guide —
+   every CHANGELOG line gets a guide check.
+8. **Build it last in Before launch** — it describes behavior still being decided or built. Wait for: "Rename
+   'Relay' to 'Cloud Sync' everywhere users see it" (done in the same pass, so the new names land once), "Move and copy
+   books anywhere — folders, Book Lists, All Books, Searches", and "The Delete key deletes the folder you're in — not
+   the folders you selected".
+
+**What it should cover**
+- The four places: All Books / Searches / Book Lists / Folders — what each is for, and "when to use which".
+- Folders hold your books; Book Lists are shortcuts that point at them.
+- **The Book List ↔ Folder pattern:** structure lives in Folders; to-read queues live in Book Lists.
+- "Getting books out of the Inbox → use a folder, not a Book List."
+- **Fields you can't filter by:** show the other way, e.g. List view → add that column → sort (merged task).
+- **"What ReaderWrangler works with"** (from the "Say plainly…" task above).
+- A glossary and a "what ReaderWrangler doesn't do (yet)" section (the support assistant plan's two best defenses
+  against made-up answers).
+
+**Sources**
+- Examples of taming a backlog: docs/design/WORKFLOW-PATTERNS.md.
+- Facts and FAQ: docs/design/SUPPORT-KB.md (mined 2026-09-10 from every session back to May, and kept current at each release).
+
+**How (technical)**
+- "Holds vs. points at" = the custodial vs. supplemental model.
+- The live site serves the raw `USER-GUIDE.md` (checked 2026-10-22: `text/markdown`), so `guide.html` can fetch and
+  display it with a Markdown library from a CDN (pinned version — see "Pin the exact versions of outside code
+  libraries"). Prove that works on dev before relying on it. Decide then whether GitHub's automatic
+  `USER-GUIDE.html` copy should be hidden or point at guide.html.
+- The guide-name check sits beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`; the guide name is a
+  prop on `MenuBarItem` / `<Dialog>` / `<Popover>`, an argument to the confirm-style boxes, and a field in the
+  shortcut list. Section names = the guide's headings' anchors.
 
 #### Build the support assistant (custom GPT)
 <!-- id 20261014-1030i -->
@@ -2016,6 +2034,12 @@ _Why it matters:_ Lets users get answers without waiting for you.
 
 **What you'd get**
 - A custom GPT that answers ReaderWrangler questions, linked from the Help menu.
+
+**Decided** (Ron, 2026-10-22)
+- **It reads USER-GUIDE.md — the same file people read** (the User Guide task above); no separate manual.
+- **The uploaded copy is the one thing that can drift.** A custom GPT keeps its own copy (believed not to re-read our
+  site by itself — confirm when building). So: the guide carries an "up to date through release X" stamp, the
+  assistant is told to quote it when asked, and the release checklist gets "re-upload the guide to the assistant".
 
 **Spec:** docs/design/SUPPORT-GPT.md.
 
