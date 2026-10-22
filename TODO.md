@@ -58,7 +58,6 @@
         - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
         - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
-      - [Auto-Organize: let a misfiled book go back to the Inbox](#auto-organize-let-a-misfiled-book-go-back-to-the-inbox)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Fetcher housekeeping](#fetcher-housekeeping)
@@ -1315,6 +1314,9 @@ each list by hand doesn't stop the next new list from repeating it; with one sha
       sits below them (~19933).
    3. **Tag from Collections' "No tags to remove…" note** — handled in "Tag from Collections, round 2" (its design's
       build list item 2), not here: it's a note, so it moves to the window's status line rather than being pinned.
+   4. **Auto-Organize's preview — "File under… / Choose folder"** (Ron, 2026-10-22) — **broken:** it sits at the
+      bottom of the scrolling preview, so you scroll to the end to find it ("not discoverable"). It's an action on the
+      selection → pin it below the scrolling part.
 3. **Find the rest with the comb** — two independent searches (lists that scroll; trailing "Manage…" / "Create…" / "…"
    items) plus a walk of every menu, right-click menu, dropdown and dialog list. Publish the list of places before
    calling it done. **Include menus that list your own items** (Book Lists, folders) and **run off the screen** —
@@ -1640,17 +1642,6 @@ made Position take a list (`13, 13.5, 14`, ranges) with a live preview, and remo
 - `Mixed (${uniqueValues.size} values)` in the bulk-edit dialog (readerwrangler.js ~13396), shared by Author / Series /
   Position / Format.
 
-#### Auto-Organize: let a misfiled book go back to the Inbox
-<!-- id 20261014-1030f -->
-
-_Why it matters:_ There's no way to send a book that Auto-Organize filed wrongly back to the Inbox.
-
-**What you'd get**
-- The Inbox as a "File under" choice in Auto-Organize, to take a misfiled book back out.
-
-**How (technical)**
-- Deferred from 7.9.0 on purpose (scope rule): it needs different commit machinery from ordinary filing.
-
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->
 
@@ -1666,6 +1657,9 @@ _Why it matters:_ Shift-click selects by a hidden internal order that can differ
 
 **How (technical)**
 - 6.16.0 rebuilt the range to follow display order (`getPreviewOrderedBooks`, readerwrangler.js ~9213–9246) — correct for the books being moved, but it pushes the **already-filed** books in their stored order (`preview.alreadyFiled`), not their on-screen grouping. Also check series mode against what's drawn. Deferred from 7.9.0.
+- **One shared rule, not an Auto-Organize-only fix** (Ron + UX, 2026-10-22): "a Shift-click range = what's between
+  your two clicks on screen" for every list with Shift-click — the main view, Tag from Collections, Removed books.
+  When building, check they all use the same on-screen-order helper, so this bug can't live in one list but not another.
 
 #### Folder right-click menu: add Auto-Organize
 <!-- id 20261014-1714 -->
@@ -1678,8 +1672,11 @@ _Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder 
 **What you'd get**
 - "✨ Auto-Organize…" on the folder right-click menu, in its "where things go" group (Move to / Top / Bottom / Pin).
   It opens the preview for that folder.
+- **Always there, in the same place** (the menu rule, 2026-10-22): in an empty folder it's disabled, with the tooltip
+  *"Nothing to organize — this folder has no books."*
 
-**Status:** Ron, 2026-10-14 (noticed while comparing right-click menus with the menu bar).
+**Status:** Ron, 2026-10-14 (noticed while comparing right-click menus with the menu bar); re-confirmed 2026-10-22
+("I thought I could right-click a folder and AO. I can't").
 
 **How (technical)**
 - Folder menu: readerwrangler.js ~18443 (`folderContextMenu`). The Inbox menu's entry (~18348) and the book menu's
