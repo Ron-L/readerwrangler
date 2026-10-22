@@ -1849,7 +1849,8 @@ _Why it matters:_ Closes the last gaps left after "Save our working process in g
    Claude Code (Ron runs it at logon) — and in the session-start hook for Claude's sessions.
 2. **Back up the global settings file** (`~/.claude/settings.json` — it wires the timestamp hook; no secrets, but
    personal paths and project names) **into the Projects repo**, next to `stamp.py` and CLAUDE-TOOLING.md. That repo
-   (Ron-L/homelab-notes) is **private** — Ron confirmed 2026-10-22.
+   (Ron-L/projects-root, renamed from homelab-notes 2026-10-22) is **private** — Ron confirmed 2026-10-22. Add the
+   file to its `.gitignore` allow-list, or git never sees it.
 3. **Memory backs itself up at every release:** a small script copies memory into the private repo's
    `claude-backup/memory/` (and the global settings into the Projects repo), commits and pushes — run as a
    **release-checklist step**, so the backup is never more than one release behind. Not a per-turn hook (a commit per
