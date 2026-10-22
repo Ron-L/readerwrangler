@@ -80,7 +80,9 @@ if (problems.length) {
 console.log(`check-toc: ${label} — table of contents matches all ${headers.length} headers.`);
 
 // Task IDs (see the top). Body = the lines up to the next header.
-const ID_RE = /^<!-- id (\d{8}-\d{4}[a-z]*)(?:; merged ([0-9a-z, -]+))? -->\s*$/;
+// Spaces around the ";" are optional (2026-10-22: CLAUDE.md and the fix hint below show "id … ; merged"; the
+// readers refused it). Keep in step with ID_RE in tools/backlog_report.py.
+const ID_RE = /^<!-- id (\d{8}-\d{4}[a-z]*)(?:\s*;\s*merged\s+([0-9a-z, -]+))? -->\s*$/;
 const todoLine = lines.findIndex(l => /^# TODO\b/.test(l));
 const idProblems = [], seen = new Map();
 headers.forEach((h, k) => {

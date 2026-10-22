@@ -110,7 +110,8 @@ DONE_WITHOUT_CHECKMARK = {   # finished and removed in a release without first g
 # that week's velocity. Those tasks were never really open in this history, so they're left out entirely.
 RECOGNITION_COMMITS = ('34f0904', '3a40645', 'c576517', 'f925ee9', 'a09921f', '75339f3')
 
-ID_RE = re.compile(r'^<!-- id (\d{8}-\d{4}[a-z]*)(?:; merged ([0-9a-z, \-]+))? -->\s*$')
+# Spaces around the ";" are optional (2026-10-22) — keep in step with ID_RE in git-hooks/check-toc.js.
+ID_RE = re.compile(r'^<!-- id (\d{8}-\d{4}[a-z]*)(?:\s*;\s*merged\s+([0-9a-z, \-]+))? -->\s*$')
 DATE_RE = re.compile(r'\b(20\d\d)-(\d\d)-(\d\d)\b')
 SECTIONS = [('up_next', 'Up next'), ('before_launch', 'Before launch'), ('after_launch', 'After launch'),
             ('watching', 'Watching'), ('someday', 'Someday')]
