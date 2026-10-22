@@ -120,7 +120,7 @@ _(Concepts below; per-feature details in their own sections.)_
   here (there's no single "from").
 - **Searches** — saved filter presets. Clicking one applies its filters to whatever you're
   viewing. They're live: results change as your library does.
-- **Book Lists** — flat, hand-curated lists of *linked copies* (shortcuts). Adding/removing a
+- **Book Lists** — flat, hand-curated lists of books (the same book, not a duplicate). Adding/removing a
   book from a list never moves, tags, hides, or deletes the book itself — like a library card
   catalog: destroy the index card and the book stays on the shelf.
 - **Inbox** — where newly imported books land, awaiting a decision. Drag them into folders
@@ -273,11 +273,14 @@ for the whole group. One Organize click = one undo.
 
 ## 8. Book Lists
 
-**What exactly is a Book List?** A flat, hand-curated list of *shortcuts* to books. The
-anchor model: **All Books is where the book truly lives; Folders hold Linked Copies of it;
-Book Lists hold shortcuts to it.** Delete a copy → the book leaves that folder; delete a
-shortcut → it leaves that list; the book itself survives until you trash it. Adding or
-removing from a list never moves, tags, hides, or deletes the book.
+**What exactly is a Book List?** A flat, hand-curated list of books. The anchor model —
+**one book, many places:** a book can be in several folders and Book Lists at once, the same
+book each time (change its tags or rating anywhere and every place shows it). Every book is
+filed in at least one folder; the Inbox holds the ones not filed yet. **All Books and
+Searches are views** — they show books wherever they're filed; nothing is put into them or
+taken out of them. Removing a book from a list never moves, tags, hides, or deletes it.
+(Don't call list entries "shortcuts" or folder entries "Linked Copies" — both retired
+2026-10-22, docs/design/TERMINOLOGY.md.)
 
 **When do I use one instead of a folder — or a tag?** For any hand-picked set that isn't the book's
 *home*: all your SF, your wife's books, gift ideas — and the classic, *to-read queues*
@@ -293,9 +296,9 @@ or save filter results as a snapshot list; or drag books onto a list row. From t
 Auto-Organize preview you can add straight to a list mid-organize.
 
 **Drag rules**: book(s) → list row *adds* (dedup, book stays put). List → list *moves* the
-shortcut; **Ctrl+drag copies** it. Reordering the lists themselves: drag (undoable).
+book to the other list; **Ctrl+drag copies** it. Reordering the lists themselves: drag (undoable).
 
-**Deleting**: DEL inside a list removes the selected shortcuts from *that list only*. ✕ on
+**Deleting**: DEL inside a list removes the selected books from *that list only*. ✕ on
 the list row deletes the list (confirmation only if it isn't empty) — the books are
 untouched. Both genuinely undoable: undo brings a deleted list back with its contents and
 its place in the sidebar.
@@ -456,7 +459,7 @@ from the dialog without hiding the book.
 **Delete = Trash first.** Deleting from a **folder** removes the book from *that folder* —
 it only goes to Trash if that was its last home (copies elsewhere live on). Deleting from
 **All Books** or **a Search** means "delete the book": it's removed from every folder
-and trashed. In a **Book List**, DEL just removes shortcuts from the list. Deleting an
+and trashed. In a **Book List**, DEL just removes the books from that list. Deleting an
 **owned** book gets a warning first — "it will reappear next fetch; consider Hide instead"
 (Hide Instead / Delete Anyway / Cancel).
 

@@ -12,7 +12,7 @@ compose well. Distilled 2026-09-04._
 | Primitive | Job | Grain |
 |---|---|---|
 | **Folder** | A book's **home** — where it *lives*. Stable: set once, rarely moved. | Custodial |
-| **Book List** | A **hand-picked queue/overlay** — shortcuts you delete from as you go. Never moves the book. | Supplemental |
+| **Book List** | A **hand-picked queue/overlay** — remove each book as you finish it. Never moves the book. | Supplemental |
 | **Tag** | A **slice across homes** (genre, kind, mood). | Cross-cutting |
 | **Saved Search** | An **automatic lens** over live data (ownership, collections, filters). Maintains itself. | Dynamic |
 

@@ -12,7 +12,7 @@ compose their own. Started 2026-08-06 from Ron's own backlog method._
 Everything below rests on RW's core split:
 
 - **Folders = custodial.** A folder is a book's *home* — where it lives. Homes should be **stable**: set once, rarely moved. Browsing a folder should always tell the truth about what's in it.
-- **Book Lists = supplemental.** A list is a *lens / overlay* — a hand-picked set of shortcuts. Adding or removing a book from a list never tags, moves, hides, or deletes the book. Lists are cheap to add to and cheap to clear.
+- **Book Lists = supplemental.** A list is a *lens / overlay* — a hand-picked set of books (the same books as in their folders, not duplicates). Adding or removing a book from a list never tags, moves, hides, or deletes the book. Lists are cheap to add to and cheap to clear.
 
 The single most useful habit that falls out of this: **let folders hold *where a book belongs*, and let Book Lists (or tags) hold *transient status* like "still to read."** Status changes often; homes shouldn't.
 
@@ -28,7 +28,7 @@ Goal: track what you still have to read, *without* your folder structure going i
 When you own many books by an author:
 1. Right-click a book → **Auto-Organize ▸ By Series** (or By Author) — it files **all** of that author's unfiled books into `Author / Series` folders (their permanent home). *(Auto-Organize acts on every unfiled book by that author, ignoring any Inbox filter you have active — so read and unread alike get filed.)*
 2. In the preview, select just the **unread** covers and **right-click → Add to Book List → `<Author> - To Read`**.
-3. Confirm → the books land in their series folders **and** stay on the `<Author> - To Read` list as shortcuts.
+3. Confirm → the books land in their series folders **and** stay on the `<Author> - To Read` list.
 4. Finish one → **delete it from the list**. It stays filed where it belongs; the list shrinks to what's left.
 
 The list is the queue; the folder is the home. (Ron runs many of these, e.g. *Dungeon Crawler Carl - To Read*, *Kirov Series To Read*, *Neal Stephenson - To Read*.)

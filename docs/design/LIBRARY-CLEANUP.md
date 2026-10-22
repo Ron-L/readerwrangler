@@ -6,7 +6,7 @@ canonical pattern and check items off as you go. Started 2026-08-10._
 ## The rule (spans every row)
 **Home in a Folder · "still to read" on the shared `New To Read` list · type via a Tag.**
 - A book's **home** is its author folder (if you track that author) or **Various Authors** (one-offs).
-- The **queue** is the single `New To Read` **Book List** (a shortcut you delete when finished).
+- The **queue** is the single `New To Read` **Book List** (remove each book from it when finished).
 - **Type** (Non-Fiction, Classics, …) is a **Tag** — filter the `New To Read` list by tag to get a per-type view. No per-type lists to maintain.
 - **Exception:** a book by a **tracked author** goes to *that author's* folder + their **`<Author> - To Read`** list (the prolific-author pattern), not Various Authors + `New To Read`.
 

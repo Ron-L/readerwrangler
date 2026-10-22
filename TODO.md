@@ -70,7 +70,6 @@
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
-      - [Wording pass: explain Book List shortcuts and Linked Copies](#wording-pass-explain-book-list-shortcuts-and-linked-copies)
       - [Rename "Relay" to "Cloud Sync" everywhere users see it](#rename-relay-to-cloud-sync-everywhere-users-see-it)
       - [Update and record the sizzle reel](#update-and-record-the-sizzle-reel)
       - [Refresh the landing page's before / after screenshot](#refresh-the-landing-pages-before--after-screenshot)
@@ -1902,17 +1901,6 @@ rules, so any color it misses stays wrong in some theme — and two pages have n
 - Pages: index, features, tutorials, security, changelog, reset (readerwrangler.html is the app — the Dark theme
   task).
 
-#### Wording pass: explain Book List shortcuts and Linked Copies
-<!-- id 20261014-1030bg -->
-
-_Why it matters:_ Those terms confuse people unless they're explained once, clearly.
-
-**To do**
-- Use "shortcut" language in Book List messages and menus.
-- Explain "Linked Copies" once, in the User Guide (the support assistant reads the same file).
-
-**Spec:** docs/design/TERMINOLOGY.md. (Filed for 6.12.1.)
-
 #### Rename "Relay" to "Cloud Sync" everywhere users see it
 <!-- id 20260828-0000a -->
 
@@ -1969,7 +1957,7 @@ _Why it matters:_ Assumptions baked into the product are nowhere stated — a UK
 Ron's word on the wording first.
 
 #### User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help
-<!-- id 20260910-0000c; merged 20261014-1030bd, 20261014-1030o -->
+<!-- id 20260910-0000c; merged 20261014-1030bd, 20261014-1030o, 20261014-1030bg -->
 
 _Why it matters:_ The guide never mentions Book Lists (checked 2026-10-22: 0 times in 455 lines), and no reader can
 find it — it's on the site only as GitHub's plain, unthemed, unlinked copy (`readerwrangler.com/USER-GUIDE.html`); the
@@ -2005,7 +1993,11 @@ assistant will read, so it has to be complete and stay current.
 
 **What it should cover**
 - The four places: All Books / Searches / Book Lists / Folders — what each is for, and "when to use which".
-- Folders hold your books; Book Lists are shortcuts that point at them.
+- **"One book, many places"** (merged the "Wording pass: explain Book List shortcuts and Linked Copies" task): the
+  same book can be in several folders and Book Lists — not a duplicate; **All Books and Searches are views** (Ron:
+  nothing is put into or taken out of them); folders file books, Book Lists are free-form. Draft text and the facts
+  behind it: docs/design/TERMINOLOGY.md. **No "shortcut", no "Linked Copies"** — both retired 2026-10-22 (why: same
+  doc); the screens already say "Remove from this list", and stay as they are.
 - **The Book List ↔ Folder pattern:** structure lives in Folders; to-read queues live in Book Lists.
 - "Getting books out of the Inbox → use a folder, not a Book List."
 - **Fields you can't filter by:** show the other way, e.g. List view → add that column → sort (merged task).
