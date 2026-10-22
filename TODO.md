@@ -69,7 +69,7 @@
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
-      - [Security page: finish the high-contrast light theme](#security-page-finish-the-high-contrast-light-theme)
+      - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
       - [Rewrite the User Guide around Searches, Book Lists and Folders](#rewrite-the-user-guide-around-searches-book-lists-and-folders)
       - [User Guide: explain workarounds for fields you can't filter by](#user-guide-explain-workarounds-for-fields-you-cant-filter-by)
       - [Wording pass: explain Book List shortcuts and Linked Copies](#wording-pass-explain-book-list-shortcuts-and-linked-copies)
@@ -474,7 +474,8 @@ _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar'
 - Relay bar: inline `linear-gradient(135deg, #dbeafe, #ede9fe)` with `color: var(--text-primary)` (readerwrangler.js ~9360).
 - Outer container: `bg-gradient-to-br from-blue-50 to-blue-100` (~8992) — gradient classes aren't remapped; the Active bar's `mb-4` gap shows it.
 - Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
-- The check (beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`): flag inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and Tailwind color classes with no theme mapping, in readerwrangler.js / mobile.js / readerwrangler.css (NOT the fetchers / nav hub); and flag any `var(--name)` that isn't defined for all four `[data-theme]` values. Move each hit to a CSS variable (e.g. `var(--bg-surface)`); retire remap rules as their classes go.
+- The check (beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`): flag inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and Tailwind color classes with no theme mapping, in readerwrangler.js / mobile.js / readerwrangler.css and the site pages (index, features, tutorials, security,
+  changelog, reset — decided 2026-10-22; NOT the fetchers / nav hub); and flag any `var(--name)` that isn't defined for all four `[data-theme]` values. Move each hit to a CSS variable (e.g. `var(--bg-surface)`); retire remap rules as their classes go.
 - Themes: readerwrangler.css `[data-theme="dark"|"hc-light"|"hc-dark"]`; phone adds its own variables at mobile.js ~57–59.
 
 #### Series positions: one Position dialog, and one book at several positions (omnibus)
@@ -1872,17 +1873,36 @@ _Formerly: 🚦 Pre-Launch (must-do before public launch)_
 
 _Formerly: Docs & onboarding_
 
-#### Security page: finish the high-contrast light theme
+#### Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)
 <!-- id 20260909-0000 -->
 
-_Why it matters:_ The last bit of polish on the security page; low priority.
+_Why it matters:_ The site pages are a reader's first look at RW. Today each one fixes its themes with its own override
+rules, so any color it misses stays wrong in some theme — and two pages have no themes at all.
 
 **Done already** (2026-09-09)
-- The page's wrong statements were fixed, plus its navigation, and Dark / High-Contrast-Dark themes.
+- The security page's wrong statements were fixed, plus its navigation, and its Dark / High-contrast dark themes.
 
-**Left**
-- The High-Contrast-Light treatment.
-- Optional: restyle it onto the site's shared styles instead of the current overrides.
+**Decided** (Ron, 2026-10-22, in the TODO review)
+1. **Fix by naming colors, not by adding override rules** — the same decision as "Dark theme: fix the unreadable bar
+   and the light strips" (Decided 3). The security page's High-contrast light is the first page done this way, not
+   another override.
+2. **All four themes on every site page** (Light, Dark, High-contrast light, High-contrast dark), computer and phone.
+3. **The Dark theme task's commit-time color check covers the site pages too**, so a new fixed color on a site page
+   is refused just like one in the app.
+
+**What's there today** (checked 2026-10-22)
+- index, features and tutorials: all four themes, each through its own page's override rules.
+- security: Dark and High-contrast dark only (override rules); High-contrast light is missing.
+- changelog and reset: no themes at all — they always show Light.
+
+**How (technical)**
+- Each page has its own inline `[data-theme=…]` rules and its own copy of the theme-picking script (reads
+  `readerwrangler-theme`, falls back to the system's dark setting). Move both into one shared file the pages load:
+  the named colors, defined once per theme, plus the one script. Each page then keeps only its layout.
+- Whether that shared file is readerwrangler.css's color names or a small site file built from the same names:
+  decide when building — the names must be the same ones the app uses.
+- Pages: index, features, tutorials, security, changelog, reset (readerwrangler.html is the app — the Dark theme
+  task).
 
 #### Rewrite the User Guide around Searches, Book Lists and Folders
 <!-- id 20260910-0000c -->
