@@ -64,7 +64,7 @@
         - [Fetcher: give the library filter one name, in one place](#fetcher-give-the-library-filter-one-name-in-one-place)
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
       - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
-      - [Finish routing every change through one shared path, with undo](#finish-routing-every-change-through-one-shared-path-with-undo)
+      - [Redo should work after copying a folder](#redo-should-work-after-copying-a-folder)
       - [The Delete key should delete the folders you've selected](#the-delete-key-should-delete-the-folders-youve-selected)
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
   - [🚦 Before public launch](#before-public-launch)
@@ -1789,29 +1789,24 @@ dev in readerwrangler.js:130, mobile.js:31 and bookmarklet-nav-hub.js:52.
 4. **A commit check refuses a relay address written outside relay-client.js** (app, phone, bookmarklet files).
 5. Test step: on localhost, Relay Setup's connection test names the **dev** relay.
 
-#### Finish routing every change through one shared path, with undo
+#### Redo should work after copying a folder
 <!-- id 20261014-1030w -->
 
-_Why it matters:_ A few actions — deleting tags or Searches, renaming — still can't be undone.
+_Why it matters:_ Ctrl+Y after undoing a folder copy shows an error instead of redoing it — and a redo that refuses
+teaches you not to trust redo.
 
-**Already done**
-- 7.11.0: deleting tags, the whole rename family (folders, tags, Searches, Book Lists), and saving / deleting a Search all joined the shared path with undo.
+**What you see** (checked in code 2026-10-22): copy a folder, Ctrl+Z, Ctrl+Y → the error toast *"Cannot redo copy
+operation"* (readerwrangler.js ~8321, the `COPY_PASTE_FOLDER` redo case).
 
-**Left**
-- Redo for copying a folder (today: "Cannot redo copy operation", readerwrangler.js ~8276).
-- Optional: fold the folder-move part of moving items into the one folder-move operation.
-
-**Done** (6.13.1)
-- Folder delete, book move / copy (every menu and drag), folder moves (menu, cut-paste, drag), Book List create / delete, and an undo message for every action.
-
-**Left** (lower priority — less likely to drift)
-- Deleting a **tag**, deleting a **Search**.
-- Renaming a folder or a Book List — make it undoable.
-- Redo for copying a folder (a TODO in the code).
-- Optional: fold the folder-move part of moving items into the one folder-move operation.
+**Rewritten 2026-10-22** (Ron + UX) from "Finish routing every change through one shared path, with undo": the rest
+of it was done in 6.13.1 and 7.11.0 (tag and Search deletes, the rename family, Search save/delete, folder and book
+moves — see CHANGELOG); its "Why" and a second "Left" list still named those. Removing a recent search has its own task.
 
 **How (technical)**
-- Shared operations: `deleteFolder`, `moveItems`, `reparentFolder`. The redo TODO is in `COPY_PASTE_FOLDER`. Design: docs/design/OPERATIONS-REFACTOR.md; feeds MODULE-SPLIT.
+- The redo case of `COPY_PASTE_FOLDER` (~8316–8321); the undo case ~7768. Shared operations: `deleteFolder`,
+  `moveItems`, `reparentFolder`. Design: docs/design/OPERATIONS-REFACTOR.md.
+- Note for whoever next touches this code: fold the folder-move part of `moveItems` into the one folder-move
+  operation (`reparentFolder`) — no visible change, but one path instead of two doing the same job.
 
 #### The Delete key should delete the folders you've selected
 <!-- id 20261014-1030ay -->
