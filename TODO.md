@@ -72,10 +72,9 @@
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
       - [Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one](#cloud-sync-rename-relay-show-one-cloud-sync-key-and-make-a-new-key-retires-the-old-one)
-      - [Update and record the sizzle reel](#update-and-record-the-sizzle-reel)
-      - [Refresh the landing page's before / after screenshot](#refresh-the-landing-pages-before--after-screenshot)
       - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
       - [User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help](#user-guide-rewrite-it-around-searches-book-lists-and-folders-as-a-page-you-can-reach-from-help)
+      - [Screen capture pass: the sizzle reel, the landing page's before / after, README's old video](#screen-capture-pass-the-sizzle-reel-the-landing-pages-before--after-readmes-old-video)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
@@ -1991,20 +1990,6 @@ reopens a name, never a new argument.
 - Sizing: a small feature (the key format and its tidy step, the change-the-locks order) plus a worker change plus an
   80-place rename — not a rename alone.
 
-#### Update and record the sizzle reel
-<!-- id 20261014-1030bc -->
-
-_Why it matters:_ The promo video shows the old way of organizing.
-
-**To do**
-1. Update the script for Book Lists and Searches.
-2. Record and produce.
-
-#### Refresh the landing page's before / after screenshot
-<!-- id 20261014-1030al -->
-
-_Why it matters:_ The "after" picture predates the redesign.
-
 #### Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome
 <!-- id 20261018-1422b -->
 
@@ -2087,6 +2072,34 @@ assistant will read, so it has to be complete and stay current.
 - The guide-name check sits beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`; the guide name is a
   prop on `MenuBarItem` / `<Dialog>` / `<Popover>`, an argument to the confirm-style boxes, and a field in the
   shortcut list. Section names = the guide's headings' anchors.
+
+#### Screen capture pass: the sizzle reel, the landing page's before / after, README's old video
+<!-- id 20261014-1030bc; merged 20261014-1030al -->
+
+_Why it matters:_ What the public sees of the app is stale: the landing page's before / after pictures predate the
+redesign, and README links a walkthrough video (39 MB) of the old way of organizing. The sizzle reel (DEMO-LIBRARY-PLAN.md,
+"Video 0": 20–30 s, rapid cuts, music, no voiceover) was planned but **never made** — Ron: "I think the sizzle reel
+will be a seller."
+
+**Decided** (Ron + UX, 2026-10-23, in the TODO review; merged "Refresh the landing page's before / after screenshot")
+1. **One pass, one sitting:** the sizzle reel, the before / after pictures, the preview thumbnail — same demo library,
+   same build. The User Guide's screenshots come from the same pass.
+2. **Last in Before launch, with the User Guide** — nearly everything on screen is about to change (Cloud Sync names,
+   drag labels, site-page themes, the Send buttons); recording sooner means recording twice.
+3. **If the outside newcomer review runs** ("Outside reviews before building", review 4), write the reel's script after
+   it — it may change what the landing page needs to say, and the reel is the landing page's opening.
+4. **README's old walkthrough video: remove it** (link and file), not replace it.
+5. **Use the demo library** (the library fetcher's demo filter shows only chosen books) — Ron's real library never
+   appears on screen.
+6. **Keep the reel in the plan** — though Ron dreads making it (the tutorials were "super tedious", which is why they
+   were cancelled; the support assistant replaces tutorials 2–8).
+
+**Idea to discuss when this comes up** (Claude, not yet discussed): make the recording **scripted** — browser
+automation drives the demo library through the shot list while a screen recorder runs, so a UI change means re-running,
+not re-shooting, and the tedious part is done once.
+
+**Spec:** docs/design/DEMO-LIBRARY-PLAN.md (Video 0 shot list, the demo library, the fetcher's demo filter);
+docs/design/VIDEO-PRODUCTION-GUIDE.md (tools).
 
 #### Build the support assistant (custom GPT)
 <!-- id 20261014-1030i -->
