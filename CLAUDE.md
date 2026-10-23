@@ -43,8 +43,9 @@ console warning flags an anchored popup whose button lacks it.
 * Sync vocabulary exposed to users: **Relay, Credentials, Channel ID, Passphrase, bookmarklet,
   Import from Relay, Download Library/Collections, Data Status** — mirror these exact words on their named
   surfaces (don't invent "Cloud Storage"). Plain "cloud" is fine in ordinary prose ("syncs through the cloud") — the
-  2026-08-28 vocabulary rule (7.0.1–7.4.0 PM). Pre-launch, these names become "Cloud Sync" (TODO: Rename "Relay" to
-  "Cloud Sync") — update this rule when that ships.
+  2026-08-28 vocabulary rule (7.0.1–7.4.0 PM). Pre-launch, these names become "Cloud Sync" and one "Cloud Sync Key" (TODO:
+  "Cloud Sync: rename Relay, show one Cloud Sync Key…"; decided in docs/design/CLOUD-SYNC-NAMING.md) — update this rule
+  when that ships.
 
 ---
 

@@ -70,7 +70,7 @@
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
-      - [Rename "Relay" to "Cloud Sync" everywhere users see it](#rename-relay-to-cloud-sync-everywhere-users-see-it)
+      - [Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one](#cloud-sync-rename-relay-show-one-cloud-sync-key-and-make-a-new-key-retires-the-old-one)
       - [Update and record the sizzle reel](#update-and-record-the-sizzle-reel)
       - [Refresh the landing page's before / after screenshot](#refresh-the-landing-pages-before--after-screenshot)
       - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
@@ -1241,8 +1241,8 @@ _Why it matters:_ Its sections jump open so abruptly they look like new windows,
    not replacing it; "Drag any dialog out of the way" (High priority) adds the full fix later.
 
 **Status:** noted 2026-09-28 during the overlay work; a separate, focused redesign pass. **Build it together with
-"Rename 'Relay' to 'Cloud Sync' everywhere users see it"** (Before launch) — that rename changes this window's name and
-wording; one pass touches and re-tests the window once.
+"Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one"** (Before launch) — that
+task changes this window's name, wording and key display; one pass touches and re-tests the window once.
 
 **How (technical)**
 - Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog (readerwrangler.js
@@ -1901,26 +1901,58 @@ rules, so any color it misses stays wrong in some theme — and two pages have n
 - Pages: index, features, tutorials, security, changelog, reset (readerwrangler.html is the app — the Dark theme
   task).
 
-#### Rename "Relay" to "Cloud Sync" everywhere users see it
+#### Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one
 <!-- id 20260828-0000a -->
 
-_Why it matters:_ "Relay" is an engineering word; renaming is free before launch and expensive after.
+_Why it matters:_ "Relay", "Credentials", "Channel ID" and "Passphrase" are engineering words, and users juggle two
+values that are really one secret. And today making new credentials doesn't retire the old ones: whoever holds an old
+key can still read the full cloud copy (it never expires) and write to or wipe it. Renaming is free before launch and
+expensive after.
 
-**What you'd get**
-- "Cloud Sync Setup", "Import from Cloud", and the same in the status section, tooltips, the fetcher's screens and the recovery steps.
-- About 20–40 phrases, plus README / features / tutorials pages.
-- Internal names (`RWRelay`, file names, the worker) stay as they are.
+**The record: docs/design/CLOUD-SYNC-NAMING.md** — everything decided, why, what was rejected, and the check-character
+test. Decided 2026-10-23 (Ron + UX, three outside-review rounds). **Anti-bounce rule:** only a real user's misreading
+reopens a name, never a new argument.
 
-**Decided** (2026-08-28)
-- "Cloud Relay" was considered and rejected — still jargon, and clunky.
+**What you'd get** (details in the record)
+1. **The words:** Cloud Sync · Cloud Sync Setup · Import from Cloud Sync · **Cloud Sync Key** (one key; "Credentials",
+   "Channel ID", "Passphrase" leave the screens) · Save Key · Make a new key · the bookmarklet's buttons **Send Library
+   to ReaderWrangler** / **Send Collections to ReaderWrangler** · "the sync server" on the security page. Data Status
+   and "bookmarklet" stay. About 80+ places (app ~52, phone 3, bookmarklet screens ~22, site pages ~13), plus README,
+   help notes and the User Guide.
+2. **The name defined once, and a commit check** that refuses retired words in anything users see — a general
+   "words we don't show users" list (Relay, "Sync now", and CLAUDE.md's jargon list), word boundaries, an exclusion
+   list by path. Old CHANGELOG entries, post-mortems and design records keep "Relay".
+3. **One Cloud Sync Key:** `RW1-` + 13 groups of 5, Crockford's alphabet (no I, L, O, U; O read as 0, I/L as 1), the
+   ID's 32 hex digits + a 31-character secret + 2 check characters (ISO 7064 pure, radix 32, modulus 1021). A 6-character
+   support code beside it (the relay's nightly email moves to 6 too).
+4. **One tidy step is the only way in** (strip, fold, check, split, rebuild the ID exactly as stored); the key-making
+   code refuses anything else; **the relay refuses an untidy ID** (its one check made strict); a decrypt failure says
+   "this key doesn't match", never "no data".
+5. **Make a new key = change the locks:** save the new key and park the old one as "pending revoke" in one write, then
+   block and delete the old mailbox (including the full copies and pointer), retry at next launch if that fails;
+   backups carry the pending slot; an old backup's replaced key is named as such. The confirmation adds "Your books
+   and folders stay as they are."
+6. **Honest wording:** fix the "syncs automatically" message; the bar says what is true ("…ready — Import"); the help
+   line about the bookmarklet containing the key; the security notes' statements (the record, "What we tell users").
+7. **Tests:** the round-trip (ID → key → ID, byte for byte) and the check-character test kept as permanent checks.
+
+**Build together**
+- With "Relay Setup: smoother sections and clearer Esc / Help behavior" (Polish) — the same window, touched and
+  re-tested once.
+- Reconcile with "Relay Setup: disconnect, or reset credentials" (Safety): its 6.9.0 "Danger zone → Revoke
+  credentials & wipe relay" is what "Make a new key" reuses; its gentle Disconnect stays its own item.
+- The User Guide rewrite (below) waits for this, so the new names land once.
 
 **Watch out**
-- When the rename is done, update the CLAUDE.md vocabulary rule to the new names. (No conflict today: that rule says
-  how to write with the names currently on screen; this task is the planned pre-launch change. Checked 2026-10-14:
-  both trace to the same 2026-08-28 decision in the 7.0.1–7.4.0 post-mortem.)
-
-**Also**
-- Fold into the User Guide rewrite (below).
+- **Your key:** today's passphrases use another alphabet and there's no legacy path (one user). After the build, make
+  a new key once — then re-drag the bookmarklet (LOCAL, and the DEV and PROD ones) and re-pair the phone.
+- **The relay changes** (strict ID check, nightly email's 6 characters, the wipe reaching the full copies): a worker
+  change — Ron's yes before every deploy; dev first.
+- The bookmarklet's screens change the same way for all three bookmarklets → dev and prod together.
+- When this ships, update the CLAUDE.md vocabulary rule to the new names (it describes today's screens until then;
+  both trace to the 2026-08-28 decision).
+- Sizing: a small feature (the key format and its tidy step, the change-the-locks order) plus a worker change plus an
+  80-place rename — not a rename alone.
 
 #### Update and record the sizzle reel
 <!-- id 20261014-1030bc -->
@@ -1986,8 +2018,8 @@ assistant will read, so it has to be complete and stay current.
 7. **Behavior with nothing to click** (a book leaving its last folder goes to the Inbox; the drag rules) can't be caught
    by the check. When the new guide ships, add to the release checklist: the help-notes comb also covers the guide —
    every CHANGELOG line gets a guide check.
-8. **Build it last in Before launch** — it describes behavior still being decided or built. Wait for: "Rename
-   'Relay' to 'Cloud Sync' everywhere users see it" (done in the same pass, so the new names land once), "Move and copy
+8. **Build it last in Before launch** — it describes behavior still being decided or built. Wait for: "Cloud Sync:
+   rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one" (so the new names land once), "Move and copy
    books anywhere — folders, Book Lists, All Books, Searches", and "The Delete key deletes the folder you're in — not
    the folders you selected".
 
