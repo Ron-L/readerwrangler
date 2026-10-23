@@ -6,6 +6,7 @@
       - [🚧 Relay storage: stop leftovers piling up, and report usage correctly](#relay-storage-stop-leftovers-piling-up-and-report-usage-correctly)
         - [Numbers the app and relay must agree on: add a check that they match](#numbers-the-app-and-relay-must-agree-on-add-a-check-that-they-match)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
+      - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
@@ -300,6 +301,42 @@ task stays pinned above it per the 🚧 rule).
 - Today: `if (e.key === 'Delete' && !isSpecialFolder && getSelectedBookIds().length === 0) await deleteFolder(currentFolder)`
   — uses the current folder instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch
   confirm and one compound undo — the new `deleteFolders(folders)`. Surfaced during the operations refactor.
+
+#### Outside reviews before building: launch risks, security, data safety, a newcomer's first look
+<!-- id 20261023-1239 -->
+
+_Why it matters:_ The one outside review we ran (Cloud Sync naming, 2026-10-23) broke our convergence on a weaker name,
+predicted a checksum gap the test then confirmed, designed the safe order for retiring a key, and caught two false
+claims of mine. Decisions made inside our long conversation can't see their own anchoring — and these five are the
+expensive ones to get wrong after launch, so they go ahead of nearly all other work (Ron, 2026-10-23).
+
+**The reviews, one at a time, in this order** (an earlier one can change what a later one should look at)
+1. **Launch risks we haven't thought of** — first, because it could reorder the backlog. Seeds: Amazon's terms for a
+   tool that reads your Amazon pages; the Amazon Associates rules for the affiliate tag (a visible disclosure is
+   required; self-purchases are a known pitfall); a privacy policy (including GoatCounter); Cloudflare's free-tier
+   limits as users grow; support load with one person. Needs web research.
+2. **Security and privacy as a whole** — the relay design, the security page's claims, revoke / wipe, the
+   bookmarklet's trust in Amazon's page. Two weaknesses turned up by accident during a rename; a dedicated look will
+   likely find more.
+3. **Data safety: "can a user ever lose their organization?"** — Save / Restore, merging, integrity repairs, undo.
+   The pre-launch data tests check what we thought of; this attacks what we didn't.
+4. **A newcomer's first look** — the landing page, the setup steps, the User Guide's *outline* (its text gets a second
+   look when it's written). The nearest substitute for the cold testers we don't have.
+5. **The big designs decided in conversation, before they're built** — "Move and copy books anywhere" and the Delete
+   key.
+
+**How each runs** (decided Ron + Claude, 2026-10-23)
+1. **I write a brief for a cold reader** — background, problems, constraints, questions; none of my verdicts. (Model:
+   docs/design/CLOUD-SYNC-NAMING.md as first written.)
+2. **A fresh agent, model Fable 5.1 at the highest effort** (Ron: "or whatever is the highest model and mode for
+   toughest challenges"), its only input the brief, in **two phases**: (a) a cold answer from the brief alone, written
+   down first; (b) then a check against the code and docs — each claim verified, and what changed in its view and why.
+   Phase (a) keeps the independence that made the outside review valuable; (b) fixes the reviewer's blind spot (all four
+   of Claude.ai's errors were facts about our code it couldn't see).
+3. **Its report is saved as a file beside the brief** — Amazon-related parts in the TODO notes, not the public repo.
+4. **I spot-check its code claims, then bring Ron a digest with my verdicts.** Ron decides; decided items get the
+   anti-bounce rule (only evidence — a real user's misreading, a failing test — reopens them).
+5. Claude.ai stays an option for a second opinion from outside our tools, when a verdict looks too comfortable.
 
 #### Turn more of our working rules into automatic checks (my tooling)
 <!-- id 20260922-0000c -->
