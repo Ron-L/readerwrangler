@@ -345,6 +345,10 @@ the rest of the TODO.
 6. **The test script cleans up after itself:** `relay/test-phase1.mjs` leaves one unimported run on the `22222222…`
    test channel each run (18 now; they expire after 90 days).
 7. **Once:** compare dev's storage figure in the daily email with the Cloudflare dashboard (open since 2026-10-15).
+8. **The daily summaries also go to a dedicated inbox Claude can read** (Resend Inboxes, through MCP), so Ron stops
+   pasting them — and Claude reaches only that mail, not Ron's whole mailbox. Until then Claude reads them from Ron's
+   Gmail, filtered to the subject "ReaderWrangler Relay - Daily Summary" only (Ron, 2026-10-30). Check Inboxes' pricing
+   and whether it's still beta when building.
 
 **Watch out**
 - One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**. Test with the on-demand summary,
@@ -368,7 +372,9 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
 1. **Launch risks we haven't thought of** — first, because it could reorder the backlog. Seeds: Amazon's terms for a
    tool that reads your Amazon pages; the Amazon Associates rules for the affiliate tag (a visible disclosure is
    required; self-purchases are a known pitfall); a privacy policy (including GoatCounter); Cloudflare's free-tier
-   limits as users grow; support load with one person. Needs web research.
+   limits as users grow; support load with one person — including **a support inbox** (Resend Inboxes, announced
+   2026-10: an address on our own domain, threads, agents connect through MCP; free up to 3 inboxes) that Claude
+   sorts, drafts replies in for Ron to approve and send, and mines into the help notes. Needs web research.
 2. **Security and privacy as a whole** — the relay design, the security page's claims, revoke / wipe, the
    bookmarklet's trust in Amazon's page. Two weaknesses turned up by accident during a rename; a dedicated look will
    likely find more.
