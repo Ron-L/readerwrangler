@@ -72,6 +72,7 @@
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
+      - [Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button](#landing-page-open-my-library-for-returning-users-and-always-free--no-ads--no-account-needed-under-the-start-button)
       - [Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one](#cloud-sync-rename-relay-show-one-cloud-sync-key-and-make-a-new-key-retires-the-old-one)
       - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
       - [User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help](#user-guide-rewrite-it-around-searches-book-lists-and-folders-as-a-page-you-can-reach-from-help)
@@ -393,7 +394,8 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
    likely find more.
 3. **Data safety: "can a user ever lose their organization?"** — Save / Restore, merging, integrity repairs, undo.
    The pre-launch data tests check what we thought of; this attacks what we didn't.
-4. **A newcomer's first look** — the landing page, the setup steps, the User Guide's *outline* (its text gets a second
+4. **A newcomer's first look** — the landing page (including the hero button's words and the line under it — Before
+   launch task "Landing page: 'Open My Library'…"), the setup steps, the User Guide's *outline* (its text gets a second
    look when it's written). The nearest substitute for the cold testers we don't have.
 5. **The big designs decided in conversation, before they're built** — "Move and copy books anywhere" and the Delete
    key.
@@ -2011,6 +2013,40 @@ rules, so any color it misses stays wrong in some theme — and two pages have n
 - Pages: index, features, tutorials, security, changelog, reset (readerwrangler.html is the app — the Dark theme
   task).
 
+#### Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button
+<!-- id 20261030-1036 -->
+
+_Why it matters:_ A returning user arriving at readerwrangler.com sees "Get Started — It's Free!", a sign-up-style
+button, and has to hunt for the way in (the top bar's "Launch ReaderWrangler" is easy to miss — Ron: "My attention is
+drawn to the center"). And what makes RW different — always free, no ads, no account — sits in a row further down.
+
+**Decided** (Ron + UX, 2026-10-30)
+1. **One adaptive hero button:** a returning user sees **"Open My Library →"**, a new visitor **"Get Started"**. Both
+   go to the same app — only the words change, so nobody needs a way to "get" the other one (starting over is Tools →
+   Reset App, not this button).
+2. **How it knows:** the app writes a small "this browser has a library" marker when it loads one; the landing page
+   checks only that the marker exists — locally, nothing sent, the same way it already picks your theme. It never looks
+   at the Cloud Sync Key.
+3. **Never redirect** a returning user into the app — some come back to read the page or share it (Ron: it "breaks our
+   rules"). The top bar's "Launch ReaderWrangler" stays for both.
+4. **One quiet line under the button:** "Always free · No ads · No account needed" — the button names the action;
+   benefits read better beneath it.
+5. **"Always free" is safe** (Ron, 2026-10-30): charging would mean a different product — RW runs in the user's
+   browser, has no accounts to bill, and anyone can host it themselves. If hosting costs ever grow, the levers are fair
+   limits on cloud storage, donations or hosting your own copy — never a paywall. Say so once in the FAQ.
+6. **"No ads" stays honest** because the affiliate support stays disclosed (the "100% free" item's tooltip: "Supported
+   by Amazon affiliate links"). That disclosure is also Amazon's requirement — see outside review 1.
+7. **Align the trust row** below: "100% free" → "Always free", and consider a "No ads" item, so the two places say the
+   same thing in the same words.
+8. **Both buttons' tooltips** today read "The app walks you through setup — relay, bookmarklet, and first import":
+   wrong for a returning user, and "relay" is a retired word. Give the returning-user button its own tooltip; the
+   Cloud Sync task's commit check catches "relay".
+
+**How (technical)**
+- Buttons: index.html ~1278 (top bar) and ~1325 (hero, `.cta-buttons`); the trust row ~1424. The theme check near the
+  top of index.html shows the pattern for reading the app's local setting. The marker: written by the app when a
+  library loads (readerwrangler.js) — a tiny app change, so an alpha + version bump.
+
 #### Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one
 <!-- id 20260828-0000a -->
 
@@ -2133,6 +2169,9 @@ assistant will read, so it has to be complete and stay current.
 - "Getting books out of the Inbox → use a folder, not a Book List."
 - **Fields you can't filter by:** show the other way, e.g. List view → add that column → sort (merged task).
 - **"What ReaderWrangler works with"** (from the "Say plainly…" task above).
+- **Starting over** (Ron, 2026-10-30): Tools → Reset App — when to use it, what it clears and what it keeps; switching
+  to a different Amazon account; clearing all books and organization to start from scratch. The old guide has a
+  Reset App section and an FAQ entry; keep them, corrected.
 - A glossary and a "what ReaderWrangler doesn't do (yet)" section (the support assistant plan's two best defenses
   against made-up answers).
 
