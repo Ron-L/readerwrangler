@@ -36,7 +36,7 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by
   session id) so the checklist lands exactly once, at the planning→build boundary.
 - **`relay-check.py`** (UserPromptSubmit; Ron, 2026-10-30) — the relay mails its daily summaries at 23:55 UTC. On any
-  prompt where the newest nightly (yesterday, UTC) isn't yet in **`.private/relay-trend.csv`**, it tells Claude to read
+  prompt where the newest nightly (yesterday, UTC) isn't yet in **the relay trend file** (kept with the TODO notes), it tells Claude to read
   the missing nights, add one row per relay per night, and report (one line if healthy; details + the trend if not).
   **The trend file IS the state** (its last `run=nightly` date) — so the reminder repeats until the rows are really
   added, and can't be "done" by being shown once. Days away from RW are caught up whenever Ron is next here (up to 31

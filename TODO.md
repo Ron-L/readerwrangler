@@ -382,7 +382,8 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
 
 **The reviews, one at a time, in this order** (an earlier one can change what a later one should look at)
 1. **Launch risks we haven't thought of** — first, because it could reorder the backlog. Seeds: Amazon's terms for a
-   tool that reads your Amazon pages; the Amazon Associates rules for the affiliate tag (a visible disclosure is
+   tool that reads your Amazon pages (**start from the existing terms-and-strategy note — see TODO notes**; it predates
+   the relay, so the review weighs it against today's architecture); the Amazon Associates rules for the affiliate tag (a visible disclosure is
    required; self-purchases are a known pitfall); a privacy policy (including GoatCounter); Cloudflare's free-tier
    limits as users grow; support load with one person — including **a support inbox** (Resend Inboxes, announced
    2026-10: an address on our own domain, threads, agents connect through MCP; free up to 3 inboxes) that Claude

@@ -4,7 +4,7 @@ Relay-summary reminder (UserPromptSubmit, RW only; Ron, 2026-10-30).
 
 The relay mails its daily summaries at 23:55 UTC, dated by the UTC day. On any prompt where the newest available
 nightly summary (yesterday, UTC) isn't yet in the trend file, this tells Claude to read the missing nights and add
-them. The STATE IS THE TREND FILE (.private/relay-trend.csv — the last "nightly" date in it), not a separate flag: the
+them. The STATE IS THE TREND FILE (TREND below — the last "nightly" date in it), not a separate flag: the
 reminder repeats on every prompt until the rows are actually added, so it can't be marked done by being shown once.
 Missed days (Ron away from RW) are caught up whenever he's next here — up to MAX_CATCH_UP nights; beyond that, the
 note says so. On-demand rows (run=on-demand) don't count toward "covered".
@@ -58,7 +58,7 @@ def main():
         dates = [(first + datetime.timedelta(days=i)).isoformat() for i in range((latest - first).days + 1)]
         emit("[Relay check] The relay's nightly summaries for " + ", ".join(dates) + " (UTC) are in" + gap + ". In "
              "this reply: read them from Ron's Gmail with ONLY this filter: " + GMAIL_FILTER + " (plus those dates); "
-             "add one row per relay per night to .private/relay-trend.csv (run=nightly; the header names the columns; "
+             "add one row per relay per night to " + os.path.normpath(TREND) + " (run=nightly; the header names the columns; "
              "short channel codes only); and report - one line if both relays are healthy and nothing changed, details "
              "and the trend if anything did. Then answer Ron's message as usual.")
     except Exception:
