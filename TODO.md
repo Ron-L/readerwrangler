@@ -332,6 +332,9 @@ the rest of the TODO.
    *key* counts — each copy's parts plus its manifest (`groupKeys`, relay-worker.js ~1236) — and device-state has no
    expected count. Say e.g. "library copies 2 (4 parts), device-state copies 4 (12 parts) — at most 2 per channel is
    expected". (Found 2026-10-24; the health judgment was right all along — the cleanup applies keep-2 to real copies.)
+   **And no 🚨 on the routine summary** (Ron, 2026-10-30): today every email's subject gets it (`sendAlert`, relay-worker.js
+   ~887, "🚨 Daily usage summary - …"), so a normal morning looks like an alarm — red in Gmail's web page. Keep 🚨 for
+   real alerts only (threshold, auto-block, cron error); the summary becomes e.g. "Daily usage summary - 2026-10-29".
 3. **Strict ID check** — moved from the Cloud Sync task (item 4) because it's safe now and closes a gap today: the
    relay's one ID check ignores case while storage doesn't, so an ID in the wrong form opens a separate, empty mailbox.
    Drop the case-insensitive flag (`UUID_REGEX`, relay-worker.js ~45). Every real ID passes, and so does the test
@@ -347,7 +350,9 @@ the rest of the TODO.
 7. **Once:** compare dev's storage figure in the daily email with the Cloudflare dashboard (open since 2026-10-15).
 8. **The daily summaries also go to a dedicated inbox Claude can read** (Resend Inboxes, through MCP), so Ron stops
    pasting them — and Claude reaches only that mail, not Ron's whole mailbox. Until then Claude reads them from Ron's
-   Gmail, filtered to the subject "ReaderWrangler Relay - Daily Summary" only (Ron, 2026-10-30). Check Inboxes' pricing
+   Gmail, filtered to `from:alerts@readerwrangler.com subject:"Daily usage summary"` only (Ron, 2026-10-30 — "ReaderWrangler
+   Relay - Daily Summary" is the body's first line, not the subject; if item 2 drops the 🚨, the filter still matches).
+   Check Inboxes' pricing
    and whether it's still beta when building.
 
 **Watch out**
