@@ -340,7 +340,10 @@ the rest of the TODO.
    Drop the case-insensitive flag (`UUID_REGEX`, relay-worker.js ~45). Every real ID passes, and so does the test
    rig's `22222222-…`.
 4. **The nightly email names mailboxes by 6 characters, not 4** (`shortId`, relay-worker.js ~1211) — moved from the
-   Cloud Sync task (item 3); it becomes the support code that task shows beside the key.
+   Cloud Sync task (item 3); it becomes the support code that task shows beside the key. **One way everywhere:** today
+   the email names a channel two ways — the last 4 characters (`…21fc`, `shortId`) and the FIRST 8 in the "Kept / not
+   judged" and budget lines (`41e0e16f…`, `ch.slice(0, 8)`, ~1287 / ~1304). Use the 6-character support code in every
+   line (found 2026-10-30).
 5. **The wipe reaches everything:** check what the Danger zone's "Revoke credentials & wipe relay" deletes on the
    relay — the older cleanup route (`/cleanup/{id}`) deletes only the old-style upload. Fix it to delete the full
    copies and their pointer, device-state and mailbox too, so today's wipe is honest. (From docs/design/

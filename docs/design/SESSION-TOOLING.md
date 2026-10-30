@@ -35,6 +35,14 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
 - **`gate-batch-end.py`** (PostToolBatch) — REFUSING → CLEAR once the refused batch is over (2026-10-19).
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by
   session id) so the checklist lands exactly once, at the planning→build boundary.
+- **`relay-check.py`** (UserPromptSubmit; Ron, 2026-10-30) — the relay mails its daily summaries at 23:55 UTC; on the
+  first prompt after 00:00 UTC it tells Claude "the summaries for <date(s)> are in — read them and report", then
+  records the date. A skipped day is caught up on the next prompt (up to a week). Claude reads them through the ONE
+  Gmail filter Ron allowed (`from:alerts@readerwrangler.com subject:"Daily usage summary"`, memory
+  `feedback_gmail_relay_only`); the hook only reminds. State: `%TEMP%\rw-relay-summary-covered.txt` (the last covered
+  date); missing or damaged = one reminder and start over, never silent for good. Why a hook: "remember to check each
+  evening" doesn't survive a compaction. Replaced, eventually, by a dedicated inbox (TODO "Relay worker: one release…",
+  item 8) — the hook stays, only the filter changes.
 - **`/sitemap`** (`.claude/commands/`) — mechanizes the class-of-sites comb (two independent pivots).
 
 ## RW's commit checks (`git-hooks/` — run BY GIT, saved in the repo)
