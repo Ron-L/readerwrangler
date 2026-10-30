@@ -335,6 +335,10 @@ the rest of the TODO.
    **And no 🚨 on the routine summary** (Ron, 2026-10-30): today every email's subject gets it (`sendAlert`, relay-worker.js
    ~887, "🚨 Daily usage summary - …"), so a normal morning looks like an alarm — red in Gmail's web page. Keep 🚨 for
    real alerts only (threshold, auto-block, cron error); the summary becomes e.g. "Daily usage summary - 2026-10-29".
+   **And every "Deleted" line gives the copy's time and age** (e.g. "…dc38, saved 14:27 UTC, 11 min old") — so the
+   10-minute rule for unfinished copies can be checked from the email. Today it shows the date only (2026-10-30: Ron
+   closed the tab ~5 s after an import; the push that closing triggers was torn after its first part, and the on-demand
+   summary ~10 minutes later deleted it — correct, but unprovable from the email).
 3. **Strict ID check** — moved from the Cloud Sync task (item 4) because it's safe now and closes a gap today: the
    relay's one ID check ignores case while storage doesn't, so an ID in the wrong form opens a separate, empty mailbox.
    Drop the case-insensitive flag (`UUID_REGEX`, relay-worker.js ~45). Every real ID passes, and so does the test
