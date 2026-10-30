@@ -74,6 +74,7 @@
       - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
       - [Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button](#landing-page-open-my-library-for-returning-users-and-always-free--no-ads--no-account-needed-under-the-start-button)
       - [Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one](#cloud-sync-rename-relay-show-one-cloud-sync-key-and-make-a-new-key-retires-the-old-one)
+      - [Reset App: one honest message in all four places (what's cleared, what's kept, how to come back)](#reset-app-one-honest-message-in-all-four-places-whats-cleared-whats-kept-how-to-come-back)
       - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
       - [User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help](#user-guide-rewrite-it-around-searches-book-lists-and-folders-as-a-page-you-can-reach-from-help)
       - [Screen capture pass: the sizzle reel, the landing page's before / after, README's old video](#screen-capture-pass-the-sizzle-reel-the-landing-pages-before--after-readmes-old-video)
@@ -2102,6 +2103,39 @@ reopens a name, never a new argument.
   both trace to the 2026-08-28 decision).
 - Sizing: a small feature (the key format and its tidy step, the change-the-locks order) plus a worker change plus an
   80-place rename — not a rename alone.
+
+#### Reset App: one honest message in all four places (what's cleared, what's kept, how to come back)
+<!-- id 20261030-1039 -->
+
+_Why it matters:_ Every reset message was written before Cloud Sync, so they talk about "files on disk" a user today
+may never have had, point at a button that doesn't exist, and leave out the main way back — the copy in the cloud.
+Someone resetting is often already having a bad day (Ron, 2026-10-30, noticed the Tools → Reset App wording).
+
+**The four places** (found 2026-10-30 — a class of sites)
+1. **Tools → Reset App** (readerwrangler.js ~11784): "Your library/collections files on disk will NOT be deleted. You
+   can reload them anytime." and **"💡 Tip: Use the Export button first"** — there is no Export button, and "Export"
+   is retired (Save / Restore).
+2. **The reset page's confirmation** (reset.js ~106): "Import backup file → Books + organization; Import
+   amazon-library.json → Books only" — that file no longer exists for anyone setting up today.
+3. **The emergency reset** (readerwrangler.html ~342 / ~361 — shown when the app can't start): "Your files on disk are
+   safe — import your backup file after the reset…".
+4. **The reset page's own text** (reset.html ~60): "Good news: … Your files on disk are safe. What you can recover:
+   Import backup file → Restore EVERYTHING…".
+
+**Decided** (Ron + UX, 2026-10-30)
+1. **One message, defined once, used by all four** — so they can't drift again.
+2. It says, in plain words:
+   - **what's cleared:** everything ReaderWrangler keeps in **this browser** (books, folders, tags, settings);
+   - **what's kept:** files you saved on your computer — backups (File → Save) and spreadsheets (File → Save
+     Spreadsheet) — and **your copy in the cloud**;
+   - **how to come back:** restore a backup, or reconnect Cloud Sync and import.
+   Ron's starting wording: "Your library/collections files on disk (backups, CSV files) will NOT be deleted. You can
+   reload backups anytime."
+3. **Build with "Cloud Sync: rename Relay…"** (just above) — the recovery words (Cloud Sync Key, Import from Cloud
+   Sync) change there, so this is written once, in the new words.
+4. **Verify before writing:** does Reset also clear the stored Cloud Sync Key? If it does, "reconnect" needs the key
+   from a backup or another device — and the message must say so ("you'll need your Cloud Sync Key").
+5. Then the help notes and the User Guide's "Starting over" section (User Guide task) say the same thing.
 
 #### Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome
 <!-- id 20261018-1422b -->
