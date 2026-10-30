@@ -385,7 +385,8 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
 **The reviews, one at a time, in this order** (an earlier one can change what a later one should look at)
 1. **Launch risks we haven't thought of** — first, because it could reorder the backlog. Seeds: Amazon's terms for a
    tool that reads your Amazon pages (**start from the existing terms-and-strategy note — see TODO notes**; it predates
-   the relay, so the review weighs it against today's architecture); the Amazon Associates rules for the affiliate tag (a visible disclosure is
+   the relay, so the review weighs it against today's architecture; and other companies that connect to people's
+   Kindle libraries are precedent worth studying — see TODO notes); the Amazon Associates rules for the affiliate tag (a visible disclosure is
    required; self-purchases are a known pitfall); a privacy policy (including GoatCounter); Cloudflare's free-tier
    limits as users grow; support load with one person — including **a support inbox** (Resend Inboxes, announced
    2026-10: an address on our own domain, threads, agents connect through MCP; free up to 3 inboxes) that Claude
@@ -397,7 +398,11 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
    The pre-launch data tests check what we thought of; this attacks what we didn't.
 4. **A newcomer's first look** — the landing page (including the hero button's words and the line under it — Before
    launch task "Landing page: 'Open My Library'…"), the setup steps, the User Guide's *outline* (its text gets a second
-   look when it's written). The nearest substitute for the cold testers we don't have.
+   look when it's written). The nearest substitute for the cold testers we don't have. **Weigh our setup against
+   one-step imports** (2026-10-30): Readwise Books (an ebook store + reading app, invite-only beta Oct 2026) imports a
+   Kindle library with "Connect your Kindle account"; RW needs a bookmarklet dragged to the bar plus Cloud Sync setup.
+   We won't copy their way (it needs a server and accounts — our no-account design is deliberate), but a newcomer will
+   compare: find the steps we can remove or merge.
 5. **The big designs decided in conversation, before they're built** — "Move and copy books anywhere" and the Delete
    key.
 
@@ -2208,6 +2213,11 @@ assistant will read, so it has to be complete and stay current.
   Reset App section and an FAQ entry; keep them, corrected.
 - A glossary and a "what ReaderWrangler doesn't do (yet)" section (the support assistant plan's two best defenses
   against made-up answers).
+- **FAQ: "How is ReaderWrangler different from Readwise Books, Goodreads or StoryGraph?"** (Ron, 2026-10-30). They are
+  for *reading* (where you read, track sessions, rate, buy — Readwise Books sells ebooks); ReaderWrangler **organizes
+  the Kindle library you already own** — nested folders, series, Book Lists, tags, Auto-Organize, wishlist prices — and
+  never sells or displays books. No account; it runs in your browser. They can be used together. Also a line for the
+  "doesn't do" section: RW doesn't open or read books.
 
 **Sources**
 - Examples of taming a backlog: docs/design/WORKFLOW-PATTERNS.md.
