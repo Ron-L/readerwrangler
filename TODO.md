@@ -3,6 +3,7 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
+      - [Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut](#carry-over-the-utilities-projects-improvements-the-browser-driver-a-parse-check-for-every-script-the-open-shortcut)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -156,21 +157,63 @@ _Formerly: 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-16)
 
 In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**.
 
-**The order of work from here** (Ron, 2026-10-24):
+**The order of work from here** (Ron, 2026-10-24; step 2 added 2026-10-31):
 1. Finish the TODO review.
-2. "The Delete key deletes the folder you're in…"
-3. "Relay worker: one release of changes…"
-4. "Outside reviews before building…" (all five, using agents)
-5. The rest of the TODO.
+2. "Carry over the utilities project's improvements…" — the browser driver and the parse check (the shortcut part
+   can wait).
+3. "The Delete key deletes the folder you're in…" — the browser driver's first real use.
+4. "Relay worker: one release of changes…"
+5. "Outside reviews before building…" (all five, using agents)
+6. The rest of the TODO.
 
 ### High priority
+
+#### Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut
+<!-- id 20261031-1701 -->
+
+_Why it matters:_ The utilities project (Hsv-Utilities-App) built three things RW lacks: a way for Claude to test the
+UI the way Ron uses it (real clicks, drags, keys, hovers — then read what is really on screen), a commit check that
+refuses any script that doesn't parse, and an "open" shortcut. Its own list of these (its docs/DESIGN.md §12) was
+handed over to this TODO on 2026-10-31 — this is now the only record (items 2–3 there, the private-value checks and
+the history scan, shipped the same day).
+
+**Decided** (Ron + Claude, 2026-10-31)
+1. **The browser driver** — copy `tools/drive_page.mjs` from the utilities project (real browser-level mouse and
+   keyboard through Edge's debugging port; `hover` reports what is actually under the pointer, refuses a covered or
+   zero-size target):
+   - a **throwaway browser profile** (a fresh temp folder, deleted at close) — Ron's real browser is never touched;
+   - **Ron's latest backup with its credentials removed** — so tests run at his scale, not the demo's (Ron:
+     "restore from my latest backup … just don't use my credentials"); the test copy of the app then has no Cloud
+     Sync and never contacts either relay; loaded through the real File → Restore path (add a "pick this file" helper);
+   - **`serve.py` on its own test port**, started and stopped by the test (it already takes a port);
+   - **only ReaderWrangler's pages, never Amazon's** (book covers still load from Amazon's image servers, as in
+     normal use); screenshots stay in Claude's scratch folder;
+   - **Edge** (Ron, 2026-10-31: "Edge is fine" — the same engine as Chrome);
+   - the utilities project's Law 18 ("reproduce a reported problem with real input before explaining it") and Law 21
+     ("test what a person reaches by going there the way they would") go into RW's PRINCIPLES as enforcement under
+     Laws 3 and 8.
+2. **A parse check for every script** — port the utilities project's pre-commit `syntax_errors`: every STAGED `.js`,
+   `.mjs` and `.py` must parse. Today `git-hooks/check-names.js` parses only the scripts `readerwrangler.html` loads
+   (plus its inline scripts and mobile.js) and reads them from disk, not as staged — so the fetchers and the bookmarklet
+   menu (shipped code that runs on Amazon's pages), the relay worker, `reset.js`, the `.mjs` tests and every Python
+   file are unchecked (checked 2026-10-31).
+3. **The "open" shortcut + `tools/shortcuts.py`** (later — a convenience): opens the page, starting `serve.py` first if
+   it isn't running; `shortcuts.py` writes the shortcut(s). The open half only — no restart or shutdown: `serve.py`
+   only serves files and rarely changes, and it listens on the home network on purpose, so an off switch any device
+   there could press gains nothing (the utilities project's decision).
+
+**How (technical)**
+- Sources: `C:\Users\Ron\Projects\Hsv-Utilities-App\tools\drive_page.mjs`, `…\hooks\pre-commit` (`syntax_errors`),
+  `…\tools\shortcuts.py`; its PRINCIPLES Laws 18 and 21. RW's own rules govern the work here (branch, commit checks).
+- A test stops what it started by its exact process id (Law 5, 7.25.0).
 
 #### The Delete key deletes the folder you're in — not the folders you selected
 <!-- id 20261014-1030ay -->
 
 _Why it matters:_ Delete aimed at what you selected hits a different folder — and an empty one goes with no question.
-**First in line** (Ron, 2026-10-22: moved from Polish — "Yes, undo should fix it but still!"; the in-progress relay
-task stays pinned above it per the 🚧 rule).
+**First code fix in line** (Ron, 2026-10-22: moved from Polish — "Yes, undo should fix it but still!"). Since
+2026-10-31 the browser driver (the task above) comes first, so this fix is reproduced and tested with real keys and
+selection before and after.
 
 **What you see** (checked in code 2026-10-22, readerwrangler.js ~5517)
 - With no **books** selected, Delete deletes **the folder you're inside**, whatever else is selected. Select two
