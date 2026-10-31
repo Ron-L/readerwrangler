@@ -23,6 +23,13 @@ if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(relay-client\.j
     node git-hooks/check-shared-numbers.js || exit 1
 fi
 
+# 5. Private values (2026-10-31): refuses added lines holding a value from the private secrets note, and Cloud Sync
+#    credentials by their shape - a .json backup (or a demo file made from one) with relay.channelId + passphrase, a
+#    bookmarklet pasted as text, the Copy text's passphrase. Never prints a value. Runs on every commit; the commit
+#    MESSAGE gets the same check from git-hooks/commit-msg. (git-hooks/check-private.py → private_values.py)
+#    Earned: the organized demo library carried a credential pair publicly from 2026-07-03 to 2026-10-31.
+python git-hooks/check-private.py || exit 1
+
 # 4. TODO.md's table of contents (2026-10-14): refuses a staged TODO.md whose table doesn't match its headers — the
 #    VS Code extension rebuilds it only on a VS Code save, so edits made any other way leave it stale. Also refuses a
 #    task without its ID line, or a repeated ID (2026-10-21 — tools/backlog_report.py follows tasks by them).

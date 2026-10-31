@@ -141,6 +141,13 @@ Bypass (Ron's call only): `git commit --no-verify`.
 - **Shared-numbers check** (`git-hooks/check-shared-numbers.js`), when `relay-client.js` or `relay/relay-worker.js` is
   staged: refuses a commit where the app and the worker disagree on the 90-day upload life, keep-2, the unfinished-copy
   grace, or the id-time format — the worker's nightly cleanup deletes by those rules (7.23.0; decided Ron 2026-10-14).
+- **Private-values check** (`git-hooks/check-private.py` + `git-hooks/commit-msg`, one shared check
+  `git-hooks/private_values.py`), on every commit: refuses added lines or a commit message holding a value from the
+  private secrets note, and Cloud Sync credentials by their shape — a `.json` with `relay.channelId` + `passphrase` (a
+  backup, or a demo file made from one), a pasted bookmarklet, the Copy text's passphrase. Names where, never prints a
+  value. `python git-hooks/private_values.py --list` shows what it refuses (masked); `--scan-history` scans every
+  commit (2026-10-31: one find — the organized demo library carried a credential pair from 2026-07-03; revoked on both
+  relays and removed).
 - **TODO table-of-contents check** (`git-hooks/check-toc.js`), when
   `TODO.md` is staged: refuses a table of contents that doesn't match the headers. The table is built by the VS Code
   extension "Auto Markdown TOC" only on a VS Code save — edits made any other way leave it stale. Fix: Ron saves the
