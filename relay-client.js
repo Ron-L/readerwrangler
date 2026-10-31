@@ -44,12 +44,111 @@
     return (typeof window !== 'undefined' && window._RW_RELAY_WORKER_URL) || WORKER_URL;
   }
 
+  // --- Signed writes (7.25.0 — docs/design/RELAY-SECURITY-PLAN.md, Phase 3) ---
+  // The Channel ID only ADDRESSES a mailbox; every write and delete is signed with a write key derived from the
+  // passphrase (never the encryption key). ONE signer — signedFetch — that every non-GET request goes through.
+  const SIG_VERSION = 'RW-SIG-1';     // must match relay/relay-worker.js (git-hooks/check-shared-numbers.js)
+  // Big encrypted parts are signed by SIZE (their bytes: the signed manifest's SHA-256 + AES-GCM); the rest by SHA-256.
+  const PART_ROUTE = /^\/(?:upload\/[^/]+\/chunk\/\d+|(?:gen|dstate)\/[^/]+\/[^/]+\/chunk\/\d+|mail\/[^/]+\/[^/]+\/letter\/\d+|mail\/[^/]+\/letter)$/;
+  let _writeKeyHex = null;  // derived once per set of credentials
+  let _registered = false;  // this session has told the relay its write key (or the relay predates signed writes)
+  let _clockOffsetMs = 0;   // the relay's clock minus ours, learned from a "time is off" refusal
+
+  const toHex = buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hexBytes = hex => new Uint8Array(hex.match(/../g).map(h => parseInt(h, 16)));
+  const bodyBytes = body => body == null ? new Uint8Array(0)
+    : typeof body === 'string' ? new TextEncoder().encode(body)
+    : ArrayBuffer.isView(body) ? new Uint8Array(body.buffer, body.byteOffset, body.byteLength)
+    : new Uint8Array(body);
+
+  /** Credentials changed (or were cleared): every key derived from them must be derived again. */
+  function forgetDerivedKeys() {
+    _cryptoKey = null;
+    _writeKeyHex = null;
+    _registered = false;
+  }
+
+  async function writeKeyHex() {
+    if (!_writeKeyHex) {
+      if (!_channelId || !_passphrase) throw new Error('Relay not configured');
+      const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(_passphrase), 'PBKDF2', false, ['deriveBits']);
+      const bits = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', salt: new TextEncoder().encode('rw-write-key:' + _channelId), iterations: 100000, hash: 'SHA-256' },
+        base, 256);
+      _writeKeyHex = toHex(bits);
+    }
+    return _writeKeyHex;
+  }
+
+  /** Tell the relay this channel's write key, once per session. 404 = a relay from before signed writes. */
+  async function ensureRegistered() {
+    if (_registered) return;
+    const r = await fetch(`${workerUrl()}/auth/${_channelId}/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: await writeKeyHex() })
+    });
+    if (r.status === 409) {
+      const err = new Error('This Cloud Sync channel is already claimed by a different key - make a new key in Relay Setup.');
+      err.status = 409;
+      throw err;
+    }
+    if (r.ok || r.status === 404) _registered = true; // anything else: try again next write; the write reports its own result
+  }
+
+  /** fetch() for the relay: GETs as they are; every other method signed (t + sig in the address). */
+  async function signedFetch(path, options) {
+    const opts = options || {};
+    const method = (opts.method || 'GET').toUpperCase();
+    if (method === 'GET' || !_channelId || !_passphrase) return fetch(`${workerUrl()}${path}`, opts);
+    await ensureRegistered();
+    const keyHex = await writeKeyHex();
+    const send = async () => {
+      const url = new URL(`${workerUrl()}${path}`);
+      const t = String(Date.now() + _clockOffsetMs);
+      const bytes = bodyBytes(opts.body);
+      const contents = PART_ROUTE.test(url.pathname) ? `size:${bytes.byteLength}` : toHex(await crypto.subtle.digest('SHA-256', bytes));
+      const q = new URLSearchParams(url.search);
+      q.delete('t'); q.delete('sig');
+      const qs = q.toString();
+      const text = [SIG_VERSION, method, url.pathname + (qs ? '?' + qs : ''), t, contents].join('\n');
+      const key = await crypto.subtle.importKey('raw', hexBytes(keyHex), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+      url.searchParams.set('t', t);
+      url.searchParams.set('sig', toHex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text))));
+      return fetch(url.toString(), opts);
+    };
+    let res = await send();
+    if (res.status === 401) {   // a PC clock that's off: learn the relay's time and retry once
+      const info = await res.clone().json().catch(() => null);
+      if (info && typeof info.serverTime === 'number' && Math.abs(info.serverTime - (Date.now() + _clockOffsetMs)) > 60000) {
+        _clockOffsetMs = info.serverTime - Date.now();
+        res = await send();
+      }
+    }
+    return res;
+  }
+
   // --- Shared packing pipeline (legacy + Phase 1 paths) ---
 
   async function checksumOf(bufferOrView) {
     const buf = bufferOrView instanceof ArrayBuffer ? bufferOrView : bufferOrView.buffer;
     const hashArray = new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
     return 'sha256:' + Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // 7.25.0 (signed writes, design item 8) - a copy minted from this date on MUST carry its checksum: its manifest is
+  // signed, so nobody could have stripped it — a missing one means something is wrong, and the reader falls back.
+  // Older copies are grandfathered (the check stays optional for them). Decided by the copy's own minted time.
+  // Every redesign-format writer has included the checksum since afcd004 (2026-08-14), so any copy minted on or after
+  // the day this was built already has one — a missing one is never a normal copy.
+  const CHECKSUM_REQUIRED_FROM = Date.UTC(2026, 9, 31); // 2026-10-31 00:00 UTC
+
+  /** THE integrity rule for every redesign-format read (generation, device-state, mailbox run, inline letter). The
+   *  pre-redesign single-copy download() keeps its optional check — it predates minted ids. */
+  async function verifyChecksum(bytes, checksum, mintedId) {
+    if (!checksum) {
+      if (idTimestamp(mintedId) >= CHECKSUM_REQUIRED_FROM) throw new Error('checksum missing');
+      return;
+    }
+    if (await checksumOf(bytes) !== checksum) throw new Error('checksum mismatch');
   }
 
   /** compress → encrypt; returns Uint8Array of encrypted bytes */
@@ -79,7 +178,7 @@
   function initFromGlobals() {
     _channelId = window._RW_RELAY_CHANNEL || null;
     _passphrase = window._RW_RELAY_PASSPHRASE || null;
-    _cryptoKey = null;
+    forgetDerivedKeys();
   }
 
   /**
@@ -97,7 +196,7 @@
       _channelId = null;
       _passphrase = null;
     }
-    _cryptoKey = null;
+    forgetDerivedKeys();
   }
 
   /**
@@ -167,7 +266,7 @@
 
       notify('uploading', `Uploading chunk ${i + 1} of ${chunkCount}...`);
 
-      const response = await fetch(`${workerUrl()}/upload/${_channelId}/chunk/${i}`, {
+      const response = await signedFetch(`/upload/${_channelId}/chunk/${i}`, {
         method: 'POST',
         body: chunk.buffer
       });
@@ -196,7 +295,7 @@
 
     notify('finalizing', 'Uploading manifest...');
 
-    const manifestResponse = await fetch(`${workerUrl()}/upload/${_channelId}/manifest`, {
+    const manifestResponse = await signedFetch(`/upload/${_channelId}/manifest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(manifest)
@@ -293,7 +392,7 @@
   async function cleanup() {
     if (!isConfigured()) return;
 
-    const response = await fetch(`${workerUrl()}/cleanup/${_channelId}`, {
+    const response = await signedFetch(`/cleanup/${_channelId}`, {
       method: 'DELETE'
     });
 
@@ -325,7 +424,7 @@
       const bytes = new Uint8Array(total);
       let off = 0;
       for (const p of parts) { bytes.set(p, off); off += p.length; }
-      if (manifest.checksum && await checksumOf(bytes) !== manifest.checksum) throw new Error('checksum mismatch');
+      await verifyChecksum(bytes, manifest.checksum, gen);
       return unpack(bytes);
     };
     let pointedGen = null;
@@ -460,7 +559,7 @@
   async function putDeviceStateLegacy(jsonString) {
     if (!isConfigured()) throw new Error('Relay not configured');
     const packed = await pack(jsonString);
-    const response = await fetch(`${workerUrl()}/device-state/${_channelId}`, {
+    const response = await signedFetch(`/device-state/${_channelId}`, {
       method: 'PUT',
       body: packed.bytes.buffer
     });
@@ -484,7 +583,7 @@
     const hashBuffer = await crypto.subtle.digest('SHA-256', proofData);
     const proof = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-    const response = await fetch(`${workerUrl()}/revoke/${_channelId}`, {
+    const response = await signedFetch(`/revoke/${_channelId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ proof })
@@ -498,7 +597,7 @@
     // Clear local state
     _channelId = null;
     _passphrase = null;
-    _cryptoKey = null;
+    forgetDerivedKeys();
     localStorage.removeItem(RELAY_STORAGE_KEY);
   }
 
@@ -556,7 +655,7 @@
   }
 
   async function relayFetch(path, options) {
-    const response = await fetch(`${workerUrl()}${path}`, options);
+    const response = await signedFetch(path, options);
     if (!response.ok) {
       const err = new Error(`Relay ${options && options.method || 'GET'} ${path} failed: HTTP ${response.status} ${await response.text()}`);
       err.status = response.status;
@@ -670,7 +769,7 @@
           const bytes = new Uint8Array(total);
           let off = 0;
           for (const p of parts) { bytes.set(p, off); off += p.length; }
-          if (manifest.checksum && await checksumOf(bytes) !== manifest.checksum) throw new Error('checksum mismatch');
+          await verifyChecksum(bytes, manifest.checksum, runId);
           runs.push({ runId, kind: manifest.kind, fetchDate: manifest.fetchDate, parts: manifest.seqCount,
                       timestamp: idTimestamp(runId), jsonString: await unpack(bytes) });
         } else if (info.seqs.has(0) && info.seqs.size === 1) {
@@ -680,7 +779,7 @@
           const letter = JSON.parse(await r.text());
           if (!letter.inline) throw new Error('not inline'); // letters of an uncommitted multi-run
           const bytes = b64ToBytes(letter.payload);
-          if (letter.checksum && await checksumOf(bytes) !== letter.checksum) throw new Error('checksum mismatch');
+          await verifyChecksum(bytes, letter.checksum, runId);
           runs.push({ runId, kind: letter.kind, fetchDate: letter.fetchDate, parts: 1,
                       timestamp: idTimestamp(runId), jsonString: await unpack(bytes) });
         } else {
@@ -727,7 +826,7 @@
       let off = 0;
       for (const p of parts) { bytes.set(p, off); off += p.length; }
       notify('verifying', 'Verifying integrity...');
-      if (manifest.checksum && await checksumOf(bytes) !== manifest.checksum) throw new Error('checksum mismatch');
+      await verifyChecksum(bytes, manifest.checksum, gen);
       return { jsonString: await unpack(bytes, notify), gen, manifest };
     };
 
@@ -1252,6 +1351,7 @@
     putDeviceStateJournal: putDeviceStateJournal,
     putDeviceStateLegacy: putDeviceStateLegacy,
     revokeChannel: revokeChannel,
+    signedFetch: signedFetch, // 7.25.0 - the one signer; exposed for the relay test harnesses' deliberate raw writes
     // Relay write redesign Phase 1 (docs/design/RELAY-WRITE-REDESIGN.md)
     writeRun: writeRun,
     readMailbox: readMailbox,

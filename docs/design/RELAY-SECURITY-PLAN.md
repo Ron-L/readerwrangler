@@ -288,10 +288,14 @@ Built on `feature/signed-writes`._
    The one operation that creates something new ("begin"/mint) leaves at most an empty run that expires.
 7. **Parts are write-once after commit:** a chunk or letter write for a copy whose manifest already exists is refused
    (one extra storage read per part; reads are the most plentiful limit, 100,000 a day).
-8. **Readers require the checksum** in manifests written after this release (older ones may lack it and stay readable).
-9. **Readers fall back** to the previous good copy when the newest fails its check (keep-2 keeps one) — Ron,
-   2026-10-31: "a fallback would be preferred". (Check what the generation reader already does — the Phase-1 harness
-   tests a "pointer fallback".)
+8. **Readers require the checksum** for copies minted from 2026-10-31 on (`CHECKSUM_REQUIRED_FROM` in relay-client.js
+   — every redesign-format writer has included one since afcd004, 2026-08-14, so a missing one is never a normal
+   copy); older ones stay readable. ONE rule, `verifyChecksum`, at all four read sites (generation, device-state,
+   mailbox run, inline letter); the pre-redesign single-copy `download()` keeps its optional check. Built alpha.2.
+9. **Readers fall back** to the previous good copy when the newest fails its check — Ron, 2026-10-31: "a fallback
+   would be preferred". **Already built** (found 2026-10-31): both the library and device-state readers go pointer →
+   newest complete copy → the old single-copy format, and the Phase-1 harness tests it. alpha.2's test proves it with
+   a copy whose checksum was stripped (refused; the good copy served) against a control that is served.
 10. **Revoke is a signed operation** on a registered channel (the old unchecked proof is accepted only for an
     unregistered one).
 

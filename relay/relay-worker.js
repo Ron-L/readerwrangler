@@ -25,6 +25,8 @@
  *
  * Shared:
  *   relay:{channelId}:revocation-proof → SHA-256 proof hash (permanent)
+ *   relay:{channelId}:write-key        → the channel's HMAC write key, hex (permanent; 7.25.0 signed writes — once it
+ *                                        exists, every write/delete on the channel must be signed with it)
  *   ratelimit:{channelId}              → write counter per hour (TTL: 2 hours)
  *   blocklist:{channelId}              → permanently blocked channel (no TTL)
  *   lifecycle:{channelId}:used         → ISO timestamp of first successful manifest upload (permanent, lifecycle telemetry)
@@ -79,7 +81,7 @@ const CF_LIMITS = {
 // Cloudflare's KV actionType → our counter. An action type not listed here is reported in the email, never dropped.
 const KV_ACTION_FIELDS = { read: 'kvReads', write: 'kvWrites', delete: 'kvDeletes', list: 'kvLists' };
 
-const WORKER_VERSION = '7.23.0'; // printed in every daily summary, so an email shows which deploy sent it
+const WORKER_VERSION = '7.25.0'; // printed in every daily summary, so an email shows which deploy sent it
 
 // THE list of relays (7.22.0, design §14a fix 2). One codebase, deployed twice; RELAY_ENV in wrangler.toml says which
 // deployment this is. Every daily summary reports ALL relays here (the free limits are shared account-wide); each
@@ -151,7 +153,99 @@ export default {
   }
 };
 
+// --- Signed writes (7.25.0 — docs/design/RELAY-SECURITY-PLAN.md, Phase 3) ---
+// The Channel ID only ADDRESSES a mailbox; once a channel has registered its write key, every write and delete must
+// carry an HMAC signature by it (t=<ms>&sig=<hex> in the address — no custom header, so upload parts stay "simple"
+// requests with no preflight). ONE gate, in front of every route: any non-GET request whose second path segment is a
+// Channel ID is checked, so a future write route is covered without being listed (fails closed).
+const SIG_VERSION = 'RW-SIG-1';                 // must match relay-client.js (git-hooks/check-shared-numbers.js)
+const SIG_WINDOW_MS = 5 * 60 * 1000;            // ± 5 minutes; the refusal carries serverTime so a client can correct
+const WRITE_KEY_REGEX = /^[0-9a-f]{64}$/;
+// Big encrypted parts: the signature covers their SIZE — their bytes are covered by the signed manifest's SHA-256
+// (checked by every reader) and AES-GCM. Everything else (small JSON, empty bodies) is signed over its SHA-256.
+const PART_ROUTE = /^\/(?:upload\/[^/]+\/chunk\/\d+|(?:gen|dstate)\/[^/]+\/[^/]+\/chunk\/\d+|mail\/[^/]+\/[^/]+\/letter\/\d+|mail\/[^/]+\/letter)$/;
+// Parts of a copy that is already committed (its manifest exists) are write-once.
+const COMMITTED_PART = /^\/(gen|dstate|mail)\/([^/]+)\/([^/]+)\/(?:chunk|letter)\/\d+$/;
+
+const toHex = buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+const sha256Hex = async buf => toHex(await crypto.subtle.digest('SHA-256', buf));
+async function hmacHex(keyHex, text) {
+  const raw = new Uint8Array(keyHex.match(/../g).map(h => parseInt(h, 16)));
+  const key = await crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return toHex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text)));
+}
+function sameHex(a, b) {   // constant-time compare of two hex strings
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+// What a signature covers. The address is the path plus its own query WITHOUT t / sig, exactly as relay-client.js
+// builds it (URLSearchParams order and encoding on both sides).
+function signedText(method, url, t, contents) {
+  const q = new URLSearchParams(url.search);
+  q.delete('t'); q.delete('sig');
+  const qs = q.toString();
+  return [SIG_VERSION, method, url.pathname + (qs ? '?' + qs : ''), t, contents].join('\n');
+}
+const unsigned = (why, now) => jsonResponse({ error: why, serverTime: now }, 401);
+
+// null = go ahead; a Response = refused. An unregistered channel is accepted as before (old clients keep working).
+async function authorizeWrite(request, url, env, channelId) {
+  const keyHex = await env.RELAY_KV.get(`relay:${channelId}:write-key`);
+  if (!keyHex) return null;
+  const now = Date.now(), t = url.searchParams.get('t') || '', sig = url.searchParams.get('sig') || '';
+  if (!/^\d{13}$/.test(t) || !/^[0-9a-f]{64}$/.test(sig)) return unsigned('This channel needs signed writes - update the app (reload the page)', now);
+  if (Math.abs(now - Number(t)) > SIG_WINDOW_MS) return unsigned('Signature time is more than 5 minutes off - check the computer clock', now);
+  const body = await request.clone().arrayBuffer();
+  const contents = PART_ROUTE.test(url.pathname) ? `size:${body.byteLength}` : await sha256Hex(body);
+  if (!sameHex(await hmacHex(keyHex, signedText(request.method, url, t, contents)), sig)) {
+    return unsigned('Signature does not match this channel', now);
+  }
+  return null;
+}
+
+// A part (chunk / letter) of a copy whose manifest exists can't be written again — a swapped part can't spoil a
+// finished copy. Before the manifest exists, a swapped part fails the manifest's checksum at the reader.
+async function partOfCommittedCopy(env, path) {
+  const m = path.match(COMMITTED_PART);
+  if (!m) return false;
+  const [, seg, channelId, id] = m;
+  return !!(await env.RELAY_KV.get(`relay:${channelId}:${seg}:${id}:manifest`));
+}
+
+// POST /auth/{channelId}/register  { key: <64 hex> } — the channel's write key, first time only. The same key again
+// is fine (every client registers on its first write of a session); a different key is refused (409).
+async function handleRegister(request, env, channelId) {
+  if (!validateChannelId(channelId)) return badRequest('Invalid channel ID');
+  if (await isBlocked(env, channelId)) return jsonResponse({ error: 'Channel revoked' }, 403);
+  if (!await checkRateLimit(env, channelId)) return jsonResponse({ error: 'Rate limit exceeded. Try again later.' }, 429);
+  let key;
+  try { key = (await request.json()).key; } catch { return badRequest('Invalid JSON body'); }
+  if (typeof key !== 'string' || !WRITE_KEY_REGEX.test(key)) return badRequest('Invalid write key');
+  const existing = await env.RELAY_KV.get(`relay:${channelId}:write-key`);
+  if (existing === key) return jsonResponse({ ok: true, registered: 'already' });
+  if (existing) return jsonResponse({ error: 'This Channel ID already has a different write key' }, 409);
+  await env.RELAY_KV.put(`relay:${channelId}:write-key`, key);
+  return jsonResponse({ ok: true, registered: 'now' });
+}
+
 async function route(request, path, env) {
+  // The signed-writes gate — every non-GET request on a channel (see "Signed writes" above).
+  if (request.method !== 'GET') {
+    const seg = path.match(/^\/([^/]+)\/([^/]+)/);
+    if (seg && validateChannelId(seg[2])) {
+      if (seg[1] === 'auth' && path === `/auth/${seg[2]}/register` && request.method === 'POST') {
+        return handleRegister(request, env, seg[2]);
+      }
+      const denied = await authorizeWrite(request, new URL(request.url), env, seg[2]);
+      if (denied) return denied;
+      if (await partOfCommittedCopy(env, path)) {
+        return jsonResponse({ error: 'That copy is already finished - its parts can\'t be written again' }, 409);
+      }
+    }
+  }
+
   // POST /upload/{channelId}/chunk/{n}
   let match = path.match(/^\/upload\/([^/]+)\/chunk\/(\d+)$/);
   if (match && request.method === 'POST') {
@@ -1216,7 +1310,7 @@ const shortId = id => `…${String(id).slice(-4)}`;
 function groupKeys(names) {
   const channels = new Map(); // channelId → { runs: Map(runId → run), gen: Map(gen → g), dstate: Map(gen → g) }
   const kinds = { library: 0, deviceState: 0, mailbox: 0, pointers: 0, olderFormat: 0,
-                  blocked: new Set(), proofs: new Set(), firstUsed: 0, rateLimit: 0, testAlert: 0, storageBand: 0,
+                  blocked: new Set(), proofs: new Set(), writeKeys: 0, firstUsed: 0, rateLimit: 0, testAlert: 0, storageBand: 0,
                   alertsToday: 0, mistriggers: 0, unknown: [] };
   const channel = ch => {
     if (!channels.has(ch)) channels.set(ch, { runs: new Map(), gen: new Map(), dstate: new Map() });
@@ -1242,6 +1336,8 @@ function groupKeys(names) {
         kinds.pointers++;
       } else if (kind === 'manifest' || kind === 'chunk' || kind === 'device-state') { // pre-7.0 single-copy layout (TTL'd)
         kinds.olderFormat++;
+      } else if (kind === 'write-key' && p.length === 3) {                     // 7.25.0 signed writes
+        kinds.writeKeys++;
       } else if (kind === 'revocation-proof' && p.length === 3) {
         kinds.proofs.add(ch);
       } else {
@@ -1429,6 +1525,7 @@ function otherKeyLines(self, k) {
       (noProofRevoked ? ` (${noProofRevoked} without a stored proof; their block records say owner-revoked)` : '') +
       `, auto-blocked for abuse ${autoBlocked}${otherReasons ? `, other: ${otherReasons}` : ''} - 0 auto-blocked is what is expected`),
     `  First-used records: ${k.firstUsed} - one per channel that has ever saved (they never expire)`,
+    `  Write keys: ${k.writeKeys} - one per channel that has saved since signed writes (7.25.0); they never expire`,
     `  Test-alert counter: ${k.testAlert} - ${k.testAlert ? '1 is what is expected' : 'none sent from this relay yet (fine)'}`,
     flag(k.storageBand !== (alerts ? 1 : 0), `  Storage-alert level: ${k.storageBand} - ${alerts ? '1 is what is expected' : '0 is what is expected (only production sends storage alerts)'}`),
     flag(k.alertsToday > (alerts ? 2 : 0), `  Recent alert records: ${k.alertsToday} - ${alerts ? '0 to 2 is what is expected (they expire after 2 days)' : '0 is what is expected (only production sends alerts)'}`),

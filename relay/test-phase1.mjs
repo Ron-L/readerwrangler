@@ -13,7 +13,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DEV_URL = 'https://readerwrangler-relay-dev.readerwrangler.workers.dev';
+// RELAY_URL=http://127.0.0.1:8787 runs it against a LOCAL relay (cd relay && npx wrangler dev --env dev --local) — 7.25.0.
+const DEV_URL = process.env.RELAY_URL || 'https://readerwrangler-relay-dev.readerwrangler.workers.dev';
+if (/readerwrangler-relay\.readerwrangler/.test(DEV_URL)) { console.error('Refusing the PRODUCTION relay.'); process.exit(2); }
 const CH = '22222222-3333-4444-8555-666666666666'; // harness channel (dev KV only)
 const CH_LEGACY = '33333333-4444-4555-8666-777777777777'; // legacy-fallback test channel
 
@@ -56,7 +58,9 @@ const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(64)))
 const payload = (tag, n = 5) => JSON.stringify({
   tag, books: { items: Array.from({ length: n }, (_, i) => ({ asin: `B${tag}${i}`, title: `${tag} #${i}`, blob: rand() })) }
 });
-const raw = async (path, opts) => fetch(`${DEV_URL}${path}`, opts);
+// 7.25.0 - raw writes go through relay-client's one signer: once a channel has registered its write key, the relay
+// refuses unsigned writes — the harness's deliberately broken states (torn runs, orphans) must be signed like any client.
+const raw = async (path, opts) => RW.signedFetch(path, opts);
 
 async function main() {
   console.log('— Phase 1 harness against', DEV_URL, '\n');
@@ -411,8 +415,8 @@ async function main() {
 
     // Torn journal write: begin + chunk, no manifest → reader unaffected
     const rawB = DEV_URL;
-    const torn = (await (await fetch(`${rawB}/dstate/${CH6}/begin?device=harness`, { method: 'POST' })).json()).gen;
-    await fetch(`${rawB}/dstate/${CH6}/${torn}/chunk/0`, { method: 'POST', body: 'torn-dstate' });
+    const torn = (await (await raw(`/dstate/${CH6}/begin?device=harness`, { method: 'POST' })).json()).gen;
+    await raw(`/dstate/${CH6}/${torn}/chunk/0`, { method: 'POST', body: 'torn-dstate' });
     ok('torn journal write invisible: reader still gets last good gen', await RW.getDeviceState() === j1);
 
     // Second journal push (the two-tab shape: another complete gen, pointer moves)
@@ -438,8 +442,8 @@ async function main() {
     // Fabricate a torn push: mint a gen, upload a chunk, write NO manifest (the tab "died").
     // KV LISTs lag ~60s behind writes, so poll until the orphan is visible before sweeping —
     // production orphans are hours old and always visible; only the test races consistency.
-    const tornGen = (await (await fetch(`${DEV_URL}/dstate/${CH6}/begin?device=harness`, { method: 'POST' })).json()).gen;
-    await fetch(`${DEV_URL}/dstate/${CH6}/${tornGen}/chunk/0`, { method: 'POST', body: new Uint8Array([1, 2, 3]).buffer });
+    const tornGen = (await (await raw(`/dstate/${CH6}/begin?device=harness`, { method: 'POST' })).json()).gen;
+    await raw(`/dstate/${CH6}/${tornGen}/chunk/0`, { method: 'POST', body: new Uint8Array([1, 2, 3]).buffer });
     const listDstate = async () => await (await fetch(`${DEV_URL}/dstate/${CH6}/list`)).json();
     let lst = await listDstate();
     let waited = 0;
@@ -464,7 +468,7 @@ async function main() {
     // letters/gens). Revoke wipes every key for the channel; the tiny blocklist/proof pair it
     // leaves is the acceptable receipt. The STABLE channel (CH) is reused across runs — never
     // revoke it (revocation blocklists the id permanently).
-    const revoke = await fetch(`${DEV_URL}/revoke/${CH6}`, {
+    const revoke = await raw(`/revoke/${CH6}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ proof: 'a'.repeat(64) })
     });
