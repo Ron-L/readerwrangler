@@ -246,6 +246,97 @@ Replace the in-memory counter (Phase 1) with Cloudflare Durable Objects for accu
 
 ---
 
+## Phase 3: Signed writes — the Channel ID addresses a mailbox, only the passphrase can change it (decided 2026-10-31)
+
+_Decided by Ron + Claude, 2026-10-31, after the published-credentials find (the organized demo library carried a
+credential pair publicly from 2026-07-03; revoked on both relays and removed the same day). Planned for release 7.25.0.
+Built on `feature/signed-writes`._
+
+### The problem
+
+1. **Every write and delete is authorized by the Channel ID alone.** Uploads, saves, the pointer, deleting copies, the
+   old `/cleanup` route — all go through on the ID in the address. Whoever has an ID can wipe that mailbox or write to it.
+2. **Revoke checks nothing.** It stores the "proof" (SHA-256 of passphrase + ID) for audit but never compares it, so an
+   ID holder can revoke — a permanent lockout, worse than a wipe (the next save refills a wipe).
+3. The "Architecture Context" table above is right that the passphrase never reaches the worker; what it didn't say is
+   that nothing the worker checks needs it.
+
+### The design
+
+| Message | The signature covers | Its contents are protected by |
+|---|---|---|
+| Small control messages — pointers, manifests, revoke, the "begin" / mint calls, deletes, the old single-copy routes | channel (in the address), time, method + address, **SHA-256 of the body** (an empty body hashes as empty) | the signature |
+| Big upload parts — generation / device-state chunks, mailbox letters | channel, time, method + address, the body's **size** | the **signed manifest's SHA-256** of the whole encrypted payload, checked by every reader; AES-GCM's own tamper check; parts **write-once** once their manifest exists |
+| Reads | not signed | they return encrypted data only |
+
+1. **A separate write key**, derived in the browser from the passphrase with its own label —
+   PBKDF2(passphrase, salt `"rw-write-key:" + channelId`, 100,000 rounds, SHA-256) → 32 bytes, used as an HMAC-SHA256
+   key. It is never the encryption key, and knowing one tells nothing about the other.
+2. **The signature**: HMAC-SHA256(write key, `RW-SIG-1\n{METHOD}\n{path and its own query}\n{t}\n{body hash or "size:N"}`),
+   hex. It travels in the address as `t=<ms>&sig=<hex>` (not headers: a custom header would add a preflight round trip
+   to every upload part — they are "simple" requests today; a short-lived signature in a log is harmless by design).
+3. **The relay learns a channel's write key once** — `POST /auth/{id}/register` with the key, the first time a channel
+   writes after this release (existing channels, Ron's included, register at their next save). Stored permanently as
+   `relay:{id}:write-key`. Registering the same key again is fine; a different key is refused (409) — the app then
+   tells the user to make a new Cloud Sync Key.
+4. **Once a channel is registered, every write and delete must carry a valid signature** — refused (401) otherwise.
+   An unregistered channel is accepted as today, so nothing breaks for clients that haven't updated.
+5. **Time window: 5 minutes either way.** An older or newer signature is refused; the refusal carries the relay's time,
+   and the app retries once with the difference corrected (a PC clock that's off).
+6. **No list of used signatures.** Within the window, re-sending an identical signed request does the identical thing
+   again — the same pointer, the same part, a delete of something already deleted — so an exact replay is harmless.
+   The one operation that creates something new ("begin"/mint) leaves at most an empty run that expires.
+7. **Parts are write-once after commit:** a chunk or letter write for a copy whose manifest already exists is refused
+   (one extra storage read per part; reads are the most plentiful limit, 100,000 a day).
+8. **Readers require the checksum** in manifests written after this release (older ones may lack it and stay readable).
+9. **Readers fall back** to the previous good copy when the newest fails its check (keep-2 keeps one) — Ron,
+   2026-10-31: "a fallback would be preferred". (Check what the generation reader already does — the Phase-1 harness
+   tests a "pointer fallback".)
+10. **Revoke is a signed operation** on a registered channel (the old unchecked proof is accepted only for an
+    unregistered one).
+
+### Why this shape (the options weighed, 2026-10-31)
+
+1. **A fixed proof sent with every request** (the first sketch) — whoever captures it once (a shared browser debug
+   capture, a network product that decrypts HTTPS, a log) can use it forever. Rejected.
+2. **Sign only the channel and the time** (Ron: "the time acts both as a unique salt and a replay time limit") — right
+   that the time does the replay work and no unique ID is needed; but a captured signature would then be valid for
+   *any* operation on the channel for 5 minutes (an upload's signature could delete or revoke). Signing the method and
+   address costs nothing and limits it to that one operation.
+3. **Sign the size of big parts, not their bytes** — Ron caught that same-length garbage could then replace a part.
+   The bytes ARE covered — by the signed manifest's SHA-256, checked by every reader, plus AES-GCM — so garbage is
+   detected, never acted on; write-once closes overwriting after commit, and the fallback keeps a spoiled newest copy
+   from hurting. The relay never hashes big parts (it has ~10 ms of computing time per request on the free plan).
+4. **A list of used IDs (nonces) or sequence numbers** (Ron) — real techniques, but here: exact replays are already
+   harmless once the operation is signed; storing each ID is a second write per write (writes are the scarcest free
+   limit — 1,000 a day for the account) and KV takes up to a minute to agree across locations, so a replay at another
+   location could slip past; sequence numbers break with two writers (the computer and the bookmarklet) and lost
+   requests. Rejected — revisit only for an operation that isn't safe to repeat (none today).
+5. **Public-key signatures** (the relay would hold only a public key) — browsers can't make a key pair from a
+   passphrase easily, and the gain is nil: anyone who can read the relay's storage can already change it directly.
+6. **Precedent:** Amazon's own web-service signatures (AWS Signature Version 4) sign the method, address, contents hash
+   and time, refuse anything older than 5 minutes, and keep no list of used IDs.
+
+### The one known weakness
+
+"First write registers the key": someone who knows a channel's ID *and* registers before its owner's first save after
+the release could claim it — the owner's register then gets 409 and is told to make a new key. Only someone who
+already has the ID can try (they can wipe that channel today), and the window closes at the owner's first save.
+
+### Build order and tests
+
+1. The relay first (dev): register route; signature check on every write/delete route of a registered channel;
+   write-once parts; signed revoke; the 401 carries the relay's time. Then the app (relay-client.js — one signing
+   function every write goes through, including the older direct `fetch` writes); the bookmarklet picks it up by itself.
+   An app on the old relay tolerates a 404 from `/auth/…/register`.
+2. Tests (the harness, against a local `wrangler dev` first, then dev): a good signature; a wrong key; a stale and a
+   future time; a changed body on a small message; a changed method or address; a part written after its manifest;
+   an unregistered channel still accepted; a clock 10 minutes off corrected by the retry; register twice (same key ok,
+   other key 409); revoke signed and unsigned; the reader's fallback; and the relay's computing time on a real-size part.
+3. Every deploy: Ron's yes; dev first. The harness channel and `relay/test-phase1.mjs` sign too.
+
+---
+
 ## Phase Summary
 
 | Phase | Tier | Cost | Protects Against |
