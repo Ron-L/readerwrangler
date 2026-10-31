@@ -13510,10 +13510,7 @@
     "hiddenInstances": [],
     "appVersion": "6.10.0-alpha.7"
   },
-  "relay": {
-    "channelId": "845bc9a7-639e-4ed4-8943-404b27676bc0",
-    "passphrase": "mAiJ4Bn99Spc70533lskJZsE6A2PCiFX"
-  },
+  "relay": {},
   "collections": {
     "fetchDate": "2026-03-21T23:41:07.251Z",
     "fetcherVersion": "app-export",
