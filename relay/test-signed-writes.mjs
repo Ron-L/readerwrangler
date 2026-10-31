@@ -109,7 +109,33 @@ async function main() {
   Date.now = realNow;
   ok('writeRun with the clock 10 minutes slow still succeeds', clockOk);
 
+  console.log('\n[7a] A new copy without its checksum is never served — the reader falls back (7.25.0-alpha.2)');
+  const B = uuid(), pwB = pass32(), keyB = await writeKey(pwB, B);
+  use(B, pwB);
+  const good = await RW.commitGeneration(payload('good'), []);
+  // Clone the good copy's REAL encrypted part into a new copy, with or without the manifest's checksum, and point at it.
+  async function cloneCopy(keepChecksum) {
+    const gen = (await (await signedRaw(keyB, 'POST', `/gen/${B}/begin?device=test`)).json()).gen;
+    const bytes = await (await raw(`/gen/${B}/${good.gen}/chunk/0`)).arrayBuffer();
+    await signedRaw(keyB, 'POST', `/gen/${B}/${gen}/chunk/0`, bytes, { contents: `size:${bytes.byteLength}` });
+    const man = await (await raw(`/gen/${B}/${good.gen}/manifest`)).json();
+    man.gen = gen;
+    if (!keepChecksum) delete man.checksum;
+    await signedRaw(keyB, 'POST', `/gen/${B}/${gen}/manifest`, JSON.stringify(man));
+    await signedRaw(keyB, 'PUT', `/pointer/${B}`, JSON.stringify({ gen }));
+    return gen;
+  }
+  const control = await cloneCopy(true);
+  let read = await RW.readCanonical();
+  ok('control: a cloned copy WITH its checksum is served from the pointer', read.gen === control && read.source === 'pointer', `${read.source} ${read.gen}`);
+  const stripped = await cloneCopy(false);
+  read = await RW.readCanonical();
+  ok('a cloned copy WITHOUT its checksum is refused; the reader falls back to a good copy',
+     read.gen !== stripped && read.source === 'fallback', `${read.source} ${read.gen}`);
+  await RW.revokeChannel();
+
   console.log('\n[7] Revoke');
+  use(A, pwA);
   r = await raw(`/revoke/${A}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ proof: 'a'.repeat(64) }) });
   ok('an unsigned revoke of a registered channel → 401 (the lockout gap is closed)', r.status === 401, `HTTP ${r.status}`);
   await RW.revokeChannel();

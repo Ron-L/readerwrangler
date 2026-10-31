@@ -134,6 +134,23 @@
     return 'sha256:' + Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
+  // 7.25.0 (signed writes, design item 8) - a copy minted from this date on MUST carry its checksum: its manifest is
+  // signed, so nobody could have stripped it — a missing one means something is wrong, and the reader falls back.
+  // Older copies are grandfathered (the check stays optional for them). Decided by the copy's own minted time.
+  // Every redesign-format writer has included the checksum since afcd004 (2026-08-14), so any copy minted on or after
+  // the day this was built already has one — a missing one is never a normal copy.
+  const CHECKSUM_REQUIRED_FROM = Date.UTC(2026, 9, 31); // 2026-10-31 00:00 UTC
+
+  /** THE integrity rule for every redesign-format read (generation, device-state, mailbox run, inline letter). The
+   *  pre-redesign single-copy download() keeps its optional check — it predates minted ids. */
+  async function verifyChecksum(bytes, checksum, mintedId) {
+    if (!checksum) {
+      if (idTimestamp(mintedId) >= CHECKSUM_REQUIRED_FROM) throw new Error('checksum missing');
+      return;
+    }
+    if (await checksumOf(bytes) !== checksum) throw new Error('checksum mismatch');
+  }
+
   /** compress → encrypt; returns Uint8Array of encrypted bytes */
   async function pack(jsonString, notify) {
     (notify || (() => {}))('compressing', 'Compressing data...');
@@ -407,7 +424,7 @@
       const bytes = new Uint8Array(total);
       let off = 0;
       for (const p of parts) { bytes.set(p, off); off += p.length; }
-      if (manifest.checksum && await checksumOf(bytes) !== manifest.checksum) throw new Error('checksum mismatch');
+      await verifyChecksum(bytes, manifest.checksum, gen);
       return unpack(bytes);
     };
     let pointedGen = null;
@@ -752,7 +769,7 @@
           const bytes = new Uint8Array(total);
           let off = 0;
           for (const p of parts) { bytes.set(p, off); off += p.length; }
-          if (manifest.checksum && await checksumOf(bytes) !== manifest.checksum) throw new Error('checksum mismatch');
+          await verifyChecksum(bytes, manifest.checksum, runId);
           runs.push({ runId, kind: manifest.kind, fetchDate: manifest.fetchDate, parts: manifest.seqCount,
                       timestamp: idTimestamp(runId), jsonString: await unpack(bytes) });
         } else if (info.seqs.has(0) && info.seqs.size === 1) {
@@ -762,7 +779,7 @@
           const letter = JSON.parse(await r.text());
           if (!letter.inline) throw new Error('not inline'); // letters of an uncommitted multi-run
           const bytes = b64ToBytes(letter.payload);
-          if (letter.checksum && await checksumOf(bytes) !== letter.checksum) throw new Error('checksum mismatch');
+          await verifyChecksum(bytes, letter.checksum, runId);
           runs.push({ runId, kind: letter.kind, fetchDate: letter.fetchDate, parts: 1,
                       timestamp: idTimestamp(runId), jsonString: await unpack(bytes) });
         } else {
@@ -809,7 +826,7 @@
       let off = 0;
       for (const p of parts) { bytes.set(p, off); off += p.length; }
       notify('verifying', 'Verifying integrity...');
-      if (manifest.checksum && await checksumOf(bytes) !== manifest.checksum) throw new Error('checksum mismatch');
+      await verifyChecksum(bytes, manifest.checksum, gen);
       return { jsonString: await unpack(bytes, notify), gen, manifest };
     };
 
