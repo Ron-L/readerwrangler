@@ -159,6 +159,10 @@ was simulated in six cases (same batch, other batch, timer both ways…) and all
 re-send", the very case the fix was for. A re-send is the FIRST call of a new message, which the probe had
 already shown isn't in the transcript yet; the fix refused it on its first real use. List the motivating
 scenario as test case #1 before writing any others.
+**A test that fails because the protection works is not a bug to silence — read it first** (7.25.0: after signed
+writes, the relay test "failed" 7 times; its deliberately broken states were unsigned writes on a now-registered
+channel — the fix was to sign the test's raw writes through the one signer, not to loosen the relay). And a test
+must be able to fail: sign with independent code, accept a hand-made correct case, keep a control beside the refusal.
 **Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule; pre-build gate item 12.
 
 ### 4. After 3 iterations, question the abstraction
@@ -187,6 +191,12 @@ mousedown — **no console error, 6 alphas to find.** A class/attribute an eleme
 load-bearing for code that never appears in the diff. **The opposite failure — a blanket replace — judges no
 instance at all** (7.24.0: `s/7.22.1/7.24.0/` was right for 28 code comments but also rewrote the design doc's
 history to claim alphas "7.24.0-alpha.1–3" that never existed; caught on review). Enumerate first, then decide each.
+A blanket *stop* is the same failure: 7.25.0 stopped a local test server by matching process command lines and took
+14 processes — the shells that launched it and the stop command itself. **Act on exact identities (a process id, a
+path), never on a pattern.** **And a secret is a class too — find it by its shape, not a list:** a demo library made
+from a backup carried a full Cloud Sync credential pair publicly for four months (2026-07-03 → 10-31); no list of
+known values could have caught it — a check for "a .json whose `relay` holds a channel id and a passphrase" does
+(`git-hooks/private_values.py`, every commit; the history scan found only that file).
 **Enforcement**: `feedback_investigate_completely` memory; grep-the-class before declaring done —
 for a markup change, grep the class/attr name across the file for remote matchers *before* editing.
 
@@ -290,6 +300,9 @@ use (7.21.2); the batch's shared message id is what actually knows. **Write a re
 not before** (7.22.0: "redeployed to both relays" went into the TODO ahead of the deploys — caught pre-push).
 **A stamp nothing checks is a promise, not a mechanism** (7.23.0: the help notes' "up to date through 7.21.2" sat
 while 7.21.3 and 7.22.0 shipped — 7.21.3's Bibliography change had no entry for four days; visible, and unread).
+**An alarm that fires on the normal path is noise** — it must be able to tell normal from broken (7.25.0: every
+import with new books logs an integrity "repair", because the check runs before the import files them; a genuine
+orphan would hide among them. Ron caught it; filed).
 **Enforcement**: `feedback_mechanical_honesty` memory; the heredoc ban (three-for-three earned a ban, not a
 caution); receipts-and-honesty as a feature genre.
 
