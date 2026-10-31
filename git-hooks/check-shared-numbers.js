@@ -46,6 +46,18 @@ try {
   if (fnBody(w, 'idTimestamp', WORKER) !== fnBody(c, 'idTimestamp', CLIENT)) {
     errors.push(`reading the time out of an id: idTimestamp() differs between ${WORKER} and ${CLIENT}`);
   }
+  // Signed writes (7.25.0): both sides must build the same signed text — the version tag and which routes are "big
+  // parts" (signed by size). Compared as text: a one-character difference makes every signature fail.
+  const textConst = (text, name, file) => {
+    const m = text.match(new RegExp(`const\\s+${name}\\s*=\\s*([^;\\n]+);`));
+    if (!m) throw new Error(`${file}: \`const ${name} = …;\` not found`);
+    return m[1].trim();
+  };
+  for (const name of ['SIG_VERSION', 'PART_ROUTE']) {
+    if (textConst(w, name, WORKER) !== textConst(c, name, CLIENT)) {
+      errors.push(`signed writes: ${name} differs between ${WORKER} and ${CLIENT} — every signature would fail`);
+    }
+  }
   // The ids the worker mints must START with the 13-digit time that idTimestamp reads.
   const re = (w.match(/const\s+MINTED_ID_REGEX\s*=\s*\/(.+)\/;/) || [])[1];
   if (!re) errors.push(`${WORKER}: MINTED_ID_REGEX not found`);
@@ -60,4 +72,4 @@ if (errors.length) {
   console.error('\nFix: change BOTH files in this commit. Deliberate exception: git commit --no-verify.\n');
   process.exit(1);
 }
-console.log('check-shared-numbers: OK — relay-client.js and relay/relay-worker.js agree (90-day uploads, keep 2, unfinished-copy grace, id time).');
+console.log('check-shared-numbers: OK — relay-client.js and relay/relay-worker.js agree (90-day uploads, keep 2, unfinished-copy grace, id time, signed-write format).');
