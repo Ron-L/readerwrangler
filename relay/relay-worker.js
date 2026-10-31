@@ -81,7 +81,7 @@ const CF_LIMITS = {
 // Cloudflare's KV actionType → our counter. An action type not listed here is reported in the email, never dropped.
 const KV_ACTION_FIELDS = { read: 'kvReads', write: 'kvWrites', delete: 'kvDeletes', list: 'kvLists' };
 
-const WORKER_VERSION = '7.25.0-alpha.1'; // printed in every daily summary, so an email shows which deploy sent it
+const WORKER_VERSION = '7.25.0'; // printed in every daily summary, so an email shows which deploy sent it
 
 // THE list of relays (7.22.0, design §14a fix 2). One codebase, deployed twice; RELAY_ENV in wrangler.toml says which
 // deployment this is. Every daily summary reports ALL relays here (the free limits are shared account-wide); each

@@ -8,7 +8,9 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-10-20 (through release 7.24.0)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-10-31 (through release 7.25.0)** — all sections human-reviewed (§1–21).
+7.25.0: signed relay changes — §2's credentials answer (the passphrase also signs every change) and §14 item 6 (the
+three new refusals); comb for "relay", "revoked", "credentials", "Channel ID", "passphrase": no other wording changed.
 7.24.0: Tag from Collections redesigned + exact-text tag names + undo removes a created tag — §9 rewritten (new Qs:
 "Read" vs "read", undo of a new tag, removing a tag from many books).
 7.23.0: no user-visible wording changed (the Relay and the app delete leftover sync copies).
@@ -92,7 +94,11 @@ encrypts everything the fetcher and the app exchange on that channel — so the 
 holds **encrypted** data it can't decipher. Both live only in this browser. When you make a
 bookmarklet, your credentials are copied into it ("baked in") so the fetcher can encrypt your
 library with your passphrase before sending it through the relay — which is why regenerating your
-credentials means dragging a fresh bookmarklet.
+credentials means dragging a fresh bookmarklet. **Since 7.25.0 the passphrase also signs every change**
+sent to the relay (with a separate key made from it — the passphrase itself still never leaves your
+devices), and the relay refuses an unsigned change once your channel has started signing. So knowing a
+Channel ID alone no longer lets anyone change or delete your synced copy. Nothing to set up: an
+existing channel switches over by itself at its next save.
 
 **Do I need an Amazon account to try it? (The Demo Library.)** No — download the demo library
 (100+ classic books) from the home or Tutorials page, open ReaderWrangler, and load the file:
@@ -578,6 +584,17 @@ for a change to reach the Relay before Import can read it.
 6. **A "channel revoked" notice** means relay credentials were revoked (usually deliberately,
    in **File → Relay Setup**; see §2). Regenerate credentials and remake bookmarklets to resume
    syncing.
+   **Three relay refusals new in 7.25.0** (signed changes, §2), each shown in the sync error:
+   - **"This channel needs signed writes - update the app (reload the page)"** — a ReaderWrangler tab
+     (or a bookmarklet run) still had the older code. Reload the page; a bookmarklet picks up the new
+     code by itself within ~10 minutes.
+   - **"Signature time is more than 5 minutes off - check the computer clock"** — the app corrects a
+     wrong clock by itself and retries once, so this shows only if the clock keeps jumping. Fix the
+     computer's date/time (set it to automatic).
+   - **"This Cloud Sync channel is already claimed by a different key - make a new key in Relay
+     Setup"** — the relay already knows a different key for this Channel ID (another copy of these
+     credentials with a different passphrase, or someone who had the Channel ID got there first).
+     Regenerate credentials in **File → Relay Setup** and remake bookmarklets.
 7. **One working tab — but a second browser is fine.** The risk is a second ReaderWrangler
    **desktop tab in the same browser**: browser storage is last-writer-wins, so one edit in a
    stale second tab can overwrite everything you did in the first. Organize in one tab

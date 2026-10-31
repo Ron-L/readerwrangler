@@ -3,10 +3,8 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [✅ Relay storage: stop leftovers piling up, and report usage correctly](#relay-storage-stop-leftovers-piling-up-and-report-usage-correctly)
-        - [✅ Numbers the app and relay must agree on: add a check that they match](#numbers-the-app-and-relay-must-agree-on-add-a-check-that-they-match)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
-      - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check, full wipe)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check-full-wipe)
+      - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
@@ -61,6 +59,7 @@
         - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
         - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
+        - [Import: new books are filed before the integrity check, so the check reports only real repairs](#import-new-books-are-filed-before-the-integrity-check-so-the-check-reports-only-real-repairs)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Fetcher housekeeping](#fetcher-housekeeping)
@@ -166,125 +165,6 @@ In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**
 
 ### High priority
 
-#### ✅ Relay storage: stop leftovers piling up, and report usage correctly
-<!-- id 20261003-0000 -->
-
-_Why it matters:_ Leftovers eat into the free storage limit, and the daily email was reporting the wrong total.
-
-**The problem** (found 2026-10-03/04; full write-up: docs/design/RELAY-WRITE-REDESIGN.md §14a)
-- Each Restore left an ~18 MB package behind on the relay.
-- The daily usage email showed **one** relay's storage (production or dev), never the sum, and printed "no data" as 0. The real total was ~572 MB — 56% of the 1 GB free limit — while emails said 219.7 / 326 / 0.
-- About 265 MB was recoverable leftovers.
-
-**The plan** (agreed 2026-10-13, revised 2026-10-14)
-- ✅ **A — contributor mode** (7.21.0): a prerequisite.
-- ✅ **B1 — the app cleans up after every save** (7.21.1): the package a save absorbed is deleted inside the save itself, and duplicates are removed. Proven on dev. Production's old leftovers go on its next save, or via the B2 cleanup.
-- ~~Send to Production~~ — considered and rejected 2026-10-13 (docs/design/SEND-TO-PRODUCTION.md).
-- 🔨 **B2 — the relay worker** (branch `feature/relay-worker-b2`, alpha.4 running on **dev only**; production still runs the old worker). Built so far:
-  - Both relays send the daily email, covering **production + dev + the total** against the account-wide free limits. Dev's subject starts "[Dev]".
-  - Threshold alerts compare the total (production only sends them).
-  - A daily storage check that **reports** what a cleanup would delete, and deletes nothing.
-  - A key-count check: Cloudflare's count is the day's **highest**, so "live ≤ it" reads as consistent.
-  - Every email also arrives as formatted HTML. Worker statistics are labeled prod- / dev-.
-  - The worker's version is in every email (the pre-commit check enforces the bump).
-  - Each schedule runs only its own job. Any other schedule does nothing and is counted **in red** at the top of the next summary.
-- ➡️ **C — moved 2026-10-24 to "Relay worker: one release…"** (below the Delete key fix). As planned: **a shared notepad** for both relays (no user data): dev becomes a backup alerter (sends "[Dev] backup alert" if a limit crossing it has seen for over an hour has no production alert recorded), plus a "production is alive" check (alert if production's daily summary is more than 26 hours old).
-
-**Next steps**
-1. ✅ **The 2026-10-14 6:55 PM checks** (Ron, 2026-10-15):
-   - Exactly **one** production email — the 10-13 duplicate was a one-off during Cloudflare's schedule incident.
-   - The "[Dev]" summary arrived (the new daily schedule works) with the red section: the stray 10-minute schedule
-     fired **12 times**, 10:00–11:50 AM, then stopped — Cloudflare applied the 6:36 AM change ~5 hours late. The
-     stray fires cost no emails.
-   - The dev-storage vs Cloudflare-dashboard comparison → moved to "Relay worker: one release…".
-2. ✅ **The report-only worker is on production** — deployed 2026-10-15 9:18 AM (Ron's go; version `3e2d7d39`, code =
-   B2 alpha.4; checked: no open Cloudflare incident first). Production has the **real** leftovers, so its first
-   report was the real test — **✅ verified 2026-10-15** (Ron ran the on-demand summary on production):
-   - "Would delete": the interrupted save `…21fc` ✅. "Kept": 1 multi-part run not yet imported (`…3560`) ✅.
-   - Key check 53 = 53 (current). No storage alert. Total storage 372.9 MB (37.3%).
-   - Watch: dev's storage fell 197.2 → 142.5 MB in a day — probably dev data expiring; see whether it keeps moving.
-   - 2026-10-15 evening: after a day of fetches + Imports, dev rose to **288.9 MB** (total 519.3 = 51.9% → the 50%
-     storage alert fired, as designed). Dev's check flagged **3 extra device-state generations from that day** (~17 MB
-     each) — the one-hour grace kept them because the last saves came within the hour (design §14a F2); the next save
-     after they age, or the coming deleting step, removes them. The rest was the day's peak (keys 262 at the high
-     point, 248 at report time). No leak.
-3. ✅ **Released 7.22.0 (report-only), 2026-10-18** — both reports right 10-14 → 10-17; production's 27 "other" keys identified (all by design); worker version `7.22.0` (same code as alpha.4) — redeployed to both relays after the release with Ron's yes for each. The original plan for this step:
-   **After a few days of both reports being right (~2026-10-17/18): release 7.22.0 (report-only).**
-   **FIRST: merge main into `feature/relay-worker-b2`** — the branch predates `git-hooks/` (2026-10-15), and with
-   `core.hooksPath git-hooks` a commit there would run NO checks, silently. Resolve the doc conflicts (TODO.md,
-   CLAUDE.md, SESSION-TOOLING.md) in main's favor. Then: drop "-alpha" from `WORKER_VERSION`, update RELAY-WRITE-REDESIGN §14a (fixes 2 and 3 built as report-only; its two open questions are answered — each relay checks its own storage, and Cloudflare's key count is a daily maximum), CHANGELOG (your word on the copy), squash / tag / push to both, post-mortem.
-4. ✅ **Released 7.23.0 (deleting), 2026-10-20** — both relays delete leftovers nightly (keep the newest 2 finished
-   copies, no grace; unfinished copies 10 minutes; ≤20 keys per run), and the app applies the same rule at each save
-   (relay-client.js; the commit check `git-hooks/check-shared-numbers.js` keeps the two in step). Proven on dev
-   10-18 → 10-19 (planted test keys; three real extras); production switched 2026-10-20. Every key kind is named in the
-   email with its expected count. Why two cleaners: RELAY-WRITE-REDESIGN §14a.
-   - ✅ Production's first deleting night deleted exactly `…21fc` (the Sep 9 torn save), 1 key; nothing red.
-   - The test script's self-cleanup → moved to "Relay worker: one release…" (below the Delete key fix).
-5. **C and the follow-ups → moved 2026-10-24** to "Relay worker: one release of changes (backup alerter, clearer
-   daily email, strict ID check, full wipe)", right after the Delete key fix. **This task is done** (B1 7.21.1, B2
-   7.22.0, deleting 7.23.0); stable since — the 10-22 and 10-23 emails were identical and healthy (31.9%).
-
-**Lessons learned**
-- Cloudflare had three schedule incidents (2026-10-12, 10-13, 10-14) that delayed schedule changes by **hours** — the replaced 10-minute test schedule kept mailing.
-- **Never test with a temporary schedule again.** Test with the on-demand summary instead (PowerShell; one email each; Resend allows 100 a day):
-  `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))`
-- ~~Never deploy the relay from main until B2 merges~~ — lifted 2026-10-18: B2 merged in 7.22.0, main carries the current worker.
-
-**Rules**
-- Every deploy asks you first (the pre-approved production deploy was removed from local permissions).
-- Leave production channel `58c1bfd7…` alone — another user's data; it expires Dec 7.
-
-**Background** (the 2026-10-13 inventory)
-- Production unchanged since Sep 9: the interrupted save `…21fc`, the unabsorbed Restore `…3560`, an old-format device-state copy.
-- Dev's ~160 MB of Restore packages were reclaimed by the 2026-10-12 Imports (an Import retries cleaning earlier absorbed runs — so the leak was permanent only on a channel that never imports, like production). Dev had 7 device-state copies.
-- The Sep 27 dev runs have been imported — that hold is lifted.
-
-**How (technical)**
-- Inventory tool: `analyze-relay-keys.js` (key dumps hold channel IDs — credentials — so delete them after use).
-- B1 lives in `commitGeneration` (relay-client.js) with `absorbedRuns` deduped.
-- Deploy dev: `npx wrangler deploy --env dev`, from `relay/` on the B2 branch.
-- B2 alpha.4 = commit `e753679`. The deployment is named by `RELAY_ENV` (prod / dev) in wrangler.toml; the worker's version is `WORKER_VERSION`; the key check compares Cloudflare's `keyCount`.
-
-##### ✅ Numbers the app and relay must agree on: add a check that they match
-<!-- id 20261014-1030ag -->
-
-_Why it matters:_ The same rules are typed separately in two programs; change one and forget the other, and things quietly go wrong.
-
-_Part of the relay storage work above — build it with B2 (decided 2026-10-14)._
-
-**What this is about**
-- ReaderWrangler is two separate programs: **the app** (in your browser) and **the relay** (on Cloudflare).
-- A few numbers and rules must be **identical in both**, but each is typed separately in each program's code. Nothing
-  complains if they differ.
-
-**Shared today**
-1. **How long an upload waits on the relay: 90 days.** The relay deletes an upload after 90 days; the app uses the same
-   90 days to decide when it can forget which uploads it already imported. If the relay kept uploads longer but the app
-   weren't changed, the app could forget it imported an old upload and **import it again** — re-applying old changes.
-2. **The format of upload IDs.** The relay builds each ID from a time, the device and a random part (like
-   `1760500000000-dRon-ab12`); the app reads the time back out of it.
-
-**Three more arrive with the relay storage work** (branch `feature/relay-worker-b2`)
-- The relay's daily storage check must judge leftovers by **exactly** the app's own cleanup rules: the 1-hour grace
-  period, "keep the newest 2 copies", and reading the time out of an ID.
-- If they differ, the check would report the app's normal copies as leftovers — and once deleting is on, could delete them.
-
-**Done** in 7.23.0 (2026-10-20): `git-hooks/check-shared-numbers.js` (CLAUDE.md, "Commit checks").
-
-**Decided** (Ron, 2026-10-14) — option (c)
-- A **commit check** reads both programs and refuses a commit when any pair differs. Same style as the table-of-contents
-  check; about 30 lines; nothing changes in how either program loads.
-- Rejected: (a) leave it to comments and memory; (b) one shared file both load — cleanest in principle, but it means
-  restructuring how the app loads its relay code.
-- **Build it with the relay storage work (B2)**, where the three new copies come from. It lives in `git-hooks/` (see
-  "Save our working process in git").
-
-**How (technical)**
-- Pairs: `LETTER_TTL` (worker, seconds) ↔ `LETTER_TTL_MS` (relay-client.js); the minted-ID format (`MINTED_ID_REGEX` /
-  `mintId` in the worker ↔ `idTimestamp` in relay-client.js); B2's `SWEEP_GRACE_MS` ↔ `GC_GRACE_MS`, `SWEEP_KEEP_GENS`
-  ↔ `KEEP_GENS`, and the worker's `idTimestamp` ↔ the client's.
-- Units differ (seconds vs ms) — the check must compare values, not text.
-
 #### The Delete key deletes the folder you're in — not the folders you selected
 <!-- id 20261014-1030ay -->
 
@@ -314,7 +194,7 @@ task stays pinned above it per the 🚧 rule).
   — uses the current folder instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch
   confirm and one compound undo — the new `deleteFolders(folders)`. Surfaced during the operations refactor.
 
-#### Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check, full wipe)
+#### Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)
 <!-- id 20261024-1045 -->
 
 _Why it matters:_ Every relay change is a separate deploy, each needing Ron's yes; gathering them makes one worker
@@ -326,7 +206,7 @@ close this out").
 the rest of the TODO.
 
 **What's in it**
-1. **C — a shared notepad** for both relays (no user data), from "Relay storage" (✅ above):
+1. **C — a shared notepad** for both relays (no user data) — the last step of the relay storage work (7.21.1–7.23.0):
    - dev becomes a **backup alerter** — it sends "[Dev] backup alert" if a limit crossing it has seen for over an
      hour has no production alert recorded;
    - a **"production is alive" check** — alert if production's daily summary is more than 26 hours old.
@@ -350,10 +230,11 @@ the rest of the TODO.
    the email names a channel two ways — the last 4 characters (`…21fc`, `shortId`) and the FIRST 8 in the "Kept / not
    judged" and budget lines (`41e0e16f…`, `ch.slice(0, 8)`, ~1287 / ~1304). Use the 6-character support code in every
    line (found 2026-10-30).
-5. **The wipe reaches everything:** check what the Danger zone's "Revoke credentials & wipe relay" deletes on the
-   relay — the older cleanup route (`/cleanup/{id}`) deletes only the old-style upload. Fix it to delete the full
-   copies and their pointer, device-state and mailbox too, so today's wipe is honest. (From docs/design/
-   CLOUD-SYNC-NAMING.md §6; the Cloud Sync task's "make a new key" then reuses it.)
+5. ~~**The wipe reaches everything**~~ — **already true** (checked 2026-10-31 in `handleRevoke`): revoke deletes the
+   old single copy, then every mailbox, library-copy and device-state key by prefix, and both pointers. Only the old
+   `/cleanup/{id}` route is narrower, by design — it clears the old-style single upload after an import. Nothing to
+   build; the Cloud Sync task's "make a new key" reuses revoke as it is. (Since 7.25.0 revoke is also a signed
+   operation.)
 6. **The test script cleans up after itself:** `relay/test-phase1.mjs` leaves one unimported run on the `22222222…`
    test channel each run (18 now; they expire after 90 days).
 7. **Once:** compare dev's storage figure in the daily email with the Cloudflare dashboard (open since 2026-10-15).
@@ -365,8 +246,17 @@ the rest of the TODO.
    and whether it's still beta when building.
 
 **Watch out**
-- One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**. Test with the on-demand summary,
-  never a temporary schedule (the Relay storage task's lessons). Leave production channel `58c1bfd7…` alone.
+- One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**; alphas deploy from the branch,
+  and both relays are redeployed from main at the release.
+- **Never test with a temporary schedule** — Cloudflare's schedule incidents (2026-10-12/13/14) delayed changes by
+  hours and a replaced test schedule kept mailing. Test with the on-demand summary instead (PowerShell; one email each;
+  Resend allows 100 a day):
+  `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))`
+- Leave production channel `58c1bfd7…` alone — another user's data; it expires Dec 7.
+- Relay tests: `node relay/test-signed-writes.mjs` and `RELAY_URL=… node relay/test-phase1.mjs` — both run against a
+  local relay first (`cd relay && npx wrangler dev --env dev --local`), then dev; both refuse production.
+- Inventory tool: `analyze-relay-keys.js` in the TODO notes' folder (key dumps hold channel IDs — credentials — delete
+  them after use).
 - The shared-numbers commit check must still pass (items 2 and 5 touch the cleanup's rules only if they change keep-2
   or the grace — they shouldn't).
 - Relay tasks that are **app-side, not worker** stay where they are: "Relay Setup's connection test checks the wrong
@@ -1787,6 +1677,27 @@ made Position take a list (`13, 13.5, 14`, ranges) with a live preview, and remo
 **How (technical)**
 - `Mixed (${uniqueValues.size} values)` in the bulk-edit dialog (readerwrangler.js ~13396), shared by Author / Series /
   Position / Format.
+
+##### Import: new books are filed before the integrity check, so the check reports only real repairs
+<!-- id 20261031-1639 -->
+
+_Why it matters:_ Every Import from Relay with new books logs "🔧 Integrity auto-fixed … N books with no folder —
+placed in Inbox" — a normal path reported as a repair (Ron noticed it 2026-10-31). An alarm that fires on every
+normal import trains you to ignore it, and a GENUINE orphan arriving during an import would be filed and reported in
+the same breath as the new books.
+
+**What happens today** (checked 2026-10-31)
+1. `loadLibrary` restores the organization and runs the integrity check (readerwrangler.js ~6775) while the new books
+   are in the library but not yet in any folder → it "repairs" them into the Inbox.
+2. Then the import's own step (~5603–5614) adds the same books to the Inbox, finds them there, and skips them.
+3. Harm today: none visible — no duplicates (that step ignores books already there), and this path only logs to the
+   console (no toast, nothing saved to Data Status). The order among the new books may differ from the import's
+   intent (newest first) — both put them at the top.
+
+**Decided** (Ron + Claude, 2026-10-31)
+- The import files its new books into the Inbox FIRST, in one place, then the integrity check runs — so the check
+  sees only genuine problems. The later duplicate step goes away (one placement path, not two). Its own alpha, kept
+  out of the 7.25.0 security release.
 
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->

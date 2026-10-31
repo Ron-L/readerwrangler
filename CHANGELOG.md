@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.25.0] - 2026-10-31
+
+### Security
+- **Only you can change your synced copy.** Until now the Relay accepted a change to your synced library from anyone
+  who knew your Channel ID. Now every change is signed with a key made from your passphrase — which still never leaves
+  your devices — and the Relay refuses anything unsigned, signed by the wrong key, or more than 5 minutes old. Nothing
+  to set up: your channel switches over by itself the next time you save.
+- **A finished copy can't be altered, and a damaged one is never used.** Once a copy of your library is saved, its parts
+  can't be overwritten; and a copy that fails its integrity check is skipped in favour of the previous good one.
+- **Revoking now needs your passphrase, too** — someone with only your Channel ID can no longer lock you out of it.
+- **Fixed:** the sample "organized" demo library file had sync credentials saved inside it. They have been removed,
+  and that channel has been retired on the Relay.
+
 ## [7.24.0] - 2026-10-20
 
 ### Changed
