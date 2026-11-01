@@ -82,7 +82,7 @@
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
       - [A fetch made with the demo filter on says so, and never marks books as gone](#a-fetch-made-with-the-demo-filter-on-says-so-and-never-marks-books-as-gone)
-      - [A button to rebuild the library from Amazon](#a-button-to-rebuild-the-library-from-amazon)
+      - [Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select](#refresh-all-books-from-amazon--a-choice-in-the-fetcher-which-the-app-can-pre-select)
       - [Pin the exact versions of outside code libraries](#pin-the-exact-versions-of-outside-code-libraries)
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
       - [Protect against editing in two tabs at once](#protect-against-editing-in-two-tabs-at-once)
@@ -297,6 +297,10 @@ the rest of the TODO.
    Relay - Daily Summary" is the body's first line, not the subject; if item 2 drops the 🚨, the filter still matches).
    Check Inboxes' pricing
    and whether it's still beta when building.
+9. **A small "request" note per channel** for "Refresh all books from Amazon…" (Safety): a route to write, read and
+   delete one encrypted note (the app requests a full refresh; the fetcher reads it at start and deletes it after a
+   successful refresh). Idle until the app + fetcher part ships; the signed-writes gate covers its writes. Name the new
+   key kind in the daily email.
 
 **Watch out**
 - One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**; alphas deploy from the branch,
@@ -2341,17 +2345,49 @@ wrong.
   amazon-collections-fetcher.js ~56). The "no longer in your Amazon library" inference: readerwrangler.js ~194 / ~5670
   (docs/design/ORPHAN-CLEANUP.md §2).
 
-#### A button to rebuild the library from Amazon
+#### Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select
 <!-- id 20261014-1030 -->
 
-_Why it matters:_ Today a full reset needs the browser's developer tools.
+_Why it matters:_ Fetches are incremental — they build on the books the cloud copy already holds, and only re-read
+deeper when the counts disagree with Amazon. So book details that went stale or wrong (a cover, rating, description,
+series Amazon later corrected — or a damaged record) are never re-read. Today the only way out is clearing the cloud
+copy with the browser's developer tools. (Not a clean restart — that's Tools → Reset App, plus the Danger zone wipe for
+the cloud copy.)
 
-**What you'd get**
-- "Rebuild library from Amazon (full re-fetch)": clears the relay's library so the next fetch starts fresh.
-- Goes with the demo-safety warning above.
+**Decided** (Ron + Claude, 2026-11-01, in the TODO review)
+1. **Name:** "Refresh all books from Amazon" — plain and exact. Not "integrity" (the app's integrity check is a
+   different thing) and not "scan and fix" (it touches only book details from Amazon, never folders, tags or anything
+   you organized).
+2. **Delete nothing first.** The run re-reads every book (ignoring what the fetcher already knows) and imports like any
+   fetch; a refresh that fails halfway leaves the old copy intact. (Law 18's explicit-verb rule — not destroy-then-
+   rebuild.)
+3. **The control lives in the fetcher; the app can pre-select it** (Ron): under "Send Library to ReaderWrangler", **☐
+   Refresh every book (slower)** with a tooltip on when to use it ("if book details look wrong or out of date"). From
+   the app, **Tools → Refresh all books from Amazon…** explains it and *requests* the refresh — the next fetch's box then
+   starts ticked, with "requested in ReaderWrangler on <date>". Either side can override.
+4. **When the request clears:** only after a refresh **finishes successfully** — a failure keeps it pending. Unticking
+   in the fetcher means "not this time" (it says "Full refresh still pending — it'll be offered next time"); cancelling
+   for good is done in the app (Cancel request).
+5. **The pending state is never invisible** (Law 16): while waiting, the menu item reads "Refresh all books from
+   Amazon… (requested — runs on your next fetch)". If a fetch arrives after the request and it's still pending, the app
+   says so — "Your last fetch (<date>) didn't include the full refresh — it's still pending" (unticked, or an older
+   bookmarklet). The import's fetch date is the evidence; no second "the fetcher knows this feature" flag needed.
+6. **How they talk** — the app and the fetcher run on different sites and share no browser data; they share the cloud
+   copy. The request is a **small note on the relay**: written by the app (encrypted with the key, a signed write),
+   read by the fetcher at its start (one small extra read), deleted by the fetcher after a successful refresh (signed).
+   Not inside the library copy (re-uploading it to flip a flag), not in device-state (~17 MB to read one flag), not a
+   mailbox upload (those flow bookmarklet → app).
+7. **Ships in two independent parts** (Ron): the relay's small note route goes early — in "Relay worker: one release of
+   changes" (idle until used; the signed-writes gate covers it). Then the app + fetcher together (they go out in the
+   same push anyway); each fails safe — a fetcher that can't read the note just fetches normally, an app that can't
+   write it says the refresh isn't available yet.
+8. The library fetch only — collections are re-read in full each time (confirm when building). Same Amazon pacing
+   (`amazonFetch`). **Pair it with "Let a new user's first big fetch resume after an interruption"** — a full refresh of
+   3,000+ books is that same long run.
 
 **How (technical)**
-- Old review item 6g.
+- Old review item 6g. The fetcher's incremental start: `loadKnownBooks` (relay-client.js); the automatic fuller pass
+  when counts disagree: SUPPORT-KB §14 item 3.
 
 #### Pin the exact versions of outside code libraries
 <!-- id 20261014-1030ai -->
