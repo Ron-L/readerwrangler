@@ -206,6 +206,11 @@ the history scan, shipped the same day).
 - Sources: `C:\Users\Ron\Projects\Hsv-Utilities-App\tools\drive_page.mjs`, `…\hooks\pre-commit` (`syntax_errors`),
   `…\tools\shortcuts.py`; its PRINCIPLES Laws 18 and 21. RW's own rules govern the work here (branch, commit checks).
 - A test stops what it started by its exact process id (Law 5, 7.25.0).
+- **Before building, weigh Playwright against copying `drive_page.mjs`** (Ron, 2026-10-31). Microsoft's Playwright —
+  its agent CLI (`npm install -g @playwright/cli`) or its library — is maintained, records video and traces (the
+  screen capture pass's scripted reel), and checks before every click that the target is visible and not covered
+  (Law 21, built in). `drive_page.mjs` is 121 lines, no dependency, already proven on the utilities project. Pick
+  one; port `hover`'s "what is under the pointer" report if it's Playwright.
 
 #### The Delete key deletes the folder you're in — not the folders you selected
 <!-- id 20261014-1030ay -->
@@ -278,8 +283,13 @@ the rest of the TODO.
    `/cleanup/{id}` route is narrower, by design — it clears the old-style single upload after an import. Nothing to
    build; the Cloud Sync task's "make a new key" reuses revoke as it is. (Since 7.25.0 revoke is also a signed
    operation.)
-6. **The test script cleans up after itself:** `relay/test-phase1.mjs` leaves one unimported run on the `22222222…`
-   test channel each run (18 now; they expire after 90 days).
+6. **The test scripts clean up after themselves:** `relay/test-phase1.mjs` leaves one unimported run on the
+   `22222222…` test channel each run (19 now; they expire after 90 days). And since 7.25.0 every run of
+   `relay/test-signed-writes.mjs` / the harness leaves small PERMANENT keys for its throwaway channels — a write key, a
+   block record, a proof, a first-used record (dev 2026-10-31: 8 write keys, 10 blocked channels, mostly tests). Let
+   revoke also delete the channel's write key (the block record is enough), and keep the rest out of the way.
+   **Run the tests locally by default** (`cd relay && npx wrangler dev --env dev --local`; `RELAY_URL=…`) and on dev only
+   as a final check — the 10-31 release day's dev runs used 23.6% of the account's daily writes.
 7. **Once:** compare dev's storage figure in the daily email with the Cloudflare dashboard (open since 2026-10-15).
 8. **The daily summaries also go to a dedicated inbox Claude can read** (Resend Inboxes, through MCP), so Ron stops
    pasting them — and Claude reaches only that mail, not Ron's whole mailbox. Until then Claude reads them from Ron's
@@ -335,7 +345,11 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
    one-step imports** (2026-10-30): Readwise Books (an ebook store + reading app, invite-only beta Oct 2026) imports a
    Kindle library with "Connect your Kindle account"; RW needs a bookmarklet dragged to the bar plus Cloud Sync setup.
    We won't copy their way (it needs a server and accounts — our no-account design is deliberate), but a newcomer will
-   compare: find the steps we can remove or merge.
+   compare: find the steps we can remove or merge. **Also try Impeccable** (2026-10-31; pbakaus/impeccable — design
+   commands plus a 62-check detector for the tell-tale signs of AI-built pages): run its `critique` and `audit` on the
+   site pages (index, features, tutorials) and judge it by what it finds; not its "bolder / delight / overdrive"
+   commands — Ron is the designer. Read any skill fully before installing it (a skill is instructions that run with
+   Claude's permissions).
 5. **The big designs decided in conversation, before they're built** — "Move and copy books anywhere" and the Delete
    key.
 
@@ -1972,6 +1986,10 @@ rules, so any color it misses stays wrong in some theme — and two pages have n
   decide when building — the names must be the same ones the app uses.
 - Pages: index, features, tutorials, security, changelog, reset (readerwrangler.html is the app — the Dark theme
   task).
+- **Then write RW's own `DESIGN.md`** (2026-10-31, from the awesome-design-md idea — RW's own look, never another
+  brand's): the named colors for each of the four themes, typography, components, do's and don'ts — one source for
+  Claude, the outside reviewers and any future contributor. Keep it in step with the named colors (the commit check
+  that verifies every name is defined in all four themes can verify DESIGN.md lists them too).
 
 #### Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button
 <!-- id 20261030-1036 -->
