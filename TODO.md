@@ -2298,6 +2298,20 @@ _Why it matters:_ The core data rules must be proven before strangers rely on th
 - Specified 2026-09-04 while those bugs were fresh. About 2–4 sessions when the time comes.
 - **Blocks launch; blocks nothing else.**
 
+**Decided** (Ron + Claude, 2026-11-01, in the TODO review)
+1. **Outside review 3 (data safety) comes first** — it attacks what we didn't think of; its findings become test cases,
+   rather than writing suites 2–4 now and patching them after ("Outside reviews before building", High priority).
+2. **The relay suite half-exists:** `relay/test-phase1.mjs` (59 checks: torn saves, fallback, cleanup guards…) and
+   `relay/test-signed-writes.mjs` (22: signatures) count toward "relay behavior"; add only what's still uncovered.
+3. **One command, in Python** (Ron's scripts rule) — e.g. `tools/run_tests.py`: the unit suites, then a LOCAL relay
+   (`npx wrangler dev --env dev --local`) and both relay tests against it, then stop the relay by its exact process
+   id (Law 5). Dev only as a final check (it spends the account's shared write limit).
+4. **The fast suites become a commit check:** a commit staging `bookMerge.js`, `bookFields.js` or `organizeEngine.js`
+   (and so on, module → its test file) runs that module's tests and refuses on a failure — seconds, every time; a
+   suite that runs only when remembered is discipline, not a mechanism.
+5. Option, not a requirement: once the browser driver exists (High priority), flows like Restore and Import mapping
+   can also be tested through the real screens, not only the functions underneath.
+
 #### Warn before uploading a much smaller library (demo safety)
 <!-- id 20261014-1030be -->
 
