@@ -2119,18 +2119,33 @@ Someone resetting is often already having a bad day (Ron, 2026-10-30, noticed th
 
 _Why it matters:_ Assumptions baked into the product are nowhere stated — a UK reader, or someone expecting paperbacks, finds out only by failing.
 
-**The facts** (each verified in the code or docs, 2026-10-16)
-1. **Amazon's US store only.** Every fetcher talks to amazon.com (library: `amazon.com/kindle-reader-api`; collections: `amazon.com/hz/mycd/digital-console/ajax`; series: Amazon's series list); the bookmarklet menu checks `amazon.com/yourbooks`; prices are read as US dollars.
+**The facts** (each verified in the code or docs, 2026-10-16; facts 4–5 corrected 2026-11-01)
+1. **Amazon's US store only.** Every fetcher talks to amazon.com only, and prices are read as US dollars (details: see
+   TODO notes).
 2. **Formats** — the library fetch brings in **everything** in your Amazon library, every format (Kindle purchases, samples, Prime, Kindle Unlimited, loans — and print, audio, even a DVD bought on Amazon); series and author adds take Kindle editions only; **the one-book Add Book to Wishlist takes any format** (deliberately — a paperback can hold a place until a Kindle edition exists). Undoing the Kindle-only preference: After launch task "Formats other than Kindle".
 3. **The app is in English.** The books can be in any language.
-4. **Browsers:** tested on **Chrome**. **Edge** should work (it's built on the same engine as Chrome). **Firefox** was confirmed working once, long ago, but isn't regularly tested. Safari is untested. _(Today the docs contradict each other: User Guide "Firefox is also fully supported", README / features page "Tested: Chrome, Edge, Firefox", SUPPORT-KB "We only test Chrome" — make them all say the above.)_
-5. **Fetching needs a computer** (the bookmarklet runs on Amazon's site in a desktop browser); the phone views and organizes. Verify the exact phone limits before writing them.
+4. **Browsers:** tested on **Chrome**. **Edge** should work (it's built on the same engine as Chrome) — and once the
+   browser driver exists (High priority; it runs Edge) it becomes "tested by the automated tests" for real; say so
+   then. **Firefox** was confirmed working once, long ago, but isn't regularly tested. Safari is untested. _(Today the
+   docs contradict each other — and two of them are false: README / features page "Tested: Chrome, Edge, Firefox"
+   (neither Edge nor Firefox is tested), User Guide "Firefox is also fully supported"; SUPPORT-KB "We only test
+   Chrome" is right. Fix them all in ONE pass with this task — Ron, 2026-11-01: not a partial fix ahead of it; with
+   essentially no visitors yet, nobody is relying on the claim.)_
+5. **Fetching and organizing need a computer** (the bookmarklet runs on Amazon's site in a desktop browser). **The
+   phone is read-only**: it shows your library and never writes changes (SUPPORT-KB "What is the mobile app?" —
+   checked 2026-11-01; the old wording "the phone views and organizes" was wrong).
 
-**Where it goes** (Ron, 2026-10-16)
+**Where it goes** (Ron, 2026-10-16; 2 and 5 revised 2026-11-01)
 1. A short **"What ReaderWrangler works with"** section in the User Guide (written in the User Guide task, below).
-2. One line on the landing page and features page ("For Kindle readers using Amazon.com").
+2. **On the landing page, folded into the existing sub-tagline** — e.g. "Import your Kindle library from
+   **Amazon.com** in minutes…" — not a new line: the "Open My Library" landing task already adds "Always free · No
+   ads · No account needed" under the button, and a third line would crowd the hero. The features page says it once.
 3. One question in SUPPORT-KB.
 4. A developer list in docs/reference/ARCHITECTURE.md — every spot a future change (another country, another app language) would touch.
+5. **Say it at the moment it matters (Law 16)** — when the bookmarklet runs on any Amazon site other than amazon.com,
+   it says "ReaderWrangler works with Amazon.com (the US store) only, for now" instead of offering to send the user to
+   amazon.com's library page (today's dead end for a UK account — details: see TODO notes). The docs explain it; the
+   message catches the person who never read them. The same change for all three bookmarklets → dev and prod together.
 
 Ron's word on the wording first.
 
