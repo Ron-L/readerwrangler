@@ -81,7 +81,7 @@
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
-      - [Warn before uploading a much smaller library (demo safety)](#warn-before-uploading-a-much-smaller-library-demo-safety)
+      - [A fetch made with the demo filter on says so, and never marks books as gone](#a-fetch-made-with-the-demo-filter-on-says-so-and-never-marks-books-as-gone)
       - [A button to rebuild the library from Amazon](#a-button-to-rebuild-the-library-from-amazon)
       - [Pin the exact versions of outside code libraries](#pin-the-exact-versions-of-outside-code-libraries)
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
@@ -2312,18 +2312,34 @@ _Why it matters:_ The core data rules must be proven before strangers rely on th
 5. Option, not a requirement: once the browser driver exists (High priority), flows like Restore and Import mapping
    can also be tested through the real screens, not only the functions underneath.
 
-#### Warn before uploading a much smaller library (demo safety)
+#### A fetch made with the demo filter on says so, and never marks books as gone
 <!-- id 20261014-1030be -->
 
-_Why it matters:_ A leftover demo setting could replace a real library with a tiny one.
+_Why it matters:_ A demo filter left on (it's used to record tutorials) makes a fetch send only a few dozen books.
+Since 7.19 a fetch missing books flags them "no longer in your Amazon library" — so a forgotten filter would flag
+~3,200 books as gone from Amazon and ask you to review them. Nothing is lost (Keep exists), but it's alarming and
+wrong.
 
-**What you'd get**
-- A warning and confirmation before uploading a library dramatically smaller than the one on the relay.
-- When the demo book list is active, a banner you can't miss.
-- A guarantee that no demo setting can ship.
+**What it does today** (checked 2026-11-01)
+- The demo filter is a browser setting on Amazon's site (`readerwrangler-demo-whitelist-enabled` + its list), turned
+  on by `tutorials/work-products/demo-library/demo-whitelist-loader.js`; the library and collections fetchers then send
+  only the listed books. Nothing in the shipped code turns it on — the old "no demo setting can ship" guarantee already
+  holds by construction.
+
+**Decided** (Ron + Claude, 2026-11-01, in the TODO review — Law 18: a stopping prompt is a block in a polite coat)
+1. **The fetcher labels a filtered fetch** ("demo fetch" — a partial fetch). The app then never concludes from it that
+   books left Amazon, and the import receipt says so: *"Demo fetch: 40 books (the demo filter is on) — nothing else
+   changed."* A fact, not a guess from the size.
+2. **A banner you can't miss in the fetcher while the filter is on** (the point of effect, Law 16).
+3. **No "much smaller upload — are you sure?" confirmation.** For the demo case the label is better; for any other
+   shrunken fetch (Amazon returning half a library), the 7.19 removed-books review is already the safety net — nothing
+   is deleted, you're asked.
+4. Build it with, or before, the screen capture pass (Before launch) — that's when the demo filter gets used.
 
 **How (technical)**
-- Old review item 6f; the demo setting is the "demo whitelist".
+- Old review item 6f; the demo setting is the "demo whitelist" (amazon-library-fetcher.js ~104 / ~995 / ~1662;
+  amazon-collections-fetcher.js ~56). The "no longer in your Amazon library" inference: readerwrangler.js ~194 / ~5670
+  (docs/design/ORPHAN-CLEANUP.md §2).
 
 #### A button to rebuild the library from Amazon
 <!-- id 20261014-1030 -->
