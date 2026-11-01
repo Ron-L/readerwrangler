@@ -2262,6 +2262,19 @@ _Why it matters:_ Lets users get answers without waiting for you.
   site by itself — confirm when building). So: the guide carries an "up to date through release X" stamp, the
   assistant is told to quote it when asked, and the release checklist gets "re-upload the guide to the assistant".
 
+**Decided** (Ron + Claude, 2026-11-01, in the TODO review)
+1. **Choose the platform when building, from current facts** — the custom-GPT choice dates from July (Ron's ~$20/mo
+   authoring seat; users need a ChatGPT account; free-account limits change). Compare then: a custom GPT, a Claude
+   equivalent (the spec's own "evaluate" line), an assistant on our own site through an API (per-use cost, no outside
+   account). Prices and limits move monthly — no recommendation ahead of time.
+2. **It never asks for, or accepts, the Cloud Sync Key.** Support chats are where people paste secrets. Its
+   instructions say never to request it, and to tell anyone who pastes it to make a new key; the User Guide's
+   troubleshooting says "nobody needs your key to help you".
+3. **A way out when it can't answer:** the support inbox, if launch-risk review 1 brings one ("email support@…"), else
+   a link to report an issue — never a dead end.
+4. (Not a change — the "one file" decision applied:) the help notes (SUPPORT-KB) aren't uploaded separately; their
+   troubleshooting answers flow into the User Guide's FAQ and troubleshooting when the guide is written.
+
 **Spec:** docs/design/SUPPORT-GPT.md.
 
 ### Safety and data protection
