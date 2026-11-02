@@ -2749,6 +2749,9 @@ only if users ask for it after launch; Tag from Collections already brings colle
    "Refresh all books from Amazon"'s request note are the same direction and shape: build one small "requests from the
    app to the bookmarklet" channel on the relay; the refresh request is its first user, collection edits a later one
    (signed writes, `amazonFetch`'s pacing and the human-check stop then apply for free).
+3. **A "Read next" collection kept from ReaderWrangler is a use case, not a reason** (2026-11-02, from the "Read in
+   Kindle" review — it's the one way to put a book a tap away on a Paperwhite). Ron keeps one by hand today;
+   automating it saves a few clicks.
 
 **Spec:** docs/design/COLLECTION-EDITING.md (Amazon's side: see TODO notes).
 
@@ -2811,24 +2814,38 @@ _Why it matters:_ Jump straight from ReaderWrangler to reading the book — for 
 
 **Placed here** (Ron, 2026-10-16): moved from High priority — it does nothing for Paperwhite reading, but it's the natural button for app / Cloud Reader readers.
 
-**What you'd get**
-- A **Read** action on books you **own** (not wishlist or sample entries — those keep "Open in Amazon"):
-  - **Phone:** opens the book in the Android Kindle app.
-  - **Desktop:** opens Kindle Cloud Reader (read.amazon.com) at the book. Optionally also "Open in Kindle app" for Kindle-for-PC users (the browser asks "Open Kindle?").
-- **Not** a built-in reader — you still read on the Paperwhite.
+**What you'd get** (decided Ron + Claude, 2026-11-02, in the TODO review)
+1. **A "Read in Kindle" button, chosen by the device you're on** (the browser tells the app which platform it's on):
+   - **Android:** opens the book in the Kindle app; with no app installed, the book's Amazon page.
+   - **Computers, iPhone and iPad:** opens the book in Kindle Cloud Reader, in the browser (tooltip: "Read in Cloud
+     Reader").
+   - Not "Read" alone — ReaderWrangler already has a Read / Unread status, and a bare "Read" looks like "mark as read".
+2. **Where:** next to **View on Amazon** — in the book details window, the book's right-click menu, and the phone's
+   book card.
+3. **Greyed out, not hidden** (Law 16), with a tooltip: wishlist books and samples — *"You don't own this book yet"*;
+   an owned print-only book — *"No Kindle edition"*. A title Cloud Reader can't show can't be known in advance; it
+   opens and Amazon's page says so.
+4. **Not** a built-in reader.
+
+**Tested** (Ron, 2026-09-19 and 2026-11-02 — details: see TODO notes)
+1. **The Cloud Reader link opens the book** — from a cold start, in a private window (after signing in), and for a book
+   never opened anywhere.
+2. **The Kindle app on a computer can't be pointed at a book** — its link opens the app's library, not the book. Not
+   offered.
+3. **A Paperwhite can't be reached.** Nothing — not reading the book in the phone app, nor Amazon's own "Deliver to
+   device" — opens a book on it or moves a downloaded book to the top of its list. Paperwhite-only readers gain
+   nothing from this task; that's settled, not pending.
 
 **Limits**
-- **Tested and failed (2026-09-19):** opening a book in the Android app does **not** move it to the top of the Paperwhite's list. So it only helps people who read in the app or Cloud Reader; Paperwhite-only readers gain nothing.
-- The **phone** link is **unofficial** — Amazon could break it. Keep a fallback to the book's Amazon page, and test per app version. The **computer** link is Amazon's own: its author-page data carries a "Read Now" link of the form `https://read.amazon.com?asin=…` (seen 2026-10-16).
-- Needs the **Kindle edition's** ASIN; a print-only owned book won't open. Some titles can't be read in Cloud Reader at all, and there's no way to tell in advance.
+- The Android link is unofficial — Amazon could change it; it falls back to the book's Amazon page, and is tested per
+  app version.
+- Needs the book's Kindle edition. iPhone / iPad use Cloud Reader (no app link there is tested).
 - Countries: not this task's problem — ReaderWrangler as a whole is US-store only today (see "Say plainly what ReaderWrangler works with").
 
 **How (technical)**
-- Android (preferred, with fallback): `intent://book?action=open&asin=<ASIN>#Intent;scheme=kindle;package=com.amazon.kindle;S.browser_fallback_url=https%3A%2F%2Fwww.amazon.com%2Fdp%2F<ASIN>;end`
-- Android bare form: `kindle://book?action=open&asin=<ASIN>` — must come from a tap (Chrome blocks it otherwise); behavior has shifted between app versions (may land on the details page instead of opening the book).
-- Desktop: `https://read.amazon.com/?asin=<ASIN>` (opens if signed in; resumes at your last position).
-- Fallback: `https://www.amazon.com/dp/<ASIN>`.
-- Background research: the `reference_read_in_kindle` memory (Ron's 2026-09-19 research).
+- One helper picks the link from the platform (`navigator.userAgentData` / user agent) and the book's ownership and
+  format; the desktop, the right-click menu and the phone call it. The links and what we learned about them: see TODO
+  notes.
 
 #### Formats other than Kindle: undo my Kindle-only preference
 <!-- id 20261018-1422a -->
