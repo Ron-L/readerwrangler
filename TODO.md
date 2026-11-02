@@ -63,6 +63,7 @@
         - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
         - [Import: new books are filed before the integrity check, so the check reports only real repairs](#import-new-books-are-filed-before-the-integrity-check-so-the-check-reports-only-real-repairs)
+        - [Relay Setup's Test connection always checks the production relay](#relay-setups-test-connection-always-checks-the-production-relay)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Fetcher housekeeping](#fetcher-housekeeping)
@@ -1823,6 +1824,18 @@ the same breath as the new books.
 - The import files its new books into the Inbox FIRST, in one place, then the integrity check runs — so the check
   sees only genuine problems. The later duplicate step goes away (one placement path, not two). Its own alpha, kept
   out of the 7.25.0 security release.
+
+##### Relay Setup's Test connection always checks the production relay
+<!-- id 20261102-1503 -->
+
+_Why it matters:_ In contributor mode (Ron's localhost, which uses the dev relay) **Test connection** asks the
+production relay instead — so a revoked channel or an outage on dev can show the wrong answer (found 2026-11-02 in
+the TODO review, not yet tested).
+
+**How (technical)**
+- readerwrangler.js ~1838 (the `'test'` case) fetches a hard-coded production worker address before calling
+  `RWRelay.getDeviceState()`; use the one place that answers which relay this copy talks to (relay-client's
+  `workerUrl()`) — comb for other hard-coded relay addresses in the same pass.
 
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->
