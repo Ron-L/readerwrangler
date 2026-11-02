@@ -97,7 +97,7 @@
     - [Relay and sync](#relay-and-sync)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Smaller organization syncs (send only what changed in your folders, tags and lists)](#smaller-organization-syncs-send-only-what-changed-in-your-folders-tags-and-lists)
-      - [Bookmarklet: warn before fetching if your Channel ID no longer works](#bookmarklet-warn-before-fetching-if-your-channel-id-no-longer-works)
+      - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
       - [Warn when another browser has newer changes](#warn-when-another-browser-has-newer-changes)
     - [Features](#features)
       - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
@@ -2697,18 +2697,32 @@ downloads the whole thing on every refresh.
 
 **Spec:** docs/design/RELAY-DELTA.md (written before 7.0 — its library half is superseded by the mailbox).
 
-#### Bookmarklet: warn before fetching if your Channel ID no longer works
+#### Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error
 <!-- id 20261018-1422 -->
 
-_Why it matters:_ A fetch can take minutes; if the relay won't accept your Channel ID (revoked or deleted), you should hear that before the fetch, not after.
+_Why it matters:_ When a bookmarklet's key has been replaced or revoked, the fetch stops with a raw technical error that
+also prints the full Channel ID on screen — exactly the kind of error people screenshot for support.
 
-**The idea** (left over from "Ask before restoring when relay credentials don't match", shipped 7.14.3; Ron filed it on its own 2026-10-16)
-- Before fetching, the bookmarklet quickly asks the relay whether your channel is still good. If not, it says so plainly and points you to **Relay Setup**, instead of fetching first.
+**What happens today** (checked 2026-11-02)
+- **The timing is already right:** the fetcher's first step ("Checking Library") reads the pending uploads from the
+  relay; on a revoked channel that read is refused, so the fetch stops before any Amazon request. (The library read
+  before it quietly treats a refusal as "no library yet"; the mailbox read is the one that stops it.)
+- **The words aren't:** the user sees e.g. `Relay GET /mail/<the full Channel ID>/list failed: HTTP 403
+  {"error":"Channel revoked"}` — every relay error is built in one place (`relayFetch`, relay-client.js), so this
+  affects the app too.
 
-**Check first:** what the bookmarklet does today when the channel is revoked — at which point it finds out, and what it tells you. Not yet checked.
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
+1. **A plain message for a revoked channel:** *"This bookmarklet's Cloud Sync Key no longer works — it was replaced or
+   revoked. In ReaderWrangler, open Cloud Sync Setup and drag the new bookmarklet."* The same plain path covers 7.25.0's
+   "this channel is claimed by a different key" refusal.
+2. **No error message ever contains the Channel ID** — removed in the one place every relay error is built, so the app
+   and the bookmarklet are fixed at once. The private-values commit check can't see runtime messages, so a test asserts
+   it (a refused request's error text must not contain the id).
+3. **No extra "ping before fetching"** (the old idea: `/status/{channelId}` first) — the existing first read already is
+   the ping. Less code, not more.
 
-**How (technical)**
-- docs/design/RELAY-CRED-MISMATCH.md "Future": ping `/status/{channelId}` before fetching; warn on 403/404.
+(Left over from "Ask before restoring when relay credentials don't match", shipped 7.14.3; Ron filed it on its own
+2026-10-16. docs/design/RELAY-CRED-MISMATCH.md "Future" — superseded by the above.)
 
 #### Warn when another browser has newer changes
 <!-- id 20260922-0000d -->
