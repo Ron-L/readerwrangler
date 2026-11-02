@@ -2447,14 +2447,24 @@ could read the key and send it away.
 _Why it matters:_ Today it shows confusing errors instead of saying what to do.
 
 **What you'd get**
-- When Amazon interrupts a fetch with a "are you human?" check, the fetcher stops and says: *"Amazon is asking for a human check. Open any Amazon page, complete it, then re-run — everything fetched so far is safe."*
-- That last clause is true since 7.0: a stopped run is simply never committed.
+- When Amazon interrupts a fetch with an "are you human?" check, the fetcher stops and says: *"Amazon is asking you to
+  confirm you're human. Open any Amazon page, complete the check, then run the bookmarklet again. Nothing in your
+  library was changed."* (wording revised 2026-11-02 — "nothing was changed" is what a worried person needs most).
+- That last clause is literally true since 7.0: an unfinished run is never committed.
 
 **Status**
 - The start of a fetch is already guarded; this covers a check appearing **partway through**. Never seen yet — cheap insurance before launch. (From an outside review, item 7.)
 
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
+1. **Detect it in the ONE Amazon wrapper**, `amazonFetch` ("Fetcher odds and ends (progress figure, frozen timer,
+   request pacing)", item 5 — every Amazon request goes through it, the fetcher scripts' own `fetch` disabled) — not in
+   each fetcher's retry path. Every fetcher gets it, including later ones. Build with or after that wrapper.
+2. **The long runs are the likeliest to trip it** — a new user's first big fetch, and "Refresh all books from Amazon".
+   Once "Let a new user's first big fetch resume after an interruption" exists, the message becomes "…then run it
+   again — it continues where it stopped".
+
 **How (technical)**
-- In the fetchers' retry path, recognize check-shaped answers: HTML where JSON was expected, a validate-captcha redirect, a robot-check 503.
+- In `amazonFetch`, recognize check-shaped answers: HTML where JSON was expected, a validate-captcha redirect, a robot-check 503.
 
 #### Protect against editing in two tabs at once
 <!-- id 20260830-0000 -->
