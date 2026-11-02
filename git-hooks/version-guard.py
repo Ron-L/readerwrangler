@@ -64,7 +64,7 @@ def html_buster_bumped(basename):
     return any(pat.search(ln) for ln in added_lines(HTML))
 
 
-NOT_SHIPPED_DIRS = ("git-hooks/", "test/", "docs/", "v4/", "tutorials/", ".claude/", "pytools/", "post-mortems/")
+NOT_SHIPPED_DIRS = ("git-hooks/", "test/", "docs/", "v4/", "tools/", ".claude/", "pytools/", "post-mortems/")  # tools/ (dev tools, incl. the demo library prep) replaced tutorials/ 2026-11-02
 
 
 def shipped_code_staged(files):

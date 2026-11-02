@@ -248,26 +248,23 @@ For sizzle reel only (tutorials use voiceover, not music). Tutorial videos may o
 
 ### File Organization
 
+_Changed 2026-11-02: the old `tutorials/` folder is gone — its tracked tools moved to `tools/demo-library/`, and its
+untracked work files (clips, narration, stills, Resolve projects, the saved Amazon page) were deleted as out of date.
+**Video work now lives outside the repo** (e.g. `Documents\ReaderWrangler-video\`), so a stray `git add` can't commit it._
+
 ```
 tutorials.html                          Tutorial hub page (project root)
-tutorials/
-├── tutorial-1.mp4                      Finished tutorial videos (future)
-├── tutorial-2.mp4
-├── ...
-└── work-products/
-    ├── demo-library/                   Tools + files for Amazon page prep
-    │   ├── README.md                   Step-by-step demo prep instructions
-    │   ├── demo-whitelist.json         119 ASINs for demo library
-    │   ├── demo-whitelist-loader.js    Loads whitelist into Amazon localStorage
-    │   ├── demo-whitelist-cleanup-html.js   Strips non-whitelist books from saved page
-    │   ├── demo-whitelist-yourbooks-filter.js  Injects cleaned HTML into live Amazon
-    │   ├── yourbooks-raw.html          Full saved Amazon "Your Books" page
-    │   ├── yourbooks-raw_files/        Companion folder (images, CSS)
-    │   └── amazon-yourbooks-demo.html  Cleaned 80-item demo page
-    └── tutorial-N/                     Per-tutorial production files
-        ├── narration/                  scene-1.wav, scene-2.wav, ...
-        ├── stills/                     scene-1-a.png, scene-1-b.png, ...
-        └── scene-1.mp4                 Composite per-scene (narration + stills)
+tools/demo-library/                     Tools for Amazon page prep (tracked)
+├── README.md                           Step-by-step demo prep instructions
+├── demo-whitelist.json                 119 ASINs for demo library
+├── demo-whitelist-loader.js            Loads whitelist into Amazon localStorage
+├── demo-whitelist-cleanup-html.js      Strips non-whitelist books from saved page
+├── demo-whitelist-yourbooks-filter.js  Injects cleaned HTML into live Amazon
+├── yourbooks-raw.html                  Full saved Amazon "Your Books" page — made fresh when recording,
+├── yourbooks-raw_files/                  holds account details: git-ignored, delete after use
+└── amazon-yourbooks-demo.html          Cleaned 80-item demo page (git-ignored)
+Documents\ReaderWrangler-video\         OUTSIDE the repo: per-tutorial production files
+└── tutorial-N/                         narration/, stills/, scene-N.mp4, finished videos
 ```
 
 ---
@@ -318,7 +315,7 @@ tutorials/
 ### Demo Whitelist (for live fetch recordings)
 
 Videos that show live fetching use the whitelist filter so only demo books are fetched:
-1. Load whitelist: run `tutorials/work-products/demo-library/demo-whitelist-loader.js` in DevTools on amazon.com
+1. Load whitelist: run `tools/demo-library/demo-whitelist-loader.js` in DevTools on amazon.com
 2. Fetcher will only process the 119 demo ASINs
 3. Console shows: `🔒 Demo whitelist active: 119 ASINs`
 
@@ -1592,7 +1589,7 @@ Run through this before every recording session:
 8. For sizzle reel: right-click audio track → Beat → Auto → snap cuts to markers
 9. Preview the full video (Spacebar)
 10. Export: Export → Resolution 1920x1080, Frame Rate 60, Format MP4, Quality "Recommended"
-11. Save the .mp4 to `tutorials/` (e.g., `tutorial-1.mp4`)
+11. Save the .mp4 to the video folder outside the repo (e.g. `Documents\ReaderWrangler-video\tutorial-1\`)
 
 ---
 

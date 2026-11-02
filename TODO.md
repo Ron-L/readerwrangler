@@ -2276,7 +2276,10 @@ automation drives the demo library through the shot list while a screen recorder
 not re-shooting, and the tedious part is done once.
 
 **Spec:** docs/design/DEMO-LIBRARY-PLAN.md (Video 0 shot list, the demo library, the fetcher's demo filter);
-docs/design/VIDEO-PRODUCTION-GUIDE.md (tools).
+docs/design/VIDEO-PRODUCTION-GUIDE.md (tools); the demo prep scripts: `tools/demo-library/`.
+**Video work stays outside the repo** (e.g. `Documents\ReaderWrangler-video\`; decided 2026-11-02 when the old
+`tutorials/` work files — 200+ MB of clips, narration, Resolve projects and a saved Amazon page with account details —
+were deleted as out of date): one stray `git add` must never be able to commit them.
 
 #### Build the support assistant (custom GPT)
 <!-- id 20261014-1030i -->
@@ -2352,7 +2355,7 @@ wrong.
 
 **What it does today** (checked 2026-11-01)
 - The demo filter is a browser setting on Amazon's site (`readerwrangler-demo-whitelist-enabled` + its list), turned
-  on by `tutorials/work-products/demo-library/demo-whitelist-loader.js`; the library and collections fetchers then send
+  on by `tools/demo-library/demo-whitelist-loader.js` (moved from `tutorials/work-products/demo-library/` 2026-11-02); the library and collections fetchers then send
   only the listed books. Nothing in the shipped code turns it on — the old "no demo setting can ship" guarantee already
   holds by construction.
 

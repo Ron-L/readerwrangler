@@ -38,6 +38,10 @@ This tells the ReaderWrangler fetcher extension to only fetch these books.
 4. Chrome → File → Save As → "Webpage, Complete"
 5. Save as `yourbooks-raw.html` (this creates the HTML file and a companion `_files` folder)
 
+> **The saved page holds your account details** (your name, customer id, page tokens). It's never kept in git
+> (`.gitignore` lists `yourbooks-raw.html`, its `_files` folder and `amazon-yourbooks-demo.html` in this folder).
+> Make it fresh when recording, and delete it after. (2026-11-02: moved here from `tutorials/work-products/demo-library/`.)
+
 This saved page is the input for the cleanup script. Saving takes a minute or two due to the large page size.
 
 **Step 3 — Clean the saved page**

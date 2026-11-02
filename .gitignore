@@ -46,17 +46,11 @@ output/
 temp/
 *.tmp
 
-# Tutorial work products (large binary files — scripts and README are tracked)
-tutorials/work-products/demo-library/yourbooks-raw.html
-tutorials/work-products/demo-library/yourbooks-raw_files/
-tutorials/work-products/demo-library/amazon-yourbooks-demo.html
-tutorials/work-products/tutorial-*/narration/
-tutorials/work-products/tutorial-*/stills/
-tutorials/work-products/tutorial-*/clips/
-tutorials/work-products/tutorial-*/*.mp4
-tutorials/work-products/tutorial-*/*.dra/
-tutorials/work-products/tutorial-*/*.drp
-tutorials/*.mp4
+# Demo library prep (tools/demo-library — its scripts and README are tracked). The saved Amazon "Your Books" pages
+# hold the account's details: never commit them (2026-11-02; video work itself stays outside the repo).
+tools/demo-library/yourbooks-raw.html
+tools/demo-library/yourbooks-raw_files/
+tools/demo-library/amazon-yourbooks-demo.html
 
 # Claude state files
 MEMORY.md
