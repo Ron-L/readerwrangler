@@ -2480,8 +2480,26 @@ _Why it matters:_ Two open tabs can overwrite each other's work — a real data-
 **Status**
 - **Medium priority — "Tier 0": the real data-loss risk.** Fully designed and ratified 2026-08-30; not built. (Its old "after 7.7.0" note is stale.)
 
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review — the 08-30 design re-read through Law 18)
+1. **"Edit here instead", any time — move the pen, don't refuse.** The design offers "Take over editing?" only once
+   the first tab is gone; with the first tab still open (maybe forgotten in another window) you couldn't edit where
+   you are — a block. Instead the read-only tab can always ask: the writer tab saves its pending changes and steps down
+   to read-only (banner: "Editing moved to another tab"), then the new tab reloads from storage and takes the pen. One
+   click, nothing lost; the design's own rule — reload first, never write from stale state — still holds.
+2. **A read-only tab never pushes to the cloud** — since the design was written, the app pushes your organization when
+   you leave a tab; a stale tab that pushed would overwrite the cloud copy just as surely. State it, and test it.
+3. **Tested with the browser driver, two real tabs:** edit in A; open B (read-only); "Edit here instead"; A stepped
+   down, B has A's last change, nothing lost, and B's push is the only one.
+4. **Its priority** ("Tier 0, the real data-loss risk") is weighed by outside review 3 (data safety) — it may move
+   ahead of other Before-launch work.
+- No dragging between tabs stays (it needs a second writer), but the refusal says what to do: *"This tab is
+  read-only — Edit here instead to drop here."*
+
 **How (technical)**
 - Web Locks for the read-only second tab, reload-then-promote, live / freeze viewer. Design: docs/design/MULTI-INSTANCE.md §4.
+- "Edit here instead": the viewer asks the writer over BroadcastChannel; the writer flushes, releases the Web Lock and
+  goes read-only; the viewer reloads, then acquires the lock. If the writer doesn't answer (hung), say so — never
+  take the lock from under a live writer.
 
 #### Let a new user's first big fetch resume after an interruption
 <!-- id 20260821-0000 -->
