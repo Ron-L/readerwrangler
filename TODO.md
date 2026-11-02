@@ -96,7 +96,7 @@
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
     - [Relay and sync](#relay-and-sync)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
-      - [Cheaper small syncs (send only what changed)](#cheaper-small-syncs-send-only-what-changed)
+      - [Smaller organization syncs (send only what changed in your folders, tags and lists)](#smaller-organization-syncs-send-only-what-changed-in-your-folders-tags-and-lists)
       - [Bookmarklet: warn before fetching if your Channel ID no longer works](#bookmarklet-warn-before-fetching-if-your-channel-id-no-longer-works)
       - [Warn when another browser has newer changes](#warn-when-another-browser-has-newer-changes)
     - [Features](#features)
@@ -2676,12 +2676,26 @@ only if users ask for it after launch; Tag from Collections already brings colle
 
 **Spec:** docs/design/COLLECTION-EDITING.md (Amazon's side: see TODO notes).
 
-#### Cheaper small syncs (send only what changed)
+#### Smaller organization syncs (send only what changed in your folders, tags and lists)
 <!-- id 20261014-1030k -->
 
-_Why it matters:_ Optional: smaller uploads for small changes.
+_Why it matters:_ Optional. Every push of your organization (device-state) sends the whole thing — roughly 17 MB per
+copy by the 2026-10-15 measurements — when you leave the tab after a change, or after a minute idle; the phone
+downloads the whole thing on every refresh.
 
-**Spec:** docs/design/RELAY-DELTA.md.
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
+1. **The library half is already done** — since 7.0 the bookmarklet sends each fetch and each wishlist add as its own
+   small upload (a mailbox letter) and the app folds them in at import: the spec's delta model, for library changes.
+   What's still sent in full is the organization.
+2. **Remeasure first** (Ron: "Remeasure first."): how big a device-state push really is for Ron's library today, how
+   often one happens in a normal session, and how long the phone's download takes — from the trend file and a browser
+   driver session.
+3. **Decide from the numbers:** build it only if pushes or the phone's download are noticeably slow; otherwise close
+   it. The cost isn't money (a 17 MB push is one or two writes — writes are the binding free limit, and cheap on the $5
+   plan); it's upload time and the phone's download, against real complexity (merge logic in the app AND the phone, plus
+   occasional compaction).
+
+**Spec:** docs/design/RELAY-DELTA.md (written before 7.0 — its library half is superseded by the mailbox).
 
 #### Bookmarklet: warn before fetching if your Channel ID no longer works
 <!-- id 20261018-1422 -->

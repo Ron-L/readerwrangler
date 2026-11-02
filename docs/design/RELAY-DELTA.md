@@ -1,5 +1,9 @@
 # Relay delta-append for cheap incremental sync (OPTIONAL)
 
+> **2026-11-02: the library half is superseded** — since 7.0 (docs/design/RELAY-WRITE-REDESIGN.md) each fetch and each
+> wishlist add travels as its own small mailbox letter, folded in at import; don't build it twice. What remains is the
+> organization (device-state), still pushed and downloaded whole — TODO "Smaller organization syncs…", measure first.
+
 _Moved verbatim from TODO.md during the 6.12.0 TODO restructure (2026-08-03). Backlog, OPTIONAL. **MEDIUM / HIGH.** Builds on RELAY-WRITE-REDESIGN.md._
 
 ---
