@@ -2569,6 +2569,19 @@ _Why it matters:_ The free plan supports only a handful of users.
 - After 7.5.0's savings, the flat $5 plan covers about 250 users like you; the free plan about 6–10 — and it's shared between production and dev.
 - So this is now just the act of upgrading at the right moment, at or shortly before launch.
 
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review — the nightly trend file now gives real numbers)
+1. **Upgrade at launch, or earlier when the numbers say so — whichever comes first:** the relay's threshold alerts
+   (25/50/75/90%) already email; "the writes alert at 50% fires on two days in a week" is the trigger. Writes, not
+   storage, are the binding limit (1,000 a day for the whole account).
+2. **Re-check the "≈250 users on $5, 6–10 on free" estimate against the trend file** (`relay-trend.csv`, kept with
+   the TODO notes, nightly since 2026-10-20) before upgrading — the August model predates the nightly cleanup's deletes,
+   signed writes (one registration write per channel, a few extra reads) and "Refresh all books" (a heavy day).
+3. **Dev shares the free limits** — release day 2026-10-31, the tests on dev used 23.6% of the account's daily writes in
+   an afternoon; a test day plus a busy user day could hit the cap and stop production syncing for everyone. Until the
+   upgrade, "run the relay tests locally by default" ("Relay worker: one release…", item 6) is what protects
+   production.
+4. **Check Cloudflare's current prices and limits when upgrading** — not the August numbers.
+
 ---
 
 ## 🗄️ After launch
