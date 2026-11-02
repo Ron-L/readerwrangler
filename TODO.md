@@ -9,6 +9,7 @@
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
+      - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
       - [Search improvements](#search-improvements)
         - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
@@ -91,8 +92,6 @@
     - [Costs](#costs)
       - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
   - [🗄️ After launch](#after-launch)
-    - [Dialog look](#dialog-look)
-      - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
     - [Relay and sync](#relay-and-sync)
@@ -420,10 +419,34 @@ Tokens aren't the problem (well under what crowds out work); **weight and duplic
 yes** — never silently dropped. Publish the before / after list of moved and retired lines before committing; re-measure
 after.
 
+#### Rebuild the old-style message boxes as standard dialogs
+<!-- id 20261014-1030ak -->
+
+_Why it matters:_ "Drag any dialog out of the way" (next) must work for these boxes too — done after it, dragging gets
+built and maintained twice (Law 5); done first, once, for everything. And every dialog gets one look.
+
+**What's there** (counted 2026-11-02)
+- The message boxes — OK/Cancel, type-a-name, progress, choice, "Owned Book" — are hand-built page elements, used in
+  about 47 places (info 19, confirm 16, type-a-name 8, progress 5, choice 3, delete-warning 2).
+- Since 7.18.0 they behave like every other dialog (Esc, ✕, key blocking), but keep their own hand-built look.
+
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review — moved up from After launch / Dialog look)
+1. **Option A:** one shared piece shows each request as a standard dialog; the ~47 call sites stay unchanged; removes
+   about 300 lines of hand-built code. Costs a visual check of all 47 — the browser driver can open each and screenshot it.
+2. **Before "Drag any dialog out of the way"**, and before the new boxes being designed (the Cloud Sync task's "Make a
+   new Cloud Sync Key?", the Disconnect window, the Reset App message) — so they're standard dialogs from day one.
+3. When it ships, update CLAUDE.md's dialog rule (it calls this "a low-priority TODO").
+
+**How (technical)**
+- `showInfoDialog`, `showConfirmDialog`, `showInputDialog`, `showProgressDialog`, `showChoiceDialog`, `showDeleteWarningDialog`, rendered as `<Dialog>`s by a React "dialog service"; callers keep `await showConfirmDialog(…)`.
+
 #### Drag any dialog out of the way
 <!-- id 20260928-0000 -->
 
 _Why it matters:_ Dialogs sometimes cover what you need to see; dragging them aside is a habit from Quicken.
+
+**Order:** after "Rebuild the old-style message boxes as standard dialogs" (above) — so dragging is built once, for
+every dialog (2026-11-02).
 
 **What you'd get**
 - Drag any dialog by grabbing it anywhere except its controls (buttons, fields, links, lists). The pointer turns into a move cursor to show it.
@@ -2587,29 +2610,6 @@ _Why it matters:_ The free plan supports only a handful of users.
 ## 🗄️ After launch
 
 _Formerly: 🗄️ Backlog (post-launch)_
-
-### Dialog look
-
-_Formerly: Dialog look (LOW priority — Ron 2026-10-08)_
-
-#### Rebuild the old-style message boxes as standard dialogs
-<!-- id 20261014-1030ak -->
-
-_Why it matters:_ Low priority — only worth doing if we want every dialog to share one look.
-
-**What's there**
-- The message boxes — OK/Cancel, type-a-name, progress, choice, "Owned Book" — are hand-built page elements, used in about 45 places.
-- Since 7.18.0 they behave like every other dialog (Esc, ✕, key blocking), but keep their own hand-built look.
-
-**Option A** (deferred)
-- One shared piece that shows each request as a standard dialog; the 45 call sites stay unchanged.
-- Removes about 300 lines of hand-built code and gives every dialog one look. Costs a visual check of all 45.
-
-**Related**
-- "Drag any dialog out of the way" (Up next) must also work for these boxes — doing this first would make that simpler.
-
-**How (technical)**
-- `showInfoDialog`, `showConfirmDialog`, `showInputDialog`, `showProgressDialog`, `showChoiceDialog`, `showDeleteWarningDialog`, rendered as `<Dialog>`s by a React "dialog service"; callers keep `await showConfirmDialog(…)`.
 
 ### Speed
 
