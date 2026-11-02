@@ -598,7 +598,8 @@ for a change to reach the Relay before Import can read it.
 7. **One working tab — but a second browser is fine.** The risk is a second ReaderWrangler
    **desktop tab in the same browser**: browser storage is last-writer-wins, so one edit in a
    stale second tab can overwrite everything you did in the first. Organize in one tab
-   (automatic read-only-second-tab protection is designed but not yet built — MULTI-INSTANCE.md).
+   (automatic protection — every tab and browser catching up with your latest changes, never
+   overwriting them — is designed but not yet built: MULTI-INSTANCE.md §4).
    **The mobile view is always safe** — it only displays your library and never writes changes
    back, so it can't overwrite your organization. **A different browser (or browser profile)
    is a separate universe** — its library lives in its own storage. Give it its **own

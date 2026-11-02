@@ -63,7 +63,6 @@
         - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
         - [Import: new books are filed before the integrity check, so the check reports only real repairs](#import-new-books-are-filed-before-the-integrity-check-so-the-check-reports-only-real-repairs)
-        - [Relay Setup's Test connection always checks the production relay](#relay-setups-test-connection-always-checks-the-production-relay)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Fetcher housekeeping](#fetcher-housekeeping)
@@ -88,7 +87,7 @@
       - [Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select](#refresh-all-books-from-amazon--a-choice-in-the-fetcher-which-the-app-can-pre-select)
       - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
-      - [Protect against editing in two tabs at once](#protect-against-editing-in-two-tabs-at-once)
+      - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
       - [A long fetch resumes after an interruption (a first fetch, or a full refresh)](#a-long-fetch-resumes-after-an-interruption-a-first-fetch-or-a-full-refresh)
       - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
     - [Costs](#costs)
@@ -100,7 +99,6 @@
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Smaller organization syncs (send only what changed in your folders, tags and lists)](#smaller-organization-syncs-send-only-what-changed-in-your-folders-tags-and-lists)
       - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
-      - [Warn when another browser has newer changes](#warn-when-another-browser-has-newer-changes)
     - [Features](#features)
       - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
       - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
@@ -356,8 +354,8 @@ the rest of the TODO.
 - The shared-numbers commit check must still pass (items 2 and 5 touch the cleanup's rules only if they change keep-2
   or the grace — they shouldn't).
 - Relay tasks that are **app-side, not worker** stay where they are: "Relay Setup's connection test checks the wrong
-  relay on dev" (Polish), "Relay Setup: disconnect, or reset credentials" (Safety), "Bookmarklet: warn before fetching
-  if your Channel ID no longer works" and "Warn when another browser has newer changes" (After launch), the Cloudflare
+  relay on dev" (Polish), "Relay Setup: disconnect, or reset credentials" (Safety), "Bookmarklet: when your key no
+  longer works, say so plainly…" (After launch), "Keep your tabs and browsers in step…" (Before launch), the Cloudflare
   $5 plan (Costs, around launch). The Cloud Sync task keeps its app-side work and the "make a new key" order.
 
 #### Outside reviews before building: launch risks, security, data safety, a newcomer's first look
@@ -1825,18 +1823,6 @@ the same breath as the new books.
   sees only genuine problems. The later duplicate step goes away (one placement path, not two). Its own alpha, kept
   out of the 7.25.0 security release.
 
-##### Relay Setup's Test connection always checks the production relay
-<!-- id 20261102-1503 -->
-
-_Why it matters:_ In contributor mode (Ron's localhost, which uses the dev relay) **Test connection** asks the
-production relay instead — so a revoked channel or an outage on dev can show the wrong answer (found 2026-11-02 in
-the TODO review, not yet tested).
-
-**How (technical)**
-- readerwrangler.js ~1838 (the `'test'` case) fetches a hard-coded production worker address before calling
-  `RWRelay.getDeviceState()`; use the one place that answers which relay this copy talks to (relay-client's
-  `workerUrl()`) — comb for other hard-coded relay addresses in the same pass.
-
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->
 
@@ -2550,40 +2536,78 @@ _Why it matters:_ Today it shows confusing errors instead of saying what to do.
 **How (technical)**
 - In `amazonFetch`, recognize check-shaped answers: HTML where JSON was expected, a validate-captcha redirect, a robot-check 503.
 
-#### Protect against editing in two tabs at once
-<!-- id 20260830-0000 -->
+#### Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes
+<!-- id 20260830-0000; merged 20260922-0000d -->
 
-_Why it matters:_ Two open tabs can overwrite each other's work — a real data-loss risk.
-
-**What happens**
-- Two ReaderWrangler tabs share one browser storage, so an out-of-date tab's edit overwrites the other tab's work.
+_Why it matters:_ A copy of ReaderWrangler working from an old state overwrites newer work — today, in two ways. Two
+**tabs** share one browser's storage, and one innocent edit in an out-of-date tab writes its whole old organization
+over everything done since it loaded (a real data-loss risk). Two **browsers or computers** on one Cloud Sync each
+keep their own folders, which drift apart while nobody is told — and whichever sends last overwrites the cloud copy
+the phone shows. At launch the second case is ordinary, not a clever-user trick: plenty of people have a laptop and
+a desktop.
 
 **What you'd get**
-- A second tab opens **read-only**, with an offer to reload and take over editing; it can show live or frozen.
+- Every tab and every browser stays editable and keeps up with your latest changes on its own. Come back to one that
+  is behind and it catches up: *"Caught up with changes from your other tab / browser"*, with **Undo**.
+- Nothing ever overwrites a newer change. In the rare case both copies changed since they last matched, a banner (not
+  a window — you keep working) offers **Use the other one's** / **Keep this one's**.
 
 **Status**
-- **Medium priority — "Tier 0": the real data-loss risk.** Fully designed and ratified 2026-08-30; not built. (Its old "after 7.7.0" note is stale.)
+- **Before launch — the tab half is "Tier 0", the real data-loss risk;** the cross-browser half comes second within
+  this task. Its priority is weighed by outside review 3 (data safety) — it may move ahead of other Before-launch work.
 
-**Decided** (Ron + Claude, 2026-11-02, in the TODO review — the 08-30 design re-read through Law 18)
-1. **"Edit here instead", any time — move the pen, don't refuse.** The design offers "Take over editing?" only once
-   the first tab is gone; with the first tab still open (maybe forgotten in another window) you couldn't edit where
-   you are — a block. Instead the read-only tab can always ask: the writer tab saves its pending changes and steps down
-   to read-only (banner: "Editing moved to another tab"), then the new tab reloads from storage and takes the pen. One
-   click, nothing lost; the design's own rule — reload first, never write from stale state — still holds.
-2. **A read-only tab never pushes to the cloud** — since the design was written, the app pushes your organization when
-   you leave a tab; a stale tab that pushed would overwrite the cloud copy just as surely. State it, and test it.
-3. **Tested with the browser driver, two real tabs:** edit in A; open B (read-only); "Edit here instead"; A stepped
-   down, B has A's last change, nothing lost, and B's push is the only one.
-4. **Its priority** ("Tier 0, the real data-loss risk") is weighed by outside review 3 (data safety) — it may move
-   ahead of other Before-launch work.
-- No dragging between tabs stays (it needs a second writer), but the refusal says what to do: *"This tab is
-  read-only — Edit here instead to drop here."*
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review — merged from "Protect against editing in two tabs at once"
+and "Warn when another browser has newer changes"; both earlier designs re-read through Law 18)
+1. **One problem, one mechanism.** The four states are the same everywhere — in sync, behind, ahead, both changed:
+   1. Each saved copy of the organization carries a version stamp (the saved organization already carries
+      `savedAt`).
+   2. **Compare before you overwrite**, at both places it's written: this browser's storage and the cloud copy. A
+      write says "I'm replacing the version I last saw"; if it has changed since, the write is refused.
+   3. A refused write, or a newer copy noticed, gets the same responses everywhere: **behind with no changes of its
+      own → catch up silently + toast + Undo; ahead or in sync → nothing; both changed → the banner**, and this copy
+      sends nothing to the cloud until you choose.
+2. **Only two things differ by place:**
+   - **Tabs** hear at once, for free — the browser tells every other tab when stored data changes, and the app saves
+     the organization on every change — and catch up by reloading from storage.
+   - **Browsers** hear when you come back to one (one small read of the cloud copy's version — the phone's freshness
+     check already makes it) or when the cloud refuses a send, and catch up by taking the cloud copy, which writes
+     their storage — which brings their other tabs along. The layers stack.
+3. **This retires both earlier designs' gatekeepers** — the read-only second tab (with "Edit here instead") and the
+   cross-browser "soft lease" with its 15–30-second check. Neither blocks you any more, and the lease's record would
+   have cost a cloud write every 15–30 seconds per active user (about 120 an hour, against ~1,000 a day on
+   Cloudflare's free plan). Compare-before-overwrite costs no extra writes.
+4. **Kept from the tab design: ❄ Freeze.** A tab can be frozen as a reference snapshot ("Frozen at 6:04 PM") — it
+   stops catching up, and a frozen tab doesn't edit or send. Resume = catch up.
+5. **Duplicate sends:** a tab sends to the cloud only when the stored version differs from the last one sent (recorded
+   in the shared storage), so two in-step tabs don't both send as you leave them.
+6. **Taking the cloud copy is the real work** — the desktop has never applied one; today it reads the cloud
+   organization only in the connection test (readerwrangler.js ~1845).
+7. **Tested with the browser driver:** two real tabs (edit in A; B catches up with the toast; Undo; nothing lost; one
+   send), then two throwaway browsers on one test channel (edit in A, return to B → caught up; edit both → banner,
+   and no overwrite either way).
+8. **Not a goal: live two-way sync** (two machines editing at once, merged) — rejected 2026-09-22: it needs push
+   infrastructure and a merge engine for folders, the case where a merge bug silently corrupts everything. One person
+   moves between machines; catching up at the switch is the need.
+
+**Still to decide when building**
+1. **Undo after catching up:** the tab's older undo steps refer to the state before the other copy's changes — undoing
+   one then must not bring old state back. Lean: catching up starts a fresh undo history in that tab, with the
+   catch-up itself as its one step. Check against docs/design/UNDO-MODEL.md first.
+2. **Mid-gesture:** a tab in the middle of a drag, or with the book details window open, catches up when that ends.
+3. **Books live in a second store** (written whole, apart from the organization): the compare must cover it too, or
+   one stamp covers both.
+4. **Dragging between tabs** stops being dangerous (both tabs are current) — allow it or not? The split-view task is
+   still the real answer for side-by-side folders.
 
 **How (technical)**
-- Web Locks for the read-only second tab, reload-then-promote, live / freeze viewer. Design: docs/design/MULTI-INSTANCE.md §4.
-- "Edit here instead": the viewer asks the writer over BroadcastChannel; the writer flushes, releases the Web Lock and
-  goes read-only; the viewer reloads, then acquires the lock. If the writer doesn't answer (hung), say so — never
-  take the lock from under a live writer.
+- Tabs: the `storage` event (or BroadcastChannel) for the notice; a compare against the stored `savedAt` before each
+  organization write. Cloud: an optional "expect" generation on the device-state pointer flip
+  (relay/relay-worker.js `handlePutPointer`, ~812) — the worker refuses with 409 if the pointer has moved; the
+  return check reads `getDeviceStatePointerGen`. Cloudflare's storage takes up to about a minute to agree everywhere,
+  so this is a guard for one person moving between machines, not a lock. The worker part rides a relay release (Ron's
+  yes before each deploy).
+- Model the four states as one state machine, not flags.
+- Design: docs/design/MULTI-INSTANCE.md §4 (rewritten 2026-11-02; the old §6 folded into it).
 
 #### A long fetch resumes after an interruption (a first fetch, or a full refresh)
 <!-- id 20260821-0000 -->
@@ -2775,26 +2799,6 @@ also prints the full Channel ID on screen — exactly the kind of error people s
 
 (Left over from "Ask before restoring when relay credentials don't match", shipped 7.14.3; Ron filed it on its own
 2026-10-16. docs/design/RELAY-CRED-MISMATCH.md "Future" — superseded by the above.)
-
-#### Warn when another browser has newer changes
-<!-- id 20260922-0000d -->
-
-_Why it matters:_ Two browsers on one account can drift apart without anyone noticing.
-
-**What happens**
-- Copy a backup into a second browser and both now use one relay. Each edits its own copy and nothing tells you.
-
-**What you'd get**
-- When a browser becomes active again, it compares itself with the relay. If it's behind, it offers: **Catch up & edit here** / **Just view** / **Leave as-is**.
-
-**Decided**
-- **Low priority — "Tier 1".** Builds on the two-tab task above (one idea of "who's the editor": in-browser between tabs, across browsers via the relay).
-- **Live two-way sync is rejected** — it would need push infrastructure and a merge engine for organization.
-
-**How (technical)**
-- Compare the relay's serialized-state stamp; adopt the relay's organization; an optional soft relay lease.
-- The real work: give the desktop a way to **adopt** device-state (today `getDeviceState` on desktop is only a connection test), plus a per-channel lease record.
-- Design: docs/design/MULTI-INSTANCE.md §6 (2026-09-22).
 
 ### Features
 
