@@ -332,7 +332,9 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
 1. **Launch risks we haven't thought of** — first, because it could reorder the backlog. Seeds: Amazon's terms for a
    tool that reads your Amazon pages (**start from the existing terms-and-strategy note — see TODO notes**; it predates
    the relay, so the review weighs it against today's architecture; and other companies that connect to people's
-   Kindle libraries are precedent worth studying — see TODO notes); the Amazon Associates rules for the affiliate tag (a visible disclosure is
+   Kindle libraries are precedent worth studying — see TODO notes; and **writing back** — "Edit Kindle collections from
+   ReaderWrangler" would be the first feature to change a user's Amazon account, a bigger step than reading: weigh it
+   explicitly); the Amazon Associates rules for the affiliate tag (a visible disclosure is
    required; self-purchases are a known pitfall); a privacy policy (including GoatCounter); Cloudflare's free-tier
    limits as users grow; support load with one person — including **a support inbox** (Resend Inboxes, announced
    2026-10: an address on our own domain, threads, agents connect through MCP; free up to 3 inboxes) that Claude
@@ -2402,7 +2404,9 @@ the cloud copy.)
    copy. The request is a **small note on the relay**: written by the app (encrypted with the key, a signed write),
    read by the fetcher at its start (one small extra read), deleted by the fetcher after a successful refresh (signed).
    Not inside the library copy (re-uploading it to flip a flag), not in device-state (~17 MB to read one flag), not a
-   mailbox upload (those flow bookmarklet → app).
+   mailbox upload (those flow bookmarklet → app). **Build it as the general "requests from the app to the bookmarklet"
+   channel** (2026-11-02) — this refresh request is its first user; "Edit Kindle collections from ReaderWrangler" (if it
+   ever happens) would be another. One mechanism, not two.
 7. **Ships in two independent parts** (Ron): the relay's small note route goes early — in "Relay worker: one release of
    changes" (idle until used; the signed-writes gate covers it). Then the app + fetcher together (they go out in the
    same push anyway); each fails safe — a fetcher that can't read the note just fetches normally, an app that can't
@@ -2653,7 +2657,21 @@ _Formerly: Relay / data robustness_
 
 _Why it matters:_ Change your Kindle collections without going to Amazon.
 
-**Spec:** docs/design/COLLECTION-EDITING.md.
+**Status: a big MAYBE** (Ron, 2026-11-02): it would be the first — maybe the only — feature that writes BACK to
+Amazon.com. "Just from that perspective, maybe a no. Is it worth that to add 1 feature? TBD." And ReaderWrangler's undo
+can't reach Amazon: a bug or an Amazon change could rearrange a user's real Kindle collections, beyond our reach to
+put back. Decide only after outside review 1 (launch risks — Amazon's terms) has weighed writing vs. reading, and
+only if users ask for it after launch; Tag from Collections already brings collections into RW, one way.
+
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
+1. **Amazon's side lives in the TODO notes** — the spec's captured API (§4, incl. a real collection id of Ron's) and the
+   Amazon names in §5–§9 were moved there 2026-11-02; the public spec keeps the design.
+2. **One mechanism for "the app asks the bookmarklet to do something"** — the spec's `collection-pending` queue and
+   "Refresh all books from Amazon"'s request note are the same direction and shape: build one small "requests from the
+   app to the bookmarklet" channel on the relay; the refresh request is its first user, collection edits a later one
+   (signed writes, `amazonFetch`'s pacing and the human-check stop then apply for free).
+
+**Spec:** docs/design/COLLECTION-EDITING.md (Amazon's side: see TODO notes).
 
 #### Cheaper small syncs (send only what changed)
 <!-- id 20261014-1030k -->
