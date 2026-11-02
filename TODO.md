@@ -4,6 +4,7 @@
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
       - [Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut](#carry-over-the-utilities-projects-improvements-the-browser-driver-a-parse-check-for-every-script-the-open-shortcut)
+      - [Report our own unexpected errors: a banner while testing, a quiet log always](#report-our-own-unexpected-errors-a-banner-while-testing-a-quiet-log-always)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -159,7 +160,7 @@ In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**
 **The order of work from here** (Ron, 2026-10-24; step 2 added 2026-10-31):
 1. Finish the TODO review.
 2. "Carry over the utilities project's improvements…" — the browser driver and the parse check (the shortcut part
-   can wait).
+   can wait) — with "Report our own unexpected errors…" built alongside it.
 3. "The Delete key deletes the folder you're in…" — the browser driver's first real use.
 4. "Relay worker: one release of changes…"
 5. "Outside reviews before building…" (all five, using agents)
@@ -210,6 +211,44 @@ the history scan, shipped the same day).
   screen capture pass's scripted reel), and checks before every click that the target is visible and not covered
   (Law 21, built in). `drive_page.mjs` is 121 lines, no dependency, already proven on the utilities project. Pick
   one; port `hover`'s "what is under the pointer" report if it's Playwright.
+
+#### Report our own unexpected errors: a banner while testing, a quiet log always
+<!-- id 20261102-1435 -->
+
+_Why it matters:_ Today a "this should never happen" in our code is a line in the console that nobody is looking at —
+it is seen only by luck (Ron, 2026-11-02). It should stop the person testing, and leave a trace on every device
+even when nobody is. Built with the browser driver (above): each makes the other stronger.
+
+**Decided** (Ron + Claude, 2026-11-02)
+1. **Anomalies only, ours only.** Two sources: uncaught errors and failed promises on OUR pages (caught globally —
+   including a crash inside React or another library we load), and an explicit `reportAnomaly(…)` call at each place
+   in our code where "this should never happen". Browser-extension messages (e.g. "Unchecked runtime.lastError…")
+   live in the extension's own space and never reach us — not in scope.
+2. **First step — a one-time comb** of today's `console.warn` / `console.error` sites in our code (app, modules,
+   mobile, fetchers, bookmarklet menu): sort each into **expected** (stays a log) or **anomaly** (becomes
+   `reportAnomaly`). Publish the site list before switching any. The integrity check's "auto-fixed during restore"
+   message is the first to switch.
+3. **The banner** — red, stays until clicked, with the details and a Copy button; says it's diagnostics mode, with a
+   "Turn off" link. If DevTools is open, also stop in the debugger. **Never a blocking pause** (`alert()`): it would
+   break the 30-second Import from Relay timeout and leave a push half sent.
+4. **The ONE gate — a browser flag** (Ron: "that would be the only gate"), so it works on any copy — the dev repo or
+   production on localhost, or readerwrangler.com itself. Read through one answer defined once in
+   `readerwrangler.html` beside the other environment answers; separate from contributor mode on purpose (that one
+   picks the relay; this one picks whether anomalies interrupt). Set by `?anomalies=on` / `?anomalies=off` on any
+   page address (remembered; the app then removes the parameter from the address bar so it isn't bookmarked or shared),
+   or from the console. A side benefit: a user reporting a bug can be asked to open the site with `?anomalies=on`.
+5. **A quiet log, always on** (flag or not, production included): the last 100 anomalies on the device — time,
+   message, build — with Channel IDs and the Passphrase removed; "Copy diagnostics" in Data Status.
+6. **The browser driver sets the flag** in its throwaway browser and fails a run on any anomaly.
+7. **The fetchers and the bookmarklet menu** run on Amazon's site, whose stored settings are separate from ours, so
+   they read the same-named flag in amazon.com's storage (set from the console, or a toggle in the bookmarklet menu's
+   developer mode) — decide the details when building.
+
+**How (technical)**
+- One reporter module (the chokepoint): `reportAnomaly`, the global `error` / `unhandledrejection` listeners, the
+  log, the banner; every site is a thin call. The banner is built on the overlay primitive if it takes keys.
+- The scrubber that removes IDs is shared with "Bookmarklet: when your key no longer works, say so plainly — and
+  never show the Channel ID in an error" (After launch) — one place, with a test; this task builds it first.
 
 #### The Delete key deletes the folder you're in — not the folders you selected
 <!-- id 20261014-1030ay -->
