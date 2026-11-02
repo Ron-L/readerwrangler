@@ -83,7 +83,7 @@
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
       - [A fetch made with the demo filter on says so, and never marks books as gone](#a-fetch-made-with-the-demo-filter-on-says-so-and-never-marks-books-as-gone)
       - [Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select](#refresh-all-books-from-amazon--a-choice-in-the-fetcher-which-the-app-can-pre-select)
-      - [Pin the exact versions of outside code libraries](#pin-the-exact-versions-of-outside-code-libraries)
+      - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
       - [Protect against editing in two tabs at once](#protect-against-editing-in-two-tabs-at-once)
       - [Let a new user's first big fetch resume after an interruption](#let-a-new-users-first-big-fetch-resume-after-an-interruption)
@@ -2217,8 +2217,9 @@ assistant will read, so it has to be complete and stay current.
 **How (technical)**
 - "Holds vs. points at" = the custodial vs. supplemental model.
 - The live site serves the raw `USER-GUIDE.md` (checked 2026-10-22: `text/markdown`), so `guide.html` can fetch and
-  display it with a Markdown library from a CDN (pinned version — see "Pin the exact versions of outside code
-  libraries"). Prove that works on dev before relying on it. Decide then whether GitHub's automatic
+  display it with a Markdown library from a CDN (exact version, integrity check, inside the page's security policy —
+  see "Outside code libraries: exact versions, integrity checks, and a policy…"). Prove that works on dev before
+  relying on it. Decide then whether GitHub's automatic
   `USER-GUIDE.html` copy should be hidden or point at guide.html.
 - The guide-name check sits beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`; the guide name is a
   prop on `MenuBarItem` / `<Dialog>` / `<Popover>`, an argument to the confirm-style boxes, and a field in the
@@ -2389,18 +2390,56 @@ the cloud copy.)
 - Old review item 6g. The fetcher's incremental start: `loadKnownBooks` (relay-client.js); the automatic fuller pass
   when counts disagree: SUPPORT-KB §14 item 3.
 
-#### Pin the exact versions of outside code libraries
+#### Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere
 <!-- id 20261014-1030ai -->
 
-_Why it matters:_ An unannounced update to one of them could break the app overnight.
+_Why it matters:_ Every outside script runs inside the page that holds your Cloud Sync Key — the key that, since
+7.25.0, protects your cloud copy. An unannounced update could break the app overnight; a tampered or malicious copy
+could read the key and send it away.
 
-**What you'd get**
-- React and ReactDOM pinned to one exact 18.x version (today: "any 18" — readerwrangler.html ~128, checked 2026-10-14).
-- Check every HTML page for the same.
-- Tailwind's lasting fix is the "build the app ahead of time" task (After launch).
+**What's loaded today** (checked 2026-11-01 — six of nine unpinned)
+| Library | Where | Pinned? |
+|---|---|---|
+| React, ReactDOM | the app (readerwrangler.html ~128–129) | `@18` — any 18.x |
+| marked | changelog.html | no version at all — always the newest, even a new major |
+| img-comparison-slider (script + style) | index.html | `@8` — any 8.x |
+| Tailwind | the app, reset.html, security.html | unversioned (Tailwind's docs: this CDN isn't for production) |
+| Babel 7.29.7, qrcodejs 1.0.0, html5-qrcode 2.3.8 (phone, on demand — mobile.js ~2415) | the app, the phone | yes |
+
+**Decided** (Ron + Claude, 2026-11-01/02, in the TODO review)
+1. **Exact versions** for all six (Tailwind's CDN takes an exact version in its address). Its lasting fix stays the
+   "build the app ahead of time" task (After launch).
+2. **Integrity checks** (`integrity` + `crossorigin` on every outside script and stylesheet, and on the phone's
+   on-demand loader): the browser refuses any copy that differs from the one we checked. What they DON'T do (Ron): they
+   can't prove the checked copy is safe — they protect against tampering *after* we pin (e.g. the 2024 polyfill.io
+   takeover, which served malicious code to 100,000+ sites that had trusted that CDN for years).
+3. **For the first copy** — the practical limit of what can be known: prefer old, widely used versions; check each
+   exact version's security advisories; verify the copy matches the release npm recorded.
+4. **A content security policy on our pages — the real fix for "a bad copy steals the key"** (a `<meta>` policy tag;
+   GitHub Pages can't send headers): the page may contact ONLY the servers we list — our two relays, GoatCounter,
+   Amazon's image servers, and the library CDNs — so a malicious library could read the key but couldn't send it
+   anywhere (background requests, images, beacons, form posts are all refused). Tested with the browser driver
+   (violations show in the console) so nothing legitimate breaks.
+   - Its honest limits: while Babel compiles our code in the browser, the policy can't fully restrict which scripts
+     run; and no policy stops a script from replacing the whole page with an outside address carrying the key — the
+     `navigate-to` rule for that was dropped from the standard in 2022 and no browser supports it (Chrome had it only
+     behind an experimental flag, then removed the code — checked 2026-11-02; so it's not included: it would do
+     nothing). That attack is visible — the user sees ReaderWrangler vanish — a much worse deal for a thief than
+     silent theft.
+   - The bookmarklet (on Amazon's pages) can't use our policy — Amazon's page sets its own — but it loads only our own
+     three scripts, no outside libraries. The relay uses no libraries (one self-contained file; `wrangler` is a deploy
+     tool), serves data not pages, and never receives the passphrase.
+5. **A commit check:** refuse an outside script or stylesheet without an exact version and an integrity hash, and a
+   page without the policy — so a new page can't quietly regress.
+6. **No self-hosting** (considered and dropped, Ron 2026-11-02): it protects against later tampering no better than
+   integrity checks; its gains — the app keeps loading if a CDN is down, and a CDN doesn't see visitors — are
+   availability and privacy, not security, and don't justify maintaining copies of other people's files.
+7. Show all of it to **outside review 2 (security)**.
 
 **How (technical)**
-- Old review item 6h.
+- Old review item 6h. The servers the app talks to: both relay workers (`readerwrangler-relay*.readerwrangler.workers.dev`),
+  GoatCounter (its script + endpoint), Amazon's image hosts (covers) — list them from the code when building, not from
+  memory.
 
 #### Stop cleanly when Amazon asks for a human check mid-fetch
 <!-- id 20261014-1030au -->
