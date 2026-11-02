@@ -2543,6 +2543,19 @@ _Why it matters:_ A clean way to stop syncing, or to start over with new credent
 **Left**
 - A gentle **Disconnect** that just stops syncing on this device, without revoking or wiping anything on the relay.
 
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
+1. **The danger is losing the key, not data** — the key IS the access to the cloud copy. The Disconnect window shows
+   the key with a **Copy** button before you confirm: *"You'll need this key to reconnect — it's also in any backup
+   you've saved (File → Save Backup). Your bookmarklet and other devices keep syncing."* (Ron: backups carry it —
+   true since 6.0.0.) The one explicit, irreversible verb, with the remedy one click away inside it — not a guessing
+   prompt (Law 18).
+2. **Say exactly what stays:** this device's library — untouched; the cloud copy — untouched; other devices and the
+   bookmarklet — unaffected (the bookmarklet carries its own copy of the key, so the next fetch still reaches the
+   cloud; this device just won't import until you reconnect).
+3. **In the Cloud Sync words when they ship:** "Disconnect this device from Cloud Sync"; "key", not "credentials".
+4. **Build it in one pass through the setup window** with "Cloud Sync: rename Relay, show one Cloud Sync Key…" and
+   "Relay Setup: smoother sections and clearer Esc / Help behavior" — touched and tested once.
+
 ### Costs
 
 _Formerly: Launch economics_
