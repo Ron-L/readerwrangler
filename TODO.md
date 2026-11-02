@@ -2340,6 +2340,8 @@ wrong.
    shrunken fetch (Amazon returning half a library), the 7.19 removed-books review is already the safety net — nothing
    is deleted, you're asked.
 4. Build it with, or before, the screen capture pass (Before launch) — that's when the demo filter gets used.
+5. **The label is shared** with "A long fetch resumes after an interruption" (its stages are partial fetches too) —
+   one "partial fetch" label, one rule in the app: never infer removals from a fetch that says it's partial.
 
 **How (technical)**
 - Old review item 6f; the demo setting is the "demo whitelist" (amazon-library-fetcher.js ~104 / ~995 / ~1662;
