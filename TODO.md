@@ -86,7 +86,7 @@
       - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
       - [Protect against editing in two tabs at once](#protect-against-editing-in-two-tabs-at-once)
-      - [Let a new user's first big fetch resume after an interruption](#let-a-new-users-first-big-fetch-resume-after-an-interruption)
+      - [A long fetch resumes after an interruption (a first fetch, or a full refresh)](#a-long-fetch-resumes-after-an-interruption-a-first-fetch-or-a-full-refresh)
       - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
     - [Costs](#costs)
       - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
@@ -2383,7 +2383,7 @@ the cloud copy.)
    same push anyway); each fails safe — a fetcher that can't read the note just fetches normally, an app that can't
    write it says the refresh isn't available yet.
 8. The library fetch only — collections are re-read in full each time (confirm when building). Same Amazon pacing
-   (`amazonFetch`). **Pair it with "Let a new user's first big fetch resume after an interruption"** — a full refresh of
+   (`amazonFetch`). **Pair it with "A long fetch resumes after an interruption"** — a full refresh of
    3,000+ books is that same long run.
 
 **How (technical)**
@@ -2460,7 +2460,7 @@ _Why it matters:_ Today it shows confusing errors instead of saying what to do.
    request pacing)", item 5 — every Amazon request goes through it, the fetcher scripts' own `fetch` disabled) — not in
    each fetcher's retry path. Every fetcher gets it, including later ones. Build with or after that wrapper.
 2. **The long runs are the likeliest to trip it** — a new user's first big fetch, and "Refresh all books from Amazon".
-   Once "Let a new user's first big fetch resume after an interruption" exists, the message becomes "…then run it
+   Once "A long fetch resumes after an interruption" exists, the message becomes "…then run it
    again — it continues where it stopped".
 
 **How (technical)**
@@ -2501,19 +2501,31 @@ _Why it matters:_ Two open tabs can overwrite each other's work — a real data-
   goes read-only; the viewer reloads, then acquires the lock. If the writer doesn't answer (hung), say so — never
   take the lock from under a live writer.
 
-#### Let a new user's first big fetch resume after an interruption
+#### A long fetch resumes after an interruption (a first fetch, or a full refresh)
 <!-- id 20260821-0000 -->
 
-_Why it matters:_ A first 3,000-book fetch that dies near the end starts over from scratch.
+_Why it matters:_ A 3,000-book fetch that dies near the end starts over from scratch — a new user's first fetch, and
+now also every "Refresh all books from Amazon" run, the likeliest to trip Amazon's human check partway through.
 
 **What happens**
-- A new user's first fetch fills in details for ~3,000 books with no resume point. If it dies at book 2,800, it starts over.
+- A long fetch fills in details for ~3,000 books with no resume point. If it dies at book 2,800, it starts over.
 
 **What you'd get**
 - The fetch sends its progress in stages, so a re-run skips what's already done. 7.0's upload design makes this natural.
 
 **Status**
-- Hits each user exactly once — low priority; nice to have before launch. (From the 2026-08-21 outside review, item 1.)
+- (From the 2026-08-21 outside review, item 1.) Priority raised 2026-11-02 — it no longer "hits each user exactly
+  once": "Refresh all books" makes long runs repeatable, and the human-check stop's message ("…it continues where it
+  stopped") depends on this.
+
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
+1. **Each stage says it's partial** — the same "partial fetch" label as "A fetch made with the demo filter on says so,
+   and never marks books as gone". One concept, one label: a fetch that knows it's incomplete says so, and the app never
+   concludes from it that books left Amazon. The final stage completes the set.
+2. **Mind the write budget:** progress saved every few hundred books (≈ 6–8 stages for 3,000), not per book — every
+   stage costs relay writes against the account's shared 1,000 a day.
+3. **One cluster:** this, "Refresh all books from Amazon", and "Stop cleanly when Amazon asks for a human check
+   mid-fetch" — all built on the `amazonFetch` wrapper — built together or back to back.
 
 **How (technical)**
 - Send enrichment progress as mailbox letters in stages, so a resumed run's skip-hint already knows what's done.
