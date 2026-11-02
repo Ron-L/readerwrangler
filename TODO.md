@@ -2631,7 +2631,11 @@ _Why it matters:_ A small but noticeable delay on every click while searching or
 - The extra cost is probably the **active-filter bar**: it redraws on every click and recounts "💾 N results · Save ▾", the "✓ Search: …" check and the chips.
 
 **To do**
-1. Measure one click with Chrome's performance tool, filter on vs. off.
+1. Measure one click with Chrome's performance tool, filter on vs. off. **Decided 2026-11-02: Claude does this with
+   the browser driver** (High priority) on a throwaway copy of Ron's library (his backup, minus credentials) — a few
+   hundred book-to-book clicks with a filter on and off, the browser's own timing for each — so it's numbers, and it
+   either reproduces or it doesn't (the utilities project's Law 18: reproduce with real input before explaining). A
+   natural second job for the driver, after the Delete key fix; the fix itself stays here (mild).
 2. Remember whatever that bar recalculates.
 
 **Note**
