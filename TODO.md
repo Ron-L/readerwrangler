@@ -106,7 +106,7 @@
       - [Book recommendations: similar books you own, and ones you don't have yet](#book-recommendations-similar-books-you-own-and-ones-you-dont-have-yet)
       - [Show who a book is shared with (Family Library)](#show-who-a-book-is-shared-with-family-library)
       - [Two-pane split view](#two-pane-split-view)
-      - [Reading statistics](#reading-statistics)
+      - [Library statistics: your unread pile, books per year, top authors and series](#library-statistics-your-unread-pile-books-per-year-top-authors-and-series)
       - [Connect with Goodreads / StoryGraph](#connect-with-goodreads--storygraph)
       - [Animated drag-and-drop](#animated-drag-and-drop)
       - [Import book details from a pasted list or spreadsheet](#import-book-details-from-a-pasted-list-or-spreadsheet)
@@ -2980,10 +2980,22 @@ without dropping it at the top and moving it again.
 
 **Spec:** docs/design/archive/DUAL-PANE-SPLIT.md (options A and B; its decision note points here).
 
-#### Reading statistics
+#### Library statistics: your unread pile, books per year, top authors and series
 <!-- id 20261014-1030aj -->
 
-_Why it matters:_ A dashboard of your reading.
+_Why it matters:_ "Unbury your next great read" in numbers — how big your unread pile is, how old its oldest book is,
+which series you started and never finished. (Was "Reading statistics".)
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review)
+1. **Library statistics, not reading statistics:** there's no reading data beyond Read / Unread (no dates read — see
+   "Find out whether reading progress can be fetched from Amazon", Someday). The library data is rich and all local, no
+   request to Amazon: when each book was acquired, ownership kind, authors, series and positions, formats, Read /
+   Unread, your rating and Amazon's, wishlist prices. (Not the price you paid — ReaderWrangler doesn't have it.)
+2. **Candidates:** the unread pile (how many, the oldest still waiting); books acquired per year and how many of each
+   year's are still unread; top authors and series, and series started but not finished; the ownership mix.
+3. **Every number is clickable** — "412 unread" opens a Search showing those 412. That's what makes it a tool, not
+   trivia.
+4. **First step: Ron picks the 3–5 numbers he'd actually look at** — not a sprawling dashboard.
 
 #### Connect with Goodreads / StoryGraph
 <!-- id 20261014-1030n -->
