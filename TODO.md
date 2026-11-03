@@ -2628,8 +2628,9 @@ and "Warn when another browser has newer changes"; both earlier designs re-read 
 2. **Mid-gesture:** a tab in the middle of a drag, or with the book details window open, catches up when that ends.
 3. **Books live in a second store** (written whole, apart from the organization): the compare must cover it too, or
    one stamp covers both.
-4. **Dragging between tabs** stops being dangerous (both tabs are current) — allow it or not? The split-view task is
-   still the real answer for side-by-side folders.
+4. **Dragging between tabs** stops being dangerous (both tabs are current) — allow it or not? Decided in "Two-pane split
+   view" (2026-11-03): try two windows side by side first, including drag between them; build the in-app split only if
+   that falls short.
 
 **How (technical)**
 - Tabs: the `storage` event (or BroadcastChannel) for the notice; a compare against the stored `savedAt` before each
@@ -2945,9 +2946,20 @@ Family Library (2026-11-03), and today nothing in ReaderWrangler says which.
 #### Two-pane split view
 <!-- id 20261014-1030bb -->
 
-_Why it matters:_ Work with two folders side by side.
+_Why it matters:_ Work with two folders side by side — the "10% case": put a book at an exact spot in another folder
+without dropping it at the top and moving it again.
 
-**Spec:** docs/design/archive/DUAL-PANE-SPLIT.md (filed as "V2").
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review)
+1. **Two windows side by side comes first, nearly free:** once "Keep your tabs and browsers in step…" ships, every tab
+   stays editable and current — open two windows, one folder each (the spec's option B, as a by-product). Copy and paste
+   between them works.
+2. **Then check dragging between the two windows.** The spec's "drag-and-drop does NOT work across browser tabs" isn't
+   right in general: ReaderWrangler's drags use the browser's own drag-and-drop, which can cross windows. Unknown: whether
+   a drop has enough to finish a move that started in another window (the app may hold the dragged books in its own
+   memory, not in the drag). This is the tabs task's open question "Dragging between tabs — allow it or not?".
+3. **Build the in-app split view (the spec's option A, 8–12 hours) only if that falls short** for the 10% case.
+
+**Spec:** docs/design/archive/DUAL-PANE-SPLIT.md (options A and B; its decision note points here).
 
 #### Support stores besides Amazon
 <!-- id 20261014-1030aw -->

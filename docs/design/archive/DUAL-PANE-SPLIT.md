@@ -159,7 +159,10 @@ bc.onmessage = (event) => {
 
 ## Decision
 
-**Pending** - User considering options.
+**2026-11-03 (TODO review, Ron + Claude):** option B comes as a by-product of "Keep your tabs and browsers in step…"
+(MULTI-INSTANCE.md §4 — every tab editable and current), so it goes first: two windows side by side, then check whether
+dragging between them can finish a move (the "browser limitation" above isn't general — our drags are the browser's
+own kind, which can cross windows). Option A only if that falls short. TODO "Two-pane split view".
 
 ---
 
