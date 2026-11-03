@@ -109,7 +109,7 @@ particulars:
 
 ---
 
-## RW session tooling (`.claude/`, local, gitignored)
+## RW session tooling (`.claude/`, saved in the repo; only `settings.local.json` is gitignored)
 
 - **Pre-build gate** — a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the first edit of shipped
   code each turn — **any `.js` at the repo root, plus `relay/relay-worker.js`** (a rule, so new modules are covered;

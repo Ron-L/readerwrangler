@@ -1,6 +1,7 @@
 # RW Session Tooling & the single-source hook pattern
 
-_ReaderWrangler's project-**local** Claude Code tooling (`.claude/`, gitignored) and the reusable
+_ReaderWrangler's project-**local** Claude Code tooling (`.claude/`, saved in the repo; only `settings.local.json` is
+gitignored) and the reusable
 **pattern** behind it. Global tooling (e.g. the per-turn timestamp stamp) lives at the Projects root —
 see `CLAUDE-TOOLING.md` there. Established 2026-09-30._
 
