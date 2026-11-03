@@ -105,7 +105,6 @@
       - [Book recommendations: similar books you own, and ones you don't have yet](#book-recommendations-similar-books-you-own-and-ones-you-dont-have-yet)
       - [Show who a book is shared with (Family Library)](#show-who-a-book-is-shared-with-family-library)
       - [Two-pane split view](#two-pane-split-view)
-      - [Support stores besides Amazon](#support-stores-besides-amazon)
       - [Several people on one installation](#several-people-on-one-installation)
       - [Reading statistics](#reading-statistics)
       - [Connect with Goodreads / StoryGraph](#connect-with-goodreads--storygraph)
@@ -130,6 +129,7 @@
     - [Test on Safari (desktop and iPhone)](#test-on-safari-desktop-and-iphone)
     - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
     - [Find out whether reading progress can be fetched from Amazon](#find-out-whether-reading-progress-can-be-fetched-from-amazon)
+    - [Support stores besides Amazon](#support-stores-besides-amazon)
 
 <!-- /TOC -->
 
@@ -2961,13 +2961,6 @@ without dropping it at the top and moving it again.
 
 **Spec:** docs/design/archive/DUAL-PANE-SPLIT.md (options A and B; its decision note points here).
 
-#### Support stores besides Amazon
-<!-- id 20261014-1030aw -->
-
-_Why it matters:_ For readers who buy elsewhere too.
-
-**Spec:** docs/reference/MULTI-STORE-ARCHITECTURE.md.
-
 #### Several people on one installation
 <!-- id 20261014-1030ao -->
 
@@ -3244,3 +3237,18 @@ fetchers or our Amazon notes).
    Someday as its own task). None → close it.
 3. **Off the public "Future Features" list** (README, features page) until a source is found — it promised something we
    don't know we can build.
+
+### Support stores besides Amazon
+<!-- id 20261014-1030aw -->
+
+_Why it matters:_ For readers who buy elsewhere too.
+
+**Placed here** (Ron + Claude, 2026-11-03, in the TODO review) — someday, only if users ask:
+1. The formats decision again, only bigger: the basics come first, and user 1 has no need. Each store means its own
+   fetchers, page changes, human checks and terms question.
+2. ReaderWrangler is a Kindle library organizer — the bookmarklets, the Paperwhite workflow, "Read in Kindle", and the
+   plain statement of what it works with ("Say plainly what ReaderWrangler works with…").
+3. Nothing is lost by waiting: the spec's one structural idea — store-first file names (`amazon-library-fetcher.js`) —
+   is already how the fetchers are named. Not on any public list (checked 2026-11-03).
+
+**Spec:** docs/reference/MULTI-STORE-ARCHITECTURE.md.
