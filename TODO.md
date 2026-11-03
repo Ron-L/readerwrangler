@@ -3029,12 +3029,20 @@ _Why it matters:_ Recommendations you meet on your phone (a Claude.ai answer, a 
 1. **Share → ReaderWrangler** in Android's share sheet (the phone version installed to the home screen registers as a
    share target): one tap from Claude.ai, the Amazon app, an article.
 2. What you share — a link, an ASIN, or plain text — travels through the **relay** like a wishlist add, and the desktop
-   shows it in a short **"To look up"** list on the next Import: links/ASINs become wishlist entries; plain text you
-   resolve with a click (search Amazon, add, put in a Book List).
+   shows it in a short **"To look up"** list on the next Import. Links and ASINs show with **Open on Amazon**, where the
+   Add Book to Wishlist bookmarklet does the full add; plain text you resolve with a click (search Amazon, add, put in a
+   Book List). (Corrected 2026-11-03: a link can't become a complete wishlist entry by itself — neither the app nor
+   the phone can ask Amazon for a title or price; only a bookmarklet on Amazon's page can. Later, the planned "requests
+   from the app to the bookmarklet" channel — the one "Refresh all books from Amazon" uses — could fill them all in on
+   the next fetch.)
 3. A whole Claude answer can be shared at once and worked through on the desktop. Picking titles out of free text
    automatically stays human — too unreliable.
 
 **Caveats**
+- **The phone would write to the cloud for the first time** (2026-11-03). Today it only reads — "Reads the relay, never
+  writes it" is a stated rule (MULTI-INSTANCE.md §1). Since 7.25 every write is signed with the key made from the
+  passphrase; the phone already holds it (it decrypts), so it signs with the same signer as the desktop. Update the
+  stated rule when this is built. The relay needs nothing new (it already takes single signed letters).
 - Android / Chrome only (iPhone doesn't support web-app share targets). Plain-text items carry no book details until
   resolved. Medium-sized: a phone capture screen, a new relay letter kind, a desktop list.
 
