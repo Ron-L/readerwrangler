@@ -107,7 +107,6 @@
       - [Show who a book is shared with (Family Library)](#show-who-a-book-is-shared-with-family-library)
       - [Two-pane split view](#two-pane-split-view)
       - [Library statistics: your unread pile, books per year, top authors and series](#library-statistics-your-unread-pile-books-per-year-top-authors-and-series)
-      - [Animated drag-and-drop](#animated-drag-and-drop)
       - [Import book details from a list or spreadsheet; Goodreads / StoryGraph files in and out](#import-book-details-from-a-list-or-spreadsheet-goodreads--storygraph-files-in-and-out)
       - [Capture book ideas from your phone (Share → ReaderWrangler)](#capture-book-ideas-from-your-phone-share--readerwrangler)
     - [Prices](#prices)
@@ -130,6 +129,7 @@
     - [Find out whether reading progress can be fetched from Amazon](#find-out-whether-reading-progress-can-be-fetched-from-amazon)
     - [Support stores besides Amazon](#support-stores-besides-amazon)
     - [Several people on one installation](#several-people-on-one-installation)
+    - [Animated drag-and-drop](#animated-drag-and-drop)
 
 <!-- /TOC -->
 
@@ -2996,11 +2996,6 @@ which series you started and never finished. (Was "Reading statistics".)
    trivia.
 4. **First step: Ron picks the 3–5 numbers he'd actually look at** — not a sprawling dashboard.
 
-#### Animated drag-and-drop
-<!-- id 20261014-1030c -->
-
-_Why it matters:_ Books slide aside live to show where a drop will land.
-
 #### Import book details from a list or spreadsheet; Goodreads / StoryGraph files in and out
 <!-- id 20261014-1030y; merged 20261014-1030n -->
 
@@ -3293,3 +3288,15 @@ workaround, is clumsy and easy to get wrong. The real hazard — someone else's 
 is its own task: "A fetch from someone else's Amazon account stops before mixing two libraries" (Before launch).
 
 **Spec:** docs/design/archive/MULTI-USER-DESIGN.md.
+
+### Animated drag-and-drop
+<!-- id 20261014-1030c -->
+
+_Why it matters:_ Books slide aside live to show where a drop will land.
+
+**Placed here** (Ron + Claude, 2026-11-03, in the TODO review) — only if the drop line proves hard to see:
+1. Today a **line** marks where a drop lands — the standard, honest signal ("no fake drop signals", Law 18).
+2. **The known trap:** books sliding aside move the spot under the pointer, so the target changes and they slide back —
+   jitter at the edges between books. Solvable, but real work for polish. (Cost is not the worry: during a drag the
+   app already hides rows out of view, so only the visible books would move.)
+3. **Try first:** a bolder line or a small gap.
