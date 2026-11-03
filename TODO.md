@@ -44,6 +44,7 @@
       - [Book details window: one Save — nothing changes until you click it, and nothing is lost without asking](#book-details-window-one-save--nothing-changes-until-you-click-it-and-nothing-is-lost-without-asking)
       - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
       - [Arrow keys should move through every type-ahead list](#arrow-keys-should-move-through-every-type-ahead-list)
+      - [Finish keyboard accessibility](#finish-keyboard-accessibility)
       - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
       - [Long lists keep their actions in view (Manage…, Select All) while you scroll](#long-lists-keep-their-actions-in-view-manage-select-all-while-you-scroll)
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
@@ -101,7 +102,6 @@
       - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
     - [Features](#features)
       - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
-      - [Finish keyboard accessibility](#finish-keyboard-accessibility)
       - [Show reading progress](#show-reading-progress)
       - [Book recommendations](#book-recommendations)
       - [Show who a book is shared with (Family Library)](#show-who-a-book-is-shared-with-family-library)
@@ -123,7 +123,7 @@
       - [Show a notice when book descriptions are missing](#show-a-notice-when-book-descriptions-are-missing)
       - [Clean up developer console messages](#clean-up-developer-console-messages)
       - [Check nothing was lost between versions 4 and 5](#check-nothing-was-lost-between-versions-4-and-5)
-      - [Leftover desktop polish (left-pane keyboard, shadows)](#leftover-desktop-polish-left-pane-keyboard-shadows)
+      - [Leftover desktop polish: one shadow direction](#leftover-desktop-polish-one-shadow-direction)
   - [👀 Watching](#watching)
     - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
     - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
@@ -1412,8 +1412,38 @@ your folders" (~12734); "Filter authors by name…" (~12064); and the planned fi
 **Status:** deferred by Ron 2026-10-06 (minor accessibility fix).
 
 **How (technical)**
-- Build it once in the shared list popup (`<Popover kind="list">` — both Series lists became that in 7.18.0-alpha.54), not per field.
+- Build it once in the shared list popup (`<Popover kind="list">` — both Series lists became that in 7.18.0-alpha.54), not per field —
+  the same arrow-key handler the right-click menus get in "Finish keyboard accessibility" (one handler for every
+  `<Popover>` kind; whichever task is built first builds it).
 - The working model is the `SearchInput` component's Down/Up/Enter/Esc handling. Stable copy "as it was": `git show 46a0cf6:readerwrangler.js`, search for `const SearchInput`.
+
+#### Finish keyboard accessibility
+<!-- id 20261014-1030v -->
+
+_Why it matters:_ Everything should be usable without a mouse. Today Tab walks out of an open window into the library
+behind it, you can't see where the keyboard is, and right-click menus have no arrow keys.
+
+**Left** (checked 2026-11-03)
+1. **Keep focus inside an open window** — every window says it's modal, but nothing keeps Tab inside it.
+2. **A visible focus outline** for keyboard users — today only the note editor has a focus style.
+3. **Keyboard access to the right-click menus** — Down / Up move, Enter runs, Esc closes (Esc already works).
+4. **Keyboard navigation in the left pane** (moved here 2026-11-03 from "Leftover desktop polish") — including Home /
+   End for its jumps to top and bottom ("Left pane: put the jump-to-top / bottom buttons by the scrollbar").
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review)
+1. **Moved up from After launch to Polish** — since 7.18 it's small: every window goes through one `<Dialog>`, every menu
+   and list through one `<Popover>`, the old-style message boxes through `attachDialogDismiss` — so items 1 and 3 are
+   each one change in the shared piece, not a sweep; item 2 is one style rule. Tab escaping a window is a defect, not a
+   nicety (Rule 0); outside review 4 (a newcomer's first look) would flag it.
+2. **One arrow-key handler for every `<Popover>` kind** — the menus here and the type-ahead lists in "Arrow keys should
+   move through every type-ahead list" share it; whichever is built first builds it.
+3. **Tested with the browser driver:** open a window, press Tab twenty times — focus never leaves it; right-click a
+   book, Down, Down, Enter — the right item runs; the focus outline shows on Tab, not on a mouse click.
+- Screen-reader labels for icon-only buttons come with the tooltips task ("Tooltips where they help…").
+
+**How (technical)**
+- Focus trap in `<Dialog>` and `attachDialogDismiss` (focus the first control on open, return focus on close);
+  `:focus-visible` (outline on keyboard focus only); arrow keys in `<Popover>` (menu, list).
 
 #### The "Save results" menu runs off the screen with many Book Lists
 <!-- id 20261006-0000b -->
@@ -1576,7 +1606,7 @@ noise that teaches people to ignore the ones that matter.
 **The rule** (Ron + UX, 2026-10-21 — not "every control": a Save button whose tooltip says "Save" is noise; ~190
 tooltips exist today). A tooltip is **required** on:
 1. **Every icon-only control** (✕, 💾, 🗑, ⚙ …) — no words at all; it also needs a screen-reader label (overlaps
-   "Finish keyboard accessibility", After launch).
+   "Finish keyboard accessibility", Polish).
 2. **Every disabled control — saying why** (the rule in "Menus keep their items in place").
 3. **Any control whose effect isn't obvious from its label** (Collections is read-only; "Bake this order into Manual").
 4. **Text that gets cut off** — the tooltip shows it in full.
@@ -1770,7 +1800,7 @@ _Why it matters:_ They sit at the bottom left today, not where you'd look for th
 - **Floating over the pane's edge**, so they never push the list: ▲ shows when you're not at the top, ▼ when you're not
   at the bottom, neither when the pane doesn't scroll. (Not the menu rule's case — a floating helper shifts nothing,
   and a scroll button with nothing to scroll is clutter.)
-- **Home / End do the same jumps** — overlaps "Leftover desktop polish (left-pane keyboard, shadows)" (After launch).
+- **Home / End do the same jumps** — overlaps "Finish keyboard accessibility" (Polish).
 - **Build with the left-pane release** (pins + the filter box + the section overview — "Book Lists and Searches: pin
   and sort them like Folders"), so the pane's chrome is decided once and the filter box and ▲ don't collide.
 
@@ -2847,19 +2877,6 @@ _Why it matters:_ Jump straight from ReaderWrangler to reading the book — for 
   format; the desktop, the right-click menu and the phone call it. The links and what we learned about them: see TODO
   notes.
 
-#### Finish keyboard accessibility
-<!-- id 20261014-1030v -->
-
-_Why it matters:_ Everything should be usable without a mouse.
-
-**Left**
-- Keeping focus inside an open dialog.
-- A visible focus outline for keyboard users.
-- Keyboard access to the right-click menus.
-
-**How (technical)**
-- Focus trapping, `:focus-visible`, context-menu keys.
-
 #### Show reading progress
 <!-- id 20261014-1030aq -->
 
@@ -3063,14 +3080,13 @@ _Why it matters:_ About 70 of them: keep, hide behind a switch, or remove each.
 
 _Why it matters:_ A feature-by-feature comparison of the two versions.
 
-#### Leftover desktop polish (left-pane keyboard, shadows)
+#### Leftover desktop polish: one shadow direction
 <!-- id 20261014-1030ab -->
 
 _Why it matters:_ Small finishing touches.
 
 **Left**
-- Keyboard navigation in the left pane.
-- Consistent shadow direction.
+- Consistent shadow direction. (Left-pane keyboard navigation moved to "Finish keyboard accessibility", 2026-11-03.)
 
 ---
 
