@@ -64,6 +64,7 @@
         - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
         - [Import: new books are filed before the integrity check, so the check reports only real repairs](#import-new-books-are-filed-before-the-integrity-check-so-the-check-reports-only-real-repairs)
+        - [With a filter on, the right pane still shows subfolders with no matching books](#with-a-filter-on-the-right-pane-still-shows-subfolders-with-no-matching-books)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Fetcher housekeeping](#fetcher-housekeeping)
@@ -1852,6 +1853,30 @@ the same breath as the new books.
 - The import files its new books into the Inbox FIRST, in one place, then the integrity check runs — so the check
   sees only genuine problems. The later duplicate step goes away (one placement path, not two). Its own alpha, kept
   out of the 7.25.0 security release.
+
+##### With a filter on, the right pane still shows subfolders with no matching books
+<!-- id 20261103-1651 -->
+
+_Why it matters:_ The hiding was written but has never run — the left pane hides folders with no matches, the right
+pane's subfolder list doesn't. Found 2026-11-03 by the precompile load test ("Faster loading: build the app ahead of
+time").
+
+**Why it happens**
+- The right pane's subfolder list (readerwrangler.js ~3318, `explorerVisibleFolders`) asks "is a filter on?"
+  (`hasActiveFilters`) — a name declared ~5,400 lines later (~8760). Modern JavaScript refuses that (the precompiled
+  page crashed: "Cannot access 'hasActiveFilters' before initialization"); the browser's compiler turns `const` into the
+  older `var`, where the read quietly gives `undefined` — so the answer is always "no filter".
+
+**Decided** (Ron + Claude, 2026-11-03)
+1. Fix it by moving the declaration above its first use (or computing it there).
+2. **The chokepoint — a commit check:** the name lists at the end of `useMemo` / `useEffect` / `useCallback` blocks
+   (`}, [a, b, c]);`) are read as the screen is drawn, so any name in one that is declared further down is this bug,
+   guaranteed. Scan for exactly that (the same family as the name check); publish what it finds before fixing — there
+   may be more.
+3. **Build together with "A folder or Book List you just created stays visible under filters"** — once the right pane
+   really hides empty folders, a new folder hides there too.
+4. Test step: turn on a filter, open a folder with subfolders — only subfolders with matching books (or "show all
+   folders") appear.
 
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->
