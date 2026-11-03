@@ -65,6 +65,7 @@
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
         - [Import: new books are filed before the integrity check, so the check reports only real repairs](#import-new-books-are-filed-before-the-integrity-check-so-the-check-reports-only-real-repairs)
         - [With a filter on, the right pane still shows subfolders with no matching books](#with-a-filter-on-the-right-pane-still-shows-subfolders-with-no-matching-books)
+        - [Every load saves the whole library back to storage, even when nothing changed](#every-load-saves-the-whole-library-back-to-storage-even-when-nothing-changed)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Fetcher housekeeping](#fetcher-housekeeping)
@@ -157,14 +158,16 @@ _Formerly: 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-16)
 
 In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**.
 
-**The order of work from here** (Ron, 2026-10-24; step 2 added 2026-10-31):
+**The order of work from here** (Ron, 2026-10-24; step 2 added 2026-10-31, step 3 2026-11-03):
 1. Finish the TODO review.
 2. "Carry over the utilities project's improvements…" — the browser driver and the parse check (the shortcut part
    can wait) — with "Report our own unexpected errors…" built alongside it.
-3. "The Delete key deletes the folder you're in…" — the browser driver's first real use.
-4. "Relay worker: one release of changes…"
-5. "Outside reviews before building…" (all five, using agents)
-6. The rest of the TODO.
+3. "Faster loading: build the app ahead of time (35 seconds → 1)" (Before launch; added here 2026-11-03 — about one
+   session, the driver times it, and every later load gets 30 times faster).
+4. "The Delete key deletes the folder you're in…" — the browser driver's first real use.
+5. "Relay worker: one release of changes…"
+6. "Outside reviews before building…" (all five, using agents)
+7. The rest of the TODO.
 
 ### High priority
 
@@ -1877,6 +1880,21 @@ time").
    really hides empty folders, a new folder hides there too.
 4. Test step: turn on a filter, open a folder with subfolders — only subfolders with matching books (or "show all
    folders") appear.
+
+##### Every load saves the whole library back to storage, even when nothing changed
+<!-- id 20261103-1702 -->
+
+_Why it matters:_ Each time the app opens it rewrites all of your books (3,270 for Ron) right after reading them — work
+on every load, and a full write of the library each time is a needless chance for something to go wrong. Seen
+2026-11-03 in the precompile load test's console ("Saving 3270 books to IndexedDB…" on every load).
+
+**What to look into**
+1. The load path saves unconditionally after the integrity check (readerwrangler.js ~4602, `saveBooksToIndexedDB(
+   loadedBooks)`). It may be deliberate — keeping the integrity check's repairs — so read why it's there first.
+2. Likely fix: **save only when something changed** — the integrity check repaired a book, or the shared book
+   clean-up (`normalizeBook`) changed one. Mind "Retire two leftover book fields…" (Polish): it strips old fields in
+   that clean-up "on every load", so a stripped field must still count as a change and get saved.
+3. Measure the save's time on load (the browser driver) — it tells whether this is a speed fix or only hygiene.
 
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->
