@@ -2401,9 +2401,21 @@ will be a seller."
 6. **Keep the reel in the plan** — though Ron dreads making it (the tutorials were "super tedious", which is why they
    were cancelled; the support assistant replaces tutorials 2–8).
 
-**Idea to discuss when this comes up** (Claude, not yet discussed): make the recording **scripted** — browser
-automation drives the demo library through the shot list while a screen recorder runs, so a UI change means re-running,
-not re-shooting, and the tedious part is done once.
+**Approach note** (Ron + Claude, 2026-11-03 — discussed, to confirm when this comes up; the answer to Ron's dread of
+the tedious part)
+1. **Scripted takes:** the browser driver ("Carry over the utilities project's improvements…") plays the shot list on
+   the demo library — real clicks, drags and menus, identical every time; a UI change means re-running, not re-shooting.
+   This tips that task's "Playwright or copy `drive_page.mjs`?" toward **Playwright**, which records video itself.
+2. **Assembly by Claude:** FFmpeg (cuts, joins, fades, titles, captions, even sound levels) — or Remotion (video built
+   from the same kind of code as the app, so title cards can use its real look). Claude can't watch video or hear
+   sound directly, but can check cuts frame by frame as pictures.
+3. **Sound placement: Earshot** (github.com/Leonxlnx/earshot, MIT, runs on the PC) turns audio into text Claude can
+   read — what a sound is, exactly when events happen, whether sound lines up with picture — plus a bank of 201 sound
+   effects. Its own limits: no taste, no licensing judgments. **Before using:** it was version 0.1.0 on 2026-11-03 and
+   connects to Claude as a tool server — read it and pin an exact version (our outside-code rules); leave its optional
+   critique (sends audio to Google's Gemini) off.
+4. **Taste stays Ron's:** he watches drafts and says what's wrong.
+5. **To decide then:** this mostly replaces DaVinci Resolve for assembly (Claude can't drive Resolve's screens).
 
 **Spec:** docs/design/DEMO-LIBRARY-PLAN.md (Video 0 shot list, the demo library, the fetcher's demo filter);
 docs/design/VIDEO-PRODUCTION-GUIDE.md (tools); the demo prep scripts: `tools/demo-library/`.
