@@ -69,6 +69,7 @@
       - [Fetcher housekeeping](#fetcher-housekeeping)
         - [Fetcher: give the library filter one name, in one place](#fetcher-give-the-library-filter-one-name-in-one-place)
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
+        - [Fetcher: refresh ratings with the price check (books you might buy)](#fetcher-refresh-ratings-with-the-price-check-books-you-might-buy)
       - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
       - [Redo should work after copying a folder](#redo-should-work-after-copying-a-folder)
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
@@ -112,7 +113,6 @@
       - [Capture book ideas from your phone (Share → ReaderWrangler)](#capture-book-ideas-from-your-phone-share--readerwrangler)
     - [Prices](#prices)
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
-      - [Now and then, refresh ratings for books you might buy](#now-and-then-refresh-ratings-for-books-you-might-buy)
     - [Technical clean-up](#technical-clean-up)
       - [Faster loading: build the app ahead of time](#faster-loading-build-the-app-ahead-of-time)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
@@ -1973,6 +1973,25 @@ priority) — same file, same test, and that task already rebuilds the timing ta
 - Item 3: replaces `FETCH_DELAY_MS` (amazon-library-fetcher.js ~67). (Two items moved out 2026-10-20: the live ownership-upgrade test is now in "Fetch should
   update books it already knows", un-trash on upgrade is "Buying a book that's in the Trash should bring it back".)
 
+##### Fetcher: refresh ratings with the price check (books you might buy)
+<!-- id 20261014-1030af -->
+
+_Why it matters:_ Ratings are frozen at a book's first fetch — fine for owned books, a little stale for buying
+decisions.
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review — was "Now and then, refresh ratings for books you might buy",
+After launch → Prices; moved here as a small fetcher change to ride along with the next one)
+- **Ride along with the price check — no schedule.** The price step already asks Amazon about exactly these books on
+  every fetch (books you could still buy, new books, owned books with a price goal — 30 per request, since 5.1). Add the
+  rating and review count to that same request: ratings stay fresh on every fetch with **no extra requests** — no
+  monthly sweep, no every-Nth-fetch counter. Safe to interrupt for free (the same run).
+- Not the outside review's per-book adaptive timing — a fine solution to a scale problem we don't have.
+
+**How (technical)**
+- amazon-library-fetcher.js price step (`qvGetMediaMatrixProductsQuickView`, ~2316): add `customerReviewsSummary
+  { rating { value } count { displayString } }` (as the enrichment request already asks, ~1482); store `rating` /
+  `reviewCount` as the first fetch does (~1617). Bump FETCHER_VERSION. (Outside review item 3.)
+
 #### Relay Setup's connection test checks the wrong relay on dev
 <!-- id 20261012-0000a -->
 
@@ -3106,22 +3125,9 @@ _Why it matters:_ So you can switch to the Kindle edition without losing its fol
 - Does the batch lookup report other editions of a print ASIN, or does this need a product-page visit per book?
 
 **How (technical)**
-- `formatWatch: 'kindle'` on print placeholders; likely shares a mechanism with the slow refresh below. (Outside review item 6.)
-
-#### Now and then, refresh ratings for books you might buy
-<!-- id 20261014-1030af -->
-
-_Why it matters:_ Ratings are frozen at the first fetch — fine for owned books, a little stale for buying decisions.
-
-**What you'd get**
-- Optional: about monthly (or every Nth fetch), refresh ratings and review counts for books you could still buy.
-- Safe to interrupt: results are sent as an upload run, so a closed tab tears nothing — it carries on next time.
-
-**Not this**
-- The outside review's per-book adaptive refresh timing — a fine solution to a scale problem we don't have.
-
-**How (technical)**
-- Reuse the scoped list from the price-sweep work and batch calls. (Outside review item 3.)
+- `formatWatch: 'kindle'` on print placeholders. The "slow refresh" it was to share became "Fetcher: refresh ratings with
+  the price check" (Polish, 2026-11-03) — if the batch request reports other editions, this check can ride the price
+  check the same way, with no schedule. (Outside review item 6.)
 
 ### Technical clean-up
 
