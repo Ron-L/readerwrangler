@@ -214,6 +214,10 @@ the history scan, shipped the same day).
   screen capture pass's scripted reel), and checks before every click that the target is visible and not covered
   (Law 21, built in). `drive_page.mjs` is 121 lines, no dependency, already proven on the utilities project. Pick
   one; port `hover`'s "what is under the pointer" report if it's Playwright.
+- **Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): Playwright's command-line tool + its skills (`@playwright/cli`) — Microsoft's own
+  pick for coding agents over its tool server; records video natively — and axe-core (`@axe-core/playwright`) for
+  accessibility checks from the same driver. Pin exact versions; test only with the demo library (what the driver
+  shows Claude goes to Anthropic).
 
 #### Report our own unexpected errors: a banner while testing, a quiet log always
 <!-- id 20261102-1435 -->
@@ -361,6 +365,8 @@ the rest of the TODO.
   relay on dev" (Polish), "Relay Setup: disconnect, or reset credentials" (Safety), "Bookmarklet: when your key no
   longer works, say so plainly…" (After launch), "Keep your tabs and browsers in step…" (Before launch), the Cloudflare
   $5 plan (Costs, around launch). The Cloud Sync task keeps its app-side work and the "make a new key" order.
+- Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): Cloudflare's official skills (`cloudflare/skills`) — the skills only, not the remote
+  server with access to the Cloudflare account; the local Workers Vitest plugin for tests; `wrangler telemetry disable`.
 
 #### Outside reviews before building: launch risks, security, data safety, a newcomer's first look
 <!-- id 20261023-1239 -->
@@ -1448,6 +1454,8 @@ behind it, you can't see where the keyboard is, and right-click menus have no ar
 **How (technical)**
 - Focus trap in `<Dialog>` and `attachDialogDismiss` (focus the first control on open, return focus on close);
   `:focus-visible` (outline on keyboard focus only); arrow keys in `<Popover>` (menu, list).
+- Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): axe-core (`@axe-core/playwright`), run from the browser driver, checks contrast and
+  labels automatically; focus order still needs scripted Tab walks.
 
 #### The "Save results" menu runs off the screen with many Book Lists
 <!-- id 20261006-0000b -->
@@ -1880,6 +1888,8 @@ time").
    really hides empty folders, a new folder hides there too.
 4. Test step: turn on a filter, open a folder with subfolders — only subfolders with matching books (or "show all
    folders") appear.
+- Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): ESLint's `no-use-before-define` (+ `eslint-plugin-react-hooks`) in a commit check is
+  the ready-made form of item 2 — expect tuning, since it also flags reads inside functions that only run later.
 
 ##### Every load saves the whole library back to storage, even when nothing changed
 <!-- id 20261103-1702 -->
@@ -2422,6 +2432,9 @@ docs/design/VIDEO-PRODUCTION-GUIDE.md (tools); the demo prep scripts: `tools/dem
 **Video work stays outside the repo** (e.g. `Documents\ReaderWrangler-video\`; decided 2026-11-02 when the old
 `tutorials/` work files — 200+ MB of clips, narration, Resolve projects and a saved Amazon page with account details —
 were deleted as out of date): one stray `git add` must never be able to commit them.
+**Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): takes with Playwright for Python's `page.screencast` (chapter cards, a visible
+cursor, drives the installed Edge); assembly with FFmpeg or Remotion (free for individuals; render from the command
+line — browser-side rendering reports usage); Earshot only after vetting and pinning a commit.
 
 #### Build the support assistant (custom GPT)
 <!-- id 20261014-1030i -->
@@ -2663,6 +2676,8 @@ splash): today's page **35.8 s** average of 3 (the browser's compiler alone: 32.
    file — one more line in the version guard. What's served stays readable; the source is public on GitHub.
 
 **Spec:** docs/design/PRECOMPILE.md (written before these measurements and this build plan).
+**Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): Chrome DevTools' tool server can time loads and run Lighthouse — only with
+`--no-usage-statistics --no-performance-crux` (it reports to Google by default).
 
 
 #### Stop cleanly when Amazon asks for a human check mid-fetch
@@ -3243,6 +3258,8 @@ component.
    component added to the main file (it goes in its own file). A ratchet, not a project.
 
 **Spec:** docs/design/MODULE-SPLIT.md (superseded by this task until the seam map replaces it).
+**Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): the official typescript-lsp plugin (go-to-definition and find-references across
+the big file) and ast-grep (structural search-and-replace) when lifting pieces out.
 
 #### Show a notice when book descriptions are missing
 <!-- id 20261014-1030ap -->
