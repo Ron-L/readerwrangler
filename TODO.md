@@ -102,7 +102,6 @@
       - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
     - [Features](#features)
       - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
-      - [Show reading progress](#show-reading-progress)
       - [Book recommendations](#book-recommendations)
       - [Show who a book is shared with (Family Library)](#show-who-a-book-is-shared-with-family-library)
       - [Two-pane split view](#two-pane-split-view)
@@ -130,6 +129,7 @@
   - [🧊 Someday](#someday)
     - [Test on Safari (desktop and iPhone)](#test-on-safari-desktop-and-iphone)
     - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
+    - [Find out whether reading progress can be fetched from Amazon](#find-out-whether-reading-progress-can-be-fetched-from-amazon)
 
 <!-- /TOC -->
 
@@ -2877,11 +2877,6 @@ _Why it matters:_ Jump straight from ReaderWrangler to reading the book — for 
   format; the desktop, the right-click menu and the phone call it. The links and what we learned about them: see TODO
   notes.
 
-#### Show reading progress
-<!-- id 20261014-1030aq -->
-
-_Why it matters:_ See how far along you are — in the book window, and as a list column.
-
 #### Book recommendations
 <!-- id 20261014-1030h -->
 
@@ -3167,3 +3162,20 @@ sort All Books by Format and scroll past Kindle; if that proves insufficient, a 
   win for the shipped fetcher). Details: AMAZON-AUTHOR-PAGES.md.
 - Format words seen: `kindle`, `paperback` (author filter); Amazon's library filter lists Kindle Edition, Paperback, Hardcover, Board Book, Audible Audiobook.
 - The series add asks Amazon for `binding=kindle_edition` (series-page-fetcher.js ~319).
+
+### Find out whether reading progress can be fetched from Amazon
+<!-- id 20261014-1030aq -->
+
+_Why it matters:_ "See how far along you are" — in the book window and as a list column — is only possible if Amazon
+shows a book's reading position somewhere ReaderWrangler can read it. Today nothing does: the only reading data we get
+is Read / Unread, from your Kindle collections (checked 2026-11-03: no reading position in the book fields, the
+fetchers or our Amazon notes).
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review — was "Show reading progress")
+1. **This is research first:** find out whether Amazon shows reading position (the place the Paperwhite, the app and
+   Cloud Reader resume from) anywhere the fetcher already reads, or could read with a request like the ones it already
+   makes. Findings go in the TODO notes.
+2. **Then decide:** a source found → a cheap build (a list column plus a line in the book window; it comes back out of
+   Someday as its own task). None → close it.
+3. **Off the public "Future Features" list** (README, features page) until a source is found — it promised something we
+   don't know we can build.
