@@ -101,7 +101,6 @@
       - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
     - [Features](#features)
       - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
-      - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
       - [Finish keyboard accessibility](#finish-keyboard-accessibility)
       - [Show reading progress](#show-reading-progress)
       - [Book recommendations](#book-recommendations)
@@ -130,6 +129,7 @@
     - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
   - [🧊 Someday](#someday)
     - [Test on Safari (desktop and iPhone)](#test-on-safari-desktop-and-iphone)
+    - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
 
 <!-- /TOC -->
 
@@ -2189,7 +2189,7 @@ _Why it matters:_ Assumptions baked into the product are nowhere stated — a UK
 **The facts** (each verified in the code or docs, 2026-10-16; facts 4–5 corrected 2026-11-01)
 1. **Amazon's US store only.** Every fetcher talks to amazon.com only, and prices are read as US dollars (details: see
    TODO notes).
-2. **Formats** — the library fetch brings in **everything** in your Amazon library, every format (Kindle purchases, samples, Prime, Kindle Unlimited, loans — and print, audio, even a DVD bought on Amazon); series and author adds take Kindle editions only; **the one-book Add Book to Wishlist takes any format** (deliberately — a paperback can hold a place until a Kindle edition exists). Undoing the Kindle-only preference: After launch task "Formats other than Kindle".
+2. **Formats** — the library fetch brings in **everything** in your Amazon library, every format (Kindle purchases, samples, Prime, Kindle Unlimited, loans — and print, audio, even a DVD bought on Amazon); series and author adds take Kindle editions only; **the one-book Add Book to Wishlist takes any format** (deliberately — a paperback can hold a place until a Kindle edition exists). Undoing the Kindle-only preference: Someday task "Formats other than Kindle".
 3. **The app is in English.** The books can be in any language.
 4. **Browsers:** tested on **Chrome**. **Edge** should work (it's built on the same engine as Chrome) — and once the
    browser driver exists (High priority; it runs Edge) it becomes "tested by the automated tests" for real; say so
@@ -2847,28 +2847,6 @@ _Why it matters:_ Jump straight from ReaderWrangler to reading the book — for 
   format; the desktop, the right-click menu and the phone call it. The links and what we learned about them: see TODO
   notes.
 
-#### Formats other than Kindle: undo my Kindle-only preference
-<!-- id 20261018-1422a -->
-
-_Why it matters:_ "Kindle only" is Ron's own preference baked into the series and author adds (Ron, 2026-10-16: "We took MY preference and baked it in") — other readers may want paperbacks, hardcovers or audiobooks; and the library fetch has no way to keep out formats you don't track.
-
-**Today**
-- The **series** and **author** adds take Kindle editions only; the **one-book Add Book to Wishlist** takes whatever format the page shows — keep that exception either way (Ron adds a paperback as a placeholder when there's no Kindle edition yet).
-- **The library fetch already brings in EVERY format** (confirmed 2026-10-16 from Ron's library, Format column): ~80 non-Kindle items — 47 Board Book, ~12 Paperback, ~12 Mass Market Paperback, 4 Map, 2 Audio CD, 1 each CD-ROM, DVD, Product Bundle, Spiral-bound, and one "Shoes" (a board book Amazon mislabels). Mostly gifts Ron's wife bought. _(Corrected twice today: I first claimed Amazon's library was Kindle-only — it isn't; its default filter hides other things, not formats — see "Fetcher: give the library filter one name, in one place" and TODO notes.)_
-- So the library has the **opposite** problem: things you don't track (gifts, a DVD) come in with no way to keep them out.
-
-**Shape** (Ron + UX, 2026-10-16) — **after launch, depending on demand**
-1. **One "Formats I track" setting** — checkboxes (☑ Kindle ☐ Paperback ☐ Hardcover ☐ Audiobook …), saved with your sync settings so every fetcher obeys it. It works **both ways**: series / author adds bring in the formats you track (not just Kindle), and the library fetch leaves out the ones you don't (your gift board books, the DVD).
-2. The author and series panels show it pre-checked; you can change it for that one run.
-3. **A Format filter in ReaderWrangler's right pane** — books already carry a format (the editable Format field), so it has something to work from. Today the only way to see them is the Format column + sorting.
-4. To decide when built: the default for new users, and what happens to already-fetched books in formats you then untick (hide them? leave them?).
-
-**Watch out**
-- **Author add — settled 2026-10-16: print works exactly like Kindle**, and "All languages" can be one request (a small
-  win for the shipped fetcher). Details: AMAZON-AUTHOR-PAGES.md.
-- Format words seen: `kindle`, `paperback` (author filter); Amazon's library filter lists Kindle Edition, Paperback, Hardcover, Board Book, Audible Audiobook.
-- The series add asks Amazon for `binding=kindle_edition` (series-page-fetcher.js ~319).
-
 #### Finish keyboard accessibility
 <!-- id 20261014-1030v -->
 
@@ -3146,3 +3124,30 @@ _Why it matters:_ Some Safari differences could break storage, the phone install
 
 **Risks to check**
 - The browser's book storage (IndexedDB), installing as a phone app (PWA), and styling.
+
+### Formats other than Kindle: undo my Kindle-only preference
+<!-- id 20261018-1422a -->
+
+_Why it matters:_ "Kindle only" is Ron's own preference baked into the series and author adds (Ron, 2026-10-16: "We took MY preference and baked it in") — other readers may want paperbacks, hardcovers or audiobooks; and the library fetch has no way to keep out formats you don't track.
+
+**Placed here** (Ron, 2026-11-03): very speculative, low priority — the basic features come first, and for user 1
+there's no drive (Kindle books and a handful of PDFs). **What's already in your library** (the ~80 gift items below):
+sort All Books by Format and scroll past Kindle; if that proves insufficient, a Format filter in the right pane
+(item 3) is the first piece to build, on its own.
+
+**Today**
+- The **series** and **author** adds take Kindle editions only; the **one-book Add Book to Wishlist** takes whatever format the page shows — keep that exception either way (Ron adds a paperback as a placeholder when there's no Kindle edition yet).
+- **The library fetch already brings in EVERY format** (confirmed 2026-10-16 from Ron's library, Format column): ~80 non-Kindle items — 47 Board Book, ~12 Paperback, ~12 Mass Market Paperback, 4 Map, 2 Audio CD, 1 each CD-ROM, DVD, Product Bundle, Spiral-bound, and one "Shoes" (a board book Amazon mislabels). Mostly gifts Ron's wife bought. _(Corrected twice today: I first claimed Amazon's library was Kindle-only — it isn't; its default filter hides other things, not formats — see "Fetcher: give the library filter one name, in one place" and TODO notes.)_
+- So the library has the **opposite** problem: things you don't track (gifts, a DVD) come in with no way to keep them out.
+
+**Shape** (Ron + UX, 2026-10-16) — **someday, only if users ask**
+1. **One "Formats I track" setting** — checkboxes (☑ Kindle ☐ Paperback ☐ Hardcover ☐ Audiobook …), saved with your sync settings so every fetcher obeys it. It works **both ways**: series / author adds bring in the formats you track (not just Kindle), and the library fetch leaves out the ones you don't (your gift board books, the DVD).
+2. The author and series panels show it pre-checked; you can change it for that one run.
+3. **A Format filter in ReaderWrangler's right pane** — books already carry a format (the editable Format field), so it has something to work from. Today the only way to see them is the Format column + sorting.
+4. To decide when built: the default for new users, and what happens to already-fetched books in formats you then untick (hide them? leave them?).
+
+**Watch out**
+- **Author add — settled 2026-10-16: print works exactly like Kindle**, and "All languages" can be one request (a small
+  win for the shipped fetcher). Details: AMAZON-AUTHOR-PAGES.md.
+- Format words seen: `kindle`, `paperback` (author filter); Amazon's library filter lists Kindle Edition, Paperback, Hardcover, Board Book, Audible Audiobook.
+- The series add asks Amazon for `binding=kindle_edition` (series-page-fetcher.js ~319).
