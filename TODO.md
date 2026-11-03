@@ -90,6 +90,7 @@
       - [A fetch from someone else's Amazon account stops before mixing two libraries](#a-fetch-from-someone-elses-amazon-account-stops-before-mixing-two-libraries)
       - [Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select](#refresh-all-books-from-amazon--a-choice-in-the-fetcher-which-the-app-can-pre-select)
       - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
+      - [Faster loading: build the app ahead of time (35 seconds → 1)](#faster-loading-build-the-app-ahead-of-time-35-seconds--1)
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
       - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
       - [A long fetch resumes after an interruption (a first fetch, or a full refresh)](#a-long-fetch-resumes-after-an-interruption-a-first-fetch-or-a-full-refresh)
@@ -115,7 +116,6 @@
     - [Prices](#prices)
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
     - [Technical clean-up](#technical-clean-up)
-      - [Faster loading: build the app ahead of time](#faster-loading-build-the-app-ahead-of-time)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
       - [Show a notice when book descriptions are missing](#show-a-notice-when-book-descriptions-are-missing)
       - [Clean up developer console messages](#clean-up-developer-console-messages)
@@ -2570,7 +2570,7 @@ could read the key and send it away.
 
 **Decided** (Ron + Claude, 2026-11-01/02, in the TODO review)
 1. **Exact versions** for all six (Tailwind's CDN takes an exact version in its address). Its lasting fix stays the
-   "build the app ahead of time" task (After launch).
+   "Faster loading: build the app ahead of time" task (Before launch, right below — moved up 2026-11-03).
 2. **Integrity checks** (`integrity` + `crossorigin` on every outside script and stylesheet, and on the phone's
    on-demand loader): the browser refuses any copy that differs from the one we checked. What they DON'T do (Ron): they
    can't prove the checked copy is safe — they protect against tampering *after* we pin (e.g. the 2024 polyfill.io
@@ -2602,6 +2602,38 @@ could read the key and send it away.
 - Old review item 6h. The servers the app talks to: both relay workers (`readerwrangler-relay*.readerwrangler.workers.dev`),
   GoatCounter (its script + endpoint), Amazon's image hosts (covers) — list them from the code when building, not from
   memory.
+
+#### Faster loading: build the app ahead of time (35 seconds → 1)
+<!-- id 20261014-1030s -->
+
+_Why it matters:_ Opening ReaderWrangler takes **about 35 seconds** on Ron's PC — 32 of them the browser compiling the
+app's code, on every load. Built ahead of time, the app appeared in **1.0 second**. It's the first thing a newcomer
+meets, and it slows every load Ron does after a code change too.
+
+**Measured 2026-11-03** (Ron's PC, 3,270 books; untracked test pages, timed from page start to the app replacing the
+splash): today's page **35.8 s** average of 3 (the browser's compiler alone: 32.1 s); precompiled **1.0 s** average of
+5 — same books, same messages, same behavior. The compile itself, on the PC: **1.3–2.1 s** (desktop), 0.3–0.6 s
+(phone). The August figure in the spec (~14 s) has more than doubled as the code grew.
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review — moved up from After launch → Technical clean-up)
+1. **Before launch, and early** (Ron: "I don't see why… we would not go ahead and do this sooner") — beside the
+   outside-libraries pinning task, which it also durably fixes (no in-browser compiler or style builder loaded at all).
+2. **An invisible build — two chokepoints, nothing to remember:**
+   - **serve.py builds on demand:** if a source file is newer than its built file, it rebuilds before serving — Ron's
+     loop stays edit → refresh (and gets faster: ~2 s on the PC instead of ~32 s in the browser).
+   - **A commit check refuses stale built files.** The built files are committed, so GitHub Pages serves them with no
+     build job on GitHub to maintain.
+3. **Match the browser's compile at first** (turning `const` / `let` into `var`, as the browser's compiler does — the
+   test crashed without it). The modern output exposed a real bug ("With a filter on, the right pane still shows
+   subfolders with no matching books", Small fixes); once that task's commit check comes back clean, drop the
+   conversion so the next such bug is a visible crash, not a silent "undefined".
+4. **Step 2: the styles** (the other 1–3 s, and the "not for production" warning) — the spec's Tailwind step; test it
+   the same way.
+5. The existing checks keep working on the source (name check, version guard); the cache-buster moves with the built
+   file — one more line in the version guard. What's served stays readable; the source is public on GitHub.
+
+**Spec:** docs/design/PRECOMPILE.md (written before these measurements and this build plan).
+
 
 #### Stop cleanly when Amazon asks for a human check mid-fetch
 <!-- id 20261014-1030au -->
@@ -3157,19 +3189,6 @@ _Why it matters:_ So you can switch to the Kindle edition without losing its fol
 ### Technical clean-up
 
 _Formerly: Tech / performance_
-
-#### Faster loading: build the app ahead of time
-<!-- id 20261014-1030s -->
-
-_Why it matters:_ Today the app compiles itself in the browser on every load.
-
-**What you'd get**
-- The app's code is prepared once, ahead of time, instead of in the browser each load. Faster loading — and the lasting fix for pinning outside code versions.
-
-**Spec:** docs/design/PRECOMPILE.md.
-
-**How (technical)**
-- Precompile Babel + Tailwind to static files; removes in-browser Babel and Tailwind.
 
 #### Split the main code file into modules
 <!-- id 20261014-1030at -->
