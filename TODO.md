@@ -107,9 +107,8 @@
       - [Show who a book is shared with (Family Library)](#show-who-a-book-is-shared-with-family-library)
       - [Two-pane split view](#two-pane-split-view)
       - [Library statistics: your unread pile, books per year, top authors and series](#library-statistics-your-unread-pile-books-per-year-top-authors-and-series)
-      - [Connect with Goodreads / StoryGraph](#connect-with-goodreads--storygraph)
       - [Animated drag-and-drop](#animated-drag-and-drop)
-      - [Import book details from a pasted list or spreadsheet](#import-book-details-from-a-pasted-list-or-spreadsheet)
+      - [Import book details from a list or spreadsheet; Goodreads / StoryGraph files in and out](#import-book-details-from-a-list-or-spreadsheet-goodreads--storygraph-files-in-and-out)
       - [Capture book ideas from your phone (Share → ReaderWrangler)](#capture-book-ideas-from-your-phone-share--readerwrangler)
     - [Prices](#prices)
       - [Wishlist prices through Amazon's official affiliate catalog API, once eligible](#wishlist-prices-through-amazons-official-affiliate-catalog-api-once-eligible)
@@ -2997,23 +2996,28 @@ which series you started and never finished. (Was "Reading statistics".)
    trivia.
 4. **First step: Ron picks the 3–5 numbers he'd actually look at** — not a sprawling dashboard.
 
-#### Connect with Goodreads / StoryGraph
-<!-- id 20261014-1030n -->
-
-_Why it matters:_ Share data with the reading sites people already use.
-
 #### Animated drag-and-drop
 <!-- id 20261014-1030c -->
 
 _Why it matters:_ Books slide aside live to show where a drop will land.
 
-#### Import book details from a pasted list or spreadsheet
-<!-- id 20261014-1030y -->
+#### Import book details from a list or spreadsheet; Goodreads / StoryGraph files in and out
+<!-- id 20261014-1030y; merged 20261014-1030n -->
 
-_Why it matters:_ A way to bring in information from outside Amazon.
+_Why it matters:_ A way to bring in information from outside Amazon — and to share your library with the reading sites
+people already use.
 
 **What you'd get**
-- Paste a list or load a CSV; ReaderWrangler matches the rows to your books.
+- Paste a list or load a spreadsheet (CSV); ReaderWrangler matches the rows to your books (by title or ASIN, with a
+  review step — never applied blind).
+- **Goodreads / StoryGraph exports in:** read status, your ratings, shelves as tags — the same shape as the spec's CSV
+  tier.
+- **Your library out, in Goodreads' spreadsheet format,** so Goodreads or StoryGraph can import your Kindle library in
+  one go — a column layout for the existing Save as Spreadsheet (7.10), not a new feature.
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review — merged "Connect with Goodreads / StoryGraph")
+- **Files, not a live connection:** Goodreads stopped giving out access to its connection service in December 2020 and
+  has none today; StoryGraph has none either — both trade files (StoryGraph reads Goodreads' format).
 
 **Spec:** docs/design/Metadata-Import.md.
 
