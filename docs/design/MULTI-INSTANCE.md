@@ -148,8 +148,9 @@ never applied one to its own editable state — today it reads it only in the Re
 2. **Mid-gesture** — a tab mid-drag or with the book details window open catches up when that ends.
 3. **Books live in IndexedDB** (written whole, apart from the organization) — the compare must cover them too, or
    one stamp covers both.
-4. **Cross-tab drag** — no longer a second writer in disguise (both tabs are current); allow it or not? The in-app
-   split view (own TODO item) is still the real answer for side-by-side folders.
+4. **Cross-tab drag** — no longer a second writer in disguise (both tabs are current); allow it or not? Decided in TODO
+   "Two-pane split view" (2026-11-03): two windows side by side first, including whether a drag between them can
+   finish a move; the in-app split view only if that falls short.
 
 **Non-goal — live two-way concurrent sync** (rejected on the ratio, 2026-09-22): it needs (a) **push** — the relay is
 KV + a stateless worker, so real-time means Durable Objects holding a WebSocket per channel — and (b) a **merge for
