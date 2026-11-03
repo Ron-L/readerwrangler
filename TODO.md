@@ -85,6 +85,7 @@
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
       - [A fetch made with the demo filter on says so, and never marks books as gone](#a-fetch-made-with-the-demo-filter-on-says-so-and-never-marks-books-as-gone)
+      - [A fetch from someone else's Amazon account stops before mixing two libraries](#a-fetch-from-someone-elses-amazon-account-stops-before-mixing-two-libraries)
       - [Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select](#refresh-all-books-from-amazon--a-choice-in-the-fetcher-which-the-app-can-pre-select)
       - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
@@ -105,7 +106,6 @@
       - [Book recommendations: similar books you own, and ones you don't have yet](#book-recommendations-similar-books-you-own-and-ones-you-dont-have-yet)
       - [Show who a book is shared with (Family Library)](#show-who-a-book-is-shared-with-family-library)
       - [Two-pane split view](#two-pane-split-view)
-      - [Several people on one installation](#several-people-on-one-installation)
       - [Reading statistics](#reading-statistics)
       - [Connect with Goodreads / StoryGraph](#connect-with-goodreads--storygraph)
       - [Animated drag-and-drop](#animated-drag-and-drop)
@@ -130,6 +130,7 @@
     - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
     - [Find out whether reading progress can be fetched from Amazon](#find-out-whether-reading-progress-can-be-fetched-from-amazon)
     - [Support stores besides Amazon](#support-stores-besides-amazon)
+    - [Several people on one installation](#several-people-on-one-installation)
 
 <!-- /TOC -->
 
@@ -2444,6 +2445,24 @@ wrong.
   amazon-collections-fetcher.js ~56). The "no longer in your Amazon library" inference: readerwrangler.js ~194 / ~5670
   (docs/design/ORPHAN-CLEANUP.md §2).
 
+#### A fetch from someone else's Amazon account stops before mixing two libraries
+<!-- id 20261103-1525 -->
+
+_Why it matters:_ Nothing checks whose Amazon account a fetch comes from. On a shared computer, someone signed in to
+*their* Amazon account who clicks *your* bookmarklet (it carries your Cloud Sync key) sends their books into your
+library — and the fetch, comparing your library with "their" Amazon account, can flag your books as removed. Undo
+doesn't reach that.
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review — split out of "Several people on one installation")
+1. **The library remembers which Amazon account it belongs to** (set on its first fetch). Amazon's pages already ask for
+   the signed-in account's name, so the fetcher reads it with no extra request (Amazon's side: see TODO notes).
+2. **A fetch from a different account stops before sending anything** and says plainly: *"You're signed in to Amazon as
+   Dana, but this library belongs to Ron. Fetching would mix two people's books."* — with an escape for the rare real
+   case: **"It's the same person — continue"**. A stopping prompt, which Law 18 normally rules out — justified here
+   because the damage can't be undone (Ron, 2026-11-03).
+3. **Same rule as the demo-filter task above:** a fetch that didn't see your real library never marks books as gone.
+4. The better answer for a household: one browser profile per person (see "Several people on one installation").
+
 #### Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select
 <!-- id 20261014-1030 -->
 
@@ -2961,13 +2980,6 @@ without dropping it at the top and moving it again.
 
 **Spec:** docs/design/archive/DUAL-PANE-SPLIT.md (options A and B; its decision note points here).
 
-#### Several people on one installation
-<!-- id 20261014-1030ao -->
-
-_Why it matters:_ Low priority — Save / Restore Backup already works around it.
-
-**Spec:** docs/design/archive/MULTI-USER-DESIGN.md.
-
 #### Reading statistics
 <!-- id 20261014-1030aj -->
 
@@ -3252,3 +3264,16 @@ _Why it matters:_ For readers who buy elsewhere too.
    is already how the fetchers are named. Not on any public list (checked 2026-11-03).
 
 **Spec:** docs/reference/MULTI-STORE-ARCHITECTURE.md.
+
+### Several people on one installation
+<!-- id 20261014-1030ao -->
+
+_Why it matters:_ Separate libraries for several people in one copy of the app.
+
+**Placed here** (Ron + Claude, 2026-11-03, in the TODO review): the workaround is better than this feature — **one
+browser profile per person** (or another browser). Each profile is its own world: its own library, its own Cloud Sync
+key, nothing shared (help notes, "One working tab…"). Swapping libraries with Save / Restore Backup, the old
+workaround, is clumsy and easy to get wrong. The real hazard — someone else's Amazon account fetched into your library —
+is its own task: "A fetch from someone else's Amazon account stops before mixing two libraries" (Before launch).
+
+**Spec:** docs/design/archive/MULTI-USER-DESIGN.md.
