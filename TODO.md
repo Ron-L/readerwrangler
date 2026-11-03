@@ -103,6 +103,7 @@
       - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
     - [Features](#features)
       - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
+      - [Amazon's official catalog API: prices, titles and covers without a bookmarklet, once eligible](#amazons-official-catalog-api-prices-titles-and-covers-without-a-bookmarklet-once-eligible)
       - [Book recommendations: similar books you own, and ones you don't have yet](#book-recommendations-similar-books-you-own-and-ones-you-dont-have-yet)
       - [Show who a book is shared with (Family Library)](#show-who-a-book-is-shared-with-family-library)
       - [Two-pane split view](#two-pane-split-view)
@@ -110,7 +111,6 @@
       - [Import book details from a list or spreadsheet; Goodreads / StoryGraph files in and out](#import-book-details-from-a-list-or-spreadsheet-goodreads--storygraph-files-in-and-out)
       - [Capture book ideas from your phone (Share → ReaderWrangler)](#capture-book-ideas-from-your-phone-share--readerwrangler)
     - [Prices](#prices)
-      - [Wishlist prices through Amazon's official affiliate catalog API, once eligible](#wishlist-prices-through-amazons-official-affiliate-catalog-api-once-eligible)
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
       - [Now and then, refresh ratings for books you might buy](#now-and-then-refresh-ratings-for-books-you-might-buy)
     - [Technical clean-up](#technical-clean-up)
@@ -2898,6 +2898,36 @@ _Why it matters:_ Jump straight from ReaderWrangler to reading the book — for 
   format; the desktop, the right-click menu and the phone call it. The links and what we learned about them: see TODO
   notes.
 
+#### Amazon's official catalog API: prices, titles and covers without a bookmarklet, once eligible
+<!-- id 20261021-1349 -->
+
+_Why it matters:_ An official API can't be broken by a page redesign — a sturdier source for the prices behind price
+goals. And it closes, for catalog facts, the gap that "the app can't ask Amazon for anything — only a bookmarklet on
+Amazon's page can" keeps opening.
+
+**What it is** (Ron + Claude, 2026-10-21): the **Creators API**, the successor to Amazon's Product Advertising API
+(PA-API 5, retired). A **catalog** API — what Amazon sells (titles, prices, images by ASIN), never what *you* own — so
+it can never replace the library fetch. RW never used PA-API (checked 2026-10-21), so nothing is broken today.
+
+**What it would take**
+1. **Eligibility:** an Amazon Associates account — RW already has one (its "View on Amazon" / Share links carry the
+   affiliate tag) — with **10 qualifying sales in the past 30 days** (2026-10-21: 6 ordered, 0 shipped, $0 earned —
+   none qualifying yet).
+2. **A server for the credentials** — already there: the relay worker can hold them, look prices up 10 per request,
+   and keep them only as long as Amazon allows.
+3. **Only the generic catalog facts move.** Account-specific signals — "you bought this on ‹date›", Prime / Kindle
+   Unlimited status — stay in the signed-in fetch.
+4. **Signed lookups, with a daily cap** (2026-11-03): a relay that looks up Amazon prices is a new kind of service —
+   unprotected, anyone could use it as a free price lookup and burn our Amazon allowance. Lookups take the same signed
+   requests as writes (7.25) — only a real Cloud Sync channel can ask — plus a per-channel daily cap.
+
+**Placed above the tasks that will use it** (Ron, 2026-11-03) — moved here from Prices. Both work without it, and are
+better with it (title, price and cover by book number, asked by the relay, no bookmarklet):
+- "Book recommendations…" — the book window for books you don't have yet (instead of prefetching their details);
+- "Capture book ideas from your phone…" — a shared link becomes a complete wishlist entry on its own.
+
+Details: see TODO notes.
+
 #### Book recommendations: similar books you own, and ones you don't have yet
 <!-- id 20261014-1030h -->
 
@@ -2935,7 +2965,8 @@ wishlist; ReaderWrangler can separate them.
      saved — safe to close this tab"), so closing the tab only skips it;
    - a book recommended for many of yours is stored once;
    - the window then offers **Add to Wishlist** in one click (the price comes with the next wishlist price fetch).
-   If not prefetched: books you don't have open their Amazon page instead.
+   If not prefetched: books you don't have open their Amazon page instead — or, once eligible, the window is built from
+   "Amazon's official catalog API…" (the task above), with no prefetching at all.
 5. **Store book numbers for the lists**, not copies of the books.
 
 **Spec:** docs/design/BOOK-RECOMMENDATIONS.md (its UI design predates these findings — revise it in this task; Amazon's
@@ -3034,7 +3065,7 @@ _Why it matters:_ Recommendations you meet on your phone (a Claude.ai answer, a 
    Book List). (Corrected 2026-11-03: a link can't become a complete wishlist entry by itself — neither the app nor
    the phone can ask Amazon for a title or price; only a bookmarklet on Amazon's page can. Later, the planned "requests
    from the app to the bookmarklet" channel — the one "Refresh all books from Amazon" uses — could fill them all in on
-   the next fetch.)
+   the next fetch; or, once eligible, "Amazon's official catalog API…" (Features) completes each one as it arrives.)
 3. A whole Claude answer can be shared at once and worked through on the desktop. Picking titles out of free text
    automatically stays human — too unreliable.
 
@@ -3056,27 +3087,6 @@ and release it").
 ### Prices
 
 _Formerly: 💰 Price checking (Price sweep scoping + staleness display, agreed 2026-08-21, from external sync review item 2)_
-
-#### Wishlist prices through Amazon's official affiliate catalog API, once eligible
-<!-- id 20261021-1349 -->
-
-_Why it matters:_ An official API can't be broken by a page redesign — a sturdier source for the prices behind price
-goals.
-
-**What it is** (Ron + Claude, 2026-10-21): the **Creators API**, the successor to Amazon's Product Advertising API
-(PA-API 5, retired). A **catalog** API — what Amazon sells (titles, prices, images by ASIN), never what *you* own — so
-it can never replace the library fetch. RW never used PA-API (checked 2026-10-21), so nothing is broken today.
-
-**What it would take**
-1. **Eligibility:** an Amazon Associates account — RW already has one (its "Open in Amazon" / Share links carry the
-   affiliate tag) — with **10 qualifying sales in the past 30 days** (2026-10-21: 6 ordered, 0 shipped, $0 earned —
-   none qualifying yet).
-2. **A server for the credentials** — already there: the relay worker can hold them, look prices up 10 per request,
-   and keep them only as long as Amazon allows.
-3. **Only the generic price moves.** Account-specific signals — "you bought this on ‹date›", Prime / Kindle Unlimited
-   status — stay in the signed-in fetch.
-
-Details: see TODO notes.
 
 #### Notice when a Kindle edition appears for a print-only book
 <!-- id 20261014-1030ae -->
