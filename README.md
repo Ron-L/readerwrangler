@@ -155,7 +155,7 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
 *Ideas we like — no timeline promised.*
 
-- **Book recommendations** — Discover similar books already in your library
+- **Book recommendations** — Books like this one, from your own library and ones you don't have yet
 - **Series manager** — Clean up inconsistent series names and merge duplicates
 - **Keyboard accessibility** — Full keyboard navigation for every feature
 

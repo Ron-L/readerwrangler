@@ -102,7 +102,7 @@
       - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
     - [Features](#features)
       - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
-      - [Book recommendations](#book-recommendations)
+      - [Book recommendations: similar books you own, and ones you don't have yet](#book-recommendations-similar-books-you-own-and-ones-you-dont-have-yet)
       - [Show who a book is shared with (Family Library)](#show-who-a-book-is-shared-with-family-library)
       - [Two-pane split view](#two-pane-split-view)
       - [Support stores besides Amazon](#support-stores-besides-amazon)
@@ -2560,6 +2560,8 @@ _Why it matters:_ Today it shows confusing errors instead of saying what to do.
    request pacing)", item 5 — every Amazon request goes through it, the fetcher scripts' own `fetch` disabled) — not in
    each fetcher's retry path. Every fetcher gets it, including later ones. Build with or after that wrapper.
 2. **The long runs are the likeliest to trip it** — a new user's first big fetch, and "Refresh all books from Amazon".
+   Seen 2026-11-03: Ron got a check after a few quick searches in Amazon's own search bar (not from our requests) — the
+   first one he's ever had; quick repeated requests are what trips it, so pacing in `amazonFetch` matters.
    Once "A long fetch resumes after an interruption" exists, the message becomes "…then run it
    again — it continues where it stopped".
 
@@ -2877,12 +2879,48 @@ _Why it matters:_ Jump straight from ReaderWrangler to reading the book — for 
   format; the desktop, the right-click menu and the phone call it. The links and what we learned about them: see TODO
   notes.
 
-#### Book recommendations
+#### Book recommendations: similar books you own, and ones you don't have yet
 <!-- id 20261014-1030h -->
 
-_Why it matters:_ Suggestions based on your own library.
+_Why it matters:_ "Unbury your next great read" — when you finish a book, see the similar ones already in your library
+(unread first), and the ones you don't have yet. Amazon's own page mixes these together and doesn't know your
+wishlist; ReaderWrangler can separate them.
 
-**Spec:** docs/design/BOOK-RECOMMENDATIONS.md.
+**Found 2026-11-03** (Ron + Claude; details and the evidence: see TODO notes)
+1. **The library fetch's Amazon-tags request can also return Amazon's "more like this" list** (10 per book, more with
+   paging) at no extra request — but **Amazon already leaves out the books you own** (proven: a book shown in Amazon's
+   web carousel as one you bought was missing from the list). Pre-orders do come through. Nothing we found brings your own
+   books back.
+2. **Amazon tags are rich but rare in your library:** each tagged book has ~15–18 (Coraline's run from "Magical
+   Realism" to "Spine-Chilling Horror") — but only **27 of Ron's 2,799 books have them** (09-02 backup): the fetch adds
+   Amazon tags to just 10 books per run.
+3. The old spec's claim that the list was "already fetched, just discarded" was wrong — the request asks for Amazon tags
+   only today.
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review) — in build order
+1. **Amazon-tag coverage first.** Every part below depends on it (and so would anything else built on Amazon tags).
+   Decide how coverage catches up: more books per fetch (paced, with the human-check stop), catching up over several
+   fetches, or as part of "Refresh all books from Amazon".
+2. **"Similar books you own" — worked out in the app, no request to Amazon:** the books in your library sharing the
+   most Amazon tags with this one, unread first. "Amazon tags" throughout — never confused with your own ReaderWrangler
+   tags.
+3. **"Books like this you don't have yet" — Amazon's list,** badged with what ReaderWrangler knows and Amazon's list
+   doesn't show: **On your wishlist**, **Pre-ordered** (one shared helper badges any ownership kind, so nothing is
+   special-cased).
+4. **A click opens the book window either way** (Ron) — one experience regardless of ownership; the title and picture
+   go to Amazon as they do today. **To decide in this task: prefetch the details of books you don't have, or not.** The
+   app can't ask Amazon for anything itself (only the bookmarklet, on Amazon's site, can), so the window needs stored
+   details. If prefetched:
+   - the details include the **description** (Ron: the reviews are what make entries big — leave those out);
+   - fetched as the fetcher's **last, optional step**, after the upload — like today's removed-books check ("Already
+     saved — safe to close this tab"), so closing the tab only skips it;
+   - a book recommended for many of yours is stored once;
+   - the window then offers **Add to Wishlist** in one click (the price comes with the next wishlist price fetch).
+   If not prefetched: books you don't have open their Amazon page instead.
+5. **Store book numbers for the lists**, not copies of the books.
+
+**Spec:** docs/design/BOOK-RECOMMENDATIONS.md (its UI design predates these findings — revise it in this task; Amazon's
+side: see TODO notes).
 
 #### Show who a book is shared with (Family Library)
 <!-- id 20261014-1030ar -->

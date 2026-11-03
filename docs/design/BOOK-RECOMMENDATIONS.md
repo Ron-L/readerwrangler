@@ -1,7 +1,12 @@
 # Book Recommendations Feature
 
 **Date:** 2026-01-22
-**Status:** Planned
+**Status:** Planned — **revised direction 2026-11-03** (TODO "Book recommendations: similar books you own, and ones you
+don't have yet"). Probing showed: the list was never fetched (the request asks for Amazon tags only today); Amazon
+already leaves out the books you own, so the "Owned badge" below rarely applies (pre-orders do come through); and only
+a few books have Amazon tags yet. The TODO task now holds the plan: Amazon-tag coverage first, "similar books you own"
+from Amazon tags, then Amazon's list with wishlist / pre-order badges, opening in the book window. This spec's UI below
+predates that and is revised in the task.
 
 ## Summary
 
@@ -9,27 +14,8 @@ Display "Similar Books" recommendations in the book detail modal. Recommendation
 
 ## Data Source
 
-The `bookRecommendations` API (Phase 3) returns both tags AND recommendations in a single call:
-
-```graphql
-query qvGetSingleItemRecommendation {
-    getCustomerLibrary {
-        bookRecommendations(asin: "B01MXDO2NA", first: 10, ...) {
-            tags { ... }           # Genre tags (already extracted)
-            edges {                # "More like this" recommendations (currently ignored)
-                node {
-                    book {
-                        asin
-                        product { title { displayString } }
-                    }
-                }
-            }
-        }
-    }
-}
-```
-
-**No additional API calls needed** - just extract `edges` from existing response.
+The library fetcher's Amazon-tags request (step 3 of the library fetch) can return Amazon's "more like this" list too,
+in the same request. **The request's shape, and what we learned probing it on 2026-11-03: see TODO notes.**
 
 ---
 
@@ -158,5 +144,5 @@ None - all design decisions resolved.
 
 ## Related Documents
 
-- [.private/Amazon-API-Reference.md](.private/Amazon-API-Reference.md) - API documentation for `bookRecommendations`
+- Amazon's side of the request: see TODO notes
 - [SCHEMA-V2-UNIFIED-FILE.md](SCHEMA-V2-UNIFIED-FILE.md) - Book data model
