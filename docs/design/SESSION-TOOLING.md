@@ -35,6 +35,13 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
 - **`gate-batch-end.py`** (PostToolBatch) — REFUSING → CLEAR once the refused batch is over (2026-10-19).
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by
   session id) so the checklist lands exactly once, at the planning→build boundary.
+- **`survey-check.py`** (UserPromptSubmit; Ron, 2026-11-03) — tools for Claude (skills, plugins, tool servers) appear
+  faster than Claude's training data keeps up with, so the survey of what RW should use (`docs/design/TOOL-SURVEY.md`)
+  is re-run **every 4 weeks**. **The report IS the state** — its `Next due:` line: once reached, the hook asks Claude to
+  raise the refresh at a natural break and offer **`/tool-survey`** (`.claude/commands/tool-survey.md`, which holds the
+  research brief so every run asks the same questions and reports what changed). "Not now" = Claude moves the `Next
+  due` line (the edit is the snooze), so it doesn't nag every message. A missing report or an unreadable line is
+  reported loudly.
 - **`relay-check.py`** (UserPromptSubmit; Ron, 2026-10-30) — the relay mails its daily summaries at 23:55 UTC. On any
   prompt where the newest nightly (yesterday, UTC) isn't yet in **the relay trend file** (kept with the TODO notes), it tells Claude to read
   the missing nights, add one row per relay per night, and report (one line if healthy; details + the trend if not).
