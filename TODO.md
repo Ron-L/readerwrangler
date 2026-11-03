@@ -2925,7 +2925,22 @@ side: see TODO notes).
 #### Show who a book is shared with (Family Library)
 <!-- id 20261014-1030ar -->
 
-_Why it matters:_ See sharing at a glance in the book window.
+_Why it matters:_ See sharing at a glance in the book window. Ron shares books with two family members through Amazon's
+Family Library (2026-11-03), and today nothing in ReaderWrangler says which.
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review)
+1. **Cheap, and researched** (2026-01-08; Amazon's side: see TODO notes): two requests in the collections fetcher —
+   your household, then the sharing of your **whole library** in one. Re-check them before building — the research is
+   10 months old and predates Ron's second family member; its test script no longer exists.
+2. **Books you shared out:** a **"Shared with: <name>"** line in the book window. No badge on covers (too noisy); a
+   "Shared" filter only if asked.
+3. **Books shared to you** already arrive with the library fetch, labeled **"Borrowed"** — but a Family Library book
+   doesn't expire like a loan. Relabel them, e.g. **"Shared with you (Family Library)"**, in this task.
+4. **Privacy — this stores other people's names** (in backups, which are plain files, and Cloud Sync, which is
+   encrypted). The names **never go into anything you send out** (Share by Email, the Copy… outputs): the book-field
+   table marks the field "never in shared text", so it's enforced in one place, not remembered.
+5. **Sharing or unsharing from ReaderWrangler is out** — it would write to your Amazon account (the same big MAYBE as
+   "Edit Kindle collections from ReaderWrangler").
 
 #### Two-pane split view
 <!-- id 20261014-1030bb -->
