@@ -3211,12 +3211,26 @@ _Formerly: Tech / performance_
 #### Split the main code file into modules
 <!-- id 20261014-1030at -->
 
-_Why it matters:_ One very large file is harder to work in safely.
+_Why it matters:_ One very large file is harder to work in safely — and the real problem is inside it: one giant
+component.
 
-**Status**
-- Re-assess first — uiHelpers, storage and integrity are already split out.
+**Re-assessed 2026-11-03** (Ron + Claude, in the TODO review)
+- The spec (August) describes a 3,862-line file and a 4–6 hour split. The file is now **20,455 lines** (1.65 MB), ~200
+  pieces of state, most of it inside **one component** thousands of lines long. That's where bugs hide: "With a
+  filter on, the right pane still shows subfolders…" (Small fixes) is a name used 5,400 lines before it's declared,
+  in the same function. Splitting the file without splitting the component would only move the problem.
 
-**Spec:** docs/design/MODULE-SPLIT.md.
+**Decided**
+1. **No big-bang project** (the ground rule: refactor while you work; don't plan refactoring projects). Instead:
+   - **A short map of the natural seams** — the left pane, the right pane, each big dialog, the menus — the pieces to
+     lift out, each as its own component and file, **whenever work touches them anyway**. Write the map first (in
+     the spec, replacing its old table).
+2. **After "Faster loading: build the app ahead of time"** — with a build step, files can properly include each other
+   instead of sharing global names; splitting is cleaner and safer then.
+3. **Optional, decide when building — a ratchet so it can't creep back:** a commit check that refuses a *new* large
+   component added to the main file (it goes in its own file). A ratchet, not a project.
+
+**Spec:** docs/design/MODULE-SPLIT.md (superseded by this task until the seam map replaces it).
 
 #### Show a notice when book descriptions are missing
 <!-- id 20261014-1030ap -->

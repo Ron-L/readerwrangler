@@ -3,6 +3,10 @@
 _Moved verbatim from TODO.md during the 6.12.0 TODO restructure (2026-08-03). Backlog. **LOW / MEDIUM (4-6 hours).**
 Re-assess before starting: `uiHelpers.js`, `storage.js`, and `integrity.js` are already split out since this was written._
 
+> **2026-11-03 — superseded.** The file is now 20,455 lines; the real problem is one giant component. The plan is in
+> TODO "Split the main code file into modules": a seam map (to replace the table below), pieces lifted out as work
+> touches them, after the build step.
+
 ---
 
 - Current state: 3,862-line monolithic file with 50+ state variables, 80+ functions
