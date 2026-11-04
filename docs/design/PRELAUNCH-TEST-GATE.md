@@ -1,5 +1,10 @@
 # Pre-Launch Test Gate — what must be test-locked before strangers' libraries ride on this
 
+> **2026-11-04 — now part of docs/design/TESTING.md** (the regression library, its tiers and per-task routine). These
+> suites remain the pre-launch data gate. Superseded here: the "Explicitly OUT of scope — permanently" list for
+> screens, dialogs, drag-and-drop and menus (the browser driver makes them testable), and "Why this scope and no
+> more" (it priced tests as hand-written; Claude writes them now).
+
 _Spec'd 2026-09-04 (while the bug classes were fresh); **executed when launch approaches, not now**.
 Rationale from the project retrospective: Ron is a superb test suite for UX and a poor one for silent data
 corruption — he diagnoses; strangers churn quietly. Every serious bug class this project has actually hit

@@ -210,6 +210,9 @@ the history scan, shipped the same day).
 - Sources: `C:\Users\Ron\Projects\Hsv-Utilities-App\tools\drive_page.mjs`, `…\hooks\pre-commit` (`syntax_errors`),
   `…\tools\shortcuts.py`; its PRINCIPLES Laws 18 and 21. RW's own rules govern the work here (branch, commit checks).
 - A test stops what it started by its exact process id (Law 5, 7.25.0).
+- **The testing plan is docs/design/TESTING.md** (Ron + Claude, 2026-11-04): this task builds its §9 first steps — the
+  parse check, the runner (`tools/run_tests.py`: tiers, tags, IDs, `--changed`), the driver (Playwright for Python +
+  the installed Edge; Playwright's command-line tool for Claude's ad-hoc looks), the fixture library's first version.
 - **Before building, weigh Playwright against copying `drive_page.mjs`** (Ron, 2026-10-31). Microsoft's Playwright —
   its agent CLI (`npm install -g @playwright/cli`) or its library — is maintained, records video and traces (the
   screen capture pass's scripted reel), and checks before every click that the target is visible and not covered
@@ -2784,6 +2787,8 @@ _Why it matters:_ The core data rules must be proven before strangers rely on th
 - **Blocks launch; blocks nothing else.**
 
 **Decided** (Ron + Claude, 2026-11-01, in the TODO review)
+0. **Part of the regression library** (docs/design/TESTING.md, 2026-11-04): these suites are its pre-launch data gate,
+   run by the same runner and tiers.
 1. **Outside review 3 (data safety) comes first** — it attacks what we didn't think of; its findings become test cases,
    rather than writing suites 2–4 now and patching them after ("Outside reviews before building", High priority).
 2. **The relay suite half-exists:** `relay/test-phase1.mjs` (59 checks: torn saves, fallback, cleanup guards…) and
