@@ -255,6 +255,9 @@ even when nobody is. Built with the browser driver (above): each makes the other
    or from the console. A side benefit: a user reporting a bug can be asked to open the site with `?anomalies=on`.
 5. **A quiet log, always on** (flag or not, production included): the last 100 anomalies on the device — time,
    message, build — with Channel IDs and the Passphrase removed; "Copy diagnostics" in Data Status.
+   **It also records every page load** — time, build, and the browser's "was this tab discarded and reloaded?"
+   (`document.wasDiscarded`) — so an unexplained loss of in-memory state ("Undo history sometimes empties by itself",
+   Watching) can be traced to a reload (added 2026-11-04).
 6. **The browser driver sets the flag** in its throwaway browser and fails a run on any anomaly.
 7. **The fetchers and the bookmarklet menu** run on Amazon's site, whose stored settings are separate from ours, so
    they read the same-named flag in amazon.com's storage (set from the console, or a toggle in the bookmarklet menu's
@@ -3405,9 +3408,12 @@ _Why it matters:_ Losing undo mid-session is alarming; the cause is still unknow
 
 **Next time it happens**
 - Check the console history and Data Status's "last checked" — a discarded tab clears both.
+- **Read the quiet diagnostics log** ("Report our own unexpected errors…", High priority): it records every page load
+  with the browser's own answer to "was this tab discarded and reloaded?" (`document.wasDiscarded`) — which settles the
+  TinySuspender question without guesswork (added 2026-11-04).
 
-**Do now regardless**
-- Whitelist localhost and readerwrangler.com in TinySuspender. A suspended ReaderWrangler tab can also tear an upload when you leave it.
+**Done 2026-11-04** (Ron): localhost and readerwrangler.com whitelisted in TinySuspender (a suspended ReaderWrangler
+tab can also tear an upload when you leave it).
 
 ### Find out why some books end up in no folder
 <!-- id 20260903-0000b -->
@@ -3420,6 +3426,11 @@ _Why it matters:_ Rare reports of books in no folder at all; watch whether it st
 
 **Next step**
 - **Watch** for the event after releases before spending a session on it.
+- **First, the Import-order fix** (2026-11-04, Ron + Claude): "Import: new books are filed before the integrity check…"
+  (Small fixes) — today the check runs before an Import files its new books, so it "repairs" brand-new books as
+  homeless: some reports may be exactly that. After that fix, any homeless book is a real one — and "Report our own
+  unexpected errors…" makes it noticeable (its first anomaly is the "auto-fixed during restore" message). Watch from
+  that release on.
 
 **How (technical)**
 - The event is `integrity-homeless`; the suspect was a stale `FOLDERS_KEY`.
