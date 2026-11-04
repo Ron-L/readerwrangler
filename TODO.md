@@ -122,7 +122,6 @@
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
     - [Technical clean-up](#technical-clean-up)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
-      - [Leftover desktop polish: one shadow direction](#leftover-desktop-polish-one-shadow-direction)
   - [👀 Watching](#watching)
     - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
     - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
@@ -625,7 +624,7 @@ leaving your spot": "Today it takes All Books + a filter + finding your way back
 - Folder case: the "common author" check Auto-Organize already uses when naming.
 
 #### Dark theme: fix the unreadable bar and the light strips
-<!-- id 20261007-0000a -->
+<!-- id 20261007-0000a; merged 20261014-1030ab -->
 
 _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar's text is unreadable.
 
@@ -642,6 +641,11 @@ _Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar'
 1. **Four themes, two screens.** The computer and the phone both have Light, Dark, High-contrast light and High-contrast dark. A fixed light color breaks High-contrast dark exactly like Dark — check Dark **and** High-contrast dark, on the computer **and** the phone.
 2. **The commit-time check comes first and produces the list.** Run once over today's code, it lists every fixed color (15 hard-coded backgrounds/gradients in readerwrangler.js alone, plus color classes the dark theme doesn't cover) — that list *is* the sweep. Fix everything on it; from then on the same check refuses new ones. It covers the app's own screens only: the bookmarklet's panels run on Amazon's pages, outside our themes, so their fixed colors are right.
 3. **Fix by naming colors, not by adding override rules** ("excellent idea" — Ron). Today Dark overrides a list of 76 specific style classes, and anything missing from the list silently stays light; that list only grows. Instead, each color gets a name defined once per theme ("surface background", "info bar"...) and the screens use the name. A name missing from a theme then shows up in every theme as soon as it's used (no background at all), not just in Dark — and the commit check can verify that every name used is defined in all four themes.
+4. **Shadows the same way — a few named levels** (Ron + Claude, 2026-11-04 — merged from "Leftover desktop polish: one
+   shadow direction", whose origin was lost): e.g. menu, dialog, floating card, each defined once per theme, so the
+   direction can't drift and the dark themes soften them in one place (a dark-on-dark shadow looks muddy). Today: ~57
+   from Tailwind's ready-made set (all straight down — not the problem) and ~49 hand-written (26 in readerwrangler.js,
+   23 in readerwrangler.css) — the commit check lists the hand-written ones as it does fixed colors.
 
 **How (technical)**
 - Dark remaps Tailwind classes in readerwrangler.css (`[data-theme="dark"] .bg-white {…}` etc.).
@@ -3380,14 +3384,6 @@ component.
 **Spec:** docs/design/MODULE-SPLIT.md (superseded by this task until the seam map replaces it).
 **Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): the official typescript-lsp plugin (go-to-definition and find-references across
 the big file) and ast-grep (structural search-and-replace) when lifting pieces out.
-
-#### Leftover desktop polish: one shadow direction
-<!-- id 20261014-1030ab -->
-
-_Why it matters:_ Small finishing touches.
-
-**Left**
-- Consistent shadow direction. (Left-pane keyboard navigation moved to "Finish keyboard accessibility", 2026-11-03.)
 
 ---
 
