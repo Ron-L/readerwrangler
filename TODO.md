@@ -95,6 +95,8 @@
       - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
       - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
       - [A long fetch resumes after an interruption (a first fetch, or a full refresh)](#a-long-fetch-resumes-after-an-interruption-a-first-fetch-or-a-full-refresh)
+      - [Lock the Cloud Sync Key in backups with an optional key password](#lock-the-cloud-sync-key-in-backups-with-an-optional-key-password)
+      - [Remind me when my last backup is getting old](#remind-me-when-my-last-backup-is-getting-old)
       - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
     - [Costs](#costs)
       - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
@@ -132,6 +134,7 @@
     - [Support stores besides Amazon](#support-stores-besides-amazon)
     - [Several people on one installation](#several-people-on-one-installation)
     - [Animated drag-and-drop](#animated-drag-and-drop)
+    - [Share a filtered, read-only copy of your library](#share-a-filtered-read-only-copy-of-your-library)
 
 <!-- /TOC -->
 
@@ -346,6 +349,15 @@ the rest of the TODO.
    delete one encrypted note (the app requests a full refresh; the fetcher reads it at start and deletes it after a
    successful refresh). Idle until the app + fetcher part ships; the signed-writes gate covers its writes. Name the new
    key kind in the daily email.
+10. **Delete a cloud copy nobody has used for a year** (Ron + Claude, 2026-11-04). Today a cloud copy whose key was
+   lost (so it can't be revoked) keeps its books forever — encrypted, harmless, but storage. The nightly cleanup deletes
+   a channel's copies after a year with no activity. **Say so** in the app, on the security page and in the help notes:
+   *"A cloud copy nobody uses for a year is deleted. Your library stays safe in your browser and in your backups, and
+   the next time you use ReaderWrangler it fills a cloud copy again."* **The app must refill, never mistake "gone" for
+   "your library is empty"** (the naming review's "silent empty mailbox" trap) — a returning user's next fetch and next
+   change repopulate it. (Considered and rejected: emailing owners of idle copies — it would collect personal data,
+   the "encrypted" address would be readable by the server anyway, and deletion-warning emails train users for
+   phishing; "Remind me when my last backup is getting old" guards the real disaster instead.)
 
 **Watch out**
 - One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**; alphas deploy from the branch,
@@ -2548,6 +2560,8 @@ doesn't reach that.
    because the damage can't be undone (Ron, 2026-11-03).
 3. **Same rule as the demo-filter task above:** a fetch that didn't see your real library never marks books as gone.
 4. The better answer for a household: one browser profile per person (see "Several people on one installation").
+5. **The same account name can guard Restore** (2026-11-04): a backup carrying "belongs to Dana" lets Restore say
+   *"This backup belongs to Dana — restoring replaces your library."* before replacing anything.
 
 #### Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select
 <!-- id 20261014-1030 -->
@@ -2810,6 +2824,52 @@ now also every "Refresh all books from Amazon" run, the likeliest to trip Amazon
 **How (technical)**
 - Send enrichment progress as mailbox letters in stages, so a resumed run's skip-hint already knows what's done.
 
+#### Lock the Cloud Sync Key in backups with an optional key password
+<!-- id 20261104-1024 -->
+
+_Why it matters:_ Every backup carries your Cloud Sync Key, and since 7.25 that key also signs changes — so whoever you
+share a backup file with ("send your brother your ReaderWrangler file") can change or delete your cloud copy. A family
+member forwarding a file is far likelier than any attacker.
+
+**Decided** (Ron + Claude, 2026-11-04)
+1. **An optional "key password" locks only the key inside the backup** — books, folders and notes stay readable, so
+   forgetting it costs a re-setup, never data. Not stored only in the browser instead: the backup exists for the day
+   the PC dies (Ron). Words: **lock** (not "scramble" — sounds undoable by anyone; not "encrypt" — that's Cloud Sync's
+   word) and **key password** (not "backup password", which reads as "protects the backup" or "a spare password").
+2. **One optional line in the save step, never a pop-up (Law 18):** *"Lock the Cloud Sync Key in this backup with a
+   password (optional) [______]  Why?"* + "Don't ask again". Shown only when Cloud Sync is set up. **Remembered in
+   this browser**, so later backups lock automatically; **File → Key Password…** sets, changes or removes it.
+3. **Why? / help text:** sharing an unlocked backup shares access to your cloud copy (the recipient could change or
+   delete your library and organization; you could recover from your last backup and make a new key); a password,
+   even a simple one, makes sharing a backup harmless — *"but feel free to use a strong password and a password
+   manager. We highly recommend password managers."* And: *"To look at someone else's backup, use a separate browser
+   profile — never swap backups in your own."*
+4. **The backup carries a "key locked" flag.** On restore, the wording adapts:
+   - this browser already has a key: *"This backup's Cloud Sync Key is locked. Enter your key password to restore it
+     too — or skip to keep using this browser's key (the usual case, if you haven't made a new one)."*
+   - no key here (e.g. a new PC): *"…Enter your key password to reconnect Cloud Sync — or skip: you can enter your key
+     later, or make a new one."*
+5. **Restore never blocks:** a skipped or wrong password restores everything else, then says *"Cloud Sync wasn't
+   reconnected — enter your Cloud Sync Key, or make a new one if you don't want to keep using your current cloud copy
+   (a new key means a new cloud copy)."*
+6. **Under the hood:** the same password-to-key method the relay already uses (relay-crypto), on one field of the
+   backup. A weak password can be guessed by someone determined with the file — accepted for this threat (Ron).
+7. **Ripples:** the Disconnect wording ("Relay Setup: disconnect…", below) says the key is in your backups "locked
+   with your key password, if you set one"; the private-values commit check still refuses an unlocked key in a
+   backup-shaped file (a locked one holds only scrambled text).
+
+#### Remind me when my last backup is getting old
+<!-- id 20261104-1024a -->
+
+_Why it matters:_ The one real disaster is a lost or wiped PC with no recent backup — and nothing reminds you today
+(checked 2026-11-04). The cloud copy isn't a full backup yet (see "Keep your tabs and browsers in step…").
+
+**Decided** (Ron + Claude, 2026-11-04 — instead of emailing users about idle cloud copies, which would have ended the
+"the server holds nothing readable about you" promise)
+1. When your last saved backup is more than about a month old, the status area shows a quiet note: *"Last backup: 47
+   days ago — Save Backup"* — one click; never a pop-up (Law 18).
+2. The app records when you last saved a backup (this browser); a Restore counts too.
+
 #### Relay Setup: disconnect, or reset credentials
 <!-- id 20261014-1030am -->
 
@@ -2824,8 +2884,8 @@ _Why it matters:_ A clean way to stop syncing, or to start over with new credent
 **Decided** (Ron + Claude, 2026-11-02, in the TODO review)
 1. **The danger is losing the key, not data** — the key IS the access to the cloud copy. The Disconnect window shows
    the key with a **Copy** button before you confirm: *"You'll need this key to reconnect — it's also in any backup
-   you've saved (File → Save Backup). Your bookmarklet and other devices keep syncing."* (Ron: backups carry it —
-   true since 6.0.0.) The one explicit, irreversible verb, with the remedy one click away inside it — not a guessing
+   you've saved (File → Save Backup), locked with your key password if you set one. Your bookmarklet and other devices
+   keep syncing."* (Ron: backups carry it — true since 6.0.0; the lock: "Lock the Cloud Sync Key in backups…", above.) The one explicit, irreversible verb, with the remedy one click away inside it — not a guessing
    prompt (Law 18).
 2. **Say exactly what stays:** this device's library — untouched; the cloud copy — untouched; other devices and the
    bookmarklet — unaffected (the bookmarklet carries its own copy of the key, so the next fetch still reaches the
@@ -3429,3 +3489,19 @@ _Why it matters:_ Books slide aside live to show where a drop will land.
    jitter at the edges between books. Solvable, but real work for polish. (Cost is not the worry: during a drag the
    app already hides rows out of view, so only the visible books would move.)
 3. **Try first:** a bolder line or a small gap.
+
+### Share a filtered, read-only copy of your library
+<!-- id 20261104-1024b -->
+
+_Why it matters:_ People may want to show someone their books — but a backup is the wrong thing to send: it carries the
+whole organization and notes (and, unlocked, the Cloud Sync Key), and **Restore replaces the recipient's own library**.
+
+**Placed here** (Ron + Claude, 2026-11-04) — someday, only if users ask; no real-world case yet (it came from exploring
+how a key could leak — "Lock the Cloud Sync Key in backups…").
+- **What it would be:** "Share a read-only copy" of the **current view** (e.g. All Books with the "Spicy" or "Political"
+  tag filtered out), never with the key; the recipient **opens it as a separate guest view** that leaves their own
+  library alone. A spreadsheet is a poor substitute (no covers, lists, tags, reviews — Ron).
+- **Until then — profiles, not backup-swapping** (Ron): the brother-in-law who wants to browse your books opens your
+  backup in **a separate browser profile** (its own key, its own library), picks the ones to borrow, and emails you —
+  never restoring someone else's backup into his own and then restoring his own back. (With the key password, even a
+  restore can't take over your cloud copy — he can't unlock your key.)

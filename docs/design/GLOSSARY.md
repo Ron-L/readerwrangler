@@ -18,14 +18,14 @@ Guide's glossary is built from this list. Words users never see (IndexedDB, JSON
 | **Import** (from Cloud Sync) | The click that brings new data in — never "Sync now". | Decided |
 | **Send Library / Send Collections to ReaderWrangler** | The bookmarklet's buttons on Amazon's page. | Decided |
 | **the sync server** | The server, on the security and site pages (was "relay server"). | Decided |
-| **your cloud copy** | The encrypted copy of your library and organization that Cloud Sync holds for your key. A **new key means a new, empty cloud copy** (the old one is locked and deleted). Internally: the "mailbox". | **Proposed 2026-11-04** (Ron asked for a term; "storage bucket" is engineering jargon) |
+| **your cloud copy** | What your Cloud Sync Key opens, held by Cloud Sync — **always encrypted**, readable only with your key in your ReaderWrangler or your bookmarklets. Two purposes: **(1) the relay** between your Amazon fetches and the app (and the phone); **(2) a backup** of your books and organization — *books today; your organization once the app can take it back (TODO "Keep your tabs and browsers in step…"); until then, Save Backup is your backup.* A **new key means a new cloud copy** — no problem: your next fetch and your next change fill it (set up the bookmarklet and phone again — the old key is built into them); "Make a new key" deletes the old one right away, and a copy nobody uses for a year is deleted (planned). Internally: the "mailbox". | Decided 2026-11-04 (Ron) |
 
 ## Backups
 
 | Term | Meaning | Status |
 | --- | --- | --- |
 | **Save Backup / Restore Backup** | A file of your whole library and organization — never "Import/Export". Restore **replaces** what this browser has. | Decided (CLAUDE.md) |
-| **key password** | An optional password that **locks the Cloud Sync Key inside your backups**, so sharing a backup file doesn't share access to your cloud copy. Forgetting it loses nothing but the key (restore everything else; enter the key or make a new one). | **Proposed 2026-11-04** (instead of "backup password", which reads as "protects the backup" or "a spare password") |
+| **key password** | An optional password that **locks the Cloud Sync Key inside your backups**, so sharing a backup file doesn't share access to your cloud copy. Forgetting it loses nothing but the key (restore everything else; enter the key or make a new one). | Decided 2026-11-04 (not "backup password" — reads as "protects the backup" or "a spare password"); menu **File → Key Password…** |
 | **lock** (the key) | What the key password does — chosen over "scramble" (sounds undoable by anyone) and "encrypt" (that's what Cloud Sync does). | Decided 2026-11-04 |
 | **Save as Spreadsheet** | Your books as a spreadsheet file (CSV) — no key, no organization. | Decided (7.10) |
 

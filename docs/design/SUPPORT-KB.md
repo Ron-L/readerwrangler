@@ -611,7 +611,9 @@ for a change to reach the Relay before Import can read it.
    with their own credentials — two separate libraries that never touch. Don't click someone
    else's bookmarklet while signed in to your own Amazon account: it would send your books into
    their library (a guard is planned — TODO "A fetch from someone else's Amazon account stops
-   before mixing two libraries"). We only test **Chrome**; other browsers are on your own.
+   before mixing two libraries"). **To look at someone else's backup**, open it in a separate
+   browser profile — never restore it into your own (Restore replaces your library). We only
+   test **Chrome**; other browsers are on your own.
 8. **Collections and read status come FROM the Kindle/Amazon side** — fetch Collections to
    refresh them; they're edited on your Kindle/Amazon, not in RW. Amazon's automatic "read"
    status (fires around 99%) is separate from any collection you happen to name "Read".
