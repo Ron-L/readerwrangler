@@ -1,4 +1,6 @@
 /**
+ * tags: relay, sync, tier 3
+ * covers: relay/relay-worker.js, relay-client.js, relay-crypto.js, relay-compress.js
  * Phase 1 relay-client test harness (relay write redesign).
  * Runs the REAL relay-client.js + relay-crypto.js + relay-compress.js in Node (22+)
  * against the DEV worker, and deliberately recreates the design's failure scenarios:

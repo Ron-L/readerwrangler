@@ -114,12 +114,16 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
 
 ## 9. Where it starts
 
-- **Today:** five function-test files (bookFields, bookMerge, datePresets, organizeEngine, overlayRegistry — ~80
-  checks, each run by hand with `node test/<file>`), and the two relay scripts (`relay/test-phase1.mjs`,
-  `relay/test-signed-writes.mjs`). No screen tests, no runner, nothing runs on commit.
+- **Before 2026-11-04:** five function-test files (~87 checks), each run by hand with `node test/<file>`, each with its
+  own copy of a `test()` helper whose first failure stopped the file; the two relay scripts; nothing ran on commit.
+- **Built 2026-11-04 (branch `feature/carry-over`):** the parse check (`PARSE-001`–`010`); **`test/harness.js`** — the one
+  shared helper (stable IDs, a failure is counted and the file carries on); the five files moved onto it with headers
+  and IDs (`BFIELD-`, `MERGE-`, `DATE-`, `ORG-`, `OVERLAY-`); **`tools/run_tests.py`** (`RUN-001`–`013`); headers on the
+  relay scripts (tier 3 — skipped unless `--relay-url` names a relay: `test-phase1.mjs` defaults to the dev relay
+  otherwise); **the commit hook runs tier 1 for what changed** (pre-commit step 7). 9 files, ~110 checks.
 - **Step 2 of the order of work** ("Carry over the utilities project's improvements…") builds:
-  1. the parse check (tier 1);
-  2. `tools/run_tests.py` with tiers, tags, IDs and `--changed`; the existing files get `tags:` / `covers:` headers and
+  1. ✅ the parse check (tier 1);
+  2. ✅ `tools/run_tests.py` with tiers, tags, IDs and `--changed`; the existing files get `tags:` / `covers:` headers and
      IDs; the commit hook runs `--changed`;
   3. the browser driver (Playwright for Python + Edge) and the small fixture library's first version;
   4. the first screen tests — from anomaly reporting and the Delete key fix (step 4), each starting from a failing test.

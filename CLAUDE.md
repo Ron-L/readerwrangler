@@ -153,6 +153,9 @@ Bypass (Ron's call only): `git commit --no-verify`.
 - **Parse check** (`git-hooks/check-parse.py` → `parse-js.js`), whenever a `.js`/`.mjs`/`.py` is staged: refuses a staged
   script that doesn't parse — the fetchers, the bookmarklet menu, the relay worker and every Python file included
   (2026-11-04; tests: `test/test_check_parse.py`).
+- **Tier-1 tests for what changed** (`tools/run_tests.py --changed`, pre-commit step 7): the function tests whose
+  `covers:` header names a changed file run on every commit; silent when none apply. The whole library:
+  `py tools/run_tests.py --tier all` (docs/design/TESTING.md).
 - **TODO table-of-contents check** (`git-hooks/check-toc.js`), when
   `TODO.md` is staged: refuses a table of contents that doesn't match the headers. The table is built by the VS Code
   extension "Auto Markdown TOC" only on a VS Code save — edits made any other way leave it stale. Fix: Ron saves the
