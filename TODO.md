@@ -317,6 +317,10 @@ the rest of the TODO.
    10-minute rule for unfinished copies can be checked from the email. Today it shows the date only (2026-10-30: Ron
    closed the tab ~5 s after an import; the push that closing triggers was torn after its first part, and the on-demand
    summary ~10 minutes later deleted it — correct, but unprovable from the email).
+   **And how recently the cloud copies were used** (Ron, 2026-11-04 — from item 10's last-used date): one line, e.g.
+   *"Cloud copies: 2 — used in the last day 1 · week 1 · month 2 · year 2 · idle over a month 0 · idle over a year 0
+   (deleted tonight: 0)"* ("idle for a day" is just "not used in the last day" — not shown twice). Dev's test channels
+   skew its counts; the dev email already marks test data.
 3. **Strict ID check** — moved from the Cloud Sync task (item 4) because it's safe now and closes a gap today: the
    relay's one ID check ignores case while storage doesn't, so an ID in the wrong form opens a separate, empty mailbox.
    Drop the case-insensitive flag (`UUID_REGEX`, relay-worker.js ~45). Every real ID passes, and so does the test
@@ -358,6 +362,17 @@ the rest of the TODO.
    change repopulate it. (Considered and rejected: emailing owners of idle copies — it would collect personal data,
    the "encrypted" address would be readable by the server anyway, and deletion-warning emails train users for
    phishing; "Remind me when my last backup is getting old" guards the real disaster instead.)
+   **How "used" is known — a last-used date per channel** (Ron + Claude, 2026-11-04), unencrypted, beside the existing
+   first-used record (`lifecycle:{id}:used`, relay-worker.js ~473/706): `lifecycle:{id}:last`, a date.
+   - **Reading counts as use**, not just writing — someone who only browses on the phone for months must not lose the
+     copy they're using.
+   - **Written at most once a day per channel** (only when the stored date isn't today) — writes are the free plan's
+     tight limit; a read costs only the cheap check.
+   - **The year-old cleanup reads it, and also deletes the channel's other permanent leftovers** (its first-used and
+     last-used records and its write key), or those pile up forever.
+   - **Disclosed with GoatCounter, in the same places** (Ron): the security page's analytics bullet (security.html
+     ~113) and the planned privacy policy (outside review 1) — e.g. *"The sync server records the date your cloud copy
+     was last used — never what's in it."*
 
 **Watch out**
 - One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**; alphas deploy from the branch,
@@ -395,7 +410,8 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
    Kindle libraries are precedent worth studying — see TODO notes; and **writing back** — "Edit Kindle collections from
    ReaderWrangler" would be the first feature to change a user's Amazon account, a bigger step than reading: weigh it
    explicitly); the Amazon Associates rules for the affiliate tag (a visible disclosure is
-   required; self-purchases are a known pitfall); a privacy policy (including GoatCounter); Cloudflare's free-tier
+   required; self-purchases are a known pitfall); a privacy policy (including GoatCounter and the sync server's
+   last-used date per cloud copy — disclosed together, Ron 2026-11-04); Cloudflare's free-tier
    limits as users grow; support load with one person — including **a support inbox** (Resend Inboxes, announced
    2026-10: an address on our own domain, threads, agents connect through MCP; free up to 3 inboxes) that Claude
    sorts, drafts replies in for Ron to approve and send, and mines into the help notes. Needs web research.
