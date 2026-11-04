@@ -1,5 +1,5 @@
 # Screen test: the app opens, and the made-up library restores and shows correctly (the base every screen test uses).
-# tags: app, restore, tier 2
+# tags: app, restore, driver, tier 2
 # covers: readerwrangler.html, readerwrangler.js, storage.js, bookFields.js, integrity.js
 # Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python)
 import os
@@ -37,5 +37,39 @@ with App() as app:
                   check(not app.violations, app.violations)))
 
     print("    screenshot:", app.shot("APP-restored"))
+
+    # The driver's own reachability checks (PRINCIPLES Law 8: test what a person reaches, the way they would).
+    def hover_reports_target():
+        info = app.hover(app.page.get_by_role("button", name="Restore Backup").or_(
+            app.page.get_by_text("All Books", exact=True)).first)
+        check(info["width"] > 0 and info["height"] > 0 and info["under"], str(info))
+    test("DRV-001", "hover() moves the real pointer and reports what's under it, with its size", hover_reports_target)
+
+    def covered_is_refused():
+        app.page.evaluate("""() => { const d = document.createElement('div'); d.id = 'drv-cover';
+            Object.assign(d.style, {position: 'fixed', inset: '0', zIndex: 99999, background: 'transparent'});
+            document.body.appendChild(d); }""")
+        try:
+            try:
+                app.hover(app.page.get_by_text("All Books", exact=True).first)
+                raise AssertionError("hover over a covered target was NOT refused")
+            except app.Unreachable as e:
+                check("drv-cover" in str(e), "the refusal doesn't name what covers it: " + str(e))
+        finally:
+            app.page.evaluate("() => document.getElementById('drv-cover').remove()")
+    test("DRV-002", "a covered target is refused, naming what covers it", covered_is_refused)
+
+    def zero_size_is_refused():
+        app.page.evaluate("""() => { const s = document.createElement('span'); s.id = 'drv-zero';
+            Object.assign(s.style, {display: 'inline-block', width: '0', height: '0'}); document.body.appendChild(s); }""")
+        try:
+            try:
+                app.hover(app.page.locator("#drv-zero"))
+                raise AssertionError("hover over a zero-size target was NOT refused")
+            except app.Unreachable as e:
+                check("no size" in str(e), str(e))
+        finally:
+            app.page.evaluate("() => document.getElementById('drv-zero').remove()")
+    test("DRV-003", "a target with no size is refused", zero_size_is_refused)
 
 done()

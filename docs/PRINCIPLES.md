@@ -163,7 +163,13 @@ scenario as test case #1 before writing any others.
 writes, the relay test "failed" 7 times; its deliberately broken states were unsigned writes on a now-registered
 channel — the fix was to sign the test's raw writes through the one signer, not to loosen the relay). And a test
 must be able to fail: sign with independent code, accept a hand-made correct case, keep a control beside the refusal.
-**Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule; pre-build gate item 12.
+**Reproduce a reported problem with real input before explaining it** (from the utilities project, its Law 18 —
+carried over 2026-11-04). Ron's screen is the fact; a reading of the code is a theory. Drive the page with real mouse
+and keyboard input, read the state after each step, then report. (Paid for there: two wrong explanations of an Esc /
+Ctrl+click report, each with fixes proposed, before the first real-input run.) In RW the reproduction becomes the
+fix's first test: **a bug fix starts with a failing test** (docs/design/TESTING.md §6).
+**Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule; pre-build gate item 12; the browser
+driver (`test/ui/rw.py` — real input through Edge) and the regression library's routine (TESTING.md).
 
 ### 4. After 3 iterations, question the abstraction
 Proposed 2025-11-11; ignored through 26 alphas (v3.14.0 drag-drop) and 9 alphas (v6.11.2 — where one
@@ -228,8 +234,13 @@ know the **dev-machine blind spots** — paths whose correct local behavior is "
 construction; say so before shipping. **A list built from the user's data has the user's range** — "only the years
 your library has" ran back to 2001 on Ron's library (7.21.2): size every data-driven list for the biggest real library,
 not the test one.
+**Test what a person reaches by going there the way they would** (from the utilities project, its Law 21 — carried over
+2026-11-04). Move the real pointer along their path, check what is actually under it (`document.elementFromPoint`) and
+that it has a size. Reading an attribute proves a thing exists, not that anyone can get to it. (Paid for there: a
+tooltip passed a test that read its `title`, but leaving the chart switched the panel away before anyone could see it.)
 **Enforcement**: the alpha cadence itself; test instructions with precise expected values — magnitude AND
-shape (`feedback_debugging` Rule 4).
+shape (`feedback_debugging` Rule 4); the driver's `hover()` / `click_reachable()` (`test/ui/rw.py`) move the real pointer
+and refuse a covered target (naming what covers it) or one with no size.
 
 ### 9. Guarded persistence — every irreplaceable datum gets a load-gated writer
 An unguarded save-effect stamps defaults over saved data on mount; a restore gated on the wrong condition

@@ -141,9 +141,11 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
      IDs; the commit hook runs `--changed`;
   3. ✅ the browser driver (Playwright for Python + Edge) and the small fixture library's first version — `test/ui/rw.py`
      (the shared setup: serve.py on a free port, a fresh Edge profile, Restore through the real menu, console / crash /
-     relay-and-Amazon request detectors, GoatCounter answered empty), `test/ui/harness.py`, the fixture
+     relay-and-Amazon request detectors, GoatCounter answered empty, and `hover()` / `click_reachable()` — the real
+     pointer, refusing a covered or zero-size target and naming the cover: PRINCIPLES Law 8), `test/ui/harness.py`, the fixture
      (`test/fixtures/make-small-fixture.js` → `small-fixture.json`: 23 books, every ownership kind), and
-     `APP-001`–`004` (the app opens cleanly; the fixture restores; every left-pane count; still clean after). ~50 s a
+     `APP-001`–`004` (the app opens cleanly; the fixture restores; every left-pane count; still clean after) and
+     `DRV-001`–`003` (the driver's own reachability checks). ~50 s a
      run today — the in-browser compile; the precompile cuts it;
   4. the first screen tests — from anomaly reporting and the Delete key fix (step 4), each starting from a failing test.
 - From then on, every task follows §6.

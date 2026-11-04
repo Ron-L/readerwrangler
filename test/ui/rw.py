@@ -37,7 +37,8 @@ ARTIFACTS = os.environ.get("RW_TEST_ARTIFACTS") or os.path.join(tempfile.gettemp
 KNOWN_NOISE = [
     (r"cdn\.tailwindcss\.com should not be used in production", "the in-browser style builder — leaves with the precompile"),
     (r"You are using the in-browser Babel transformer", "the in-browser compiler — leaves with the precompile"),
-    (r"\[BABEL\] Note: The code generator has deoptimised the styling", "Babel's note on a file over 500 KB — leaves with the precompile"),
+    (r"\[BABEL\] Note: The code generator has deoptimised the styling",
+     "Babel's note on a file over 500 KB — leaves with the precompile"),
     (r"goatcounter: not counting because of: localhost", "GoatCounter declining localhost"),
 ]
 FORBIDDEN_HOSTS = re.compile(r"workers\.dev|amazon\.|media-amazon|ssl-images-amazon")
@@ -128,6 +129,43 @@ class App:
         text = box.inner_text()
         box.get_by_role("button", name="OK").click()
         return text
+
+    # --- reaching things the way a person would (PRINCIPLES Law 8, from the utilities project's Law 21) -------------
+    class Unreachable(Exception):
+        """A target a person couldn't reach: covered by something else, or with no size."""
+
+    def hover(self, target):
+        """Move the REAL pointer to the middle of `target` (a locator) and report what is actually under it:
+        {'under': description, 'title': its tooltip, 'width', 'height'}. Refuses (App.Unreachable) a target with no
+        size, or one covered by something else — naming what covers it. Reading an attribute proves a thing exists,
+        not that anyone can get to it."""
+        target.scroll_into_view_if_needed(timeout=10_000)
+        box = target.bounding_box()
+        if not box or box["width"] < 1 or box["height"] < 1:
+            raise App.Unreachable(f"the target has no size ({box}) — nobody can point at it")
+        x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        self.page.mouse.move(x, y)
+        info = target.evaluate("""(el, pt) => {
+            const top = document.elementFromPoint(pt.x, pt.y);
+            const say = (e) => !e ? 'nothing' : e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') +
+                (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\\s+/).slice(0, 2).join('.') : '') +
+                (e.textContent ? ' "' + e.textContent.trim().slice(0, 40) + '"' : '');
+            // Reached: the pointer lands on the target, inside it, or on the element that CONTAINS it — a click-through
+            // label (pointer-events:none) passes the click to its row, which is the real target. A cover laid over
+            // the page never contains the target, so it's still caught (DRV-002).
+            return { reached: !!top && (top === el || el.contains(top) || top.contains(el)), under: say(top), self: say(el),
+                     title: el.getAttribute('title') || '' };
+        }""", {"x": x, "y": y})
+        if not info["reached"]:
+            raise App.Unreachable(f"{info['self']} is covered — the pointer lands on {info['under']}")
+        return {"under": info["under"], "title": info["title"], "width": box["width"], "height": box["height"]}
+
+    def click_reachable(self, target):
+        """hover() first (refusing a covered or zero-size target), then a real click where the pointer is."""
+        info = self.hover(target)
+        self.page.mouse.down()
+        self.page.mouse.up()
+        return info
 
     # --- reading the screen -------------------------------------------------------------------------------------
     def left_count(self, label):
