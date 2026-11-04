@@ -224,7 +224,7 @@ and then the key simply fails to connect. Keep the test in the build as a perman
    exists: Cloud Sync Setup's "Danger zone → Revoke credentials & wipe relay" (6.9.0) already revokes and wipes, then
    reopens the step that makes new keys — "Make a new key" should reuse it, in the save-new-first order above. Check
    that its wipe reaches the full copies and pointer (the older cleanup route deletes only the old-style upload).
-   Reconcile with the TODO task "Relay Setup: disconnect, or reset credentials" (Safety).
+   Reconcile with the TODO task "Relay Setup: disconnect, or reset credentials" (Before launch → Cloud Sync).
 2. Do the relay's answers tell "already revoked" apart from "proof rejected"?
 3. A real wrapped email (the shown key is ~81 characters; Outlook wraps at 76) and a paste into chat apps (some turn
    `word.word` into links) — test once.

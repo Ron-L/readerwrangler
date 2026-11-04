@@ -19,20 +19,31 @@
       - [Series positions: one Position dialog, and one book at several positions (omnibus)](#series-positions-one-position-dialog-and-one-book-at-several-positions-omnibus)
       - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
       - [Drag a box to select covers](#drag-a-box-to-select-covers)
-      - [Faster fetches that report exactly how your library compares with Amazon](#faster-fetches-that-report-exactly-how-your-library-compares-with-amazon)
-      - [Book Lists and Searches: pin and sort them like Folders](#book-lists-and-searches-pin-and-sort-them-like-folders)
-      - [A type-to-filter box for the left pane](#a-type-to-filter-box-for-the-left-pane)
+      - [Fetcher work, in build order](#fetcher-work-in-build-order)
+        - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
+        - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
+        - [A fetch made with the demo filter on says so, and never marks books as gone](#a-fetch-made-with-the-demo-filter-on-says-so-and-never-marks-books-as-gone)
+        - [Faster fetches that report exactly how your library compares with Amazon](#faster-fetches-that-report-exactly-how-your-library-compares-with-amazon)
+        - [Fetcher: give the library filter one name, in one place](#fetcher-give-the-library-filter-one-name-in-one-place)
+        - [Fetcher: refresh ratings with the price check (books you might buy)](#fetcher-refresh-ratings-with-the-price-check-books-you-might-buy)
+        - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
+        - [A long fetch resumes after an interruption (a first fetch, or a full refresh)](#a-long-fetch-resumes-after-an-interruption-a-first-fetch-or-a-full-refresh)
+        - [Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select](#refresh-all-books-from-amazon--a-choice-in-the-fetcher-which-the-app-can-pre-select)
+        - [A fetch from someone else's Amazon account stops before mixing two libraries](#a-fetch-from-someone-elses-amazon-account-stops-before-mixing-two-libraries)
+      - [Honest ownership changes: buying, samples, loans](#honest-ownership-changes-buying-samples-loans)
+        - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
+        - [Buying a book that's in the Trash should bring it back](#buying-a-book-thats-in-the-trash-should-bring-it-back)
+        - [Fetch summary should report books you bought](#fetch-summary-should-report-books-you-bought)
+        - [Import summary: every ownership change by kind, kept in the message history](#import-summary-every-ownership-change-by-kind-kept-in-the-message-history)
+      - [The left pane, one release](#the-left-pane-one-release)
+        - [Book Lists and Searches: pin and sort them like Folders](#book-lists-and-searches-pin-and-sort-them-like-folders)
+        - [A type-to-filter box for the left pane](#a-type-to-filter-box-for-the-left-pane)
+        - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
       - [Everyday organizing](#everyday-organizing)
         - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
         - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
       - [Tag from Collections, round 2: clearer window, safer tags (decided 2026-10-20)](#tag-from-collections-round-2-clearer-window-safer-tags-decided-2026-10-20)
       - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
-      - [Honest ownership changes: buying, samples, loans](#honest-ownership-changes-buying-samples-loans)
-        - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
-        - [Relay Import: only books in no folder should go to the Inbox](#relay-import-only-books-in-no-folder-should-go-to-the-inbox)
-        - [Buying a book that's in the Trash should bring it back](#buying-a-book-thats-in-the-trash-should-bring-it-back)
-        - [Fetch summary should report books you bought](#fetch-summary-should-report-books-you-bought)
-        - [Import summary: every ownership change by kind, kept in the message history](#import-summary-every-ownership-change-by-kind-kept-in-the-message-history)
     - [Polish](#polish)
       - [Move and copy books anywhere — folders, Book Lists, All Books, Searches](#move-and-copy-books-anywhere--folders-book-lists-all-books-searches)
       - [Retire two leftover book fields: the hidden "seen" flag and the old price-goal field](#retire-two-leftover-book-fields-the-hidden-seen-flag-and-the-old-price-goal-field)
@@ -42,11 +53,12 @@
         - [Restore the previous selection after a stray click or Select All](#restore-the-previous-selection-after-a-stray-click-or-select-all)
       - [A folder or Book List you just created stays visible under filters](#a-folder-or-book-list-you-just-created-stays-visible-under-filters)
       - [Book details window: one Save — nothing changes until you click it, and nothing is lost without asking](#book-details-window-one-save--nothing-changes-until-you-click-it-and-nothing-is-lost-without-asking)
-      - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
-      - [Arrow keys should move through every type-ahead list](#arrow-keys-should-move-through-every-type-ahead-list)
+      - [Tag lists and long lists, one release](#tag-lists-and-long-lists-one-release)
+        - [Long lists keep their actions in view (Manage…, Select All) while you scroll](#long-lists-keep-their-actions-in-view-manage-select-all-while-you-scroll)
+        - [One shared tag picker: show all tags in your order (the right-click one silently stops at 10)](#one-shared-tag-picker-show-all-tags-in-your-order-the-right-click-one-silently-stops-at-10)
+        - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
+        - [Arrow keys should move through every type-ahead list](#arrow-keys-should-move-through-every-type-ahead-list)
       - [Finish keyboard accessibility](#finish-keyboard-accessibility)
-      - [The "Save results" menu runs off the screen with many Book Lists](#the-save-results-menu-runs-off-the-screen-with-many-book-lists)
-      - [Long lists keep their actions in view (Manage…, Select All) while you scroll](#long-lists-keep-their-actions-in-view-manage-select-all-while-you-scroll)
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
       - ["Bake this order into Manual" for a folder's books and a Book List, from the Sort menu](#bake-this-order-into-manual-for-a-folders-books-and-a-book-list-from-the-sort-menu)
       - [Small fixes](#small-fixes)
@@ -58,48 +70,38 @@
         - [A book's hover popup stays up after the book is deleted](#a-books-hover-popup-stays-up-after-the-book-is-deleted)
         - [The Trash ignores the search and filters](#the-trash-ignores-the-search-and-filters)
         - [Show only hidden books](#show-only-hidden-books)
-        - [One shared tag picker: show all tags in your order (the right-click one silently stops at 10)](#one-shared-tag-picker-show-all-tags-in-your-order-the-right-click-one-silently-stops-at-10)
         - [Right-click: add "Copy ASINs" below Copy Titles / Copy Authors](#right-click-add-copy-asins-below-copy-titles--copy-authors)
-        - [Wishlist: record the real format when a book is added](#wishlist-record-the-real-format-when-a-book-is-added)
-        - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
-        - [Import: new books are filed before the integrity check, so the check reports only real repairs](#import-new-books-are-filed-before-the-integrity-check-so-the-check-reports-only-real-repairs)
+        - [Import files new books once, before the integrity check — and only books in no folder](#import-files-new-books-once-before-the-integrity-check--and-only-books-in-no-folder)
         - [With a filter on, the right pane still shows subfolders with no matching books](#with-a-filter-on-the-right-pane-still-shows-subfolders-with-no-matching-books)
         - [Every load saves the whole library back to storage, even when nothing changed](#every-load-saves-the-whole-library-back-to-storage-even-when-nothing-changed)
         - [A missing book description: one quiet line, on the computer and the phone](#a-missing-book-description-one-quiet-line-on-the-computer-and-the-phone)
         - [Remove the old version 4 app from the site — it shares your library's storage](#remove-the-old-version-4-app-from-the-site--it-shares-your-librarys-storage)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
-      - [Fetcher housekeeping](#fetcher-housekeeping)
-        - [Fetcher: give the library filter one name, in one place](#fetcher-give-the-library-filter-one-name-in-one-place)
-        - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
-        - [Fetcher: refresh ratings with the price check (books you might buy)](#fetcher-refresh-ratings-with-the-price-check-books-you-might-buy)
-      - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
       - [Redo should work after copying a folder](#redo-should-work-after-copying-a-folder)
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
       - [Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button](#landing-page-open-my-library-for-returning-users-and-always-free--no-ads--no-account-needed-under-the-start-button)
-      - [Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one](#cloud-sync-rename-relay-show-one-cloud-sync-key-and-make-a-new-key-retires-the-old-one)
-      - [Reset App: one honest message in all four places (what's cleared, what's kept, how to come back)](#reset-app-one-honest-message-in-all-four-places-whats-cleared-whats-kept-how-to-come-back)
       - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
       - [User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help](#user-guide-rewrite-it-around-searches-book-lists-and-folders-as-a-page-you-can-reach-from-help)
       - [Screen capture pass: the sizzle reel, the landing page's before / after, README's old video](#screen-capture-pass-the-sizzle-reel-the-landing-pages-before--after-readmes-old-video)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
+    - [Cloud Sync](#cloud-sync)
+      - [Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one](#cloud-sync-rename-relay-show-one-cloud-sync-key-and-make-a-new-key-retires-the-old-one)
+      - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
+      - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
+      - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
+      - [Reset App: one honest message in all four places (what's cleared, what's kept, how to come back)](#reset-app-one-honest-message-in-all-four-places-whats-cleared-whats-kept-how-to-come-back)
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
-      - [A fetch made with the demo filter on says so, and never marks books as gone](#a-fetch-made-with-the-demo-filter-on-says-so-and-never-marks-books-as-gone)
-      - [A fetch from someone else's Amazon account stops before mixing two libraries](#a-fetch-from-someone-elses-amazon-account-stops-before-mixing-two-libraries)
-      - [Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select](#refresh-all-books-from-amazon--a-choice-in-the-fetcher-which-the-app-can-pre-select)
       - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
       - [Faster loading: build the app ahead of time (35 seconds → 1)](#faster-loading-build-the-app-ahead-of-time-35-seconds--1)
-      - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
       - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
-      - [A long fetch resumes after an interruption (a first fetch, or a full refresh)](#a-long-fetch-resumes-after-an-interruption-a-first-fetch-or-a-full-refresh)
       - [Lock the Cloud Sync Key in backups with an optional key password](#lock-the-cloud-sync-key-in-backups-with-an-optional-key-password)
       - [Remind me when my last backup is getting old](#remind-me-when-my-last-backup-is-getting-old)
-      - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
     - [Costs](#costs)
       - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
   - [🗄️ After launch](#after-launch)
@@ -118,7 +120,6 @@
       - [Library statistics: your unread pile, books per year, top authors and series](#library-statistics-your-unread-pile-books-per-year-top-authors-and-series)
       - [Import book details from a list or spreadsheet; Goodreads / StoryGraph files in and out](#import-book-details-from-a-list-or-spreadsheet-goodreads--storygraph-files-in-and-out)
       - [Capture book ideas from your phone (Share → ReaderWrangler)](#capture-book-ideas-from-your-phone-share--readerwrangler)
-    - [Prices](#prices)
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
     - [Technical clean-up](#technical-clean-up)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
@@ -135,7 +136,6 @@
     - [Share a filtered, read-only copy of your library](#share-a-filtered-read-only-copy-of-your-library)
 
 <!-- /TOC -->
-
 
 
 # TODO
@@ -307,8 +307,7 @@ release. And two of them close real gaps today: the relay accepts IDs in a form 
 mailbox, and the Danger zone's wipe may not reach the full copies, which never expire (Ron, 2026-10-24: "I want to
 close this out").
 
-**Order of work** (Ron, 2026-10-24): finish the TODO review → the Delete key fix → **this** → the outside reviews →
-the rest of the TODO.
+**Order of work:** step 5 of the list at the top of "Up next" (the one home for the order).
 
 **What's in it**
 1. **C — a shared notepad** for both relays (no user data) — the last step of the relay storage work (7.21.1–7.23.0):
@@ -326,7 +325,7 @@ the rest of the TODO.
    10-minute rule for unfinished copies can be checked from the email. Today it shows the date only (2026-10-30: Ron
    closed the tab ~5 s after an import; the push that closing triggers was torn after its first part, and the on-demand
    summary ~10 minutes later deleted it — correct, but unprovable from the email).
-   **And how recently the cloud copies were used** (Ron, 2026-11-04 — from item 10's last-used date): one line, e.g.
+   **And how recently the cloud copies were used** (Ron, 2026-11-04 — from item 9's last-used date): one line, e.g.
    *"Cloud copies: 2 — used in the last day 1 · week 1 · month 2 · year 2 · idle over a month 0 · idle over a year 0
    (deleted tonight: 0)"* ("idle for a day" is just "not used in the last day" — not shown twice). Dev's test channels
    skew its counts; the dev email already marks test data.
@@ -339,30 +338,25 @@ the rest of the TODO.
    the email names a channel two ways — the last 4 characters (`…21fc`, `shortId`) and the FIRST 8 in the "Kept / not
    judged" and budget lines (`41e0e16f…`, `ch.slice(0, 8)`, ~1287 / ~1304). Use the 6-character support code in every
    line (found 2026-10-30).
-5. ~~**The wipe reaches everything**~~ — **already true** (checked 2026-10-31 in `handleRevoke`): revoke deletes the
-   old single copy, then every mailbox, library-copy and device-state key by prefix, and both pointers. Only the old
-   `/cleanup/{id}` route is narrower, by design — it clears the old-style single upload after an import. Nothing to
-   build; the Cloud Sync task's "make a new key" reuses revoke as it is. (Since 7.25.0 revoke is also a signed
-   operation.)
-6. **The test scripts clean up after themselves:** `relay/test-phase1.mjs` leaves one unimported run on the
+5. **The test scripts clean up after themselves:** `relay/test-phase1.mjs` leaves one unimported run on the
    `22222222…` test channel each run (19 now; they expire after 90 days). And since 7.25.0 every run of
    `relay/test-signed-writes.mjs` / the harness leaves small PERMANENT keys for its throwaway channels — a write key, a
    block record, a proof, a first-used record (dev 2026-10-31: 8 write keys, 10 blocked channels, mostly tests). Let
    revoke also delete the channel's write key (the block record is enough), and keep the rest out of the way.
    **Run the tests locally by default** (`cd relay && npx wrangler dev --env dev --local`; `RELAY_URL=…`) and on dev only
    as a final check — the 10-31 release day's dev runs used 23.6% of the account's daily writes.
-7. **Once:** compare dev's storage figure in the daily email with the Cloudflare dashboard (open since 2026-10-15).
-8. **The daily summaries also go to a dedicated inbox Claude can read** (Resend Inboxes, through MCP), so Ron stops
+6. **Once:** compare dev's storage figure in the daily email with the Cloudflare dashboard (open since 2026-10-15).
+7. **The daily summaries also go to a dedicated inbox Claude can read** (Resend Inboxes, through MCP), so Ron stops
    pasting them — and Claude reaches only that mail, not Ron's whole mailbox. Until then Claude reads them from Ron's
    Gmail, filtered to `from:alerts@readerwrangler.com subject:"Daily usage summary"` only (Ron, 2026-10-30 — "ReaderWrangler
    Relay - Daily Summary" is the body's first line, not the subject; if item 2 drops the 🚨, the filter still matches).
    Check Inboxes' pricing
    and whether it's still beta when building.
-9. **A small "request" note per channel** for "Refresh all books from Amazon…" (Safety): a route to write, read and
+8. **A small "request" note per channel** for "Refresh all books from Amazon…" (High → "Fetcher work, in build order"): a route to write, read and
    delete one encrypted note (the app requests a full refresh; the fetcher reads it at start and deletes it after a
    successful refresh). Idle until the app + fetcher part ships; the signed-writes gate covers its writes. Name the new
    key kind in the daily email.
-10. **Delete a cloud copy nobody has used for a year** (Ron + Claude, 2026-11-04). Today a cloud copy whose key was
+9. **Delete a cloud copy nobody has used for a year** (Ron + Claude, 2026-11-04). Today a cloud copy whose key was
    lost (so it can't be revoked) keeps its books forever — encrypted, harmless, but storage. The nightly cleanup deletes
    a channel's copies after a year with no activity. **Say so** in the app, on the security page and in the help notes:
    *"A cloud copy nobody uses for a year is deleted. Your library stays safe in your browser and in your backups, and
@@ -395,12 +389,13 @@ the rest of the TODO.
   local relay first (`cd relay && npx wrangler dev --env dev --local`), then dev; both refuse production.
 - Inventory tool: `analyze-relay-keys.js` in the TODO notes' folder (key dumps hold channel IDs — credentials — delete
   them after use).
-- The shared-numbers commit check must still pass (items 2 and 5 touch the cleanup's rules only if they change keep-2
-  or the grace — they shouldn't).
+- The shared-numbers commit check must still pass (items 2 and 9 touch the cleanup's rules only if they change keep-2
+  or the grace — they shouldn't). (The old item "the wipe reaches everything" was already true — checked 2026-10-31 in
+  `handleRevoke`; removed 2026-11-04.)
 - Relay tasks that are **app-side, not worker** stay where they are: "Relay Setup's connection test checks the wrong
-  relay on dev" (Polish), "Relay Setup: disconnect, or reset credentials" (Safety), "Bookmarklet: when your key no
-  longer works, say so plainly…" (After launch), "Keep your tabs and browsers in step…" (Before launch), the Cloudflare
-  $5 plan (Costs, around launch). The Cloud Sync task keeps its app-side work and the "make a new key" order.
+  relay on dev" and "Relay Setup: disconnect, or reset credentials" (Before launch → Cloud Sync), "Bookmarklet: when
+  your key no longer works, say so plainly…" (After launch), "Keep your tabs and browsers in step…" (Before launch), the
+  Cloudflare $5 plan (Costs, around launch). The Cloud Sync task keeps its app-side work and the "make a new key" order.
 - Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): Cloudflare's official skills (`cloudflare/skills`) — the skills only, not the remote
   server with access to the Cloudflare account; the local Workers Vitest plugin for tests; `wrangler telemetry disable`.
 
@@ -441,8 +436,9 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
    site pages (index, features, tutorials) and judge it by what it finds; not its "bolder / delight / overdrive"
    commands — Ron is the designer. Read any skill fully before installing it (a skill is instructions that run with
    Claude's permissions).
-5. **The big designs decided in conversation, before they're built** — "Move and copy books anywhere" and the Delete
-   key.
+5. **The big designs decided in conversation, before they're built** — "Move and copy books anywhere". (The Delete
+   key was dropped 2026-11-04: it's built before the reviews — step 4 of the order of work — it's small and well
+   decided, and the browser driver tests it.)
 
 **How each runs** (decided Ron + Claude, 2026-10-23)
 1. **I write a brief for a cold reader** — background, problems, constraints, questions; none of my verdicts. (Model:
@@ -463,11 +459,12 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
 _Why it matters:_ Rules that depend on memory keep failing; automatic checks don't. This affects only how I work, not the app.
 
 **Already done**
-- Item 1: the pre-build checklist now watches all app code (2026-10-08).
+- The pre-build checklist watches all app code (2026-10-08); a bounce refuses the whole batch of edits, so none goes
+  missing (2026-10-16).
 - Since then, more checks run on every commit: the undefined-names check, the version stamps (now incl. the relay worker), and the TODO table of contents.
 
 **Left**
-- Item 3 below, and the rule-by-rule sort of PRINCIPLES.md.
+- Item 1 below, and the rule-by-rule sort of PRINCIPLES.md.
 
 **The idea** (Ron, 2026-09-22, after "assuming bit us again")
 - Go through docs/PRINCIPLES.md rule by rule and sort each one:
@@ -476,12 +473,10 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 - Guard against reminder bloat — the pre-build checklist is already 11 points.
 
 **Open items**
-1. ✅ The pre-build checklist only watched two files — widened to all app code on 2026-10-08.
-2. ✅ **When an edit is bounced by the checklist inside a batch of edits, that one edit silently goes missing** (alpha.62 shipped half a fix; tried twice more on 7.21.2). Done 2026-10-16: the bounce now refuses the WHOLE batch, so the batch is re-sent as a whole. "Same batch" is read from the session's own record (every edit sent together shares one message), not guessed from a timer — Ron's idea, after the first version's 5-second timer refused a quick re-send.
-3. **My code safety check can be skipped by accident** (7.19.0 post-mortem). The checklist only fires for my normal editing tool; edits made with a find-and-replace command skip it. Make it fire for those too. Small.
+1. **My code safety check can be skipped by accident** (7.19.0 post-mortem). The checklist only fires for my normal editing tool; edits made with a find-and-replace command skip it. Make it fire for those too. Small.
 
 **How (technical)**
-- Item 3: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
+- Item 1: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
 
 #### Trim the always-loaded rules: one home per rule, history out, a lean memory index
 <!-- id 20261021-1332 -->
@@ -555,7 +550,7 @@ every dialog (2026-11-02).
 9. **Computer only.** On the phone dialogs fill the screen, so no dragging there.
 
 **Watch out**
-- "Every dialog" covers two kinds: the standard dialogs, and the older message boxes (OK/Cancel, type-a-name, progress; about 45 places use them), which are built differently. Drag must work in both. The alternative is rebuilding the message boxes as standard dialogs first, which is its own task under "After launch".
+- "Every dialog" covers two kinds: the standard dialogs, and the older message boxes (OK/Cancel, type-a-name, progress; about 45 places use them), which are built differently. Drag must work in both — or, as decided, the message boxes are rebuilt as standard dialogs first ("Rebuild the old-style message boxes as standard dialogs", just above), so drag is built once.
 - Today a click anywhere outside the top dialog closes it, including on a dialog showing through underneath. Point 5 changes that rule, so test it carefully.
 
 **How (technical)**
@@ -759,7 +754,124 @@ _Why it matters:_ Faster than clicking covers one by one.
 - Extends `explorerSelectedItems`.
 - The library hides off-screen rows during a drag to stay fast with 10,000+ books (drag virtualization, readerwrangler.js ~1530) — so work out which books the box covers from the grid's layout (row/column positions), not from what's drawn; otherwise auto-scroll misses books.
 
-#### Faster fetches that report exactly how your library compares with Amazon
+#### Fetcher work, in build order
+
+The fetchers (the bookmarklet's scripts on Amazon's pages) had about a dozen tasks spread over five
+sections, though they depend on each other — the human-check stop needs the shared request wrapper, faster fetches
+and the ownership batch share one completion window, resume and refresh are the same long run. Gathered 2026-11-04
+(TODO scan, Ron + Claude) like the worker release: one build order, and fewer separate test rounds on Amazon (each
+one a chance to trip its human check).
+
+**Build order**
+1. The shared Amazon request wrapper — "Fetcher odds and ends…", item 3.
+2. "Stop cleanly when Amazon asks for a human check mid-fetch" — lives in that wrapper.
+3. The "partial fetch" label — "A fetch made with the demo filter on says so…" (resume's stages use it too).
+4. "Faster fetches that report exactly how your library compares with Amazon", with its riders: odds-and-ends items
+   1–2, "Fetcher: give the library filter one name…", "Fetcher: refresh ratings with the price check…",
+   "Wishlist: record the real format…".
+5. "Honest ownership changes: buying, samples, loans" (the group right after this one) — its fetch summary shares
+   step 4's completion window.
+6. "A long fetch resumes after an interruption", then "Refresh all books from Amazon" (the same long run; its
+   request note is in "Relay worker: one release…", item 8).
+7. "A fetch from someone else's Amazon account stops before mixing two libraries".
+- Stays elsewhere: "Bookmarklet: when your key no longer works…" (After launch).
+
+
+##### Fetcher odds and ends (progress figure, frozen timer, request pacing)
+<!-- id 20260903-0000a -->
+
+_Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
+
+**The list**
+1. Fix the "772%" figure in the details-filled ratio.
+2. The elapsed time freezes during the "Checking Relay" (both lines) and "Recovering" phases — it only repaints when the phase or progress changes. (Ron, 2026-09-03, twice.)
+3. **One shared Amazon request wrapper for every fetcher** (corrected 2026-11-04 in the TODO scan — the pacing itself
+   already exists: since 7.0.1 (2026-08-27) `amazonFetch` keeps a minimum gap of ~350 ms between request STARTS,
+   set just below the measured round trip so it costs nothing today. But it's **copied into 3 fetchers** (library,
+   collections, series), and the **bibliography fetcher bypasses it** with direct requests (`win.fetch`,
+   author-bibliography-fetcher.js ~361 / ~396); the wishlist fetcher reads the page and makes none.) What's left —
+   the decisions of 2026-10-22 (Ron + UX), still standing:
+   1. **One copy, in one shared file the bookmarklet hub loads before any fetcher**; every fetcher uses it — a start
+      gap across EVERY request to Amazon, whichever fetcher sends it.
+   2. **Make bypassing it impossible:** inside OUR fetcher scripts `fetch` / `XMLHttpRequest` are shadowed by a local
+      that throws *"Requests to Amazon go through amazonFetch"*; `amazonFetch` keeps the real one. **Never override the
+      page's own `window.fetch`** (the page is Amazon's). Plus **a commit check** refusing a direct request in the
+      fetcher files (it also catches an explicit `window.fetch`, and paths a test run never reached).
+   3. **Visible if the floor ever waits** (Ron: "an excellent addition") — Amazon got faster than when we measured:
+      say so in the fetch summary or console ("paced N requests to the safe rate").
+   4. **Re-measure the floor** in one normal full fetch and write where the number came from beside the constant.
+   5. It's also where the human-check stop lives ("Stop cleanly when Amazon asks for a human check mid-fetch").
+
+**Decided** (Ron + UX, 2026-10-22): items 1–2 as listed (the "772%" ratio can't exceed 100% — fix the formula; the
+elapsed time redraws on a one-second tick while a fetch runs). **Item 3 comes first in "Fetcher work, in build
+order"**; items 1–2 ride with "Faster fetches…" — same file, same test, and that task already rebuilds the timing
+table.
+
+**How (technical)**
+- Item 3: `MIN_REQUEST_INTERVAL_MS` + `amazonFetch` (amazon-library-fetcher.js ~41–49; copies in the collections and
+  series fetchers ~31); the collections fetcher still carries an unused `FETCH_DELAY_MS = 0` (~51). (Two items moved out 2026-10-20: the live ownership-upgrade test is now in "Fetch should
+  update books it already knows", un-trash on upgrade is "Buying a book that's in the Trash should bring it back".)
+
+##### Stop cleanly when Amazon asks for a human check mid-fetch
+<!-- id 20261014-1030au -->
+
+_Why it matters:_ Today it shows confusing errors instead of saying what to do.
+
+**What you'd get**
+- When Amazon interrupts a fetch with an "are you human?" check, the fetcher stops and says: *"Amazon is asking you to
+  confirm you're human. Open any Amazon page, complete the check, then run the bookmarklet again. Nothing in your
+  library was changed."* (wording revised 2026-11-02 — "nothing was changed" is what a worried person needs most).
+- That last clause is literally true since 7.0: an unfinished run is never committed.
+
+**Status**
+- The start of a fetch is already guarded; this covers a check appearing **partway through**. Never seen yet — cheap insurance before launch. (From an outside review, item 7.)
+
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
+1. **Detect it in the ONE Amazon wrapper**, `amazonFetch` ("Fetcher odds and ends (progress figure, frozen timer,
+   request pacing)", item 3 — every Amazon request goes through it, the fetcher scripts' own `fetch` disabled) — not in
+   each fetcher's retry path. Every fetcher gets it, including later ones. Built right after that wrapper (this
+   group's step 2).
+2. **The long runs are the likeliest to trip it** — a new user's first big fetch, and "Refresh all books from Amazon".
+   Seen 2026-11-03: Ron got a check after a few quick searches in Amazon's own search bar (not from our requests) — the
+   first one he's ever had; quick repeated requests are what trips it, so pacing in `amazonFetch` matters.
+   Once "A long fetch resumes after an interruption" exists, the message becomes "…then run it
+   again — it continues where it stopped".
+
+**How (technical)**
+- In `amazonFetch`, recognize check-shaped answers: HTML where JSON was expected, a validate-captcha redirect, a robot-check 503.
+
+##### A fetch made with the demo filter on says so, and never marks books as gone
+<!-- id 20261014-1030be -->
+
+_Why it matters:_ A demo filter left on (it's used to record tutorials) makes a fetch send only a few dozen books.
+Since 7.19 a fetch missing books flags them "no longer in your Amazon library" — so a forgotten filter would flag
+~3,200 books as gone from Amazon and ask you to review them. Nothing is lost (Keep exists), but it's alarming and
+wrong.
+
+**What it does today** (checked 2026-11-01)
+- The demo filter is a browser setting on Amazon's site (`readerwrangler-demo-whitelist-enabled` + its list), turned
+  on by `tools/demo-library/demo-whitelist-loader.js` (moved from `tutorials/work-products/demo-library/` 2026-11-02); the library and collections fetchers then send
+  only the listed books. Nothing in the shipped code turns it on — the old "no demo setting can ship" guarantee already
+  holds by construction.
+
+**Decided** (Ron + Claude, 2026-11-01, in the TODO review — Law 18: a stopping prompt is a block in a polite coat)
+1. **The fetcher labels a filtered fetch** ("demo fetch" — a partial fetch). The app then never concludes from it that
+   books left Amazon, and the import receipt says so: *"Demo fetch: 40 books (the demo filter is on) — nothing else
+   changed."* A fact, not a guess from the size.
+2. **A banner you can't miss in the fetcher while the filter is on** (the point of effect, Law 16).
+3. **No "much smaller upload — are you sure?" confirmation.** For the demo case the label is better; for any other
+   shrunken fetch (Amazon returning half a library), the 7.19 removed-books review is already the safety net — nothing
+   is deleted, you're asked.
+4. Build it with, or before, the screen capture pass (Before launch) — that's when the demo filter gets used.
+5. **The label is shared** with "A long fetch resumes after an interruption" (its stages are partial fetches too) —
+   one "partial fetch" label, one rule in the app: never infer removals from a fetch that says it's partial.
+
+**How (technical)**
+- Old review item 6f; the demo setting is the "demo whitelist" (amazon-library-fetcher.js ~104 / ~995 / ~1662;
+  amazon-collections-fetcher.js ~56). The "no longer in your Amazon library" inference: readerwrangler.js ~194 / ~5670
+  (docs/design/ORPHAN-CLEANUP.md §2).
+
+##### Faster fetches that report exactly how your library compares with Amazon
 <!-- id 20260919-0000a; merged 20260903-0000 -->
 
 _Why it matters:_ Every fetch makes you wait about a minute before you can import, even to grab one new book — most of it a full-library scan that runs twice. And the fetch still can't honestly say "your library matches Amazon exactly", or list the differences.
@@ -809,7 +921,318 @@ same full-library pass gives both the speed and the report — one task, two bui
 - A fetcher (bookmarklet) change, same for all three bookmarklets.
 - Comparison details (filters, totals): see TODO notes.
 
-#### Book Lists and Searches: pin and sort them like Folders
+##### Fetcher: give the library filter one name, in one place
+<!-- id 20261014-1030u -->
+
+_Why it matters:_ An unexplained code string is repeated in four places; one named setting is safer to change.
+
+**Background** (checked 2026-10-14)
+- An old fetcher fix (`ee6d83c`, June 2026) had two parts. Both were lost when the fetcher was later rewritten.
+  1. **A notice for books Amazon has delisted — done.** Since fetcher v4.11.0, the end of a fetch shows a banner:
+     "recovered N previously-missing book(s); M unavailable/delisted (see console)".
+  2. **Name and explain the library filter — still missing.** This task.
+
+**Removed vs. delisted — two different cases**
+- **Removed books** have **left** your Amazon library: a returned loan, a sample you deleted. They're no longer in the
+  list Amazon sends. These are what **Tools → Removed books** (7.19.0) handles.
+- **Delisted books** were withdrawn from Amazon's **catalog**, but you still own them. They're **still in** your Amazon
+  library list, just with no title, author or cover attached. The removed-books check deliberately counts them as
+  present, so they never reach the Removed books dialog. A delisted book that can't be filled in at all is what the
+  end-of-fetch banner (part 1 above) reports.
+
+**What the filter is**
+- When the fetcher asks for your library it applies the same default filter Amazon's own Your Books page applies.
+  Today that filter is a long code string pasted into **4 places** in the fetcher (re-counted 2026-10-22) — changing
+  it means editing all 4 identically, with nothing saying what it is. What it hides: see TODO notes.
+
+**To do** (Ron + UX, 2026-10-22 — per the notes rule: the code keeps what it needs, explanations stay private)
+- Put the whole filter in **one** named constant, used in all 4 places. No change in behavior. Small.
+- **Its code comment stays neutral** — e.g. "the default filter Amazon's own Your Books page applies" — the meaning of
+  each part lives in Amazon-Reference.md (shipped code is public; the 2026-10-14 draft comment explained Amazon's tags).
+
+**How (technical)**
+- The 4 queries: amazon-library-fetcher.js ~1040 (start-up test), ~1449 (main fetch), ~1748 (recovery sweep),
+  ~2805 (removed-books check).
+- Delisted = "product-null" in the code: the removed-books check adds those ASINs as present (~2869–2878).
+- A fetcher change: bump `FETCHER_VERSION`.
+
+##### Fetcher: refresh ratings with the price check (books you might buy)
+<!-- id 20261014-1030af -->
+
+_Why it matters:_ Ratings are frozen at a book's first fetch — fine for owned books, a little stale for buying
+decisions.
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review — was "Now and then, refresh ratings for books you might buy",
+After launch → Prices; moved here as a small fetcher change to ride along with the next one)
+- **Ride along with the price check — no schedule.** The price step already asks Amazon about exactly these books on
+  every fetch (books you could still buy, new books, owned books with a price goal — 30 per request, since 5.1). Add the
+  rating and review count to that same request: ratings stay fresh on every fetch with **no extra requests** — no
+  monthly sweep, no every-Nth-fetch counter. Safe to interrupt for free (the same run).
+- Not the outside review's per-book adaptive timing — a fine solution to a scale problem we don't have.
+
+**How (technical)**
+- amazon-library-fetcher.js price step (`qvGetMediaMatrixProductsQuickView`, ~2316): add `customerReviewsSummary
+  { rating { value } count { displayString } }` (as the enrichment request already asks, ~1482); store `rating` /
+  `reviewCount` as the first fetch does (~1617). Bump FETCHER_VERSION. (Outside review item 3.)
+
+##### Wishlist: record the real format when a book is added
+<!-- id 20261014-1030bf -->
+
+_Why it matters:_ Today the format is only known after the book's details are filled in.
+
+**Already done** (checked 2026-10-22)
+- 6.12.0: adding a single book from its page records the format.
+- 7.21.3: **Add Bibliography to Wishlist** takes Kindle books only and records "Kindle Edition" on each
+  (author-bibliography-fetcher.js ~462).
+
+**Left — one line** (Ron + UX, 2026-10-22)
+- **Add Series to Wishlist** asks Amazon for Kindle editions only, so every book it adds is Kindle — but it never writes
+  that onto the book (series-page-fetcher.js, the book built ~464), so the app falls back to its default. Set the
+  format to **"Kindle Edition"** (FORMAT-POLICY's spelling, as the bibliography fetcher does).
+- A fetcher change shared by all three bookmarklets: dev and prod together.
+
+##### A long fetch resumes after an interruption (a first fetch, or a full refresh)
+<!-- id 20260821-0000 -->
+
+_Why it matters:_ A 3,000-book fetch that dies near the end starts over from scratch — a new user's first fetch, and
+now also every "Refresh all books from Amazon" run, the likeliest to trip Amazon's human check partway through.
+
+**What happens**
+- A long fetch fills in details for ~3,000 books with no resume point. If it dies at book 2,800, it starts over.
+
+**What you'd get**
+- The fetch sends its progress in stages, so a re-run skips what's already done. 7.0's upload design makes this natural.
+
+**Status**
+- (From the 2026-08-21 outside review, item 1.) Priority raised 2026-11-02 — it no longer "hits each user exactly
+  once": "Refresh all books" makes long runs repeatable, and the human-check stop's message ("…it continues where it
+  stopped") depends on this.
+
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
+1. **Each stage says it's partial** — the same "partial fetch" label as "A fetch made with the demo filter on says so,
+   and never marks books as gone". One concept, one label: a fetch that knows it's incomplete says so, and the app never
+   concludes from it that books left Amazon. The final stage completes the set.
+2. **Mind the write budget:** progress saved every few hundred books (≈ 6–8 stages for 3,000), not per book — every
+   stage costs relay writes against the account's shared 1,000 a day.
+3. **One cluster:** this, "Refresh all books from Amazon", and "Stop cleanly when Amazon asks for a human check
+   mid-fetch" — all built on the `amazonFetch` wrapper — built together or back to back.
+
+**How (technical)**
+- Send enrichment progress as mailbox letters in stages, so a resumed run's skip-hint already knows what's done.
+
+##### Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select
+<!-- id 20261014-1030 -->
+
+_Why it matters:_ Fetches are incremental — they build on the books the cloud copy already holds, and only re-read
+deeper when the counts disagree with Amazon. So book details that went stale or wrong (a cover, rating, description,
+series Amazon later corrected — or a damaged record) are never re-read. Today the only way out is clearing the cloud
+copy with the browser's developer tools. (Not a clean restart — that's Tools → Reset App, plus the Danger zone wipe for
+the cloud copy.)
+
+**Decided** (Ron + Claude, 2026-11-01, in the TODO review)
+1. **Name:** "Refresh all books from Amazon" — plain and exact. Not "integrity" (the app's integrity check is a
+   different thing) and not "scan and fix" (it touches only book details from Amazon, never folders, tags or anything
+   you organized).
+2. **Delete nothing first.** The run re-reads every book (ignoring what the fetcher already knows) and imports like any
+   fetch; a refresh that fails halfway leaves the old copy intact. (Law 18's explicit-verb rule — not destroy-then-
+   rebuild.)
+3. **The control lives in the fetcher; the app can pre-select it** (Ron): under "Send Library to ReaderWrangler", **☐
+   Refresh every book (slower)** with a tooltip on when to use it ("if book details look wrong or out of date"). From
+   the app, **Tools → Refresh all books from Amazon…** explains it and *requests* the refresh — the next fetch's box then
+   starts ticked, with "requested in ReaderWrangler on <date>". Either side can override.
+4. **When the request clears:** only after a refresh **finishes successfully** — a failure keeps it pending. Unticking
+   in the fetcher means "not this time" (it says "Full refresh still pending — it'll be offered next time"); cancelling
+   for good is done in the app (Cancel request).
+5. **The pending state is never invisible** (Law 16): while waiting, the menu item reads "Refresh all books from
+   Amazon… (requested — runs on your next fetch)". If a fetch arrives after the request and it's still pending, the app
+   says so — "Your last fetch (<date>) didn't include the full refresh — it's still pending" (unticked, or an older
+   bookmarklet). The import's fetch date is the evidence; no second "the fetcher knows this feature" flag needed.
+6. **How they talk** — the app and the fetcher run on different sites and share no browser data; they share the cloud
+   copy. The request is a **small note on the relay**: written by the app (encrypted with the key, a signed write),
+   read by the fetcher at its start (one small extra read), deleted by the fetcher after a successful refresh (signed).
+   Not inside the library copy (re-uploading it to flip a flag), not in device-state (~17 MB to read one flag), not a
+   mailbox upload (those flow bookmarklet → app). **Build it as the general "requests from the app to the bookmarklet"
+   channel** (2026-11-02) — this refresh request is its first user; "Edit Kindle collections from ReaderWrangler" (if it
+   ever happens) would be another. One mechanism, not two.
+7. **Ships in two independent parts** (Ron): the relay's small note route goes early — in "Relay worker: one release of
+   changes" (idle until used; the signed-writes gate covers it). Then the app + fetcher together (they go out in the
+   same push anyway); each fails safe — a fetcher that can't read the note just fetches normally, an app that can't
+   write it says the refresh isn't available yet.
+8. The library fetch only — collections are re-read in full each time (confirm when building). Same Amazon pacing
+   (`amazonFetch`). **Pair it with "A long fetch resumes after an interruption"** — a full refresh of
+   3,000+ books is that same long run.
+
+**How (technical)**
+- Old review item 6g. The fetcher's incremental start: `loadKnownBooks` (relay-client.js); the automatic fuller pass
+  when counts disagree: SUPPORT-KB §14 item 3.
+
+##### A fetch from someone else's Amazon account stops before mixing two libraries
+<!-- id 20261103-1525 -->
+
+_Why it matters:_ Nothing checks whose Amazon account a fetch comes from. On a shared computer, someone signed in to
+*their* Amazon account who clicks *your* bookmarklet (it carries your Cloud Sync key) sends their books into your
+library — and the fetch, comparing your library with "their" Amazon account, can flag your books as removed. Undo
+doesn't reach that.
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review — split out of "Several people on one installation")
+1. **The library remembers which Amazon account it belongs to** (set on its first fetch). Amazon's pages already ask for
+   the signed-in account's name, so the fetcher reads it with no extra request (Amazon's side: see TODO notes).
+2. **A fetch from a different account stops before sending anything** and says plainly: *"You're signed in to Amazon as
+   Dana, but this library belongs to Ron. Fetching would mix two people's books."* — with an escape for the rare real
+   case: **"It's the same person — continue"**. A stopping prompt, which Law 18 normally rules out — justified here
+   because the damage can't be undone (Ron, 2026-11-03).
+3. **Same rule as the demo-filter task above:** a fetch that didn't see your real library never marks books as gone.
+4. The better answer for a household: one browser profile per person (see "Several people on one installation").
+5. **The same account name can guard Restore** (2026-11-04): a backup carrying "belongs to Dana" lets Restore say
+   *"This backup belongs to Dana — restoring replaces your library."* before replacing anything.
+
+#### Honest ownership changes: buying, samples, loans
+<!-- id 20261014-1700 -->
+
+_Why it matters:_ When a book changes kind — bought, a sample, a loan, a book in the Trash — ReaderWrangler should notice, tell you, and never lose your settings.
+
+**What this is**
+- One batch, ratified 2026-09-04 (formerly its own section, "⏸️ On hold: honest ownership changes"). **Status: queued**
+  (Ron, 2026-10-20 — no longer on hold). Its tasks are below, **in build order**: the rules doc and the foundation
+  first, then the data fixes, then the summaries (the polish end — there's nothing honest to report until the fetch
+  notices changes). **"Fetch should update books it already knows" goes first.**
+
+**Already shipped from this batch**
+- 7.7.2 (2026-09-07): Imports reclaim old upload storage. Its outstanding proof is **settled**: 7.21.1 reclaims on every
+  save, and since 7.23.0 (2026-10-20) production's nightly storage check confirms nothing is left over.
+- 7.8.0 (2026-09-08): the ownership dialog redesign, the undo fence, undo messages that name what they undo.
+- 7.9.0: one unified Auto-Organize. Two pieces were deferred on purpose: "Auto-Organize: Shift-click ranges should
+  follow what you see" (a task, Polish) and "let a misfiled book go back to the Inbox" (dropped 2026-10-22 — right-click
+  → Move to → Inbox and Ctrl+Z already cover it).
+- 7.10.0: Save as Spreadsheet (CSV) — the user who asked for it was sent a reply (no response).
+- 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
+
+##### Fetch should update books it already knows, not skip them
+<!-- id 20260904-0000a; merged 20261014-1030ac -->
+
+_Why it matters:_ A sample or loan of a wishlisted book is thrown away, so the change never shows.
+
+_The foundation — the summaries below depend on it._
+
+**What happens**
+- The fetcher skips any record whose ASIN it already knows. On 2026-09-04 a sample record for the wishlisted *Oath of Honor* was thrown away.
+- For loans it's invisible **forever** — there's no other path that would catch it.
+- **Live case (Ron, 2026-10-14/15):** three *Time Traveler's Passport* stories wishlisted months ago, then borrowed
+  through **Prime** — a fresh fetch + Import still shows them as **Wishlist**. The Prime records are skipped as
+  "🔁 Duplicate ASIN detected … (skipping)". (Fixed by hand with a console snippet for now.)
+- Why buying is different: the price check's "you bought this on ‹date›" backstop catches purchases every run; a
+  borrow has no such evidence, only the library record — the one that's skipped.
+
+**Decided** (Ron, 2026-10-15) — **one place for every ownership rule**
+- Today the rules are scattered: wishlist → owned lives in the price check, "never downgrade Owned" in the Import
+  merge, the list of temporary kinds in a third spot. Put the **whole transition matrix** (OWNERSHIP-MODEL.md §3) in
+  **one function** — "given what we have and Amazon's new evidence, what is the book now?" — called by every path
+  (the library walk, the purchase backstop, the Import merge), with tests locking it in (like the book-merge tests).
+- The ranking it implements: **Wishlist** (bottom — any real Amazon record replaces it) < the **temporary kinds**
+  (sample, Prime, Kindle Unlimited, borrowed, library loan, Audible Plus — peers: the **newest record wins**) <
+  **Owned** (top — a fetch never downgrades it). Manual Owned / Wishlist choices stay protected. A loan that ends is
+  Removed books' job (7.19.0).
+- A manual "Other… (Prime, KU…)" choice in the book window was considered and **not** wanted: once the fetch notices
+  these on its own, Amazon's facts arrive by themselves — revisit only if cases remain after the fix.
+- Details of the rules (merged 2026-10-20 from this task's old "Rules" list): **never downgrade Owned** — full fetches
+  include old sample records; "newest record wins" compares the record's date with the **stored** purchase date; your
+  own edits are respected. Refreshing the purchase date also fixes a re-walk quirk in how the fetcher remembers where it
+  stopped. The existing "past purchase" upgrade becomes just a backstop.
+- **Absorbs the old task "Let library loans and Audible Plus books upgrade to owned"** (Ron + UX, 2026-10-20): today
+  those two kinds can never become Owned, even after you buy the book — the fetcher's list of temporary kinds
+  (`TEMP_OWNERSHIP`, amazon-library-fetcher.js ~2277; written for fetcher 4.11.8, never updated for the kinds added in
+  5.2.0; verified still missing 2026-10-14) lacks them, so a bought library loan never upgrades, and loans without a
+  price goal are skipped by the price check. The one function, with library loan and Audible Plus in its temporary
+  rank, replaces that list — fixing it separately would patch a list this task deletes.
+
+**What you'd get**
+- A known book's record becomes an **update**: refresh its kind (owned / sample / loan…), purchase date and format from the record.
+- wishlist → sample / loan becomes visible; a library loan or Audible Plus book you then buy becomes Owned.
+
+**How it's tested** (added 2026-10-20 — Ron's live case was fixed by hand, so it's gone)
+- **Automated:** the one function gets a test for every row of the transition matrix (OWNERSHIP-MODEL.md §3).
+- **Live:** the next real sample or borrow of a wishlisted book should show its new kind after one fetch + Import —
+  wait for one, or arrange one (borrow a wishlisted Prime / Kindle Unlimited book).
+
+**How (technical)**
+- amazon-library-fetcher.js (~1422–1425 when filed): `seenASINs` is seeded with every known ASIN, so known records are dup-skipped.
+- Fields: `ownershipType`, `acquisitionDate`, binding; respect `userEdited`. The watermark re-walk quirk heals with the date refresh. `pastPurchase` demoted to backstop.
+
+##### Buying a book that's in the Trash should bring it back
+<!-- id 20261014-1030j -->
+
+_Why it matters:_ A book you just bought shouldn't stay hidden in the Trash.
+
+**What you'd get**
+- When a book in the Trash becomes owned, it comes out of the Trash automatically. (Ron: "YES! Include it.")
+
+**Decided** (Ron + UX, 2026-10-20)
+1. **Built right after "Fetch should update books it already knows", on the same path:** once one function decides
+   "this book is now Owned", leaving the Trash is what follows from that answer — every route to Owned (library walk,
+   purchase backstop, Import merge) gets it, with nothing extra to remember.
+2. **It goes back where it lived before the Trash** — what Trash → Restore already does (since 7.11) — and the
+   fetch / Import summary says so: *"1 book you bought was in the Trash — restored to 'Sci-Fi'"* (see the two summary
+   tasks below).
+3. **Not the emptied-Trash case:** a book permanently deleted and then bought again is the permanent-delete rule's job
+   (docs/design/TOMBSTONE-DELETE.md: it comes back if the new purchase is later than the deletion).
+
+**How (technical)**
+- Lives in storage.js (the Import merge), via the one ownership function.
+
+##### Fetch summary should report books you bought
+<!-- id 20261014-1030t -->
+
+_Why it matters:_ After buying 4 wishlist books, the summary says "0 new" — the upgrades only show in the developer console.
+
+_Polish end of the batch; after "Fetch should update books it already knows". Build together with "Faster fetches that
+report exactly how your library compares with Amazon" — same completion window._
+
+**What you'd get**
+- The fetch's completion window lists **every ownership change, by kind** — not only upgrades to Owned: e.g.
+  "3 wishlist → owned, 1 wishlist → sample, 1 wishlist → Prime loan" (once the fetch notices samples and loans).
+- **One count for both summaries** (Ron + UX, 2026-10-20): this window and the app's Import summary describe the same
+  changes at two moments; both come from the one ownership function ("Fetch should update books it already knows"),
+  so they can never disagree.
+
+**How (technical)**
+- Today the upgrades are only logged as ⬆️ in the console.
+
+##### Import summary: every ownership change by kind, kept in the message history
+<!-- id 20260904-0000b; merged 20260904-0000c, 20261014-1030z -->
+
+_Why it matters:_ Sample → owned upgrades are missed, wishlist → sample could be mislabeled as owned, and the summary
+disappears on refresh, leaving no record of what changed — including which books kept their price goals.
+
+_Polish end of the batch; after "Fetch should update books it already knows". Merged 2026-10-20 (Ron + UX) from three
+tasks: "Import summary: count every ownership change, by kind", "Keep the Import summary in the message history",
+"Keep price goals when a book is bought, and say so"._
+
+**What you'd get**
+1. **Every change counted by kind**, labeled by where the book ended up — e.g. "3 wishlist → owned", "1 wishlist →
+   sample" — from the one ownership function (the same count as the fetch's window). The console line names the books
+   (a missing title blocked a diagnosis on 2026-09-04).
+2. **The whole summary is also recorded in the 🕐 message history**, including its "N kept their price goals" line,
+   **naming which books** — so a refresh doesn't erase what changed. (Today only "Cleared N price goals" is logged, and
+   only after the click.)
+
+**Already done** (the price-goal part)
+- Goals are kept when a book is bought — the rule stands: never silently destroy (Ron, 2026-09-04). Bought books
+  already need a visit to All Books to file them, so clearing goals rides along on a trip you make anyway.
+- 7.1.0: the Import summary says "N kept their price goals — clear if no longer wanted".
+- 7.19.0: "Clear those N goals" clears them in one click (undoable).
+
+**How (technical)**
+- Since 6.17.2 the summary reports "N now owned", but it's keyed on the wishlist flag flipping. Key it on
+  `ownershipType` transitions instead (the one function's result).
+
+#### The left pane, one release
+
+Pins and sorting for Book Lists and Searches, a type-to-filter box, and the jump buttons all change
+the left pane's chrome — decided as one release (2026-10-16 / 10-22) so it's designed once. Gathered here 2026-11-04
+(TODO scan); the jump buttons came from Small fixes. Its keyboard part is item 4 of "Finish keyboard accessibility".
+
+
+##### Book Lists and Searches: pin and sort them like Folders
 <!-- id 20260910-0000a; merged 20261014-1030b -->
 
 _Why it matters:_ A long Book Lists column is hard to search; Folders already have pins and a Name / Manual sort.
@@ -839,7 +1262,7 @@ rows in the right pane — name, book count — sortable and reorderable, the wa
   was a tag (looks the name up as a tag — only "Prime" exists as one — and counts that tag's books). Confirm when
   building.
 
-#### A type-to-filter box for the left pane
+##### A type-to-filter box for the left pane
 <!-- id 20260910-0000 -->
 
 _Why it matters:_ With many folders, Book Lists and Searches, typing a few letters is the fastest way to find one.
@@ -855,6 +1278,26 @@ _Why it matters:_ With many folders, Book Lists and Searches, typing a few lette
 5. **A matching nested folder shows with its parent folders** (dimmed), so you see where it lives.
 
 **Status:** Ron, 2026-09-10; design settled 2026-10-16.
+
+##### Left pane: put the jump-to-top / bottom buttons by the scrollbar
+<!-- id 20261014-1030aa -->
+
+_Why it matters:_ They sit at the bottom left today, not where you'd look for them.
+
+**What you see**
+- Both jump buttons (to top / to bottom) sit at the bottom-left of the left pane. You expected top-at-top and bottom-at-bottom, by the scrollbar.
+
+**Decided**
+- No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
+- (Ron + UX, 2026-10-22) **▲ at the top, ▼ at the bottom, both at the right edge by the scrollbar** — where scroll
+  controls live everywhere else (Ron's own expectation). Not the single "back to top" option: the pane is long at both
+  ends.
+- **Floating over the pane's edge**, so they never push the list: ▲ shows when you're not at the top, ▼ when you're not
+  at the bottom, neither when the pane doesn't scroll. (Not the menu rule's case — a floating helper shifts nothing,
+  and a scroll button with nothing to scroll is clutter.)
+- **Home / End do the same jumps** — overlaps "Finish keyboard accessibility" (Polish).
+- **Build with the left-pane release** (pins + the filter box + the section overview — "Book Lists and Searches: pin
+  and sort them like Folders"), so the pane's chrome is decided once and the filter box and ▲ don't collide.
 
 #### Everyday organizing
 
@@ -946,7 +1389,7 @@ before building; this task is the plan. One concern per alpha (Law 6), smallest 
 4. **Tag changes confirm themselves; touching a tag by hand makes it yours** (items 8–9) — one shared tag-change
    function shows the confirmation from the same text as its undo (*Created tag "zzz" and added it to 'Title'*); any
    hand change of a tag drops it from the tool's record. Touches every tag change in the app: run the class-of-sites
-   comb and publish the list first.
+   comb and publish the list first. **Built with "Tag lists and long lists, one release"** (Polish).
 5. **Retire the hidden "seen" field** (item 10) — moved 2026-10-20/21 into the Polish task "Retire two leftover book
    fields: the hidden 'seen' flag and the old price-goal field" (one data round for both).
 
@@ -973,181 +1416,6 @@ fall for the quickie trap again")
 3. **Delete the dead `formatRelativeTime`** so nobody reuses the buggy copy.
 4. **An automated test** across midnight (11:59 PM vs 12:01 AM) and a daylight-saving date. Ron's check: any backup
    file saved yesterday reads "yesterday".
-
-#### Honest ownership changes: buying, samples, loans
-<!-- id 20261014-1700 -->
-
-_Why it matters:_ When a book changes kind — bought, a sample, a loan, a book in the Trash — ReaderWrangler should notice, tell you, and never lose your settings.
-
-**What this is**
-- One batch, ratified 2026-09-04 (formerly its own section, "⏸️ On hold: honest ownership changes"). **Status: queued**
-  (Ron, 2026-10-20 — no longer on hold). Its tasks are below, **in build order**: the rules doc and the foundation
-  first, then the data fixes, then the summaries (the polish end — there's nothing honest to report until the fetch
-  notices changes). **"Fetch should update books it already knows" goes first.**
-
-**Already shipped from this batch**
-- 7.7.2 (2026-09-07): Imports reclaim old upload storage. Its outstanding proof is **settled**: 7.21.1 reclaims on every
-  save, and since 7.23.0 (2026-10-20) production's nightly storage check confirms nothing is left over.
-- 7.8.0 (2026-09-08): the ownership dialog redesign, the undo fence, undo messages that name what they undo.
-- 7.9.0: one unified Auto-Organize. Two pieces were deferred on purpose: "Auto-Organize: Shift-click ranges should
-  follow what you see" (a task, Polish) and "let a misfiled book go back to the Inbox" (dropped 2026-10-22 — right-click
-  → Move to → Inbox and Ctrl+Z already cover it).
-- 7.10.0: Save as Spreadsheet (CSV) — the user who asked for it was sent a reply (no response).
-- 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
-
-##### Fetch should update books it already knows, not skip them
-<!-- id 20260904-0000a; merged 20261014-1030ac -->
-
-_Why it matters:_ A sample or loan of a wishlisted book is thrown away, so the change never shows.
-
-_The foundation — the summaries below depend on it._
-
-**What happens**
-- The fetcher skips any record whose ASIN it already knows. On 2026-09-04 a sample record for the wishlisted *Oath of Honor* was thrown away.
-- For loans it's invisible **forever** — there's no other path that would catch it.
-- **Live case (Ron, 2026-10-14/15):** three *Time Traveler's Passport* stories wishlisted months ago, then borrowed
-  through **Prime** — a fresh fetch + Import still shows them as **Wishlist**. The Prime records are skipped as
-  "🔁 Duplicate ASIN detected … (skipping)". (Fixed by hand with a console snippet for now.)
-- Why buying is different: the price check's "you bought this on ‹date›" backstop catches purchases every run; a
-  borrow has no such evidence, only the library record — the one that's skipped.
-
-**Decided** (Ron, 2026-10-15) — **one place for every ownership rule**
-- Today the rules are scattered: wishlist → owned lives in the price check, "never downgrade Owned" in the Import
-  merge, the list of temporary kinds in a third spot. Put the **whole transition matrix** (OWNERSHIP-MODEL.md §3) in
-  **one function** — "given what we have and Amazon's new evidence, what is the book now?" — called by every path
-  (the library walk, the purchase backstop, the Import merge), with tests locking it in (like the book-merge tests).
-- The ranking it implements: **Wishlist** (bottom — any real Amazon record replaces it) < the **temporary kinds**
-  (sample, Prime, Kindle Unlimited, borrowed, library loan, Audible Plus — peers: the **newest record wins**) <
-  **Owned** (top — a fetch never downgrades it). Manual Owned / Wishlist choices stay protected. A loan that ends is
-  Removed books' job (7.19.0).
-- A manual "Other… (Prime, KU…)" choice in the book window was considered and **not** wanted: once the fetch notices
-  these on its own, Amazon's facts arrive by themselves — revisit only if cases remain after the fix.
-- Details of the rules (merged 2026-10-20 from this task's old "Rules" list): **never downgrade Owned** — full fetches
-  include old sample records; "newest record wins" compares the record's date with the **stored** purchase date; your
-  own edits are respected. Refreshing the purchase date also fixes a re-walk quirk in how the fetcher remembers where it
-  stopped. The existing "past purchase" upgrade becomes just a backstop.
-- **Absorbs the old task "Let library loans and Audible Plus books upgrade to owned"** (Ron + UX, 2026-10-20): today
-  those two kinds can never become Owned, even after you buy the book — the fetcher's list of temporary kinds
-  (`TEMP_OWNERSHIP`, amazon-library-fetcher.js ~2277; written for fetcher 4.11.8, never updated for the kinds added in
-  5.2.0; verified still missing 2026-10-14) lacks them, so a bought library loan never upgrades, and loans without a
-  price goal are skipped by the price check. The one function, with library loan and Audible Plus in its temporary
-  rank, replaces that list — fixing it separately would patch a list this task deletes.
-
-**What you'd get**
-- A known book's record becomes an **update**: refresh its kind (owned / sample / loan…), purchase date and format from the record.
-- wishlist → sample / loan becomes visible; a library loan or Audible Plus book you then buy becomes Owned.
-
-**How it's tested** (added 2026-10-20 — Ron's live case was fixed by hand, so it's gone)
-- **Automated:** the one function gets a test for every row of the transition matrix (OWNERSHIP-MODEL.md §3).
-- **Live:** the next real sample or borrow of a wishlisted book should show its new kind after one fetch + Import —
-  wait for one, or arrange one (borrow a wishlisted Prime / Kindle Unlimited book).
-
-**How (technical)**
-- amazon-library-fetcher.js (~1422–1425 when filed): `seenASINs` is seeded with every known ASIN, so known records are dup-skipped.
-- Fields: `ownershipType`, `acquisitionDate`, binding; respect `userEdited`. The watermark re-walk quirk heals with the date refresh. `pastPurchase` demoted to backstop.
-
-##### Relay Import: only books in no folder should go to the Inbox
-<!-- id 20260904-0000e -->
-
-_Why it matters:_ A restore once copied the whole library into the Inbox.
-
-**A backstop** (Ron asked, 2026-10-20: "what is an example of a book that is new but already in a folder?"). In normal
-use the two rules agree — a book a fetch brings is new AND in no folder. They differ only when your books and your
-folders get out of step: the app keeps them in two separate browser stores (books in one, folders and lists in
-another), so if the books store is emptied or lost while the folders survive, every book looks "new" to Import. That's
-a recovery moment — exactly when a mess in the Inbox hurts most.
-
-**What happened** (diagnosed 2026-09-04)
-- On Sep 3, Import from Relay ran as a restore against an emptied book store. Every book looked "new", so all 3,076
-  were copied into the Inbox — even though your folders still held them.
-- Cleaned up the same day: you restored the 9/3 13:05 backup; only 4 genuinely double-filed books needed hand-fixing.
-
-**Decided** (tidied 2026-10-20: its "Left", "The fix" and "To do" said the same two things three times)
-1. **"Goes to the Inbox" = in no folder (and not deleted)** — not "new to the book store". Deleted books are already
-   left out (readerwrangler.js ~6638); the folder check is what's missing (still true 2026-10-20: Import adds every book
-   new to the store, ~5603).
-2. **Add "Import into an empty book store → the Inbox is unchanged" to the pre-launch tests** (PRELAUNCH-TEST-GATE.md
-   suite 4 — it covers a cold start with no books, not this Import case).
-3. **Test safely:** the automated test is the main check. A by-hand retest ("empty the book store, Import from Relay →
-   the Inbox count is unchanged") starts with **File → Save** (a backup) and runs only when no fetch is waiting to be
-   imported — it works on your real library.
-4. **Independent of the batch's foundation** ("Fetch should update books it already knows") — it's about where Import
-   puts books, not what kind they are; build it whenever convenient.
-5. **Say it's a backstop, in the code and when it fires** (Ron, 2026-10-20): a comment at the check explaining why it
-   exists (books and folders kept in two stores can get out of step — the Sep 3 case), and a console message when it
-   actually keeps books out of the Inbox, e.g. *"Inbox backstop: 3,076 books new to the book store are already in
-   folders — not added to the Inbox"* — so a real out-of-step event is visible, not silent.
-
-**How (technical)**
-- Filter the Import's `newBookIds` (readerwrangler.js ~5603) to books in no folder. The `getAllBookIdsInFolders()`
-  named when this was filed no longer exists (checked 2026-10-20) — build the set from the folders at that point.
-
-##### Buying a book that's in the Trash should bring it back
-<!-- id 20261014-1030j -->
-
-_Why it matters:_ A book you just bought shouldn't stay hidden in the Trash.
-
-**What you'd get**
-- When a book in the Trash becomes owned, it comes out of the Trash automatically. (Ron: "YES! Include it.")
-
-**Decided** (Ron + UX, 2026-10-20)
-1. **Built right after "Fetch should update books it already knows", on the same path:** once one function decides
-   "this book is now Owned", leaving the Trash is what follows from that answer — every route to Owned (library walk,
-   purchase backstop, Import merge) gets it, with nothing extra to remember.
-2. **It goes back where it lived before the Trash** — what Trash → Restore already does (since 7.11) — and the
-   fetch / Import summary says so: *"1 book you bought was in the Trash — restored to 'Sci-Fi'"* (see the two summary
-   tasks below).
-3. **Not the emptied-Trash case:** a book permanently deleted and then bought again is the permanent-delete rule's job
-   (docs/design/TOMBSTONE-DELETE.md: it comes back if the new purchase is later than the deletion).
-
-**How (technical)**
-- Lives in storage.js (the Import merge), via the one ownership function.
-
-##### Fetch summary should report books you bought
-<!-- id 20261014-1030t -->
-
-_Why it matters:_ After buying 4 wishlist books, the summary says "0 new" — the upgrades only show in the developer console.
-
-_Polish end of the batch; after "Fetch should update books it already knows". Build together with "Faster fetches that
-report exactly how your library compares with Amazon" — same completion window._
-
-**What you'd get**
-- The fetch's completion window lists **every ownership change, by kind** — not only upgrades to Owned: e.g.
-  "3 wishlist → owned, 1 wishlist → sample, 1 wishlist → Prime loan" (once the fetch notices samples and loans).
-- **One count for both summaries** (Ron + UX, 2026-10-20): this window and the app's Import summary describe the same
-  changes at two moments; both come from the one ownership function ("Fetch should update books it already knows"),
-  so they can never disagree.
-
-**How (technical)**
-- Today the upgrades are only logged as ⬆️ in the console.
-
-##### Import summary: every ownership change by kind, kept in the message history
-<!-- id 20260904-0000b; merged 20260904-0000c, 20261014-1030z -->
-
-_Why it matters:_ Sample → owned upgrades are missed, wishlist → sample could be mislabeled as owned, and the summary
-disappears on refresh, leaving no record of what changed — including which books kept their price goals.
-
-_Polish end of the batch; after "Fetch should update books it already knows". Merged 2026-10-20 (Ron + UX) from three
-tasks: "Import summary: count every ownership change, by kind", "Keep the Import summary in the message history",
-"Keep price goals when a book is bought, and say so"._
-
-**What you'd get**
-1. **Every change counted by kind**, labeled by where the book ended up — e.g. "3 wishlist → owned", "1 wishlist →
-   sample" — from the one ownership function (the same count as the fetch's window). The console line names the books
-   (a missing title blocked a diagnosis on 2026-09-04).
-2. **The whole summary is also recorded in the 🕐 message history**, including its "N kept their price goals" line,
-   **naming which books** — so a refresh doesn't erase what changed. (Today only "Cleared N price goals" is logged, and
-   only after the click.)
-
-**Already done** (the price-goal part)
-- Goals are kept when a book is bought — the rule stands: never silently destroy (Ron, 2026-09-04). Bought books
-  already need a visit to All Books to file them, so clearing goals rides along on a trip you make anyway.
-- 7.1.0: the Import summary says "N kept their price goals — clear if no longer wanted".
-- 7.19.0: "Clear those N goals" clears them in one click (undoable).
-
-**How (technical)**
-- Since 6.17.2 the summary reports "N now owned", but it's keyed on the wishlist flag flipping. Key it on
-  `ownershipType` transitions instead (the one function's result).
 
 ### Polish
 
@@ -1405,132 +1673,15 @@ Decided:
   undo step. Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and Ron's context-keying principle:
   UNDO-MODEL.md, section "fully transactional".
 
-#### Relay Setup: smoother sections and clearer Esc / Help behavior
-<!-- id 20260928-0000a -->
+#### Tag lists and long lists, one release
 
-_Why it matters:_ Its sections jump open so abruptly they look like new windows, and Esc behaves differently in a way you can't see.
+The tag picker, the Tags filter, the "Save results" menu and every type-ahead list all sit on one
+shared scrolling list — decided as one build, one test round (2026-10-22). Gathered here 2026-11-04 (TODO scan) from
+Polish and Small fixes, in build order: the shared list first, then what moves onto it. "Tag from Collections, round
+2" step 4 (High priority) — the shared tag-change function — is built with it.
 
-**What you see** (File → Relay Setup)
-1. **Sections jump.** Opening "Credentials" / "Enter Credentials Manually" or "Bookmarklet" / "Pairing" shoves everything up and down so hard it reads as "a new window appeared".
-2. **A hidden level.** "Enter Credentials Manually" secretly counts as a level of its own: Esc backs out of it first instead of closing Relay Setup. Nothing shows you that.
-3. **Help looks like a replacement.** Help opens exactly on top of Relay Setup, so it doesn't read as stacked on it.
 
-**Decided** (Ron + UX, 2026-10-21)
-1. **Animate the sections opening and closing** (~150–200 ms), so the eye can follow what moved; respect the system's
-   "reduce motion" setting.
-2. **Drop the hidden level: Esc closes Relay Setup**, like a background click — a section folding open isn't a layer
-   (the overlay system's Esc closes the innermost *layer*). If the manual-credentials fields hold typed-but-unsaved
-   text, closing asks the same *Save / Discard / Keep editing* question as the book details window — ideally the same
-   shared piece, so "ask before losing what you typed" works alike in every window with a form.
-3. **Open Help slightly offset** (~24 px down and right, like stacked windows) so it reads as on top of Relay Setup,
-   not replacing it; "Drag any dialog out of the way" (High priority) adds the full fix later.
-
-**Status:** noted 2026-09-28 during the overlay work; a separate, focused redesign pass. **Build it together with
-"Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one"** (Before launch) — that
-task changes this window's name, wording and key display; one pass touches and re-tests the window once.
-
-**How (technical)**
-- Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog (readerwrangler.js
-  ~11371 on 2026-10-21: `reason === 'esc' && relayManualCreds` closes only the section).
-
-#### Arrow keys should move through every type-ahead list
-<!-- id 20260929-0000 -->
-
-_Why it matters:_ You can't pick a series from the list with the keyboard — Down scrolls the window instead — and the
-same is likely true of most of the app's type-ahead lists.
-
-**What you see**
-- In both Series fields — the book details window's edit mode (✏️), and Bulk Edit → Series… — open the list (type a letter or click ▼) and press Down.
-- Nothing moves through the list. In the book details window, Down scrolls the whole window instead.
-- Enter takes what you typed, not a highlighted row.
-
-**What you'd get** (the standard pattern)
-- Down / Up move a highlight through the list while the cursor **stays in the text field**, so you can keep typing.
-- Enter picks the highlighted series. Esc closes the list (already works).
-- While the list is open, Down / Up never scroll the window.
-
-**The model already exists**
-- The search box's "Recent searches" list works exactly this way today. Extract that and use **one implementation for
-  every type-ahead list**.
-
-**Every type-ahead list, not three** (Ron + UX, 2026-10-21) — "Down moves, Enter picks" must work in all of them, or
-people learn it works in some places and stop trying. Found 2026-10-21 by their prompt text (a start, not proof):
-recent searches (the search box, ~1170 — the working model); Series in book details (~13825) and in Bulk Edit
-(~13475); Tags "Type to search or create" in book details (~14162) and right-click → Tags (~19790); "Type to filter
-your folders" (~12734); "Filter authors by name…" (~12064); and the planned filter box in the "Save results" menu.
-**When building, find them with two independent searches**
-(by prompt text and by the shared list popup) and publish the list before claiming coverage. **Build together with
-"One shared tag picker"** (Small fixes) — it sits on this behavior; one pass covers both tag lists.
-
-**Status:** deferred by Ron 2026-10-06 (minor accessibility fix).
-
-**How (technical)**
-- Build it once in the shared list popup (`<Popover kind="list">` — both Series lists became that in 7.18.0-alpha.54), not per field —
-  the same arrow-key handler the right-click menus get in "Finish keyboard accessibility" (one handler for every
-  `<Popover>` kind; whichever task is built first builds it).
-- The working model is the `SearchInput` component's Down/Up/Enter/Esc handling. Stable copy "as it was": `git show 46a0cf6:readerwrangler.js`, search for `const SearchInput`.
-
-#### Finish keyboard accessibility
-<!-- id 20261014-1030v -->
-
-_Why it matters:_ Everything should be usable without a mouse. Today Tab walks out of an open window into the library
-behind it, you can't see where the keyboard is, and right-click menus have no arrow keys.
-
-**Left** (checked 2026-11-03)
-1. **Keep focus inside an open window** — every window says it's modal, but nothing keeps Tab inside it.
-2. **A visible focus outline** for keyboard users — today only the note editor has a focus style.
-3. **Keyboard access to the right-click menus** — Down / Up move, Enter runs, Esc closes (Esc already works).
-4. **Keyboard navigation in the left pane** (moved here 2026-11-03 from "Leftover desktop polish") — including Home /
-   End for its jumps to top and bottom ("Left pane: put the jump-to-top / bottom buttons by the scrollbar").
-
-**Decided** (Ron + Claude, 2026-11-03, in the TODO review)
-1. **Moved up from After launch to Polish** — since 7.18 it's small: every window goes through one `<Dialog>`, every menu
-   and list through one `<Popover>`, the old-style message boxes through `attachDialogDismiss` — so items 1 and 3 are
-   each one change in the shared piece, not a sweep; item 2 is one style rule. Tab escaping a window is a defect, not a
-   nicety (Rule 0); outside review 4 (a newcomer's first look) would flag it.
-2. **One arrow-key handler for every `<Popover>` kind** — the menus here and the type-ahead lists in "Arrow keys should
-   move through every type-ahead list" share it; whichever is built first builds it.
-3. **Tested with the browser driver:** open a window, press Tab twenty times — focus never leaves it; right-click a
-   book, Down, Down, Enter — the right item runs; the focus outline shows on Tab, not on a mouse click.
-- Screen-reader labels for icon-only buttons come with the tooltips task ("Tooltips where they help…").
-
-**How (technical)**
-- Focus trap in `<Dialog>` and `attachDialogDismiss` (focus the first control on open, return focus on close);
-  `:focus-visible` (outline on keyboard focus only); arrow keys in `<Popover>` (menu, list).
-- Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): axe-core (`@axe-core/playwright`), run from the browser driver, checks contrast and
-  labels automatically; focus order still needs scripted Tab walks.
-
-#### The "Save results" menu runs off the screen with many Book Lists
-<!-- id 20261006-0000b -->
-
-_Why it matters:_ With 20+ Book Lists, the lower ones are cut off and can't be reached.
-
-**What you see**
-- With a search or filter active, click the **💾 N results · Save ▾** button in the bar above the books.
-- The menu lists every Book List. With about 20 or more, it's taller than the window and the bottom ones are cut off, with no way to scroll. A long flat list is also slow to scan.
-
-**What you'd get**
-- The menu opens on whichever side of its button (above or below) has more room, fits that space, and scrolls — the usual approach in modern menus.
-- With more than ~10 lists, a filter box at the top — reuse the one the book right-click menu's "Move to" submenu already has.
-
-**Watch out**
-- This must **not** apply to right-click menus with fly-out submenus (Move to / Copy to): a scrolling menu would clip its own fly-outs.
-
-**Status:** designed and deferred by Ron 2026-10-06.
-
-**Build on the shared scrolling list** (Ron + UX, 2026-10-21) — the one from "Long lists keep their actions in view"
-(below): its **top slot** holds the filter box (always visible while the list scrolls), the **middle** scrolls your
-Book Lists, its **bottom slot** an action like "New Book List…"; and the **fit-to-the-roomier-side** behavior lives in
-that shared piece, so every long list gets it. This menu is its first user after the tag lists. The filter box is one
-more type-ahead list for "Arrow keys should move through every type-ahead list". (The old line "check other menus
-that list your own items" moved to the long-lists task's sweep.)
-
-**How (technical)**
-- In the shared list piece (a `<Popover>` option for button dropdowns): when it can't fit below, pick the roomier side,
-  cap the height, scroll.
-- Today it pins to the top of the window and hangs off the bottom. The fly-out rule is CursorPopup's "never add overflow".
-
-#### Long lists keep their actions in view (Manage…, Select All) while you scroll
+##### Long lists keep their actions in view (Manage…, Select All) while you scroll
 <!-- id 20261019-2015 -->
 
 _Why it matters:_ An action at the end of a long list scrolls out of sight — it looks missing, so it's never used.
@@ -1567,11 +1718,159 @@ each list by hand doesn't stop the next new list from repeating it; with one sha
    calling it done. **Include menus that list your own items** (Book Lists, folders) and **run off the screen** —
    moved here 2026-10-21 from "The 'Save results' menu runs off the screen", whose menu is the piece's first user
    after the tag lists; the piece also owns fit-to-the-roomier-side.
-4. **Pair it with "One shared tag picker"** (Small fixes) so both tag lists move onto the piece together.
+4. **Pair it with "One shared tag picker"** (this group, next) so both tag lists move onto the piece together.
 
-**Related:** "The 'Save results' menu runs off the screen" (above — the same list could carry its fit-and-scroll
-fix) and "One shared tag picker" (Small fixes — it would sit on this piece). Deferred from 7.22.1 by Ron, 2026-10-19
+**Related:** "The 'Save results' menu runs off the screen" (this group — the same list carries its fit-and-scroll
+fix) and "One shared tag picker" (this group — it sits on this piece). Deferred from 7.22.1 by Ron, 2026-10-19
 (no regression; scrolling down is the workaround).
+
+##### One shared tag picker: show all tags in your order (the right-click one silently stops at 10)
+<!-- id 20261015-1717 -->
+
+_Why it matters:_ A tag you use constantly ("Read", 964 books) can be missing from the list with no hint why — and the two tag pickers disagree on what to show.
+
+**What you see** (Ron, 2026-10-15)
+1. Right-click a book → **Tags**: "Read" isn't in the dropdown. Typing "Read" in "Type to search or create…" finds it,
+   with 964 books.
+
+**Why** (verified in code)
+1. There are **two separate tag pickers** that have drifted apart:
+   1. **Right-click → Tags** shows only the **first 10** tags, in your custom order from Manage Tags — a silent cut-off
+      (the code even says `// Limit to 10`). "Read" is past the 10th, so it's hidden until you type.
+   2. **The book details window → Tags** shows **all** tags, but **A→Z** — ignoring your custom order — in a short
+      scrolling box.
+2. Same class as the three copies of the search rule ("Find a book by its ASIN"): one control, copied, drifting.
+
+**Decided** (Ron + UX, 2026-10-15)
+1. **One shared tag picker**, used in both places (and anywhere else tags are picked) — one implementation.
+2. It shows **all** tags, in **your custom tag order** (Manage Tags), in a scrolling list.
+3. The search box stays at the top to narrow it ("Type to search or create…"), as the "Move to" submenu's filter box does.
+4. **No silent limit.** If a cap is ever needed, it says so: "…23 more — type to filter".
+5. Keeps what both have today: tags already on the book(s) aren't offered again (re-confirmed 2026-10-20, Tag from
+   Collections round 2 topic 8); **"Create ‹name›" appears unless a tag with EXACTLY that name exists** — capitals
+   count since 7.24.0 — with the capitals prompt for a near-twin ("A similar tag exists"). Don't rebuild the old
+   capital-blind check.
+
+**Decided — tag order everywhere follows Manage Tags** (Ron + UX, 2026-10-18; recorded in
+docs/design/TAG-FROM-COLLECTIONS.md §7 as "added to this task" but it never arrived — added 2026-10-22). Ron's alpha.3
+note: the Tags filter and right-click → Tags aren't in Manage Tags order (book details is A→Z).
+1. Manage Tags' hidden header-click order cycle becomes a visible **Order: A→Z | Most used | Manual**.
+2. **Every tag list follows it:** the Tags filter (bar above the books), right-click → Tags, book details → Tags.
+3. Drag handles appear only in **Manual**, and the manual order changes only in Manual — viewing A→Z never touches a
+   saved manual order.
+
+**Build as one "tag lists" release** (Ron + UX, 2026-10-22) with the tasks that change the same lists — one build,
+one test round of them instead of four: "Long lists keep their actions in view" (the shared scrolling list; pins
+"Manage Tags…"; fixes the Tags filter), "Arrow keys should move through every type-ahead list" (the picker's search
+box), and "Tag from Collections, round 2" step 4 (the shared tag-change function: confirmations, "touching a tag by
+hand makes it yours").
+
+**Workaround until then:** Tools → Manage Tags → drag "Read" into your top 10.
+
+**How (technical)**
+- Right-click picker: readerwrangler.js ~19890–19898 (`tagOrderIdx` sort, `.slice(0, 10)`, multi-book aware via
+  `tagsOnAllBooks`). Book window picker: ~14104–14115 (`localeCompare` A→Z, single book). Extract one component taking
+  the selected book ids; both call sites become thin. `tagOrderedNames()` is the order source.
+- Build it on the overlay system's list popup if it opens as a popup.
+
+##### The "Save results" menu runs off the screen with many Book Lists
+<!-- id 20261006-0000b -->
+
+_Why it matters:_ With 20+ Book Lists, the lower ones are cut off and can't be reached.
+
+**What you see**
+- With a search or filter active, click the **💾 N results · Save ▾** button in the bar above the books.
+- The menu lists every Book List. With about 20 or more, it's taller than the window and the bottom ones are cut off, with no way to scroll. A long flat list is also slow to scan.
+
+**What you'd get**
+- The menu opens on whichever side of its button (above or below) has more room, fits that space, and scrolls — the usual approach in modern menus.
+- With more than ~10 lists, a filter box at the top — reuse the one the book right-click menu's "Move to" submenu already has.
+
+**Watch out**
+- This must **not** apply to right-click menus with fly-out submenus (Move to / Copy to): a scrolling menu would clip its own fly-outs.
+
+**Status:** designed and deferred by Ron 2026-10-06.
+
+**Build on the shared scrolling list** (Ron + UX, 2026-10-21) — the one from "Long lists keep their actions in view"
+(this group's first task): its **top slot** holds the filter box (always visible while the list scrolls), the **middle** scrolls your
+Book Lists, its **bottom slot** an action like "New Book List…"; and the **fit-to-the-roomier-side** behavior lives in
+that shared piece, so every long list gets it. This menu is its first user after the tag lists. The filter box is one
+more type-ahead list for "Arrow keys should move through every type-ahead list". (The old line "check other menus
+that list your own items" moved to the long-lists task's sweep.)
+
+**How (technical)**
+- In the shared list piece (a `<Popover>` option for button dropdowns): when it can't fit below, pick the roomier side,
+  cap the height, scroll.
+- Today it pins to the top of the window and hangs off the bottom. The fly-out rule is CursorPopup's "never add overflow".
+
+##### Arrow keys should move through every type-ahead list
+<!-- id 20260929-0000 -->
+
+_Why it matters:_ You can't pick a series from the list with the keyboard — Down scrolls the window instead — and the
+same is likely true of most of the app's type-ahead lists.
+
+**What you see**
+- In both Series fields — the book details window's edit mode (✏️), and Bulk Edit → Series… — open the list (type a letter or click ▼) and press Down.
+- Nothing moves through the list. In the book details window, Down scrolls the whole window instead.
+- Enter takes what you typed, not a highlighted row.
+
+**What you'd get** (the standard pattern)
+- Down / Up move a highlight through the list while the cursor **stays in the text field**, so you can keep typing.
+- Enter picks the highlighted series. Esc closes the list (already works).
+- While the list is open, Down / Up never scroll the window.
+
+**The model already exists**
+- The search box's "Recent searches" list works exactly this way today. Extract that and use **one implementation for
+  every type-ahead list**.
+
+**Every type-ahead list, not three** (Ron + UX, 2026-10-21) — "Down moves, Enter picks" must work in all of them, or
+people learn it works in some places and stop trying. Found 2026-10-21 by their prompt text (a start, not proof):
+recent searches (the search box, ~1170 — the working model); Series in book details (~13825) and in Bulk Edit
+(~13475); Tags "Type to search or create" in book details (~14162) and right-click → Tags (~19790); "Type to filter
+your folders" (~12734); "Filter authors by name…" (~12064); and the planned filter box in the "Save results" menu.
+**When building, find them with two independent searches**
+(by prompt text and by the shared list popup) and publish the list before claiming coverage. **Build together with
+"One shared tag picker"** (this group) — it sits on this behavior; one pass covers both tag lists.
+
+**Status:** deferred by Ron 2026-10-06 (minor accessibility fix).
+
+**How (technical)**
+- Build it once in the shared list popup (`<Popover kind="list">` — both Series lists became that in 7.18.0-alpha.54), not per field —
+  the same arrow-key handler the right-click menus get in "Finish keyboard accessibility" (one handler for every
+  `<Popover>` kind; whichever task is built first builds it).
+- The working model is the `SearchInput` component's Down/Up/Enter/Esc handling. Stable copy "as it was": `git show 46a0cf6:readerwrangler.js`, search for `const SearchInput`.
+
+#### Finish keyboard accessibility
+<!-- id 20261014-1030v -->
+
+_Why it matters:_ Everything should be usable without a mouse. Today Tab walks out of an open window into the library
+behind it, you can't see where the keyboard is, and right-click menus have no arrow keys.
+
+**Left** (checked 2026-11-03)
+1. **Keep focus inside an open window** — every window says it's modal, but nothing keeps Tab inside it.
+2. **A visible focus outline** for keyboard users — today only the note editor has a focus style.
+3. **Keyboard access to the right-click menus** — Down / Up move, Enter runs, Esc closes (Esc already works).
+4. **Keyboard navigation in the left pane** (moved here 2026-11-03 from "Leftover desktop polish") — including Home /
+   End for its jumps to top and bottom ("Left pane: put the jump-to-top / bottom buttons by the scrollbar").
+
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review)
+1. **Moved up from After launch to Polish** — since 7.18 it's small: every window goes through one `<Dialog>`, every menu
+   and list through one `<Popover>`, the old-style message boxes through `attachDialogDismiss` — so items 1 and 3 are
+   each one change in the shared piece, not a sweep; item 2 is one style rule. Tab escaping a window is a defect, not a
+   nicety (Rule 0); outside review 4 (a newcomer's first look) would flag it.
+2. **One arrow-key handler for every `<Popover>` kind** — the menus here and the type-ahead lists in "Arrow keys should
+   move through every type-ahead list" share it; whichever is built first builds it.
+3. **Tested with the browser driver:** open a window, press Tab twenty times — focus never leaves it; right-click a
+   book, Down, Down, Enter — the right item runs; the focus outline shows on Tab, not on a mouse click.
+- Screen-reader labels for icon-only buttons come with the tooltips task ("Tooltips where they help…").
+
+**How (technical)**
+- Focus trap in `<Dialog>` and `attachDialogDismiss` (focus the first control on open, return focus on close);
+  `:focus-visible` (outline on keyboard focus only); arrow keys in `<Popover>` (menu, list).
+- **After "Rebuild the old-style message boxes as standard dialogs"** (High priority), the focus trap is one change in
+  `<Dialog>` only — so build this after it.
+- Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): axe-core (`@axe-core/playwright`), run from the browser driver, checks contrast and
+  labels automatically; focus order still needs scripted Tab walks.
 
 #### Removing a recent search should offer Undo
 <!-- id 20261007-0000b -->
@@ -1628,7 +1927,7 @@ _Why it matters:_ Housekeeping — a few notes are in the wrong place. Details: 
 _Why it matters:_ Ron's own testing clicks — and any purchase through them — count against RW's affiliate account,
 muddying the stats, and Associates doesn't pay on your own purchases (repeated ones can draw a warning).
 
-**What you see** (2026-10-21): every "Open in Amazon" / Share link carries the tag on every build, localhost included
+**What you see** (2026-10-21): every "View on Amazon" / Share link carries the tag on every build, localhost included
 (`getAmazonUrl` in uiHelpers.js). The Associates dashboard showed 6 orders, 0 shipped, $0 — click spikes on Oct
 12–16 match Ron's test sessions.
 
@@ -1747,55 +2046,6 @@ _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for t
    `showHidden: true, // Default to showing all books` (~6688). Decide which is right so a new user isn't surprised.
 
 
-##### One shared tag picker: show all tags in your order (the right-click one silently stops at 10)
-<!-- id 20261015-1717 -->
-
-_Why it matters:_ A tag you use constantly ("Read", 964 books) can be missing from the list with no hint why — and the two tag pickers disagree on what to show.
-
-**What you see** (Ron, 2026-10-15)
-1. Right-click a book → **Tags**: "Read" isn't in the dropdown. Typing "Read" in "Type to search or create…" finds it,
-   with 964 books.
-
-**Why** (verified in code)
-1. There are **two separate tag pickers** that have drifted apart:
-   1. **Right-click → Tags** shows only the **first 10** tags, in your custom order from Manage Tags — a silent cut-off
-      (the code even says `// Limit to 10`). "Read" is past the 10th, so it's hidden until you type.
-   2. **The book details window → Tags** shows **all** tags, but **A→Z** — ignoring your custom order — in a short
-      scrolling box.
-2. Same class as the three copies of the search rule ("Find a book by its ASIN"): one control, copied, drifting.
-
-**Decided** (Ron + UX, 2026-10-15)
-1. **One shared tag picker**, used in both places (and anywhere else tags are picked) — one implementation.
-2. It shows **all** tags, in **your custom tag order** (Manage Tags), in a scrolling list.
-3. The search box stays at the top to narrow it ("Type to search or create…"), as the "Move to" submenu's filter box does.
-4. **No silent limit.** If a cap is ever needed, it says so: "…23 more — type to filter".
-5. Keeps what both have today: tags already on the book(s) aren't offered again (re-confirmed 2026-10-20, Tag from
-   Collections round 2 topic 8); **"Create ‹name›" appears unless a tag with EXACTLY that name exists** — capitals
-   count since 7.24.0 — with the capitals prompt for a near-twin ("A similar tag exists"). Don't rebuild the old
-   capital-blind check.
-
-**Decided — tag order everywhere follows Manage Tags** (Ron + UX, 2026-10-18; recorded in
-docs/design/TAG-FROM-COLLECTIONS.md §7 as "added to this task" but it never arrived — added 2026-10-22). Ron's alpha.3
-note: the Tags filter and right-click → Tags aren't in Manage Tags order (book details is A→Z).
-1. Manage Tags' hidden header-click order cycle becomes a visible **Order: A→Z | Most used | Manual**.
-2. **Every tag list follows it:** the Tags filter (bar above the books), right-click → Tags, book details → Tags.
-3. Drag handles appear only in **Manual**, and the manual order changes only in Manual — viewing A→Z never touches a
-   saved manual order.
-
-**Build as one "tag lists" release** (Ron + UX, 2026-10-22) with the tasks that change the same lists — one build,
-one test round of them instead of four: "Long lists keep their actions in view" (the shared scrolling list; pins
-"Manage Tags…"; fixes the Tags filter), "Arrow keys should move through every type-ahead list" (the picker's search
-box), and "Tag from Collections, round 2" step 4 (the shared tag-change function: confirmations, "touching a tag by
-hand makes it yours").
-
-**Workaround until then:** Tools → Manage Tags → drag "Read" into your top 10.
-
-**How (technical)**
-- Right-click picker: readerwrangler.js ~19890–19898 (`tagOrderIdx` sort, `.slice(0, 10)`, multi-book aware via
-  `tagsOnAllBooks`). Book window picker: ~14104–14115 (`localeCompare` A→Z, single book). Extract one component taking
-  the selected book ids; both call sites become thin. `tagOrderedNames()` is the order source.
-- Build it on the overlay system's list popup if it opens as a popup.
-
 ##### Right-click: add "Copy ASINs" below Copy Titles / Copy Authors
 <!-- id 20261015-1710 -->
 
@@ -1822,42 +2072,6 @@ _Why it matters:_ Getting the ASINs of several books today means opening each on
 **How (technical)**
 - Next to Copy Title(s) / Copy Author(s) in the book context menu (readerwrangler.js ~19535–19568 on 2026-10-22):
   `navigator.clipboard.writeText(...)` returns a promise — await it (catch the rejection) before the receipt.
-
-##### Wishlist: record the real format when a book is added
-<!-- id 20261014-1030bf -->
-
-_Why it matters:_ Today the format is only known after the book's details are filled in.
-
-**Already done** (checked 2026-10-22)
-- 6.12.0: adding a single book from its page records the format.
-- 7.21.3: **Add Bibliography to Wishlist** takes Kindle books only and records "Kindle Edition" on each
-  (author-bibliography-fetcher.js ~462).
-
-**Left — one line** (Ron + UX, 2026-10-22)
-- **Add Series to Wishlist** asks Amazon for Kindle editions only, so every book it adds is Kindle — but it never writes
-  that onto the book (series-page-fetcher.js, the book built ~464), so the app falls back to its default. Set the
-  format to **"Kindle Edition"** (FORMAT-POLICY's spelling, as the bibliography fetcher does).
-- A fetcher change shared by all three bookmarklets: dev and prod together.
-
-##### Left pane: put the jump-to-top / bottom buttons by the scrollbar
-<!-- id 20261014-1030aa -->
-
-_Why it matters:_ They sit at the bottom left today, not where you'd look for them.
-
-**What you see**
-- Both jump buttons (to top / to bottom) sit at the bottom-left of the left pane. You expected top-at-top and bottom-at-bottom, by the scrollbar.
-
-**Decided**
-- No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
-- (Ron + UX, 2026-10-22) **▲ at the top, ▼ at the bottom, both at the right edge by the scrollbar** — where scroll
-  controls live everywhere else (Ron's own expectation). Not the single "back to top" option: the pane is long at both
-  ends.
-- **Floating over the pane's edge**, so they never push the list: ▲ shows when you're not at the top, ▼ when you're not
-  at the bottom, neither when the pane doesn't scroll. (Not the menu rule's case — a floating helper shifts nothing,
-  and a scroll button with nothing to scroll is clutter.)
-- **Home / End do the same jumps** — overlaps "Finish keyboard accessibility" (Polish).
-- **Build with the left-pane release** (pins + the filter box + the section overview — "Book Lists and Searches: pin
-  and sort them like Folders"), so the pane's chrome is decided once and the filter box and ▲ don't collide.
 
 ##### Bulk Edit hints that read like "you can type several values"
 <!-- id 20261015-1219 -->
@@ -1887,8 +2101,15 @@ made Position take a list (`13, 13.5, 14`, ranges) with a live preview, and remo
 - `Mixed (${uniqueValues.size} values)` in the bulk-edit dialog (readerwrangler.js ~13396), shared by Author / Series /
   Position / Format.
 
-##### Import: new books are filed before the integrity check, so the check reports only real repairs
-<!-- id 20261031-1639 -->
+##### Import files new books once, before the integrity check — and only books in no folder
+<!-- id 20261031-1639; merged 20260904-0000e -->
+
+_Why it matters:_ Two problems in the same few lines of Import's filing step (readerwrangler.js ~5603): every
+Import with new books reports a "repair" that's really the normal path, and an Import into an emptied book store
+once copied the whole library into the Inbox. Merged 2026-11-04 in the TODO scan (one change, one test).
+
+**Part 1 — file new books first, so the integrity check reports only real repairs** (was "Import: new books are
+filed before the integrity check…", 2026-10-31)
 
 _Why it matters:_ Every Import from Relay with new books logs "🔧 Integrity auto-fixed … N books with no folder —
 placed in Inbox" — a normal path reported as a repair (Ron noticed it 2026-10-31). An alarm that fires on every
@@ -1907,6 +2128,42 @@ the same breath as the new books.
 - The import files its new books into the Inbox FIRST, in one place, then the integrity check runs — so the check
   sees only genuine problems. The later duplicate step goes away (one placement path, not two). Its own alpha, kept
   out of the 7.25.0 security release.
+
+**Part 2 — only books in no folder go to the Inbox** (was "Relay Import: only books in no folder should go to the
+Inbox", 2026-09-04 — a backstop; independent of the ownership batch)
+
+_Why it matters:_ A restore once copied the whole library into the Inbox.
+
+**A backstop** (Ron asked, 2026-10-20: "what is an example of a book that is new but already in a folder?"). In normal
+use the two rules agree — a book a fetch brings is new AND in no folder. They differ only when your books and your
+folders get out of step: the app keeps them in two separate browser stores (books in one, folders and lists in
+another), so if the books store is emptied or lost while the folders survive, every book looks "new" to Import. That's
+a recovery moment — exactly when a mess in the Inbox hurts most.
+
+**What happened** (diagnosed 2026-09-04)
+- On Sep 3, Import from Relay ran as a restore against an emptied book store. Every book looked "new", so all 3,076
+  were copied into the Inbox — even though your folders still held them.
+- Cleaned up the same day: you restored the 9/3 13:05 backup; only 4 genuinely double-filed books needed hand-fixing.
+
+**Decided** (tidied 2026-10-20: its "Left", "The fix" and "To do" said the same two things three times)
+1. **"Goes to the Inbox" = in no folder (and not deleted)** — not "new to the book store". Deleted books are already
+   left out (readerwrangler.js ~6638); the folder check is what's missing (still true 2026-10-20: Import adds every book
+   new to the store, ~5603).
+2. **Add "Import into an empty book store → the Inbox is unchanged" to the pre-launch tests** (PRELAUNCH-TEST-GATE.md
+   suite 4 — it covers a cold start with no books, not this Import case).
+3. **Test safely:** the automated test is the main check. A by-hand retest ("empty the book store, Import from Relay →
+   the Inbox count is unchanged") starts with **File → Save** (a backup) and runs only when no fetch is waiting to be
+   imported — it works on your real library.
+4. **Independent of the batch's foundation** ("Fetch should update books it already knows") — it's about where Import
+   puts books, not what kind they are; build it whenever convenient.
+5. **Say it's a backstop, in the code and when it fires** (Ron, 2026-10-20): a comment at the check explaining why it
+   exists (books and folders kept in two stores can get out of step — the Sep 3 case), and a console message when it
+   actually keeps books out of the Inbox, e.g. *"Inbox backstop: 3,076 books new to the book store are already in
+   folders — not added to the Inbox"* — so a real out-of-step event is visible, not silent.
+
+**How (technical)**
+- Filter the Import's `newBookIds` (readerwrangler.js ~5603) to books in no folder. The `getAllBookIdsInFolders()`
+  named when this was filed no longer exists (checked 2026-10-20) — build the set from the folders at that point.
 
 ##### With a filter on, the right pane still shows subfolders with no matching books
 <!-- id 20261103-1651 -->
@@ -2025,131 +2282,6 @@ _Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder 
 **How (technical)**
 - Folder menu: readerwrangler.js ~18443 (`folderContextMenu`). The Inbox menu's entry (~18348) and the book menu's
   (~19292) show how to open it scoped to a folder.
-
-#### Fetcher housekeeping
-
-Small code-and-safety fixes; "odds and ends" includes a minimum pause between requests to Amazon.
-
-##### Fetcher: give the library filter one name, in one place
-<!-- id 20261014-1030u -->
-
-_Why it matters:_ An unexplained code string is repeated in four places; one named setting is safer to change.
-
-**Background** (checked 2026-10-14)
-- An old fetcher fix (`ee6d83c`, June 2026) had two parts. Both were lost when the fetcher was later rewritten.
-  1. **A notice for books Amazon has delisted — done.** Since fetcher v4.11.0, the end of a fetch shows a banner:
-     "recovered N previously-missing book(s); M unavailable/delisted (see console)".
-  2. **Name and explain the library filter — still missing.** This task.
-
-**Removed vs. delisted — two different cases**
-- **Removed books** have **left** your Amazon library: a returned loan, a sample you deleted. They're no longer in the
-  list Amazon sends. These are what **Tools → Removed books** (7.19.0) handles.
-- **Delisted books** were withdrawn from Amazon's **catalog**, but you still own them. They're **still in** your Amazon
-  library list, just with no title, author or cover attached. The removed-books check deliberately counts them as
-  present, so they never reach the Removed books dialog. A delisted book that can't be filled in at all is what the
-  end-of-fetch banner (part 1 above) reports.
-
-**What the filter is**
-- When the fetcher asks for your library it applies the same default filter Amazon's own Your Books page applies.
-  Today that filter is a long code string pasted into **4 places** in the fetcher (re-counted 2026-10-22) — changing
-  it means editing all 4 identically, with nothing saying what it is. What it hides: see TODO notes.
-
-**To do** (Ron + UX, 2026-10-22 — per the notes rule: the code keeps what it needs, explanations stay private)
-- Put the whole filter in **one** named constant, used in all 4 places. No change in behavior. Small.
-- **Its code comment stays neutral** — e.g. "the default filter Amazon's own Your Books page applies" — the meaning of
-  each part lives in Amazon-Reference.md (shipped code is public; the 2026-10-14 draft comment explained Amazon's tags).
-
-**How (technical)**
-- The 4 queries: amazon-library-fetcher.js ~1040 (start-up test), ~1449 (main fetch), ~1748 (recovery sweep),
-  ~2805 (removed-books check).
-- Delisted = "product-null" in the code: the removed-books check adds those ASINs as present (~2869–2878).
-- A fetcher change: bump `FETCHER_VERSION`.
-
-##### Fetcher odds and ends (progress figure, frozen timer, request pacing)
-<!-- id 20260903-0000a -->
-
-_Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
-
-**The list**
-1. Fix the "772%" figure in the details-filled ratio.
-2. The elapsed time freezes during the "Checking Relay" (both lines) and "Recovering" phases — it only repaints when the phase or progress changes. (Ron, 2026-09-03, twice.)
-3. **Never request faster than today's proven-safe pace** (rewritten 2026-10-22, Ron + UX — the original idea, whose
-   details had been lost: a fixed "~400 ms" pause *added after* each answer would stack on Amazon's own response time,
-   cost ~40 s on a full pass and protect nothing today). Today it's 0 (`FETCH_DELAY_MS = 0`); if Amazon's servers ever
-   got faster, we'd hammer them.
-   1. **A minimum gap between request STARTS** — a speed limit, not a delay: before sending, if less than the floor has
-      passed since the previous request started, wait the difference; otherwise send at once. Only the start time
-      matters, so there's no "just sent" step. If several requests go out at once, each takes the next free slot (last
-      start + floor), so they still leave one floor apart.
-   2. **Across EVERY request to Amazon**, whatever its kind and whichever fetcher sends it — not per kind.
-   3. **The floor = today's measured pace**, so the **net effect today is zero**: record each request's duration in one
-      normal full fetch, set the floor just below the typical time, and write where the number came from next to the
-      constant.
-   4. **Visible if it ever kicks in** (Ron: "an excellent addition"): when the floor actually has to wait, Amazon got
-      faster than when we measured — say so in the fetch summary or console ("paced N requests to the safe rate").
-   5. **One wrapper — `amazonFetch(…)` — that every request to Amazon goes through,** not a call each site must
-      remember (Ron's alternative "about to send" would work too, but can be forgotten). The fetchers are plain
-      scripts on Amazon's page, so wrapping the browser's request call is simple. **Lives in one shared file the
-      bookmarklet hub loads before any fetcher** — not copied into each. **A commit check refuses a direct request to
-      Amazon in the fetcher files that bypasses it.**
-   6. **Make bypassing it impossible, not just discouraged** (Ron, 2026-10-22): inside OUR fetcher scripts the names
-      `fetch` / `XMLHttpRequest` are shadowed by a local that throws *"Requests to Amazon go through amazonFetch"*;
-      `amazonFetch` keeps the real one. **Never override the page's own `window.fetch`** — the page is Amazon's, and
-      its own scripts use it; replacing it would break Amazon's site for the user. (The commit check stays too: it
-      also catches an explicit `window.fetch`, and code paths a test run never reached.)
-
-**Decided** (Ron + UX, 2026-10-22): items 1–2 as listed (the "772%" ratio can't exceed 100% — fix the formula; the
-elapsed time redraws on a one-second tick while a fetch runs). **Build all three with "Faster fetches…"** (High
-priority) — same file, same test, and that task already rebuilds the timing table.
-
-**How (technical)**
-- Item 3: replaces `FETCH_DELAY_MS` (amazon-library-fetcher.js ~67). (Two items moved out 2026-10-20: the live ownership-upgrade test is now in "Fetch should
-  update books it already knows", un-trash on upgrade is "Buying a book that's in the Trash should bring it back".)
-
-##### Fetcher: refresh ratings with the price check (books you might buy)
-<!-- id 20261014-1030af -->
-
-_Why it matters:_ Ratings are frozen at a book's first fetch — fine for owned books, a little stale for buying
-decisions.
-
-**Decided** (Ron + Claude, 2026-11-03, in the TODO review — was "Now and then, refresh ratings for books you might buy",
-After launch → Prices; moved here as a small fetcher change to ride along with the next one)
-- **Ride along with the price check — no schedule.** The price step already asks Amazon about exactly these books on
-  every fetch (books you could still buy, new books, owned books with a price goal — 30 per request, since 5.1). Add the
-  rating and review count to that same request: ratings stay fresh on every fetch with **no extra requests** — no
-  monthly sweep, no every-Nth-fetch counter. Safe to interrupt for free (the same run).
-- Not the outside review's per-book adaptive timing — a fine solution to a scale problem we don't have.
-
-**How (technical)**
-- amazon-library-fetcher.js price step (`qvGetMediaMatrixProductsQuickView`, ~2316): add `customerReviewsSummary
-  { rating { value } count { displayString } }` (as the enrichment request already asks, ~1482); store `rating` /
-  `reviewCount` as the first fetch does (~1617). Bump FETCHER_VERSION. (Outside review item 3.)
-
-#### Relay Setup's connection test checks the wrong relay on dev
-<!-- id 20261012-0000a -->
-
-_Why it matters:_ On your local copy or the dev site it tests production, so its answer can be wrong.
-
-**What you see**
-- On your local copy or the dev site: File → Relay Setup → the connection test reports on the **production** relay, not the dev relay your copy actually uses. So "connected" / "revoked" there can be wrong for dev.
-
-**Why it happened** (checked 2026-10-22): relay-client.js already has the wrapper — `relayFetch(path)` builds the
-address from the one "which relay" answer — but it doesn't offer it to the app (not in `window.RWRelay`), so the test
-called the browser's request function directly with a hard-written production address (readerwrangler.js ~1838). The
-relay's addresses are written in **five** places: production in relay-client.js:13 (the default) and the buggy ~1838;
-dev in readerwrangler.js:130, mobile.js:31 and bookmarklet-nav-hub.js:52.
-
-**Decided — relay requests go only through relay-client** (Ron + UX, 2026-10-22)
-1. **relay-client offers what the app needs** — a named `testConnection(channelId)` (better than exposing raw paths),
-   so the app never builds relay addresses; the test uses it. This fixes the dev bug.
-2. **Both addresses are written once, in relay-client.js.** The app, phone and bookmarklet hub only answer "am I on
-   dev?" (each detects it its own way) — **callers never pass Dev or Prod**: a caller that chooses can choose wrong
-   (that's this bug). The relay's own test scripts in `relay/` run outside the app and don't use this.
-3. **Make bypassing it impossible** (Ron): the app page is ours, so its `window.fetch` gets a guard that **throws**
-   for a request to a relay address not coming from relay-client (*"Relay requests go through RWRelay"*);
-   everything else passes untouched. relay-client keeps the real one. An honest error, not a silent substitute.
-4. **A commit check refuses a relay address written outside relay-client.js** (app, phone, bookmarklet files).
-5. Test step: on localhost, Relay Setup's connection test names the **dev** relay.
 
 #### Redo should work after copying a folder
 <!-- id 20261014-1030w -->
@@ -2273,95 +2405,6 @@ drawn to the center"). And what makes RW different — always free, no ads, no a
 - Buttons: index.html ~1278 (top bar) and ~1325 (hero, `.cta-buttons`); the trust row ~1424. The theme check near the
   top of index.html shows the pattern for reading the app's local setting. The marker: written by the app when a
   library loads (readerwrangler.js) — a tiny app change, so an alpha + version bump.
-
-#### Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one
-<!-- id 20260828-0000a -->
-
-_Why it matters:_ "Relay", "Credentials", "Channel ID" and "Passphrase" are engineering words, and users juggle two
-values that are really one secret. And today making new credentials doesn't retire the old ones: whoever holds an old
-key can still read the full cloud copy (it never expires) and write to or wipe it. Renaming is free before launch and
-expensive after.
-
-**The record: docs/design/CLOUD-SYNC-NAMING.md** — everything decided, why, what was rejected, and the check-character
-test. Decided 2026-10-23 (Ron + UX, three outside-review rounds). **Anti-bounce rule:** only a real user's misreading
-reopens a name, never a new argument.
-
-**What you'd get** (details in the record)
-1. **The words:** Cloud Sync · Cloud Sync Setup · Import from Cloud Sync · **Cloud Sync Key** (one key; "Credentials",
-   "Channel ID", "Passphrase" leave the screens) · Save Key · Make a new key · the bookmarklet's buttons **Send Library
-   to ReaderWrangler** / **Send Collections to ReaderWrangler** · "the sync server" on the security page. Data Status
-   and "bookmarklet" stay. About 80+ places (app ~52, phone 3, bookmarklet screens ~22, site pages ~13), plus README,
-   help notes and the User Guide.
-2. **The name defined once, and a commit check** that refuses retired words in anything users see — a general
-   "words we don't show users" list (Relay, "Sync now", and CLAUDE.md's jargon list), word boundaries, an exclusion
-   list by path. Old CHANGELOG entries, post-mortems and design records keep "Relay".
-3. **One Cloud Sync Key:** `RW1-` + 13 groups of 5, Crockford's alphabet (no I, L, O, U; O read as 0, I/L as 1), the
-   ID's 32 hex digits + a 31-character secret + 2 check characters (ISO 7064 pure, radix 32, modulus 1021). A 6-character
-   support code beside it (the relay's nightly email moving to 6 is done in "Relay worker: one release…").
-4. **One tidy step is the only way in** (strip, fold, check, split, rebuild the ID exactly as stored); the key-making
-   code refuses anything else; **the relay refuses an untidy ID** (its one check made strict — done earlier, in "Relay
-   worker: one release…"); a decrypt failure says
-   "this key doesn't match", never "no data".
-5. **Make a new key = change the locks:** save the new key and park the old one as "pending revoke" in one write, then
-   block and delete the old mailbox (including the full copies and pointer — the relay's wipe is fixed earlier, in
-   "Relay worker: one release…"), retry at next launch if that fails;
-   backups carry the pending slot; an old backup's replaced key is named as such. The confirmation adds "Your books
-   and folders stay as they are."
-6. **Honest wording:** fix the "syncs automatically" message; the bar says what is true ("…ready — Import"); the help
-   line about the bookmarklet containing the key; the security notes' statements (the record, "What we tell users").
-7. **Tests:** the round-trip (ID → key → ID, byte for byte) and the check-character test kept as permanent checks.
-
-**Build together**
-- With "Relay Setup: smoother sections and clearer Esc / Help behavior" (Polish) — the same window, touched and
-  re-tested once.
-- Reconcile with "Relay Setup: disconnect, or reset credentials" (Safety): its 6.9.0 "Danger zone → Revoke
-  credentials & wipe relay" is what "Make a new key" reuses; its gentle Disconnect stays its own item.
-- The User Guide rewrite (below) waits for this, so the new names land once.
-
-**Watch out**
-- **Your key:** today's passphrases use another alphabet and there's no legacy path (one user). After the build, make
-  a new key once — then re-drag the bookmarklet (LOCAL, and the DEV and PROD ones) and re-pair the phone.
-- **The relay changes** (strict ID check, nightly email's 6 characters, the wipe reaching the full copies) **moved
-  2026-10-24 to "Relay worker: one release…"** (High priority), which ships first. Anything the key work still needs
-  from the relay is a worker change — Ron's yes before every deploy; dev first.
-- The bookmarklet's screens change the same way for all three bookmarklets → dev and prod together.
-- When this ships, update the CLAUDE.md vocabulary rule to the new names (it describes today's screens until then;
-  both trace to the 2026-08-28 decision).
-- Sizing: a small feature (the key format and its tidy step, the change-the-locks order) plus a worker change plus an
-  80-place rename — not a rename alone.
-
-#### Reset App: one honest message in all four places (what's cleared, what's kept, how to come back)
-<!-- id 20261030-1039 -->
-
-_Why it matters:_ Every reset message was written before Cloud Sync, so they talk about "files on disk" a user today
-may never have had, point at a button that doesn't exist, and leave out the main way back — the copy in the cloud.
-Someone resetting is often already having a bad day (Ron, 2026-10-30, noticed the Tools → Reset App wording).
-
-**The four places** (found 2026-10-30 — a class of sites)
-1. **Tools → Reset App** (readerwrangler.js ~11784): "Your library/collections files on disk will NOT be deleted. You
-   can reload them anytime." and **"💡 Tip: Use the Export button first"** — there is no Export button, and "Export"
-   is retired (Save / Restore).
-2. **The reset page's confirmation** (reset.js ~106): "Import backup file → Books + organization; Import
-   amazon-library.json → Books only" — that file no longer exists for anyone setting up today.
-3. **The emergency reset** (readerwrangler.html ~342 / ~361 — shown when the app can't start): "Your files on disk are
-   safe — import your backup file after the reset…".
-4. **The reset page's own text** (reset.html ~60): "Good news: … Your files on disk are safe. What you can recover:
-   Import backup file → Restore EVERYTHING…".
-
-**Decided** (Ron + UX, 2026-10-30)
-1. **One message, defined once, used by all four** — so they can't drift again.
-2. It says, in plain words:
-   - **what's cleared:** everything ReaderWrangler keeps in **this browser** (books, folders, tags, settings);
-   - **what's kept:** files you saved on your computer — backups (File → Save) and spreadsheets (File → Save
-     Spreadsheet) — and **your copy in the cloud**;
-   - **how to come back:** restore a backup, or reconnect Cloud Sync and import.
-   Ron's starting wording: "Your library/collections files on disk (backups, CSV files) will NOT be deleted. You can
-   reload backups anytime."
-3. **Build with "Cloud Sync: rename Relay…"** (just above) — the recovery words (Cloud Sync Key, Import from Cloud
-   Sync) change there, so this is written once, in the new words.
-4. **Verify before writing:** does Reset also clear the stored Cloud Sync Key? If it does, "reconnect" needs the key
-   from a backup or another device — and the message must say so ("you'll need your Cloud Sync Key").
-5. Then the help notes and the User Guide's "Starting over" section (User Guide task) say the same thing.
 
 #### Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome
 <!-- id 20261018-1422b -->
@@ -2545,6 +2588,180 @@ _Why it matters:_ Lets users get answers without waiting for you.
 
 **Spec:** docs/design/SUPPORT-GPT.md.
 
+### Cloud Sync
+
+One pass through the setup window and the words around it (gathered 2026-11-04 in the TODO scan from Help, Polish
+and Safety — each of these already said "touch the window once"). Build order: the rename first, then the rest in
+its new words.
+
+
+#### Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one
+<!-- id 20260828-0000a -->
+
+_Why it matters:_ "Relay", "Credentials", "Channel ID" and "Passphrase" are engineering words, and users juggle two
+values that are really one secret. And today making new credentials doesn't retire the old ones: whoever holds an old
+key can still read the full cloud copy (it never expires) and write to or wipe it. Renaming is free before launch and
+expensive after.
+
+**The record: docs/design/CLOUD-SYNC-NAMING.md** — everything decided, why, what was rejected, and the check-character
+test. Decided 2026-10-23 (Ron + UX, three outside-review rounds). **Anti-bounce rule:** only a real user's misreading
+reopens a name, never a new argument.
+
+**What you'd get** (details in the record)
+1. **The words:** Cloud Sync · Cloud Sync Setup · Import from Cloud Sync · **Cloud Sync Key** (one key; "Credentials",
+   "Channel ID", "Passphrase" leave the screens) · Save Key · Make a new key · the bookmarklet's buttons **Send Library
+   to ReaderWrangler** / **Send Collections to ReaderWrangler** · "the sync server" on the security page. Data Status
+   and "bookmarklet" stay. About 80+ places (app ~52, phone 3, bookmarklet screens ~22, site pages ~13), plus README,
+   help notes and the User Guide.
+2. **The name defined once, and a commit check** that refuses retired words in anything users see — a general
+   "words we don't show users" list (Relay, "Sync now", and CLAUDE.md's jargon list), word boundaries, an exclusion
+   list by path. Old CHANGELOG entries, post-mortems and design records keep "Relay".
+3. **One Cloud Sync Key:** `RW1-` + 13 groups of 5, Crockford's alphabet (no I, L, O, U; O read as 0, I/L as 1), the
+   ID's 32 hex digits + a 31-character secret + 2 check characters (ISO 7064 pure, radix 32, modulus 1021). A 6-character
+   support code beside it (the relay's nightly email moving to 6 is done in "Relay worker: one release…").
+4. **One tidy step is the only way in** (strip, fold, check, split, rebuild the ID exactly as stored); the key-making
+   code refuses anything else; **the relay refuses an untidy ID** (its one check made strict — done earlier, in "Relay
+   worker: one release…"); a decrypt failure says
+   "this key doesn't match", never "no data".
+5. **Make a new key = change the locks:** save the new key and park the old one as "pending revoke" in one write, then
+   block and delete the old mailbox (including the full copies and pointer — the relay's wipe is fixed earlier, in
+   "Relay worker: one release…"), retry at next launch if that fails;
+   backups carry the pending slot; an old backup's replaced key is named as such. The confirmation adds "Your books
+   and folders stay as they are."
+6. **Honest wording:** fix the "syncs automatically" message; the bar says what is true ("…ready — Import"); the help
+   line about the bookmarklet containing the key; the security notes' statements (the record, "What we tell users").
+7. **Tests:** the round-trip (ID → key → ID, byte for byte) and the check-character test kept as permanent checks.
+
+**Build together**
+- With "Relay Setup: smoother sections and clearer Esc / Help behavior" (below, this section) — the same window,
+  touched and re-tested once.
+- Reconcile with "Relay Setup: disconnect, or reset credentials" (below, this section): its 6.9.0 "Danger zone → Revoke
+  credentials & wipe relay" is what "Make a new key" reuses; its gentle Disconnect stays its own item.
+- The User Guide rewrite (below) waits for this, so the new names land once.
+
+**Watch out**
+- **Your key:** today's passphrases use another alphabet and there's no legacy path (one user). After the build, make
+  a new key once — then re-drag the bookmarklet (LOCAL, and the DEV and PROD ones) and re-pair the phone.
+- **The relay changes** (strict ID check, nightly email's 6 characters, the wipe reaching the full copies) **moved
+  2026-10-24 to "Relay worker: one release…"** (High priority), which ships first. Anything the key work still needs
+  from the relay is a worker change — Ron's yes before every deploy; dev first.
+- The bookmarklet's screens change the same way for all three bookmarklets → dev and prod together.
+- When this ships, update the CLAUDE.md vocabulary rule to the new names (it describes today's screens until then;
+  both trace to the 2026-08-28 decision).
+- Sizing: a small feature (the key format and its tidy step, the change-the-locks order) plus a worker change plus an
+  80-place rename — not a rename alone.
+
+#### Relay Setup: smoother sections and clearer Esc / Help behavior
+<!-- id 20260928-0000a -->
+
+_Why it matters:_ Its sections jump open so abruptly they look like new windows, and Esc behaves differently in a way you can't see.
+
+**What you see** (File → Relay Setup)
+1. **Sections jump.** Opening "Credentials" / "Enter Credentials Manually" or "Bookmarklet" / "Pairing" shoves everything up and down so hard it reads as "a new window appeared".
+2. **A hidden level.** "Enter Credentials Manually" secretly counts as a level of its own: Esc backs out of it first instead of closing Relay Setup. Nothing shows you that.
+3. **Help looks like a replacement.** Help opens exactly on top of Relay Setup, so it doesn't read as stacked on it.
+
+**Decided** (Ron + UX, 2026-10-21)
+1. **Animate the sections opening and closing** (~150–200 ms), so the eye can follow what moved; respect the system's
+   "reduce motion" setting.
+2. **Drop the hidden level: Esc closes Relay Setup**, like a background click — a section folding open isn't a layer
+   (the overlay system's Esc closes the innermost *layer*). If the manual-credentials fields hold typed-but-unsaved
+   text, closing asks the same *Save / Discard / Keep editing* question as the book details window — ideally the same
+   shared piece, so "ask before losing what you typed" works alike in every window with a form.
+3. **Open Help slightly offset** (~24 px down and right, like stacked windows) so it reads as on top of Relay Setup,
+   not replacing it; "Drag any dialog out of the way" (High priority) adds the full fix later.
+
+**Status:** noted 2026-09-28 during the overlay work; a separate, focused redesign pass. **Build it together with
+"Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one"** (Before launch) — that
+task changes this window's name, wording and key display; one pass touches and re-tests the window once.
+
+**How (technical)**
+- Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog (readerwrangler.js
+  ~11371 on 2026-10-21: `reason === 'esc' && relayManualCreds` closes only the section).
+
+#### Relay Setup's connection test checks the wrong relay on dev
+<!-- id 20261012-0000a -->
+
+_Why it matters:_ On your local copy or the dev site it tests production, so its answer can be wrong.
+
+**What you see**
+- On your local copy or the dev site: File → Relay Setup → the connection test reports on the **production** relay, not the dev relay your copy actually uses. So "connected" / "revoked" there can be wrong for dev.
+
+**Why it happened** (checked 2026-10-22): relay-client.js already has the wrapper — `relayFetch(path)` builds the
+address from the one "which relay" answer — but it doesn't offer it to the app (not in `window.RWRelay`), so the test
+called the browser's request function directly with a hard-written production address (readerwrangler.js ~1838). The
+relay's addresses are written in **five** places: production in relay-client.js:13 (the default) and the buggy ~1838;
+dev in readerwrangler.js:130, mobile.js:31 and bookmarklet-nav-hub.js:52.
+
+**Decided — relay requests go only through relay-client** (Ron + UX, 2026-10-22)
+1. **relay-client offers what the app needs** — a named `testConnection(channelId)` (better than exposing raw paths),
+   so the app never builds relay addresses; the test uses it. This fixes the dev bug.
+2. **Both addresses are written once, in relay-client.js.** The app, phone and bookmarklet hub only answer "am I on
+   dev?" (each detects it its own way) — **callers never pass Dev or Prod**: a caller that chooses can choose wrong
+   (that's this bug). The relay's own test scripts in `relay/` run outside the app and don't use this.
+3. **Make bypassing it impossible** (Ron): the app page is ours, so its `window.fetch` gets a guard that **throws**
+   for a request to a relay address not coming from relay-client (*"Relay requests go through RWRelay"*);
+   everything else passes untouched. relay-client keeps the real one. An honest error, not a silent substitute.
+4. **A commit check refuses a relay address written outside relay-client.js** (app, phone, bookmarklet files).
+5. Test step: on localhost, Relay Setup's connection test names the **dev** relay.
+
+#### Relay Setup: disconnect, or reset credentials
+<!-- id 20261014-1030am -->
+
+_Why it matters:_ A clean way to stop syncing, or to start over with new credentials.
+
+**Already done**
+- 6.9.0: Relay Setup's "Danger zone → Revoke credentials & wipe relay" — clears the keys and reopens the step that makes new ones.
+
+**Left**
+- A gentle **Disconnect** that just stops syncing on this device, without revoking or wiping anything on the relay.
+
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
+1. **The danger is losing the key, not data** — the key IS the access to the cloud copy. The Disconnect window shows
+   the key with a **Copy** button before you confirm: *"You'll need this key to reconnect — it's also in any backup
+   you've saved (File → Save Backup), locked with your key password if you set one. Your bookmarklet and other devices
+   keep syncing."* (Ron: backups carry it — true since 6.0.0; the lock: "Lock the Cloud Sync Key in backups…", Safety.) The one explicit, irreversible verb, with the remedy one click away inside it — not a guessing
+   prompt (Law 18).
+2. **Say exactly what stays:** this device's library — untouched; the cloud copy — untouched; other devices and the
+   bookmarklet — unaffected (the bookmarklet carries its own copy of the key, so the next fetch still reaches the
+   cloud; this device just won't import until you reconnect).
+3. **In the Cloud Sync words when they ship:** "Disconnect this device from Cloud Sync"; "key", not "credentials".
+4. **Build it in one pass through the setup window** with "Cloud Sync: rename Relay, show one Cloud Sync Key…" and
+   "Relay Setup: smoother sections and clearer Esc / Help behavior" — touched and tested once.
+
+#### Reset App: one honest message in all four places (what's cleared, what's kept, how to come back)
+<!-- id 20261030-1039 -->
+
+_Why it matters:_ Every reset message was written before Cloud Sync, so they talk about "files on disk" a user today
+may never have had, point at a button that doesn't exist, and leave out the main way back — the copy in the cloud.
+Someone resetting is often already having a bad day (Ron, 2026-10-30, noticed the Tools → Reset App wording).
+
+**The four places** (found 2026-10-30 — a class of sites)
+1. **Tools → Reset App** (readerwrangler.js ~11784): "Your library/collections files on disk will NOT be deleted. You
+   can reload them anytime." and **"💡 Tip: Use the Export button first"** — there is no Export button, and "Export"
+   is retired (Save / Restore).
+2. **The reset page's confirmation** (reset.js ~106): "Import backup file → Books + organization; Import
+   amazon-library.json → Books only" — that file no longer exists for anyone setting up today.
+3. **The emergency reset** (readerwrangler.html ~342 / ~361 — shown when the app can't start): "Your files on disk are
+   safe — import your backup file after the reset…".
+4. **The reset page's own text** (reset.html ~60): "Good news: … Your files on disk are safe. What you can recover:
+   Import backup file → Restore EVERYTHING…".
+
+**Decided** (Ron + UX, 2026-10-30)
+1. **One message, defined once, used by all four** — so they can't drift again.
+2. It says, in plain words:
+   - **what's cleared:** everything ReaderWrangler keeps in **this browser** (books, folders, tags, settings);
+   - **what's kept:** files you saved on your computer — backups (File → Save) and spreadsheets (File → Save
+     Spreadsheet) — and **your copy in the cloud**;
+   - **how to come back:** restore a backup, or reconnect Cloud Sync and import.
+   Ron's starting wording: "Your library/collections files on disk (backups, CSV files) will NOT be deleted. You can
+   reload backups anytime."
+3. **Build with "Cloud Sync: rename Relay…"** (just above) — the recovery words (Cloud Sync Key, Import from Cloud
+   Sync) change there, so this is written once, in the new words.
+4. **Verify before writing:** does Reset also clear the stored Cloud Sync Key? If it does, "reconnect" needs the key
+   from a backup or another device — and the message must say so ("you'll need your Cloud Sync Key").
+5. Then the help notes and the User Guide's "Starting over" section (User Guide task) say the same thing.
+
 ### Safety and data protection
 
 _Formerly: Safety / data-integrity guards_
@@ -2579,103 +2796,6 @@ _Why it matters:_ The core data rules must be proven before strangers rely on th
    suite that runs only when remembered is discipline, not a mechanism.
 5. Option, not a requirement: once the browser driver exists (High priority), flows like Restore and Import mapping
    can also be tested through the real screens, not only the functions underneath.
-
-#### A fetch made with the demo filter on says so, and never marks books as gone
-<!-- id 20261014-1030be -->
-
-_Why it matters:_ A demo filter left on (it's used to record tutorials) makes a fetch send only a few dozen books.
-Since 7.19 a fetch missing books flags them "no longer in your Amazon library" — so a forgotten filter would flag
-~3,200 books as gone from Amazon and ask you to review them. Nothing is lost (Keep exists), but it's alarming and
-wrong.
-
-**What it does today** (checked 2026-11-01)
-- The demo filter is a browser setting on Amazon's site (`readerwrangler-demo-whitelist-enabled` + its list), turned
-  on by `tools/demo-library/demo-whitelist-loader.js` (moved from `tutorials/work-products/demo-library/` 2026-11-02); the library and collections fetchers then send
-  only the listed books. Nothing in the shipped code turns it on — the old "no demo setting can ship" guarantee already
-  holds by construction.
-
-**Decided** (Ron + Claude, 2026-11-01, in the TODO review — Law 18: a stopping prompt is a block in a polite coat)
-1. **The fetcher labels a filtered fetch** ("demo fetch" — a partial fetch). The app then never concludes from it that
-   books left Amazon, and the import receipt says so: *"Demo fetch: 40 books (the demo filter is on) — nothing else
-   changed."* A fact, not a guess from the size.
-2. **A banner you can't miss in the fetcher while the filter is on** (the point of effect, Law 16).
-3. **No "much smaller upload — are you sure?" confirmation.** For the demo case the label is better; for any other
-   shrunken fetch (Amazon returning half a library), the 7.19 removed-books review is already the safety net — nothing
-   is deleted, you're asked.
-4. Build it with, or before, the screen capture pass (Before launch) — that's when the demo filter gets used.
-5. **The label is shared** with "A long fetch resumes after an interruption" (its stages are partial fetches too) —
-   one "partial fetch" label, one rule in the app: never infer removals from a fetch that says it's partial.
-
-**How (technical)**
-- Old review item 6f; the demo setting is the "demo whitelist" (amazon-library-fetcher.js ~104 / ~995 / ~1662;
-  amazon-collections-fetcher.js ~56). The "no longer in your Amazon library" inference: readerwrangler.js ~194 / ~5670
-  (docs/design/ORPHAN-CLEANUP.md §2).
-
-#### A fetch from someone else's Amazon account stops before mixing two libraries
-<!-- id 20261103-1525 -->
-
-_Why it matters:_ Nothing checks whose Amazon account a fetch comes from. On a shared computer, someone signed in to
-*their* Amazon account who clicks *your* bookmarklet (it carries your Cloud Sync key) sends their books into your
-library — and the fetch, comparing your library with "their" Amazon account, can flag your books as removed. Undo
-doesn't reach that.
-
-**Decided** (Ron + Claude, 2026-11-03, in the TODO review — split out of "Several people on one installation")
-1. **The library remembers which Amazon account it belongs to** (set on its first fetch). Amazon's pages already ask for
-   the signed-in account's name, so the fetcher reads it with no extra request (Amazon's side: see TODO notes).
-2. **A fetch from a different account stops before sending anything** and says plainly: *"You're signed in to Amazon as
-   Dana, but this library belongs to Ron. Fetching would mix two people's books."* — with an escape for the rare real
-   case: **"It's the same person — continue"**. A stopping prompt, which Law 18 normally rules out — justified here
-   because the damage can't be undone (Ron, 2026-11-03).
-3. **Same rule as the demo-filter task above:** a fetch that didn't see your real library never marks books as gone.
-4. The better answer for a household: one browser profile per person (see "Several people on one installation").
-5. **The same account name can guard Restore** (2026-11-04): a backup carrying "belongs to Dana" lets Restore say
-   *"This backup belongs to Dana — restoring replaces your library."* before replacing anything.
-
-#### Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select
-<!-- id 20261014-1030 -->
-
-_Why it matters:_ Fetches are incremental — they build on the books the cloud copy already holds, and only re-read
-deeper when the counts disagree with Amazon. So book details that went stale or wrong (a cover, rating, description,
-series Amazon later corrected — or a damaged record) are never re-read. Today the only way out is clearing the cloud
-copy with the browser's developer tools. (Not a clean restart — that's Tools → Reset App, plus the Danger zone wipe for
-the cloud copy.)
-
-**Decided** (Ron + Claude, 2026-11-01, in the TODO review)
-1. **Name:** "Refresh all books from Amazon" — plain and exact. Not "integrity" (the app's integrity check is a
-   different thing) and not "scan and fix" (it touches only book details from Amazon, never folders, tags or anything
-   you organized).
-2. **Delete nothing first.** The run re-reads every book (ignoring what the fetcher already knows) and imports like any
-   fetch; a refresh that fails halfway leaves the old copy intact. (Law 18's explicit-verb rule — not destroy-then-
-   rebuild.)
-3. **The control lives in the fetcher; the app can pre-select it** (Ron): under "Send Library to ReaderWrangler", **☐
-   Refresh every book (slower)** with a tooltip on when to use it ("if book details look wrong or out of date"). From
-   the app, **Tools → Refresh all books from Amazon…** explains it and *requests* the refresh — the next fetch's box then
-   starts ticked, with "requested in ReaderWrangler on <date>". Either side can override.
-4. **When the request clears:** only after a refresh **finishes successfully** — a failure keeps it pending. Unticking
-   in the fetcher means "not this time" (it says "Full refresh still pending — it'll be offered next time"); cancelling
-   for good is done in the app (Cancel request).
-5. **The pending state is never invisible** (Law 16): while waiting, the menu item reads "Refresh all books from
-   Amazon… (requested — runs on your next fetch)". If a fetch arrives after the request and it's still pending, the app
-   says so — "Your last fetch (<date>) didn't include the full refresh — it's still pending" (unticked, or an older
-   bookmarklet). The import's fetch date is the evidence; no second "the fetcher knows this feature" flag needed.
-6. **How they talk** — the app and the fetcher run on different sites and share no browser data; they share the cloud
-   copy. The request is a **small note on the relay**: written by the app (encrypted with the key, a signed write),
-   read by the fetcher at its start (one small extra read), deleted by the fetcher after a successful refresh (signed).
-   Not inside the library copy (re-uploading it to flip a flag), not in device-state (~17 MB to read one flag), not a
-   mailbox upload (those flow bookmarklet → app). **Build it as the general "requests from the app to the bookmarklet"
-   channel** (2026-11-02) — this refresh request is its first user; "Edit Kindle collections from ReaderWrangler" (if it
-   ever happens) would be another. One mechanism, not two.
-7. **Ships in two independent parts** (Ron): the relay's small note route goes early — in "Relay worker: one release of
-   changes" (idle until used; the signed-writes gate covers it). Then the app + fetcher together (they go out in the
-   same push anyway); each fails safe — a fetcher that can't read the note just fetches normally, an app that can't
-   write it says the refresh isn't available yet.
-8. The library fetch only — collections are re-read in full each time (confirm when building). Same Amazon pacing
-   (`amazonFetch`). **Pair it with "A long fetch resumes after an interruption"** — a full refresh of
-   3,000+ books is that same long run.
-
-**How (technical)**
-- Old review item 6g. The fetcher's incremental start: `loadKnownBooks` (relay-client.js); the automatic fuller pass
-  when counts disagree: SUPPORT-KB §14 item 3.
 
 #### Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere
 <!-- id 20261014-1030ai -->
@@ -2762,33 +2882,6 @@ splash): today's page **35.8 s** average of 3 (the browser's compiler alone: 32.
 `--no-usage-statistics --no-performance-crux` (it reports to Google by default).
 
 
-#### Stop cleanly when Amazon asks for a human check mid-fetch
-<!-- id 20261014-1030au -->
-
-_Why it matters:_ Today it shows confusing errors instead of saying what to do.
-
-**What you'd get**
-- When Amazon interrupts a fetch with an "are you human?" check, the fetcher stops and says: *"Amazon is asking you to
-  confirm you're human. Open any Amazon page, complete the check, then run the bookmarklet again. Nothing in your
-  library was changed."* (wording revised 2026-11-02 — "nothing was changed" is what a worried person needs most).
-- That last clause is literally true since 7.0: an unfinished run is never committed.
-
-**Status**
-- The start of a fetch is already guarded; this covers a check appearing **partway through**. Never seen yet — cheap insurance before launch. (From an outside review, item 7.)
-
-**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
-1. **Detect it in the ONE Amazon wrapper**, `amazonFetch` ("Fetcher odds and ends (progress figure, frozen timer,
-   request pacing)", item 5 — every Amazon request goes through it, the fetcher scripts' own `fetch` disabled) — not in
-   each fetcher's retry path. Every fetcher gets it, including later ones. Build with or after that wrapper.
-2. **The long runs are the likeliest to trip it** — a new user's first big fetch, and "Refresh all books from Amazon".
-   Seen 2026-11-03: Ron got a check after a few quick searches in Amazon's own search bar (not from our requests) — the
-   first one he's ever had; quick repeated requests are what trips it, so pacing in `amazonFetch` matters.
-   Once "A long fetch resumes after an interruption" exists, the message becomes "…then run it
-   again — it continues where it stopped".
-
-**How (technical)**
-- In `amazonFetch`, recognize check-shaped answers: HTML where JSON was expected, a validate-captcha redirect, a robot-check 503.
-
 #### Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes
 <!-- id 20260830-0000; merged 20260922-0000d -->
 
@@ -2863,35 +2956,6 @@ and "Warn when another browser has newer changes"; both earlier designs re-read 
 - Model the four states as one state machine, not flags.
 - Design: docs/design/MULTI-INSTANCE.md §4 (rewritten 2026-11-02; the old §6 folded into it).
 
-#### A long fetch resumes after an interruption (a first fetch, or a full refresh)
-<!-- id 20260821-0000 -->
-
-_Why it matters:_ A 3,000-book fetch that dies near the end starts over from scratch — a new user's first fetch, and
-now also every "Refresh all books from Amazon" run, the likeliest to trip Amazon's human check partway through.
-
-**What happens**
-- A long fetch fills in details for ~3,000 books with no resume point. If it dies at book 2,800, it starts over.
-
-**What you'd get**
-- The fetch sends its progress in stages, so a re-run skips what's already done. 7.0's upload design makes this natural.
-
-**Status**
-- (From the 2026-08-21 outside review, item 1.) Priority raised 2026-11-02 — it no longer "hits each user exactly
-  once": "Refresh all books" makes long runs repeatable, and the human-check stop's message ("…it continues where it
-  stopped") depends on this.
-
-**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
-1. **Each stage says it's partial** — the same "partial fetch" label as "A fetch made with the demo filter on says so,
-   and never marks books as gone". One concept, one label: a fetch that knows it's incomplete says so, and the app never
-   concludes from it that books left Amazon. The final stage completes the set.
-2. **Mind the write budget:** progress saved every few hundred books (≈ 6–8 stages for 3,000), not per book — every
-   stage costs relay writes against the account's shared 1,000 a day.
-3. **One cluster:** this, "Refresh all books from Amazon", and "Stop cleanly when Amazon asks for a human check
-   mid-fetch" — all built on the `amazonFetch` wrapper — built together or back to back.
-
-**How (technical)**
-- Send enrichment progress as mailbox letters in stages, so a resumed run's skip-hint already knows what's done.
-
 #### Lock the Cloud Sync Key in backups with an optional key password
 <!-- id 20261104-1024 -->
 
@@ -2922,7 +2986,7 @@ member forwarding a file is far likelier than any attacker.
    (a new key means a new cloud copy)."*
 6. **Under the hood:** the same password-to-key method the relay already uses (relay-crypto), on one field of the
    backup. A weak password can be guessed by someone determined with the file — accepted for this threat (Ron).
-7. **Ripples:** the Disconnect wording ("Relay Setup: disconnect…", below) says the key is in your backups "locked
+7. **Ripples:** the Disconnect wording ("Relay Setup: disconnect…", Before launch → Cloud Sync) says the key is in your backups "locked
    with your key password, if you set one"; the private-values commit check still refuses an unlocked key in a
    backup-shaped file (a locked one holds only scrambled text).
 
@@ -2937,30 +3001,6 @@ _Why it matters:_ The one real disaster is a lost or wiped PC with no recent bac
 1. When your last saved backup is more than about a month old, the status area shows a quiet note: *"Last backup: 47
    days ago — Save Backup"* — one click; never a pop-up (Law 18).
 2. The app records when you last saved a backup (this browser); a Restore counts too.
-
-#### Relay Setup: disconnect, or reset credentials
-<!-- id 20261014-1030am -->
-
-_Why it matters:_ A clean way to stop syncing, or to start over with new credentials.
-
-**Already done**
-- 6.9.0: Relay Setup's "Danger zone → Revoke credentials & wipe relay" — clears the keys and reopens the step that makes new ones.
-
-**Left**
-- A gentle **Disconnect** that just stops syncing on this device, without revoking or wiping anything on the relay.
-
-**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
-1. **The danger is losing the key, not data** — the key IS the access to the cloud copy. The Disconnect window shows
-   the key with a **Copy** button before you confirm: *"You'll need this key to reconnect — it's also in any backup
-   you've saved (File → Save Backup), locked with your key password if you set one. Your bookmarklet and other devices
-   keep syncing."* (Ron: backups carry it — true since 6.0.0; the lock: "Lock the Cloud Sync Key in backups…", above.) The one explicit, irreversible verb, with the remedy one click away inside it — not a guessing
-   prompt (Law 18).
-2. **Say exactly what stays:** this device's library — untouched; the cloud copy — untouched; other devices and the
-   bookmarklet — unaffected (the bookmarklet carries its own copy of the key, so the next fetch still reaches the
-   cloud; this device just won't import until you reconnect).
-3. **In the Cloud Sync words when they ship:** "Disconnect this device from Cloud Sync"; "key", not "credentials".
-4. **Build it in one pass through the setup window** with "Cloud Sync: rename Relay, show one Cloud Sync Key…" and
-   "Relay Setup: smoother sections and clearer Esc / Help behavior" — touched and tested once.
 
 ### Costs
 
@@ -2984,7 +3024,7 @@ _Why it matters:_ The free plan supports only a handful of users.
    signed writes (one registration write per channel, a few extra reads) and "Refresh all books" (a heavy day).
 3. **Dev shares the free limits** — release day 2026-10-31, the tests on dev used 23.6% of the account's daily writes in
    an afternoon; a test day plus a busy user day could hit the cap and stop production syncing for everyone. Until the
-   upgrade, "run the relay tests locally by default" ("Relay worker: one release…", item 6) is what protects
+   upgrade, "run the relay tests locally by default" ("Relay worker: one release…", item 5) is what protects
    production.
 4. **Check Cloudflare's current prices and limits when upgrading** — not the August numbers.
 
@@ -3333,10 +3373,6 @@ and release it").
 - Web Share Target (`share_target` in the phone app's manifest); a single-letter mailbox run (as the wishlist fetcher
   sends) carrying `{url|asin|text}`; the desktop's Import routes those letters to the "To look up" list.
 
-### Prices
-
-_Formerly: 💰 Price checking (Price sweep scoping + staleness display, agreed 2026-08-21, from external sync review item 2)_
-
 #### Notice when a Kindle edition appears for a print-only book
 <!-- id 20261014-1030ae -->
 
@@ -3447,8 +3483,8 @@ _Why it matters:_ Rare reports of books in no folder at all; watch whether it st
 
 **Next step**
 - **Watch** for the event after releases before spending a session on it.
-- **First, the Import-order fix** (2026-11-04, Ron + Claude): "Import: new books are filed before the integrity check…"
-  (Small fixes) — today the check runs before an Import files its new books, so it "repairs" brand-new books as
+- **First, the Import-order fix** (2026-11-04, Ron + Claude): "Import files new books once, before the integrity
+  check…" (Small fixes) — today the check runs before an Import files its new books, so it "repairs" brand-new books as
   homeless: some reports may be exactly that. After that fix, any homeless book is a real one — and "Report our own
   unexpected errors…" makes it noticeable (its first anomaly is the "auto-fixed during restore" message). Watch from
   that release on.
