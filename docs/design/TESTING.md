@@ -65,6 +65,12 @@ Plus a short **manual list per release** (§8) for what can't be automated.
 - **The runner — one command, in Python** (`tools/run_tests.py`; Ron's scripts rule): `--tier 1|2|3|all`,
   `--tag <area>`, `--id <ID>`, `--changed` (the tests covering what changed). One summary at the end; a screen test's
   failure saves a screenshot and the console to Claude's scratch folder. The commit hook calls it with `--changed`.
+- **The project's own Python for screen tests** (Ron, 2026-11-04): Playwright lives in a venv at the repo root
+  (`.venv/`, ignored by git), pinned in `requirements-dev.txt` — set up once with `py -m venv .venv` then
+  `.venv\Scripts\pip install -r requirements-dev.txt`. The runner starts tier-2 files with that Python and fails loud
+  with that command if it's missing; tier 1 and the commit hook need no venv. Playwright drives the **installed Edge**
+  (`channel="msedge"`), so no browser download. Claude's ad-hoc looks use Playwright's command-line tool through
+  `npx @playwright/cli@<exact version>` — nothing installed system-wide.
 
 ## 5. Test data — two kinds
 

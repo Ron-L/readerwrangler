@@ -32,7 +32,11 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PATTERNS = ["test/*.test.js", "test/test_*.py", "test/ui/test_*.py", "relay/test-*.mjs"]
+# Screen tests (tier 2) need Playwright, which lives in the project's venv (requirements-dev.txt) — never the system
+# Python. Everything else runs with the Python that runs this script (the commit hook needs no venv).
+VENV_PY = os.path.join(ROOT, ".venv", "Scripts" if os.name == "nt" else "bin", "python.exe" if os.name == "nt" else "python")
+VENV_SETUP = "py -m venv .venv   then   .venv\\Scripts\\pip install -r requirements-dev.txt   (in the project folder)"
+PATTERNS =["test/*.test.js", "test/test_*.py", "test/ui/test_*.py", "relay/test-*.mjs"]
 HEADER_LINES = 15
 
 
@@ -105,7 +109,11 @@ def select(files, tier=None, tags=None, ids=None, changed=None, base=ROOT):
 
 def run_file(tf, relay_url=None, timeout=600):
     """(passed?, output) — runs one test file from the repo root."""
-    if tf.path.endswith(".py"):
+    if tf.path.endswith(".py") and tf.tier == 2:
+        if not os.path.exists(VENV_PY):
+            return False, f"screen tests need the project's venv (Playwright) — not found at {VENV_PY}.\n  Set it up: {VENV_SETUP}"
+        cmd = [VENV_PY, tf.path]
+    elif tf.path.endswith(".py"):
         cmd = [sys.executable, tf.path]
     else:
         node = shutil.which("node")

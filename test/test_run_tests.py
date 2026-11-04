@@ -64,13 +64,15 @@ print("1 passed, 0 failed")
         h["problem"] is not None, str(h))
 
     files = [rt.TestFile(p) for p in (js_ok, js_bad, py_ok, ui)]
-    pick = lambda **kw: sorted(os.path.basename(f.path) for f in rt.select(files, **kw))
+    def pick(**kw):
+        return sorted(os.path.basename(f.path) for f in rt.select(files, **kw))
     row("RUN-004", "--changed picks the tests that cover a changed file",
         pick(changed=["bookMerge.js"]) == ["a.test.js"], str(pick(changed=["bookMerge.js"])))
     row("RUN-005", "--changed picks nothing for a file no test covers",
         pick(changed=["readme.txt"]) == [], str(pick(changed=["readme.txt"])))
+    own = [os.path.relpath(js_bad, d)]
     row("RUN-006", "--changed picks a test file that itself changed",
-        pick(changed=[os.path.relpath(js_bad, d)], base=d) == ["b.test.js"], str(pick(changed=[os.path.relpath(js_bad, d)], base=d)))
+        pick(changed=own, base=d) == ["b.test.js"], str(pick(changed=own, base=d)))
     row("RUN-007", "--tag picks by area", pick(tags=["dates"]) == ["b.test.js"], str(pick(tags=["dates"])))
     row("RUN-008", "--tier 1 leaves out tier 2", pick(tier=1) == ["a.test.js", "b.test.js", "test_c.py"], str(pick(tier=1)))
     row("RUN-009", "--tier all keeps every tier", pick(tier="all") == ["a.test.js", "b.test.js", "test_c.py", "test_e.py"],
@@ -83,6 +85,17 @@ print("1 passed, 0 failed")
     row("RUN-012", "a failure doesn't stop the file — the next test still ran", "SAMPLE-003" in out, out[-200:])
     ok, out = rt.run_file(rt.TestFile(py_ok))
     row("RUN-013", "a passing Python file reports success", ok, out[-200:])
+
+    ui_py = write("test_f.py", "# sample\n# tags: screen, tier 2\n# covers: readerwrangler.js\n"
+                               "import sys\nprint('ran with', sys.executable)\n")
+    ok, out = rt.run_file(rt.TestFile(ui_py))
+    row("RUN-014", "a screen test (tier 2) runs with the project's venv Python",
+        ok and ".venv" in out.replace("\\", "/"), out[-200:])
+    saved, rt.VENV_PY = rt.VENV_PY, os.path.join(d, "no-such-venv", "python.exe")
+    ok, out = rt.run_file(rt.TestFile(ui_py))
+    rt.VENV_PY = saved
+    row("RUN-015", "no venv → the screen test fails loud with the setup command (never skipped quietly)",
+        not ok and "py -m venv .venv" in out, out[-200:])
 
 failed = [r for r in results if not r[2]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
