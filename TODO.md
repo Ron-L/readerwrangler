@@ -3,7 +3,7 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut](#carry-over-the-utilities-projects-improvements-the-browser-driver-a-parse-check-for-every-script-the-open-shortcut)
+      - [✅ Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut](#carry-over-the-utilities-projects-improvements-the-browser-driver-a-parse-check-for-every-script-the-open-shortcut)
       - [Report our own unexpected errors: a banner while testing, a quiet log always](#report-our-own-unexpected-errors-a-banner-while-testing-a-quiet-log-always)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
@@ -80,6 +80,7 @@
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Redo should work after copying a folder](#redo-should-work-after-copying-a-folder)
+      - [The "open" shortcut: start serve.py if needed and open the app](#the-open-shortcut-start-servepy-if-needed-and-open-the-app)
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
@@ -172,8 +173,15 @@ In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**
 
 ### High priority
 
-#### Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut
+#### ✅ Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut
 <!-- id 20261031-1701 -->
+
+**Done 2026-11-04** (branch `feature/carry-over`): the parse check; the regression library's runner, harness and
+tier-1 commit check; the project venv with Playwright 1.64.1 driving the installed Edge; the shared screen-test setup
+(`test/ui/rw.py`, with `hover()` / `click_reachable()`) and the made-up fixture library; the first screen tests; the
+utilities project's Laws 18 and 21 in PRINCIPLES (under Laws 3 and 8). Playwright was picked over copying
+`drive_page.mjs` (the tool survey). The "open" shortcut moved to its own task: "The 'open' shortcut: start serve.py if
+needed and open the app".
 
 _Why it matters:_ The utilities project (Hsv-Utilities-App) built three things RW lacks: a way for Claude to test the
 UI the way Ron uses it (real clicks, drags, keys, hovers — then read what is really on screen), a commit check that
@@ -2047,6 +2055,8 @@ _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for t
    `filterBooks`): it gets the three choices too, or at least reads them.
 3. **Settle the real default:** the app starts with hidden books hidden, but one place says
    `showHidden: true, // Default to showing all books` (~6688). Decide which is right so a new user isn't surprised.
+   **Evidence (2026-11-04, the first screen test):** a fresh browser shows **"Show Hidden" ticked** — hidden books are
+   shown by default.
 
 
 ##### Right-click: add "Copy ASINs" below Copy Titles / Copy Authors
@@ -2304,6 +2314,18 @@ moves — see CHANGELOG); its "Why" and a second "Left" list still named those. 
   `moveItems`, `reparentFolder`. Design: docs/design/OPERATIONS-REFACTOR.md.
 - Note for whoever next touches this code: fold the folder-move part of `moveItems` into the one folder-move
   operation (`reparentFolder`) — no visible change, but one path instead of two doing the same job.
+
+#### The "open" shortcut: start serve.py if needed and open the app
+<!-- id 20261104-1540 -->
+
+_Why it matters:_ A convenience — one click opens ReaderWrangler locally, starting the server first if it isn't running.
+Split out 2026-11-04 from "Carry over the utilities project's improvements…" (Ron: "the shortcut part can wait").
+
+**Decided** (Ron + Claude, 2026-10-31)
+- **`tools/shortcuts.py`** writes the shortcut(s); the shortcut opens the page, starting `serve.py` first if it isn't
+  running. The open half only — no restart or shutdown: `serve.py` only serves files and rarely changes, and it listens
+  on the home network on purpose, so an off switch any device there could press gains nothing (the utilities
+  project's decision). Source: `C:\Users\Ron\Projects\Hsv-Utilities-App\tools\shortcuts.py`.
 
 #### Working-process safety net: three small follow-ups
 <!-- id 20261015-1917 -->

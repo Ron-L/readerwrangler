@@ -37,3 +37,17 @@ python git-hooks/check-private.py || exit 1
 if git diff --cached --name-only --diff-filter=ACM | grep -qx 'TODO.md'; then
     git show :TODO.md | node git-hooks/check-toc.js - TODO.md || exit 1
 fi
+
+# 6. Every staged script parses (2026-11-04, from the utilities project): refuses a staged .js / .mjs / .py that
+#    doesn't parse — the fetchers, the bookmarklet menu, the relay worker, reset.js, the tests and every Python file,
+#    which the name check never covered. Checks the STAGED copy; JavaScript through Babel (scripts, JSX and modules
+#    alike). Tested by test/test_check_parse.py. (git-hooks/check-parse.py → parse-js.js)
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '\.(js|mjs|py)$'; then
+    python git-hooks/check-parse.py || exit 1
+fi
+
+# 7. Tier-1 tests for what changed (2026-11-04, docs/design/TESTING.md): runs the function tests whose covers: lines
+#    name a changed file (or that changed themselves) — the regression library, on every commit, automatically. Silent
+#    when no test covers the change. Screen tests (tier 2) run before each alpha; relay tests (tier 3) never here.
+#    (tools/run_tests.py; its own tests: test/test_run_tests.py)
+python tools/run_tests.py --changed --tier 1 --quiet || exit 1

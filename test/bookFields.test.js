@@ -1,4 +1,6 @@
 // Unit tests for bookFields.js — run: node test/bookFields.test.js
+// tags: book-fields, backup, tier 1
+// covers: bookFields.js
 // Locks the ONE table's wire round-trip (docs/design/BOOK-FIELDS-TABLE.md): nothing is lost or
 // renamed wrong across pack→unpack, the idempotency self-check is stable, mobile safe-defaults
 // behave, and the structural schema self-check is clean. (Was serialization.test.js pre-7.17.0.)
@@ -8,8 +10,7 @@ const {
     packBook, unpackBook, roundTripCheck, schemaSelfCheck,
 } = require('../bookFields.js');
 
-let passed = 0;
-function test(name, fn) { fn(); passed++; console.log('  ✓ ' + name); }
+const { test, done } = require('./harness');
 
 // A fully-populated OWNED book with every field set (so nothing hides behind a default).
 function ownedBook() {
@@ -47,14 +48,14 @@ function corpus() {
 console.log('bookFields tests:');
 
 // ---- Idempotency: pack→unpack→pack is stable (the anti-drift self-check) ----
-test('round-trip is stable for every book in the corpus (no field lost or altered)', () => {
+test('BFIELD-001', 'round-trip is stable for every book in the corpus (no field lost or altered)', () => {
     const fail = roundTripCheck(corpus());
     assert.strictEqual(fail, null,
         fail ? `round-trip drift on ${fail.asin}.${fail.field}: ${JSON.stringify(fail.first)} → ${JSON.stringify(fail.second)}` : '');
 });
 
 // ---- Wire aliases: app name ↔ wire name ----
-test('pack renames to the wire aliases', () => {
+test('BFIELD-002', 'pack renames to the wire aliases', () => {
     const w = packBook(ownedBook());
     assert.strictEqual(w.note, 'my note', 'userNote → note');
     assert.strictEqual(w.authors, 'Jane Doe', 'author → authors');
@@ -65,7 +66,7 @@ test('pack renames to the wire aliases', () => {
     assert.strictEqual(w.author, undefined, 'no app-name leakage (author)');
 });
 
-test('unpack restores from the wire aliases', () => {
+test('BFIELD-003', 'unpack restores from the wire aliases', () => {
     const b = unpackBook(packBook(ownedBook()));
     assert.strictEqual(b.userNote, 'my note');
     assert.strictEqual(b.author, 'Jane Doe');
@@ -77,7 +78,7 @@ test('unpack restores from the wire aliases', () => {
 });
 
 // ---- Derived ownership ----
-test('onWishlist/ownershipType computed on pack', () => {
+test('BFIELD-004', 'onWishlist/ownershipType computed on pack', () => {
     assert.strictEqual(packBook(ownedBook()).onWishlist, false);
     const w = packBook({ ...ownedBook(), onWishlist: true, ownershipType: 'wishlist' });
     assert.strictEqual(w.onWishlist, true);
@@ -85,14 +86,14 @@ test('onWishlist/ownershipType computed on pack', () => {
 });
 
 // ---- binding "Kindle eBook" → blank; normalizeBook maps "Kindle" → "Kindle Edition" ----
-test('binding: "Kindle eBook" becomes blank; "Kindle" becomes "Kindle Edition"', () => {
+test('BFIELD-005', 'binding: "Kindle eBook" becomes blank; "Kindle" becomes "Kindle Edition"', () => {
     assert.strictEqual(unpackBook({ asin: 'X', binding: 'Kindle eBook' }).binding, undefined);
     assert.strictEqual(unpackBook({ asin: 'X', binding: 'Kindle' }).binding, 'Kindle Edition');
     assert.strictEqual(unpackBook({ asin: 'X', binding: 'Hardcover' }).binding, 'Hardcover');
 });
 
 // ---- The fields that Save/Restore used to drop must now survive pack→unpack ----
-test('previously-lost fields survive the round trip', () => {
+test('BFIELD-006', 'previously-lost fields survive the round trip', () => {
     const b = unpackBook(packBook(ownedBook()));
     assert.strictEqual(b.collectionTagSeen, true, 'collectionTagSeen (the original bug)');
     assert.deepStrictEqual(b.collectionTags, ['read'], 'collectionTags');
@@ -105,7 +106,7 @@ test('previously-lost fields survive the round trip', () => {
     assert.strictEqual(b.orphanCheckedDate, '2026-09-21', 'orphanCheckedDate');
 });
 
-test('trash state survives (restore must NOT resurrect a trashed book)', () => {
+test('BFIELD-007', 'trash state survives (restore must NOT resurrect a trashed book)', () => {
     const t = corpus().find(b => b.isDeleted);
     const b = unpackBook(packBook(t));
     assert.strictEqual(b.isDeleted, true);
@@ -114,13 +115,13 @@ test('trash state survives (restore must NOT resurrect a trashed book)', () => {
 });
 
 // ---- Prices parse from strings (fetcher input) but pass through numbers (app input) ----
-test('prices: string wire → number; number → number', () => {
+test('BFIELD-008', 'prices: string wire → number; number → number', () => {
     assert.strictEqual(unpackBook({ asin: 'X', currentPrice: '$6.99' }).currentPrice, 6.99);
     assert.strictEqual(unpackBook({ asin: 'X', currentPrice: 6.99 }).currentPrice, 6.99);
 });
 
 // ---- Cleared user fields don't get resurrected into junk ----
-test('cleared user fields stay cleared through the round trip', () => {
+test('BFIELD-009', 'cleared user fields stay cleared through the round trip', () => {
     const c = corpus().find(b => b.asin === 'B4');
     const b = unpackBook(packBook(c));
     assert.deepStrictEqual(b.tags, [], 'empty tags stays empty');
@@ -133,7 +134,7 @@ test('cleared user fields stay cleared through the round trip', () => {
 // Mobile renders straight off unpacked books and must never hit undefined.map()/Object.keys(undefined).
 // With { safeDefaults }, absent tags/userEdited/coverUrl come back as [] / {} / '' — NOT undefined.
 // Desktop (no option) must be unchanged: those absent fields stay undefined (no invented keys on save).
-test('safeDefaults gives mobile non-undefined tags/userEdited/coverUrl for a sparse item', () => {
+test('BFIELD-010', 'safeDefaults gives mobile non-undefined tags/userEdited/coverUrl for a sparse item', () => {
     const sparse = { asin: 'M1', title: 'Mobile Book' };
     const b = unpackBook(sparse, { safeDefaults: true });
     assert.deepStrictEqual(b.tags, [], 'tags → []');
@@ -141,7 +142,7 @@ test('safeDefaults gives mobile non-undefined tags/userEdited/coverUrl for a spa
     assert.strictEqual(b.coverUrl, '', 'coverUrl → ""');
 });
 
-test('desktop (no safeDefaults) leaves the same absent fields undefined', () => {
+test('BFIELD-011', 'desktop (no safeDefaults) leaves the same absent fields undefined', () => {
     const sparse = { asin: 'M1', title: 'Mobile Book' };
     const b = unpackBook(sparse);
     assert.strictEqual(b.tags, undefined, 'tags stays undefined on desktop');
@@ -154,12 +155,12 @@ test('desktop (no safeDefaults) leaves the same absent fields undefined', () => 
 // With merge + wire in ONE table a field can't exist in one and not the other. The failure mode that
 // replaces the old drift: a field added with wire:null (or packSkip and no unpack) is silently dropped
 // on Save. schemaSelfCheck() is that guard, run here AND in the localhost in-app self-check.
-test('schemaSelfCheck is clean (every field serialized, derived, or a known non-wire field)', () => {
+test('BFIELD-012', 'schemaSelfCheck is clean (every field serialized, derived, or a known non-wire field)', () => {
     const problems = schemaSelfCheck();
     assert.deepStrictEqual(problems, [], `schema self-check problems:\n  ${problems.join('\n  ')}`);
 });
 
-test('a book field is serialized, derived on unpack, or a known separately-carried field', () => {
+test('BFIELD-013', 'a book field is serialized, derived on unpack, or a known separately-carried field', () => {
     const dropped = Object.entries(BOOK_FIELDS).filter(([f, spec]) => {
         const w = spec.wire;
         if (w === null) return !NON_WIRE_FIELDS.has(f);   // wire:null must be a known separate-list field
@@ -170,9 +171,9 @@ test('a book field is serialized, derived on unpack, or a known separately-carri
         `book field(s) silently dropped on Save (add a wire mapping or list as non-wire): ${dropped.join(', ')}`);
 });
 
-test('every table key is a KNOWN_BOOK_FIELD (schema is the table keys)', () => {
+test('BFIELD-014', 'every table key is a KNOWN_BOOK_FIELD (schema is the table keys)', () => {
     const strays = Object.keys(BOOK_FIELDS).filter(f => !KNOWN_BOOK_FIELDS.has(f));
     assert.deepStrictEqual(strays, [], `table key(s) missing from KNOWN_BOOK_FIELDS: ${strays.join(', ')}`);
 });
 
-console.log(`\n${passed} bookFields tests passed.`);
+done();

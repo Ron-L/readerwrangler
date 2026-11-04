@@ -1,4 +1,6 @@
 /**
+ * tags: relay, signed-writes, security, tier 3
+ * covers: relay/relay-worker.js, relay-client.js, relay-crypto.js, relay-compress.js
  * Signed-writes test (7.25.0 — docs/design/RELAY-SECURITY-PLAN.md, Phase 3).
  * Runs the REAL relay-client.js in Node (22+) against a relay and checks every rule of the design:
  * unregistered channels still accepted; registration; a good signature; a missing / wrong-key / stale / future

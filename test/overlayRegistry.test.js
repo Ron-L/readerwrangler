@@ -1,15 +1,17 @@
 // Unit tests for overlayRegistry.js — run: node test/overlayRegistry.test.js
+// tags: overlays, dialogs, tier 1
+// covers: overlayRegistry.js
 // The overlay stack is the bug-prone heart of the dialog-dismissal system (ordering + cascade-close);
 // RW has no browser test harness, so this Node gate locks its behavior. See DIALOG-DISMISSAL-AUDIT.md.
 const assert = require('assert');
 const reg = require('../overlayRegistry.js');
 
-let passed = 0;
-function test(name, fn) { reg._reset(); fn(); passed++; console.log('  ✓ ' + name); }
+const harness = require('./harness');
+const test = (id, name, fn) => harness.test(id, name, () => { reg._reset(); fn(); });
 
 console.log('overlayRegistry tests:');
 
-test('push/remove a single layer; topLayer + count track it', () => {
+test('OVERLAY-001', 'push/remove a single layer; topLayer + count track it', () => {
     assert.strictEqual(reg.topLayer(), null, 'empty stack has no top');
     assert.strictEqual(reg._count(), 0);
     const id = reg.pushLayer({ close: () => {}, kind: 'modal' });
@@ -20,7 +22,7 @@ test('push/remove a single layer; topLayer + count track it', () => {
     assert.strictEqual(reg.topLayer(), null);
 });
 
-test('hasModal is true only when a modal is on the stack', () => {
+test('OVERLAY-002', 'hasModal is true only when a modal is on the stack', () => {
     assert.strictEqual(reg.hasModal(), false);
     const p = reg.pushLayer({ close: () => {}, kind: 'popover' });
     assert.strictEqual(reg.hasModal(), false, 'a popover alone is not a modal');
@@ -31,14 +33,14 @@ test('hasModal is true only when a modal is on the stack', () => {
     reg.removeLayer(p);
 });
 
-test('topLayer is the most-recently pushed (LIFO ordering)', () => {
+test('OVERLAY-003', 'topLayer is the most-recently pushed (LIFO ordering)', () => {
     reg.pushLayer({ close: () => {}, kind: 'modal' });
     const top = reg.pushLayer({ close: () => {}, kind: 'popover' });
     assert.strictEqual(reg.topLayer().id, top);
     assert.deepStrictEqual(reg._kinds(), ['modal', 'popover']);
 });
 
-test('removing a MIDDLE layer cascade-closes everything above it', () => {
+test('OVERLAY-004', 'removing a MIDDLE layer cascade-closes everything above it', () => {
     const closed = [];
     const a = reg.pushLayer({ close: () => closed.push('a'), kind: 'modal' });   // parent
     reg.pushLayer({ close: () => closed.push('b'), kind: 'popover' });           // child
@@ -50,7 +52,7 @@ test('removing a MIDDLE layer cascade-closes everything above it', () => {
     assert.deepStrictEqual(closed, ['b', 'c'], 'only layers above the removed one are closed');
 });
 
-test('removing the TOP layer closes nothing else (no spurious cascade)', () => {
+test('OVERLAY-005', 'removing the TOP layer closes nothing else (no spurious cascade)', () => {
     const closed = [];
     reg.pushLayer({ close: () => closed.push('a'), kind: 'modal' });
     const b = reg.pushLayer({ close: () => closed.push('b'), kind: 'popover' });
@@ -59,7 +61,7 @@ test('removing the TOP layer closes nothing else (no spurious cascade)', () => {
     assert.strictEqual(reg._count(), 1);
 });
 
-test('removeLayer is idempotent (unknown / already-removed id is a no-op)', () => {
+test('OVERLAY-006', 'removeLayer is idempotent (unknown / already-removed id is a no-op)', () => {
     const id = reg.pushLayer({ close: () => {}, kind: 'modal' });
     reg.removeLayer(id);
     reg.removeLayer(id);          // second remove must not throw
@@ -67,7 +69,7 @@ test('removeLayer is idempotent (unknown / already-removed id is a no-op)', () =
     assert.strictEqual(reg._count(), 0);
 });
 
-test('closeTop calls the topmost close() and reports whether one existed', () => {
+test('OVERLAY-007', 'closeTop calls the topmost close() and reports whether one existed', () => {
     let topClosed = false;
     reg.pushLayer({ close: () => {}, kind: 'modal' });
     reg.pushLayer({ close: () => { topClosed = true; }, kind: 'popover' });
@@ -77,7 +79,7 @@ test('closeTop calls the topmost close() and reports whether one existed', () =>
     assert.strictEqual(reg.closeTop(), false, 'closeTop on an empty stack returns false');
 });
 
-test('closeTop forwards its reason to the top layer close()', () => {
+test('OVERLAY-008', 'closeTop forwards its reason to the top layer close()', () => {
     let seen = 'none';
     reg.pushLayer({ close: (reason) => { seen = reason; }, kind: 'modal' });
     reg.closeTop('esc');
@@ -89,7 +91,7 @@ test('closeTop forwards its reason to the top layer close()', () => {
     assert.strictEqual(seen2, undefined, 'no reason → undefined (backward compatible)');
 });
 
-test('subscribers are notified on push and on remove', () => {
+test('OVERLAY-009', 'subscribers are notified on push and on remove', () => {
     let n = 0;
     const unsub = reg.subscribe(() => n++);
     const id = reg.pushLayer({ close: () => {}, kind: 'modal' });
@@ -103,7 +105,7 @@ test('subscribers are notified on push and on remove', () => {
     assert.strictEqual(n, 2, 'unsubscribed callback is not called');
 });
 
-test('pushLayer carries an optional nodeRef through to the layer record', () => {
+test('OVERLAY-010', 'pushLayer carries an optional nodeRef through to the layer record', () => {
     const nodeRef = { current: 'PANEL_NODE' };
     reg.pushLayer({ close: () => {}, kind: 'modal', nodeRef });
     assert.strictEqual(reg.topLayer().nodeRef, nodeRef, 'topLayer exposes the nodeRef for scoped Ctrl+A select-all (and the planned focus-trap pass)');
@@ -111,13 +113,13 @@ test('pushLayer carries an optional nodeRef through to the layer record', () => 
     assert.strictEqual(reg.topLayer().nodeRef, undefined, 'nodeRef is optional');
 });
 
-test('a throwing subscriber does not break the stack', () => {
+test('OVERLAY-011', 'a throwing subscriber does not break the stack', () => {
     reg.subscribe(() => { throw new Error('boom'); });
     assert.doesNotThrow(() => reg.pushLayer({ close: () => {}, kind: 'modal' }));
     assert.strictEqual(reg._count(), 1);
 });
 
-test('isTopmostModal: top modal true; a modal above unseats it; popovers above do NOT', () => {
+test('OVERLAY-012', 'isTopmostModal: top modal true; a modal above unseats it; popovers above do NOT', () => {
     const m1 = reg.pushLayer({ close: () => {}, kind: 'modal' });
     assert.strictEqual(reg.isTopmostModal(m1), true, 'lone modal is the topmost modal');
     reg.pushLayer({ close: () => {}, kind: 'popover' });
@@ -128,7 +130,7 @@ test('isTopmostModal: top modal true; a modal above unseats it; popovers above d
     assert.strictEqual(reg.isTopmostModal(99999), false, 'unknown id is not topmost');
 });
 
-test('fence: modals and menus fence by default; a popover does not unless it opts in', () => {
+test('OVERLAY-013', 'fence: modals and menus fence by default; a popover does not unless it opts in', () => {
     assert.strictEqual(reg.hasFence(), false, 'empty stack fences nothing');
     const pop = reg.pushLayer({ close: () => {}, kind: 'popover' });
     assert.strictEqual(reg.hasFence(), false, 'a plain popover does NOT fence');
@@ -145,7 +147,7 @@ test('fence: modals and menus fence by default; a popover does not unless it opt
     assert.strictEqual(reg.hasFence(), true, 'a modal fences by default');
 });
 
-test('fence: a type-ahead list does NOT fence by default (its dialog already does); can opt in', () => {
+test('OVERLAY-014', 'fence: a type-ahead list does NOT fence by default (its dialog already does); can opt in', () => {
     const l = reg.pushLayer({ close: () => {}, kind: 'list' });
     assert.strictEqual(reg.hasFence(), false, 'a list does not fence by default');
     reg.removeLayer(l);
@@ -153,25 +155,25 @@ test('fence: a type-ahead list does NOT fence by default (its dialog already doe
     assert.strictEqual(reg.hasFence(), true, 'explicit fence:true still honoured');
 });
 
-test('fence: a menu can opt OUT explicitly (fence:false)', () => {
+test('OVERLAY-015', 'fence: a menu can opt OUT explicitly (fence:false)', () => {
     reg.pushLayer({ close: () => {}, kind: 'menu', fence: false });
     assert.strictEqual(reg.hasFence(), false);
 });
 
-test('fence: a modal can opt OUT explicitly (fence:false)', () => {
+test('OVERLAY-016', 'fence: a modal can opt OUT explicitly (fence:false)', () => {
     reg.pushLayer({ close: () => {}, kind: 'modal', fence: false });
     assert.strictEqual(reg.hasFence(), false);
     assert.strictEqual(reg.hasModal(), true, 'still a modal for dimming purposes');
 });
 
-test('fence: a fencing popover above a modal does not unseat the modal as topmost (dimming unchanged)', () => {
+test('OVERLAY-017', 'fence: a fencing popover above a modal does not unseat the modal as topmost (dimming unchanged)', () => {
     const m = reg.pushLayer({ close: () => {}, kind: 'modal' });
     reg.pushLayer({ close: () => {}, kind: 'popover', fence: true });
     assert.strictEqual(reg.isTopmostModal(m), true);
 });
 
 // --- outsideClickAction: the Popover outside-click policy, one case per earned rule ---
-test('selectAll: a layer carries its own Ctrl+A action through to the top-layer record', () => {
+test('OVERLAY-018', 'selectAll: a layer carries its own Ctrl+A action through to the top-layer record', () => {
     let called = 0;
     reg.pushLayer({ close: () => {}, kind: 'modal' });
     reg.pushLayer({ close: () => {}, kind: 'modal', selectAll: () => { called++; return true; } });
@@ -181,7 +183,7 @@ test('selectAll: a layer carries its own Ctrl+A action through to the top-layer 
     reg.pushLayer({ close: () => {}, kind: 'modal' });
     assert.strictEqual(reg.topLayer().selectAll, undefined, 'no action → the app falls back to body text');
 });
-test('detached: a confirm opened from a menu SURVIVES the menu closing; normal children above still cascade', () => {
+test('OVERLAY-019', 'detached: a confirm opened from a menu SURVIVES the menu closing; normal children above still cascade', () => {
     // alpha.69 - Bake / New list: the menu item pushes a confirm above the still-open menu, then the menu unmounts.
     let confirmClosed = 0, childClosed = 0;
     const menu = reg.pushLayer({ close: () => {}, kind: 'menu' });
@@ -194,7 +196,7 @@ test('detached: a confirm opened from a menu SURVIVES the menu closing; normal c
     assert.strictEqual(reg.topLayer().id, confirm, 'the confirm is still on the stack (and topmost — Esc reaches it)');
     assert.strictEqual(reg.hasFence(), true, 'and still fences library keys');
 });
-test('detached layers keep their order when a layer below them is removed', () => {
+test('OVERLAY-020', 'detached layers keep their order when a layer below them is removed', () => {
     const a = reg.pushLayer({ close: () => {}, kind: 'menu' });
     const d1 = reg.pushLayer({ close: () => {}, kind: 'modal', detached: true });
     const d2 = reg.pushLayer({ close: () => {}, kind: 'modal', detached: true });
@@ -207,34 +209,34 @@ test('detached layers keep their order when a layer below them is removed', () =
 const base = { insidePopup: false, onOwnTrigger: false, button: 0, kind: 'menu', isTopmost: true, imperativeUp: false, onPopupTrigger: false };
 const act = (over) => reg.outsideClickAction({ ...base, ...over });
 
-test('outside-click: a click inside the popup is ignored', () => {
+test('OVERLAY-021', 'outside-click: a click inside the popup is ignored', () => {
     assert.strictEqual(act({ insidePopup: true }), 'ignore');
 });
-test('outside-click: LEFT-click on its own trigger is ignored (the toggle closes it); RIGHT-click there closes + passes through', () => {
+test('OVERLAY-022', 'outside-click: LEFT-click on its own trigger is ignored (the toggle closes it); RIGHT-click there closes + passes through', () => {
     assert.strictEqual(act({ onOwnTrigger: true, button: 0 }), 'ignore');
     assert.strictEqual(act({ onOwnTrigger: true, button: 2 }), 'close', 'alpha.47: no second menu on top of a still-open dropdown');
 });
-test('outside-click: not the topmost overlay, or a confirm dialog is up → ignore (that overlay owns the click)', () => {
+test('OVERLAY-023', 'outside-click: not the topmost overlay, or a confirm dialog is up → ignore (that overlay owns the click)', () => {
     assert.strictEqual(act({ isTopmost: false }), 'ignore');
     assert.strictEqual(act({ imperativeUp: true }), 'ignore', 'alpha.45: never eat a confirm dialog\'s OK');
 });
-test('outside-click: ANY other popup button closes and passes through (it opens in one click)', () => {
+test('OVERLAY-024', 'outside-click: ANY other popup button closes and passes through (it opens in one click)', () => {
     assert.strictEqual(act({ onPopupTrigger: true }), 'close');
     assert.strictEqual(act({ onPopupTrigger: true, kind: 'popover' }), 'close', 'a panel too (e.g. More)');
     assert.strictEqual(act({ onPopupTrigger: true, isTopmost: false }), 'ignore', 'the topmost rule still wins');
     assert.strictEqual(act({ onPopupTrigger: true, onOwnTrigger: true }), 'ignore', 'its OWN button is still the toggle');
 });
-test('outside-click: an ordinary left-click (a book, empty space) is still swallowed — selections stay protected', () => {
+test('OVERLAY-025', 'outside-click: an ordinary left-click (a book, empty space) is still swallowed — selections stay protected', () => {
     assert.strictEqual(act({}), 'close-swallow');
 });
-test('outside-click: right/middle-click anywhere closes and passes through', () => {
+test('OVERLAY-026', 'outside-click: right/middle-click anywhere closes and passes through', () => {
     assert.strictEqual(act({ button: 2 }), 'close');
     assert.strictEqual(act({ button: 1 }), 'close');
 });
-test('outside-click: a type-ahead list never swallows; a menu/popover left-click swallows', () => {
+test('OVERLAY-027', 'outside-click: a type-ahead list never swallows; a menu/popover left-click swallows', () => {
     assert.strictEqual(act({ kind: 'list' }), 'close');
     assert.strictEqual(act({ kind: 'menu' }), 'close-swallow');
     assert.strictEqual(act({ kind: 'popover' }), 'close-swallow');
 });
 
-console.log(`\n${passed} overlayRegistry tests passed.`);
+harness.done();
