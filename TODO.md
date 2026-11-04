@@ -66,6 +66,7 @@
         - [Import: new books are filed before the integrity check, so the check reports only real repairs](#import-new-books-are-filed-before-the-integrity-check-so-the-check-reports-only-real-repairs)
         - [With a filter on, the right pane still shows subfolders with no matching books](#with-a-filter-on-the-right-pane-still-shows-subfolders-with-no-matching-books)
         - [Every load saves the whole library back to storage, even when nothing changed](#every-load-saves-the-whole-library-back-to-storage-even-when-nothing-changed)
+        - [A missing book description: one quiet line, on the computer and the phone](#a-missing-book-description-one-quiet-line-on-the-computer-and-the-phone)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Fetcher housekeeping](#fetcher-housekeeping)
@@ -120,7 +121,6 @@
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
     - [Technical clean-up](#technical-clean-up)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
-      - [Show a notice when book descriptions are missing](#show-a-notice-when-book-descriptions-are-missing)
       - [Clean up developer console messages](#clean-up-developer-console-messages)
       - [Check nothing was lost between versions 4 and 5](#check-nothing-was-lost-between-versions-4-and-5)
       - [Leftover desktop polish: one shadow direction](#leftover-desktop-polish-one-shadow-direction)
@@ -1934,6 +1934,26 @@ on every load, and a full write of the library each time is a needless chance fo
    that clean-up "on every load", so a stripped field must still count as a change and get saved.
 3. Measure the save's time on load (the browser driver) — it tells whether this is a speed fix or only hygiene.
 
+##### A missing book description: one quiet line, on the computer and the phone
+<!-- id 20261014-1030ap -->
+
+_Why it matters:_ So a missing description reads as known, not broken — and the phone says the same as the computer
+(Ron, 2026-10-15: "Phone should match").
+
+**Today** (checked 2026-11-04)
+- The **computer**'s book details window shows a yellow ⚠️ box: "Description not available — This book may not have a
+  description in Amazon's database, or the description wasn't captured during the library fetch." (readerwrangler.js
+  ~14308; since v3.5).
+- The **phone** hides the section entirely (mobile.js ~2236).
+
+**Decided** (Ron + Claude, 2026-11-04, in the TODO review — moved here from After launch → Technical clean-up)
+1. **A quiet, muted line, not a warning box** (Law 12 — many books simply have no description on Amazon; that's
+   normal): *"No description from Amazon for this book."*
+2. **A remedy only when there is one:** add *"A full refresh from Amazon may fill it in"* once "Refresh all books from
+   Amazon…" exists; until then, just the plain line.
+3. **Written once, used by both:** the wording lives in one shared place (uiHelpers) that the computer and the phone
+   both use, so they can't drift apart again.
+
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->
 
@@ -3336,20 +3356,6 @@ component.
 **Spec:** docs/design/MODULE-SPLIT.md (superseded by this task until the seam map replaces it).
 **Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): the official typescript-lsp plugin (go-to-definition and find-references across
 the big file) and ast-grep (structural search-and-replace) when lifting pieces out.
-
-#### Show a notice when book descriptions are missing
-<!-- id 20261014-1030ap -->
-
-_Why it matters:_ So a missing description reads as known, not broken.
-
-**Already done**
-- Desktop: the book details window shows "⚠️ Description not available" with an explanation (since v3.5).
-
-**Left**
-- The **phone** just hides the description section — show the same notice there (Ron, 2026-10-15: "Phone should match").
-
-**How (technical)**
-- "Phase 3 UI error handling" — missing-description banners.
 
 #### Clean up developer console messages
 <!-- id 20261014-1030m -->
