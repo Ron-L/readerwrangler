@@ -96,6 +96,9 @@ fixture, never anything sensitive on screen.
 1. **A bug fix starts with a failing test** that reproduces the bug — then the fix makes it pass. (The utilities
    project's Law 18: reproduce with real input before explaining.)
 2. **A feature's tests are its acceptance criteria**, written with it — the task's "What you'd get" made checkable.
+   **A test that passes on its very first run is shown it can fail** — feed its check a deliberate problem (a wrong
+   expected value, an injected error) and see it refuse — or it may be checking nothing (2026-11-04: APP-001–004's
+   detectors were each shown a wrong count, a console error, a relay request and a crash).
 3. **At the task's end:**
    - **promote** its tests into the library (almost always — a test that passed once costs nothing to keep); a test
      left out says why;
@@ -136,6 +139,11 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   1. ✅ the parse check (tier 1);
   2. ✅ `tools/run_tests.py` with tiers, tags, IDs and `--changed`; the existing files get `tags:` / `covers:` headers and
      IDs; the commit hook runs `--changed`;
-  3. the browser driver (Playwright for Python + Edge) and the small fixture library's first version;
+  3. ✅ the browser driver (Playwright for Python + Edge) and the small fixture library's first version — `test/ui/rw.py`
+     (the shared setup: serve.py on a free port, a fresh Edge profile, Restore through the real menu, console / crash /
+     relay-and-Amazon request detectors, GoatCounter answered empty), `test/ui/harness.py`, the fixture
+     (`test/fixtures/make-small-fixture.js` → `small-fixture.json`: 23 books, every ownership kind), and
+     `APP-001`–`004` (the app opens cleanly; the fixture restores; every left-pane count; still clean after). ~50 s a
+     run today — the in-browser compile; the precompile cuts it;
   4. the first screen tests — from anomaly reporting and the Delete key fix (step 4), each starting from a failing test.
 - From then on, every task follows §6.

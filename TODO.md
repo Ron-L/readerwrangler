@@ -2047,6 +2047,8 @@ _Why it matters:_ Answers "what have I hidden?" — today you have to hunt for t
    `filterBooks`): it gets the three choices too, or at least reads them.
 3. **Settle the real default:** the app starts with hidden books hidden, but one place says
    `showHidden: true, // Default to showing all books` (~6688). Decide which is right so a new user isn't surprised.
+   **Evidence (2026-11-04, the first screen test):** a fresh browser shows **"Show Hidden" ticked** — hidden books are
+   shown by default.
 
 
 ##### Right-click: add "Copy ASINs" below Copy Titles / Copy Authors
