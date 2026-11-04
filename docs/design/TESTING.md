@@ -72,15 +72,20 @@ Plus a short **manual list per release** (§8) for what can't be automated.
   (`channel="msedge"`), so no browser download. Claude's ad-hoc looks use Playwright's command-line tool through
   `npx @playwright/cli@<exact version>` — nothing installed system-wide.
 
-## 5. Test data — two kinds
+## 5. Test data — three kinds
 
 1. **A small, frozen, made-up library** (`test/fixtures/`, committed — no personal data). Built **on purpose to hold
    the awkward cases**: an omnibus at several positions, a sample and a loan of a wishlisted book, books in the Trash,
    deep and pinned folders, a book in no folder, a Book List with repeats, Amazon tags and your own tags, a book with no
    description. **Exact checks run against this.** It grows as tests need new cases.
-2. **Ron's real backup, with the Cloud Sync Key removed** — for scale and speed (3,270 books): load time, drag with
-   thousands of covers, "does it hold up". **Never committed**; its location is a local setting; the test loader
-   strips the key and refuses a file that still carries one. Not used for exact answers (it changes as Ron works).
+2. **The demo library** (`readerwrangler-demo-library-ORGANIZED.json`, 118 books, and its unorganized twin with 119 —
+   already public, keys removed by Ron on purpose): real Amazon-shaped data at a realistic small size — for tests that
+   need believable books without the awkward cases spelled out.
+3. **Ron's real library at scale** — `large-sample-private.json.gz` in the **private** repo's `test/` folder
+   (3,270 books, from his 2026-11-04 backup; Cloud Sync Key removed and verified; compressed). For scale and speed —
+   load time, drag with thousands of covers, "does it hold up" — not exact answers. **Committed in the private repo so
+   it's backed up** (Ron): a test tied to that exact data set can always get it back, and made-up sets holding anything
+   personal live there too (its README has the rules). The test loader refuses any file that still carries a key.
 
 Screen tests never use Amazon's pages and never the real library's cloud copy: the test app has no Cloud Sync (or a
 throwaway test channel on a local relay). Whatever the driver shows Claude goes to Anthropic — so the demo-style
