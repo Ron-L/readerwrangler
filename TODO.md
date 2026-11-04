@@ -67,6 +67,7 @@
         - [With a filter on, the right pane still shows subfolders with no matching books](#with-a-filter-on-the-right-pane-still-shows-subfolders-with-no-matching-books)
         - [Every load saves the whole library back to storage, even when nothing changed](#every-load-saves-the-whole-library-back-to-storage-even-when-nothing-changed)
         - [A missing book description: one quiet line, on the computer and the phone](#a-missing-book-description-one-quiet-line-on-the-computer-and-the-phone)
+        - [Remove the old version 4 app from the site — it shares your library's storage](#remove-the-old-version-4-app-from-the-site--it-shares-your-librarys-storage)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Fetcher housekeeping](#fetcher-housekeeping)
@@ -121,7 +122,6 @@
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
     - [Technical clean-up](#technical-clean-up)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
-      - [Check nothing was lost between versions 4 and 5](#check-nothing-was-lost-between-versions-4-and-5)
       - [Leftover desktop polish: one shadow direction](#leftover-desktop-polish-one-shadow-direction)
   - [👀 Watching](#watching)
     - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
@@ -1961,6 +1961,23 @@ _Why it matters:_ So a missing description reads as known, not broken — and th
 3. **Written once, used by both:** the wording lives in one shared place (uiHelpers) that the computer and the phone
    both use, so they can't drift apart again.
 
+##### Remove the old version 4 app from the site — it shares your library's storage
+<!-- id 20261104-1254 -->
+
+_Why it matters:_ The old app is still live at readerwrangler.com/v4/readerwrangler.html (checked 2026-11-04: it
+answers). Browsers keep storage per **site**, not per folder, so it shares the **same storage as the real library** —
+anyone who opens it (a stray bookmark, a search result) runs old code against current library data. It's also simply
+confusing.
+
+**Decided** (Ron + Claude, 2026-11-04, in the TODO review — replaces the 2026-02-05 decision to keep it online "as
+historical reference", docs/design/archive/V4-REMOVAL-PLAN.md)
+1. Delete the `v4/` folder; git history keeps it forever (every release tag up to `v7.25.0` still contains it).
+2. Drop `v4/` from the version guard's not-shipped list (git-hooks/version-guard.py); add a note to the removal plan.
+3. Nothing links to it (checked 2026-11-04: only a code comment and archived design notes mention it).
+4. Closed at the same time: "Check nothing was lost between versions 4 and 5" — nine months and 20+ releases of daily
+   use since 5.0, the book-field table's round-trip check guards the data, and outside review 4 looks at today's
+   features fresh.
+
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->
 
@@ -3363,11 +3380,6 @@ component.
 **Spec:** docs/design/MODULE-SPLIT.md (superseded by this task until the seam map replaces it).
 **Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): the official typescript-lsp plugin (go-to-definition and find-references across
 the big file) and ast-grep (structural search-and-replace) when lifting pieces out.
-
-#### Check nothing was lost between versions 4 and 5
-<!-- id 20261014-1030l -->
-
-_Why it matters:_ A feature-by-feature comparison of the two versions.
 
 #### Leftover desktop polish: one shadow direction
 <!-- id 20261014-1030ab -->
