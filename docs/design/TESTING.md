@@ -12,9 +12,16 @@ the pre-launch data gate (task "All the pre-launch data tests pass")._
 
 > **"If you don't have a test case, you can't prove you fixed it."** — Ron
 
-The regression library is built **gradually, from the work** — never written up front. Each task adds the tests that
-prove it; each bug fix adds the test that would have caught it. Over time the library becomes the guarantee that
+The regression library is built **gradually, from the work** — never written all up front. Each task adds the tests
+that prove it; each bug fix adds the test that would have caught it. Over time the library becomes the guarantee that
 nothing that once worked silently stops working.
+
+**When a test covers one case of a class** (one ownership kind, one filter), **it covers the whole class if that's
+cheap** — one test with a row per case, the rows taken from **the same list the code uses**, so a new case is tested
+the day it's added. Each row needs its expected result; **a case with no expected result written fails the test**
+(a default "missing — write its expectation" failure), so nobody can add an ownership kind or a filter without saying
+how it should behave. (Ron + Claude, 2026-11-04 — the fetcher's hand-kept list once missed library loans and Audible
+Plus for exactly want of this.)
 
 ## 2. Two levels — test at the lowest one that can catch the problem
 
@@ -81,8 +88,9 @@ fixture, never anything sensitive on screen.
 3. **At the task's end:**
    - **promote** its tests into the library (almost always — a test that passed once costs nothing to keep); a test
      left out says why;
-   - **gaps** found next to it (things the task touched that nothing tests) are either filled now, if small, or
-     **filed as TODO items**.
+   - **gaps** found next to it (things the task touched that nothing tests) — **finish the class** while you're in the
+     area if it's cheap (the question is "are the remaining rows cheap now?", not a percentage); **file it as a TODO**
+     if it's its own project (new fixtures, real time).
 4. **The mechanisms (not memory):**
    - each task in work gets a short **Tests** section — the IDs it added, and gaps filed;
    - the **release checklist** asks "every task in this release: tests promoted, gaps filed?";
