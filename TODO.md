@@ -122,11 +122,11 @@
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
     - [Technical clean-up](#technical-clean-up)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
+      - [Test on Safari and iPhone](#test-on-safari-and-iphone)
   - [👀 Watching](#watching)
     - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
     - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
   - [🧊 Someday](#someday)
-    - [Test on Safari (desktop and iPhone)](#test-on-safari-desktop-and-iphone)
     - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
     - [Find out whether reading progress can be fetched from Amazon](#find-out-whether-reading-progress-can-be-fetched-from-amazon)
     - [Support stores besides Amazon](#support-stores-besides-amazon)
@@ -421,7 +421,8 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
    explicitly); the Amazon Associates rules for the affiliate tag (a visible disclosure is
    required; self-purchases are a known pitfall); a privacy policy (including GoatCounter and the sync server's
    last-used date per cloud copy — disclosed together, Ron 2026-11-04); Cloudflare's free-tier
-   limits as users grow; support load with one person — including **a support inbox** (Resend Inboxes, announced
+   limits as users grow; **iPhone at launch, or not** (every iPhone browser is Safari underneath — "Test on Safari and
+   iPhone", 2026-11-04); support load with one person — including **a support inbox** (Resend Inboxes, announced
    2026-10: an address on our own domain, threads, agents connect through MCP; free up to 3 inboxes) that Claude
    sorts, drafts replies in for Ron to approve and send, and mines into the help notes. Needs web research.
 2. **Security and privacy as a whole** — the relay design, the security page's claims, revoke / wipe, the
@@ -3388,6 +3389,26 @@ component.
 **Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): the official typescript-lsp plugin (go-to-definition and find-references across
 the big file) and ast-grep (structural search-and-replace) when lifting pieces out.
 
+#### Test on Safari and iPhone
+<!-- id 20261014-1030ax -->
+
+_Why it matters:_ **Every browser on an iPhone is Safari underneath** (Apple requires it — Chrome on iPhone is Safari's
+engine), so "works with Chrome" means "not on iPhone", phone view included — and many US Kindle readers carry
+iPhones. Some Safari differences could break storage, installing as a phone app, or layout.
+
+**Decided** (Ron + Claude, 2026-11-04, in the TODO review — moved up from Someday)
+1. **First pass, cheap: run the browser driver's tests under Safari's engine on Windows** (Playwright's WebKit — not a
+   real iPhone, but it catches most engine differences: storage, layout, the phone view). Once the driver exists.
+2. **Outside review 1 (launch risks) weighs "iPhone at launch, or not"** — what we promise, and to whom; its answer
+   sets the honest line in "Say plainly what ReaderWrangler works with…".
+3. **Then a real iPhone check** — Ron has access to one (2026-11-04): the phone view, installing to the home screen,
+   storage surviving a few days, Cloud Reader for "Read in Kindle".
+
+**Risks to check**
+- The browser's book storage (IndexedDB) — Safari clears a site's stored data after 7 days of Safari use without a
+  visit to it, but exempts apps installed to the home screen (to verify when testing; it would make installing the
+  phone view the recommended way on iPhone) — installing as a phone app (PWA), and styling.
+
 ---
 
 ## 👀 Watching
@@ -3440,14 +3461,6 @@ _Why it matters:_ Rare reports of books in no folder at all; watch whether it st
 ## 🧊 Someday
 
 _Formerly: 🧊 Icebox (no timeline)_
-
-### Test on Safari (desktop and iPhone)
-<!-- id 20261014-1030ax -->
-
-_Why it matters:_ Some Safari differences could break storage, the phone install, or layout.
-
-**Risks to check**
-- The browser's book storage (IndexedDB), installing as a phone app (PWA), and styling.
 
 ### Formats other than Kindle: undo my Kindle-only preference
 <!-- id 20261018-1422a -->
