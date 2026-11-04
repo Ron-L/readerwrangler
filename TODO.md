@@ -5,6 +5,7 @@
     - [High priority](#high-priority)
       - [✅ Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut](#carry-over-the-utilities-projects-improvements-the-browser-driver-a-parse-check-for-every-script-the-open-shortcut)
       - [Report our own unexpected errors: a banner while testing, a quiet log always](#report-our-own-unexpected-errors-a-banner-while-testing-a-quiet-log-always)
+      - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -88,6 +89,7 @@
       - [Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button](#landing-page-open-my-library-for-returning-users-and-always-free--no-ads--no-account-needed-under-the-start-button)
       - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
       - [User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help](#user-guide-rewrite-it-around-searches-book-lists-and-folders-as-a-page-you-can-reach-from-help)
+      - [A public demo library from Amazon's best-seller lists (nothing personal)](#a-public-demo-library-from-amazons-best-seller-lists-nothing-personal)
       - [Screen capture pass: the sizzle reel, the landing page's before / after, README's old video](#screen-capture-pass-the-sizzle-reel-the-landing-pages-before--after-readmes-old-video)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
     - [Cloud Sync](#cloud-sync)
@@ -280,6 +282,36 @@ even when nobody is. Built with the browser driver (above): each makes the other
 - The scrubber that removes IDs is shared with "Bookmarklet: when your key no longer works, say so plainly — and
   never show the Channel ID in an error" (After launch) — one place, with a test; this task builds it first.
 
+#### Generated test libraries: made-up books at any size, with their own covers
+<!-- id 20261104-1613a -->
+
+_Why it matters:_ Test data with nothing personal can be committed and backed up anywhere, is identical every run (a
+failure always reproduces), plants the awkward cases on purpose, and comes in any size — so the tests stop leaning on
+Ron's real library (Ron, 2026-11-04: "it would be nice to migrate away").
+
+**Decided** (Ron + Claude, 2026-11-04 — Claude's call, Ron's ideas)
+1. **Generated, not real**, for tests: one generator (today's `test/fixtures/make-small-fixture.js`, grown) with a
+   **size setting** — 23 books for exact checks, ~3,000 for scale, 10,000 for stress — and **seeded**, so the same
+   "random" library every run.
+2. **Titles from a little title machine** (Ron's rules): *The [X] of [Y]*, *Adjective + Noun*, *A [Court] of
+   [Starlight] and [Shadow]* (fantasy), *-ing* openers, *Hook: subtitle* (nonfiction) — word lists per category,
+   picked by the seeded random ("A Kingdom of Teacups and Regret"). **Lorem-ipsum descriptions.** Cases a test depends on
+   keep fixed names (the series a Search looks for, the folder names).
+3. **Organization generated too:** folders by author with series subfolders, Book Lists by Amazon tags, some books in
+   the Trash, hidden, wishlisted with goals, every ownership kind — the planted cases, at scale.
+4. **Covers generated, served by the repo itself** — no website: a small **SVG** per cover (a solid background by genre,
+   the title on top — a tiny text file, no image library needed) in `test/fixtures/covers/`, which serve.py already
+   serves to the tests on Ron's PC: no internet, nothing test-related on readerwrangler.com or the home server, identical
+   every run. The scale library reuses a pool of ~50 rather than committing thousands. Check when building: one import
+   path builds an Amazon image link from the ASIN when a book has no cover (readerwrangler.js ~6433) — with made-up
+   ASINs that would reach Amazon, and the screen tests' request detector would flag it.
+5. **Ron's library snapshot stays, used rarely** (`.private/test/`): only for "does real data have a quirk we never
+   thought to generate" checks — real data catches what nobody imagined.
+
+**How (technical)**
+- Packed with the app's own book packer (bookFields.js `packBook`), as the small fixture is. TESTING.md §5 gains the
+  sizes and the covers when built.
+
 #### The Delete key deletes the folder you're in — not the folders you selected
 <!-- id 20261014-1030ay -->
 
@@ -427,7 +459,8 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
    explicitly); the Amazon Associates rules for the affiliate tag (a visible disclosure is
    required; self-purchases are a known pitfall); a privacy policy (including GoatCounter and the sync server's
    last-used date per cloud copy — disclosed together, Ron 2026-11-04); Cloudflare's free-tier
-   limits as users grow; **iPhone at launch, or not** (every iPhone browser is Safari underneath — "Test on Safari and
+   limits as users grow; **book covers on camera** (the sizzle reel and screenshots show real covers — Ron: fair use as
+   he sees it, risk accepted, 2026-11-04); **iPhone at launch, or not** (every iPhone browser is Safari underneath — "Test on Safari and
    iPhone", 2026-11-04); support load with one person — including **a support inbox** (Resend Inboxes, announced
    2026-10: an address on our own domain, threads, agents connect through MCP; free up to 3 inboxes) that Claude
    sorts, drafts replies in for Ron to approve and send, and mines into the help notes. Needs web research.
@@ -2538,6 +2571,32 @@ assistant will read, so it has to be complete and stay current.
   prop on `MenuBarItem` / `<Dialog>` / `<Popover>`, an argument to the confirm-style boxes, and a field in the
   shortcut list. Section names = the guide's headings' anchors.
 
+#### A public demo library from Amazon's best-seller lists (nothing personal)
+<!-- id 20261104-1613 -->
+
+_Why it matters:_ The sizzle reel, the landing page's pictures and the User Guide's screenshots need believable books.
+Today's demo library is made from Ron's own purchases — public by his choice, but it shows what he owns. Best sellers
+and classics are recognizable, show off Auto-Organize (real series, authors with many books), and are nobody's
+library.
+
+**Decided** (Ron + Claude, 2026-11-04)
+1. **Read the lists from the page Ron is viewing:** Amazon's best-seller pages (the NYT 2026 list — 7 pages — Kindle and
+   Classics categories) carry each book's ASIN, title and author in the page itself. Ron opens a page and runs one
+   **read-only console snippet** that collects them — no extra requests; next page, run again. (No saving pages.)
+2. **Depth: "More like this"** (the recommendations request probed 2026-11-03) turns each book into ten more — together
+   with the NYT pages, toward **~3,000 books** (Ron): also a selling point on camera ("your whole library, organized").
+3. **Details in one paced run:** the fetcher's own batch lookup (30 books per request) fills in covers, descriptions and
+   ratings; the snippet writes a file. Paced, with the human-check stop in mind — every request read-only, of a kind
+   the fetcher already makes. Request details: see TODO notes when building.
+4. **A generator on Claude's side** packs it into a demo backup — folders by author and series, Book Lists, a few books
+   in the Trash and hidden — the same way the test libraries are generated.
+5. **It replaces the demo library made from Ron's purchases** (`readerwrangler-demo-library*.json` and the demo filter's
+   list in `tools/demo-library/`) — retire those once the reel no longer needs them.
+6. **Covers:** real ones from Amazon on camera — thumbnails, plus one or two full size in a book window. Ron's call
+   (2026-11-04): fair use as he sees it, and he accepts the risk of a cease-and-desist; listed for outside review 1 so
+   it sees the whole picture.
+- **Built before "Screen capture pass…"** (just below), which records with it.
+
 #### Screen capture pass: the sizzle reel, the landing page's before / after, README's old video
 <!-- id 20261014-1030bc; merged 20261014-1030al -->
 
@@ -2554,8 +2613,8 @@ will be a seller."
 3. **If the outside newcomer review runs** ("Outside reviews before building", review 4), write the reel's script after
    it — it may change what the landing page needs to say, and the reel is the landing page's opening.
 4. **README's old walkthrough video: remove it** (link and file), not replace it.
-5. **Use the demo library** (the library fetcher's demo filter shows only chosen books) — Ron's real library never
-   appears on screen.
+5. **Use the public demo library** — "A public demo library from Amazon's best-seller lists" (just above), built
+   first; Ron's real library never appears on screen. (Until then: today's demo library and the fetcher's demo filter.)
 6. **Keep the reel in the plan** — though Ron dreads making it (the tutorials were "super tedious", which is why they
    were cancelled; the support assistant replaces tutorials 2–8).
 
