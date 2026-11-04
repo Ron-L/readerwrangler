@@ -121,7 +121,6 @@
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
     - [Technical clean-up](#technical-clean-up)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
-      - [Clean up developer console messages](#clean-up-developer-console-messages)
       - [Check nothing was lost between versions 4 and 5](#check-nothing-was-lost-between-versions-4-and-5)
       - [Leftover desktop polish: one shadow direction](#leftover-desktop-polish-one-shadow-direction)
   - [👀 Watching](#watching)
@@ -223,7 +222,7 @@ the history scan, shipped the same day).
   shows Claude goes to Anthropic).
 
 #### Report our own unexpected errors: a banner while testing, a quiet log always
-<!-- id 20261102-1435 -->
+<!-- id 20261102-1435; merged 20261014-1030m -->
 
 _Why it matters:_ Today a "this should never happen" in our code is a line in the console that nobody is looking at —
 it is seen only by luck (Ron, 2026-11-02). It should stop the person testing, and leave a trace on every device
@@ -234,10 +233,18 @@ even when nobody is. Built with the browser driver (above): each makes the other
    including a crash inside React or another library we load), and an explicit `reportAnomaly(…)` call at each place
    in our code where "this should never happen". Browser-extension messages (e.g. "Unchecked runtime.lastError…")
    live in the extension's own space and never reach us — not in scope.
-2. **First step — a one-time comb** of today's `console.warn` / `console.error` sites in our code (app, modules,
-   mobile, fetchers, bookmarklet menu): sort each into **expected** (stays a log) or **anomaly** (becomes
-   `reportAnomaly`). Publish the site list before switching any. The integrity check's "auto-fixed during restore"
-   message is the first to switch.
+2. **First step — one comb through every console line in our code** (merged 2026-11-04 from "Clean up developer
+   console messages" — one pass, not two). Counted 2026-11-04: the app (desktop, phone, modules) ~103 log, ~30 warn,
+   ~44 error; the fetchers and bookmarklet menu ~430 log, ~18 warn, ~140 error. Sort each line into:
+   - **anomaly** ("this should never happen") → `reportAnomaly`;
+   - **expected warning** (can legitimately happen) → stays a console warning;
+   - **developer detail** → shown only in **diagnostics mode** — the same `?anomalies=on` switch (one switch for "show
+     me everything");
+   - **noise** → removed.
+   **Scope:** the app's lines get the full sort; the fetchers' ~430 progress logs **stay** — they're the step-by-step
+   trail of a fetch, what support needs when Amazon's side goes wrong — and only their warnings and errors are sorted
+   (item 7's own flag on Amazon's site). Publish the site list before switching any. The integrity check's "auto-fixed
+   during restore" message is the first to switch.
 3. **The banner** — red, stays until clicked, with the details and a Copy button; says it's diagnostics mode, with a
    "Turn off" link. If DevTools is open, also stop in the debugger. **Never a blocking pause** (`alert()`): it would
    break the 30-second Import from Relay timeout and leave a push half sent.
@@ -3356,11 +3363,6 @@ component.
 **Spec:** docs/design/MODULE-SPLIT.md (superseded by this task until the seam map replaces it).
 **Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): the official typescript-lsp plugin (go-to-definition and find-references across
 the big file) and ast-grep (structural search-and-replace) when lifting pieces out.
-
-#### Clean up developer console messages
-<!-- id 20261014-1030m -->
-
-_Why it matters:_ About 70 of them: keep, hide behind a switch, or remove each.
 
 #### Check nothing was lost between versions 4 and 5
 <!-- id 20261014-1030l -->
