@@ -4,7 +4,7 @@
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
       - [✅ Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut](#carry-over-the-utilities-projects-improvements-the-browser-driver-a-parse-check-for-every-script-the-open-shortcut)
-      - [Report our own unexpected errors: a banner while testing, a quiet log always](#report-our-own-unexpected-errors-a-banner-while-testing-a-quiet-log-always)
+      - [One logging module: severity, area and ID for every message; a display threshold, an always-on log, a reader](#one-logging-module-severity-area-and-id-for-every-message-a-display-threshold-an-always-on-log-a-reader)
       - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
@@ -165,7 +165,7 @@ In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**
 **The order of work from here** (Ron, 2026-10-24; step 2 added 2026-10-31, step 3 2026-11-03):
 1. Finish the TODO review.
 2. "Carry over the utilities project's improvements…" — the browser driver and the parse check (the shortcut part
-   can wait) — with "Report our own unexpected errors…" built alongside it.
+   can wait) — with "One logging module…" built alongside it.
 3. "Faster loading: build the app ahead of time (35 seconds → 1)" (Before launch; added here 2026-11-03 — about one
    session, the driver times it, and every later load gets 30 times faster).
 4. "The Delete key deletes the folder you're in…" — the browser driver's first real use.
@@ -233,54 +233,74 @@ the history scan, shipped the same day).
   accessibility checks from the same driver. Pin exact versions; test only with the demo library (what the driver
   shows Claude goes to Anthropic).
 
-#### Report our own unexpected errors: a banner while testing, a quiet log always
+#### One logging module: severity, area and ID for every message; a display threshold, an always-on log, a reader
 <!-- id 20261102-1435; merged 20261014-1030m -->
 
 _Why it matters:_ Today a "this should never happen" in our code is a line in the console that nobody is looking at —
-it is seen only by luck (Ron, 2026-11-02). It should stop the person testing, and leave a trace on every device
-even when nobody is. Built with the browser driver (above): each makes the other stronger.
+it is seen only by luck (Ron, 2026-11-02). It should stop the person testing, leave a trace on every device even when
+nobody is, and give support a timeline to read. Built with the browser driver: each makes the other stronger.
 
-**Decided** (Ron + Claude, 2026-11-02)
-1. **Anomalies only, ours only.** Two sources: uncaught errors and failed promises on OUR pages (caught globally —
-   including a crash inside React or another library we load), and an explicit `reportAnomaly(…)` call at each place
-   in our code where "this should never happen". Browser-extension messages (e.g. "Unchecked runtime.lastError…")
-   live in the extension's own space and never reach us — not in scope.
-2. **First step — one comb through every console line in our code** (merged 2026-11-04 from "Clean up developer
+**The model** (Ron, 2026-11-05 — from the products he built: a text message plus a severity code, a dynamic,
+user-tunable filter for what's shown, everything always logged, log readers with filtering — the same model as Linux's
+syslog / `printk` / journald: severity levels, a console threshold over an always-kept log, `journalctl -p`). It
+replaces 2026-11-02's four buckets and on/off switch, which were a crude version of it.
+
+**Decided** (Ron + Claude, 2026-11-02 / 11-05)
+1. **Five levels:** **debug** (developer detail), **info** (normal events worth a line — including everything the user
+   is told), **warning** (can legitimately happen: the relay unreachable, a refused clipboard), **error** ("this should
+   never happen" — a bug), **critical** (your data may be at risk: a save failed, a repair that couldn't repair).
+   Syslog's Emergency and Alert don't apply — there's no system to bring down.
+2. **Every message:** level + **area** (relay, import, storage, restore, integrity, ui, …) + text; warning and above also
+   carry a **stable ID** (`RELAY-012`) — support can ask "what codes do you see?", and the help notes can explain each
+   code (the same idea as the test IDs). Debug lines get no ID (busywork).
+3. **Two thresholds — what's shown, and what's kept:**
+   - **Shown:** in **diagnostics mode**, error and above raise the **banner** — red, stays until clicked, the details and
+     a Copy button, a "Turn off" link; if DevTools is open, also a stop in the debugger. **Never a blocking pause**
+     (`alert()`): it would break the 30-second Import timeout and leave a push half sent. **Critical is shown to every
+     user** (Ron, 2026-11-05), diagnostics or not — as a plain message that their data may be at risk and what to do.
+   - **Kept:** info and above, **always** (production included) — the last ~500 entries on the device, with Channel IDs
+     and the Passphrase / key removed; repeats **counted, not stored again** ("…repeated 37 times" — rate limiting, so
+     one bad loop can't flood it). **It also records every page load** — time, build, and the browser's "was this tab
+     discarded and reloaded?" (`document.wasDiscarded`) — so an unexplained loss of in-memory state ("Undo history
+     sometimes empties by itself", Watching) can be traced to a reload.
+4. **The level is the ONE gate, tunable** (Ron 2026-11-02: "that would be the only gate"): `?log=debug|info|warning|
+   error|off` on any page address (remembered; the app then removes the parameter from the address bar so it isn't
+   bookmarked or shared), or a setting in Data Status, or the console — works on any copy (the dev repo or production
+   on localhost, or readerwrangler.com). Read through one answer defined once in `readerwrangler.html` beside the other
+   environment answers; separate from contributor mode on purpose. A user reporting a bug can be asked to open the site
+   with `?log=debug`.
+5. **Two readers:**
+   - **the browser's console** — each level goes to `console.debug` / `info` / `warn` / `error`, so DevTools' own level
+     filter works for free;
+   - **a Diagnostics view in Data Status** — the kept log, filtered by level, area and time, with **Copy diagnostics**
+     (IDs removed).
+6. **Linked to the user's notifications, not merged with them:** the toasts and the 🕐 message history stay as they are;
+   everything they tell the user is also logged as info, so the log reads as one timeline — what the user saw and what
+   happened underneath.
+7. **Ours only.** Uncaught errors and failed promises on OUR pages are caught globally (logged as error — including a
+   crash inside React or another library we load). Browser-extension messages ("Unchecked runtime.lastError…") never
+   reach us — not in scope.
+8. **First step — one comb through every console line in our code** (merged 2026-11-04 from "Clean up developer
    console messages" — one pass, not two). Counted 2026-11-04: the app (desktop, phone, modules) ~103 log, ~30 warn,
-   ~44 error; the fetchers and bookmarklet menu ~430 log, ~18 warn, ~140 error. Sort each line into:
-   - **anomaly** ("this should never happen") → `reportAnomaly`;
-   - **expected warning** (can legitimately happen) → stays a console warning;
-   - **developer detail** → shown only in **diagnostics mode** — the same `?anomalies=on` switch (one switch for "show
-     me everything");
-   - **noise** → removed.
-   **Scope:** the app's lines get the full sort; the fetchers' ~430 progress logs **stay** — they're the step-by-step
-   trail of a fetch, what support needs when Amazon's side goes wrong — and only their warnings and errors are sorted
-   (item 7's own flag on Amazon's site). Publish the site list before switching any. The integrity check's "auto-fixed
-   during restore" message is the first to switch.
-3. **The banner** — red, stays until clicked, with the details and a Copy button; says it's diagnostics mode, with a
-   "Turn off" link. If DevTools is open, also stop in the debugger. **Never a blocking pause** (`alert()`): it would
-   break the 30-second Import from Relay timeout and leave a push half sent.
-4. **The ONE gate — a browser flag** (Ron: "that would be the only gate"), so it works on any copy — the dev repo or
-   production on localhost, or readerwrangler.com itself. Read through one answer defined once in
-   `readerwrangler.html` beside the other environment answers; separate from contributor mode on purpose (that one
-   picks the relay; this one picks whether anomalies interrupt). Set by `?anomalies=on` / `?anomalies=off` on any
-   page address (remembered; the app then removes the parameter from the address bar so it isn't bookmarked or shared),
-   or from the console. A side benefit: a user reporting a bug can be asked to open the site with `?anomalies=on`.
-5. **A quiet log, always on** (flag or not, production included): the last 100 anomalies on the device — time,
-   message, build — with Channel IDs and the Passphrase removed; "Copy diagnostics" in Data Status.
-   **It also records every page load** — time, build, and the browser's "was this tab discarded and reloaded?"
-   (`document.wasDiscarded`) — so an unexplained loss of in-memory state ("Undo history sometimes empties by itself",
-   Watching) can be traced to a reload (added 2026-11-04).
-6. **The browser driver sets the flag** in its throwaway browser and fails a run on any anomaly.
-7. **The fetchers and the bookmarklet menu** run on Amazon's site, whose stored settings are separate from ours, so
-   they read the same-named flag in amazon.com's storage (set from the console, or a toggle in the bookmarklet menu's
+   ~44 error; the fetchers and bookmarklet menu ~430 log, ~18 warn, ~140 error. Each of the app's lines gets **a level,
+   an area and (warning and above) an ID** — or is removed as noise. **Publish the list for Ron's red pen before
+   switching any.** The fetchers' ~430 progress logs stay — the step-by-step trail of a fetch support needs — and only
+   their warnings and errors are sorted. The integrity check's "auto-fixed during restore" message is the first to
+   switch.
+9. **The browser driver** runs with `?log=debug` in its throwaway browser and **fails a test on any error or
+   critical** — every screen test also checks "nothing went wrong underneath".
+10. **The fetchers and the bookmarklet menu** run on Amazon's site, whose stored settings are separate from ours, so they
+   read the same-named level in amazon.com's storage (set from the console, or a toggle in the bookmarklet menu's
    developer mode) — decide the details when building.
 
 **How (technical)**
-- One reporter module (the chokepoint): `reportAnomaly`, the global `error` / `unhandledrejection` listeners, the
-  log, the banner; every site is a thin call. The banner is built on the overlay primitive if it takes keys.
-- The scrubber that removes IDs is shared with "Bookmarklet: when your key no longer works, say so plainly — and
-  never show the Channel ID in an error" (After launch) — one place, with a test; this task builds it first.
+- **One logging module** (the chokepoint) — `log.debug/info/warning/error/critical(area, id, text, data)`, the global
+  `error` / `unhandledrejection` listeners, the kept log, the rate limiting, the banner, the reader; every site is a
+  thin call. The banner and the reader are built on the overlay primitive.
+- The scrubber that removes IDs and keys is shared with "Bookmarklet: when your key no longer works, say so plainly —
+  and never show the Channel ID in an error" (After launch) — one place, with a test; this task builds it first.
+- Its own branch (`feature/logging`), alpha versions, tests first (TESTING.md): the module's function tests, then the
+  screen tests (the gate, the banner, the reader, the driver failing on an error).
 
 #### Generated test libraries: made-up books at any size, with their own covers
 <!-- id 20261104-1613a -->
@@ -3551,7 +3571,7 @@ _Why it matters:_ Losing undo mid-session is alarming; the cause is still unknow
 
 **Next time it happens**
 - Check the console history and Data Status's "last checked" — a discarded tab clears both.
-- **Read the quiet diagnostics log** ("Report our own unexpected errors…", High priority): it records every page load
+- **Read the kept diagnostics log** ("One logging module…", High priority): it records every page load
   with the browser's own answer to "was this tab discarded and reloaded?" (`document.wasDiscarded`) — which settles the
   TinySuspender question without guesswork (added 2026-11-04).
 
