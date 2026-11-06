@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.25.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.25.1-alpha.1";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -14376,7 +14376,10 @@
 
                     {/* v5.0.0 - Book Explorer view (hidden when no books - welcome screen shown instead) */}
                     {!(books.length === 0 && syncStatus !== 'loading') && (
-                    <div className="flex-1 min-h-0 flex mb-6">
+                    <div className="flex-1 min-h-0 flex">
+                        {/* 7.25.1-alpha.1 - no bottom gap: the status bar is now the layout's own last row (below), so the panes
+                            end exactly where it starts. The old fixed 24 px gap was a guess at its height — with Cloud Sync's
+                            24 px icon the bar is 33 px and covered the panes' bottom, the right pane's scrollbar (LAYOUT-002). */}
                         {/* Left pane: Folder tree */}
                             {/* v5.0.0-alpha.49 - onDragOver prevents browser "split view" prompt */}
                             {/* v5.0.0-alpha.91 - Resizable left pane */}
@@ -20342,7 +20345,9 @@
 
                     {/* Affiliate Disclosure Footer (v4.4.0) */}
                     {/* v4.16.0.j - Restructured to include clipboard message on left */}
-                    <div className="fixed bottom-0 left-0 right-0 bg-gray-100 border-t border-gray-200 py-1 px-4 text-xs text-gray-500 z-40 flex items-center justify-between">
+                    {/* 7.25.1-alpha.1 - a row of the layout (flex-shrink-0), not floating over the window's bottom edge: the
+                        panes above end where it starts, whatever it holds and at any zoom (LAYOUT-001–007) */}
+                    <div className="flex-shrink-0 relative bg-gray-100 border-t border-gray-200 py-1 px-4 text-xs text-gray-500 z-40 flex items-center justify-between">
                         {/* Left: Clipboard and Selection status (v4.16.0.n - clipboard first for toast target) */}
                         <div className="text-left flex items-center gap-3">
                             {/* v7.6.2-alpha.2 - Toast history: the session's receipts (last 50), for every
