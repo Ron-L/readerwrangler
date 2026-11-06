@@ -395,6 +395,22 @@ happened visible.
 **Enforcement**: `feedback_dont_block_the_user` memory; the TODO "Move and copy books anywhere" (reverses the
 2026-08 "block Book List moves" decision) as the worked example.
 
+### 19. When the screen looks wrong, make the boxes visible before theorizing (Ron's idea)
+Outline every box at the broken spot, each layer in its own color, and ask the page what is actually on top there
+(`document.elementFromPoint`). **Outline, not border:** a border takes space and moves the very edges you're looking
+at. One picture shows which box runs under which; a theory about styling can't. (Paid for 2026-11-06: a scrollbar
+"thin at 125% zoom, invisible at 150%" was first blamed on a `thin` scrollbar style that turned out to be used
+nowhere. The cause: the status bar floated over the window's bottom edge, the panes left a fixed 24 px for it, and
+with Cloud Sync on, its 24 px icon made the bar 33 px tall, so it covered the panes' bottom 9 px, where the scrollbar
+is. Measuring the layers showed it at once. Fixed in 7.25.1 by making the bar a row of the layout.) Corollary: **a
+fixed gap that guesses another element's size is a bug waiting for that element to change**. Let the layout carry the
+relationship (Law 17's spirit: structure, not a hand-kept number).
+**Enforcement**: the driver's `show_boxes()` (test/ui/rw.py) outlines a target and every box around it, labels
+where each ends, and saves the picture; a failing layout test attaches it (`test/ui/test_layout.py`, LAYOUT-001–007:
+nothing covers a scroll area or its scrollbar, at two zooms, with the status bar as it is and as tall as the Cloud
+Sync icon makes it). The driver shows scrollbars: Playwright hides them in a hidden browser by default, which hid
+this very bug.
+
 ---
 
 ## SECOND TIER — by theme (the best of the rest)
