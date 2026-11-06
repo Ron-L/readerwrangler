@@ -39,7 +39,7 @@
       - [The left pane, one release](#the-left-pane-one-release)
         - [Book Lists and Searches: pin and sort them like Folders](#book-lists-and-searches-pin-and-sort-them-like-folders)
         - [A type-to-filter box for the left pane](#a-type-to-filter-box-for-the-left-pane)
-        - [Left pane: put the jump-to-top / bottom buttons by the scrollbar](#left-pane-put-the-jump-to-top--bottom-buttons-by-the-scrollbar)
+        - [Jump-to-top / bottom buttons by the scrollbar, in both panes](#jump-to-top--bottom-buttons-by-the-scrollbar-in-both-panes)
       - [Everyday organizing](#everyday-organizing)
         - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
         - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
@@ -1293,7 +1293,8 @@ tasks: "Import summary: count every ownership change, by kind", "Keep the Import
 
 Pins and sorting for Book Lists and Searches, a type-to-filter box, and the jump buttons all change
 the left pane's chrome — decided as one release (2026-10-16 / 10-22) so it's designed once. Gathered here 2026-11-04
-(TODO scan); the jump buttons came from Small fixes. Its keyboard part is item 4 of "Finish keyboard accessibility".
+(TODO scan); the jump buttons came from Small fixes (and gained the right pane 2026-11-06, one shared component). Its
+keyboard part is item 4 of "Finish keyboard accessibility".
 
 
 ##### Book Lists and Searches: pin and sort them like Folders
@@ -1343,13 +1344,18 @@ _Why it matters:_ With many folders, Book Lists and Searches, typing a few lette
 
 **Status:** Ron, 2026-09-10; design settled 2026-10-16.
 
-##### Left pane: put the jump-to-top / bottom buttons by the scrollbar
+##### Jump-to-top / bottom buttons by the scrollbar, in both panes
 <!-- id 20261014-1030aa -->
 
-_Why it matters:_ They sit at the bottom left today, not where you'd look for them.
+_Why it matters:_ They sit at the bottom left today, not where you'd look for them, and the right pane, the long
+list of books, has none.
 
 **What you see**
 - Both jump buttons (to top / to bottom) sit at the bottom-left of the left pane. You expected top-at-top and bottom-at-bottom, by the scrollbar.
+- They're pinned to the window, not to the folder list (readerwrangler.js ~18117, `fixed left-2 bottom-8`): they show
+  on the Welcome screen, where there is no folder list, and their height above the status bar is a guess (checked
+  2026-11-06, with the 7.25.1 status-bar fix; Law 19's corollary).
+- The right pane (the books) has no jump buttons at all.
 
 **Decided**
 - No per-section jumps (Searches / Book Lists / Folders) — collapsing sections already handles that.
@@ -1360,6 +1366,14 @@ _Why it matters:_ They sit at the bottom left today, not where you'd look for th
   at the bottom, neither when the pane doesn't scroll. (Not the menu rule's case — a floating helper shifts nothing,
   and a scroll button with nothing to scroll is clutter.)
 - **Home / End do the same jumps** — overlaps "Finish keyboard accessibility" (Polish).
+- (Ron, 2026-11-06) **The right pane gets them too**, by the same rules — it's the long list (3,270 books in Ron's
+  library). There, ▲ sits just below the column headings (List View) and ▼ just above the horizontal scrollbar.
+- **One floating component for any scroll area** (Claude, 2026-11-06): the left and right panes share one implementation
+  and one placement rule, each button positioned inside its own pane (never against the window), so it appears only
+  with that pane and never depends on the status bar's height.
+- **Tests:** a layout test (`test/ui/test_layout.py`, with the driver's `covered_scroll_boxes()`): the buttons never
+  cover a scrollbar or the column headings, at two zooms; ▲ / ▼ show and hide by scroll position; none on the Welcome
+  screen.
 - **Build with the left-pane release** (pins + the filter box + the section overview — "Book Lists and Searches: pin
   and sort them like Folders"), so the pane's chrome is decided once and the filter box and ▲ don't collide.
 
@@ -1915,7 +1929,7 @@ behind it, you can't see where the keyboard is, and right-click menus have no ar
 2. **A visible focus outline** for keyboard users — today only the note editor has a focus style.
 3. **Keyboard access to the right-click menus** — Down / Up move, Enter runs, Esc closes (Esc already works).
 4. **Keyboard navigation in the left pane** (moved here 2026-11-03 from "Leftover desktop polish") — including Home /
-   End for its jumps to top and bottom ("Left pane: put the jump-to-top / bottom buttons by the scrollbar").
+   End for its jumps to top and bottom ("Jump-to-top / bottom buttons by the scrollbar, in both panes").
 
 **Decided** (Ron + Claude, 2026-11-03, in the TODO review)
 1. **Moved up from After launch to Polish** — since 7.18 it's small: every window goes through one `<Dialog>`, every menu
