@@ -7,6 +7,7 @@
       - [One logging module: severity, area and ID for every message; a display threshold, an always-on log, a reader](#one-logging-module-severity-area-and-id-for-every-message-a-display-threshold-an-always-on-log-a-reader)
       - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
+      - [One table for every move, copy, paste and delete: what each gesture does in each place](#one-table-for-every-move-copy-paste-and-delete-what-each-gesture-does-in-each-place)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
@@ -356,7 +357,7 @@ selection before and after.
 3. **Don't ship single-only** — that's more confusing than neither.
 4. **One operation for every way in:** the key and the folder right-click menu's Delete both use one
    `deleteFolders(…)` operation, so they can't disagree.
-5. **Delete's rules go in the one table** (Ron + Claude, 2026-11-06 — "Move and copy books anywhere" item 13–16):
+5. **Delete's rules go in the one table** (Ron + Claude, 2026-11-06 — "One table for every move, copy, paste and delete…", just below):
    what Del does depends on what's selected and where you are, the same kind of rows as move / copy. This fix is the
    table's **first user**: its design doc (the whole matrix, for Ron's red pen) is written first, then the Delete rows
    are built and tested; move / copy / paste follow in their own task.
@@ -365,6 +366,53 @@ selection before and after.
 - Today: `if (e.key === 'Delete' && !isSpecialFolder && getSelectedBookIds().length === 0) await deleteFolder(currentFolder)`
   — uses the current folder instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch
   confirm and one compound undo — the new `deleteFolders(folders)`. Surfaced during the operations refactor.
+
+#### One table for every move, copy, paste and delete: what each gesture does in each place
+<!-- id 20261106-1237 -->
+
+_Why it matters:_ "Where can books be pasted?" was answered by four lists in the code that disagreed (2026-11-06): Ctrl+V
+refused the Inbox while the menu allowed it, and a cut pasted into a Book List or the Trash took the book out of its
+folder and put it nowhere, then said "Pasted". Law 4 (Ron, 2026-11-06): the 2nd related break means a missing structure
+— one table, read by one function every gesture calls, not a fifth list.
+
+**Decided** (Ron + Claude, 2026-11-06)
+1. **Two small tables, one function** — `decide(gesture, what, from, to)`:
+   - **gesture → verb:** Ctrl+X then paste = move, Ctrl+C then paste = copy, Shift-drag = move, Ctrl-drag = copy, a
+     plain drag = move within one kind / copy across kinds ("Move and copy books anywhere" decisions 6–7), right-click
+     Move to / Copy to / Add to Book List >, Delete;
+   - **verb × what's moved × from × to → outcome:** do it, with its effects (add / take out of the source / re-file /
+     last folder → Inbox) and its receipt; refuse, **with the reason's words in the table**; or ask.
+2. **The table drives everything that answers "can I do this here?":** the keys and drags; the right-click menus' enabled
+   / greyed items and their "why" tooltips (Law 16); the drag's live label; the tests — a function test fails if any
+   combination has no row (like bookMerge.js's ownership registry), and screen tests check each gesture goes through it.
+   A pure module, node-tested (the bookFields.js precedent). The work itself goes through the existing operations
+   (`moveItems`, the delete operation) — the table decides, it doesn't do.
+3. **Delete joins it** — what Del does depends on what's selected and where you are. "The Delete key deletes the folder
+   you're in…" (above) is the table's **first user**.
+4. **Design doc first, for Ron's red pen:** the whole matrix as readable tables (rows = from, columns = to, one table
+   per verb and per kind of thing moved), with **today's behavior** beside the decided one — today's measured by a
+   screen test that tries every cell (the LOGGING.md pattern; the 2026-11-06 paste probe was its first slice).
+
+**The survey — at a minimum** (Ron asked, 2026-11-06)
+- **Every gesture:** Ctrl+X / Ctrl+C / Ctrl+V; drag — plain, Shift, Ctrl — in the right pane, the left pane and between
+  them; right-click Move to / Copy to / **Add to Book List >** / Remove from list / Delete; the Delete key; Restore from
+  the Trash; the left pane's own drags (a folder onto a folder, onto a Book List, between two Book List entries — "Move
+  and copy books anywhere" decision 10); reordering (folders, pins, Book Lists, books in Manual order); the phone's
+  gestures (mobile.js), if any reach the same operations; the keyboard in the left pane.
+- **What's moved:** one book, several, books and folders together; a folder (with subfolders); a Book List; a Search.
+- **From / to — every kind of place:** a folder (top level, subfolder, pinned), the Inbox, All Books, the library view,
+  a Search, a Book List, the Trash, the Removed books review, the section headers (Searches / Book Lists / Folders), a
+  left-pane position between entries, the place itself (pasting where it came from).
+- **The book's situation:** in one folder or several (last folder → Inbox), already in the destination, hidden, in the
+  Trash, a wishlist / sample / owned book, filtered out of view.
+- **Each cell's outcome:** do / refuse / ask; the receipt or refusal wording; one undo step; what the menu shows there.
+- **Where the code answers today** (the site map — two independent searches, Law 5): the four paste lists (see "Move
+  and copy books anywhere" → How), Ctrl+X's refusal list (~5223), every `isSpecialFolder` variant, each menu's
+  enable / disable condition, the drop-target highlighting ("no fake drop signals", its decision 11), the integrity
+  check's repair (books in no folder → Inbox).
+
+**Related:** "Move and copy books anywhere" (Polish) holds the move / copy semantics this table encodes; its decisions
+become rows. 7.25.1 fixes Ctrl+V's harmful cells by those decisions ahead of the table (the stopgap the table replaces).
 
 #### Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)
 <!-- id 20261024-1045 -->
@@ -1526,7 +1574,11 @@ half-done move, not a bad gesture: the cure is complete moves, not forbidding th
 3. **A book that leaves its last folder goes to the Inbox** — "every book is in at least one folder" is a design rule
    the app enforces (integrity.js: books with no folder are repaired into the Inbox), and the Inbox means "not filed
    yet". No dialog; the receipt says it: *"Moved 'Dune' to 'Beach Reads' — it's no longer in any folder, so it's in the
-   Inbox."* Undo if you didn't want that.
+   Inbox."* Undo if you didn't want that. **Re-checked 2026-11-06** (Ron asked, with the least-astonishment principle in mind:
+   refuse instead?): keep it. Cut says "take it out of here", so leaving the folder is what the user predicted; the
+   Inbox step can't be avoided, only made manual (Add to Book List >, then remove from the folder → the same Inbox);
+   a command that doesn't do what it says is the bigger astonishment; and Ctrl+X is an explicit verb (Law 18 corollary
+   4), unlike a plain drag. Only the LAST folder sends a book to the Inbox — a book filed elsewhere just leaves.
 4. **Copy works everywhere** — it only adds the book to the destination. Book Lists keep **Move to** and **Copy to** in
    their right-click menu.
 5. **One rule, asked by every gesture** (menu, drag, keyboard) — a class of sites: list them with two independent
@@ -1565,24 +1617,9 @@ different one; Ctrl always copies, Shift always moves)
     last may be done._
 12. **On ship:** update SUPPORT-KB §8 and §6 (they describe today's behavior).
 
-**The one table** (Ron + Claude, 2026-11-06 — Law 4: "the 2nd related break" means a missing structure)
-13. **Every gesture asks ONE function, which reads ONE table** — no rule written in a gesture's own code. Two small
-    tables:
-    - **gesture → verb:** Ctrl+X then paste = move, Ctrl+C then paste = copy, Shift-drag = move, Ctrl-drag = copy, a
-      plain drag = move within one kind / copy across kinds (decisions 6–7), right-click Move to / Copy to;
-    - **verb × what's moved (books, a folder, a Book List) × from × to → the outcome:** do it, with its effects (add /
-      take out of the source / re-file / last folder → Inbox); refuse, **with the reason's words in the table**; or ask.
-      From / to: a folder, the Inbox, All Books, a Search, a Book List, the Trash, a left-pane position (decision 10).
-14. **The table drives everything that answers "can I do this here?":** the keys and drags; the right-click menus'
-    enabled / greyed items and their "why" tooltips (Law 16); the drag's live label (decision 8); and the tests — a
-    function test fails if any combination has no row (like bookMerge.js's ownership registry), and screen tests check
-    each gesture goes through it. A pure module, node-tested (the bookFields.js precedent).
-15. **Delete joins it** — what Del does depends on what's selected and where you are (a folder, All Books, a Book List,
-    the Trash): rows of the same kind. "The Delete key deletes the folder you're in…" (next in the order of work) is the
-    table's first user.
-16. **Design doc first, for Ron's red pen:** the full matrix as readable tables (rows = from, columns = to, one per verb),
-    with TODAY's behavior beside the decided one — today's measured by a screen test that tries every cell (the
-    LOGGING.md pattern).
+**The one table** (Ron + Claude, 2026-11-06): every gesture's move / copy / paste rule becomes a row of ONE table —
+see "One table for every move, copy, paste and delete…" (High, after the Delete key task). These decisions are its
+rows.
 
 **How (technical)**
 - **Where "can books be pasted here?" is answered today — four lists that disagree** (found 2026-11-06, the logging
