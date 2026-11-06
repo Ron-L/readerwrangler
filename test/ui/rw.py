@@ -208,6 +208,21 @@ class App:
                if t in ("error", "warning") and not any(re.search(p, x) for p, _ in KNOWN_NOISE)]
         return out + [f"crash: {c[:200]}" for c in self.crashes]
 
+    def console_matching(self, pattern):
+        return [x for _, x in self.console if re.search(pattern, x)]
+
+    def open_tab(self, path="readerwrangler.html", wait_for_app=True):
+        """A second tab in the same browser — it shares the book store and the saved settings with the first, exactly as
+        two of Ron's tabs do (2026-11-06, the Reset tests). Returns (page, its console lines)."""
+        page = self.ctx.new_page()
+        log = []
+        page.on("console", lambda m: log.append((m.type, m.text)))
+        page.on("pageerror", lambda e: log.append(("crash", str(e))))
+        page.goto(f"http://localhost:{self.port}/{path}")
+        if wait_for_app:
+            page.wait_for_selector("#splash", state="detached", timeout=APP_TIMEOUT_MS)
+        return page, log
+
     # --- layout (2026-11-06: the status bar covered the right pane's scrollbar when the Cloud Sync icon made it taller) ---
     def covered_scroll_boxes(self):
         """Every scroll area (outside dialogs and the status bar) must end at or above the status bar's top, and where
