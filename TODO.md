@@ -409,7 +409,14 @@ folder and put it nowhere, then said "Pasted". Law 4 (Ron, 2026-11-06): the 2nd 
 - **Where the code answers today** (the site map — two independent searches, Law 5): the four paste lists (see "Move
   and copy books anywhere" → How), Ctrl+X's refusal list (~5223), every `isSpecialFolder` variant, each menu's
   enable / disable condition, the drop-target highlighting ("no fake drop signals", its decision 11), the integrity
-  check's repair (books in no folder → Inbox).
+  check's repair (books in no folder → Inbox). **Also found 2026-11-06:** a SECOND keyboard handler (readerwrangler.js,
+  "Keyboard shortcuts for folder operations", ~5390) answers Ctrl+X / C / V too, on a separate folder clipboard — one
+  Ctrl+C on a selected book was seen copying the current folder as well (timing-dependent; no harm reproduced); and the
+  main keyboard listener's dependency list omits the clipboard (stale-closure risk — paste now reads it through a ref).
+- **Built ahead of the table, in 7.25.1** (the stopgap it replaces — the operations stay): one paste for Ctrl+V and the
+  menu (`pasteClipboard`), one answer to "can books be pasted here?" (`pasteRefusal`: a real folder — the Inbox included
+  — or a Book List), and the Book List paste (`pasteBooksIntoBookList`: copy adds; cut moves, last folder → Inbox, one
+  undo step `PASTE_TO_BOOKLIST_CUT`). Tests PASTE-001–009 — the start of this table's paste rows.
 
 **Related:** "Move and copy books anywhere" (Polish) holds the move / copy semantics this table encodes; its decisions
 become rows. 7.25.1 fixes Ctrl+V's harmful cells by those decisions ahead of the table (the stopgap the table replaces).
@@ -1629,7 +1636,9 @@ rows.
   ~5404 (adds the Searches header) and ~18406 (adds `__my__`). None names a Book List, a Search or the Trash. Ctrl+V's
   paste is also hand-written (its own `setFolders`), not `moveItems` — the one move/copy operation the menu and drag use.
 - Today: Ctrl+X is refused only in All Books / the library view (readerwrangler.js ~5223); in a Book List or Search it
-  records the view as the source, but paste-cut only removes from **folders**, so the book stays in the list. Found in
+  records the view as the source, but paste-cut only removes from **folders**, so the book stays in the list. (Still
+  true for a cut from a Book List pasted into a FOLDER after 7.25.1; a cut from a Book List pasted into another Book List
+  now leaves the first list — 7.25.1's Book List paste.) Found in
   7.10.1-alpha.7, filed not fixed.
 
 #### Retire two leftover book fields: the hidden "seen" flag and the old price-goal field

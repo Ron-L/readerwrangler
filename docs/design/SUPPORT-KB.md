@@ -202,7 +202,11 @@ Ctrl+click, Shift+click for ranges, Ctrl+A for all). Plain **drag moves; Ctrl+dr
 the toast confirms which happened (kept in the 🕐 message log by the status bar — see §13). Right-click → **Move to ▸ / Copy to ▸** offers the folder
 tree as a menu (in your sidebar's order), including "New folder…" targets. Cut/copy/paste
 works too: Ctrl+X marks books with a dashed "marching ants" border — **nothing moves until
-you paste** into the destination folder (Esc cancels a pending cut from anywhere).
+you paste** into the destination folder (Esc cancels a pending cut from anywhere). **Pasting into a Book List**
+(7.25.1): a copy adds the books to the list; a cut **moves** them — out of the folder they were cut from, onto the list —
+and a book that leaves its **last** folder goes to the Inbox (every book lives in a folder; the Inbox means "not filed
+yet"); the message says so, and Ctrl+Z puts it all back. Paste can't go into All Books or the Trash — it says why (to put
+books in the Trash, press Delete).
 
 **Can a book be in two folders?** Yes — a deliberate copy (Ctrl+drag or Copy to) gives it two
 homes; both show the same book. Hover a cover to see everywhere it lives ("Found in… / On
@@ -732,7 +736,7 @@ The app's own list: Help → **Keyboard Shortcuts**. The core set:
 |---|---|
 | Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) | Undo / Redo (toasts name the target) |
 | Ctrl+A | Select all in the current view · **in a window (7.19.0): acts on the part you last clicked** — a title or paragraph → just that text; a checkbox list → checks that whole list (= its Select all); nothing clicked yet → the main text. Button labels are never selected. · in a hover popup you've clicked: select its text |
-| Ctrl+X / Ctrl+C / Ctrl+V | Cut (marks) / Copy / Paste books into the current folder |
+| Ctrl+X / Ctrl+C / Ctrl+V | Cut (marks) / Copy / Paste books into the current folder or Book List |
 | Ctrl+Click / Shift+Click | Multi-select / range-select |
 | DEL | Delete selection (context-aware — see §12) |
 | Esc | Close the innermost menu or window (one press per layer — closing a menu keeps your selection) · otherwise cancel pending cut · clear selection |
