@@ -356,6 +356,10 @@ selection before and after.
 3. **Don't ship single-only** — that's more confusing than neither.
 4. **One operation for every way in:** the key and the folder right-click menu's Delete both use one
    `deleteFolders(…)` operation, so they can't disagree.
+5. **Delete's rules go in the one table** (Ron + Claude, 2026-11-06 — "Move and copy books anywhere" item 13–16):
+   what Del does depends on what's selected and where you are, the same kind of rows as move / copy. This fix is the
+   table's **first user**: its design doc (the whole matrix, for Ron's red pen) is written first, then the Delete rows
+   are built and tested; move / copy / paste follow in their own task.
 
 **How (technical)**
 - Today: `if (e.key === 'Delete' && !isSpecialFolder && getSelectedBookIds().length === 0) await deleteFolder(currentFolder)`
@@ -1561,7 +1565,32 @@ different one; Ctrl always copies, Shift always moves)
     last may be done._
 12. **On ship:** update SUPPORT-KB §8 and §6 (they describe today's behavior).
 
+**The one table** (Ron + Claude, 2026-11-06 — Law 4: "the 2nd related break" means a missing structure)
+13. **Every gesture asks ONE function, which reads ONE table** — no rule written in a gesture's own code. Two small
+    tables:
+    - **gesture → verb:** Ctrl+X then paste = move, Ctrl+C then paste = copy, Shift-drag = move, Ctrl-drag = copy, a
+      plain drag = move within one kind / copy across kinds (decisions 6–7), right-click Move to / Copy to;
+    - **verb × what's moved (books, a folder, a Book List) × from × to → the outcome:** do it, with its effects (add /
+      take out of the source / re-file / last folder → Inbox); refuse, **with the reason's words in the table**; or ask.
+      From / to: a folder, the Inbox, All Books, a Search, a Book List, the Trash, a left-pane position (decision 10).
+14. **The table drives everything that answers "can I do this here?":** the keys and drags; the right-click menus'
+    enabled / greyed items and their "why" tooltips (Law 16); the drag's live label (decision 8); and the tests — a
+    function test fails if any combination has no row (like bookMerge.js's ownership registry), and screen tests check
+    each gesture goes through it. A pure module, node-tested (the bookFields.js precedent).
+15. **Delete joins it** — what Del does depends on what's selected and where you are (a folder, All Books, a Book List,
+    the Trash): rows of the same kind. "The Delete key deletes the folder you're in…" (next in the order of work) is the
+    table's first user.
+16. **Design doc first, for Ron's red pen:** the full matrix as readable tables (rows = from, columns = to, one per verb),
+    with TODAY's behavior beside the decided one — today's measured by a screen test that tries every cell (the
+    LOGGING.md pattern).
+
 **How (technical)**
+- **Where "can books be pasted here?" is answered today — four lists that disagree** (found 2026-11-06, the logging
+  comb's finding F1): Ctrl+V refuses All Books, the library view AND the Inbox (readerwrangler.js ~5255, and silently —
+  only a console line); the book right-click menu's Paste refuses only All Books and the library view (~18936 — its
+  comment: "v6.0.0-alpha.53 - Inbox is a real folder, allow Cut/Move/Paste", which Ctrl+V missed); two more lists at
+  ~5404 (adds the Searches header) and ~18406 (adds `__my__`). None names a Book List, a Search or the Trash. Ctrl+V's
+  paste is also hand-written (its own `setFolders`), not `moveItems` — the one move/copy operation the menu and drag use.
 - Today: Ctrl+X is refused only in All Books / the library view (readerwrangler.js ~5223); in a Book List or Search it
   records the view as the source, but paste-cut only removes from **folders**, so the book stays in the list. Found in
   7.10.1-alpha.7, filed not fixed.
