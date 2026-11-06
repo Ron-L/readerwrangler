@@ -64,6 +64,7 @@
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
       - ["Bake this order into Manual" for a folder's books and a Book List, from the Sort menu](#bake-this-order-into-manual-for-a-folders-books-and-a-book-list-from-the-sort-menu)
       - [Small fixes](#small-fixes)
+        - [What a reset clears: four resets, four different lists](#what-a-reset-clears-four-resets-four-different-lists)
         - [Tidy up the notes](#tidy-up-the-notes)
         - [Leave the affiliate tag off Amazon links on the test rig](#leave-the-affiliate-tag-off-amazon-links-on-the-test-rig)
         - [Switch the affiliate tag to "readerwrangler-20"](#switch-the-affiliate-tag-to-readerwrangler-20)
@@ -2069,6 +2070,34 @@ isn't Manual** (readerwrangler.js `bakeOrderToManual`, ~3595; menu ~15947).
 Position dialog — see "Series positions…").
 
 #### Small fixes
+
+##### What a reset clears: four resets, four different lists
+<!-- id 20261106-1715 -->
+
+_Why it matters:_ "Reset" should mean the same thing everywhere. The app has four resets and each clears its own hand-kept
+list of saved settings — so an Emergency Reset can leave things a Reset App clears, and old Book Lists may come back
+(Law 4: four answers to one question = one missing list). Found 2026-11-06 while fixing F3 (all four now share ONE
+delete of the book store, storage.js `deleteBookStore` — 7.25.1).
+
+**What each clears today** (besides the book store; checked 2026-11-06)
+
+| Saved setting | Tools → Reset App | "Erase and Reset" (app won't load) | Emergency Reset page | Phone's Reset |
+|---|---|---|---|---|
+| library state, cache, status, filters, view, folders | ✅ | ✅ | ✅ | ✅ |
+| **Book Lists** (`readerwrangler-booklists`) | ✅ | ❌ | ❌ | ❌ |
+| settings (`readerwrangler-settings`) | ❌ | ✅ | ✅ | ✅ |
+| theme, phone preferences | ❌ | ✅ | ❌ | ✅ |
+| Cloud Sync credentials + status | ❌ (kept) | ❌ (kept) | ❌ (kept) | ✅ (says so in its confirm) |
+| wizard settings, search history, phone navigation, desktop mode | mixed — see the four lists |
+
+- **Likely bug:** the library load falls back to the separate Book Lists entry when no saved organization exists
+  (readerwrangler.js ~4489) — so after any reset but Reset App, the old Book Lists may reappear. Check with a test.
+- Where: readerwrangler.js `confirmReset` (~6400); readerwrangler.html (the inline emergency reset, ~372); reset.js
+  `STORAGE_KEYS`; mobile.js `handleReset` (~2815).
+
+**To decide (Ron):** what a reset clears — everything, or everything but the Cloud Sync Key (the desktop keeps it, the
+phone clears it — deliberate?) — then ONE list (with the delete, in storage.js), every reset calls it, and a test
+compares the browser's storage after each reset.
 
 ##### Tidy up the notes
 <!-- id 20261020-1448 -->

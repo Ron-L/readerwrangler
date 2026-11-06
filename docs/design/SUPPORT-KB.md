@@ -766,6 +766,8 @@ row — the menus are where the power hides.
 | Loading feels stuck / "Page Unresponsive" | The app compiles in your browser on every load (~15–25s); the loading screen says so | Wait it out — don't reset |
 | "Sync data check failed / checksum mismatch" | A Relay write was interrupted (rare since v7's sealed-packet sync) | Follow the dialog: full fetch rebuilds, then import — local data is intact |
 | Slow first "Checking pending additions" | First fetch after new relay data does extra accounting | Let it run; later fetches are quick |
+| "ReaderWrangler was reset in another tab. This tab's contents are out of date." (7.25.1) | Reset App ran in another tab of the same browser; this tab still shows the library from before, and stopped saving so it can't bring that library back | Press **Reload** |
+| Reset App says "Close your other ReaderWrangler tabs to finish the reset" (7.25.1) | Another tab still holds the library open (usually one running an older version) | Close the other ReaderWrangler tabs — the reset finishes by itself |
 | Bookmarklet fetches the wrong library / mismatch warning | Bookmarklet carries older credentials than the app | Recreate the bookmarklet from Relay Setup |
 
 ## 20. A suggested way to organize (one of many)

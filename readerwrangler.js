@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.25.1-alpha.3";  // Build version for this file
+        const ORGANIZER_VERSION = "7.25.1-alpha.4";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -212,7 +212,7 @@
         const IS_CONTRIBUTOR = isContributor();
         document.title = IS_CONTRIBUTOR ? "ReaderWrangler (local · contributor)" : IS_LOCAL_HOST ? "ReaderWrangler (local)" : "ReaderWrangler";
         // Constants and helper functions moved to uiHelpers.js and storage.js (v5.0.0)
-        // saveBooksToIndexedDB, loadBooksFromIndexedDB, clearIndexedDB - see storage.js
+        // saveBooksToIndexedDB, loadBooksFromIndexedDB, deleteBookStore, onBookStoreGone - see storage.js
         // normalizeBook, parsePrice, getAmazonUrl, calculateFreshness, formatRelativeTime - see uiHelpers.js
         // buildCoverUrlMap, populateCoverCache - see storage.js
 
@@ -1348,6 +1348,7 @@
             const [integrityResults, setIntegrityResults] = useState(() => loadIntegrityResults()); // v6.3.0
             const [integrityCheckPending, setIntegrityCheckPending] = useState(false); // v6.3.0 - triggers post-import check
             const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+            const [bookStoreGone, setBookStoreGone] = useState(null); // 7.25.1 - 'reset' / 'upgraded' by another tab (storage.js)
             const [collectionsData, setCollectionsData] = useState(null); // Map of ASIN -> {readStatus, collections[]}
             const [collectionFilter, setCollectionFilter] = useState(''); // Filter by collection name or special values
             // v4.8.0 - Undo/Redo state
@@ -5023,6 +5024,14 @@
 
             // v5.0.0-alpha.175.49.1 - Removed settings save useEffect (dead code, settings state removed in v175.48)
 
+            // 7.25.1 - Another tab reset (or upgraded) the book store, so this tab's library is out of date. storage.js has
+            // already let go of the store and refuses book saves; close the organization gate too, so nothing here writes
+            // the old folders back (that half-undid a reset), and show the one-button window below. RESET-002/003.
+            useEffect(() => onBookStoreGone((state) => {
+                orgLoadedRef.current = false;
+                setBookStoreGone(state);
+            }), []);
+
             // Save libraryStatus and collectionsStatus to localStorage (v3.7.0.n)
             useEffect(() => {
                 // v7.7.0-alpha.1 (F1) - Load gate: don't stamp defaults over the saved statuses on mount
@@ -6399,7 +6408,10 @@
             const confirmReset = async () => {
                 setResetConfirmOpen(false);
                 try {
-                    await clearIndexedDB();
+                    // 7.25.1 - a delete another tab blocks is WAITED for, saying why (it said "done" before — RESET-004)
+                    let waitBox = null;
+                    await deleteBookStore({ onBlocked: () => { if (!waitBox) waitBox = showProgressDialog('Reset App', BOOK_STORE_TEXT.blocked); } });
+                    if (waitBox) waitBox.close();
                     localStorage.removeItem(STORAGE_KEY);
                     localStorage.removeItem(CACHE_KEY);
                     localStorage.removeItem(STATUS_KEY); // v3.7.0.n - clear saved status
@@ -11884,6 +11896,22 @@
                                         </button>
                                     </div>
                                 </div>
+                        </Dialog>
+                    )}
+
+                    {/* 7.25.1 - ANOTHER tab reset (or upgraded) the book store: this tab is out of date. One button, nothing to
+                        dismiss — every edit here would be lost or would bring the old library back (Law 18's exception:
+                        there's no intent left to honor but reloading). Words from storage.js BOOK_STORE_TEXT (Ron's). */}
+                    {bookStoreGone && (
+                        <Dialog onClose={() => {}} showClose={false} zIndexClass="z-[100]" maxWidthClassName="max-w-md">
+                            <div className="p-6">
+                                <h2 data-select-text className="text-lg font-semibold text-gray-900 mb-2">{BOOK_STORE_TEXT.goneTitle(bookStoreGone)}</h2>
+                                <p data-dialog-body className="text-sm text-gray-700 mb-5">{BOOK_STORE_TEXT.goneBody}</p>
+                                <div className="text-right">
+                                    <button onClick={() => location.reload()} autoFocus
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Reload</button>
+                                </div>
+                            </div>
                         </Dialog>
                     )}
 
