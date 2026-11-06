@@ -96,7 +96,7 @@ with App() as app:
          row("x", ONLY_SCIFI, "Science Fiction", "Read Next",
              {"Inbox": (2, 3), "Science Fiction": (5, 4), "Read Next": (3, 4)},
              ["Moved 'A Book With No Description' from 'Science Fiction' to 'Read Next'.",
-              "It's in no folder now, so it's in the Inbox."]))
+              "It wasn't in any other folder, so it went to the Inbox."]))
     test("PASTE-003", "cut → a Book List from one of a book's TWO folders: it leaves that folder only, no Inbox",
          row("x", TWO_FOLDERS, "Fantasy", "Read Next", {"Fantasy": (5, 4), "Read Next": (3, 4)},
              ["Moved 'Written Together' from 'Fantasy' to 'Read Next'."]))

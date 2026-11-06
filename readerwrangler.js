@@ -115,7 +115,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.25.1-alpha.2";  // Build version for this file
+        const ORGANIZER_VERSION = "7.25.1-alpha.3";  // Build version for this file
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -2146,9 +2146,10 @@
                 const from = sourceFolder ? ` from '${sourceFolder.name}'` : sourceList ? ` from '${sourceList.name}'` : '';
                 const n = sentToInbox.length;
                 const inbox = n === 0 ? ''
-                    : ids.length === 1 ? " It's in no folder now, so it's in the Inbox."
-                    : n === 1 ? " 1 is in no folder now, so it's in the Inbox."
-                    : ` ${n} are in no folder now, so they're in the Inbox.`;
+                    // (7.25.1-alpha.3, Ron: "in no folder… in the Inbox" contradicted itself — the Inbox IS a folder; say the reason)
+                    : ids.length === 1 ? " It wasn't in any other folder, so it went to the Inbox."
+                    : n === 1 ? " 1 wasn't in any other folder, so it went to the Inbox."
+                    : ` ${n} weren't in any other folder, so they went to the Inbox.`;
                 showToast(`${moved ? 'Moved' : 'Added'} ${bookCountLabel(ids)}${moved ? from : ''} to '${bl.name}'.${inbox}`);
             };
             const applyBookListCut = (a) => {

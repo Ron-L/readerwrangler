@@ -1580,8 +1580,9 @@ half-done move, not a bad gesture: the cure is complete moves, not forbidding th
      books). Book Lists are never touched by a move — only Delete reaches them.
 3. **A book that leaves its last folder goes to the Inbox** — "every book is in at least one folder" is a design rule
    the app enforces (integrity.js: books with no folder are repaired into the Inbox), and the Inbox means "not filed
-   yet". No dialog; the receipt says it: *"Moved 'Dune' to 'Beach Reads' — it's no longer in any folder, so it's in the
-   Inbox."* Undo if you didn't want that. **Re-checked 2026-11-06** (Ron asked, with the least-astonishment principle in mind:
+   yet". No dialog; the receipt says it: *"Moved 'Dune' from 'Fantasy' to 'Beach Reads'. It wasn't in any other folder,
+   so it went to the Inbox."* (wording Ron + Claude 2026-11-06 — "no folder… in the Inbox" contradicted itself: the
+   Inbox IS a folder). Undo if you didn't want that. **Re-checked 2026-11-06** (Ron asked, with the least-astonishment principle in mind:
    refuse instead?): keep it. Cut says "take it out of here", so leaving the folder is what the user predicted; the
    Inbox step can't be avoided, only made manual (Add to Book List >, then remove from the folder → the same Inbox);
    a command that doesn't do what it says is the bigger astonishment; and Ctrl+X is an explicit verb (Law 18 corollary
