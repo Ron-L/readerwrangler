@@ -3,7 +3,6 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [✅ Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut](#carry-over-the-utilities-projects-improvements-the-browser-driver-a-parse-check-for-every-script-the-open-shortcut)
       - [One logging module: severity, area and ID for every message; a display threshold, an always-on log, a reader](#one-logging-module-severity-area-and-id-for-every-message-a-display-threshold-an-always-on-log-a-reader)
       - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
@@ -176,64 +175,6 @@ In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**
 7. The rest of the TODO.
 
 ### High priority
-
-#### ✅ Carry over the utilities project's improvements: the browser driver, a parse check for every script, the "open" shortcut
-<!-- id 20261031-1701 -->
-
-**Done 2026-11-04** (branch `feature/carry-over`): the parse check; the regression library's runner, harness and
-tier-1 commit check; the project venv with Playwright 1.64.1 driving the installed Edge; the shared screen-test setup
-(`test/ui/rw.py`, with `hover()` / `click_reachable()`) and the made-up fixture library; the first screen tests; the
-utilities project's Laws 18 and 21 in PRINCIPLES (under Laws 3 and 8). Playwright was picked over copying
-`drive_page.mjs` (the tool survey). The "open" shortcut moved to its own task: "The 'open' shortcut: start serve.py if
-needed and open the app".
-
-_Why it matters:_ The utilities project (Hsv-Utilities-App) built three things RW lacks: a way for Claude to test the
-UI the way Ron uses it (real clicks, drags, keys, hovers — then read what is really on screen), a commit check that
-refuses any script that doesn't parse, and an "open" shortcut. Its own list of these (its docs/DESIGN.md §12) was
-handed over to this TODO on 2026-10-31 — this is now the only record (items 2–3 there, the private-value checks and
-the history scan, shipped the same day).
-
-**Decided** (Ron + Claude, 2026-10-31)
-1. **The browser driver** — copy `tools/drive_page.mjs` from the utilities project (real browser-level mouse and
-   keyboard through Edge's debugging port; `hover` reports what is actually under the pointer, refuses a covered or
-   zero-size target):
-   - a **throwaway browser profile** (a fresh temp folder, deleted at close) — Ron's real browser is never touched;
-   - **Ron's latest backup with its credentials removed** — so tests run at his scale, not the demo's (Ron:
-     "restore from my latest backup … just don't use my credentials"); the test copy of the app then has no Cloud
-     Sync and never contacts either relay; loaded through the real File → Restore path (add a "pick this file" helper);
-   - **`serve.py` on its own test port**, started and stopped by the test (it already takes a port);
-   - **only ReaderWrangler's pages, never Amazon's** (book covers still load from Amazon's image servers, as in
-     normal use); screenshots stay in Claude's scratch folder;
-   - **Edge** (Ron, 2026-10-31: "Edge is fine" — the same engine as Chrome);
-   - the utilities project's Law 18 ("reproduce a reported problem with real input before explaining it") and Law 21
-     ("test what a person reaches by going there the way they would") go into RW's PRINCIPLES as enforcement under
-     Laws 3 and 8.
-2. **A parse check for every script** — port the utilities project's pre-commit `syntax_errors`: every STAGED `.js`,
-   `.mjs` and `.py` must parse. Today `git-hooks/check-names.js` parses only the scripts `readerwrangler.html` loads
-   (plus its inline scripts and mobile.js) and reads them from disk, not as staged — so the fetchers and the bookmarklet
-   menu (shipped code that runs on Amazon's pages), the relay worker, `reset.js`, the `.mjs` tests and every Python
-   file are unchecked (checked 2026-10-31).
-3. **The "open" shortcut + `tools/shortcuts.py`** (later — a convenience): opens the page, starting `serve.py` first if
-   it isn't running; `shortcuts.py` writes the shortcut(s). The open half only — no restart or shutdown: `serve.py`
-   only serves files and rarely changes, and it listens on the home network on purpose, so an off switch any device
-   there could press gains nothing (the utilities project's decision).
-
-**How (technical)**
-- Sources: `C:\Users\Ron\Projects\Hsv-Utilities-App\tools\drive_page.mjs`, `…\hooks\pre-commit` (`syntax_errors`),
-  `…\tools\shortcuts.py`; its PRINCIPLES Laws 18 and 21. RW's own rules govern the work here (branch, commit checks).
-- A test stops what it started by its exact process id (Law 5, 7.25.0).
-- **The testing plan is docs/design/TESTING.md** (Ron + Claude, 2026-11-04): this task builds its §9 first steps — the
-  parse check, the runner (`tools/run_tests.py`: tiers, tags, IDs, `--changed`), the driver (Playwright for Python +
-  the installed Edge; Playwright's command-line tool for Claude's ad-hoc looks), the fixture library's first version.
-- **Before building, weigh Playwright against copying `drive_page.mjs`** (Ron, 2026-10-31). Microsoft's Playwright —
-  its agent CLI (`npm install -g @playwright/cli`) or its library — is maintained, records video and traces (the
-  screen capture pass's scripted reel), and checks before every click that the target is visible and not covered
-  (Law 21, built in). `drive_page.mjs` is 121 lines, no dependency, already proven on the utilities project. Pick
-  one; port `hover`'s "what is under the pointer" report if it's Playwright.
-- **Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): Playwright's command-line tool + its skills (`@playwright/cli`) — Microsoft's own
-  pick for coding agents over its tool server; records video natively — and axe-core (`@axe-core/playwright`) for
-  accessibility checks from the same driver. Pin exact versions; test only with the demo library (what the driver
-  shows Claude goes to Anthropic).
 
 #### One logging module: severity, area and ID for every message; a display threshold, an always-on log, a reader
 <!-- id 20261102-1435; merged 20261014-1030m -->
@@ -414,6 +355,8 @@ folder and put it nowhere, then said "Pasted". Law 4 (Ron, 2026-11-06): the 2nd 
   "Keyboard shortcuts for folder operations", ~5390) answers Ctrl+X / C / V too, on a separate folder clipboard — one
   Ctrl+C on a selected book was seen copying the current folder as well (timing-dependent; no harm reproduced); and the
   main keyboard listener's dependency list omits the clipboard (stale-closure risk — paste now reads it through a ref).
+  And a receipt that claims what didn't happen: Ctrl+V of a book into a folder it's already in changes nothing but says
+  *"Pasted 'Written Together' into 'Fantasy'"* (seen 2026-11-06) — an "already there" row needs its own words.
 - **Built ahead of the table, in 7.25.1** (the stopgap it replaces — the operations stay): one paste for Ctrl+V and the
   menu (`pasteClipboard`), one answer to "can books be pasted here?" (`pasteRefusal`: a real folder — the Inbox included
   — or a Book List), and the Book List paste (`pasteBooksIntoBookList`: copy adds; cut moves, last folder → Inbox, one
@@ -2098,6 +2041,11 @@ delete of the book store, storage.js `deleteBookStore` — 7.25.1).
 **To decide (Ron):** what a reset clears — everything, or everything but the Cloud Sync Key (the desktop keeps it, the
 phone clears it — deliberate?) — then ONE list (with the delete, in storage.js), every reset calls it, and a test
 compares the browser's storage after each reset.
+
+**Test gaps from 7.25.1** (filed per TESTING.md §6): RESET-001–005 cover Tools → Reset App only. The emergency "Erase
+and Reset" (needs the app made to fail its load), the phone's Reset (the phone page) and the Emergency Reset page each
+use the shared delete but have no test of their own — including the "Close your other tabs" wait. Build them with this
+task's storage-comparison test.
 
 ##### Tidy up the notes
 <!-- id 20261020-1448 -->

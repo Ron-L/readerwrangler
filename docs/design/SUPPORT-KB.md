@@ -8,7 +8,7 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-10-31 (through release 7.25.0)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-11-06 (through release 7.25.1)** — all sections human-reviewed (§1–21).
 7.25.0: signed relay changes — §2's credentials answer (the passphrase also signs every change) and §14 item 6 (the
 three new refusals); comb for "relay", "revoked", "credentials", "Channel ID", "passphrase": no other wording changed.
 7.24.0: Tag from Collections redesigned + exact-text tag names + undo removes a created tag — §9 rewritten (new Qs:
