@@ -6,6 +6,7 @@
       - [One logging module: level, area and code for every message; an always-on log, a Diagnostics window](#one-logging-module-level-area-and-code-for-every-message-an-always-on-log-a-diagnostics-window)
       - [Logging as its own module: a self-contained folder, one step from a sub-repo](#logging-as-its-own-module-a-self-contained-folder-one-step-from-a-sub-repo)
       - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
+      - [Receipts reach the screen: one screen test per area, not only the log](#receipts-reach-the-screen-one-screen-test-per-area-not-only-the-log)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [One table for every move, copy, paste and delete: what each gesture does in each place](#one-table-for-every-move-copy-paste-and-delete-what-each-gesture-does-in-each-place)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
@@ -348,6 +349,23 @@ Ron's real library (Ron, 2026-11-04: "it would be nice to migrate away").
 **How (technical)**
 - Packed with the app's own book packer (bookFields.js `packBook`), as the small fixture is. TESTING.md §5 gains the
   sizes and the covers when built.
+
+#### Receipts reach the screen: one screen test per area, not only the log
+<!-- id 20261110-1021 -->
+
+_Why it matters:_ Since 7.26.0 every toast goes through the log (`rwLog.log(…, { toast: true })`). If an edit drops the
+`{ toast: true }`, the log still records the line, and no check notices that the person no longer sees it. That
+happened once in 7.26.0, to the tag-delete receipt: it was found and fixed during the build, but not by any test (the
+post-mortem's "bug no test would have caught").
+
+**Done already (2026-11-10, Ron's yes):** `test/ui/test_tags.py` — TAGS-001 (delete one tag) and TAGS-002 (delete
+two ticked tags) check that the receipt is on screen, on top and readable. Both were seen to fail with the receipts'
+`{ toast: true }` removed.
+
+**The rest — the class:** one such check for each area's main confirmation (ORG: create, rename, delete a folder, Book
+List or Search; EDIT: a book's details saved, Bulk Edit; MOVE: a move's receipt; UNDO: Undo / Redo; BACKUP: Save Backup;
+SYNC: Import from Relay's summary; AUTO; SHARE…), through the same helper (a toast holding the words, reached by the
+pointer). **When:** after "Faster loading" (each screen test then starts in about a second instead of ~35).
 
 #### The Delete key deletes the folder you're in — not the folders you selected
 <!-- id 20261014-1030ay -->
