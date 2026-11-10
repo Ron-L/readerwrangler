@@ -60,6 +60,7 @@ def _runner():
             pass
         sys.exit(1)
 
+
 TODO = 'TODO.md'
 FORMAT_START = 'aafe5dc'          # 2026-10-14: the TODO became one header per task
 OUT = os.path.join(REPO, 'tools', 'backlog-report.html')
@@ -123,6 +124,14 @@ DONE_WITHOUT_CHECKMARK = {   # finished and removed in a release without first g
 # Commits whose ✅ marks RECOGNIZED work finished long before (the 2026-10-14/15 rewrite and done-ness sweep) — not
 # that week's velocity. Those tasks were never really open in this history, so they're left out entirely.
 RECOGNITION_COMMITS = ('34f0904', '3a40645', 'c576517', 'f925ee9', 'a09921f', '75339f3')
+
+# Periods that move the numbers for a reason worth remembering (Ron, 2026-11-10) — shaded and named on the charts, so a
+# spike or dip explains itself later. (first day, last day, name, why). One line per event.
+EVENTS = [
+    (dt.date(2026, 10, 14), dt.date(2026, 11, 4), 'TODO review',
+     'the TODO overhaul (Oct 14-15), then the one-by-one review: tasks filed, merged and dropped ON PURPOSE — high '
+     'amber and grey bars here are the list being sorted, not new work or finished work'),
+]
 
 # Spaces around the ";" are optional (2026-10-22) — keep in step with ID_RE in git-hooks/check-toc.js.
 ID_RE = re.compile(r'^<!-- id (\d{8}-\d{4}[a-z]*)(?:\s*;\s*merged\s+([0-9a-z, \-]+))? -->\s*$')
@@ -417,14 +426,26 @@ def daily_series(recs, snaps):
     while day < base.date():
         approx.append((day, sum(1 for r in pre_recs if r.arrived.date() <= day)))
         day += dt.timedelta(days=1)
-    measured, by_day = [], {}
+    # Measured: each task by its OWN dates (2026-11-10) — open from its ID's time (or the start, for tasks already
+    # listed) until it's done (its ✅, wherever it was made), merged or dropped. Main's clock alone would show a
+    # branch's tasks arriving all at once at the release squash. The section comes from main's latest version that
+    # lists the task, else the section it arrived in.
+    secs, by_day = {}, {}
     for when, opn in snaps:
-        by_day[when.date()] = opn
-    day, last = base.date(), None
+        by_day[when.date()] = {id(r): sec for r, sec in opn}
+
+    def is_open(r, day):
+        if max(r.arrived, base).date() > day:
+            return False
+        if r.done_at and r.done_at.date() <= day:
+            return False
+        return not (r.end in ('merged', 'dropped') and r.end_at.date() <= day)
+    measured, day = [], base.date()
     while day <= snaps[-1][0].date():
-        last = by_day.get(day, last)
-        if last is not None:
-            measured.append((day, len(last), sum(1 for _, sec in last if sec in LAUNCH_SCOPE)))
+        secs.update(by_day.get(day, {}))
+        now_open = [r for r in recs if is_open(r, day)]
+        scope = sum(1 for r in now_open if secs.get(id(r), r.arrival_section) in LAUNCH_SCOPE)
+        measured.append((day, len(now_open), scope))
         day += dt.timedelta(days=1)
     return approx, measured
 
@@ -445,8 +466,26 @@ def weekly_flows(recs, base, now):
 
 # ---------- the page ----------
 
-def svg_line(series, width=760, height=240, y_label=''):
-    """series: [(name, css_var, dashed, [(date, value)])]"""
+def releases():
+    """[(date, 'X.Y.Z')] — every release tag (vX.Y.Z), from git: no list to keep."""
+    out = []
+    for ln in git('for-each-ref', '--format=%(refname:short)\t%(creatordate:short)', 'refs/tags/v*').splitlines():
+        name, _, day = ln.partition('\t')
+        if re.fullmatch(r'v\d+\.\d+\.\d+', name) and day:
+            out.append((dt.date.fromisoformat(day), name[1:]))
+    return sorted(out)
+
+
+def week_shade(start, events=EVENTS):
+    """The tooltip for a week that overlaps an event ('TODO review: why…'), else None."""
+    end = start + dt.timedelta(days=6)
+    hits = [f'{name}: {why}' for first, last, name, why in events if start <= last and end >= first]
+    return '; '.join(hits) or None
+
+
+def svg_line(series, width=760, height=240, y_label='', bands=(), ticks=()):
+    """series: [(name, css_var, dashed, [(date, value)])]; bands: [(first, last, name, why)] shaded behind the lines,
+    named on hover; ticks: [(date, label)] small marks on the date axis (releases), named on hover."""
     pts = [p for _, _, _, s in series for p in s]
     if not pts:
         return ''
@@ -464,6 +503,16 @@ def svg_line(series, width=760, height=240, y_label=''):
     def Y(v):
         return T + H - H * v / ytop
     out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="{html.escape(y_label)}">']
+    for first, last, name, why in bands:
+        a, b = max(first, x0), min(last, x1)
+        if a <= b:
+            out.append(f'<rect class="band" x="{X(a):.1f}" y="{T}" width="{max(X(b) - X(a), 2):.1f}" height="{H}">'
+                       f'<title>{html.escape(name)} ({first:%b %d} – {last:%b %d}): {html.escape(why)}</title></rect>'
+                       f'<text class="band-name" x="{X(a) + 4:.1f}" y="{T + 12}">{html.escape(name)}</text>')
+    for d, label in ticks:
+        if x0 <= d <= x1:
+            out.append(f'<line class="release" x1="{X(d):.1f}" x2="{X(d):.1f}" y1="{T + H - 8}" y2="{T + H}">'
+                       f'<title>{html.escape(label)} released {d:%b %d}</title></line>')
     v = 0
     while v <= ytop:
         out.append(f'<line x1="{L}" x2="{width - R}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" class="grid"/>'
@@ -492,8 +541,9 @@ def svg_line(series, width=760, height=240, y_label=''):
     return ''.join(out)
 
 
-def svg_bars(rows, keys, width=760, height=220):
-    """rows: [(label, {key: value})]; keys: [(key, css_var)] — grouped bars."""
+def svg_bars(rows, keys, width=760, height=220, shade=()):
+    """rows: [(label, {key: value})]; keys: [(key, css_var)] — grouped bars. shade: per row, a tooltip (that row is
+    shaded and named on hover — an EVENT) or None."""
     if not rows:
         return ''
     ymax = max([1] + [v for _, d in rows for v in d.values()])
@@ -502,6 +552,8 @@ def svg_bars(rows, keys, width=760, height=220):
     gw = W / len(rows)
     bw = min(18, gw / (len(keys) + 1))
     out = [f'<svg viewBox="0 0 {width} {height}" role="img">']
+    out += [f'<rect class="band" x="{L + i * gw:.1f}" y="{T}" width="{gw:.1f}" height="{H}"><title>'
+            f'{html.escape(tip)}</title></rect>' for i, tip in enumerate(shade) if tip]
     for v in sorted({0, ymax // 2, ymax}):
         y = T + H - H * v / ymax
         out.append(f'<line x1="{L}" x2="{width - R}" y1="{y:.1f}" y2="{y:.1f}" class="grid"/>'
@@ -521,9 +573,9 @@ def svg_bars(rows, keys, width=760, height=220):
     return ''.join(out)
 
 
-def svg_net(rows, keys, width=760, height=230):
+def svg_net(rows, keys, width=760, height=230, shade=()):
     """Diverging bars around zero — rows: [(label, {key: value})]; keys: [(key, opacity)]. Above zero (green) = the
-    backlog shrank that week; below (amber) = it grew."""
+    backlog shrank that week; below (amber) = it grew. shade: as svg_bars."""
     if not rows:
         return ''
     top = max([1] + [abs(v) for _, d in rows for v in d.values()])
@@ -535,6 +587,8 @@ def svg_net(rows, keys, width=760, height=230):
     gw = W / len(rows)
     bw = min(22, gw / (len(keys) + 1))
     out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="Net velocity per week">']
+    out += [f'<rect class="band" x="{L + i * gw:.1f}" y="{T}" width="{gw:.1f}" height="{H}"><title>'
+            f'{html.escape(tip)}</title></rect>' for i, tip in enumerate(shade) if tip]
     for v in (top, 0, -top):
         cls = 'zero' if v == 0 else 'grid'
         out.append(f'<line x1="{L}" x2="{width - R}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" class="{cls}"/>'
@@ -615,6 +669,9 @@ p { margin: 0; max-width: 68ch; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
 td, th { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--rule); }
 td.n { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.band { fill: var(--accent); fill-opacity: .08; }
+.band-name { fill: var(--muted); font-family: var(--sans); font-size: 11px; }
+.release { stroke: var(--muted); stroke-width: 2; }
 </style>
 <main>
 %BODY%
@@ -622,7 +679,7 @@ td.n { font-family: var(--mono); text-align: right; font-variant-numeric: tabula
 '''
 
 
-def page(s, approx, measured, weeks, monthly, recs):
+def page(s, approx, measured, weeks, monthly, recs, rels=()):
     E = html.escape
     young_note = ('<p class="note">Fewer than 4 weeks of task-by-task history — read the rates as a first '
                   'impression, not a trend.</p>') if s['weeks'] < 4 else ''
@@ -639,11 +696,18 @@ def page(s, approx, measured, weeks, monthly, recs):
     sec_rows = ''.join(f'<tr><td>{name}</td><td class="n">{s["by_section"][k]}</td></tr>' for k, name in SECTIONS)
     hump = svg_line([('Approximate (before Oct 14)', '--approx', True, approx),
                      ('All open tasks', '--accent', False, [(d, n) for d, n, _ in measured]),
-                     ('Launch scope', '--arrive', False, [(d, n) for d, _, n in measured])], y_label='Open tasks')
+                     ('Launch scope', '--arrive', False, [(d, n) for d, _, n in measured])], y_label='Open tasks',
+                    bands=EVENTS, ticks=rels)
     flows = svg_bars([(w.strftime('%b %d'), {'a': a, 'd': d, 'g': g}) for w, a, d, g in weeks],
-                     [('a', '--arrive'), ('d', '--done'), ('g', '--gone')])
+                     [('a', '--arrive'), ('d', '--done'), ('g', '--gone')],
+                     shade=[week_shade(w) for w, *_ in weeks])
     months = svg_bars([(m[2:].replace('-', '/'), {'c': c}) for m, c in monthly.items()], [('c', '--done')])
-    net = svg_net(weekly_net(weeks, measured), [('work', 1), ('total', 0.45)])
+    week_of = {w.strftime('%b %d'): w for w, *_ in weeks}
+    net_rows = weekly_net(weeks, measured)
+    net = svg_net(net_rows, [('work', 1), ('total', 0.45)], shade=[week_shade(week_of[lb]) for lb, _ in net_rows])
+    ev_note = ' '.join(f'<b>{E(name)}</b> ({first:%b %d} – {last:%b %d}): {E(why)}.'
+                       for first, last, name, why in EVENTS)
+    ev_note = (f'<p class="note">Shaded: {ev_note} Hover a shaded area for its name.</p>') if EVENTS else ''
     body = f'''
 <header style="display:grid;gap:6px">
   <h1>ReaderWrangler Backlog</h1>
@@ -665,8 +729,12 @@ def page(s, approx, measured, weeks, monthly, recs):
   <h2>The hump: open tasks over time</h2>
   <div class="legend"><span><i style="background:var(--accent)"></i>All open tasks</span>
     <span><i style="background:var(--arrive)"></i>Launch scope (Up next + Before launch)</span>
-    <span><i style="background:var(--approx)"></i>Approximate (dashed)</span></div>
+    <span><i style="background:var(--approx)"></i>Approximate (dashed)</span>
+    <span><i style="background:var(--muted);width:2px;height:10px"></i>A release (hover for which)</span></div>
   <div class="chart">{hump}</div>
+  {ev_note}
+  <p class="note">Each task counts from the day it was filed until the day it was finished, merged or dropped — on its
+  branch or on main — so a release doesn't show its tasks arriving or finishing all at once.</p>
   <p class="note">Before {s["base"]:%b %d} the dashed line is approximate: it counts the {s["pre_dated"]} tasks listed
   on {s["base"]:%b %d} that have a date in their own text, placed at that date. {s["pre_undated"]} more had no date and
   appear on {s["base"]:%b %d} itself (the step there is them, not a surge), and tasks finished before then aren't in it
@@ -678,7 +746,8 @@ def page(s, approx, measured, weeks, monthly, recs):
     <span><i style="background:var(--done)"></i>Done (✅)</span>
     <span><i style="background:var(--gone)"></i>Merged or dropped (no work done)</span></div>
   <div class="chart">{flows}</div>
-  <p class="note">The hump turns over once green bars are taller than amber ones week after week.</p>
+  <p class="note">The hump turns over once green bars are taller than amber ones week after week. The line above
+  moves by amber minus green minus grey — merging and dropping shrink it too, with no work done.</p>
 </section>
 <section class="panel">
   <h2>Net velocity per week (the slope)</h2>
@@ -772,7 +841,7 @@ def main():
     weeks = weekly_flows(recs, s['base'], s['now'])
     monthly = changelog_monthly()
     with open(OUT, 'w', encoding='utf-8') as f:
-        f.write(page(s, approx, measured, weeks, monthly, recs))
+        f.write(page(s, approx, measured, weeks, monthly, recs, rels=releases()))
     print(f'Backlog: {s["open"]} open tasks ({s["scope_open"]} in the launch scope) — {s["hump"]}.')
     print(f'Since {s["base"]:%Y-%m-%d} ({s["weeks"]:.1f} weeks): {s["arrived"]} arrived, {s["done"]} done, '
           f'{s["merged"]} merged, {s["dropped"]} dropped.')

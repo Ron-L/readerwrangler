@@ -108,6 +108,58 @@ test("BKLG-007", "a task deleted by accident and restored under its own ID reope
      restored_task_reopens)
 
 
+def open_on(main, branch, day):
+    """The open-tasks line's value on Oct `day` — the page's own series."""
+    marks = br.checkmarks(list(main) + list(branch))
+    recs, snaps, _ = br.walk(main, marks)
+    _, measured = br.daily_series(recs, snaps)
+    return {d.day: n for d, n, _ in measured}[day]
+
+
+# 2026-11-10 (Ron: "the line's delta is 15, the bars say 40?"): the line read main's clock, so tasks filed on a branch
+# appeared only at the release squash — 7.26.0's Nov 8-9 tasks made a jump on Nov 10. The line now follows each task's
+# own dates: open from its ID's time until it's done (✅ anywhere), merged or dropped.
+C = ("Task C", "20261017-0900", "")
+
+
+def branch_filed_counts_from_its_date():
+    main = [("m1", at(15), todo(A, B)), ("m2", at(20), todo(A, B, C))]      # C filed Oct 17 on a branch, on main Oct 20
+    n = open_on(main, (), 18)
+    check(n == 3, f"on Oct 18 Task C (filed Oct 17 on its branch) is open: expected 3, the line says {n}")
+test("BKLG-008", "a task filed on a branch counts as open from its own date, not from the release squash",
+     branch_filed_counts_from_its_date)
+
+
+def branch_done_closes_on_its_date():
+    main = [("m1", at(15), todo(A, B)), ("m2", at(20), todo(B))]
+    n = open_on(main, [("b1", at(17), todo(A_DONE, B))], 18)
+    check(n == 1, f"Task A got its ✅ on Oct 17 (on its branch): on Oct 18 only Task B is open, the line says {n}")
+test("BKLG-009", "a task finished on a branch stops counting as open on its ✅'s date", branch_done_closes_on_its_date)
+
+
+def last_day_matches_main():
+    marks = br.checkmarks(br.load_versions(main_only=False))
+    recs, snaps, _ = br.walk(br.load_versions(main_only=True), marks)
+    _, measured = br.daily_series(recs, snaps)
+    check(measured[-1][1] == len(snaps[-1][1]),
+          f"the line's last day ({measured[-1][1]}) must equal the tasks open on main now ({len(snaps[-1][1])})")
+test("BKLG-010", "the real history: the line's last day equals the tasks open on main today", last_day_matches_main)
+
+
+def events_and_releases_drawn():
+    ev = [(dt.date(2026, 10, 14), dt.date(2026, 11, 4), "TODO review", "tasks filed and merged on purpose")]
+    rel = [(dt.date(2026, 11, 10), "7.26.0")]
+    line = br.svg_line([("x", "--accent", False, [(dt.date(2026, 10, 1), 5), (dt.date(2026, 11, 12), 9)])],
+                       bands=ev, ticks=rel)
+    check('class="band"' in line and "TODO review" in line, "the line chart shades the TODO review, with its name")
+    check('class="release"' in line and "7.26.0" in line, "the line chart marks the 7.26.0 release")
+    rows = [("Oct 12", {"a": 1}), ("Nov 09", {"a": 2})]
+    bars = br.svg_bars(rows, [("a", "--arrive")], shade=["TODO review: tasks filed and merged on purpose", None])
+    check(bars.count('class="band"') == 1 and "TODO review" in bars, "the weekly bars shade the review's week only")
+test("BKLG-011", "the TODO review is shaded and named on the charts; releases are marked on the line",
+     events_and_releases_drawn)
+
+
 def real_history_import_order_fix():
     recs, _, _ = br.walk(br.load_versions(main_only=True), br.checkmarks(br.load_versions(main_only=False)))
     name = "Import files new books once, before the integrity check — and only books in no folder"
