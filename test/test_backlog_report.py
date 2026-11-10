@@ -1,0 +1,110 @@
+# Tests for tools/backlog_report.py — how a task's end is counted: done, merged or dropped.
+# tags: backlog, tooling, tier 1
+# covers: tools/backlog_report.py
+# Run: python test/test_backlog_report.py
+#
+# 2026-11-10: every release is squashed onto main, and the ✅ a task gets while its branch is built never reaches main's
+# history — on main the task just disappears, so the report counted finished work as DROPPED (7.26.0's Import-order fix:
+# ✅ at alpha.3 on feature/logging, removed at release prep). The report now also reads TODO.md on every branch (the
+# branches are kept): a task removed from main counts as done if a ✅ for it exists anywhere, dated when it first appeared.
+# Whether a task is still OPEN is read from main only.
+import datetime as dt
+import importlib.util
+import os
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+spec = importlib.util.spec_from_file_location("backlog_report", os.path.join(ROOT, "tools", "backlog_report.py"))
+br = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(br)
+sys.path.insert(0, os.path.join(ROOT, "test", "ui"))
+from harness import check, done, test   # noqa: E402  (the screen tests' harness: stable IDs, one summary line)
+
+
+def todo(*tasks):
+    """A TODO.md with these tasks in Up next — each (header, id, extra) where extra is e.g. '; merged 20261001-0900'."""
+    out = ["# TODO", "", "## 🔝 Up next", ""]
+    for header, tid, extra in tasks:
+        # each body its own words: the report treats a vanished task whose text reappears under a new header as RENAMED
+        words = " ".join(f"{header.lstrip('✅ ')} line {k} of its own reasons." for k in range(6))
+        out += [f"#### {header}", f"<!-- id {tid}{extra} -->", "", f"_Why it matters:_ {words}", ""]
+    return "\n".join(out)
+
+
+def at(day, hour=12):
+    return dt.datetime(2026, 10, day, hour)
+
+
+A = ("Task A", "20261015-1000", "")
+B = ("Task B", "20261015-1100", "")
+A_DONE = ("✅ Task A", "20261015-1000", "")
+B_DONE = ("✅ Task B", "20261015-1100", "")
+
+
+def ends(main_versions, branch_versions=()):
+    """Walk main's versions with ✅ evidence from main + the branches; {header: (end, done_at, open?)}."""
+    marks = br.checkmarks(list(main_versions) + list(branch_versions))
+    recs, snaps, _ = br.walk(main_versions, marks)
+    open_now = {r.header for r, _ in snaps[-1][1]}
+    return {r.header: (r.end, r.done_at, r.header in open_now) for r in recs}
+
+
+def branch_only_checkmark_counts_done():
+    main = [("m1", at(15), todo(A, B)), ("m2", at(20), todo(B))]           # A disappears from main with no ✅ there
+    branch = [("b1", at(17), todo(A_DONE, B))]                              # ...but got its ✅ on the branch
+    r = ends(main, branch)
+    check(r["Task A"][0] == "done", f"Task A should be done (✅ on its branch), got {r['Task A'][0]!r}")
+    check(r["Task A"][1] == at(17), f"done when the ✅ first appeared (Oct 17), got {r['Task A'][1]}")
+    check(r["Task B"][2], "Task B is still open on main")
+test("BKLG-001", "a task whose ✅ exists only on a branch, removed from main, counts as done on the ✅'s date",
+     branch_only_checkmark_counts_done)
+
+
+def branch_checkmark_on_open_task_stays_open():
+    main = [("m1", at(15), todo(A, B)), ("m2", at(20), todo(A, B))]
+    branch = [("b1", at(17), todo(A_DONE, B))]                              # ✅ on a branch, then taken back / not shipped
+    r = ends(main, branch)
+    check(r["Task A"][2] and r["Task A"][0] is None, f"Task A is still open on main, got {r['Task A']}")
+test("BKLG-002", "a ✅ on a branch doesn't close a task that main still lists open", branch_checkmark_on_open_task_stays_open)
+
+
+def no_checkmark_anywhere_is_dropped():
+    main = [("m1", at(15), todo(A, B)), ("m2", at(20), todo(B))]
+    branch = [("b1", at(17), todo(A, B_DONE))]                              # a ✅ for B, none for A
+    r = ends(main, branch)
+    check(r["Task A"][0] == "dropped", f"Task A was removed with no ✅ anywhere: dropped, got {r['Task A'][0]!r}")
+test("BKLG-003", "a task removed with no ✅ on any branch and not merged is dropped", no_checkmark_anywhere_is_dropped)
+
+
+def merged_is_merged():
+    C = ("Task C", "20261015-1200", "; merged 20261015-1000")
+    main = [("m1", at(15), todo(A, B)), ("m2", at(20), todo(B, C))]
+    r = ends(main)
+    check(r["Task A"][0] == "merged", f"Task A was absorbed into Task C: merged, got {r['Task A'][0]!r}")
+test("BKLG-004", "a task absorbed into another (its ID in a 'merged' list) is merged", merged_is_merged)
+
+
+def checkmark_on_main_still_counts():
+    main = [("m1", at(15), todo(A, B)), ("m2", at(18), todo(A_DONE, B)), ("m3", at(20), todo(B))]
+    r = ends(main)
+    check(r["Task A"][0] == "done" and r["Task A"][1] == at(18), f"✅ on main: done on Oct 18, got {r['Task A']}")
+    # a ✅ task stays listed until the release sweep removes it — from its ✅ on, it no longer counts as open
+    _, snaps, _ = br.walk(main, br.checkmarks(main))
+    open_on_18 = {rec.header for rec, _ in snaps[1][1]}
+    check("Task A" not in open_on_18, f"on Oct 18 Task A has its ✅ — not open; open then: {sorted(open_on_18)}")
+test("BKLG-005", "a ✅ made on main counts from its date — the task stops counting as open while still listed",
+     checkmark_on_main_still_counts)
+
+
+def real_history_import_order_fix():
+    recs, _, _ = br.walk(br.load_versions(main_only=True), br.checkmarks(br.load_versions(main_only=False)))
+    name = "Import files new books once, before the integrity check — and only books in no folder"
+    r = next((r for r in recs if r.header == name), None)
+    check(r is not None, "the Import-order task isn't in the history")
+    check(r.end == "done", f"7.26.0's Import-order fix (✅ on feature/logging at alpha.3) should be done, got {r.end!r}")
+    check(r.done_at.date() == dt.date(2026, 11, 5), f"its ✅ came on 2026-11-05, got {r.done_at}")
+test("BKLG-006", "the real case: 7.26.0's Import-order fix counts as done (its ✅ was on the branch, 2026-11-05)",
+     real_history_import_order_fix)
+
+done()

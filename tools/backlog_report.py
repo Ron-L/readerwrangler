@@ -17,6 +17,11 @@ What it reads (nothing is changed unless you ask for --stamp):
     Before IDs existed, a task is followed by its header text (and the RENAMES / MERGES lists below).
   * How a task ends: DONE (its header got a ✅ — that's velocity), MERGED (absorbed into another task — the backlog
     shrinks, no work done) or DROPPED (deleted without ✅ and not merged).
+  * Where a ✅ is looked for: main's history AND every branch, local and on the remotes (2026-11-10). Every release is
+    SQUASHED onto main, so the ✅ a task gets while its branch is built never reaches main's history — the task just
+    disappears there. The branches are kept, so the ✅ is still found; a task counts as done from the moment its ✅
+    first appeared anywhere. Whether a task is still OPEN is read from main alone. (Checked 2026-11-10: every release
+    since the history began, 7.21.2 → 7.26.0, has its branch; the merges and deleted branches came before it.)
   * Before 2026-10-14 there's no task-by-task history, so the early part of the curve is APPROXIMATE: the tasks still
     listed on Oct 14, placed at the earliest date written in their own text, plus the CHANGELOG's shipped items per
     month. It's labeled as such on the page.
@@ -184,15 +189,51 @@ class Rec:
         self.recognized = False      # its ✅ only recorded work finished before the history starts
 
 
-def walk():
-    log = git('log', '--first-parent', '--reverse', '--format=%H\t%aI', f'{FORMAT_START}^..HEAD', '--', TODO)
+def load_versions(main_only=True):
+    """[(sha, when, text)] — every version of TODO.md since the format began, oldest first. main_only: the line of work
+    this branch stands on (its first parents — what's open, when things arrived and ended). Otherwise every branch,
+    local and on the remotes, and the tags: where a task's ✅ can be found (2026-11-10 — every release is SQUASHED onto
+    main, so the ✅ a task got while its branch was built never reaches main's history; the branches are kept). The
+    stash is left out on purpose: it holds work that was never committed."""
+    if main_only:
+        log = git('log', '--first-parent', '--reverse', '--format=%H\t%aI', f'{FORMAT_START}^..HEAD', '--', TODO)
+    else:
+        log = git('log', '--branches', '--remotes', '--tags', '--format=%H\t%aI', '--not', f'{FORMAT_START}^', '--', TODO)
     commits = [ln.split('\t') for ln in log.splitlines() if ln.strip()]
     if not commits:
         raise RuntimeError('No TODO.md history found from ' + FORMAT_START)
+    return [(sha, dt.datetime.fromisoformat(iso).replace(tzinfo=None), git('show', f'{sha}:{TODO}'))
+            for sha, iso in commits]
+
+
+def checkmarks(versions):
+    """{'id:<id>' or 'h:<header>': when its ✅ first appeared} across these versions (any order). The recognition
+    commits' ✅ marks only recorded work finished before the history, so they're no evidence of work done here."""
+    first = {}
+    for sha, when, text in versions:
+        if sha.startswith(RECOGNITION_COMMITS):
+            continue
+        for t in parse(text):
+            if t['done']:
+                for key in ['h:' + t['header']] + (['id:' + t['id']] if t['id'] else []):
+                    if key not in first or when < first[key]:
+                        first[key] = when
+    return first
+
+
+def walk(versions, marks):
+    """Follow every task through main's versions. A task that leaves main ends DONE (a ✅ on main, a ✅ for it on any
+    branch — `marks` — or DONE_WITHOUT_CHECKMARK), MERGED or DROPPED; whether it's still open is main's word alone."""
+    if not versions:
+        raise RuntimeError('No TODO.md history found from ' + FORMAT_START)
+
+    def branch_mark(r):
+        hits = [marks[a] for a in r.aliases if a in marks]
+        return min(hits) if hits else None
+
     recs, open_recs, snaps = [], [], []
-    for n, (sha, iso) in enumerate(commits):
-        when = dt.datetime.fromisoformat(iso).replace(tzinfo=None)
-        cur = parse(git('show', f'{sha}:{TODO}'))
+    for n, (sha, when, text) in enumerate(versions):
+        cur = parse(text)
         alias_of = {}
         for r in open_recs:
             for a in r.aliases:
@@ -207,7 +248,7 @@ def walk():
         gone = [r for r in open_recs if r not in matched.values()]
         # renames: the known list first, then a close match of the task's text
         for r in list(gone):
-            if r.header in DONE_WITHOUT_CHECKMARK or r.done_at:
+            if r.header in DONE_WITHOUT_CHECKMARK or r.done_at or branch_mark(r):
                 continue
             target = RENAMES.get(r.header)
             cand = next((t for t in unmatched if t['header'] == target), None) if target else None
@@ -229,6 +270,8 @@ def walk():
             if id(t) in matched:
                 survivors[t['header']] = matched[id(t)]
         for r in gone:
+            if not r.done_at and (mark := branch_mark(r)):
+                r.done_at = min(mark, when)                # its ✅ was made on a branch, then squashed away
             if r.done_at or r.header in DONE_WITHOUT_CHECKMARK:
                 r.end, r.end_at = 'done', r.done_at or when
                 r.done_at = r.done_at or when
@@ -269,7 +312,7 @@ def walk():
     # recognitions were never really open here: drop them from every count and every snapshot
     recs = [r for r in recs if not r.recognized]
     snaps = [(w, [(r, s) for r, s in opn if not r.recognized]) for w, opn in snaps]
-    return recs, snaps, commits
+    return recs, snaps, versions
 
 
 def changelog_monthly():
@@ -669,7 +712,7 @@ def stamp(recs, snaps):
 
 def main():
     sys.stdout.reconfigure(encoding='utf-8')
-    recs, snaps, commits = walk()
+    recs, snaps, _ = walk(load_versions(main_only=True), checkmarks(load_versions(main_only=False)))
     if '--stamp' in sys.argv:
         stamp(recs, snaps)
         return

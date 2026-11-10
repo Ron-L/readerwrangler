@@ -83,6 +83,7 @@
         - [Every load saves the whole library back to storage, even when nothing changed](#every-load-saves-the-whole-library-back-to-storage-even-when-nothing-changed)
         - [A missing book description: one quiet line, on the computer and the phone](#a-missing-book-description-one-quiet-line-on-the-computer-and-the-phone)
         - [Remove the old version 4 app from the site — it shares your library's storage](#remove-the-old-version-4-app-from-the-site--it-shares-your-librarys-storage)
+        - [Relay Setup's Test connection always checks the production relay](#relay-setups-test-connection-always-checks-the-production-relay)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [Redo should work after copying a folder](#redo-should-work-after-copying-a-folder)
@@ -2444,6 +2445,22 @@ historical reference", docs/design/archive/V4-REMOVAL-PLAN.md)
 4. Closed at the same time: "Check nothing was lost between versions 4 and 5" — nine months and 20+ releases of daily
    use since 5.0, the book-field table's round-trip check guards the data, and outside review 4 looks at today's
    features fresh.
+
+##### Relay Setup's Test connection always checks the production relay
+<!-- id 20261102-1503 -->
+
+_Why it matters:_ In contributor mode (Ron's localhost, which uses the dev relay) **Test connection** asks the
+production relay instead — so a revoked channel or an outage on dev can show the wrong answer (found 2026-11-02 in
+the TODO review, not yet tested).
+
+**Restored 2026-11-10:** filed 2026-11-02 15:03 and lost 27 minutes later — deleted by accident inside a large TODO
+edit (commit dedc3ca, the two-tab tasks merge), with no word in its message; never fixed (checked 2026-11-10: the
+address is still hard-coded). Found by the backlog report's audit of "dropped" tasks.
+
+**How (technical)**
+- readerwrangler.js ~1998 (the `'test'` case) fetches a hard-coded production worker address before calling
+  `RWRelay.getDeviceState()`; use the one place that answers which relay this copy talks to (relay-client's
+  `workerUrl()`) — comb for other hard-coded relay addresses in the same pass.
 
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->
