@@ -100,7 +100,11 @@ fixture, never anything sensitive on screen.
 2. **A feature's tests are its acceptance criteria**, written with it — the task's "What you'd get" made checkable.
    **A test that passes on its very first run is shown it can fail** — feed its check a deliberate problem (a wrong
    expected value, an injected error) and see it refuse — or it may be checking nothing (2026-11-04: APP-001–004's
-   detectors were each shown a wrong count, a console error, a relay request and a crash).
+   detectors were each shown a wrong count, a console error, a relay request and a crash). **For a fix's test, that
+   means failing under its own bug** — remove the fix, or make the bug happen — since a wrong expected value proves
+   only the assertion. **A test checks its own setup** before the outcome, and asserts after the screen settles, not
+   when the call returns (7.26.0: DIAG-008's planted line was overwritten before it was read; IMPORT-004 passed with
+   the fix removed; the Import tests checked "no repair" before the second check had run).
 3. **At the task's end:**
    - **promote** its tests into the library (almost always — a test that passed once costs nothing to keep); a test
      left out says why;

@@ -165,6 +165,11 @@ scenario as test case #1 before writing any others.
 writes, the relay test "failed" 7 times; its deliberately broken states were unsigned writes on a now-registered
 channel — the fix was to sign the test's raw writes through the one signer, not to loosen the relay). And a test
 must be able to fail: sign with independent code, accept a hand-made correct case, keep a control beside the refusal.
+**"Able to fail" means under the bug it exists for, and a test checks its own setup** (7.26.0): two tests passed
+while testing nothing — DIAG-008's planted line was overwritten by the page's own save on closing, so the test passed
+with no such line on screen; IMPORT-004 still passed with Import's half of the fix removed. A wrong expected value
+proves the assertion works, not the test. Remove the fix (or make the bug happen) and see it fail; assert the setup is
+there before asserting the outcome; assert after the screen settles, not when the call returns.
 **Reproduce a reported problem with real input before explaining it** (from the utilities project, its Law 18 —
 carried over 2026-11-04). Ron's screen is the fact; a reading of the code is a theory. Drive the page with real mouse
 and keyboard input, read the state after each step, then report. (Paid for there: two wrong explanations of an Esc /
@@ -179,7 +184,9 @@ stop patching, name the structure, build it once (Ron, 2026-11-06 — the same s
 across sites instead of over time). Paid for the same day: Ctrl+V refused a paste into the Inbox while the right-click
 menu's Paste allowed it, and "where can books be pasted?" was answered by four lists that disagreed — the cure is ONE
 table (gesture → verb; verb × what's moved × from × to → outcome) read by one function every gesture calls (TODO "Move
-and copy books anywhere", with Delete), not a fifth list.
+and copy books anywhere", with Delete), not a fifth list. **A list kept by hand drifts — derive it from the source**
+(7.26.0: the version check's hand-kept module list missed `logger.js`, so its cache-buster was never checked; it now
+reads every local script from `readerwrangler.html`).
 Proposed 2025-11-11; ignored through 26 alphas (v3.14.0 drag-drop) and 9 alphas (v6.11.2 — where one
 question, "why aren't these just items?", replaced all nine). If each fix adds a special case instead of
 removing one, the design is wrong: stop, list the edge cases, ask "are these actually different things?",
@@ -211,6 +218,10 @@ path), never on a pattern.** **And a secret is a class too — find it by its sh
 from a backup carried a full Cloud Sync credential pair publicly for four months (2026-07-03 → 10-31); no list of
 known values could have caught it — a check for "a .json whose `relay` holds a channel id and a passphrase" does
 (`git-hooks/private_values.py`, every commit; the history scan found only that file).
+**The class includes every CHECK of the same event, not only every copy of the code** (7.26.0): the false "Library
+repair" after an Import was fixed in the integrity check inside the load, and came back three days later from a second
+check of the same event — the one run after an Import settles (6.3.0) — whose code had been read the day of the first
+fix and walked past. Before fixing what a check reports, list every check of that thing.
 **Enforcement**: `feedback_investigate_completely` memory; grep-the-class before declaring done —
 for a markup change, grep the class/attr name across the file for remote matchers *before* editing.
 
@@ -312,7 +323,12 @@ releases in the archive were plan-mode-with-line-numbers). Writing the doc *befo
 in already-agreed designs, twice. For risky designs: epistemic tags (`[verified in code]` / `[assumption]`)
 plus an adversarial cold review — 7.0.0's review found two correctness-critical flaws on paper. Record
 **rejected** options with reasons (re-litigation cost thereafter: zero — see MULTI-INSTANCE, FORMAT-POLICY).
-**Enforcement**: the design-doc culture in docs/design/; never-relitigate docs for settled facts.
+**An operation's rule in one sentence, before it's built** — what it keeps, what it replaces, what it refuses (7.26.0:
+Restore's rule had never been written, so the code drifted from the promise its own "restore?" box made — a backup
+missing its organization was merged into the library. Ron's sentence: everything but the Cloud Sync credentials; a
+missing part restores as empty; refuse only a file that can't be used. Then `backupCheck.js` was built to it).
+**Enforcement**: the design-doc culture in docs/design/; never-relitigate docs for settled facts;
+`feedback_confirm_operation_semantics` memory.
 
 ### 12. Mechanical honesty — every display, ritual, and receipt needs a mechanism that can actually know
 "Saved" must mean saved (picker before toast), "newer" must mean a different generation (not a timestamp
@@ -326,9 +342,14 @@ not before** (7.22.0: "redeployed to both relays" went into the TODO ahead of th
 while 7.21.3 and 7.22.0 shipped — 7.21.3's Bibliography change had no entry for four days; visible, and unread).
 **An alarm that fires on the normal path is noise** — it must be able to tell normal from broken (7.25.0: every
 import with new books logs an integrity "repair", because the check runs before the import files them; a genuine
-orphan would hide among them. Ron caught it; filed).
+orphan would hide among them. Ron caught it; fixed in 7.26.0 — two causes, two checks of the same event).
+**A message nobody can see is no message** (7.26.0): the false "repair" after an Import and the overlapping book saves
+(`return new Promise` inside a `try` — the `finally` freed the lock as the write began) both printed only a plain
+console line no one read. The always-kept log made the first an error on screen; the screen-test driver's end-of-file
+check (any error or critical line a test didn't declare fails the file) caught the second on its first runs.
 **Enforcement**: `feedback_mechanical_honesty` memory; the heredoc ban (three-for-three earned a ban, not a
-caution); receipts-and-honesty as a feature genre.
+caution); receipts-and-honesty as a feature genre; the logging module (`logger.js` — every message has a level, an
+area and a code; the commit check `tools/message_codes.py`) and the driver's undeclared-error check (`test/ui/rw.py`).
 
 ### 13. Post-compaction (or post-gap) state is fragments plus assumptions — re-read, never remember
 The "Runaway Robot" law: after compaction, rules must be re-read with the Read tool (a claimed reading was
