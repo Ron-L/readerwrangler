@@ -36,7 +36,7 @@ A bug in a function caught by a screen test costs a hundred times the runtime an
 a screen test is the only way to catch something, consider first whether the logic should be lifted into a function
 that a function test can reach.
 
-**Free with every screen test:** the logging module ("One logging module…") is switched on in the
+**Free with every screen test:** the logging module (7.26.0, docs/design/LOGGING.md) is switched on in the
 driver's browser, so **any unexpected error fails the run** — every screen test also checks "nothing went wrong
 underneath".
 

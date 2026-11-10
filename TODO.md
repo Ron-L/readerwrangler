@@ -3,14 +3,14 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [One logging module: level, area and code for every message; an always-on log, a Diagnostics window](#one-logging-module-level-area-and-code-for-every-message-an-always-on-log-a-diagnostics-window)
+      - [Faster loading: build the app ahead of time (35 seconds → 1)](#faster-loading-build-the-app-ahead-of-time-35-seconds--1)
       - [Logging as its own module: a self-contained folder, one step from a sub-repo](#logging-as-its-own-module-a-self-contained-folder-one-step-from-a-sub-repo)
-      - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
-      - [Receipts reach the screen: one screen test per area, not only the log](#receipts-reach-the-screen-one-screen-test-per-area-not-only-the-log)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [One table for every move, copy, paste and delete: what each gesture does in each place](#one-table-for-every-move-copy-paste-and-delete-what-each-gesture-does-in-each-place)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
+      - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
+      - [Receipts reach the screen: one screen test per area, not only the log](#receipts-reach-the-screen-one-screen-test-per-area-not-only-the-log)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
       - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
@@ -24,6 +24,7 @@
       - [Drag a box to select covers](#drag-a-box-to-select-covers)
       - [Fetcher work, in build order](#fetcher-work-in-build-order)
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
+        - [The fetchers' own logging: levels and codes, a log on Amazon's site, problems shown in Diagnostics](#the-fetchers-own-logging-levels-and-codes-a-log-on-amazons-site-problems-shown-in-diagnostics)
         - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
         - [A fetch made with the demo filter on says so, and never marks books as gone](#a-fetch-made-with-the-demo-filter-on-says-so-and-never-marks-books-as-gone)
         - [Faster fetches that report exactly how your library compares with Amazon](#faster-fetches-that-report-exactly-how-your-library-compares-with-amazon)
@@ -105,7 +106,6 @@
     - [Safety and data protection](#safety-and-data-protection)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
       - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
-      - [Faster loading: build the app ahead of time (35 seconds → 1)](#faster-loading-build-the-app-ahead-of-time-35-seconds--1)
       - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
       - [Lock the Cloud Sync Key in backups with an optional key password](#lock-the-cloud-sync-key-in-backups-with-an-optional-key-password)
       - [Remind me when my last backup is getting old](#remind-me-when-my-last-backup-is-getting-old)
@@ -167,129 +167,48 @@
 
 _Formerly: 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-16)_
 
-In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**.
-
-**The order of work from here** (Ron, 2026-10-24; step 2 added 2026-10-31, step 3 2026-11-03):
-1. Finish the TODO review.
-2. "Carry over the utilities project's improvements…" — the browser driver and the parse check (the shortcut part
-   can wait) — with "One logging module…" built alongside it.
-3. "Faster loading: build the app ahead of time (35 seconds → 1)" (Before launch; added here 2026-11-03 — about one
-   session, the driver times it, and every later load gets 30 times faster).
-4. "The Delete key deletes the folder you're in…" — the browser driver's first real use.
-5. "Relay worker: one release of changes…"
-6. "Outside reviews before building…" (all five, using agents)
-7. The rest of the TODO.
+**The order is the order below — the top task in High priority is next**, then down the list; **High priority**, then
+**Polish**. The table of contents shows it (Ron, 2026-11-10: the table of contents is how the order is read, so the
+tasks themselves sit in that order; the numbered "order of work" list that used to sit here was a second copy, and it
+drifted). To change the order, move the task.
 
 ### High priority
 
-#### One logging module: level, area and code for every message; an always-on log, a Diagnostics window
-<!-- id 20261102-1435; merged 20261014-1030m -->
+#### Faster loading: build the app ahead of time (35 seconds → 1)
+<!-- id 20261014-1030s -->
 
-_Why it matters:_ Today a "this should never happen" in our code is a line in the console that nobody is looking at —
-it is seen only by luck (Ron, 2026-11-02). It should stop the person testing, leave a trace on every device even when
-nobody is, and give support a timeline to read. Built with the browser driver: each makes the other stronger.
+_Why it matters:_ Opening ReaderWrangler takes **about 35 seconds** on Ron's PC — 32 of them the browser compiling the
+app's code, on every load. Built ahead of time, the app appeared in **1.0 second**. It's the first thing a newcomer
+meets, and it slows every load Ron does after a code change too.
 
-**Status (2026-11-10): built** on `feature/logging`, 7.26.0-alpha.27 — design of record and build list:
-docs/design/LOGGING.md (§5). Left for this release: two window fixes (Ron's pick), then release. Later: the fetchers'
-own logging (item 10) and "Send a test message" (LOGGING.md §5 step 5.5); the module as its own folder ("Logging as
-its own module…", just below). The decisions below are kept as decided, with what changed while building marked
-**(as built)**.
+**Measured 2026-11-03** (Ron's PC, 3,270 books; untracked test pages, timed from page start to the app replacing the
+splash): today's page **35.8 s** average of 3 (the browser's compiler alone: 32.1 s); precompiled **1.0 s** average of
+5 — same books, same messages, same behavior. The compile itself, on the PC: **1.3–2.1 s** (desktop), 0.3–0.6 s
+(phone). The August figure in the spec (~14 s) has more than doubled as the code grew.
 
-**The model** (Ron, 2026-11-05 — from the products he built: a text message plus a severity code, a dynamic,
-user-tunable filter for what's shown, everything always logged, log readers with filtering — the same model as Linux's
-syslog / `printk` / journald: severity levels, a console threshold over an always-kept log, `journalctl -p`). It
-replaces 2026-11-02's four buckets and on/off switch, which were a crude version of it.
+**Decided** (Ron + Claude, 2026-11-03, in the TODO review — moved up from After launch → Technical clean-up)
+1. **Before launch, and early** (Ron: "I don't see why… we would not go ahead and do this sooner") — beside the
+   outside-libraries pinning task, which it also durably fixes (no in-browser compiler or style builder loaded at all).
+2. **An invisible build — two chokepoints, nothing to remember:**
+   - **serve.py builds on demand:** if a source file is newer than its built file, it rebuilds before serving — Ron's
+     loop stays edit → refresh (and gets faster: ~2 s on the PC instead of ~32 s in the browser).
+   - **A commit check refuses stale built files.** The built files are committed, so GitHub Pages serves them with no
+     build job on GitHub to maintain.
+3. **Match the browser's compile at first** (turning `const` / `let` into `var`, as the browser's compiler does — the
+   test crashed without it). The modern output exposed a real bug ("With a filter on, the right pane still shows
+   subfolders with no matching books", Small fixes); once that task's commit check comes back clean, drop the
+   conversion so the next such bug is a visible crash, not a silent "undefined".
+4. **Step 2: the styles** (the other 1–3 s, and the "not for production" warning) — the spec's Tailwind step; test it
+   the same way.
+5. The existing checks keep working on the source (name check, version guard); the cache-buster moves with the built
+   file — one more line in the version guard. What's served stays readable; the source is public on GitHub.
 
-**Decided** (Ron + Claude, 2026-11-02 / 11-05)
-1. **Five levels:** **debug** (developer detail), **info** (normal events worth a line — including everything the user
-   is told), **warning** (can legitimately happen: the relay unreachable, a refused clipboard), **error** ("this should
-   never happen" — a bug), **critical** (your data may be at risk: a save failed, a repair that couldn't repair).
-   Syslog's Emergency and Alert don't apply — there's no system to bring down.
-2. **Every message:** level + **code** + text. The code is the bare **area** (`IMPORT`) for info and debug, or the area
-   plus a stable number (`IMPORT-12`) — required for warning and above, each number at ONE call (Ron, 2026-11-07: no
-   product prefix; the level is a separate field, never part of the code) — support can ask "what codes do you see?",
-   and the help notes can explain each code. **(as built)** 17 areas (logger.js `LOG_AREAS`): BOOT, SYNC, IMPORT,
-   BACKUP, STORE, INTEG, FIELD, MOVE, UNDO, COVER, PREF, PHONE, UI, and — for the toasts none of those fit (Ron,
-   2026-11-09) — ORG, EDIT, AUTO, SHARE. The support table (docs/design/MESSAGE-CODES.md) is generated, never edited.
-   Test names keep their own three-digit shape (`IMPORT-004`) and never appear in the log.
-   **Messages a test plants** carry an explicit `test: true` field, kept all the way through (the kept log, the
-   Diagnostics badge and filter, Copy, the driver's fail-on-error rule), shown to people as `IMPORT-12-!TEST!`; the
-   marker defined once in the module; no reserved numbers (Ron + Claude, 2026-11-07 — LOGGING.md §2).
-3. **What's shown, and what's kept:**
-   - **Shown:** with the **error banner** switch on, error and above raise the **banner** — red, stays until clicked,
-     the details and a Copy button, a "Turn off this banner" link; if DevTools is open, also a stop in the debugger.
-     **Never a blocking pause** (`alert()`): it would break the 30-second Import timeout and leave a push half sent.
-     **Critical is shown to every user** (Ron, 2026-11-05), whatever the switches — a plain box: their data may be at
-     risk and what to do. **(as built)** A critical message can carry its own advice in that box (BOOT-01, PHONE-03/06:
-     the usual "save a backup now" would be harmful or meaningless there).
-   - **Kept:** info and above, **always** (production included) — the last ~500 entries on the device; repeats
-     **counted, not stored again** ("…repeated 37 times" — rate limiting, so one bad loop can't flood it). **It also
-     records every page load** — time, build, and the browser's "was this tab discarded and reloaded?"
-     (`document.wasDiscarded`) — so an unexplained loss of in-memory state ("Undo history sometimes empties by itself",
-     Watching) can be traced to a reload. **(as built)** Each app also logs which build of its CODE is running ("Desktop
-     app 7.26.0-alpha.27 running (page 7.25.1)") — the page's version doesn't move during alphas.
-   - **Cleaned before anything is kept or shown:** Channel IDs become Relay Setup's short form `41e0e16f...726c` (first
-     8 … last 4 — one function, logger.js `shortChannelId`, so old and new keys read differently; Ron, 2026-11-09); the
-     passphrase becomes "[passphrase]", none of it shown.
-4. **(as built) Two switches, not a ladder of levels** (Ron, 2026-11-09 — the old single "level" did three things at
-   once: the console's threshold, whether debug was recorded, whether errors raised the banner; with everything kept and
-   a window to filter it, only two matter): **"Show a banner when something goes wrong"** (`errorBanner`) and **"Also
-   record extra detail"** (`logDetail` — debug lines; they fill the ~500-entry log fast, so it's off unless chasing a
-   problem). Independent; both off for an ordinary user. Set in the Diagnostics window, on any page address
-   (`?errorBanner=on|off`, `?logDetail=on|off` — remembered, then removed from the address bar so they aren't bookmarked
-   or shared), or the console (`rwLog.setSwitch`). The console prints exactly what is recorded (its own level filter
-   does the rest). A user reporting a bug can be sent a link with `?errorBanner=on&logDetail=on`. The answer lives in
-   logger.js (it loads first), separate from contributor mode on purpose.
-5. **Two readers:**
-   - **the browser's console** — each level goes to `console.debug` / `info` / `warn` / `error`, so DevTools' own level
-     filter works for free;
-   - **(as built) the Diagnostics window — its own window, NOT in Data Status** (Ron, 2026-11-09: many messages have
-     nothing to do with the data; the log is "a more formal and complete notification history"), opened from **Help →
-     Diagnostics…** and **"Full log…"** at the bottom of the 🕐 history. Newest first; ▸ for an entry's details; errors
-     tinted; TEST entries badged; filtered by level, area, time ("Everything kept" first) and test entries; the two
-     switches, **Clear** (like DevTools) and **Copy diagnostics** (everything kept, whatever the filter shows, under a
-     header with the build and the browser). The phone: a **Copy diagnostics** button in its menu, no viewer.
-6. **Linked to the user's notifications, not merged with them:** the toasts and the 🕐 message history stay as they are;
-   everything they tell the user is also logged as info, so the log reads as one timeline — what the user saw and what
-   happened underneath. **(as built)** Every toast goes through `rwLog.log(…, { toast })` with its area (a commit check
-   refuses a direct `showToast(`); every dialog names its area first and logs what it showed and the answer
-   (`rwLog.dialog`, Ron's option 1, 2026-11-09). Folder names may appear in the log (Ron, 2026-11-09); a book's note
-   text and its tags stay out (finding F4).
-7. **Ours only.** Uncaught errors and failed promises on OUR pages are caught globally (logged as error — including a
-   crash inside React or another library we load). Browser-extension messages ("Unchecked runtime.lastError…") never
-   reach us — not in scope.
-8. **First step — one comb through every console line in our code** (merged 2026-11-04 from "Clean up developer
-   console messages" — one pass, not two). Counted 2026-11-04: the app (desktop, phone, modules) ~103 log, ~30 warn,
-   ~44 error; the fetchers and bookmarklet menu ~430 log, ~18 warn, ~140 error. Each of the app's lines gets **a level,
-   an area and (warning and above) an ID** — or is removed as noise. **Publish the list for Ron's red pen before
-   switching any.** The fetchers' ~430 progress logs stay — the step-by-step trail of a fetch support needs — and only
-   their warnings and errors are sorted. The integrity check's "auto-fixed during restore" message is the first to
-   switch.
-9. **The browser driver** runs with **both switches on** in its throwaway browser and **fails a test on any error or
-   critical** it didn't declare (`app.expect('BOOT-01')` for one a test causes on purpose) — every screen test also
-   checks "nothing went wrong underneath" **(as built, LOGGING.md §5 step 6)**.
-10. **The fetchers and the bookmarklet menu** (later — its own step) run on Amazon's site, whose stored settings are
-   separate from ours, so they read the same-named switches in amazon.com's storage (set from the console, or a toggle
-   in the bookmarklet menu's developer mode). **Two logs, never the relay** (2026-11-05, LOGGING.md §2b): the fetchers
-   keep theirs on amazon.com; a fetch's warnings and errors ride inside its existing upload (zero extra relay writes),
-   and the app's Diagnostics window shows them as their own group, *"From your last fetch (date)"* — not interleaved by
-   time, so two computers' clocks never need to agree (2026-11-09).
-
-**How (technical)**
-- **One logging module** (the chokepoint, logger.js, loaded first) — one call, `rwLog.log(level, code, text, data,
-  options)`, every destination from it (the kept log, the console, the toast with `{ toast }`, the banner, the critical
-  box); the global `error` / `unhandledrejection` listeners; the rate limiting. The banner and the critical box are
-  plain page elements drawn by the module (they must work when the app has crashed); the Diagnostics window is a
-  `<Dialog>` (the overlay primitive). The commit check (tools/message_codes.py) enforces the codes and writes the
-  support table.
-- The scrubber that removes IDs and keys is shared with "Bookmarklet: when your key no longer works, say so plainly —
-  and never show the Channel ID in an error" (After launch) — one place, with a test; this task builds it first.
-- Its own branch (`feature/logging`), alpha versions, tests first (TESTING.md): the module's function tests, then the
-  screen tests (the gate, the banner, the reader, the driver failing on an error).
-- **A flaky screen test, seen once** (2026-11-09, during step 6, not reproduced in the next 3 runs): test_boot.py stopped
-  outside any test — the driver couldn't find the File menu button (30 s) when restoring the test library right after
-  BOOT-001. Read it before fixing it (TESTING.md §7): what was on screen (the failure screenshot), whether the menu bar
-  was covered or not yet drawn. If it comes back, set it aside the same day rather than re-run past it.
+**Spec:** docs/design/PRECOMPILE.md (written before these measurements and this build plan).
+**Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): Chrome DevTools' tool server can time loads and run Lighthouse — only with
+`--no-usage-statistics --no-performance-crux` (it reports to Google by default).
+**First step: measure again** — the code has grown since 11-03 (7.26.0 shipped in between); the browser driver times
+the load, before and after. About one session. Moved to the top of High priority 2026-11-10 (Ron) — every later load,
+Ron's and the screen tests', gets about 30 times faster, so it comes before the work those tests check.
 
 #### Logging as its own module: a self-contained folder, one step from a sub-repo
 <!-- id 20261110-0908 -->
@@ -319,53 +238,17 @@ its own repo (a git submodule, like pytools) when another project wants it (Ron,
 5. **The sub-repo itself waits for a second user** — two repos to keep in step, and it must be public (RW is served by
    GitHub Pages, which only fetches public submodules). If the next project is Python, it wants a Python twin of the
    same model, not this file.
+6. **"Send a test message"** goes with it (Ron, 2026-11-10 — the rest of the logging up top, finished in one go): a
+   button in the Diagnostics window that plants an entry marked TEST, so support can ask "do you see the banner?" on a
+   real device and the mark keeps it from looking like trouble (LOGGING.md §2 and §5 step 5.5; the marker and its
+   formatting exist).
+7. **A flaky screen test, seen once** (2026-11-09, not reproduced in the next 3 runs): test_boot.py stopped outside any
+   test — the driver couldn't find the File menu button (30 s) when restoring the test library right after BOOT-001.
+   Read it before fixing it (TESTING.md §7): what was on screen (the failure screenshot), whether the menu bar was
+   covered or not yet drawn. If it comes back, set it aside the same day rather than re-run past it.
 
-#### Generated test libraries: made-up books at any size, with their own covers
-<!-- id 20261104-1613a -->
-
-_Why it matters:_ Test data with nothing personal can be committed and backed up anywhere, is identical every run (a
-failure always reproduces), plants the awkward cases on purpose, and comes in any size — so the tests stop leaning on
-Ron's real library (Ron, 2026-11-04: "it would be nice to migrate away").
-
-**Decided** (Ron + Claude, 2026-11-04 — Claude's call, Ron's ideas)
-1. **Generated, not real**, for tests: one generator (today's `test/fixtures/make-small-fixture.js`, grown) with a
-   **size setting** — 23 books for exact checks, ~3,000 for scale, 10,000 for stress — and **seeded**, so the same
-   "random" library every run.
-2. **Titles from a little title machine** (Ron's rules): *The [X] of [Y]*, *Adjective + Noun*, *A [Court] of
-   [Starlight] and [Shadow]* (fantasy), *-ing* openers, *Hook: subtitle* (nonfiction) — word lists per category,
-   picked by the seeded random ("A Kingdom of Teacups and Regret"). **Lorem-ipsum descriptions.** Cases a test depends on
-   keep fixed names (the series a Search looks for, the folder names).
-3. **Organization generated too:** folders by author with series subfolders, Book Lists by Amazon tags, some books in
-   the Trash, hidden, wishlisted with goals, every ownership kind — the planted cases, at scale.
-4. **Covers generated, served by the repo itself** — no website: a small **SVG** per cover (a solid background by genre,
-   the title on top — a tiny text file, no image library needed) in `test/fixtures/covers/`, which serve.py already
-   serves to the tests on Ron's PC: no internet, nothing test-related on readerwrangler.com or the home server, identical
-   every run. The scale library reuses a pool of ~50 rather than committing thousands. (The one path that built an
-   Amazon image link from the ASIN — the old CSV loader — was dead code, deleted in 7.26.0-alpha.1; nothing in the
-   app's code builds one now, checked 2026-11-05. The screen tests' request detector would catch a new one.)
-5. **Ron's library snapshot stays, used rarely** (`.private/test/`): only for "does real data have a quirk we never
-   thought to generate" checks — real data catches what nobody imagined.
-
-**How (technical)**
-- Packed with the app's own book packer (bookFields.js `packBook`), as the small fixture is. TESTING.md §5 gains the
-  sizes and the covers when built.
-
-#### Receipts reach the screen: one screen test per area, not only the log
-<!-- id 20261110-1021 -->
-
-_Why it matters:_ Since 7.26.0 every toast goes through the log (`rwLog.log(…, { toast: true })`). If an edit drops the
-`{ toast: true }`, the log still records the line, and no check notices that the person no longer sees it. That
-happened once in 7.26.0, to the tag-delete receipt: it was found and fixed during the build, but not by any test (the
-post-mortem's "bug no test would have caught").
-
-**Done already (2026-11-10, Ron's yes):** `test/ui/test_tags.py` — TAGS-001 (delete one tag) and TAGS-002 (delete
-two ticked tags) check that the receipt is on screen, on top and readable. Both were seen to fail with the receipts'
-`{ toast: true }` removed.
-
-**The rest — the class:** one such check for each area's main confirmation (ORG: create, rename, delete a folder, Book
-List or Search; EDIT: a book's details saved, Bulk Edit; MOVE: a move's receipt; UNDO: Undo / Redo; BACKUP: Save Backup;
-SYNC: Import from Relay's summary; AUTO; SHARE…), through the same helper (a toast holding the words, reached by the
-pointer). **When:** after "Faster loading" (each screen test then starts in about a second instead of ~35).
+The module's design of record is docs/design/LOGGING.md (7.26.0). The fetchers' own logging is its own task, in
+"Fetcher work, in build order".
 
 #### The Delete key deletes the folder you're in — not the folders you selected
 <!-- id 20261014-1030ay -->
@@ -465,7 +348,7 @@ release. And two of them close real gaps today: the relay accepts IDs in a form 
 mailbox, and the Danger zone's wipe may not reach the full copies, which never expire (Ron, 2026-10-24: "I want to
 close this out").
 
-**Order of work:** step 5 of the list at the top of "Up next" (the one home for the order).
+**Order of work:** where it sits in High priority — the order of the tasks is the one home for the order.
 
 **What's in it**
 1. **C — a shared notepad** for both relays (no user data) — the last step of the relay storage work (7.21.1–7.23.0):
@@ -599,7 +482,7 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
    commands — Ron is the designer. Read any skill fully before installing it (a skill is instructions that run with
    Claude's permissions).
 5. **The big designs decided in conversation, before they're built** — "Move and copy books anywhere". (The Delete
-   key was dropped 2026-11-04: it's built before the reviews — step 4 of the order of work — it's small and well
+   key was dropped 2026-11-04: it's built before the reviews — its task sits above this one — it's small and well
    decided, and the browser driver tests it.)
 
 **How each runs** (decided Ron + Claude, 2026-10-23)
@@ -614,6 +497,53 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
 4. **I spot-check its code claims, then bring Ron a digest with my verdicts.** Ron decides; decided items get the
    anti-bounce rule (only evidence — a real user's misreading, a failing test — reopens them).
 5. Claude.ai stays an option for a second opinion from outside our tools, when a verdict looks too comfortable.
+
+#### Generated test libraries: made-up books at any size, with their own covers
+<!-- id 20261104-1613a -->
+
+_Why it matters:_ Test data with nothing personal can be committed and backed up anywhere, is identical every run (a
+failure always reproduces), plants the awkward cases on purpose, and comes in any size — so the tests stop leaning on
+Ron's real library (Ron, 2026-11-04: "it would be nice to migrate away").
+
+**Decided** (Ron + Claude, 2026-11-04 — Claude's call, Ron's ideas)
+1. **Generated, not real**, for tests: one generator (today's `test/fixtures/make-small-fixture.js`, grown) with a
+   **size setting** — 23 books for exact checks, ~3,000 for scale, 10,000 for stress — and **seeded**, so the same
+   "random" library every run.
+2. **Titles from a little title machine** (Ron's rules): *The [X] of [Y]*, *Adjective + Noun*, *A [Court] of
+   [Starlight] and [Shadow]* (fantasy), *-ing* openers, *Hook: subtitle* (nonfiction) — word lists per category,
+   picked by the seeded random ("A Kingdom of Teacups and Regret"). **Lorem-ipsum descriptions.** Cases a test depends on
+   keep fixed names (the series a Search looks for, the folder names).
+3. **Organization generated too:** folders by author with series subfolders, Book Lists by Amazon tags, some books in
+   the Trash, hidden, wishlisted with goals, every ownership kind — the planted cases, at scale.
+4. **Covers generated, served by the repo itself** — no website: a small **SVG** per cover (a solid background by genre,
+   the title on top — a tiny text file, no image library needed) in `test/fixtures/covers/`, which serve.py already
+   serves to the tests on Ron's PC: no internet, nothing test-related on readerwrangler.com or the home server, identical
+   every run. The scale library reuses a pool of ~50 rather than committing thousands. (The one path that built an
+   Amazon image link from the ASIN — the old CSV loader — was dead code, deleted in 7.26.0-alpha.1; nothing in the
+   app's code builds one now, checked 2026-11-05. The screen tests' request detector would catch a new one.)
+5. **Ron's library snapshot stays, used rarely** (`.private/test/`): only for "does real data have a quirk we never
+   thought to generate" checks — real data catches what nobody imagined.
+
+**How (technical)**
+- Packed with the app's own book packer (bookFields.js `packBook`), as the small fixture is. TESTING.md §5 gains the
+  sizes and the covers when built.
+
+#### Receipts reach the screen: one screen test per area, not only the log
+<!-- id 20261110-1021 -->
+
+_Why it matters:_ Since 7.26.0 every toast goes through the log (`rwLog.log(…, { toast: true })`). If an edit drops the
+`{ toast: true }`, the log still records the line, and no check notices that the person no longer sees it. That
+happened once in 7.26.0, to the tag-delete receipt: it was found and fixed during the build, but not by any test (the
+post-mortem's "bug no test would have caught").
+
+**Done already (2026-11-10, Ron's yes):** `test/ui/test_tags.py` — TAGS-001 (delete one tag) and TAGS-002 (delete
+two ticked tags) check that the receipt is on screen, on top and readable. Both were seen to fail with the receipts'
+`{ toast: true }` removed.
+
+**The rest — the class:** one such check for each area's main confirmation (ORG: create, rename, delete a folder, Book
+List or Search; EDIT: a book's details saved, Bulk Edit; MOVE: a move's receipt; UNDO: Undo / Redo; BACKUP: Save Backup;
+SYNC: Import from Relay's summary; AUTO; SHARE…), through the same helper (a toast holding the words, reached by the
+pointer). **When:** after "Faster loading" (each screen test then starts in about a second instead of ~35).
 
 #### Turn more of our working rules into automatic checks (my tooling)
 <!-- id 20260922-0000c -->
@@ -930,7 +860,8 @@ and the ownership batch share one completion window, resume and refresh are the 
 one a chance to trip its human check).
 
 **Build order**
-1. The shared Amazon request wrapper — "Fetcher odds and ends…", item 3.
+1. The shared Amazon request wrapper — "Fetcher odds and ends…", item 3; then "The fetchers' own logging…" (its comb
+   then sorts one wrapper's lines instead of many copies, and every later fetcher change leaves a trace).
 2. "Stop cleanly when Amazon asks for a human check mid-fetch" — lives in that wrapper.
 3. The "partial fetch" label — "A fetch made with the demo filter on says so…" (resume's stages use it too).
 4. "Faster fetches that report exactly how your library compares with Amazon", with its riders: odds-and-ends items
@@ -978,6 +909,30 @@ table.
 - Item 3: `MIN_REQUEST_INTERVAL_MS` + `amazonFetch` (amazon-library-fetcher.js ~41–49; copies in the collections and
   series fetchers ~31); the collections fetcher still carries an unused `FETCH_DELAY_MS = 0` (~51). (Two items moved out 2026-10-20: the live ownership-upgrade test is now in "Fetch should
   update books it already knows", un-trash on upgrade is "Buying a book that's in the Trash should bring it back".)
+
+##### The fetchers' own logging: levels and codes, a log on Amazon's site, problems shown in Diagnostics
+<!-- id 20261110-1043 -->
+
+_Why it matters:_ Since 7.26.0 every message in the app has a level, an area and a code, and lands in a kept log that
+the Diagnostics window shows. The fetchers and the bookmarklet menu still print plain console lines on Amazon's pages,
+where nobody is looking — so a fetch that went wrong leaves no trace support can read.
+
+**Decided** (Ron + Claude, 2026-11-05 / 11-09 — moved here from "One logging module…", item 10, when the module
+shipped; design of record docs/design/LOGGING.md §2b and §5 step 5.5)
+1. **Their own comb**, like the app's: the fetchers' and bookmarklet menu's ~140 error and ~18 warning lines (counted
+   2026-11-04) each get a level, an area and (warning and above) a code — or go as noise. **Published for Ron's red
+   pen before any is switched.** Their ~430 progress lines stay: the step-by-step trail of a fetch support needs.
+2. **The same two switches, stored on Amazon's site** (whose storage is separate from ours): set from the console, or
+   a toggle in the bookmarklet menu's developer mode.
+3. **Two logs, never the relay** (LOGGING.md §2b): the fetchers keep theirs on amazon.com; a fetch's warnings and
+   errors ride inside its existing upload (no extra relay writes), and the app's Diagnostics window shows them as
+   their own group, *"From your last fetch (date)"* — not mixed in by time, so two computers' clocks never need to
+   agree (2026-11-09).
+4. **The same cleaning:** no full Channel ID or passphrase in anything kept or shown — the app's form is logger.js
+   `shortChannelId` (first 8 … last 4). The fetchers don't load logger.js (they do load relay-client.js), so how they
+   share that one function is open — decide it with "Bookmarklet: when your key no longer works…", which needs it too.
+
+**When:** right after the shared Amazon request wrapper (this group's build order, step 1).
 
 ##### Stop cleanly when Amazon asks for a human check mid-fetch
 <!-- id 20261014-1030au -->
@@ -3160,40 +3115,6 @@ could read the key and send it away.
   GoatCounter (its script + endpoint), Amazon's image hosts (covers) — list them from the code when building, not from
   memory.
 
-#### Faster loading: build the app ahead of time (35 seconds → 1)
-<!-- id 20261014-1030s -->
-
-_Why it matters:_ Opening ReaderWrangler takes **about 35 seconds** on Ron's PC — 32 of them the browser compiling the
-app's code, on every load. Built ahead of time, the app appeared in **1.0 second**. It's the first thing a newcomer
-meets, and it slows every load Ron does after a code change too.
-
-**Measured 2026-11-03** (Ron's PC, 3,270 books; untracked test pages, timed from page start to the app replacing the
-splash): today's page **35.8 s** average of 3 (the browser's compiler alone: 32.1 s); precompiled **1.0 s** average of
-5 — same books, same messages, same behavior. The compile itself, on the PC: **1.3–2.1 s** (desktop), 0.3–0.6 s
-(phone). The August figure in the spec (~14 s) has more than doubled as the code grew.
-
-**Decided** (Ron + Claude, 2026-11-03, in the TODO review — moved up from After launch → Technical clean-up)
-1. **Before launch, and early** (Ron: "I don't see why… we would not go ahead and do this sooner") — beside the
-   outside-libraries pinning task, which it also durably fixes (no in-browser compiler or style builder loaded at all).
-2. **An invisible build — two chokepoints, nothing to remember:**
-   - **serve.py builds on demand:** if a source file is newer than its built file, it rebuilds before serving — Ron's
-     loop stays edit → refresh (and gets faster: ~2 s on the PC instead of ~32 s in the browser).
-   - **A commit check refuses stale built files.** The built files are committed, so GitHub Pages serves them with no
-     build job on GitHub to maintain.
-3. **Match the browser's compile at first** (turning `const` / `let` into `var`, as the browser's compiler does — the
-   test crashed without it). The modern output exposed a real bug ("With a filter on, the right pane still shows
-   subfolders with no matching books", Small fixes); once that task's commit check comes back clean, drop the
-   conversion so the next such bug is a visible crash, not a silent "undefined".
-4. **Step 2: the styles** (the other 1–3 s, and the "not for production" warning) — the spec's Tailwind step; test it
-   the same way.
-5. The existing checks keep working on the source (name check, version guard); the cache-buster moves with the built
-   file — one more line in the version guard. What's served stays readable; the source is public on GitHub.
-
-**Spec:** docs/design/PRECOMPILE.md (written before these measurements and this build plan).
-**Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): Chrome DevTools' tool server can time loads and run Lighthouse — only with
-`--no-usage-statistics --no-performance-crux` (it reports to Google by default).
-
-
 #### Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes
 <!-- id 20260830-0000; merged 20260922-0000d -->
 
@@ -3528,6 +3449,9 @@ also prints the full Channel ID on screen — exactly the kind of error people s
    it (a refused request's error text must not contain the id).
 3. **No extra "ping before fetching"** (the old idea: `/status/{channelId}` first) — the existing first read already is
    the ping. Less code, not more.
+4. **(Note added 2026-11-10) One short form for a Channel ID already exists** (7.26.0): logger.js `shortChannelId` — first 8 … last 4, as Relay
+   Setup shows it — and the log's cleaner (`scrub`). Use that one function here, not a second copy; the fetchers' own
+   logging needs it too ("The fetchers' own logging…", in "Fetcher work").
 
 (Left over from "Ask before restoring when relay credentials don't match", shipped 7.14.3; Ron filed it on its own
 2026-10-16. docs/design/RELAY-CRED-MISMATCH.md "Future" — superseded by the above.)
@@ -3854,7 +3778,7 @@ _Why it matters:_ Losing undo mid-session is alarming; the cause is still unknow
 
 **Next time it happens**
 - Check the console history and Data Status's "last checked" — a discarded tab clears both.
-- **Read the kept diagnostics log** ("One logging module…", High priority): it records every page load
+- **Read the kept diagnostics log** (since 7.26.0: Help → Diagnostics…, or Copy diagnostics): it records every page load
   with the browser's own answer to "was this tab discarded and reloaded?" (`document.wasDiscarded`) — which settles the
   TinySuspender question without guesswork (added 2026-11-04).
 
@@ -3874,8 +3798,8 @@ _Why it matters:_ Rare reports of books in no folder at all; watch whether it st
 - **Watch** for the event after releases before spending a session on it.
 - **First, the Import-order fix** (2026-11-04, Ron + Claude): "Import files new books once, before the integrity
   check…" (✅ done in 7.26.0, removed from this list at release): an Import now files its new books before the check, so any
-  homeless book reported after it is a real one — and "One logging module…" makes it noticeable (the "auto-fixed during
-  restore" message becomes an error). Watch from 7.26.0 on.
+  homeless book reported after it is a real one — and the logging module (7.26.0) makes it noticeable (the "auto-fixed
+  during restore" message is an error). Watch from 7.26.0 on.
 
 **How (technical)**
 - The event is `integrity-homeless`; the suspect was a stale `FOLDERS_KEY`.

@@ -1,16 +1,32 @@
 # Logging — the module, and the sort of today's console lines
 
-_Design of record for TODO "One logging module: level, area and code for every message…" (Ron + Claude, 2026-11-05 —
+_Design of record for the logging module — shipped in 7.26.0; its TODO task, "One logging module: level, area and code
+for every message…", was removed once released, and its reasons are kept below (Ron + Claude, 2026-11-05 —
 Ron's model: a severity code and text per message, a tunable display filter, everything always logged, log readers;
 the same model as Linux syslog / printk / journald). Section 3 was the sort, for Ron's red pen before any line was
 switched; it stays as the record._
 
-**Status (2026-11-10):** built on `feature/logging` through 7.26.0-alpha.27 — §5 lists each step and what changed
-while building. In short: one call (`rwLog.log`), 17 areas, every console line, toast and dialog through it; two
+**Status (2026-11-10):** **released in 7.26.0** (built on `feature/logging`, alphas 1–28) — §5 lists each step and what
+changed while building. In short: one call (`rwLog.log`), 17 areas, every console line, toast and dialog through it; two
 switches (the error banner, extra detail) instead of the first design's ladder of levels; the Diagnostics window
 (Help → Diagnostics…, and "Full log…" in the 🕐 history); the screen tests fail on any undeclared error or critical.
-Left: the fetchers' own logging and "Send a test message" (§5 step 5.5); the module as its own folder (TODO "Logging as
-its own module…").
+Left (TODO, 2026-11-10): the module as its own folder, with "Send a test message" (§5 step 5.5) and the flaky-test note
+— "Logging as its own module…", High priority; the fetchers' own logging — "The fetchers' own logging…", in "Fetcher
+work, in build order".
+
+**Reasons kept from the TODO task when it was removed** (2026-11-10 — the decisions themselves are in the sections
+below):
+- **The model** is Ron's, from the products he built (a text message plus a severity code, a user-tunable filter,
+  everything always logged, readers with filtering); it replaced 2026-11-02's four buckets and on/off switch, a crude
+  version of it. Syslog's Emergency and Alert levels don't apply — there's no system to bring down.
+- **Never a blocking pause** (`alert()`): it would break the 30-second Import timeout and leave a push half sent.
+- **Page loads record "was this tab discarded?"** (`document.wasDiscarded`) so an unexplained loss of in-memory state
+  (TODO "Undo history sometimes empties by itself", Watching) can be traced to a reload.
+- **The switches live in logger.js** (it loads first), **separate from contributor mode on purpose**.
+- **Ours only:** uncaught errors and failed promises on our pages are logged as errors (a crash inside React or another
+  library we load included); browser-extension messages ("Unchecked runtime.lastError…") never reach us.
+- **The cleaner is shared** with TODO "Bookmarklet: when your key no longer works, say so plainly — and never show the
+  Channel ID in an error": one function (`shortChannelId`), not a second copy.
 
 ## 1. Levels
 

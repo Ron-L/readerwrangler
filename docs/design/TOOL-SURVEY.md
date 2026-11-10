@@ -47,7 +47,7 @@ the agent couldn't confirm is marked UNVERIFIED below.
 
 **Notes**
 - "CLI killed MCP" posts are mostly an echo of Microsoft's own token-cost argument. The argument is sound for coding agents, but MCP still suits long exploratory sessions.
-- For the Delete-key fix (step 3 in the order of work), Playwright gives real `keydown`/`keyup` events. Synthetic `dispatchEvent` would not reproduce the actual browser key path.
+- For the Delete-key fix (TODO "The Delete key deletes the folder you're in…"), Playwright gives real `keydown`/`keyup` events. Synthetic `dispatchEvent` would not reproduce the actual browser key path.
 
 ## 2. Video assembly and sound (20–30 s sizzle reel)
 

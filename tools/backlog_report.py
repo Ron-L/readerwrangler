@@ -105,6 +105,8 @@ MERGES = {   # absorbed task -> the task (current name) that absorbed it
 }
 DONE_WITHOUT_CHECKMARK = {   # finished and removed in a release without first getting a ✅
     'Tag from Collections: clear up the checkbox vs. preview confusion',   # shipped as 7.24.0
+    # shipped as 7.26.0; its two later pieces moved to their own tasks (2026-11-10)
+    'One logging module: level, area and code for every message; an always-on log, a Diagnostics window',
 }
 # Commits whose ✅ marks RECOGNIZED work finished long before (the 2026-10-14/15 rewrite and done-ness sweep) — not
 # that week's velocity. Those tasks were never really open in this history, so they're left out entirely.
