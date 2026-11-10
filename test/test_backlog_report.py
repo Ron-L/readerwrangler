@@ -97,6 +97,17 @@ test("BKLG-005", "a ✅ made on main counts from its date — the task stops cou
      checkmark_on_main_still_counts)
 
 
+def restored_task_reopens():
+    main = [("m1", at(15), todo(A, B)), ("m2", at(17), todo(B)), ("m3", at(20), todo(A, B))]   # lost, then restored
+    recs, snaps, _ = br.walk(main, br.checkmarks(main))
+    mine = [r for r in recs if r.header == "Task A"]
+    check(len(mine) == 1, f"a task restored under its own ID is ONE task, not two arrivals: {len(mine)} records")
+    check(mine[0].end is None, f"restored, it's open again — not dropped: {mine[0].end!r}")
+    check("Task A" in {r.header for r, _ in snaps[-1][1]}, "the restored task counts as open")
+test("BKLG-007", "a task deleted by accident and restored under its own ID reopens — one arrival, not dropped",
+     restored_task_reopens)
+
+
 def real_history_import_order_fix():
     recs, _, _ = br.walk(br.load_versions(main_only=True), br.checkmarks(br.load_versions(main_only=False)))
     name = "Import files new books once, before the integrity check — and only books in no folder"

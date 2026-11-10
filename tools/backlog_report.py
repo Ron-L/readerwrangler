@@ -282,6 +282,12 @@ def walk(versions, marks):
                 r.end, r.end_at = 'dropped', when
             open_recs.remove(r)
         for t in unmatched:
+            back = next((r for r in recs if t['id'] and r.end == 'dropped' and 'id:' + t['id'] in r.aliases), None)
+            if back:                                      # deleted by accident, restored under its own ID: reopen it
+                back.end, back.end_at = None, None
+                open_recs.append(back)
+                matched[id(t)] = back
+                continue
             if n == 0:
                 if t['done']:
                     continue                              # finished before the history starts
