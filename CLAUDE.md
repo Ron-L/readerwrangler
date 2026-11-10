@@ -172,6 +172,12 @@ Bypass (Ron's call only): `git commit --no-verify`.
   header** — `<!-- id YYYYMMDD-HHMM -->`, the time it was filed (the stamp hook's time; a letter suffix only when that
   minute is taken) — and a task that absorbs others lists them: `<!-- id … ; merged <id>, <id> -->`. The same check
   refuses a missing or repeated ID; `tools/backlog_report.py` follows tasks by them (Ron, 2026-10-21).
+- **No task leaves TODO.md silently** (`git-hooks/check-removed-tasks.py`, from `git-hooks/commit-msg` — it needs the
+  message): a commit that removes a task must show why — it had a ✅, another task lists it as merged
+  (`<!-- id … ; merged <id> -->`), or the message says **`done <id>`** (finished, shipped without a ✅ — the backlog
+  report counts it done) or **`dropped <id>`** (and why). Squash and merge commits are skipped (each branch commit was
+  checked). Earned 2026-11-10: a task filed 11-02 was deleted by accident 27 minutes later inside a big TODO edit.
+  The backlog report also finds a task's ✅ on any branch (squashes hide it from main).
 
 ---
 

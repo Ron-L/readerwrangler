@@ -42,17 +42,23 @@ import webbrowser
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
-try:
-    from pytools.keepopen import run
-except ImportError:
-    print("This script needs the pytools submodule. In the project folder run:\n"
-          "    git submodule update --init\n"
-          "then start it again.", file=sys.stderr)
+
+
+def _runner():
+    """pytools' keepopen (the window stays open on a double-click) — needed only when this file runs as a script, so
+    the commit check and the tests can import it without pytools (2026-11-10: a fresh copy refused every TODO commit)."""
     try:
-        input("\nPress Enter to close this window.")
-    except (EOFError, KeyboardInterrupt):
-        pass
-    sys.exit(1)
+        from pytools.keepopen import run
+        return run
+    except ImportError:
+        print("This script needs the pytools submodule. In the project folder run:\n"
+              "    git submodule update --init\n"
+              "then start it again.", file=sys.stderr)
+        try:
+            input("\nPress Enter to close this window.")
+        except (EOFError, KeyboardInterrupt):
+            pass
+        sys.exit(1)
 
 TODO = 'TODO.md'
 FORMAT_START = 'aafe5dc'          # 2026-10-14: the TODO became one header per task
@@ -108,7 +114,8 @@ MERGES = {   # absorbed task -> the task (current name) that absorbed it
     'Book details window: Save only when something changed; offer Save before closing with unsaved changes':
         'Book details window: one Save — nothing changes until you click it, and nothing is lost without asking',
 }
-DONE_WITHOUT_CHECKMARK = {   # finished and removed in a release without first getting a ✅
+DONE_WITHOUT_CHECKMARK = {   # finished and removed in a release without first getting a ✅ — CLOSED (2026-11-10): from
+    # now on such a task is declared `done <id>` in the commit that removes it (git-hooks/check-removed-tasks.py)
     'Tag from Collections: clear up the checkbox vs. preview confusion',   # shipped as 7.24.0
     # shipped as 7.26.0; its two later pieces moved to their own tasks (2026-11-10)
     'One logging module: level, area and code for every message; an always-on log, a Diagnostics window',
@@ -204,6 +211,41 @@ def load_versions(main_only=True):
         raise RuntimeError('No TODO.md history found from ' + FORMAT_START)
     return [(sha, dt.datetime.fromisoformat(iso).replace(tzinfo=None), git('show', f'{sha}:{TODO}'))
             for sha, iso in commits]
+
+
+DECLARED_RE = re.compile(r'\b(done|dropped)\s+(\d{8}-\d{4}[a-z]*(?:\s*,\s*\d{8}-\d{4}[a-z]*)*)', re.I)
+
+
+def declared(message):
+    """{id: 'done' | 'dropped'} — what a commit message says about tasks it removes: `done <id>` (finished, shipped
+    without a ✅) or `dropped <id>`; a list works too. Required by git-hooks/check-removed-tasks.py (2026-11-10)."""
+    out = {}
+    for verb, ids in DECLARED_RE.findall(message):
+        for tid in re.findall(r'\d{8}-\d{4}[a-z]*', ids):
+            out[tid] = verb.lower()
+    return out
+
+
+def declared_done(messages):
+    """{'id:<id>': when} for every task a commit message declared `done <id>` — [(sha, when, message)], any order.
+    Replaces growing DONE_WITHOUT_CHECKMARK by hand: a task shipped without a ✅ is declared where it's removed."""
+    first = {}
+    for sha, when, message in messages:
+        for tid, verb in declared(message).items():
+            if verb == 'done' and ('id:' + tid not in first or when < first['id:' + tid]):
+                first['id:' + tid] = when
+    return first
+
+
+def load_messages():
+    """[(sha, when, message)] for main's commits (first parents) since the format began."""
+    log = git('log', '--first-parent', '--format=%H%x1f%aI%x1f%B%x1e', f'{FORMAT_START}^..HEAD')
+    out = []
+    for rec in log.split('\x1e'):
+        if rec.strip():
+            sha, iso, msg = rec.strip('\n').split('\x1f', 2)
+            out.append((sha, dt.datetime.fromisoformat(iso).replace(tzinfo=None), msg))
+    return out
 
 
 def checkmarks(versions):
@@ -718,7 +760,10 @@ def stamp(recs, snaps):
 
 def main():
     sys.stdout.reconfigure(encoding='utf-8')
-    recs, snaps, _ = walk(load_versions(main_only=True), checkmarks(load_versions(main_only=False)))
+    marks = checkmarks(load_versions(main_only=False))
+    for key, when in declared_done(load_messages()).items():      # `done <id>` in a commit message counts as its ✅
+        marks[key] = min(marks.get(key, when), when)
+    recs, snaps, _ = walk(load_versions(main_only=True), marks)
     if '--stamp' in sys.argv:
         stamp(recs, snaps)
         return
@@ -742,4 +787,4 @@ def main():
 
 
 if __name__ == '__main__':
-    run(main, pause='always')
+    _runner()(main, pause='always')
