@@ -17,6 +17,9 @@ What it reads (nothing is changed unless you ask for --stamp):
     Before IDs existed, a task is followed by its header text (and the RENAMES / MERGES lists below).
   * How a task ends: DONE (its header got a ✅ — that's velocity), MERGED (absorbed into another task — the backlog
     shrinks, no work done) or DROPPED (deleted without ✅ and not merged).
+  * What's COUNTED: real work only — open and done tasks (2026-11-10, Ron). Merged and dropped tasks leave every count
+    and chart, as if never filed (one separate number reports them, the tidying); a task that absorbed others counts
+    from the earliest of them. So the open-tasks line moves by exactly arrived − done.
   * Where a ✅ is looked for: main's history AND every branch, local and on the remotes (2026-11-10). Every release is
     SQUASHED onto main, so the ✅ a task gets while its branch is built never reaches main's history — the task just
     disappears there. The branches are kept, so the ✅ is still found; a task counts as done from the moment its ✅
@@ -328,7 +331,8 @@ def walk(versions, marks):
                 r.done_at = r.done_at or when
             elif r.header in MERGES or (r.ids & merged_ids):
                 r.end, r.end_at = 'merged', when
-                r.into = MERGES.get(r.header)
+                into = next((t['id'] for t in cur if r.ids & set(t['merged'])), None)
+                r.into = ('id:' + into) if into else ('h:' + MERGES[r.header])     # the absorbing task, by alias
             else:
                 r.end, r.end_at = 'dropped', when
             open_recs.remove(r)
@@ -367,6 +371,13 @@ def walk(versions, marks):
                 r.recognized = sha.startswith(RECOGNITION_COMMITS)
         snaps.append((when, [(r, r.section) for r in open_recs if not r.done_at]))
     # recognitions were never really open here: drop them from every count and every snapshot
+    # A task that absorbed others counts from the earliest of them — that work existed since then (Ron, 2026-11-10).
+    # In merge order, so a chain (A into B, B later into C) carries A's date all the way.
+    by_alias = {a: r for r in recs for a in r.aliases}
+    for m in sorted((r for r in recs if r.end == 'merged'), key=lambda r: r.end_at):
+        absorber = by_alias.get(m.into)
+        if absorber and m.arrived < absorber.arrived:
+            absorber.arrived = m.arrived
     recs = [r for r in recs if not r.recognized]
     snaps = [(w, [(r, s) for r, s in opn if not r.recognized]) for w, opn in snaps]
     return recs, snaps, versions
@@ -384,7 +395,15 @@ def changelog_monthly():
 
 # ---------- numbers ----------
 
-def summarize(recs, snaps):
+def real_work(recs):
+    """The tasks every count and chart is made of: open or done. A MERGED task was never separate work (it lives on in
+    the task that absorbed it, which counts from its date); a DROPPED one turned out not to be work. Both leave every
+    count, as if never filed — so the line moves by exactly arrived − done (Ron, 2026-11-10). They're reported as one
+    separate number, the tidying."""
+    return [r for r in recs if r.end not in ('merged', 'dropped')]
+
+
+def summarize(recs, snaps, tidied=()):
     base = snaps[0][0]
     now = snaps[-1][0]
     days = max((now - base).total_seconds() / 86400, 1)
@@ -397,8 +416,8 @@ def summarize(recs, snaps):
         'by_section': {k: sum(1 for r in open_now if r.section == k) for k, _ in SECTIONS},
         'arrived': len(after),
         'done': len([r for r in recs if r.done_at and r.done_at > base]),
-        'merged': sum(1 for r in recs if r.end == 'merged'),
-        'dropped': sum(1 for r in recs if r.end == 'dropped'),
+        'merged': sum(1 for r in tidied if r.end == 'merged'),      # not counted anywhere else — the tidying
+        'dropped': sum(1 for r in tidied if r.end == 'dropped'),
     }
     s['arrive_rate'] = s['arrived'] / weeks
     s['done_rate'] = s['done'] / weeks
@@ -609,21 +628,10 @@ def svg_net(rows, keys, width=760, height=230, shade=()):
     return ''.join(out)
 
 
-def weekly_net(weeks, measured):
-    """Per week: net from work (done − arrived) and the backlog's real change (merges and drops included), both
-    signed so that ABOVE zero means the backlog shrank."""
-    open_on = {d: n for d, n, _ in measured}
-    days = sorted(open_on)
-    rows = []
-    for start, arrived, done, _gone in weeks:
-        end = start + dt.timedelta(days=7)
-        before = [d for d in days if d < start]
-        inside = [d for d in days if start <= d < end]
-        if not inside:
-            continue
-        first = open_on[before[-1]] if before else open_on[inside[0]]
-        rows.append((start.strftime('%b %d'), {'work': done - arrived, 'total': first - open_on[inside[-1]]}))
-    return rows
+def weekly_net(weeks):
+    """Per week: done − arrived, signed so that ABOVE zero means the backlog shrank. With only real work counted
+    (real_work), that IS the line's change — the old second bar (merges and drops included) is gone (2026-11-10)."""
+    return [(start.strftime('%b %d'), {'work': done - arrived}) for start, arrived, done, _ in weeks]
 
 
 PAGE = '''<title>ReaderWrangler Backlog</title>
@@ -698,13 +706,13 @@ def page(s, approx, measured, weeks, monthly, recs, rels=()):
                      ('All open tasks', '--accent', False, [(d, n) for d, n, _ in measured]),
                      ('Launch scope', '--arrive', False, [(d, n) for d, _, n in measured])], y_label='Open tasks',
                     bands=EVENTS, ticks=rels)
-    flows = svg_bars([(w.strftime('%b %d'), {'a': a, 'd': d, 'g': g}) for w, a, d, g in weeks],
-                     [('a', '--arrive'), ('d', '--done'), ('g', '--gone')],
+    flows = svg_bars([(w.strftime('%b %d'), {'a': a, 'd': d}) for w, a, d, _ in weeks],
+                     [('a', '--arrive'), ('d', '--done')],
                      shade=[week_shade(w) for w, *_ in weeks])
     months = svg_bars([(m[2:].replace('-', '/'), {'c': c}) for m, c in monthly.items()], [('c', '--done')])
     week_of = {w.strftime('%b %d'): w for w, *_ in weeks}
-    net_rows = weekly_net(weeks, measured)
-    net = svg_net(net_rows, [('work', 1), ('total', 0.45)], shade=[week_shade(week_of[lb]) for lb, _ in net_rows])
+    net_rows = weekly_net(weeks)
+    net = svg_net(net_rows, [('work', 1)], shade=[week_shade(week_of[lb]) for lb, _ in net_rows])
     ev_note = ' '.join(f'<b>{E(name)}</b> ({first:%b %d} – {last:%b %d}): {E(why)}.'
                        for first, last, name, why in EVENTS)
     ev_note = (f'<p class="note">Shaded: {ev_note} Hover a shaded area for its name.</p>') if EVENTS else ''
@@ -722,8 +730,11 @@ def page(s, approx, measured, weeks, monthly, recs, rels=()):
     <div class="num"><span class="v">{s["scope_open"]}</span><span class="k">Launch scope</span></div>
     <div class="num"><span class="v">{s["arrived"]}</span><span class="k">Arrived since {s["base"]:%b %d}</span></div>
     <div class="num"><span class="v">{s["done"]}</span><span class="k">Done since {s["base"]:%b %d}</span></div>
-    <div class="num"><span class="v">{s["merged"] + s["dropped"]}</span><span class="k">Merged or dropped</span></div>
+    <div class="num"><span class="v">{s["merged"] + s["dropped"]}</span><span class="k">Tidied away</span></div>
   </div>
+  <p class="note">Only real work is counted: tasks still open and tasks done. <b>Tidied away</b> = {s["merged"]} merged
+  into another task (that task counts from the earliest of them) and {s["dropped"]} dropped as not needed — left out of
+  every number and chart here, as if never filed, so the open-tasks line moves by exactly arrived minus done.</p>
 </section>
 <section class="panel">
   <h2>The hump: open tasks over time</h2>
@@ -743,20 +754,18 @@ def page(s, approx, measured, weeks, monthly, recs, rels=()):
 <section class="panel">
   <h2>Arrivals and completions per week</h2>
   <div class="legend"><span><i style="background:var(--arrive)"></i>Arrived</span>
-    <span><i style="background:var(--done)"></i>Done (✅)</span>
-    <span><i style="background:var(--gone)"></i>Merged or dropped (no work done)</span></div>
+    <span><i style="background:var(--done)"></i>Done (✅)</span></div>
   <div class="chart">{flows}</div>
   <p class="note">The hump turns over once green bars are taller than amber ones week after week. The line above
-  moves by amber minus green minus grey — merging and dropping shrink it too, with no work done.</p>
+  moves by exactly amber minus green.</p>
 </section>
 <section class="panel">
   <h2>Net velocity per week (the slope)</h2>
   <div class="legend"><span><i style="background:var(--done)"></i>Above zero: the backlog shrank</span>
     <span><i style="background:var(--arrive)"></i>Below zero: it grew</span>
-    <span>Solid: from work (done − arrived) · Faded: real change, merges and drops included</span></div>
+    <span>Done minus arrived, per week</span></div>
   <div class="chart">{net}</div>
-  <p class="note">The peak of the hump is where these bars cross from below zero to above it and stay there. The
-  faded bar can look better than the solid one: merging or dropping tasks shrinks the list without finishing work.</p>
+  <p class="note">The peak of the hump is where these bars cross from below zero to above it and stay there.</p>
 </section>
 <section class="panel">
   <h2>Open tasks by section</h2>
@@ -804,8 +813,8 @@ def stamp(recs, snaps):
     by_header = {r.header: r for r in live}
     absorbed = {}
     for r in recs:
-        if r.end == 'merged' and r.into:
-            absorbed.setdefault(r.into, []).append(ids[r])
+        if r.end == 'merged' and r.into and r.into.startswith('h:'):    # by header: the merges from before IDs
+            absorbed.setdefault(r.into[2:], []).append(ids[r])
     path = os.path.join(REPO, TODO)
     L = open(path, encoding='utf-8').read().split('\n')
     tasks = parse('\n'.join(L))
@@ -836,15 +845,17 @@ def main():
     if '--stamp' in sys.argv:
         stamp(recs, snaps)
         return
-    s = summarize(recs, snaps)
-    approx, measured = daily_series(recs, snaps)
-    weeks = weekly_flows(recs, s['base'], s['now'])
+    real = real_work(recs)
+    s = summarize(real, snaps, tidied=[r for r in recs if r not in real])
+    approx, measured = daily_series(real, snaps)
+    weeks = weekly_flows(real, s['base'], s['now'])
     monthly = changelog_monthly()
     with open(OUT, 'w', encoding='utf-8') as f:
-        f.write(page(s, approx, measured, weeks, monthly, recs, rels=releases()))
+        f.write(page(s, approx, measured, weeks, monthly, real, rels=releases()))
     print(f'Backlog: {s["open"]} open tasks ({s["scope_open"]} in the launch scope) — {s["hump"]}.')
-    print(f'Since {s["base"]:%Y-%m-%d} ({s["weeks"]:.1f} weeks): {s["arrived"]} arrived, {s["done"]} done, '
-          f'{s["merged"]} merged, {s["dropped"]} dropped.')
+    print(f'Since {s["base"]:%Y-%m-%d} ({s["weeks"]:.1f} weeks): {s["arrived"]} arrived, {s["done"]} done '
+          f'(real work: the line moves by the difference). Tidied away, not counted: {s["merged"]} merged, '
+          f'{s["dropped"]} dropped.')
     print(f'Per week: {s["arrive_rate"]:.1f} arrive, {s["done_rate"]:.1f} done. Launch scope: '
           + (f'empties in ~{s["scope_weeks"]:.0f} weeks.' if s['scope_weeks'] else 'not shrinking yet'
              + (f' (~{s["scope_weeks_no_new"]:.0f} weeks if nothing new arrived).' if s['scope_weeks_no_new'] else '.')))

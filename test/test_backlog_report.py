@@ -11,6 +11,7 @@
 import datetime as dt
 import importlib.util
 import os
+import random
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,12 +23,18 @@ sys.path.insert(0, os.path.join(ROOT, "test", "ui"))
 from harness import check, done, test   # noqa: E402  (the screen tests' harness: stable IDs, one summary line)
 
 
+VOCAB = ['apple', 'river', 'stone', 'cloud', 'maple', 'ember', 'quartz', 'violet', 'harbor', 'lantern', 'meadow',
+         'cobalt', 'falcon', 'juniper', 'saffron', 'tundra', 'willow', 'zephyr', 'orchid', 'basalt']
+
+
 def todo(*tasks):
     """A TODO.md with these tasks in Up next — each (header, id, extra) where extra is e.g. '; merged 20261001-0900'."""
     out = ["# TODO", "", "## 🔝 Up next", ""]
     for header, tid, extra in tasks:
         # each body its own words: the report treats a vanished task whose text reappears under a new header as RENAMED
-        words = " ".join(f"{header.lstrip('✅ ')} line {k} of its own reasons." for k in range(6))
+        # (60 words drawn by a random seeded with the task's name: two tasks' texts are ~5-10% alike, far under 60%)
+        r = random.Random(header.lstrip('✅ '))
+        words = " ".join(r.choice(VOCAB) for _ in range(60))
         out += [f"#### {header}", f"<!-- id {tid}{extra} -->", "", f"_Why it matters:_ {words}", ""]
     return "\n".join(out)
 
@@ -158,6 +165,53 @@ def events_and_releases_drawn():
     check(bars.count('class="band"') == 1 and "TODO review" in bars, "the weekly bars shade the review's week only")
 test("BKLG-011", "the TODO review is shaded and named on the charts; releases are marked on the line",
      events_and_releases_drawn)
+
+
+# 2026-11-10 (Ron): a merged task was never separate work (it lives on in the task that absorbed it), and a dropped one
+# turned out not to be work — so the charts count REAL work only: merged and dropped tasks leave every count, as if never
+# filed, and the line moves by exactly arrived − done. A task that absorbed others counts from the earliest of them.
+D = ("Task D", "20261016-0900", "")
+
+
+def tidied_tasks_leave_every_count():
+    main = [("m1", at(15), todo(A, B)), ("m2", at(16), todo(A, B, D)),
+            ("m3", at(18), todo(("Task B", "20261015-1100", "; merged 20261016-0900"))),   # D merged into B, A dropped
+            ("m4", at(20), todo(("Task B", "20261015-1100", "; merged 20261016-0900"), C))]
+    recs, snaps, _ = br.walk(main, br.checkmarks(main))
+    real = br.real_work(recs)
+    check({r.header for r in real} == {"Task B", "Task C"}, f"only real work counts: {sorted(r.header for r in real)}")
+    _, measured = br.daily_series(real, snaps)
+    line = {d.day: n for d, n, _ in measured}
+    check(line[15] == 1 and line[17] == 2 and line[20] == 2,
+          f"the line counts B from the start and C from Oct 17 — never A or D: {line}")
+    s = br.summarize(real, snaps)
+    check(s["arrived"] == 1 and s["done"] == 0, f"arrived 1 (C), done 0: {s['arrived']}, {s['done']}")
+    check(line[20] - line[15] == s["arrived"] - s["done"], "the line moves by exactly arrived − done")
+test("BKLG-012", "merged and dropped tasks leave every count; the line moves by exactly arrived − done",
+     tidied_tasks_leave_every_count)
+
+
+def absorber_counts_from_earliest():
+    E_ABS = ("Task E", "20261019-0900", "; merged 20261017-0900")       # E (filed Oct 19) absorbs C (filed Oct 17)
+    main = [("m1", at(15), todo(A)), ("m2", at(18), todo(A, C)), ("m3", at(20), todo(A, E_ABS))]
+    recs, _, _ = br.walk(main, br.checkmarks(main))
+    e = next(r for r in recs if r.header == "Task E")
+    check(e.arrived == dt.datetime(2026, 10, 17, 9, 0), f"Task E absorbed C (filed Oct 17): it counts from then, got {e.arrived}")
+test("BKLG-013", "a task that absorbed others counts from the earliest of them", absorber_counts_from_earliest)
+
+
+def real_history_line_is_arrived_minus_done():
+    marks = br.checkmarks(br.load_versions(main_only=False))
+    recs, snaps, _ = br.walk(br.load_versions(main_only=True), marks)
+    real = br.real_work(recs)
+    s = br.summarize(real, snaps)
+    _, measured = br.daily_series(real, snaps)
+    start = sum(1 for r in real if r.arrived <= s["base"] and not (r.done_at and r.done_at <= s["base"]))
+    check(measured[-1][1] - start == s["arrived"] - s["done"],
+          f"the real history: line {start} → {measured[-1][1]} must move by arrived − done = {s['arrived'] - s['done']}")
+    check(measured[-1][1] == len(snaps[-1][1]), "and still end at main's open count")
+test("BKLG-014", "the real history: the line's change equals arrived − done, ending at main's open count",
+     real_history_line_is_arrived_minus_done)
 
 
 def real_history_import_order_fix():
