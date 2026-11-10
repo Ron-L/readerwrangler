@@ -52,8 +52,10 @@ const openDB = () => {
                 _dbPromise = null;
                 if (_storeState !== 'ready') return;   // this tab is the one deleting, or already gone
                 _storeState = event.newVersion === null ? 'reset' : 'upgraded';
-                console.log(`📦 ${BOOK_STORE_TEXT.goneTitle(_storeState)} This tab let go of the book store and stopped saving.`);
-                _goneListeners.slice().forEach(fn => { try { fn(_storeState); } catch (e) { console.error(e); } });
+                rwLog.log('info', 'STORE', `${BOOK_STORE_TEXT.goneTitle(_storeState)} This tab let go of the book store and stopped saving.`);
+                _goneListeners.slice().forEach(fn => {
+                    try { fn(_storeState); } catch (e) { rwLog.log('error', 'STORE-11', `A "reset in another tab" listener failed: ${e && e.message}`, { stack: e && e.stack }); }
+                });
             };
             resolve(db);
         };
@@ -79,10 +81,14 @@ const deleteBookStore = ({ onBlocked } = {}) => new Promise((resolve, reject) =>
     const settle = () => { if (_storeState === 'deleting') _storeState = 'ready'; };
     const go = () => {
         const request = indexedDB.deleteDatabase(DB_NAME);
-        request.onsuccess = () => { settle(); console.log('✅ Deleted IndexedDB:', DB_NAME); resolve(); };
-        request.onerror = () => { settle(); console.error('❌ Failed to delete IndexedDB:', DB_NAME, request.error); reject(request.error); };
+        request.onsuccess = () => { settle(); rwLog.log('info', 'STORE', 'The book store was deleted (a reset)'); resolve(); };
+        request.onerror = () => {
+            settle();
+            rwLog.log('error', 'STORE-08', `A reset couldn't delete the book store: ${request.error && request.error.message}`);
+            reject(request.error);
+        };
         request.onblocked = () => {
-            console.log('⏳ The book store is held open by another tab — waiting for it to close');
+            rwLog.log('warning', 'STORE-09', 'The book store is held open by another tab — the reset waits for it to close');
             if (onBlocked) onBlocked();
         };
     };
@@ -107,7 +113,7 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
     await waitForPrev;
 
     try {
-        console.log(`🔄 Saving ${books.length} books to IndexedDB... (preserveUserData: ${preserveUserData})`);
+        rwLog.log('debug', 'STORE', `Saving ${books.length} books to the book store (merging with what's there: ${preserveUserData})`);
 
         const db = await openDB();
 
@@ -142,7 +148,7 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
             }
 
             if (orphanWishlists.length > 0) {
-                console.log(`📋 Preserving ${orphanWishlists.length} orphan wishlist items`);
+                rwLog.log('debug', 'STORE', `Keeping ${orphanWishlists.length} wishlist books the incoming copy doesn't have`);
             }
 
             // Step 3: Combine new books with orphan wishlists
@@ -211,7 +217,7 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                     // propagates across devices in both directions. Same-field two-device conflict → local wins.
                     const ue = previousBook.userEdited || {};
                     if (Object.keys(ue).length > 0) {
-                        console.log(`🛡️ Preserving user-edited fields for "${previousBook.title}":`, Object.keys(ue).join(', '));
+                        rwLog.log('debug', 'STORE', `Keeping your edits to "${previousBook.title}": ${Object.keys(ue).join(', ')}`);
                     }
                     // v7.14.4 (one-table v7.17.0) - Data-driven merge (bookMerge.js). Every field's behavior —
                     // user-owned fields (local wins so a deliberate CLEAR survives import), user-overridable fields
@@ -243,17 +249,19 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
             .filter(b => b && b.priceTrigger != null).map(b => b.id);
 
         if (duplicates.length > 0) {
-            console.warn(`⚠️  Found ${duplicates.length} duplicate ASINs, owned books take priority`);
-            console.warn(`   Sample duplicates:`, duplicates.slice(0, 5));
+            rwLog.log('warning', 'STORE-05', `${duplicates.length} books arrived twice (the same ASIN) — the owned copy was kept`,
+                { sample: duplicates.slice(0, 5) });
         }
 
         if (wishlistToOwned.length > 0) {
-            console.log(`🎉 ${wishlistToOwned.length} wishlist items now owned (price goals preserved)`);
+            rwLog.log('info', 'STORE', `${wishlistToOwned.length} wishlist books are now owned (their price goals kept)`);
         }
 
         // v6.3.0 - Atomic clear+add in single transaction (prevents race where
         // a concurrent read sees empty store between separate clear and add txns)
-        return new Promise((resolve, reject) => {
+        // 7.26.0 - `return AWAIT`: without it the finally below let go of the write lock as soon as the write STARTED (a
+        // second save could start mid-write), and a failure while starting it skipped the catch's STORE-07 (STORE-001/002)
+        return await new Promise((resolve, reject) => {
             const txn = db.transaction([BOOKS_STORE], 'readwrite');
             const store = txn.objectStore(BOOKS_STORE);
             store.clear();
@@ -261,17 +269,19 @@ const saveBooksToIndexedDB = async (books, preserveUserData = false) => {
                 store.add(book);
             }
             txn.oncomplete = () => {
-                console.log('✅ Saved', uniqueBooks.length, 'unique books to IndexedDB');
+                rwLog.log('debug', 'STORE', `Saved ${uniqueBooks.length} books to the book store`);
                 resolve(uniqueBooks);
             };
             txn.onerror = () => {
                 const error = txn.error || new Error('IndexedDB transaction failed');
-                console.error('❌ IndexedDB save failed:', error);
+                rwLog.log('critical', 'STORE-06', 'Your books could not be saved in this browser.', { error: String(error) });
                 reject(error);
             };
         });
     } catch (error) {
-        console.error('❌ IndexedDB save exception:', error);
+        // a tab that's out of date (reset in another tab) refuses to save ON PURPOSE — not a failure to alarm about
+        if (_storeGone()) rwLog.log('info', 'STORE', 'Not saved: this tab is out of date (ReaderWrangler was reset in another tab)');
+        else rwLog.log('critical', 'STORE-07', 'Your books could not be saved in this browser.', { error: String(error) });
         throw error || new Error('IndexedDB save failed');
     } finally {
         releaseLock();
@@ -289,7 +299,7 @@ const loadBooksFromIndexedDB = async () => {
         request.onsuccess = () => {
             // Normalize all books to handle any legacy field formats
             const books = (request.result || []).map(normalizeBook);
-            console.log('✅ Loaded', books.length, 'books from IndexedDB');
+            rwLog.log('debug', 'STORE', `Loaded ${books.length} books from the book store`);
             // v7.15.3 (1B) - DEV-ONLY schema check: WARN (never throw) if any loaded book carries a key that
             // isn't a known legitimate field (KNOWN_BOOK_FIELDS in bookFields.js) — a phantom / misnamed /
             // wire-alias field that leaked onto a stored book (the note/userNote, hidden/isHidden class).
@@ -305,8 +315,8 @@ const loadBooksFromIndexedDB = async () => {
                     for (const b of books) for (const k of unknownBookFields(b)) seen.add(k);
                     if (seen.size > 0) {
                         const list = [...seen].sort().join(', ');
-                        console.warn('🔎[schema] Unknown book field(s) on loaded books:', list,
-                            '— add to KNOWN_BOOK_FIELDS (bookFields.js) if legitimate, else a phantom/misnamed field leaked in.');
+                        rwLog.log('error', 'FIELD-04', `Book field(s) nothing knows are on stored books: ${list} — add to KNOWN_BOOK_FIELDS (bookFields.js) if legitimate, else a phantom or misnamed field leaked in`,
+                            { fields: [...seen].sort() });
                         // v7.15.3 - LOCALHOST dev only: a loud popup so a real phantom can't be missed in the
                         // console. (Not on the dev repo or prod — console.warn covers the dev repo; prod is silent.)
                         // v7.21.0 - contributors only (a self-hoster must never get a dev popup).
@@ -345,9 +355,9 @@ const buildCoverUrlMap = async (books) => {
             }
         }
         const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-        console.log(`📷 Cover cache: ${Object.keys(urlMap).length}/${books.length} covers loaded from cache in ${elapsed}s`);
+        rwLog.log('debug', 'COVER', `Covers from this browser's cache: ${Object.keys(urlMap).length} of ${books.length} books, in ${elapsed} s`);
     } catch (e) {
-        console.error('Cover cache read failed:', e);
+        rwLog.log('warning', 'COVER-02', "The cover cache couldn't be read — covers load from Amazon instead", { error: String(e) });
     }
     return urlMap;
 };
@@ -392,8 +402,8 @@ const populateCoverCache = async (books) => {
         }
 
         const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-        console.log(`📷 Cover cache populated: ${cached} already cached, ${fetched} newly fetched, ${failed} failed in ${elapsed}s`);
+        rwLog.log('debug', 'COVER', `Cover cache filled: ${cached} already there, ${fetched} fetched, ${failed} failed, in ${elapsed} s`);
     } catch (e) {
-        console.error('Cover cache population failed:', e);
+        rwLog.log('warning', 'COVER-03', "Saving covers in this browser's cache failed — they load from Amazon each time instead", { error: String(e) });
     }
 };

@@ -3,7 +3,8 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [One logging module: severity, area and ID for every message; a display threshold, an always-on log, a reader](#one-logging-module-severity-area-and-id-for-every-message-a-display-threshold-an-always-on-log-a-reader)
+      - [One logging module: level, area and code for every message; an always-on log, a Diagnostics window](#one-logging-module-level-area-and-code-for-every-message-an-always-on-log-a-diagnostics-window)
+      - [Logging as its own module: a self-contained folder, one step from a sub-repo](#logging-as-its-own-module-a-self-contained-folder-one-step-from-a-sub-repo)
       - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [One table for every move, copy, paste and delete: what each gesture does in each place](#one-table-for-every-move-copy-paste-and-delete-what-each-gesture-does-in-each-place)
@@ -45,9 +46,11 @@
         - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
       - [Tag from Collections, round 2: clearer window, safer tags (decided 2026-10-20)](#tag-from-collections-round-2-clearer-window-safer-tags-decided-2026-10-20)
       - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
+      - [One safe way to read saved settings — a damaged one can blank the phone app today](#one-safe-way-to-read-saved-settings--a-damaged-one-can-blank-the-phone-app-today)
     - [Polish](#polish)
       - [Move and copy books anywhere — folders, Book Lists, All Books, Searches](#move-and-copy-books-anywhere--folders-book-lists-all-books-searches)
       - [Retire two leftover book fields: the hidden "seen" flag and the old price-goal field](#retire-two-leftover-book-fields-the-hidden-seen-flag-and-the-old-price-goal-field)
+      - [Remove code left over from older versions (hiding single copies, phone tag shelves, unused functions)](#remove-code-left-over-from-older-versions-hiding-single-copies-phone-tag-shelves-unused-functions)
       - [Moving and selecting](#moving-and-selecting)
         - [Delete a book from All Books (removes it everywhere)](#delete-a-book-from-all-books-removes-it-everywhere)
         - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
@@ -74,7 +77,6 @@
         - [Show only hidden books](#show-only-hidden-books)
         - [Right-click: add "Copy ASINs" below Copy Titles / Copy Authors](#right-click-add-copy-asins-below-copy-titles--copy-authors)
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
-        - [Import files new books once, before the integrity check — and only books in no folder](#import-files-new-books-once-before-the-integrity-check--and-only-books-in-no-folder)
         - [With a filter on, the right pane still shows subfolders with no matching books](#with-a-filter-on-the-right-pane-still-shows-subfolders-with-no-matching-books)
         - [Every load saves the whole library back to storage, even when nothing changed](#every-load-saves-the-whole-library-back-to-storage-even-when-nothing-changed)
         - [A missing book description: one quiet line, on the computer and the phone](#a-missing-book-description-one-quiet-line-on-the-computer-and-the-phone)
@@ -106,6 +108,9 @@
       - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
       - [Lock the Cloud Sync Key in backups with an optional key password](#lock-the-cloud-sync-key-in-backups-with-an-optional-key-password)
       - [Remind me when my last backup is getting old](#remind-me-when-my-last-backup-is-getting-old)
+      - [Restore from Cloud Sync: your books and organization back from the cloud copy, no backup file needed](#restore-from-cloud-sync-your-books-and-organization-back-from-the-cloud-copy-no-backup-file-needed)
+      - [Restore checks every book, folder and list inside a backup — skip a bad one and say so](#restore-checks-every-book-folder-and-list-inside-a-backup--skip-a-bad-one-and-say-so)
+      - [One backup writer: Save Backup and the copy sent to the relay are built twice and already differ](#one-backup-writer-save-backup-and-the-copy-sent-to-the-relay-are-built-twice-and-already-differ)
     - [Costs](#costs)
       - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
   - [🗄️ After launch](#after-launch)
@@ -176,12 +181,18 @@ In priority order (Ron re-ranked 2026-10-14). **High priority**, then **Polish**
 
 ### High priority
 
-#### One logging module: severity, area and ID for every message; a display threshold, an always-on log, a reader
+#### One logging module: level, area and code for every message; an always-on log, a Diagnostics window
 <!-- id 20261102-1435; merged 20261014-1030m -->
 
 _Why it matters:_ Today a "this should never happen" in our code is a line in the console that nobody is looking at —
 it is seen only by luck (Ron, 2026-11-02). It should stop the person testing, leave a trace on every device even when
 nobody is, and give support a timeline to read. Built with the browser driver: each makes the other stronger.
+
+**Status (2026-11-10): built** on `feature/logging`, 7.26.0-alpha.27 — design of record and build list:
+docs/design/LOGGING.md (§5). Left for this release: two window fixes (Ron's pick), then release. Later: the fetchers'
+own logging (item 10) and "Send a test message" (LOGGING.md §5 step 5.5); the module as its own folder ("Logging as
+its own module…", just below). The decisions below are kept as decided, with what changed while building marked
+**(as built)**.
 
 **The model** (Ron, 2026-11-05 — from the products he built: a text message plus a severity code, a dynamic,
 user-tunable filter for what's shown, everything always logged, log readers with filtering — the same model as Linux's
@@ -193,33 +204,56 @@ replaces 2026-11-02's four buckets and on/off switch, which were a crude version
    is told), **warning** (can legitimately happen: the relay unreachable, a refused clipboard), **error** ("this should
    never happen" — a bug), **critical** (your data may be at risk: a save failed, a repair that couldn't repair).
    Syslog's Emergency and Alert don't apply — there's no system to bring down.
-2. **Every message:** level + **area** (relay, import, storage, restore, integrity, ui, …) + text; warning and above also
-   carry a **stable ID** (`RELAY-012`) — support can ask "what codes do you see?", and the help notes can explain each
-   code (the same idea as the test IDs). Debug lines get no ID (busywork).
-3. **Two thresholds — what's shown, and what's kept:**
-   - **Shown:** in **diagnostics mode**, error and above raise the **banner** — red, stays until clicked, the details and
-     a Copy button, a "Turn off" link; if DevTools is open, also a stop in the debugger. **Never a blocking pause**
-     (`alert()`): it would break the 30-second Import timeout and leave a push half sent. **Critical is shown to every
-     user** (Ron, 2026-11-05), diagnostics or not — as a plain message that their data may be at risk and what to do.
-   - **Kept:** info and above, **always** (production included) — the last ~500 entries on the device, with Channel IDs
-     and the Passphrase / key removed; repeats **counted, not stored again** ("…repeated 37 times" — rate limiting, so
-     one bad loop can't flood it). **It also records every page load** — time, build, and the browser's "was this tab
-     discarded and reloaded?" (`document.wasDiscarded`) — so an unexplained loss of in-memory state ("Undo history
-     sometimes empties by itself", Watching) can be traced to a reload.
-4. **The level is the ONE gate, tunable** (Ron 2026-11-02: "that would be the only gate"): `?log=debug|info|warning|
-   error|off` on any page address (remembered; the app then removes the parameter from the address bar so it isn't
-   bookmarked or shared), or a setting in Data Status, or the console — works on any copy (the dev repo or production
-   on localhost, or readerwrangler.com). Read through one answer defined once in `readerwrangler.html` beside the other
-   environment answers; separate from contributor mode on purpose. A user reporting a bug can be asked to open the site
-   with `?log=debug`.
+2. **Every message:** level + **code** + text. The code is the bare **area** (`IMPORT`) for info and debug, or the area
+   plus a stable number (`IMPORT-12`) — required for warning and above, each number at ONE call (Ron, 2026-11-07: no
+   product prefix; the level is a separate field, never part of the code) — support can ask "what codes do you see?",
+   and the help notes can explain each code. **(as built)** 17 areas (logger.js `LOG_AREAS`): BOOT, SYNC, IMPORT,
+   BACKUP, STORE, INTEG, FIELD, MOVE, UNDO, COVER, PREF, PHONE, UI, and — for the toasts none of those fit (Ron,
+   2026-11-09) — ORG, EDIT, AUTO, SHARE. The support table (docs/design/MESSAGE-CODES.md) is generated, never edited.
+   Test names keep their own three-digit shape (`IMPORT-004`) and never appear in the log.
+   **Messages a test plants** carry an explicit `test: true` field, kept all the way through (the kept log, the
+   Diagnostics badge and filter, Copy, the driver's fail-on-error rule), shown to people as `IMPORT-12-!TEST!`; the
+   marker defined once in the module; no reserved numbers (Ron + Claude, 2026-11-07 — LOGGING.md §2).
+3. **What's shown, and what's kept:**
+   - **Shown:** with the **error banner** switch on, error and above raise the **banner** — red, stays until clicked,
+     the details and a Copy button, a "Turn off this banner" link; if DevTools is open, also a stop in the debugger.
+     **Never a blocking pause** (`alert()`): it would break the 30-second Import timeout and leave a push half sent.
+     **Critical is shown to every user** (Ron, 2026-11-05), whatever the switches — a plain box: their data may be at
+     risk and what to do. **(as built)** A critical message can carry its own advice in that box (BOOT-01, PHONE-03/06:
+     the usual "save a backup now" would be harmful or meaningless there).
+   - **Kept:** info and above, **always** (production included) — the last ~500 entries on the device; repeats
+     **counted, not stored again** ("…repeated 37 times" — rate limiting, so one bad loop can't flood it). **It also
+     records every page load** — time, build, and the browser's "was this tab discarded and reloaded?"
+     (`document.wasDiscarded`) — so an unexplained loss of in-memory state ("Undo history sometimes empties by itself",
+     Watching) can be traced to a reload. **(as built)** Each app also logs which build of its CODE is running ("Desktop
+     app 7.26.0-alpha.27 running (page 7.25.1)") — the page's version doesn't move during alphas.
+   - **Cleaned before anything is kept or shown:** Channel IDs become Relay Setup's short form `41e0e16f...726c` (first
+     8 … last 4 — one function, logger.js `shortChannelId`, so old and new keys read differently; Ron, 2026-11-09); the
+     passphrase becomes "[passphrase]", none of it shown.
+4. **(as built) Two switches, not a ladder of levels** (Ron, 2026-11-09 — the old single "level" did three things at
+   once: the console's threshold, whether debug was recorded, whether errors raised the banner; with everything kept and
+   a window to filter it, only two matter): **"Show a banner when something goes wrong"** (`errorBanner`) and **"Also
+   record extra detail"** (`logDetail` — debug lines; they fill the ~500-entry log fast, so it's off unless chasing a
+   problem). Independent; both off for an ordinary user. Set in the Diagnostics window, on any page address
+   (`?errorBanner=on|off`, `?logDetail=on|off` — remembered, then removed from the address bar so they aren't bookmarked
+   or shared), or the console (`rwLog.setSwitch`). The console prints exactly what is recorded (its own level filter
+   does the rest). A user reporting a bug can be sent a link with `?errorBanner=on&logDetail=on`. The answer lives in
+   logger.js (it loads first), separate from contributor mode on purpose.
 5. **Two readers:**
    - **the browser's console** — each level goes to `console.debug` / `info` / `warn` / `error`, so DevTools' own level
      filter works for free;
-   - **a Diagnostics view in Data Status** — the kept log, filtered by level, area and time, with **Copy diagnostics**
-     (IDs removed).
+   - **(as built) the Diagnostics window — its own window, NOT in Data Status** (Ron, 2026-11-09: many messages have
+     nothing to do with the data; the log is "a more formal and complete notification history"), opened from **Help →
+     Diagnostics…** and **"Full log…"** at the bottom of the 🕐 history. Newest first; ▸ for an entry's details; errors
+     tinted; TEST entries badged; filtered by level, area, time ("Everything kept" first) and test entries; the two
+     switches, **Clear** (like DevTools) and **Copy diagnostics** (everything kept, whatever the filter shows, under a
+     header with the build and the browser). The phone: a **Copy diagnostics** button in its menu, no viewer.
 6. **Linked to the user's notifications, not merged with them:** the toasts and the 🕐 message history stay as they are;
    everything they tell the user is also logged as info, so the log reads as one timeline — what the user saw and what
-   happened underneath.
+   happened underneath. **(as built)** Every toast goes through `rwLog.log(…, { toast })` with its area (a commit check
+   refuses a direct `showToast(`); every dialog names its area first and logs what it showed and the answer
+   (`rwLog.dialog`, Ron's option 1, 2026-11-09). Folder names may appear in the log (Ron, 2026-11-09); a book's note
+   text and its tags stay out (finding F4).
 7. **Ours only.** Uncaught errors and failed promises on OUR pages are caught globally (logged as error — including a
    crash inside React or another library we load). Browser-extension messages ("Unchecked runtime.lastError…") never
    reach us — not in scope.
@@ -230,20 +264,60 @@ replaces 2026-11-02's four buckets and on/off switch, which were a crude version
    switching any.** The fetchers' ~430 progress logs stay — the step-by-step trail of a fetch support needs — and only
    their warnings and errors are sorted. The integrity check's "auto-fixed during restore" message is the first to
    switch.
-9. **The browser driver** runs with `?log=debug` in its throwaway browser and **fails a test on any error or
-   critical** — every screen test also checks "nothing went wrong underneath".
-10. **The fetchers and the bookmarklet menu** run on Amazon's site, whose stored settings are separate from ours, so they
-   read the same-named level in amazon.com's storage (set from the console, or a toggle in the bookmarklet menu's
-   developer mode) — decide the details when building.
+9. **The browser driver** runs with **both switches on** in its throwaway browser and **fails a test on any error or
+   critical** it didn't declare (`app.expect('BOOT-01')` for one a test causes on purpose) — every screen test also
+   checks "nothing went wrong underneath" **(as built, LOGGING.md §5 step 6)**.
+10. **The fetchers and the bookmarklet menu** (later — its own step) run on Amazon's site, whose stored settings are
+   separate from ours, so they read the same-named switches in amazon.com's storage (set from the console, or a toggle
+   in the bookmarklet menu's developer mode). **Two logs, never the relay** (2026-11-05, LOGGING.md §2b): the fetchers
+   keep theirs on amazon.com; a fetch's warnings and errors ride inside its existing upload (zero extra relay writes),
+   and the app's Diagnostics window shows them as their own group, *"From your last fetch (date)"* — not interleaved by
+   time, so two computers' clocks never need to agree (2026-11-09).
 
 **How (technical)**
-- **One logging module** (the chokepoint) — `log.debug/info/warning/error/critical(area, id, text, data)`, the global
-  `error` / `unhandledrejection` listeners, the kept log, the rate limiting, the banner, the reader; every site is a
-  thin call. The banner and the reader are built on the overlay primitive.
+- **One logging module** (the chokepoint, logger.js, loaded first) — one call, `rwLog.log(level, code, text, data,
+  options)`, every destination from it (the kept log, the console, the toast with `{ toast }`, the banner, the critical
+  box); the global `error` / `unhandledrejection` listeners; the rate limiting. The banner and the critical box are
+  plain page elements drawn by the module (they must work when the app has crashed); the Diagnostics window is a
+  `<Dialog>` (the overlay primitive). The commit check (tools/message_codes.py) enforces the codes and writes the
+  support table.
 - The scrubber that removes IDs and keys is shared with "Bookmarklet: when your key no longer works, say so plainly —
   and never show the Channel ID in an error" (After launch) — one place, with a test; this task builds it first.
 - Its own branch (`feature/logging`), alpha versions, tests first (TESTING.md): the module's function tests, then the
   screen tests (the gate, the banner, the reader, the driver failing on an error).
+- **A flaky screen test, seen once** (2026-11-09, during step 6, not reproduced in the next 3 runs): test_boot.py stopped
+  outside any test — the driver couldn't find the File menu button (30 s) when restoring the test library right after
+  BOOT-001. Read it before fixing it (TESTING.md §7): what was on screen (the failure screenshot), whether the menu bar
+  was covered or not yet drawn. If it comes back, set it aside the same day rather than re-run past it.
+
+#### Logging as its own module: a self-contained folder, one step from a sub-repo
+<!-- id 20261110-0908 -->
+
+_Why it matters:_ The logging is a clean, general piece — a core with no screen, a browser layer, a window — tangled
+into RW's files. Kept in one self-contained folder, it reads and tests as one thing inside RW, and it's one step from
+its own repo (a git submodule, like pytools) when another project wants it (Ron, 2026-11-10).
+
+**Decided** (Ron + Claude, 2026-11-10)
+1. **After 7.26.0 ships, on its own small branch** — moving files mid-release would put every cache-buster and check
+   on the line at once.
+2. **The folder** (not `logging/` — that's Python's built-in library, which a folder of that name holding Python code
+   would shadow; Claude suggested `logkit/`, Ron's call) holds:
+   1. **the core** — levels, codes, the kept log, the two switches, the cleaner, subscribe / clear / the Copy text; no
+      screen; Node-tested (today: `createLogger` in logger.js);
+   2. **the browser wiring** — storage, the address switches, uncaught errors, the banner and the critical box, in
+      plain page elements (today: the rest of logger.js);
+   3. **the Diagnostics window**, taking the host's dialog frame as a parameter (in RW: `<Dialog>`, so the overlay
+      rules — Esc, stacking, the fence — still hold) (today: `DiagnosticsWindow` in readerwrangler.js);
+   4. **the commit checker** (tools/message_codes.py) and its tests, reading the areas from the host's settings;
+   5. **a README** — what it is, the model, how a host sets it up.
+3. **RW keeps one small settings file** outside the folder: the 17 areas, the storage key names, the product name, the
+   critical box's advice, the secrets to clean (the Cloud Sync passphrase, the Channel ID's shape).
+4. **The tooling learns the folder** — each a silent hole if missed, so the move gets its own site map and a test that
+   each check still fires: the version check's cache-buster pattern (today it can't see a script in a folder), the
+   commit checker's file scan, the test runner's discovery, readerwrangler.html's and reset.html's script paths.
+5. **The sub-repo itself waits for a second user** — two repos to keep in step, and it must be public (RW is served by
+   GitHub Pages, which only fetches public submodules). If the next project is Python, it wants a Python twin of the
+   same model, not this file.
 
 #### Generated test libraries: made-up books at any size, with their own covers
 <!-- id 20261104-1613a -->
@@ -265,9 +339,9 @@ Ron's real library (Ron, 2026-11-04: "it would be nice to migrate away").
 4. **Covers generated, served by the repo itself** — no website: a small **SVG** per cover (a solid background by genre,
    the title on top — a tiny text file, no image library needed) in `test/fixtures/covers/`, which serve.py already
    serves to the tests on Ron's PC: no internet, nothing test-related on readerwrangler.com or the home server, identical
-   every run. The scale library reuses a pool of ~50 rather than committing thousands. Check when building: one import
-   path builds an Amazon image link from the ASIN when a book has no cover (readerwrangler.js ~6433) — with made-up
-   ASINs that would reach Amazon, and the screen tests' request detector would flag it.
+   every run. The scale library reuses a pool of ~50 rather than committing thousands. (The one path that built an
+   Amazon image link from the ASIN — the old CSV loader — was dead code, deleted in 7.26.0-alpha.1; nothing in the
+   app's code builds one now, checked 2026-11-05. The screen tests' request detector would catch a new one.)
 5. **Ron's library snapshot stays, used rarely** (`.private/test/`): only for "does real data have a quirk we never
    thought to generate" checks — real data catches what nobody imagined.
 
@@ -464,6 +538,9 @@ close this out").
   Cloudflare $5 plan (Costs, around launch). The Cloud Sync task keeps its app-side work and the "make a new key" order.
 - Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): Cloudflare's official skills (`cloudflare/skills`) — the skills only, not the remote
   server with access to the Cloudflare account; the local Workers Vitest plugin for tests; `wrangler telemetry disable`.
+- **Channel IDs in the emails in the app's short form** (2026-11-09): the daily summary says "channel 22222222…" (first
+  8 only — relay-worker.js ~1383, ~1400); the app's log and Relay Setup now show `41e0e16f...726c` (first 8 … last 4,
+  logger.js `shortChannelId`, Ron) so old and new keys read differently. The emails should match.
 
 #### Outside reviews before building: launch risks, security, data safety, a newcomer's first look
 <!-- id 20261023-1239 -->
@@ -541,6 +618,11 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 
 **Open items**
 1. **My code safety check can be skipped by accident** (7.19.0 post-mortem). The checklist only fires for my normal editing tool; edits made with a find-and-replace command skip it. Make it fire for those too. Small.
+2. **The version check reads only readerwrangler.html's cache-busters** (found 2026-11-09, 7.26.0-alpha.20). The reset
+   page (reset.html) loads logger.js, storage.js and reset.js with its own `?v=` busters — moved by hand so far, and
+   reset.js had none at all until alpha.20. Derive the module list from EVERY page that loads app scripts (today
+   readerwrangler.html and reset.html), and refuse a commit that changes a module without moving its buster on each
+   page that loads it. Needs its own tests (staged-file cases), so it isn't rushed mid-branch. Small.
 
 **How (technical)**
 - Item 1: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
@@ -1498,6 +1580,39 @@ fall for the quickie trap again")
 4. **An automated test** across midnight (11:59 PM vs 12:01 AM) and a daylight-saving date. Ron's check: any backup
    file saved yesterday reads "yesterday".
 
+#### One safe way to read saved settings — a damaged one can blank the phone app today
+<!-- id 20261109-0912 -->
+
+_Why it matters:_ Both apps read about 20 saved settings and notes from the browser, each with its own hand-written
+guard — or none. On the phone, one damaged settings note blanks the whole app (it's read on every redraw of the main
+screen); a guard that isn't there can't be noticed until it bites. Medium-high (Ron, 2026-11-09).
+
+**Found** (2026-11-09, the logging switch's BOOT area — a sweep of every `JSON.parse` of a saved value; line numbers
+approximate)
+1. **Unprotected on the phone** (mobile.js): the phone settings (`MOBILE_PREFS_KEY`, ~2466 — read at the top of the main
+   screen on every redraw: damaged = a blank app); the same note when you change the sort or the shelves (~2472, ~2490,
+   ~2554 — that tap fails).
+2. **Unprotected on the desktop:** the old-format folders and Book Lists (readerwrangler.js ~4624, ~4635 — only
+   pre-2026 installs; "Remove code left over from older versions…" (Polish) removes them). The library status and the
+   view settings (~4533, ~4547) got their own guard in 7.26.0 (BOOT-02/03), because a damaged one stopped the library
+   from loading.
+3. **Protected by hand** (each its own try/catch, ~12 on the phone, ~8 on the desktop): filters, search history, the
+   Auto-Organize wizard, the organization, the cover cache, the Cloud Sync credentials, the phone's collapsed sections
+   and navigation.
+4. **Past damage:** a note that reads fine but holds the wrong kind of value (column widths saved as text, say) gets
+   past every one of these guards.
+
+**How (Claude's proposal)**
+1. **One shared reader** in uiHelpers.js (both apps load it): `readSaved(name, fallback, rightKind)` — the saved value
+   when it reads and is the right kind, else the fallback and ONE warning naming the note (STORE area). Function tests
+   first.
+2. **Every read above becomes a one-line call**, the hand-written guards included — a new setting gets the guard for
+   free. Publish the before / after list (each site's fallback) for Ron's red pen.
+3. Then a commit check could refuse a bare `JSON.parse(localStorage.getItem(` — the way the logging check refuses a
+   stray code.
+4. Not the phone's startup load (books + organization, ~2627, no guard at all): that's the phone's "your library didn't
+   load", done in the logging switch's PHONE area (7.26.0).
+
 ### Polish
 
 #### Move and copy books anywhere — folders, Book Lists, All Books, Searches
@@ -1618,6 +1733,51 @@ _One data-layer round for both (Ron + UX, 2026-10-21) — the same mechanism and
 3. **Order for the fetcher:** it reads books as stored on the relay, where old copies keep the old goal field until
    their next save — the app's clean-up ships first, the fetcher's `targetPrice` check is removed after.
 4. Its own test round (data layer).
+
+#### Remove code left over from older versions (hiding single copies, phone tag shelves, unused functions)
+<!-- id 20261108-1800 -->
+
+_Why it matters:_ Code nothing can reach still has to be read, kept working and tested around — and some of it is
+still written into every save, backup and sync. Less code, nothing for a person to see.
+
+**Found** (2026-11-08, a survey of the live files for the logging work; each claim re-checked by grep). Line numbers
+are approximate (readerwrangler.js unless named).
+1. **Certainly dead:**
+   1. **Hiding a single copy of a book** (v4): `hiddenInstances` + `book._instanceId` + the `HIDE_COPIES` undo / redo
+      cases (state ~1536; set ~4657, ~7961, ~8520; read ~17059, ~17216, ~17679, ~17820; label ~7403) and mobile.js
+      (~106, ~2429, ~2639). Nothing assigns `_instanceId` and nothing records `HIDE_COPIES`; hiding today is
+      `book.isHidden` (a book field, so a restore brings it back). **Written into saved data** — the saved
+      organization (~4798), the relay copy (~6206), Save Backup (~6314) — always empty: every backup of Ron's from
+      2026-09-01 to 2026-11-06 holds `hiddenInstances: []`.
+   2. **Pinned tag folders on the phone** (`pinnedTagFolders`, the `__tag_…__` shelves): mobile.js ~108, ~678,
+      ~853-869, ~1517, ~1640-1660, ~1846-1875, ~2426, ~2636, ~3117, ~3177, ~3209. The desktop dropped it on purpose
+      and never sends it; none of Ron's backups carry it (the old demo library has an empty one).
+   3. **A drag value set but never read:** `explorerDragBookId` (~1562, 20 setters).
+   4. **The startup collections merge** (`mergeCollectionsIntoBooks` ~6508, called once ~4680): it runs once at startup,
+      before `collectionsData` can be set, so it always returns the books unchanged.
+   5. **Never called:** `clearLibrary` (~6446), `getBooksInUserFolders` (~1896), `getRelativeTime` (~4507),
+      `renderStatusIndicator` (~8948), `FolderIconSVG` (~6107), `coverRow` (~12459), mobile.js `IconFolderLarge`
+      (~175); uiHelpers.js `SETTINGS_KEY` (~8; its key string stays in the reset lists).
+2. **Obsolete by Ron's rule** (2026-11-08: "if my oldest backup doesn't contain these fields, consider them obsolete" —
+   none of his backups do):
+   1. `dataSource` and `lastSyncTime` — set and saved with the organization (and the phone's copy), never read.
+   2. The three single-choice filters from v3.8 (`collectionFilter`, `ratingFilter`, `seriesFilter`; state ~1353,
+      ~1411, ~1414; logic ~2565-2583, ~10229-10294; chips ~10859-10873): nothing on screen sets them; only a v3/v4-era
+      saved filter could.
+   3. The old cover cache (`CACHE_KEY` "enriched-cache", read ~6973): never written.
+   4. The one-time moves from the pre-2026 storage (`FOLDERS_KEY` / `BOOKLISTS_KEY` reads ~4623, ~4634, mobile.js
+      ~135) — first a console check that Ron's browser holds neither old key.
+3. **Checked and alive** (don't remove): the refusal of very old files (`amazonData`, `type: 'collections'`), the
+   `isHidden` backfill (uiHelpers.js ~95), `__views__`, the phone's own covers / list setting.
+
+**How**
+1. **With "One backup writer…"** (Before launch → Safety and data protection), not before: three of these
+   (`hiddenInstances`, `dataSource`, `lastSyncTime`) are written by both copies of the backup writer — one writer,
+   then one change.
+2. **Readers stay tolerant:** an old backup or a phone's old copy may still carry them — ignored, never an error (the
+   backup check, 7.26.0, already ignores parts it doesn't know).
+3. The test fixture (test/fixtures/make-small-fixture.js, small-fixture.json) mentions some of them — regenerate it.
+4. Beside "Retire two leftover book fields…" (just above): the same clean-up, at the book level.
 
 #### Moving and selecting
 
@@ -2234,70 +2394,6 @@ made Position take a list (`13, 13.5, 14`, ranges) with a live preview, and remo
 - `Mixed (${uniqueValues.size} values)` in the bulk-edit dialog (readerwrangler.js ~13396), shared by Author / Series /
   Position / Format.
 
-##### Import files new books once, before the integrity check — and only books in no folder
-<!-- id 20261031-1639; merged 20260904-0000e -->
-
-_Why it matters:_ Two problems in the same few lines of Import's filing step (readerwrangler.js ~5603): every
-Import with new books reports a "repair" that's really the normal path, and an Import into an emptied book store
-once copied the whole library into the Inbox. Merged 2026-11-04 in the TODO scan (one change, one test).
-
-**Part 1 — file new books first, so the integrity check reports only real repairs** (was "Import: new books are
-filed before the integrity check…", 2026-10-31)
-
-_Why it matters:_ Every Import from Relay with new books logs "🔧 Integrity auto-fixed … N books with no folder —
-placed in Inbox" — a normal path reported as a repair (Ron noticed it 2026-10-31). An alarm that fires on every
-normal import trains you to ignore it, and a GENUINE orphan arriving during an import would be filed and reported in
-the same breath as the new books.
-
-**What happens today** (checked 2026-10-31)
-1. `loadLibrary` restores the organization and runs the integrity check (readerwrangler.js ~6775) while the new books
-   are in the library but not yet in any folder → it "repairs" them into the Inbox.
-2. Then the import's own step (~5603–5614) adds the same books to the Inbox, finds them there, and skips them.
-3. Harm today: none visible — no duplicates (that step ignores books already there), and this path only logs to the
-   console (no toast, nothing saved to Data Status). The order among the new books may differ from the import's
-   intent (newest first) — both put them at the top.
-
-**Decided** (Ron + Claude, 2026-10-31)
-- The import files its new books into the Inbox FIRST, in one place, then the integrity check runs — so the check
-  sees only genuine problems. The later duplicate step goes away (one placement path, not two). Its own alpha, kept
-  out of the 7.25.0 security release.
-
-**Part 2 — only books in no folder go to the Inbox** (was "Relay Import: only books in no folder should go to the
-Inbox", 2026-09-04 — a backstop; independent of the ownership batch)
-
-_Why it matters:_ A restore once copied the whole library into the Inbox.
-
-**A backstop** (Ron asked, 2026-10-20: "what is an example of a book that is new but already in a folder?"). In normal
-use the two rules agree — a book a fetch brings is new AND in no folder. They differ only when your books and your
-folders get out of step: the app keeps them in two separate browser stores (books in one, folders and lists in
-another), so if the books store is emptied or lost while the folders survive, every book looks "new" to Import. That's
-a recovery moment — exactly when a mess in the Inbox hurts most.
-
-**What happened** (diagnosed 2026-09-04)
-- On Sep 3, Import from Relay ran as a restore against an emptied book store. Every book looked "new", so all 3,076
-  were copied into the Inbox — even though your folders still held them.
-- Cleaned up the same day: you restored the 9/3 13:05 backup; only 4 genuinely double-filed books needed hand-fixing.
-
-**Decided** (tidied 2026-10-20: its "Left", "The fix" and "To do" said the same two things three times)
-1. **"Goes to the Inbox" = in no folder (and not deleted)** — not "new to the book store". Deleted books are already
-   left out (readerwrangler.js ~6638); the folder check is what's missing (still true 2026-10-20: Import adds every book
-   new to the store, ~5603).
-2. **Add "Import into an empty book store → the Inbox is unchanged" to the pre-launch tests** (PRELAUNCH-TEST-GATE.md
-   suite 4 — it covers a cold start with no books, not this Import case).
-3. **Test safely:** the automated test is the main check. A by-hand retest ("empty the book store, Import from Relay →
-   the Inbox count is unchanged") starts with **File → Save** (a backup) and runs only when no fetch is waiting to be
-   imported — it works on your real library.
-4. **Independent of the batch's foundation** ("Fetch should update books it already knows") — it's about where Import
-   puts books, not what kind they are; build it whenever convenient.
-5. **Say it's a backstop, in the code and when it fires** (Ron, 2026-10-20): a comment at the check explaining why it
-   exists (books and folders kept in two stores can get out of step — the Sep 3 case), and a console message when it
-   actually keeps books out of the Inbox, e.g. *"Inbox backstop: 3,076 books new to the book store are already in
-   folders — not added to the Inbox"* — so a real out-of-step event is visible, not silent.
-
-**How (technical)**
-- Filter the Import's `newBookIds` (readerwrangler.js ~5603) to books in no folder. The `getAllBookIdsInFolders()`
-  named when this was filed no longer exists (checked 2026-10-20) — build the set from the folders at that point.
-
 ##### With a filter on, the right pane still shows subfolders with no matching books
 <!-- id 20261103-1651 -->
 
@@ -2677,6 +2773,20 @@ library.
    the fetcher already makes. Request details: see TODO notes when building.
 4. **A generator on Claude's side** packs it into a demo backup — folders by author and series, Book Lists, a few books
    in the Trash and hidden — the same way the test libraries are generated.
+   - **It must pass Restore's backup check** (backupCheck.js, 7.26.0; Ron's rules, 2026-11-08): Restore replaces
+     everything but the Cloud Sync credentials (merged only after asking), so a part that's missing or empty becomes
+     empty, and a backup is refused only when that leaves the library unusable. Required, each the right kind: the
+     backup marker (`isBackup: true`), a `2.x` version stamp, the list of books (`books.items`, a list), and the tag
+     list (`tagRegistry`, a table) whenever any book has a tag. Folders, Book Lists and Searches: write them (an empty
+     list is fine) — a missing one restores as none (with no folders, every book lands in the Inbox). Any part that's
+     written must be the right kind (collections' `items` a list, the view settings a table).
+   - **Write every part today's Save Backup writes**, and none of the obsolete ones ("Remove code left over from older
+     versions…", Polish: no `hiddenInstances`, `pinnedTagFolders`, `dataSource`, `lastSyncTime`).
+   - **No Cloud Sync credentials** in the file (the private-values commit check refuses them; the old demo files' were
+     revoked 2026-10-31).
+   - **Each book**: what "Restore checks every book, folder and list inside a backup…" (Before launch → Safety and data
+     protection) will require — an ASIN, unique; each folder an ID, a name, a parent and a list of books.
+   - **Test it the way a person would:** a screen test restores the generated file and checks the counts and folders.
 5. **It replaces the demo library made from Ron's purchases** (`readerwrangler-demo-library*.json` and the demo filter's
    list in `tools/demo-library/`) — retire those once the reel no longer needs them.
 6. **Covers:** real ones from Amazon on camera — thumbnails, plus one or two full size in a book window. Ron's call
@@ -2875,6 +2985,12 @@ dev in readerwrangler.js:130, mobile.js:31 and bookmarklet-nav-hub.js:52.
    everything else passes untouched. relay-client keeps the real one. An honest error, not a silent substitute.
 4. **A commit check refuses a relay address written outside relay-client.js** (app, phone, bookmarklet files).
 5. Test step: on localhost, Relay Setup's connection test names the **dev** relay.
+6. **Say when the channel is empty** (Ron + Claude, 2026-11-05): today the test reports **connected** for a channel
+   with nothing on it — and a mistyped Channel ID IS an empty channel, so a typo shows green at the very moment it
+   should be caught. Report *"Connected — nothing sent with these credentials yet"* instead (the same two causes Import's
+   "Nothing is on the relay for these credentials yet" names, 7.26.0-alpha.2). A screen test on the local relay
+   (`test/ui/rw.py` `App(relay=True)`): an empty channel's test says so. The Cloud Sync Key's check characters later
+   catch the typo as it's entered.
 
 #### Relay Setup: disconnect, or reset credentials
 <!-- id 20261014-1030am -->
@@ -2932,6 +3048,11 @@ Someone resetting is often already having a bad day (Ron, 2026-10-30, noticed th
 4. **Verify before writing:** does Reset also clear the stored Cloud Sync Key? If it does, "reconnect" needs the key
    from a backup or another device — and the message must say so ("you'll need your Cloud Sync Key").
 5. Then the help notes and the User Guide's "Starting over" section (User Guide task) say the same thing.
+6. **Updates (2026-11-09):** the reset page's dead "Import amazon-library.json → Books only" bullet was deleted in
+   7.26.0 (the library file was replaced by the relay in 6.0), and its other bullet says "Restore backup file"; checked —
+   the emergency reset does NOT clear the stored Cloud Sync Key (item 4). Until "Restore from Cloud Sync…" (Before launch
+   → Safety and data protection) is built, the one way back offered is the backup file (Ron); once it is, offer that as
+   the second.
 
 ### Safety and data protection
 
@@ -3174,6 +3295,83 @@ _Why it matters:_ The one real disaster is a lost or wiped PC with no recent bac
 1. When your last saved backup is more than about a month old, the status area shows a quiet note: *"Last backup: 47
    days ago — Save Backup"* — one click; never a pop-up (Law 18).
 2. The app records when you last saved a backup (this browser); a Restore counts too.
+
+#### Restore from Cloud Sync: your books and organization back from the cloud copy, no backup file needed
+<!-- id 20261109-1700 -->
+
+_Why it matters:_ The worst case — a lost or wiped computer and no recent backup file — already has its cure sitting in
+the cloud. With Cloud Sync on, the computer sends the relay the phone's copy (the code's "device-state") a few seconds
+after each change: the whole library AND the organization (folders, Book Lists, Searches, tags), in a backup's shape. But
+nothing on the computer reads it back; Import from Relay merges only the books the fetcher sent.
+
+**Decided** (Ron + Claude, 2026-11-09)
+1. **One restore, two readers.** A file reader and a relay reader each turn their source into the same backup-shaped
+   data; from there ONE path — the backup check (backupCheck.js), the "restore?" box, the restore itself
+   (performRestore / loadLibrary) — that can't tell where the data came from.
+2. **Credentials:** the relay's copy carries none, and needs none — reaching the relay already took yours. The restore
+   keeps the current ones (as a backup file without credentials does).
+3. **The new computer:** once built, the app tells the person that any backup FILE made since their current credentials
+   were created brings them back — File → Relay Setup → Credentials → "Load credentials from backup file" (the label says
+   "backup file" since 7.26.0, so it can't be mistaken for this).
+4. **Two computers on one Cloud Sync:** the restore brings back whichever sent last — expected, no special handling
+   (Ron).
+5. **Until this is built, every recovery message offers only the backup file** (Ron: one option until then). When it's
+   built, "Reset App: one honest message in all four places" (Before launch → Cloud Sync) offers it as the second way
+   back. The menu: one item, "Restore…", asking "from a backup file / from Cloud Sync" only when Cloud Sync is set up —
+   otherwise straight to the file box (Claude's UX verdict; Ron to confirm when it's built).
+- How current: as of the last send (seconds); a change made in the moments before a crash may be missing — say so in
+  the "restore?" box ("your cloud copy from 2 minutes ago").
+
+#### Restore checks every book, folder and list inside a backup — skip a bad one and say so
+<!-- id 20261108-1800a -->
+
+_Why it matters:_ Since 7.26.0 Restore checks that a backup has every part it needs, each of the right kind — but not
+what's inside them. One book with no ID, a folder with no list of books, or a Search with no position can still crash
+the restore part-way or leave a broken library.
+
+**Found** (2026-11-08): each book needs an ID (its ASIN — the app's book ID is the ASIN; a book without one, or two
+with the same, break the folders that hold them); each folder an ID, a name, a parent and a list of books; each Book
+List an ID, a name and a list of books; each Search an ID and a number position (the restore computes
+`Math.max` over the positions — a missing one makes it NaN); each tag-list entry a name.
+
+**To decide first:** skip or refuse. Law 18 (don't block the user) says one bad book out of 3,000 shouldn't refuse
+the whole backup. Claude's verdict: restore everything else, skip the bad items and say so with their titles —
+*"Restored 3,295 books; skipped 1 that had no ID: 'Title'"* — and let the folders' integrity check tidy after it;
+refuse only when what's left is unusable (Ron's rule for the parts, 2026-11-08: "if that makes it unusable, we reject
+it"). The skipped items go in the log (BACKUP area), so support can see them.
+
+**How:** the same one checking function as the parts check (backupCheck.js, 7.26.0), extended to the items, with its
+function tests written first.
+
+#### One backup writer: Save Backup and the copy sent to the relay are built twice and already differ
+<!-- id 20261108-1800b -->
+
+_Why it matters:_ The backup file and the copy sent to the relay and the phone hold the same library, but each is put
+together by its own code — and they already disagree: the relay copy carries the folder-list order (Manual / Name;
+`folderListSort`) and when it was saved; the backup has neither, so a restore onto a new computer can't bring the
+folder order back. Every new field has to be remembered twice (Law 4: two answers to one question).
+
+**Found** (2026-11-08): `buildDeviceStatePayload` (readerwrangler.js ~6146, the relay and phone copy) and Save
+Backup's own builder (~6271) each write `books`, `organization`, `collections`; a comment says the first is "shared
+with exportBackup", but Save Backup builds its own. Differences: the relay copy has `savedAt` and
+`explorerSettings.folderListSort`; Save Backup has `exportDate`, `theme`, `appVersion` and the Cloud Sync
+credentials.
+
+**How**
+1. One builder; Save Backup adds only what a file needs (the credentials, the save date) and the relay copy only what
+   it needs (`savedAt`).
+2. The folder-list order joins the view settings it belongs to (a restore onto a computer with books keeps the view
+   here — Ron, 2026-11-08: "restore changes organization, not views").
+3. Then "Remove code left over from older versions…" (Polish) drops the dead parts from the one writer.
+4. Test: a Save Backup → Restore round trip and a relay round trip produce the same organization.
+5. **Build the backup from storage, not the screen** (medium — Ron, 2026-11-09). Save Backup reads the books from the
+   book store but the folders, Book Lists and tags from what's on screen. When the start fails AFTER the books are
+   readable (the organization store is never written by a failed start — F1), the screen is empty but storage still
+   holds the whole library: a backup built from storage would be complete, one from the screen is missing its folders
+   — and since 7.26.0 a restore from it gives exactly that. 7.26.0 refuses Save Backup until the library has loaded
+   (the guard); with this, "save a backup now" becomes safe advice even after a failed start, and BOOT-01's critical box
+   can say so again. Normally the screen and storage agree (the organization is saved on every change) — check that
+   nothing pending is lost (a change still on its way to storage).
 
 ### Costs
 
@@ -3657,10 +3855,9 @@ _Why it matters:_ Rare reports of books in no folder at all; watch whether it st
 **Next step**
 - **Watch** for the event after releases before spending a session on it.
 - **First, the Import-order fix** (2026-11-04, Ron + Claude): "Import files new books once, before the integrity
-  check…" (Small fixes) — today the check runs before an Import files its new books, so it "repairs" brand-new books as
-  homeless: some reports may be exactly that. After that fix, any homeless book is a real one — and "Report our own
-  unexpected errors…" makes it noticeable (its first anomaly is the "auto-fixed during restore" message). Watch from
-  that release on.
+  check…" (✅ done in 7.26.0, removed from this list at release): an Import now files its new books before the check, so any
+  homeless book reported after it is a real one — and "One logging module…" makes it noticeable (the "auto-fixed during
+  restore" message becomes an error). Watch from 7.26.0 on.
 
 **How (technical)**
 - The event is `integrity-homeless`; the suspect was a stale `FOLDERS_KEY`.

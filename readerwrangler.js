@@ -85,6 +85,113 @@
             );
         };
 
+        // 7.26.0 (LOGGING.md §5 step 5.3 — Ron + Claude, 2026-11-09) - THE Diagnostics window: the kept log, readable.
+        // Its own window (not in Data Status — many messages have nothing to do with the data), opened from Help →
+        // Diagnostics… and from "Full log…" in the 🕐 history. Newest first, one line per entry, ▸ for the details;
+        // errors tinted; TEST entries badged. The filter on top; the two switches, Clear and Copy diagnostics at the
+        // bottom. Updates live (rwLog.subscribe). Copy diagnostics copies EVERYTHING kept, whatever the filter shows.
+        const DIAG_LEVELS = [['all', 'All levels'], ['info', 'Info and up'], ['warning', 'Warnings and up'], ['error', 'Errors and up']];
+        const DIAG_TIMES = [['all', 'Everything kept'], ['page', 'Since this page loaded'], ['hour', 'The last hour'], ['day', 'The last day']];
+        const DIAG_SWITCHES = [
+            ['errorBanner', 'Show a banner when something goes wrong',
+                'A red bar at the top of the page for every error — with Copy, so you can send it to us right away'],
+            ['logDetail', 'Also record extra detail',
+                'Records many more lines (every save, every sync check) — it fills the log fast and pushes older lines out, so turn it on only while chasing a problem'],
+        ];
+        const DiagnosticsWindow = ({ onClose }) => {
+            const [entries, setEntries] = useState(() => rwLog.entries());
+            useEffect(() => rwLog.subscribe(() => setEntries(rwLog.entries())), []);
+            const [level, setLevel] = useState('all');
+            const [area, setArea] = useState('all');
+            const [time, setTime] = useState('all');
+            const [showTest, setShowTest] = useState(true);
+            const [opened, setOpened] = useState(() => new Set());
+            const [sw, setSw] = useState(() => rwLog.switches());
+            const rank = (lv) => rwLog.levels.indexOf(lv);
+            const since = { all: 0, page: performance.timeOrigin || 0, hour: Date.now() - 3600e3, day: Date.now() - 86400e3 }[time];
+            const areas = [...new Set(entries.map(e => e.area))].sort();
+            const shown = entries.filter(e => (level === 'all' || rank(e.level) >= rank(level)) && (area === 'all' || e.area === area)
+                && e.time >= since && (showTest || !e.test)).reverse();
+            const today = new Date().toDateString();
+            const when = (t) => { const d = new Date(t); return (d.toDateString() === today ? '' : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ')
+                + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }); };
+            const copy = () => {
+                const text = rwLog.diagnosticsText([`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`]);
+                Promise.resolve(navigator.clipboard && navigator.clipboard.writeText(text)).then(
+                    () => rwLog.log('info', 'SHARE', 'Diagnostics copied — paste them into your message to us', null, { toast: true }),
+                    () => rwLog.log('warning', 'SHARE-01', "Diagnostics couldn't be copied (the browser refused the clipboard)", null, { toast: true }));
+            };
+            const select = 'border border-gray-300 rounded px-2 py-1 text-sm bg-white';
+            return (
+                <Dialog onClose={onClose} title="Diagnostics" maxWidthClassName="max-w-4xl">
+                    <div data-diagnostics className="flex flex-col" style={{ maxHeight: '75vh' }}>
+                        <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-gray-200 text-sm">
+                            <span className="text-gray-600">Show:</span>
+                            <select data-diag-level className={select} value={level} onChange={e => setLevel(e.target.value)}>
+                                {DIAG_LEVELS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                            </select>
+                            <select data-diag-area className={select} value={area} onChange={e => setArea(e.target.value)}>
+                                <option value="all">All areas</option>
+                                {areas.map(a => <option key={a} value={a}>{a}</option>)}
+                            </select>
+                            <select data-diag-time className={select} value={time} onChange={e => setTime(e.target.value)}>
+                                {DIAG_TIMES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                            </select>
+                            <label className="flex items-center gap-1 text-gray-600" title="Entries a test or a support check planted on purpose (marked TEST)">
+                                <input data-diag-test type="checkbox" checked={showTest} onChange={e => setShowTest(e.target.checked)} /> test entries
+                            </label>
+                            <span className="ml-auto text-gray-500">{shown.length} of {entries.length}</span>
+                        </div>
+                        <div data-select-text data-dialog-body className="overflow-y-auto font-mono text-xs" style={{ minHeight: 160 }}>
+                            {shown.length === 0 && <div className="px-4 py-3 text-gray-400 font-sans text-sm">Nothing to show.</div>}
+                            {/* Ron, 2026-11-10: a bare ▸ on only some lines read as "missing" — say what it means, once */}
+                            {shown.some(e => e.data !== undefined) && (
+                                <div className="px-4 py-1 text-gray-500 font-sans text-xs border-b border-gray-100">Lines with more information show “details ▸” — click it to open them.</div>
+                            )}
+                            {shown.map((e, i) => {
+                                const id = `${e.time}|${e.code}|${i}`;
+                                const bad = e.level === 'error' || e.level === 'critical';
+                                return (
+                                    <div key={id} data-diag-row className={`px-4 py-1 border-b border-gray-100 ${bad ? 'bg-red-50 text-red-800' : e.level === 'warning' ? 'text-amber-800' : 'text-gray-800'}`}>
+                                        <div className="flex gap-2 items-baseline">
+                                            {/* a fixed-width time column (Ron, 2026-11-10): an earlier day's date must not push the
+                                                columns after it out of line — "Nov 10 12:00:00 PM" is the longest */}
+                                            <span className="text-gray-400 flex-shrink-0" style={{ width: '19ch' }}>{when(e.time)}</span>
+                                            <span className="flex-shrink-0 w-16">{e.level}</span>
+                                            <span data-diag-code className="flex-shrink-0 w-20 font-semibold">{e.code}</span>
+                                            {e.test && <span className="flex-shrink-0 px-1 rounded bg-gray-200 text-gray-700">TEST</span>}
+                                            <span className="min-w-0" style={{ overflowWrap: 'anywhere' }}>{e.text}{e.count > 1 ? ` (×${e.count})` : ''}</span>
+                                            {e.data !== undefined && (
+                                                <button type="button" aria-label="Show details" title="Show details"
+                                                    className="ml-auto flex-shrink-0 text-blue-600 hover:underline"
+                                                    onClick={() => setOpened(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; })}>
+                                                    {opened.has(id) ? 'details ▾' : 'details ▸'}</button>
+                                            )}
+                                        </div>
+                                        {opened.has(id) && <pre className="mt-1 ml-4 p-2 bg-gray-50 text-gray-700 whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>{JSON.stringify(e.data, null, 2)}</pre>}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-t border-gray-200 text-sm">
+                            {DIAG_SWITCHES.map(([name, label, tip]) => (
+                                <label key={name} className="flex items-center gap-1 text-gray-700" title={tip}>
+                                    <input data-diag-switch={name} type="checkbox" title={tip} checked={!!sw[name]}
+                                        onChange={e => { rwLog.setSwitch(name, e.target.checked); setSw(rwLog.switches()); }} /> {label}
+                                </label>
+                            ))}
+                            <span className="ml-auto flex gap-2">
+                                <button type="button" className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100"
+                                    title="Empty the log (like DevTools' Clear) — a good start before you reproduce a problem" onClick={() => rwLog.clear()}>Clear</button>
+                                <button type="button" className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                                    title="Copy everything kept, for a message to us — whatever the filter shows" onClick={copy}>Copy diagnostics</button>
+                            </span>
+                        </div>
+                    </div>
+                </Dialog>
+            );
+        };
+
         // v7.19.0-alpha.4 (Ron + UX) - THE "Select all / Clear" link in a checklist SECTION's header: one piece for every
         // section (removed-books groups, Tag from Collections' books pane + "Removed from Kindle"), so they can't drift.
         // Reads "Clear" when every item in the section is checked, else "Select all". Ctrl+A in the section does the
@@ -110,12 +217,14 @@
 
         // APP_VERSION - Defined ONCE in readerwrangler.html, available in global scope
         // Single source of truth - no duplication!
-        console.log(`✅ APP_VERSION: ${APP_VERSION} (from readerwrangler.html)`);
 
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.25.1";  // Build version for this file
+        const ORGANIZER_VERSION = "7.26.0";  // Build version for this file
+        // 7.26.0 - the code's own build, once it runs: the page-load entry can't know it (it's written before this code is
+        // compiled) and the page's APP_VERSION doesn't move during alphas
+        rwLog.log('info', 'BOOT', `Desktop app ${ORGANIZER_VERSION} running (page ${APP_VERSION})`);
 
         // v6.19.0 - Dev environments talk to the DEV relay worker (isolated KV namespace), so
         // local/dev testing can never touch production relay data. Mirrors the nav-hub's rule,
@@ -128,7 +237,7 @@
         (() => {
             if ((isContributor() || isDevSite()) && window._RW_RELAY_WORKER_URL === undefined) {
                 window._RW_RELAY_WORKER_URL = 'https://readerwrangler-relay-dev.readerwrangler.workers.dev';
-                console.log(`🔧 DEV environment: relay → dev worker (${window._RW_RELAY_WORKER_URL})`);
+                rwLog.log('info', 'BOOT', `This copy uses the dev relay (${window._RW_RELAY_WORKER_URL})`);
             }
         })();
 
@@ -280,7 +389,53 @@
             messageEl.setAttribute('data-dialog-body', '');
         }
 
-        function showInfoDialog(title, message) {
+        // 7.26.0 (Ron, 2026-11-09 — option 1) - Every dialog names its AREA first and logs what it showed there, and the
+        // answer for those that ask (rwLog.dialog — the one logging call whose code isn't written literally; the commit
+        // check verifies each call's area instead, tools/message_codes.py). The boxes themselves are unchanged, below.
+        const dialogShown = (area, title, message) => rwLog.dialog(area, `Box shown: "${title}" — ${message}`);
+        const dialogAnswered = (area, title, answer) => rwLog.dialog(area, `Box "${title}" answered: ${answer}`);
+        function showInfoDialog(area, title, message) {
+            dialogShown(area, title, message);
+            return infoBox(title, message);
+        }
+        function showProgressDialog(area, title, message) {
+            dialogShown(area, title, message);
+            const box = progressBox(title, message);
+            return {
+                ...box,
+                finish(newTitle, msg, extras) {
+                    dialogShown(area, newTitle, msg);
+                    return box.finish(newTitle, msg, extras).then((key) => {
+                        if (key) dialogAnswered(area, newTitle, ((extras || []).find(x => x.key === key) || {}).label || key);
+                        return key;
+                    });
+                }
+            };
+        }
+        function showConfirmDialog(area, title, message, confirmText = 'OK', cancelText = 'Cancel') {
+            dialogShown(area, title, message);
+            return confirmBox(title, message, confirmText, cancelText).then((ok) => { dialogAnswered(area, title, ok ? confirmText : cancelText); return ok; });
+        }
+        function showChoiceDialog(area, title, message, choices) {
+            dialogShown(area, title, message);
+            return choiceBox(title, message, choices).then((v) => {
+                dialogAnswered(area, title, v == null ? 'closed' : ((choices || []).find(c => c.value === v) || {}).label || String(v));
+                return v;
+            });
+        }
+        function showInputDialog(area, title, message, defaultValue = '', placeholder = '', confirmText = 'OK', cancelText = 'Cancel') {
+            dialogShown(area, title, message);
+            return inputBox(title, message, defaultValue, placeholder, confirmText, cancelText).then((v) => {
+                dialogAnswered(area, title, v == null ? cancelText : `${confirmText} ("${v}")`);
+                return v;
+            });
+        }
+        function showDeleteWarningDialog(purchasedCount) {
+            dialogShown('MOVE', 'Owned books', `deleting ${purchasedCount} purchased book(s)`);
+            return deleteWarningBox(purchasedCount).then((v) => { dialogAnswered('MOVE', 'Owned books', v === 'delete' ? 'Delete Anyway' : 'Cancel'); return v; });
+        }
+
+        function infoBox(title, message) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
                 overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
@@ -330,7 +485,7 @@
 
         // v6.0.0-alpha.45: Progress dialog for relay import (mutable content, no button initially)
         // Returns controller: { update(msg), finish(title, msg), close() }
-        function showProgressDialog(title, message) {
+        function progressBox(title, message) {
             const overlay = document.createElement('div');
             overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
             overlay.style.cssText = `
@@ -431,7 +586,7 @@
         }
 
         // v5.5.7-alpha.13: Themed confirm dialog (replaces window.confirm to avoid "localhost says")
-        function showConfirmDialog(title, message, confirmText = 'OK', cancelText = 'Cancel') {
+        function confirmBox(title, message, confirmText = 'OK', cancelText = 'Cancel') {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
                 overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
@@ -497,7 +652,7 @@
         // v6.12.0 - Promise-based multi-button choice dialog. choices: [{ label, value, primary? }] shown
         // left→right (put the primary/default last so it sits at the right). Resolves to the chosen value,
         // or null if dismissed via the backdrop. Buttons name their own action (no ambiguous OK).
-        function showChoiceDialog(title, message, choices) {
+        function choiceBox(title, message, choices) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
                 overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
@@ -539,7 +694,7 @@
         }
 
         // v6.12.0 - Promise-based single-line input dialog. Resolves to the entered string, or null on cancel.
-        function showInputDialog(title, message, defaultValue = '', placeholder = '', confirmText = 'OK', cancelText = 'Cancel') {
+        function inputBox(title, message, defaultValue = '', placeholder = '', confirmText = 'OK', cancelText = 'Cancel') {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
                 overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
@@ -580,7 +735,7 @@
         }
 
         // v6.2.0 - Warning dialog for deleting purchased books (3 buttons: Hide Instead / Delete Anyway / Cancel)
-        function showDeleteWarningDialog(purchasedCount) {
+        function deleteWarningBox(purchasedCount) {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
                 overlay.className = 'rw-imperative-overlay'; // v7.10.1-alpha.6 - counts as an open dialog (see imperativeDialogsUp)
@@ -962,7 +1117,8 @@
                 if (kind === 'list' || !anchorRef || !anchorRef.current) return;
                 if (!isContributor()) return; // v7.21.0 - developer warning → contributors only (was: any local server)
                 if (!anchorRef.current.closest('[data-popover-trigger]')) {
-                    console.warn('[Popover] this popup\'s button is missing {...popupTrigger(isOpen)} — spread it onto the button so other popups switch to it in one click:', anchorRef.current);
+                    rwLog.log('error', 'UI-01', "A popup's button is missing {...popupTrigger(isOpen)} — spread it onto the button so other popups switch to it in one click (a coding slip)",
+                        { button: (anchorRef.current.outerHTML || '').slice(0, 200) });
                 }
             }, []);
             // v7.18.0-alpha.61 - Shift+click inside a popup never starts a TEXT selection (Ron: Shift+click on the Sort menu
@@ -1466,7 +1622,7 @@
                 if (exact) return { key: exact, label: name, created: false };
                 const twin = Object.entries(tagRegistry).find(([, t]) => t && t.label.toLowerCase() === name.toLowerCase());
                 if (twin) {
-                    const choice = await showChoiceDialog('A similar tag exists',
+                    const choice = await showChoiceDialog('ORG', 'A similar tag exists',
                         `A tag "${twin[1].label}" already exists. Create "${name}" as a separate tag?`,
                         [opts.forBooks ? { label: `Add "${twin[1].label}" instead`, value: 'use' } : { label: 'Cancel', value: null },
                          { label: `Create "${name}"`, value: 'create', primary: true }]);
@@ -1584,6 +1740,7 @@
             const draggedFoldersAllPinnedRef = useRef(false); // v7.6.0-alpha.15 - right-pane reorder gate: pin-zone drags are allowed in sorted modes (dragover can't read the payload, so dragstart records this)
             const toastHistoryRef = useRef([]); // v7.6.2-alpha.2 - session toast receipts (ring buffer of 50)
             const [toastHistoryOpen, setToastHistoryOpen] = useState(false); // v7.6.2-alpha.2
+            const [diagnosticsOpen, setDiagnosticsOpen] = useState(false); // 7.26.0 - the Diagnostics window (Help, and the 🕐's "Full log…")
             const toastHistoryBtnRef = useRef(null); // v7.18.0-alpha.40 - anchor for the toast-history <Popover>
             const folderSortBtnRef = useRef(null); // v7.18.0-alpha.44 - anchor for the FOLDERS-header sort <Popover>
             const folderSortPickerBtnRef = useRef(null); // v7.18.0-alpha.44 - anchor for the right-pane "Sort:" folder picker <Popover>
@@ -1792,7 +1949,9 @@
                     return hasKeys ? 'unverified' : null;
                 } catch { return null; }
             });
-            const dataOpInProgressRef = useRef(false); // v6.3.0 - Guards against overlapping import/restore/delete operations
+            // v6.3.0 - Guards against overlapping import/restore operations. 7.26.0 - holds WHICH one runs (null | 'import' |
+            // 'restore', one value — Law 17), so a skipped start can say what's running (LOGGING.md F2); readers ask only "any?"
+            const dataOpInProgressRef = useRef(null);
             const orgLoadedRef = useRef(false); // v7.7.0-alpha.1 (F1) - Gate for ALL organization persistence: opens only when the load path completed
             const deviceStateBootBaselineRef = useRef(false); // v7.7.0-alpha.3 - Set at load end, consumed by the device-state effect's first unguarded run: the boot render is a baseline, not a change (each boot was pushing a full identical gen on first blur)
             const blobSaveFailWarnedRef = useRef(false); // v7.7.0-alpha.1 - One loud toast per session on organization save failure
@@ -2053,7 +2212,7 @@
             const pasteClipboard = () => {
                 if (!clipboard || !clipboard.bookIds || clipboard.bookIds.length === 0) return false;
                 const refusal = pasteRefusal(selectedFolderId);
-                if (refusal) { showToast(refusal); return true; }
+                if (refusal) { rwLog.log('info', 'MOVE', refusal, null, { toast: true }); return true; }
                 if (isBookListFolder(selectedFolderId)) pasteBooksIntoBookList(getBookListId(selectedFolderId), clipboard);
                 else pasteBooksIntoFolder(selectedFolderId, clipboard);
                 if (clipboard.type === 'cut') { // a cut pastes once
@@ -2091,8 +2250,8 @@
                         type: 'PASTE_BOOKS_CUT', bookIds: clip.bookIds, sourcePositions: clip.sourcePositions, targetFolderId,
                         label: `Paste ${bookCountLabel(clip.bookIds)} into '${targetName}'`
                     });
-                    showToast(`Pasted ${bookCountLabel(clip.bookIds)} into '${targetName}' — moved from the original folder`);
-                    console.log(`📥 Pasted ${clip.bookIds.length} book(s) (cut) to folder`);
+                    rwLog.log('info', 'MOVE', `Pasted ${bookCountLabel(clip.bookIds)} into '${targetName}' — moved from the original folder`, null, { toast: true });
+                    rwLog.log('debug', 'MOVE', `Pasted ${clip.bookIds.length} cut book(s) into a folder`);
                 } else {
                     // Copy: just add to the target
                     setFolders(prev => prev.map(folder => {
@@ -2104,8 +2263,8 @@
                         type: 'PASTE_BOOKS_COPY', bookIds: clip.bookIds, targetFolderId,
                         label: `Paste ${bookCountLabel(clip.bookIds)} into '${targetName}'`
                     });
-                    showToast(`Pasted ${bookCountLabel(clip.bookIds)} into '${targetName}'`);
-                    console.log(`📥 Pasted ${clip.bookIds.length} book(s) (copy) to folder`);
+                    rwLog.log('info', 'MOVE', `Pasted ${bookCountLabel(clip.bookIds)} into '${targetName}'`, null, { toast: true });
+                    rwLog.log('debug', 'MOVE', `Pasted ${clip.bookIds.length} copied book(s) into a folder`);
                 }
             };
 
@@ -2120,12 +2279,12 @@
                 const added = ids.filter(id => !(bl.bookIds || []).includes(id));
                 if (clip.type !== 'cut') {
                     addBooksToBookList(bookListId, ids);
-                    showToast(added.length > 0 ? `Added ${bookCountLabel(added)} to '${bl.name}'` : `Already on '${bl.name}'`);
+                    rwLog.log('info', 'MOVE', added.length > 0 ? `Added ${bookCountLabel(added)} to '${bl.name}'` : `Already on '${bl.name}'`, null, { toast: true });
                     return;
                 }
                 const sourceId = (clip.sourcePositions[0] || {}).folderId;
                 const sourceList = getBookList(sourceId);
-                if (sourceList && sourceList.id === bookListId) { showToast(`Already on '${bl.name}'`); return; }
+                if (sourceList && sourceList.id === bookListId) { rwLog.log('info', 'MOVE', `Already on '${bl.name}'`, null, { toast: true }); return; }
                 const sourceFolder = folders.find(f => f.id === sourceId);
                 const inAnotherFolder = (id) => folders.some(f => f.id !== sourceId && (f.bookIds || []).includes(id));
                 // (a book cut from the Inbox and in no other folder would land straight back there — it stays put)
@@ -2151,7 +2310,7 @@
                     : ids.length === 1 ? " It wasn't in any other folder, so it went to the Inbox."
                     : n === 1 ? " 1 wasn't in any other folder, so it went to the Inbox."
                     : ` ${n} weren't in any other folder, so they went to the Inbox.`;
-                showToast(`${moved ? 'Moved' : 'Added'} ${bookCountLabel(ids)}${moved ? from : ''} to '${bl.name}'.${inbox}`);
+                rwLog.log('info', 'MOVE', `${moved ? 'Moved' : 'Added'} ${bookCountLabel(ids)}${moved ? from : ''} to '${bl.name}'.${inbox}`, null, { toast: true });
             };
             const applyBookListCut = (a) => {
                 setBookLists(prev => prev.map(bl => {
@@ -2185,12 +2344,12 @@
             const deleteBookList = async (bl) => {
                 if (!bl) return false;
                 // v6.13.2-alpha.1 - Empty Book List deletes without a confirm — nothing to lose.
-                if ((bl.bookIds || []).length > 0 && !(await showConfirmDialog('Delete Book List', `Delete the book list "${bl.name}"? The books themselves are not deleted.`))) return false;
+                if ((bl.bookIds || []).length > 0 && !(await showConfirmDialog('ORG', 'Delete Book List', `Delete the book list "${bl.name}"? The books themselves are not deleted.`))) return false;
                 const index = bookLists.findIndex(x => x.id === bl.id);
                 recordAction({ type: 'BOOKLIST_DELETE', bookList: bl, index, label: `Delete Book List '${bl.name}'` });
                 setBookLists(prev => prev.filter(x => x.id !== bl.id));
                 if (selectedFolderId === `__booklist_${bl.id}__`) navigateToFolder('__all__');
-                showToast(`Deleted Book List '${bl.name}'`);
+                rwLog.log('info', 'ORG', `Deleted Book List '${bl.name}'`, null, { toast: true });
                 return true;
             };
             // v6.13.1-alpha.13 - The '+' button creates a list THEN lets you name it inline. Finalize the "Created"
@@ -2210,7 +2369,7 @@
                         ? [...prev.slice(0, -1), { ...l, label: `Create Book List '${finalName}'`, bookList: { ...l.bookList, name: finalName } }]
                         : prev;
                 });
-                showToast(`Created Book List '${finalName}'`);
+                rwLog.log('info', 'ORG', `Created Book List '${finalName}'`, null, { toast: true });
             };
 
             // ===== v7.10.1-alpha.6 (audit sweep A) - rename / Search / reorder operations =====
@@ -2242,11 +2401,11 @@
                             ? [...prev.slice(0, -1), { ...l, label: `Create folder '${nm}'`, folder: { ...l.folder, name: nm } }]
                             : prev;
                     });
-                    showToast(`Created folder '${nm.slice(0, 40)}'`);
+                    rwLog.log('info', 'ORG', `Created folder '${nm.slice(0, 40)}'`, null, { toast: true });
                     return true;
                 }
                 recordAction({ type: 'RENAME_FOLDER', folderId, prevName: f.name, newName: nm, label: `Rename folder '${f.name.slice(0, 40)}' to '${nm.slice(0, 40)}'` });
-                showToast(`Renamed folder '${f.name.slice(0, 40)}' to '${nm.slice(0, 40)}'`);
+                rwLog.log('info', 'ORG', `Renamed folder '${f.name.slice(0, 40)}' to '${nm.slice(0, 40)}'`, null, { toast: true });
                 return true;
             };
             const editFolderProps = (folderId, { name, description }) => {
@@ -2257,7 +2416,7 @@
                 if (nm === f.name && desc === f.description) return false;
                 recordAction({ type: 'EDIT_FOLDER_PROPS', folderId, prev: { name: f.name, description: f.description }, next: { name: nm, description: desc }, label: `Edit folder '${f.name.slice(0, 40)}'` });
                 setFolders(prev => prev.map(x => x.id === folderId ? { ...x, name: nm, description: desc } : x));
-                showToast(`Updated folder '${nm.slice(0, 40)}'`);
+                rwLog.log('info', 'ORG', `Updated folder '${nm.slice(0, 40)}'`, null, { toast: true });
                 return true;
             };
             const renameTag = (tagId, newLabel) => {
@@ -2267,11 +2426,11 @@
                 // v7.24.0 - identity is EXACT text: two tags may never share an exact name (it would make "the tag with exactly
                 // this name" — e.g. Tag from Collections' matching rule — ambiguous). A capitals-only difference is allowed.
                 const clash = tagKeyByExactName(nm);
-                if (clash && clash !== tagId) { showToast(`A tag named "${nm}" already exists`); return true; }
+                if (clash && clash !== tagId) { rwLog.log('info', 'ORG', `A tag named "${nm}" already exists`, null, { toast: true }); return true; }
                 if (!renameGuardPasses(`tag:${tagId}:${nm}`)) return true;
                 recordAction({ type: 'RENAME_TAG', tagId, prevLabel: entry.label, newLabel: nm, label: `Rename tag '${entry.label.slice(0, 40)}' to '${nm.slice(0, 40)}'` });
                 setTagRegistry(prev => prev[tagId] ? { ...prev, [tagId]: { ...prev[tagId], label: nm } } : prev);
-                showToast(`Renamed tag '${entry.label.slice(0, 40)}' to '${nm.slice(0, 40)}'`);
+                rwLog.log('info', 'ORG', `Renamed tag '${entry.label.slice(0, 40)}' to '${nm.slice(0, 40)}'`, null, { toast: true });
                 return true;
             };
             const renameSearch = (viewId, newName) => {
@@ -2282,7 +2441,7 @@
                 const prevName = sv.name || '';
                 recordAction({ type: 'RENAME_SEARCH', viewId, prevName, newName: nm, label: prevName ? `Rename Search '${prevName.slice(0, 40)}' to '${nm.slice(0, 40)}'` : `Name Search '${nm.slice(0, 40)}'` });
                 setSavedSearches(prev => prev.map(v => v.id === viewId ? { ...v, name: nm } : v));
-                showToast(prevName ? `Renamed Search '${prevName.slice(0, 40)}' to '${nm.slice(0, 40)}'` : `Named Search '${nm.slice(0, 40)}'`);
+                rwLog.log('info', 'ORG', prevName ? `Renamed Search '${prevName.slice(0, 40)}' to '${nm.slice(0, 40)}'` : `Named Search '${nm.slice(0, 40)}'`, null, { toast: true });
                 return true;
             };
             const renameBookList = (blId, newName) => {
@@ -2296,7 +2455,7 @@
                 const last = (undoStackRef.current || [])[(undoStackRef.current || []).length - 1];
                 if (last && last.type === 'BOOKLIST_CREATE' && last.bookList?.id === blId) return true;
                 recordAction({ type: 'RENAME_BOOKLIST', bookListId: blId, prevName: bl.name, newName: nm, label: `Rename Book List '${bl.name.slice(0, 40)}' to '${nm.slice(0, 40)}'` });
-                showToast(`Renamed Book List '${bl.name.slice(0, 40)}' to '${nm.slice(0, 40)}'`);
+                rwLog.log('info', 'ORG', `Renamed Book List '${bl.name.slice(0, 40)}' to '${nm.slice(0, 40)}'`, null, { toast: true });
                 return true;
             };
             const deleteSearch = (viewId) => {
@@ -2304,7 +2463,7 @@
                 if (!sv) return false;
                 recordAction({ type: 'SEARCH_DELETE', search: { ...sv }, label: sv.name ? `Delete Search '${sv.name.slice(0, 40)}'` : 'Delete Search' });
                 setSavedSearches(prev => prev.filter(v => v.id !== viewId));
-                showToast(sv.name ? `Deleted Search '${sv.name.slice(0, 40)}'` : 'Deleted Search');
+                rwLog.log('info', 'ORG', sv.name ? `Deleted Search '${sv.name.slice(0, 40)}'` : 'Deleted Search', null, { toast: true });
                 return true;
             };
             // Reorders record silently (REORDER_FOLDER convention: a drag you just watched needs no receipt)
@@ -2416,19 +2575,19 @@
             // v6.12.0 - Save a filter set as a Search (optional name; blank → chips). Shared by the "Save as a
             // Search" control and the Recents "save" action. Returns true if saved.
             const saveFiltersAsSearch = async (filters) => {
-                if (!filters || Object.keys(filters).length === 0) { showToast('No filters to save'); return false; }
+                if (!filters || Object.keys(filters).length === 0) { rwLog.log('info', 'ORG', 'No filters to save', null, { toast: true }); return false; }
                 const key = filterKey(filters);
                 const dup = savedSearches.find(v => filterKey(v.filters) === key);
-                if (dup) { showToast(dup.name && dup.name.trim() ? `Already saved as a Search: "${dup.name}"` : 'These filters are already a saved Search'); return false; }
+                if (dup) { rwLog.log('info', 'ORG', dup.name && dup.name.trim() ? `Already saved as a Search: "${dup.name}"` : 'These filters are already a saved Search', null, { toast: true }); return false; }
                 const suggested = autoNameView(filters);
-                const name = await showInputDialog('Save as a Search', 'Name (optional — leave blank to show the filter chips):', '', suggested === 'New View' ? 'e.g. Unread sci-fi' : suggested);
+                const name = await showInputDialog('ORG', 'Save as a Search', 'Name (optional — leave blank to show the filter chips):', '', suggested === 'New View' ? 'e.g. Unread sci-fi' : suggested);
                 if (name === null) return false;
                 const trimmed = (name || '').trim();
                 const maxPos = savedSearches.length > 0 ? Math.max(...savedSearches.map(v => v.position ?? 0)) : -1;
                 const newSearch = { id: `view_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name: trimmed, filters, position: maxPos + 1 };
                 recordAction({ type: 'SEARCH_CREATE', search: { ...newSearch }, label: trimmed ? `Save Search '${trimmed.slice(0, 40)}'` : 'Save Search' }); // v7.10.1-alpha.6 (audit sweep A) - undoable, like BOOKLIST_CREATE
                 setSavedSearches(prev => [...prev, newSearch]);
-                showToast(trimmed ? `Saved as a Search: "${trimmed}"` : 'Saved as a Search');
+                rwLog.log('info', 'ORG', trimmed ? `Saved as a Search: "${trimmed}"` : 'Saved as a Search', null, { toast: true });
                 return true;
             };
             // v6.10.0-alpha.17 - Suggested name for the "Save as a Search" prompt (placeholder only — naming is optional)
@@ -2877,6 +3036,13 @@
                     }, 1000); // Animation duration
                 }, 1500); // Wait before animating
             };
+            // 7.26.0 - The logger's toasts: rwLog.log(…, { toast }) shows its message through showToast — one call, every
+            // destination (LOGGING.md §6). showToast uses only state setters and a ref, so handing it over once is enough.
+            // Red for error and up; a { hint } stays out of the 🕐 history.
+            useEffect(() => {
+                if (window.rwLog) window.rwLog.setToaster((text, o) => showToast(text, o.x, o.y,
+                    { level: o.level === 'error' ? 'error' : 'info', log: !o.hint }));
+            }, []);
 
             // v6.3.0 - Run integrity check, save results, fire goatcounter, return result.
             // Returns null if check throws (previous results preserved per design).
@@ -2900,7 +3066,7 @@
                     }
                     return result;
                 } catch (e) {
-                    console.error('Integrity check failed:', e);
+                    rwLog.log('error', 'INTEG-01', `The integrity check itself crashed: ${e && e.message}`, { stack: e && e.stack });
                     return null; // Previous localStorage results preserved
                 }
             };
@@ -3063,7 +3229,7 @@
                 if (hideInsteadIds.size > 0) msgs.push(`Hid ${bookCountLabel(Array.from(hideInsteadIds))}${hideInsteadIds.size === 1 ? ' (purchased — hides instead of deleting)' : ' (purchased books hide instead of deleting)'}`); // v7.10.1 - named + teaching kept
                 const removedFromFolder = booksToRemoveFromFolder.length - actualBooksToTrash.length;
                 if (removedFromFolder > 0) msgs.push(`Removed ${removedFromFolder === booksToRemoveFromFolder.length ? bookCountLabel(booksToRemoveFromFolder) : removedFromFolder + ' book' + (removedFromFolder !== 1 ? 's' : '')} from folder`); // v7.10.1
-                if (msgs.length > 0) showToast(msgs.join(', '));
+                if (msgs.length > 0) rwLog.log('info', 'MOVE', msgs.join(', '), null, { toast: true });
             };
 
             const restoreBooks = (bookIds) => {
@@ -3116,7 +3282,7 @@
                 const count = bookIds.length;
                 // v6.12.0 - Book List membership returns automatically on restore (trashed IDs were only filtered)
                 const onLists = restoredBooks.some(({ id }) => bookLists.some(bl => (bl.bookIds || []).includes(id)));
-                showToast(`Restored ${bookCountLabel(Array.from(bookIds))}${onLists ? ' to their folders and Book Lists' : ''}`); // v7.10.1 - named receipt
+                rwLog.log('info', 'MOVE', `Restored ${bookCountLabel(Array.from(bookIds))}${onLists ? ' to their folders and Book Lists' : ''}`, null, { toast: true }); // v7.10.1 - named receipt
             };
 
             const permanentlyDeleteBooks = async (bookIds) => {
@@ -3129,7 +3295,7 @@
                 const listNote = affectedLists.length > 0
                     ? `\n\nThis also removes ${count === 1 ? 'it' : 'them'} from ${affectedLists.length} Book List${affectedLists.length !== 1 ? 's' : ''}${affectedLists.length <= 3 ? ` (${affectedLists.map(bl => `"${bl.name}"`).join(', ')})` : ''}.`
                     : '';
-                if (!await showConfirmDialog('Permanently Delete', `Permanently delete ${count} book${count !== 1 ? 's' : ''}? This cannot be undone.${listNote}`)) return;
+                if (!await showConfirmDialog('MOVE', 'Permanently Delete', `Permanently delete ${count} book${count !== 1 ? 's' : ''}? This cannot be undone.${listNote}`)) return;
 
                 // Remove from books state and IndexedDB
                 // v6.19.0 - Capture the doomed books first: their ASINs become the tombstone letter below
@@ -3161,7 +3327,7 @@
                 setUndoStack(prev => prev.filter(a => !mentionsDoomed(a)));
                 setRedoStack(prev => prev.filter(a => !mentionsDoomed(a)));
 
-                showToast(`Permanently deleted ${doomedLabel}`); // v7.10.1 - named receipt
+                rwLog.log('info', 'MOVE', `Permanently deleted ${doomedLabel}`, null, { toast: true }); // v7.10.1 - named receipt
 
                 // v6.19.0 - Relay write redesign Phase 1: the app never rewrites the relay library.
                 // A permanent delete sends a TOMBSTONE LETTER instead (one atomic write); every
@@ -3179,10 +3345,11 @@
                                 tombstones: { items: deletedAsins.map(asin => ({ asin, deletedAt })) }
                             });
                             await window.RWRelay.writeRun(payload, 'tombstone', () => {});
-                            console.log(`🗑️ Tombstone sent for ${deletedAsins.length} book(s) (merges will honor the delete)`);
+                            rwLog.log('info', 'SYNC', `Told the relay about ${deletedAsins.length} permanently deleted book(s), so a merge won't bring them back`);
                         }
                     } catch (err) {
-                        console.warn('⚠️ Permanent delete succeeded locally but relay tombstone failed (will not resurrect while local copy lacks it; delete again if it reappears after a fetch):', err.message);
+                        rwLog.log('warning', 'SYNC-01', 'A permanent delete worked here, but telling the relay failed — if the book comes back after a fetch, delete it again',
+                            { error: err && err.message });
                     }
                 }
             };
@@ -3519,7 +3686,7 @@
                     toIndex: targetIndex,
                     label: `Reorder ${bookCountLabel(bookIdsToMove)}` // v7.8.0-alpha.4 named target
                 });
-                console.log(`🔄 Reordered ${bookIdsToMove.length} book(s) in folder`);
+                rwLog.log('debug', 'MOVE', `Reordered ${bookIdsToMove.length} book(s) in a folder`);
             };
 
             // v6.12.0 - Reorder books within a Book List (manual order); mirrors reorderBooksInFolder
@@ -3580,9 +3747,9 @@
                     return updated;
                 });
                 recordAction({ type: 'SEQUENCE_SERIES', prev, seriesName: name, positions, label: name ? `Number series '${name}'` : 'Number books in current order' }); // v7.8.0-alpha.4 named target
-                showToast(values
+                rwLog.log('info', 'EDIT', values
                     ? `Set numbers on ${orderedIds.length} book${orderedIds.length !== 1 ? 's' : ''}${name ? ` (series "${name}")` : ''}`
-                    : `Numbered ${orderedIds.length} book${orderedIds.length !== 1 ? 's' : ''} in current order${name ? ` (series "${name}")` : ''}`);
+                    : `Numbered ${orderedIds.length} book${orderedIds.length !== 1 ? 's' : ''} in current order${name ? ` (series "${name}")` : ''}`, null, { toast: true });
             };
             const applySequentialNumbering = (orderedIds, seriesName) => applyNumbering(orderedIds, seriesName, null);
 
@@ -3603,7 +3770,7 @@
                 const movedAllPinned = folderIdsToMove.length > 0 &&
                     folderIdsToMove.every(id => folders.find(f => f.id === id)?.pinned);
                 if (folderListSort.column !== 'custom' && !movedAllPinned) {
-                    showToast('Switch folder sort to Manual (the sort control in the FOLDERS header) to rearrange by hand.');
+                    rwLog.log('info', 'MOVE', 'Switch folder sort to Manual (the sort control in the FOLDERS header) to rearrange by hand.', null, { toast: true });
                     return;
                 }
                 // v7.6.0-alpha.7 (wave B) - Reorder basis = STORED MANUAL order partitioned pins-first — never the
@@ -3679,7 +3846,7 @@
                     description: `Reorder "${folderNames}"`
                 });
 
-                console.log(`🔄 Reordered ${folderIdsToMove.length} folder(s) in parent ${parentId || 'root'}`);
+                rwLog.log('debug', 'MOVE', `Reordered ${folderIdsToMove.length} folder(s) ${parentId ? 'inside a folder' : 'at the top level'}`);
             };
 
             // v7.6.0-alpha.1 (wave A, spec item D) - Move a folder to the top/bottom of its sibling list.
@@ -3715,7 +3882,7 @@
                     label: `${pinned ? 'Pin' : 'Unpin'} ${label}`,
                     description: `${pinned ? 'Pin' : 'Unpin'} ${label}`
                 });
-                showToast(pinned ? `📌 Pinned ${label} to the top` : `Unpinned ${label}`);
+                rwLog.log('info', 'ORG', pinned ? `📌 Pinned ${label} to the top` : `Unpinned ${label}`, null, { toast: true });
             };
             const toggleFolderPin = (folderId) => {
                 const f = folders.find(x => x.id === folderId);
@@ -3729,7 +3896,7 @@
             const bakeOrderToManual = async () => {
                 if (folderListSort.column === 'custom') return;
                 const modeLabel = folderListSort.column === 'title' ? 'Name' : 'Count';
-                if (!(await showConfirmDialog('Bake Order',
+                if (!(await showConfirmDialog('ORG', 'Bake Order',
                     `Make the current ${modeLabel} order the new Manual order? Your previous manual arrangement is overwritten (undoable).`))) return;
                 const sortIndexBefore = {}, sortIndexAfter = {}, childIdsBefore = {}, childIdsAfter = {};
                 getChildFolders(null).forEach((f, idx) => {
@@ -3754,7 +3921,7 @@
                 // v7.6.0-alpha.15 (#6, Ron) - NO auto-switch to Manual: the baked manual order IS the
                 // displayed order, so staying put changes nothing on screen — zero surprise, no hidden
                 // second effect. Switching to Manual later shows the identical order.
-                showToast(`Manual order now matches the ${modeLabel} order — switch to Manual to tweak it`);
+                rwLog.log('info', 'ORG', `Manual order now matches the ${modeLabel} order — switch to Manual to tweak it`, null, { toast: true });
             };
 
             // v5.0.0-alpha.78 - Phase D: Reparent folder (move into another folder) with undo
@@ -3773,11 +3940,11 @@
             const reparentFolder = async (folderIds, newParentId, opts = {}) => {
                 for (const folderId of folderIds) {
                     if (folderId === newParentId || isDescendantFolder(folderId, newParentId)) {
-                        showToast("Can't move folder into itself or its subfolder", null, null, { level: 'error' });
+                        rwLog.log('warning', 'MOVE-06', "Can't move folder into itself or its subfolder", null, { toast: true });
                         return false;
                     }
                     if (folderId === '__inbox__') {
-                        showToast("Inbox cannot be moved", null, null, { level: 'error' });
+                        rwLog.log('warning', 'MOVE-07', "Inbox cannot be moved", null, { toast: true });
                         return false;
                     }
                 }
@@ -3785,7 +3952,7 @@
                 if (opts.confirmLarge) {
                     const countDesc = (fid) => folders.filter(f => f.parentId === fid).reduce((n, k) => n + 1 + countDesc(k.id), 0);
                     const descCount = folderIds.reduce((n, id) => n + countDesc(id), 0);
-                    if (descCount > 20 && !(await showConfirmDialog('Move Folder', `Move folder with ${descCount} subfolders?`))) return false;
+                    if (descCount > 20 && !(await showConfirmDialog('MOVE', 'Move Folder', `Move folder with ${descCount} subfolders?`))) return false;
                 }
 
                 // Save old parentIds for undo
@@ -3862,8 +4029,8 @@
                     label: `Move "${folderNames}" into "${targetName}"`,
                     description: `Move "${folderNames}" into "${targetName}"`
                 });
-                showToast(`Moved "${folderNames}" into "${targetName}"`);
-                console.log(`📁 Moved ${folderIds.length} folder(s) into ${newParentId || 'root'}`);
+                rwLog.log('info', 'MOVE', `Moved "${folderNames}" into "${targetName}"`, null, { toast: true });
+                rwLog.log('debug', 'MOVE', `Moved ${folderIds.length} folder(s) ${newParentId ? 'into a folder' : 'to the top level'}`);
                 return true;
             };
 
@@ -3903,7 +4070,7 @@
                     } else {
                         confirmMsg = `Delete "${folder.name}" and its ${subCount} subfolder${subCount !== 1 ? 's' : ''}?`;
                     }
-                    if (!(await showConfirmDialog('Delete Folder', confirmMsg))) return false;
+                    if (!(await showConfirmDialog('ORG', 'Delete Folder', confirmMsg))) return false;
                 }
 
                 const savedSortSettings = {};
@@ -3937,10 +4104,10 @@
                     navigateToFolder(destinationId);
                 }
 
-                showToast(bookCount > 0
+                rwLog.log('info', 'ORG', bookCount > 0
                     ? `Deleted "${folder.name}" — ${bookCount} book${bookCount !== 1 ? 's' : ''} moved to ${destinationId === '__inbox__' ? 'Inbox' : `"${destinationName}"`}`
-                    : `Deleted "${folder.name}"`);
-                console.log(`🗑️ Deleted folder "${folder.name}"${subCount > 0 ? ` + ${subCount} subfolder(s)` : ''}${bookCount > 0 ? `, ${bookCount} book(s) → ${destinationName}` : ''}`);
+                    : `Deleted "${folder.name}"`, null, { toast: true });
+                rwLog.log('debug', 'MOVE', `Deleted a folder${subCount > 0 ? ` and ${subCount} subfolder(s)` : ''}${bookCount > 0 ? `; ${bookCount} book(s) moved to ${destinationId === '__inbox__' ? 'the Inbox' : 'its parent folder'}` : ''}`);
                 return true;
             };
 
@@ -3980,18 +4147,18 @@
                         const toAdd = bookIds.filter(id => !existing.has(id));
                         return toAdd.length > 0 ? { ...f, bookIds: [...toAdd, ...(f.bookIds || [])] } : f;
                     }));
-                    showToast(`Restored ${bookCountLabel(bookIds)} to '${restoreTargetName}'`);
+                    rwLog.log('info', 'MOVE', `Restored ${bookCountLabel(bookIds)} to '${restoreTargetName}'`, null, { toast: true });
                     return true;
                 }
 
                 // Validate: if ANY folder can't move, abort ENTIRE operation
                 for (const fid of folderIdsToMove) {
                     if (fid === targetFolderId || isDescendantFolder(fid, targetFolderId)) {
-                        showToast("Can't move a folder into itself or a subfolder", null, null, { level: 'error' });
+                        rwLog.log('warning', 'MOVE-08', "Can't move a folder into itself or a subfolder", null, { toast: true });
                         return false;
                     }
                     if (fid === '__inbox__') {
-                        showToast("Inbox cannot be moved", null, null, { level: 'error' });
+                        rwLog.log('warning', 'MOVE-09', "Inbox cannot be moved", null, { toast: true });
                         return false;
                     }
                 }
@@ -4009,7 +4176,7 @@
                 const newBookIds = bookIds.filter(id => !existingInTarget.has(id));
 
                 if (folderIdsToMove.length === 0 && newBookIds.length === 0) {
-                    if (bookIds.length > 0) showToast(bookIds.length === 1 ? 'Book already in folder' : 'Books already in folder');
+                    if (bookIds.length > 0) rwLog.log('info', 'MOVE', bookIds.length === 1 ? 'Book already in folder' : 'Books already in folder', null, { toast: true });
                     return false;
                 }
 
@@ -4045,7 +4212,7 @@
                     oldParentIds, fromIndices, isCopy, toIndex: 0
                 });
 
-                showToast(`${isCopy ? 'Copied' : 'Moved'} ${summary}`);
+                rwLog.log('info', 'MOVE', `${isCopy ? 'Copied' : 'Moved'} ${summary}`, null, { toast: true });
                 return true;
             };
 
@@ -4241,7 +4408,7 @@
                         } catch(e) {}
                     }
                 } catch (e) {
-                    console.error('Failed to load filters from localStorage:', e);
+                    rwLog.log('warning', 'PREF-01', "Your saved filters couldn't be read — they start empty", { error: String(e) });
                 }
                 // v4.15.6: Mark filters as loaded after a small delay to let React batch state updates
                 setTimeout(() => {
@@ -4264,7 +4431,7 @@
                                 }
                             })
                             .catch(err => {
-                                console.warn('Relay status check failed:', err.message);
+                                rwLog.log('warning', 'SYNC-02', `Couldn't check the relay for news: ${err && err.message}`);
                                 if (err.status === 403) relayOp('pushFail', { status: 403 });
                             });
                     }
@@ -4293,8 +4460,8 @@
                         // (legacy manifest only for pre-migration channels)
                         const manifest = await window.RWRelay.checkForUpdates();
                         relayLastCheckedRef.current = new Date().toISOString();
-                        console.log(`[Relay] Poll result: ${manifest && manifest.timestamp
-                            ? (manifest.source === 'mailbox' ? 'pending letters waiting' : 'canonical manifest found')
+                        rwLog.log('debug', 'SYNC', `Relay poll: ${manifest && manifest.timestamp
+                            ? (manifest.source === 'mailbox' ? 'pending letters waiting' : 'a newer saved copy')
                             : 'nothing new'}`);
                         if (manifest && manifest.timestamp) {
                             // Pending letters are by definition not yet imported — show the banner
@@ -4309,8 +4476,8 @@
                             }
                         }
                     } catch (err) {
-                        // Silent — polling is background, never interrupts the user
-                        console.warn('Relay poll failed:', err.message);
+                        // Silent — polling is background, never interrupts the user (offline repeats are counted, not stored again)
+                        rwLog.log('warning', 'SYNC-03', `The background relay poll failed: ${err && err.message}`);
                     }
                 };
 
@@ -4320,7 +4487,7 @@
                     if (document.visibilityState !== 'visible') return;
                     if (Date.now() - lastPollAt.current < minGapMs) return;
                     lastPollAt.current = Date.now();
-                    console.log(`[Relay] Polling for updates (${reason})...`);
+                    rwLog.log('debug', 'SYNC', `Polling the relay for news (${reason})`);
                     pollRelay();
                 };
 
@@ -4367,7 +4534,7 @@
                     };
                     localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
                 } catch (e) {
-                    console.error('Failed to save filters to localStorage:', e);
+                    rwLog.log('warning', 'PREF-02', "Your filters couldn't be saved (is the browser's storage full?)", { error: String(e) });
                 }
             }, [searchTerm, readStatusFilter, collectionFilter, ratingFilter, ownershipFilter, seriesFilter, datePreset, dateFrom, dateTo, showHidden, tagFilter, selectedCollections, minAmazonRating, minMyRating, selectedSeries]);
 
@@ -4434,7 +4601,7 @@
                         if (wizard.seriesFolderMin !== undefined) setWizardSeriesFolderMin(wizard.seriesFolderMin);
                     }
                 } catch (e) {
-                    console.error('Failed to load wizard settings from localStorage:', e);
+                    rwLog.log('warning', 'PREF-03', "Your saved Auto-Organize settings couldn't be read — the defaults are used", { error: String(e) });
                 }
                 // Mark settings loaded after a small delay
                 setTimeout(() => {
@@ -4458,7 +4625,7 @@
                     };
                     localStorage.setItem(WIZARD_KEY, JSON.stringify(wizard));
                 } catch (e) {
-                    console.error('Failed to save wizard settings to localStorage:', e);
+                    rwLog.log('warning', 'PREF-04', "Your Auto-Organize settings couldn't be saved (is the browser's storage full?)", { error: String(e) });
                 }
             }, [wizardMinBooksSlider, wizardMinBooks, wizardSortBy, wizardCreateSeriesFolders, wizardSortByPosition, wizardCreateMiscellaneous, wizardSeriesFolderMin]);
 
@@ -4518,22 +4685,22 @@
                         // v5.0.0-alpha.175.49.1 - Removed settings load (dead code, settings state removed in v175.48)
 
                         // Restore libraryStatus and collectionsStatus from localStorage (v3.7.0.n)
+                        // 7.26.0 - its own guard: a damaged status note used to stop the whole library from loading
+                        // (BOOT-01) — it's only "how fresh is your library" (TODO "One safe way to read saved settings…")
                         const savedStatus = localStorage.getItem(STATUS_KEY);
-                        if (savedStatus) {
+                        if (savedStatus) try {
                             const statusData = JSON.parse(savedStatus);
-                            if (statusData.libraryStatus) {
-                                setLibraryStatus(statusData.libraryStatus);
-                                console.log('📦 Restored libraryStatus from localStorage:', statusData.libraryStatus.loadStatus);
-                            }
-                            if (statusData.collectionsStatus) {
-                                setCollectionsStatus(statusData.collectionsStatus);
-                                console.log('📦 Restored collectionsStatus from localStorage:', statusData.collectionsStatus.loadStatus);
-                            }
+                            if (statusData.libraryStatus) setLibraryStatus(statusData.libraryStatus);
+                            if (statusData.collectionsStatus) setCollectionsStatus(statusData.collectionsStatus);
+                            rwLog.log('debug', 'BOOT', `Status restored: library ${statusData.libraryStatus && statusData.libraryStatus.loadStatus}, collections ${statusData.collectionsStatus && statusData.collectionsStatus.loadStatus}`);
+                        } catch (e) {
+                            rwLog.log('warning', 'BOOT-02', "The saved library status couldn't be read — it shows as unknown until the next fetch", { error: String(e) });
                         }
 
                         // v5.0.0 - Load Explorer settings
+                        // 7.26.0 - its own guard too (BOOT-03): damaged view settings fall back to the defaults
                         const savedExplorer = localStorage.getItem(EXPLORER_KEY);
-                        if (savedExplorer) {
+                        if (savedExplorer) try {
                             const explorerData = JSON.parse(savedExplorer);
                             // v5.0.2 - viewMode removed (always Explorer mode)
                             if (explorerData.selectedFolderId) setSelectedFolderId(explorerData.selectedFolderId);
@@ -4591,6 +4758,8 @@
                                 setBookListsSectionCollapsed(!!explorerData.sectionsCollapsed.bookLists);
                                 setFoldersSectionCollapsed(!!explorerData.sectionsCollapsed.folders);
                             }
+                        } catch (e) {
+                            rwLog.log('warning', 'BOOT-03', "The saved view settings couldn't be read — the defaults are used", { error: String(e) });
                         }
                         // v5.0.0-alpha.169.10 - Mark settings loaded (even if no saved data)
                         explorerSettingsLoadedRef.current = true;
@@ -4605,14 +4774,14 @@
                         // in place one release as an inert rollback net.
                         let orgState = null;
                         try { orgState = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); }
-                        catch (e) { console.warn('⚠️ Organization store unreadable (continuing with fallbacks):', e); }
+                        catch (e) { rwLog.log('critical', 'STORE-01', 'Your saved organization could not be read — ReaderWrangler is using a fallback copy.', { error: String(e) }); }
                         const org = (orgState && orgState.organization) || null;
 
                         let loadedFolders = (org && Array.isArray(org.folders) && org.folders.length > 0) ? org.folders : [];
                         if (loadedFolders.length === 0) {
                             const savedFolders = localStorage.getItem(FOLDERS_KEY);
                             loadedFolders = savedFolders ? JSON.parse(savedFolders) : [];
-                            if (loadedFolders.length > 0) console.log('📦 Folders migrated from the legacy standalone key (pre-blob install)');
+                            if (loadedFolders.length > 0) rwLog.log('info', 'BOOT', 'Folders moved from the old storage format (a one-time move)');
                         }
 
                         // v6.12.0-alpha.88 - BOOKLISTS_KEY is the one-time migration source for pre-blob
@@ -4637,7 +4806,7 @@
                                 collapsed: false,
                                 isInbox: true
                             }];
-                            console.log('📥 Created default Inbox folder for fresh install');
+                            rwLog.log('info', 'BOOT', 'A fresh start: created the Inbox');
                         }
 
                         // The rest of the organization applies UNCONDITIONALLY too — org is independent
@@ -4682,7 +4851,7 @@
                                     if (b.binding === 'Kindle eBook' && !b.userEdited?.binding) { migrated++; return { ...b, binding: undefined }; }
                                     return b;
                                 });
-                                if (migrated > 0) console.log(`🏷️ Format migration: cleared the invented 'Kindle eBook' default on ${migrated} book(s) — blank until Amazon or you says otherwise`);
+                                if (migrated > 0) rwLog.log('info', 'BOOT', `Format clean-up: cleared the invented 'Kindle eBook' default on ${migrated} book(s) — blank until Amazon or you say otherwise (a one-time move)`);
                             }
 
                             // v6.3.0 - Data integrity check (ghost refs, duplicates, homeless, corrupted).
@@ -4694,11 +4863,16 @@
                                     loadedFolders = integrityResult.correctedFolders;
                                     if (integrityResult.autoFixed.length > 0) {
                                         const totalFixed = integrityResult.autoFixed.reduce((s, f) => s + (f.books.length || 1), 0);
-                                        console.log(`🔧 Integrity auto-fixed on load:`, integrityResult.autoFixed.map(f => f.description));
-                                        setTimeout(() => showToast(`Library repair: ${totalFixed} issue${totalFixed !== 1 ? 's' : ''} fixed — see Data Status`), 500);
+                                        const fixed = integrityResult.autoFixed.map(f => f.description);
+                                        // a repair on load means something wrote bad data — a bug (LOGGING.md §3 #25); one call: the
+                                        // user's toast, the log, the console, the banner in diagnostics
+                                        setTimeout(() => rwLog.log('error', 'INTEG-02',
+                                            `Library repair on load: ${totalFixed} issue${totalFixed !== 1 ? 's' : ''} fixed — see Data Status`,
+                                            { fixed }, { toast: true }), 500);
                                     }
                                     if (integrityResult.needsReview.length > 0) {
-                                        console.warn(`⚠️ Integrity issues need review:`, integrityResult.needsReview.map(i => i.description));
+                                        rwLog.log('error', 'INTEG-03', `The integrity check found ${integrityResult.needsReview.length} problem(s) it couldn't fix (on load)`,
+                                            { review: integrityResult.needsReview.map(i => i.description) });
                                     }
                                 }
                             }
@@ -4718,20 +4892,20 @@
                                     const _fail = roundTripCheck(loadedBooks);
                                     if (_schema.length) {
                                         const _smsg = _schema.join('\n');
-                                        console.error('🧪❌ [book-fields self-check] table structure PROBLEM —\n' + _smsg);
+                                        rwLog.log('error', 'FIELD-01', `The book-field table's self-check found a problem — a field would be dropped on Save: ${_schema.join('; ')}`);
                                         window.alert('Book-fields table self-check FAILED (localhost dev):\n\n' + _smsg
                                             + '\n\nA field would be dropped on Save. See docs/design/BOOK-FIELDS-TABLE.md.');
                                     } else if (_fail) {
                                         const _msg = `${_fail.asin}.${_fail.field}: ${JSON.stringify(_fail.first)} → ${JSON.stringify(_fail.second)}`;
-                                        console.error('🧪❌ [book-fields self-check] round-trip FAILED — ' + _msg);
+                                        rwLog.log('error', 'FIELD-02', `A book field doesn't survive a save and load (the round-trip self-check): ${_msg}`);
                                         window.alert('Book-fields round-trip self-check FAILED (localhost dev):\n\n' + _msg
                                             + '\n\nA book field does not survive pack→unpack. See docs/design/BOOK-FIELDS-TABLE.md.');
                                     } else {
-                                        console.log(`🧪✅ [book-fields self-check] table sound + ${loadedBooks.length} books round-trip clean (${ORGANIZER_VERSION}).`);
+                                        rwLog.log('debug', 'FIELD', `The book-field self-check: the table is sound and ${loadedBooks.length} books round-trip clean (${ORGANIZER_VERSION})`);
                                     }
                                     localStorage.setItem('rw-serialization-selftest', ORGANIZER_VERSION);
                                 }
-                            } catch (_e) { console.warn('[book-fields self-check] skipped:', _e && _e.message); }
+                            } catch (_e) { rwLog.log('warning', 'FIELD-03', `The book-field self-check couldn't run: ${_e && _e.message}`); }
 
                             await saveBooksToIndexedDB(loadedBooks);
 
@@ -4753,7 +4927,13 @@
                         // Actual status display now comes from libraryStatus/collectionsStatus
                         setSyncStatus('none');
                     } catch (error) {
-                        console.error('Failed to load data:', error);
+                        // 7.26.0 - shown to EVERY user (the critical box), with its own advice: the usual "save a backup
+                        // now" would be harmful here — a start that failed after the books appeared has no folders on
+                        // screen, and a backup made from the screen would restore as a library with none
+                        rwLog.log('critical', 'BOOT-01', "Your library couldn't be loaded.", { error: String((error && error.message) || error), stack: error && error.stack },
+                            { advice: "Don't save a backup now — your library isn't fully loaded, so a backup would be missing your folders. "
+                                + 'Reload the page to try again. If this keeps happening, press Copy details and send it to us through '
+                                + 'Feedback at the bottom of the window.' });
                         setSyncStatus('none');
                     }
                 };
@@ -4790,10 +4970,13 @@
                     };
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
                 } catch (e) {
-                    console.error('❌ Could not save organization:', e);
+                    // 7.26.0 - critical: the user gets the critical box (it was a toast) — once a session; when storage is full
+                    // EVERY change fails, so later failures are logged (the log counts them) without re-opening the box
                     if (!blobSaveFailWarnedRef.current) {
                         blobSaveFailWarnedRef.current = true;
-                        showToast('⚠️ Your library organization could not be saved — browser storage may be full');
+                        rwLog.log('critical', 'STORE-02', 'Your library organization could not be saved — browser storage may be full.', { error: String(e) });
+                    } else {
+                        rwLog.log('error', 'STORE-10', 'Your library organization still can\'t be saved', { error: String(e) });
                     }
                 }
             }, [folders, blankImageBooks, dataSource, lastSyncTime, hiddenInstances, tagRegistry, savedSearches, bookLists]);
@@ -4836,7 +5019,8 @@
                         await window.RWRelay.putDeviceState(JSON.stringify(payload));
                         await relayOp('pushOk');
                     } catch (err) {
-                        console.error('❌ Device-state push failed:', err);
+                        rwLog.log('warning', 'SYNC-04', `Couldn't send your organization to the relay (it retries at the next change): ${err && err.message}`,
+                            { status: err && err.status });
                         deviceStatePendingRef.current = true;   // keep pending so the next change/flush retries
                         await relayOp('pushFail', { status: err.status });
                     } finally {
@@ -4863,22 +5047,32 @@
             }, [syncStatus, folders, blankImageBooks, dataSource, lastSyncTime, hiddenInstances, tagRegistry, savedSearches, bookLists, books]); // v6.12.0 Phase 8 - bookLists so list-only edits push
 
             // v6.3.0 - Post-import/restore integrity check
-            // Fires when integrityCheckPending is set by importFromRelay / importBackup.
+            // Fires when integrityCheckPending is set by importFromRelay / performRestore.
             // Runs after React has settled all state updates from loadLibrary, so books + folders are fresh.
+            // 7.26.0-alpha.10 - Armed ONLY by an operation that loaded a library, and disarmed whenever it runs — even with no
+            // books. It used to stay armed after an Import that found nothing (0 books → return before disarming), then went
+            // off mid-way through the NEXT operation, against the folders from before it: a false "Library repair: 22 issues
+            // fixed" (proved 2026-11-08 by the two INTEG debug lines; IMPORT-001). Related to the alpha.3 Import-order fix
+            // (F5), which fixed the check INSIDE the load; this is the second check, after it.
             useEffect(() => {
                 if (!integrityCheckPending) return;
+                setIntegrityCheckPending(false);           // disarm first — an armed check must never outlive its operation
                 if (books.length === 0) return;
-                setIntegrityCheckPending(false);
+                {   // 2026-11-08 diagnostics: what this check sees (it once read folders that hadn't landed yet)
+                    const filed = new Set(folders.flatMap(f => f.bookIds || []));
+                    rwLog.log('debug', 'INTEG', `After-Import check sees ${books.length} books, ${books.filter(b => !b.isDeleted && filed.has(b.id)).length} of them in its ${folders.length} folders`);
+                }
                 const result = runIntegrityCheck(books, folders);
                 if (!result) return;
                 if (result.autoFixed.length > 0) {
                     setFolders(result.correctedFolders); // guarded blob save persists this (F1)
                     const totalFixed = result.autoFixed.reduce((s, f) => s + (f.books.length || 1), 0);
-                    showToast(`Library repair: ${totalFixed} issue${totalFixed !== 1 ? 's' : ''} fixed — see Data Status`);
-                    console.log(`🔧 Integrity auto-fixed:`, result.autoFixed.map(f => f.description));
+                    rwLog.log('error', 'INTEG-04', `Library repair: ${totalFixed} issue${totalFixed !== 1 ? 's' : ''} fixed — see Data Status`,
+                        { fixed: result.autoFixed.map(f => f.description) }, { toast: true });
                 }
                 if (result.needsReview.length > 0) {
-                    console.warn(`⚠️ Integrity issues need review:`, result.needsReview.map(i => i.description));
+                    rwLog.log('error', 'INTEG-05', `The integrity check found ${result.needsReview.length} problem(s) it couldn't fix (after an Import or Restore)`,
+                        { review: result.needsReview.map(i => i.description) });
                 }
             }, [integrityCheckPending, books, folders]);
 
@@ -5350,7 +5544,7 @@
                             allIds.push(...specialFolders.map(f => f.id));
                         }
                         setExplorerSelectedItems(new Set(allIds));
-                        console.log(`✅ Selected ${allIds.length} item(s) in Explorer`);
+                        rwLog.log('debug', 'MOVE', `Selected all ${allIds.length} item(s) in the right pane`);
                     }
 
                     // v5.0.0-alpha.168 - Ctrl+X in Explorer view: Cut selected books
@@ -5363,7 +5557,7 @@
                         // Can't cut from virtual folders (Inbox is a real folder, allow cut)
                         // v7.10.1-alpha.7 (Ron) - was a silent console.log dead key (Law 16): explain instead
                         if (['__all__', '__library__'].includes(selectedFolderId)) {
-                            showToast("Can't cut from this view — cut moves books between folders. Use Copy, or cut from the book's folder.");
+                            rwLog.log('info', 'MOVE', "Can't cut from this view — cut moves books between folders. Use Copy, or cut from the book's folder.", null, { toast: true });
                             return;
                         }
                         const bookIds = getSelectedBookIds();
@@ -5372,8 +5566,8 @@
                             folderId: selectedFolderId
                         }));
                         setClipboard({ type: 'cut', bookIds, sourcePositions });
-                        showToast(`Cut ${bookCountLabel(bookIds)}`); // v7.10.1 - named receipt
-                        console.log(`✂️ Cut ${bookIds.length} book(s) to clipboard (Explorer)`);
+                        rwLog.log('info', 'MOVE', `Cut ${bookCountLabel(bookIds)}`, null, { toast: true }); // v7.10.1 - named receipt
+                        rwLog.log('debug', 'MOVE', `Cut ${bookIds.length} book(s) to the clipboard`);
                         return; // Don't fall through to Columns App handler
                     }
 
@@ -5386,8 +5580,8 @@
                             folderId: selectedFolderId
                         }));
                         setClipboard({ type: 'copy', bookIds, sourcePositions });
-                        showToast(`Copied ${bookCountLabel(bookIds)}`); // v7.10.1 - named receipt
-                        console.log(`📋 Copied ${bookIds.length} book(s) to clipboard (Explorer)`);
+                        rwLog.log('info', 'MOVE', `Copied ${bookCountLabel(bookIds)}`, null, { toast: true }); // v7.10.1 - named receipt
+                        rwLog.log('debug', 'MOVE', `Copied ${bookIds.length} book(s) to the clipboard`);
                         return; // Don't fall through to Columns App handler
                     }
 
@@ -5451,7 +5645,7 @@
                     // v7.18.0-alpha.41 - not the Esc that closed an overlay (see the registry Esc listener)
                     if (e.key === 'Escape' && !e.defaultPrevented && !overlayRegistry.topLayer() && folderClipboard.items.length > 0) {
                         setFolderClipboard({ items: [], operation: null });
-                        console.log('📋 Clipboard cleared');
+                        rwLog.log('debug', 'MOVE', 'Clipboard cleared');
                     }
                 };
                 window.addEventListener('keydown', handleEsc);
@@ -5476,14 +5670,14 @@
                     if (e.ctrlKey && e.key === 'x' && !isSpecialFolder) {
                         e.preventDefault();
                         setFolderClipboard({ items: [currentFolder.id], operation: 'cut' });
-                        console.log(`✂️ Cut folder "${currentFolder.name}"`);
+                        rwLog.log('debug', 'MOVE', 'Cut a folder (keyboard)');
                     }
 
                     // Ctrl+C - Copy folder
                     if (e.ctrlKey && e.key === 'c' && !isSpecialFolder) {
                         e.preventDefault();
                         setFolderClipboard({ items: [currentFolder.id], operation: 'copy' });
-                        console.log(`📋 Copied folder "${currentFolder.name}"`);
+                        rwLog.log('debug', 'MOVE', 'Copied a folder (keyboard)');
                     }
 
                     // Ctrl+V - Paste into current folder
@@ -5506,7 +5700,7 @@
                         };
 
                         if (currentFolder.id === folderId || isDescendantOf(currentFolder.id, folderId)) {
-                            showInfoDialog('Cannot Paste', 'Cannot paste folder into itself or its descendants.');
+                            showInfoDialog('MOVE', 'Cannot Paste', 'Cannot paste folder into itself or its descendants.');
                             return;
                         }
 
@@ -5553,7 +5747,7 @@
                                 const topCopy = { ...newFolders[0] };
                                 delete topCopy.sortIndex;
                                 setFolders(prev => placeNewFoldersAtTop([...prev, topCopy, ...newFolders.slice(1)], [topCopy]));
-                                console.log(`📌 Pasted (copied) "${folderToPaste.name}" into "${currentFolder.name}"`);
+                                rwLog.log('debug', 'MOVE', 'Pasted a copied folder into another folder (keyboard)');
                             }
                         }
                     }
@@ -5570,7 +5764,6 @@
                                 setRightPanelEditingId(folder.id);
                                 setRightPanelEditingName(folder.name);
                                 setRightPanelPlaceholderMode(false);
-                                console.log(`✏️ F2: Renaming "${folder.name}" in right panel`);
                             }
                         }
                         // Priority 2: Otherwise rename currently viewed folder in left panel
@@ -5578,7 +5771,6 @@
                             setEditingFolderId(currentFolder.id);
                             setEditingFolderName(currentFolder.name);
                             setIsPlaceholderMode(false);
-                            console.log(`✏️ F2: Renaming "${currentFolder.name}" in left panel`);
                         }
                     }
 
@@ -5607,14 +5799,16 @@
             const importFromRelay = async () => {
                 if (!window.RWRelay || !window.RWRelay.isConfigured()) return;
                 if (dataOpInProgressRef.current) {
-                    console.warn('⚠️ Data operation already in progress, skipping import');
+                    // F2 (Ron + Claude, 2026-11-07): no person can reach this today — it guards a double start — so if it's
+                    // ever reached, say what's running instead of doing nothing, and log it so we learn where from
+                    rwLog.log('warning', 'IMPORT-01', `${dataOpInProgressRef.current === 'restore' ? 'A restore' : 'An Import'} is already running — it will finish in a moment.`,
+                        null, { toast: true });
                     return;
                 }
-                dataOpInProgressRef.current = true;
-                const bookIdsBefore = new Set(books.map(b => b.id)); // v6.0.0-alpha.53 - Track IDs for Inbox placement
+                dataOpInProgressRef.current = 'import';
                 const booksBefore = books.length;
                 setRelayImporting(true);
-                const progress = showProgressDialog('Relay Import', 'Importing from relay…');
+                const progress = showProgressDialog('IMPORT', 'Relay Import', 'Importing from relay…');
                 try {
                     // v6.19.0 - Relay write redesign Phase 1 (docs/design/RELAY-WRITE-REDESIGN.md):
                     // import = canonical (pointer → fallback → legacy) + pending mailbox letters,
@@ -5632,7 +5826,7 @@
                         if (!canonical && pending.length === 0) {
                             return { empty: true };
                         }
-                        if (pending.length > 0) console.log(`📬 ${pending.length} pending run(s) in the mailbox`);
+                        if (pending.length > 0) rwLog.log('debug', 'IMPORT', `${pending.length} batch(es) waiting in the relay's mailbox`);
                         const composed = window.RWRelay.composeCanonical(
                             canonical ? canonical.jsonString : null, pending);
                         const result = await loadLibrary(composed.jsonString);
@@ -5664,27 +5858,18 @@
                     const result = await Promise.race([importWork(), timeout]);
 
                     if (result.empty) {
-                        await progress.finish('Relay Import', 'No library data found on the relay. Run the fetcher bookmarklet on your Amazon library page to send it.\n\nIf you recently regenerated your credentials, update your bookmarklet via File → Relay Setup.');
+                        // 7.26.0-alpha.2 (Ron) - The relay can't tell "nothing sent yet" from "credentials that don't match the
+                        // bookmarklet's" (a mistyped Channel ID is just an empty channel), so name both. Test: IMPORT-006.
+                        await progress.finish('Relay Import', 'Nothing is on the relay for these credentials yet.\n\n• New here? On your Amazon library page, click the ReaderWrangler bookmarklet and choose Download Library (then Download Collections). Then come back and Import from Relay.\n\n• Already did that? Then this app and your bookmarklet are using different credentials. Open File → Relay Setup, check them, and update your bookmarklet.');
                         return;
                     }
+                    setIntegrityCheckPending(true); // 7.26.0-alpha.10 - a library loaded: arm the after-check (not on "nothing found" / failure)
 
-                    // v6.3.0 - Use newBookIds returned by loadLibrary (no more IndexedDB re-read race)
-                    const newBookIds = (result.newBookIds || []).filter(id => !bookIdsBefore.has(id));
-                    if (newBookIds.length > 0) {
-                        console.log(`📥 Adding ${newBookIds.length} new books to Inbox`);
-                        setFolders(prev => prev.map(f => {
-                            if (f.id !== '__inbox__') return f;
-                            // v6.12.0-alpha.55 - Dedup: never prepend an id already in Inbox. A re-import / double-import
-                            // could otherwise land the same book twice (folder membership is a set — same invariant the
-                            // move/paste paths already enforce). This was the transient "book shown twice" after a re-import.
-                            const existing = new Set(f.bookIds || []);
-                            const toAdd = newBookIds.filter(id => !existing.has(id));
-                            return { ...f, bookIds: [...toAdd.reverse(), ...(f.bookIds || [])] };
-                        }));
-                    }
-
+                    // (7.26.0-alpha.3 - the new books are already filed: loadLibrary files them, before its integrity check —
+                    // fileNewBooksInInbox, the one placement path. Its set check keeps v6.12.0-alpha.55's rule: a book is
+                    // never added to the Inbox twice.)
                     setRelayManifest(null); // Clear banner after successful import
-                    console.log('✅ Relay import complete');
+                    rwLog.log('info', 'IMPORT', 'Import from Relay complete');
 
                     // v6.19.0 - Background consolidation (never blocks or fails the import: the local
                     // import already succeeded, and letters stay in the mailbox until a COMMITTED
@@ -5695,11 +5880,11 @@
                         (async () => {
                             try {
                                 const manifest = await window.RWRelay.commitGeneration(c.jsonString, c.absorbedRuns);
-                                console.log(`📦 Canonical consolidated: generation ${manifest.gen} (${manifest.bookCount} books, ${c.absorbedRuns.length} runs absorbed)`);
+                                rwLog.log('info', 'SYNC', `Saved a new combined copy on the relay: generation ${manifest.gen} (${manifest.bookCount} books, ${c.absorbedRuns.length} batches folded in)`);
                                 // (v7.21.1 - reclaiming the big absorbed runs now happens INSIDE commitGeneration, for every
                                 // writer — this call is gone; the clearing invariant is unchanged.)
                             } catch (err) {
-                                console.warn('⚠️ Consolidation deferred (will retry on next import):', err.message);
+                                rwLog.log('warning', 'SYNC-05', `Combining the relay's copy was put off (it retries at the next Import): ${err && err.message}`);
                             }
                         })();
                     }
@@ -5708,7 +5893,7 @@
                     // multi-part filter lives inside deleteAbsorbedBulkRuns (tiny singles ride the TTL).
                     if (result.__reclaimAbsorbed && result.__reclaimAbsorbed.length > 0) {
                         window.RWRelay.deleteAbsorbedBulkRuns(result.__reclaimAbsorbed)
-                            .catch(err => console.warn('⚠️ Absorbed-run reclamation skipped (TTL will handle it):', err.message));
+                            .catch(err => rwLog.log('warning', 'SYNC-06', `Clearing already-imported batches off the relay was skipped (they expire on their own): ${err && err.message}`));
                     }
 
                     const totalBooks = result.totalBooks;
@@ -5746,9 +5931,18 @@
                     if (removedN > 0) extras.push({ key: 'review', label: 'Review…' });
                     const choice = await progress.finish('Relay Import', message + removedLine, extras);
                     if (choice === 'review') openRemovedBooks();
-                    if (choice === 'clear-goals') { applyPriceGoal(goalIds, null); showToast(`Cleared ${goalIds.length === 1 ? 'the price goal' : `${goalIds.length} price goals`} on books you now own`); }
+                    if (choice === 'clear-goals') { applyPriceGoal(goalIds, null); rwLog.log('info', 'IMPORT', `Cleared ${goalIds.length === 1 ? 'the price goal' : `${goalIds.length} price goals`} on books you now own`, null, { toast: true }); }
                 } catch (err) {
-                    console.error('❌ Relay import failed:', err);
+                    // split by cause (LOGGING.md §3 #55): the network can fail; a damaged cloud copy has its own recovery
+                    // window; anything else is unexpected — a bug
+                    const msg = (err && err.message) || String(err);
+                    if (err && err.isCorruption) {
+                        rwLog.log('error', 'IMPORT-05', `The relay's copy failed its integrity check — the recovery steps were shown (this device's library is safe): ${msg}`);
+                    } else if (/timed out|failed to fetch|networkerror|load failed/i.test(msg) || (err && err.status >= 500)) {
+                        rwLog.log('warning', 'IMPORT-02', `Import from Relay failed — the relay couldn't be reached: ${msg}`, { status: err && err.status });
+                    } else {
+                        rwLog.log('error', 'IMPORT-04', `Import from Relay failed unexpectedly: ${msg}`, { stack: err && err.stack });
+                    }
                     if (err && err.isCorruption) {
                         // v6.17.1 - Synced copy failed its integrity check — dismiss the progress SILENTLY and show ONE
                         // recovery dialog (no raw error, no intermediate "see the steps" modal to click through).
@@ -5759,8 +5953,9 @@
                     }
                 } finally {
                     setRelayImporting(false);
-                    dataOpInProgressRef.current = false;
-                    setIntegrityCheckPending(true); // v6.3.0 - triggers integrity check after state settles
+                    dataOpInProgressRef.current = null;
+                    // (7.26.0-alpha.10 - the after-check is armed on success above, not here: an Import that found nothing or
+                    // failed left it armed for the next operation)
                 }
             };
 
@@ -5840,9 +6035,9 @@
                     ];
                     const absorbed = window.RWRelay.pruneAbsorbedRuns([...superseded, reset.runId]);
                     const manifest = await window.RWRelay.commitGeneration(resetPayload, absorbed);
-                    console.log(`📦 Restore pushed to relay: generation ${manifest.gen} (${manifest.bookCount} books, ${absorbed.length} runs superseded)`);
+                    rwLog.log('info', 'SYNC', `Restore pushed to relay: generation ${manifest.gen} (${manifest.bookCount} books, ${absorbed.length} older batches replaced)`);
                 } catch (err) {
-                    console.warn('⚠️ Restore succeeded locally but relay push failed (the reset letter/next import will finish it):', err.message);
+                    rwLog.log('warning', 'SYNC-07', `Restore worked here, but the relay push failed — the next Import finishes it: ${err && err.message}`);
                 }
             };
 
@@ -5852,10 +6047,12 @@
             // keep/merge option was considered and rejected.
             const performRestore = async (text, parsedData, restoreOpts) => {
                 if (dataOpInProgressRef.current) {
-                    console.warn('⚠️ Data operation already in progress, skipping restore');
+                    // F2 (LOGGING.md §4): no one can reach this today — a guard against a double start; if it's ever
+                    // reached, say what's running and log where from
+                    rwLog.log('warning', 'BACKUP-01', `${dataOpInProgressRef.current === 'restore' ? 'A restore' : 'An Import'} is already running — it will finish in a moment.`, null, { toast: true });
                     return;
                 }
-                dataOpInProgressRef.current = true;
+                dataOpInProgressRef.current = 'restore';
                 // v7.14.3 - Decide credential handling BEFORE the progress dialog (RELAY-CRED-MISMATCH):
                 // never silently overwrite existing creds; on a DIFFERENT channel, ask once (mismatch
                 // only), keeping current by default. Decided here so the confirm isn't stacked on progress.
@@ -5868,7 +6065,7 @@
                         adoptBackupCreds = true; // new machine / migration, or same channel — adopt silently
                     } else {
                         adoptBackupCreds = await showConfirmDialog(
-                            'Different sync channel',
+                            'BACKUP', 'Different sync channel',
                             "This backup was made on a different sync channel than the one you're using now. Keep your current credentials (recommended — they match your installed bookmarklet), or switch to the backup's?",
                             "Use the backup's credentials",
                             'Keep current'
@@ -5877,32 +6074,29 @@
                 }
                 // v7.4.0 - Visible progress: restoring a large library takes seconds, and a
                 // dismissed dialog with nothing on screen reads as "done" or "dead".
-                const progress = showProgressDialog('Restoring Backup', 'Taking your library back to the backup’s state…\nThis can take a little while for a large library.');
+                const progress = showProgressDialog('BACKUP', 'Restoring Backup', 'Taking your library back to the backup’s state…\nThis can take a little while for a large library.');
                 try {
-                    let organizationFromFile = null;
-                    // Extract organization from backup file
-                    if (parsedData.organization) {
-                        organizationFromFile = parsedData.organization;
-                        // v7.4.0 - Presentation cluster (view mode, cover columns, pane width, column
-                        // visibility/widths) restores ONLY onto an empty system (new machine / post-reset
-                        // — the "give me my setup back" case). A rollback on a live system keeps the
-                        // CURRENT presentation: your organization is rolling back, your eyes aren't.
-                        // folderSortSettings rides with curation — losing "Manual" mode would hide
-                        // drag-ordered work. Convention: full-device restores bring settings;
-                        // data-level restores never touch app preferences (game saves vs video options).
-                        if (!(restoreOpts && restoreOpts.includePresentation)) {
-                            const es = organizationFromFile.explorerSettings;
-                            organizationFromFile = {
-                                ...organizationFromFile,
-                                theme: undefined, // v7.4.0 - theme rides the presentation cluster too
-                                explorerSettings: es ? { folderSortSettings: es.folderSortSettings } : undefined
-                            };
-                            console.log('📋 Restoring organization from backup file (keeping current view settings)');
-                        } else {
-                            console.log('📋 Restoring organization from backup file (full, incl. view settings)');
-                        }
+                    // 7.26.0 - The backup's organization with every missing part EMPTY (backupCheck.js): Restore
+                    // replaces — only the credentials merge, and only after asking (Ron, 2026-11-08). The file was
+                    // checked when it was picked (restoreBackup).
+                    let organizationFromFile = backupOrganization(parsedData);
+                    // v7.4.0 - Presentation cluster (view mode, cover columns, pane width, column
+                    // visibility/widths) restores ONLY onto an empty system (new machine / post-reset
+                    // — the "give me my setup back" case). A rollback on a live system keeps the
+                    // CURRENT presentation: your organization is rolling back, your eyes aren't (Ron, 2026-11-08:
+                    // "restore changes organization, not views"). folderSortSettings rides with curation — losing
+                    // "Manual" mode would hide drag-ordered work. Convention: full-device restores bring settings;
+                    // data-level restores never touch app preferences (game saves vs video options).
+                    if (!(restoreOpts && restoreOpts.includePresentation)) {
+                        const es = organizationFromFile.explorerSettings;
+                        organizationFromFile = {
+                            ...organizationFromFile,
+                            theme: undefined, // v7.4.0 - theme rides the presentation cluster too
+                            explorerSettings: es ? { folderSortSettings: es.folderSortSettings } : undefined
+                        };
+                        rwLog.log('info', 'BACKUP', 'Restoring the backup — its folders and lists, keeping the view settings here');
                     } else {
-                        console.log('⚠️ Backup file has no organization section - will start fresh');
+                        rwLog.log('info', 'BACKUP', 'Restoring the backup — its folders, lists and view settings');
                     }
                     // v7.14.3 - Apply the credential decision made above; never silently overwrites
                     // existing creds (RELAY-CRED-MISMATCH). adoptBackupCreds is true only for a fresh
@@ -5923,10 +6117,10 @@
                     // Setup timeout (60 seconds for large libraries)
                     timeoutId = setTimeout(() => {
                         if (!callbackFired) {
-                            console.error('⚠️ Status check timed out after 60 seconds');
+                            rwLog.log('warning', 'BACKUP-03', 'The restore took longer than 60 seconds to finish — asked the person to reload the page');
                             setSyncStatus('unknown');
                             progress.close();
-                            showInfoDialog('Import Warning', 'Library loaded but status check timed out. Please refresh the page.');
+                            showInfoDialog('BACKUP', 'Restore Warning', 'Library loaded but status check timed out. Please refresh the page.');
                         }
                     }, 60000);
 
@@ -5937,6 +6131,7 @@
                         clearTimeout(timeoutId);
                         progress.close(); // the "Backup Restored" dialog takes over from here
                     }, organizationFromFile, (msg) => progress.update(msg));
+                    setIntegrityCheckPending(true); // 7.26.0-alpha.10 - a library loaded: arm the after-check (not on failure)
 
                     // v6.19.0 - Push the restore to the relay as a reset run (background)
                     sendRestoreToRelay(parsedData);
@@ -5944,22 +6139,23 @@
                     trackEvent('file-imported'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                 } catch (error) {
                     progress.close();
-                    console.error('Failed to sync:', error);
                     setSyncStatus('none'); // Clear loading spinner (v3.9.0.l)
-                    if (error && error.message) {
-                        console.error('Error details:', error.message, error.stack);
-                        showInfoDialog('Import Error', `Failed to load backup file: ${error.message}`);
+                    // one entry: a file we refuse on purpose is the person's file, not our bug (warning);
+                    // anything else is unexpected (error, with the stack)
+                    const msg = (error && error.message) || 'Unknown error';
+                    if (error && error.notRestorable) {
+                        rwLog.log('warning', 'BACKUP-07', `That file can't be restored: ${msg}`);
                     } else {
-                        console.error('Error details: Unknown error (null or no message)');
-                        showInfoDialog('Import Error', 'Failed to load backup file: Unknown error');
+                        rwLog.log('error', 'BACKUP-04', `Restore failed: ${msg}`, { stack: error && error.stack });
                     }
+                    showInfoDialog('BACKUP', 'Restore Error', `Failed to load backup file: ${msg}`);
                 } finally {
-                    dataOpInProgressRef.current = false;
-                    setIntegrityCheckPending(true); // v6.3.0 - triggers integrity check after state settles
+                    dataOpInProgressRef.current = null;
+                    // (7.26.0-alpha.10 - armed on success above, not here)
                 }
             };
 
-            const importBackup = async () => {
+            const restoreBackup = async () => {
                 // Close the dialog immediately when file picker opens
                 setStatusModalOpen(false);
 
@@ -5975,7 +6171,15 @@
 
                         // v6.0.0: Only accept backup files — library data syncs via relay
                         if (parsedData.isBackup !== true) {
-                            showInfoDialog('Not a Backup File', 'This is not a backup file. Library data now syncs automatically through the cloud.');
+                            showInfoDialog('BACKUP', 'Not a Backup File', 'This is not a backup file. Library data now syncs automatically through the cloud.');
+                            return;
+                        }
+                        // 7.26.0 - Every part Restore needs, checked at once, before the "restore?" box (backupCheck.js —
+                        // Ron, 2026-11-08: name every problem in one message, never one at a time)
+                        const problems = backupProblems(parsedData);
+                        if (problems.length > 0) {
+                            rwLog.log('warning', 'BACKUP-02', `Refused a backup: ${problems.map(p => `${p.words} ${p.issue}`).join('; ')} — nothing was changed`);
+                            showInfoDialog('BACKUP', 'Restore Error', backupRefusalText(problems));
                             return;
                         }
 
@@ -5999,7 +6203,7 @@
                             backupDate: backupOrg.exportDate || (parsedData.books && parsedData.books.fetchDate) || null
                         });
                     } catch (error) {
-                        showInfoDialog('Import Error', `Could not read backup file: ${error.message || 'Unknown error'}`);
+                        showInfoDialog('BACKUP', 'Restore Error', `Could not read backup file: ${error.message || 'Unknown error'}`);
                     }
                 };
                 input.click();
@@ -6181,6 +6385,14 @@
 
             // Schema v2.0: Export unified file with organization
             const exportBackup = async () => {
+                // 7.26.0 - Never save a backup of a library that didn't finish loading: its folders and lists may not be on
+                // screen (a start that failed after the books appeared), and the file would restore as a library with
+                // none (BOOT-01; TODO "One backup writer…" item 5 would build it from storage instead)
+                if (!orgLoadedRef.current) {
+                    rwLog.log('warning', 'BACKUP-08', "Save Backup refused: the library hasn't finished loading");
+                    showInfoDialog('BACKUP', 'Save Backup', "Your library isn't loaded, so there's nothing safe to save yet. Reload the page.");
+                    return;
+                }
                 // v7.6.2-alpha.2 - Backup receipts (Ron-ratified): Save Backup was silent — real seconds
                 // of serialization with nothing on screen, then only Chrome's subtle downloads bubble.
                 // Progress while it works; a rich toast (count, size, filename) as the receipt — NOT a
@@ -6201,11 +6413,11 @@
                             types: [{ description: 'ReaderWrangler backup', accept: { 'application/json': ['.json'] } }]
                         });
                     } catch (e) {
-                        if (e && e.name === 'AbortError') { showToast('Backup cancelled — nothing saved'); return; }
+                        if (e && e.name === 'AbortError') { rwLog.log('info', 'BACKUP', 'Backup cancelled — nothing saved', null, { toast: true }); return; }
                         fileHandle = null; // picker unavailable/refused → anchor fallback below
                     }
                 }
-                const progress = showProgressDialog('Saving Backup', 'Preparing your backup…');
+                const progress = showProgressDialog('BACKUP', 'Saving Backup', 'Preparing your backup…');
                 try {
                     const allBooks = await loadBooksFromIndexedDB();
 
@@ -6313,15 +6525,15 @@
                         URL.revokeObjectURL(url);
                         savedName = suggestedName;
                     }
-                    console.log('✅ Backup exported (v2.0 format with organization)');
+                    rwLog.log('info', 'BACKUP', `Backup saved: ${allBooks.length} books, ${(blob.size / 1048576).toFixed(1)} MB`);
                     trackEvent('file-exported'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                     progress.close();
                     // v7.6.2-alpha.2 - The receipt: filename + count + size = the confidence that was missing
-                    showToast(`Backup saved — ${allBooks.length.toLocaleString()} books, ${(blob.size / 1048576).toFixed(1)} MB → ${savedName}`);
+                    rwLog.log('info', 'BACKUP', `Backup saved — ${allBooks.length.toLocaleString()} books, ${(blob.size / 1048576).toFixed(1)} MB → ${savedName}`, null, { toast: true });
                 } catch (error) {
                     progress.close();
-                    console.error('Failed to export library:', error);
-                    showInfoDialog('Export Error', 'Failed to export library.');
+                    rwLog.log('error', 'BACKUP-05', `Save Backup failed: ${(error && error.message) || error}`, { stack: error && error.stack });
+                    showInfoDialog('BACKUP', 'Export Error', 'Failed to export library.');
                 }
             };
 
@@ -6343,11 +6555,11 @@
                             types: [{ description: 'Spreadsheet (CSV)', accept: { 'text/csv': ['.csv'] } }]
                         });
                     } catch (e) {
-                        if (e && e.name === 'AbortError') { showToast('Spreadsheet cancelled — nothing saved'); return; }
+                        if (e && e.name === 'AbortError') { rwLog.log('info', 'BACKUP', 'Spreadsheet cancelled — nothing saved', null, { toast: true }); return; }
                         fileHandle = null; // picker unavailable/refused → anchor fallback below
                     }
                 }
-                const progress = showProgressDialog('Saving Spreadsheet', 'Preparing your spreadsheet…');
+                const progress = showProgressDialog('BACKUP', 'Saving Spreadsheet', 'Preparing your spreadsheet…');
                 try {
                     const allBooks = (await loadBooksFromIndexedDB()).filter(b => !b.isDeleted);
                     // Reverse joins: book id → folder paths / Book List names
@@ -6393,11 +6605,11 @@
                     }
                     trackEvent('spreadsheet-saved'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                     progress.close();
-                    showToast(`Spreadsheet saved — ${allBooks.length.toLocaleString()} books, ${(blob.size / 1048576).toFixed(1)} MB → ${savedName}`);
+                    rwLog.log('info', 'BACKUP', `Spreadsheet saved — ${allBooks.length.toLocaleString()} books, ${(blob.size / 1048576).toFixed(1)} MB → ${savedName}`, null, { toast: true });
                 } catch (error) {
                     progress.close();
-                    console.error('Failed to save spreadsheet:', error);
-                    showInfoDialog('Spreadsheet Error', 'Failed to save the spreadsheet.');
+                    rwLog.log('error', 'BACKUP-06', `Save as Spreadsheet failed: ${(error && error.message) || error}`, { stack: error && error.stack });
+                    showInfoDialog('BACKUP', 'Spreadsheet Error', 'Failed to save the spreadsheet.');
                 }
             };
 
@@ -6410,7 +6622,7 @@
                 try {
                     // 7.25.1 - a delete another tab blocks is WAITED for, saying why (it said "done" before — RESET-004)
                     let waitBox = null;
-                    await deleteBookStore({ onBlocked: () => { if (!waitBox) waitBox = showProgressDialog('Reset App', BOOK_STORE_TEXT.blocked); } });
+                    await deleteBookStore({ onBlocked: () => { if (!waitBox) waitBox = showProgressDialog('STORE', 'Reset App', BOOK_STORE_TEXT.blocked); } });
                     if (waitBox) waitBox.close();
                     localStorage.removeItem(STORAGE_KEY);
                     localStorage.removeItem(CACHE_KEY);
@@ -6455,68 +6667,19 @@
                     setBookLists([]); // v6.12.0 - Clear Book Lists on reset
                     setExplorerView('list');
 
-                    console.log('✅ Cleared library - app reset to initial state');
+                    rwLog.log('info', 'STORE', 'Reset App: the library was cleared');
                     trackEvent('app-reset'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
                 } catch (error) {
-                    console.error('Failed to clear library:', error);
-                    showInfoDialog('Reset Error', 'Failed to clear library data.');
+                    rwLog.log('error', 'STORE-03', `Reset App failed: ${error && error.message}`, { error: String(error) });
+                    showInfoDialog('STORE', 'Reset Error', 'Failed to clear library data.');
                 }
-            };
-
-            const handleFileUpload = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const text = await file.text();
-
-                if (file.name.endsWith('.json')) {
-                    await loadLibrary(text);
-                } else if (file.name.endsWith('.csv')) {
-                    loadBooksFromCSV(text);
-                }
-                trackEvent('file-imported'); // v7.21.0 - labeled prod-/dev- (readerwrangler.html)
-            };
-
-            const loadBooksFromCSV = (csvContent) => {
-                const lines = csvContent.split('\n');
-                const parsedBooks = [];
-
-                const startLine = lines[0].includes('ASIN') ? 1 : 0;
-
-                for (let i = startLine; i < lines.length && parsedBooks.length < 100; i++) {
-                    const line = lines[i].trim();
-                    if (!line) continue;
-
-                    const parts = line.split(',');
-                    let asin = parts[0]?.trim().replace(/[="']/g, '');
-
-                    if (asin && asin.length < 10 && /^[0-9]+$/.test(asin)) {
-                        asin = asin.padStart(10, '0');
-                    }
-
-                    if (asin && asin.length === 10) {
-                        parsedBooks.push({
-                            id: asin,  // Use ASIN as stable ID instead of sequential number
-                            asin: asin,
-                            title: parts[6] || 'Unknown',
-                            author: parts[13] || 'Unknown',
-                            acquired: parts[2] || '',
-                            series: parts[12] || '',
-                            coverUrl: `https://images-na.ssl-images-amazon.com/images/P/${asin}.01.LZZZZZZZ.jpg`,
-                            hasEnrichedData: false
-                        });
-                    }
-                }
-
-                setBooks(parsedBooks);
-                setDataSource('csv');
             };
 
             const mergeCollectionsIntoBooks = async (booksToMerge) => {
                 // Only use collections data if user has loaded it via File Picker (v3.9.0)
                 const collections = collectionsData;
                 if (!collections) {
-                    console.log('No collections data available to merge');
+                    rwLog.log('debug', 'IMPORT', 'No collections data to merge');
                     return booksToMerge;
                 }
 
@@ -6534,23 +6697,47 @@
                 const booksWithCollections = mergedBooks.filter(b => b.collections.length > 0).length;
                 const readBooks = mergedBooks.filter(b => b.readStatus === 'READ').length;
                 const unreadBooks = mergedBooks.filter(b => b.readStatus === 'UNREAD').length;
-                console.log(`📚 Collections data merged:`);
-                console.log(`   - ${booksWithCollections} books have collections`);
-                console.log(`   - ${readBooks} READ, ${unreadBooks} UNREAD, ${mergedBooks.length - readBooks - unreadBooks} UNKNOWN`);
+                rwLog.log('info', 'IMPORT', `Collections merged: ${booksWithCollections} books in collections; ${readBooks} read, ${unreadBooks} unread, ${mergedBooks.length - readBooks - unreadBooks} unknown`);
 
                 return mergedBooks;
+            };
+
+            // 7.26.0-alpha.3 - THE one place an Import files its new books (TODO "Import files new books once, before the
+            // integrity check…"). It runs BEFORE the integrity check, so the check sees only genuine problems — before, the
+            // check met the new books first and reported them as a repair on every Import (LOGGING.md F5).
+            // Part 2 is a BACKSTOP: only books in no folder go to the Inbox. Normally every new book is in no folder; the two
+            // differ only when the books and the folders get out of step (they're kept in separate browser stores) — on Sep 3
+            // an emptied book store made every book look new, and all 3,076 were copied into the Inbox.
+            // No state of its own: returns the folder list with the new books filed; says what it did in the console.
+            // Tests: IMPORT-003, 004, 007, 008 (test/ui/test_import_from_relay.py).
+            const fileNewBooksInInbox = (folderList, newIds) => {
+                const filed = new Set(folderList.flatMap(f => f.bookIds || []));
+                const toFile = newIds.filter(id => !filed.has(id));
+                const alreadyFiled = newIds.length - toFile.length;
+                if (alreadyFiled > 0) {
+                    rwLog.log('info', 'IMPORT', `Inbox backstop: ${alreadyFiled.toLocaleString()} book${alreadyFiled !== 1 ? 's' : ''} new to the book store ${alreadyFiled !== 1 ? 'are' : 'is'} already in folders — not added to the Inbox`);
+                }
+                if (toFile.length === 0) return folderList;
+                rwLog.log('info', 'IMPORT', `Adding ${toFile.length} new book${toFile.length !== 1 ? 's' : ''} to the Inbox`);
+                const withInbox = folderList.some(f => f.id === '__inbox__')
+                    ? folderList
+                    : [...folderList, { id: '__inbox__', name: 'Inbox', bookIds: [], parentId: null }];
+                return withInbox.map(f => f.id !== '__inbox__' ? f : { ...f, bookIds: [...[...toFile].reverse(), ...(f.bookIds || [])] });
             };
 
             const loadLibrary = async (content, onComplete = null, organizationFromFile = null, onPhase = null) => {
                 const phase = (msg) => { if (onPhase) onPhase(msg); };
                 const parsedData = JSON.parse(content);
+                // v6.3.0 - a backup restore replaces; everything else (an Import) merges
+                const isBackupRestore = organizationFromFile !== null;
+                // 7.26.0 - the load is shared by Restore and Import: its notes go to the area of the one running
+                const loadNote = (text) => isBackupRestore ? rwLog.log('debug', 'BACKUP', text) : rwLog.log('debug', 'IMPORT', text);
+                // a file refused on purpose — the caller logs it once, as the person's file rather than our bug
+                const notRestorable = (text) => Object.assign(new Error(text), { notRestorable: true });
 
                 // Check if user selected legacy collections file (v3.9.0.k)
                 if (parsedData.type === 'collections') {
-                    console.error('❌ Wrong file type selected');
-                    console.error('   You selected an old Collections file');
-                    console.error('   Please select amazon-library.json instead');
-                    throw new Error('You selected an old Collections file. Please select amazon-library.json instead.');
+                    throw notRestorable('You selected an old Collections file — choose a backup made with File → Save Backup.');
                 }
 
                 let data;           // Array of book items
@@ -6560,17 +6747,14 @@
                 // Schema v2.x - unified format with books.items and collections.items
                 if (parsedData.schemaVersion?.startsWith('2.')) {
                     if (!parsedData.books || !parsedData.books.items) {
-                        console.error('❌ Invalid v2.x library format');
-                        console.error('   Expected: {schemaVersion: "2.x", books: {items: [...]}}');
-                        console.error('   Received:', Object.keys(parsedData));
-                        throw new Error('Invalid v2.x library format - please re-fetch your library using the latest fetcher');
+                        throw notRestorable(`Invalid v2.x library format - please re-fetch your library using the latest fetcher (the file holds: ${Object.keys(parsedData).join(', ')})`);
                     }
 
                     data = parsedData.books.items;
                     // v7.16.0 - refuse ancient v1.x records (raw amazonData blobs) even inside a 2.x wrapper;
                     // unpackBook handles the current flat shape only. See SERIALIZATION.md §10.
                     if (data.some(it => it && it.amazonData)) {
-                        throw new Error("This file was saved by a very old, unsupported version of ReaderWrangler and can't be restored.");
+                        throw notRestorable("This file was saved by a very old, unsupported version of ReaderWrangler and can't be restored.");
                     }
                     metadata = {
                         schemaVersion: parsedData.schemaVersion,
@@ -6579,10 +6763,7 @@
                         totalBooks: parsedData.books.totalBooks || data.length
                     };
 
-                    console.log(`📋 Loaded schema ${parsedData.schemaVersion} unified file`);
-                    console.log(`   Total books: ${metadata.totalBooks}`);
-                    console.log(`   Fetched: ${new Date(metadata.fetchDate).toLocaleString()}`);
-                    console.log(`   Fetcher version: ${metadata.fetcherVersion}`);
+                    loadNote(`Loading a schema ${parsedData.schemaVersion} library: ${metadata.totalBooks} books, fetched ${new Date(metadata.fetchDate).toLocaleString()} by fetcher ${metadata.fetcherVersion}`);
 
                     // Extract embedded collections from v2.0 file
                     if (parsedData.collections && parsedData.collections.items) {
@@ -6593,8 +6774,7 @@
                                 collections: book.collections || []
                             });
                         });
-                        console.log(`📚 Loaded embedded collections for ${collections.size} books`);
-                        console.log(`   Collections fetched: ${new Date(parsedData.collections.fetchDate).toLocaleString()}`);
+                        loadNote(`The library carries collections for ${collections.size} books, fetched ${new Date(parsedData.collections.fetchDate).toLocaleString()}`);
 
                         // Update collections status
                         const collectionsLoadStatus = parsedData.collections.fetchDate ? calculateFreshness(parsedData.collections.fetchDate) : 'unknown';
@@ -6604,7 +6784,7 @@
                         });
                         setCollectionsData(collections);
                     } else {
-                        console.log('📚 No collections data in file (run Collections Fetcher to add)');
+                        loadNote('The library carries no collections (the Collections Fetcher adds them)');
                         collections = null;
                         // Reset collections status when no collections in file (v4.15.1 - bug fix 0-A)
                         setCollectionsStatus({
@@ -6618,8 +6798,7 @@
                 // architecture (before schema 2.0 / the V4 "Column App" / Book Explorer) and are no longer
                 // supported — importing one produced mostly-blank books. See docs/design/SERIALIZATION.md §10.
                 else {
-                    console.error('❌ Unsupported library file (pre-2.0 format):', Object.keys(parsedData));
-                    throw new Error("This file was saved by a very old, unsupported version of ReaderWrangler and can't be restored.");
+                    throw notRestorable(`This file was saved by a very old, unsupported version of ReaderWrangler and can't be restored. (It holds: ${Object.keys(parsedData).join(', ')})`);
                 }
 
                 // Update library status from loaded JSON metadata
@@ -6665,11 +6844,9 @@
                         // Compare dates (descending - newest first)
                         return dateB - dateA;
                     });
-                    console.log('✅ Books sorted by acquisition date (newest first)');
                 } catch (error) {
-                    console.error('❌ Sort failed:', error);
-                    console.error('Error details:', error.message, error.stack);
-                    // Continue without sorting if sort fails
+                    // (continues unsorted)
+                    rwLog.log('error', 'IMPORT-03', `Sorting the books by date added crashed: ${error && error.message}`, { stack: error && error.stack });
                 }
 
                 // Log collections merge results
@@ -6677,33 +6854,22 @@
                     const booksWithCollections = processedBooks.filter(b => b.collections.length > 0).length;
                     const readBooks = processedBooks.filter(b => b.readStatus === 'READ').length;
                     const unreadBooks = processedBooks.filter(b => b.readStatus === 'UNREAD').length;
-                    console.log(`📚 Collections data merged:`);
-                    console.log(`   - ${booksWithCollections} books have collections`);
-                    console.log(`   - ${readBooks} READ, ${unreadBooks} UNREAD, ${processedBooks.length - readBooks - unreadBooks} UNKNOWN`);
+                    rwLog.log('info', 'IMPORT', `Collections merged: ${booksWithCollections} books in collections; ${readBooks} read, ${unreadBooks} unread, ${processedBooks.length - readBooks - unreadBooks} unknown`);
                 }
 
-                // v5.0.0-alpha.175.28 - Debug: Log tags and notes data
+                // v5.0.0-alpha.175.28 - Debug: tags and notes, as COUNTS only. 7.26.0 (LOGGING.md F4): the lines that printed
+                // a sample book's tags and the full text of a note are gone — a copied diagnostics log must never carry a note.
                 const booksWithTags = processedBooks.filter(b => b.tags && b.tags.length > 0).length;
                 const booksWithNotes = processedBooks.filter(b => b.userNote).length;
                 if (booksWithTags > 0 || booksWithNotes > 0) {
-                    console.log(`🏷️ User metadata imported:`);
-                    console.log(`   - ${booksWithTags} books have tags`);
-                    console.log(`   - ${booksWithNotes} books have notes`);
-                    const sampleTagged = processedBooks.find(b => b.tags && b.tags.length > 0);
-                    if (sampleTagged) {
-                        console.log(`   - Sample tagged: "${sampleTagged.title}" has tags:`, sampleTagged.tags);
-                    }
-                    const sampleNoted = processedBooks.find(b => b.userNote);
-                    if (sampleNoted) {
-                        console.log(`   - Sample noted: "${sampleNoted.title}" has note:`, sampleNoted.userNote);
-                    }
+                    rwLog.log('debug', 'IMPORT', `Your own data came along: ${booksWithTags} books with tags, ${booksWithNotes} with notes`);
                 }
 
                 // Save to IndexedDB
                 // v5.0.0-alpha.173.1 - preserveUserData=true for imports to merge with existing
                 // v6.10.0-alpha.19 - Backup restore uses false (clean replacement, no orphan merge)
                 // v6.3.0 - Capture existing IDs before merge so we can report new books to caller
-                const isBackupRestore = organizationFromFile !== null;
+                // (isBackupRestore: defined at the top)
                 phase(`Restoring ${processedBooks.length.toLocaleString()} books…`);
                 const existingIds = new Set((await loadBooksFromIndexedDB()).map(b => b.id));
                 const mergedBooks = await saveBooksToIndexedDB(processedBooks, !isBackupRestore);
@@ -6722,7 +6888,7 @@
                         const mentionsRemoved = (a) => { const s = JSON.stringify(a); return removedIds.some(id => s.includes(id)); };
                         setUndoStack(prev => prev.filter(a => !mentionsRemoved(a)));
                         setRedoStack(prev => prev.filter(a => !mentionsRemoved(a)));
-                        console.log(`🧹 Purged undo history referencing ${removedIds.length} import-removed book(s)`);
+                        rwLog.log('info', 'UNDO', `The Import removed ${removedIds.length} book(s); the undo / redo steps that mention them were dropped`);
                     }
                 }
 
@@ -6785,9 +6951,10 @@
                             }
                         }
                     } catch (e) {
-                        console.log('Note: Could not read localStorage organization');
+                        rwLog.log('warning', 'STORE-04', 'Could not read the saved organization while loading a library — the folders were left as they are', { error: String(e) });
                     }
                 }
+                loadNote(orgSource ? `Organization taken from ${orgSource === 'backup file' ? 'the backup' : "this browser's saved copy"}` : 'No saved organization — the books load without one');
 
                 if (orgToRestore) {
                     // v7.6.0-alpha.19 - The APPLIED org values, captured for the relay push below: mid-restore
@@ -6843,19 +7010,34 @@
                             });
                         }
 
+                        // 7.26.0-alpha.3 - An Import files its new books FIRST, so the check below reports only real repairs
+                        // (a backup restore takes the backup's folders exactly as they are)
+                        // 7.26.0 - A backup whose folders hold no book (it had none — a missing part restores as none,
+                        // Ron 2026-11-08) puts its books in the Inbox, as after a first fetch — not in no folder, which the
+                        // check below would report as a repair. Books in the Trash stay out of folders, as always.
+                        const noFolderHoldsABook = isBackupRestore && !restoredFolders.some(f => (f.bookIds || []).length > 0);
+                        if (noFolderHoldsABook) rwLog.log('info', 'BACKUP', "The backup's folders hold no books — its books go to the Inbox");
+                        const placedFolders = !isBackupRestore ? fileNewBooksInInbox(restoredFolders, newBookIds)
+                            : noFolderHoldsABook ? fileNewBooksInInbox(restoredFolders, mergedBooks.filter(b => !b.isDeleted).map(b => b.id))
+                            : restoredFolders;
+
                         // v6.3.0 - Run integrity check on restored folders (replaces v5.1.0-alpha.8 inline orphan cleanup)
-                        const integrityResult = runIntegrityCheck(mergedBooks, restoredFolders);
-                        const finalFolders = integrityResult ? integrityResult.correctedFolders : restoredFolders;
+                        const integrityResult = runIntegrityCheck(mergedBooks, placedFolders);
+                        const finalFolders = integrityResult ? integrityResult.correctedFolders : placedFolders;
                         if (integrityResult?.autoFixed?.length > 0) {
-                            console.log(`🔧 Integrity auto-fixed during restore:`, integrityResult.autoFixed.map(f => f.description));
+                            // a genuine repair since the Import-order fix (7.26.0-alpha.3) — no longer the normal path (F5)
+                            rwLog.log('error', 'INTEG-06', `Library repair while loading an Import or Restore: ${integrityResult.autoFixed.length} kind(s) of problem fixed`,
+                                { fixed: integrityResult.autoFixed.map(f => f.description) });
                         }
 
                         setFolders(finalFolders); // guarded blob save persists this (F1)
+                        rwLog.log('debug', 'INTEG', `The load set ${finalFolders.length} folders holding ${new Set(finalFolders.flatMap(f => f.bookIds || [])).size} books (${mergedBooks.length} books loaded)`);
                         pushOrgOverride.folders = finalFolders; // v7.6.0-alpha.19 - the integrity-checked applied set
-                        console.log(`✅ Restored ${restoredFolders.length} folders from ${orgSource}`);
                     } else {
                         // No folders in backup - preserve existing folders from localStorage (backward compatibility)
-                        console.log('📁 No folders in backup - keeping existing folder structure');
+                        // (an Import only: a restore always has a folder list — backupOrganization makes a missing one empty)
+                        loadNote("This browser's saved organization has no folders — the folders here were kept");
+                        if (!isBackupRestore && newBookIds.length > 0) setFolders(prev => fileNewBooksInInbox(prev, newBookIds)); // 7.26.0-alpha.3
                     }
 
                     // v5.0.0-alpha.101 - Restore Explorer settings from backup (if present)
@@ -6886,14 +7068,14 @@
                         }
                     } else {
                         // No explorer settings in backup - preserve existing from localStorage (backward compatibility)
-                        console.log('📁 No explorer settings in backup - keeping existing preferences');
+                        loadNote('No view settings in the organization — kept the ones here');
                     }
 
                     // v7.4.0 - Theme (presentation cluster): present only on empty-system restores
                     // (performRestore strips it for rollbacks); old backups simply lack it
                     if (orgToRestore.theme) {
                         applyTheme(orgToRestore.theme);
-                        console.log(`🎨 Restored theme preference: ${orgToRestore.theme}`);
+                        loadNote(`Theme restored: ${orgToRestore.theme}`);
                     }
 
                     // v7.6.0-alpha.22 - New world, blank history (Ron-ratified): the pre-restore undo stack
@@ -6908,13 +7090,16 @@
                     // org + a FRESH stamp — phones accept it immediately instead of guard-skipping a
                     // stale-stamped pre-restore payload. Presentation fields stay the CURRENT ones from
                     // buildDeviceStatePayload (rollbacks keep your eyes — the 7.4.0 cluster rule).
+                    if (isBackupRestore) {
+                        rwLog.log('info', 'BACKUP', `Backup restored: ${mergedBooks.length} books, ${(pushOrgOverride.folders || []).length} folders, ${(pushOrgOverride.bookLists || []).length} Book Lists, ${(pushOrgOverride.savedSearches || []).length} Searches`);
+                    }
                     if (organizationFromFile !== null && window.RWRelay && window.RWRelay.isConfigured()) {
                         try {
                             phase('Preparing cloud sync…');
                             const payload = await buildDeviceStatePayload();
                             payload.organization = { ...payload.organization, ...pushOrgOverride, savedAt: Date.now() };
                             await window.RWRelay.putDeviceState(JSON.stringify(payload), (p, detail) => phase(detail));
-                            console.log(`✅ Backup restored and synced to relay (${mergedBooks.length} books)`);
+                            rwLog.log('info', 'SYNC', `Sent the restored organization to the relay (${mergedBooks.length} books)`);
                             // v7.6.2-alpha.3 - Echo suppression: without this, the post-restore setState wave
                             // arms the debounced push ~60s later with IDENTICAL content — a redundant ~17MB
                             // generation, and the phone banners "6:01 newer than 6:01" against its own sync.
@@ -6928,14 +7113,13 @@
                             deviceStatePendingRef.current = false;
                             await relayOp('pushOk');
                         } catch (err) {
-                            console.warn('⚠️ Backup restored locally but relay sync failed:', err.message);
+                            rwLog.log('warning', 'SYNC-08', `A backup restored here, but sending your organization to the relay failed: ${err && err.message}`);
                         }
-                        showInfoDialog('Backup Restored', `${mergedBooks.length} books restored and synced to the cloud.`);
+                        showInfoDialog('BACKUP', 'Backup Restored', `${mergedBooks.length} books restored and synced to the cloud.`);
                     } else if (organizationFromFile !== null) {
-                        showInfoDialog('Backup Restored', `${mergedBooks.length} books restored.\n\nSet up cloud sync (File → Relay Setup) to keep your library in sync.`);
+                        showInfoDialog('BACKUP', 'Backup Restored', `${mergedBooks.length} books restored.\n\nSet up cloud sync (File → Relay Setup) to keep your library in sync.`);
                     }
 
-                    console.log(`✅ Restored organization from ${orgSource}`);
                     setDataSource('enriched');
                     setLastSyncTime(Date.now());
                     setSyncStatus('fresh');
@@ -6944,6 +7128,7 @@
                 }
 
                 // No organization found, start fresh
+                if (!isBackupRestore && newBookIds.length > 0) setFolders(prev => fileNewBooksInInbox(prev, newBookIds)); // 7.26.0-alpha.3
                 setDataSource('enriched');
                 setLastSyncTime(Date.now());
                 setSyncStatus('fresh');
@@ -6977,7 +7162,7 @@
                         }
                     }
                 } catch (e) {
-                    console.error('Cache read error:', e);
+                    rwLog.log('warning', 'COVER-01', "The old book-details cache couldn't be read (a leftover from older versions)", { error: String(e) });
                 }
 
                 setModalBook(book);
@@ -7043,10 +7228,10 @@
                             <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
                                 onClick={() => {
                                     if (!modalBook.asin) {
-                                        showToast('No Amazon link available for this book');
+                                        rwLog.log('info', 'SHARE', 'No Amazon link available for this book', null, { toast: true });
                                     } else {
                                         navigator.clipboard.writeText(getAmazonUrl(modalBook.asin));
-                                        showToast('Link copied!');
+                                        rwLog.log('info', 'SHARE', 'Link copied!', null, { toast: true });
                                     }
                                     setShareDropdownOpen(false);
                                 }}>
@@ -7221,7 +7406,7 @@
                     newValues,
                     label: `Edit '${(modalBook.title || 'book').slice(0, 40)}'` // v7.8.0-alpha.4 (UNDO-MODEL.md) named target
                 });
-                showToast(`Updated '${((newValues.title ?? modalBook.title) || 'book').slice(0, 40)}'`); // v7.10.1-alpha.4 (Ron #7) - the save receipt the dialog never had
+                rwLog.log('info', 'EDIT', `Updated '${((newValues.title ?? modalBook.title) || 'book').slice(0, 40)}'`, null, { toast: true }); // v7.10.1-alpha.4 (Ron #7) - the save receipt the dialog never had
 
                 cancelEditMode();
             };
@@ -7293,7 +7478,7 @@
                     newValue,
                     description: `Edit ${fieldLabel} for ${bookCountLabel(bulkEditBookIds)}` // v7.10.1 - named (feeds undo toast too)
                 });
-                showToast(`Updated ${fieldLabel} for ${bookCountLabel(bulkEditBookIds)}`); // v7.10.1 - named receipt
+                rwLog.log('info', 'EDIT', `Updated ${fieldLabel} for ${bookCountLabel(bulkEditBookIds)}`, null, { toast: true }); // v7.10.1 - named receipt
                 setShowBulkEditModal(false);
                 setBulkEditSeriesDropdownOpen(false);
             };
@@ -7491,7 +7676,7 @@
                     saveBooksToIndexedDB(updated);
                     return updated;
                 });
-                showToast(kept ? `Kept ${bookCountLabel(bookIds)} — won't ask again` : `Will ask again about ${bookCountLabel(bookIds)}`);
+                rwLog.log('info', 'EDIT', kept ? `Kept ${bookCountLabel(bookIds)} — won't ask again` : `Will ask again about ${bookCountLabel(bookIds)}`, null, { toast: true });
             };
             // v7.19.0-alpha.10 (Ron + UX) - THE way to open the removed-books window: always FRESH — the Kept group collapsed,
             // only the books you came for checked. (alpha.9 left Kept expanded from the last visit: "unexpected and
@@ -7565,7 +7750,7 @@
                 if (action.label) return action.label;
                 if (action.description) return action.description;
                 if (FRIENDLY_ACTION[action.type]) return FRIENDLY_ACTION[action.type];
-                console.warn('recordAction: no undo/redo label for action type', action.type);
+                rwLog.log('error', 'UNDO-01', `An action has no undo / redo label (a coding slip): ${action.type}`);
                 return action.type;
             };
 
@@ -8175,7 +8360,7 @@
                         break;
                     }
                     default:
-                        console.warn('Unknown action type for undo:', action.type);
+                        rwLog.log('error', 'UNDO-02', `Undo did nothing — this code doesn't know the action (a coding slip): ${action.type}`);
                 }
             };
 
@@ -8415,7 +8600,7 @@
                         // Note: We need to store the copied folders in the action to redo properly
                         // For now, this is a limitation - we can't redo copy operations
                         // TODO: Store copied folder data in action for proper redo
-                        showToast('Cannot redo copy operation', null, null, { level: 'error' });
+                        rwLog.log('warning', 'UNDO-04', 'Cannot redo copy operation', null, { toast: true });
                         break;
                     case 'PASTE_BOOKS_CUT':
                         // v5.0.0-alpha.168 - Redo cut-paste: remove from source folders, add to target
@@ -8722,7 +8907,7 @@
                         break;
                     }
                     default:
-                        console.warn('Unknown action type for redo:', action.type);
+                        rwLog.log('error', 'UNDO-03', `Redo did nothing — this code doesn't know the action (a coding slip): ${action.type}`);
                 }
             };
 
@@ -8739,22 +8924,22 @@
                 // v7.19.0-alpha.10/11 - never a dead key (UNDO-MODEL). An EMPTY history says just that, FIRST — "close it
                 // to undo earlier actions" would promise actions that don't exist (Ron's screenshot). Hints, not receipts:
                 // shown, never logged in the 🕐 history.
-                if (currentStack.length === 0) { showToast('Nothing to undo', undefined, undefined, { log: false }); return; }
+                if (currentStack.length === 0) { rwLog.log('info', 'UNDO', 'Nothing to undo', null, { toast: true, hint: true }); return; }
                 if (imperativeDialogsUp()) {
-                    showToast('Nothing to undo from this dialog — close it to undo earlier actions', undefined, undefined, { log: false });
+                    rwLog.log('info', 'UNDO', 'Nothing to undo from this dialog — close it to undo earlier actions', null, { toast: true, hint: true });
                     return;
                 }
                 // v7.19.0 - reachable only if the top action was recorded AFTER this dialog opened (seq fence)
                 const undoTop = currentStack[currentStack.length - 1];
                 if (!opts.fromPanel && dialogUp() && !(undoTop && (undoTop.seq || 0) > dialogUndoFenceRef.current)) {
-                    showToast('Nothing to undo from this dialog — close it to undo earlier actions', undefined, undefined, { log: false });
+                    rwLog.log('info', 'UNDO', 'Nothing to undo from this dialog — close it to undo earlier actions', null, { toast: true, hint: true });
                     return;
                 }
                 const action = currentStack[currentStack.length - 1];
                 executeUndo(action);
                 setUndoStack(prev => prev.slice(0, -1));
                 setRedoStack(prev => [...prev, action]);
-                showToast(`Undone: ${action.label || FRIENDLY_ACTION[action.type] || action.type}`);
+                rwLog.log('info', 'UNDO', `Undone: ${action.label || FRIENDLY_ACTION[action.type] || action.type}`, null, { toast: true });
             };
 
             const redo = () => {
@@ -8764,22 +8949,22 @@
                 // (i.e., by this dialog session's own undos).
                 // v7.10.1-alpha.6 (DIALOG_POLICY) - universal, matching undo().
                 // v7.19.0-alpha.10/11 - empty FIRST, and hints are never logged (mirrors undo())
-                if (currentStack.length === 0) { showToast('Nothing to redo', undefined, undefined, { log: false }); return; }
+                if (currentStack.length === 0) { rwLog.log('info', 'UNDO', 'Nothing to redo', null, { toast: true, hint: true }); return; }
                 if (imperativeDialogsUp()) {
-                    showToast('Nothing to redo from this dialog — close it to redo earlier actions', undefined, undefined, { log: false });
+                    rwLog.log('info', 'UNDO', 'Nothing to redo from this dialog — close it to redo earlier actions', null, { toast: true, hint: true });
                     return;
                 }
                 // v7.19.0 - same seq fence: only actions recorded (and undone) in this dialog session can be redone
                 const redoTop = currentStack[currentStack.length - 1];
                 if (dialogUp() && !(redoTop && (redoTop.seq || 0) > dialogUndoFenceRef.current)) {
-                    showToast('Nothing to redo from this dialog — close it to redo earlier actions', undefined, undefined, { log: false });
+                    rwLog.log('info', 'UNDO', 'Nothing to redo from this dialog — close it to redo earlier actions', null, { toast: true, hint: true });
                     return;
                 }
                 const action = currentStack[currentStack.length - 1];
                 executeRedo(action);
                 setRedoStack(prev => prev.slice(0, -1));
                 setUndoStack(prev => [...prev, action]);
-                showToast(`Redone: ${action.label || FRIENDLY_ACTION[action.type] || action.type}`);
+                rwLog.log('info', 'UNDO', `Redone: ${action.label || FRIENDLY_ACTION[action.type] || action.type}`, null, { toast: true });
             };
 
 
@@ -9121,18 +9306,18 @@
             // pre-built authorGroups + a source folder id + opts + mode, compute the dry plan + already-filed set,
             // default everything selected, and show the preview. Returns false (with a toast) if there's nothing to do.
             const openAutoOrgPreviewCore = (authorGroupsSeed, srcId, opts, mode, label) => {
-                if (authorGroupsSeed.length === 0) { showToast('Nothing to organize — no books by those authors here'); return false; }
+                if (authorGroupsSeed.length === 0) { rwLog.log('info', 'AUTO', 'Nothing to organize — no books by those authors here', null, { toast: true }); return false; }
                 // v7.9.0-alpha.1 (AUTO-ORGANIZE-UNIFIED.md §2) - ONE view: groups are ALWAYS built at the
                 // '__all__' pool, so everything by these authors is visible (the old This-folder/Everywhere
                 // toggle is gone). The entry scope (narrowSourceId) survives only as the DEFAULTS:
                 // initial selection (§2) and removal defaults (§4).
                 const authorNames = authorGroupsSeed.map(ag => ag.displayName);
                 const authorGroups = authorGroupsForScope(authorNames, '__all__');
-                if (authorGroups.length === 0) { showToast('Nothing to organize — no books by those authors'); return false; }
+                if (authorGroups.length === 0) { rwLog.log('info', 'AUTO', 'Nothing to organize — no books by those authors', null, { toast: true }); return false; }
                 const scopedOpts = { ...opts, sourceFolderId: '__all__' };
                 const dryPlan = computeOrganizePlan(authorGroups, folders, scopedOpts);
                 const alreadyFiled = computeAlreadyFiled(authorGroups, dryPlan, srcId);
-                if (dryPlan.totalBooksOrganized === 0 && alreadyFiled.length === 0) { showToast('Nothing to organize — those books are already in their author homes'); return false; }
+                if (dryPlan.totalBooksOrganized === 0 && alreadyFiled.length === 0) { rwLog.log('info', 'AUTO', 'Nothing to organize — those books are already in their author homes', null, { toast: true }); return false; }
                 const sourceName = (srcId === '__inbox__' || srcId === '__all__') ? null : (folders.find(f => f.id === srcId)?.name || null);
                 // §2 initial check-state = the ENTRY folder's books PLUS the Inbox strays (Ron 2026-09-08:
                 // the Inbox books are why the dialog was opened — symmetric with the §4 removal defaults),
@@ -9174,7 +9359,7 @@
             // honoring the wizard's own options (series-folder threshold, Miscellaneous). Closes the wizard on open.
             const openWizardRichPreview = () => {
                 const active = wizardActiveAuthors();
-                if (active.length === 0) { showInfoDialog('No Selection', 'Please select at least one listed author to organize.'); return; }
+                if (active.length === 0) { showInfoDialog('AUTO', 'No Selection', 'Please select at least one listed author to organize.'); return; }
                 const authorGroups = active.map(a => ({ displayName: a.displayName, books: a.books }));
                 const opts = {
                     createSeriesFolders: wizardCreateSeriesFolders,
@@ -9246,7 +9431,7 @@
                 });
                 setAutoOrgSel(prev => { const n = new Set(prev); bookIds.forEach(id => n.add(id)); return n; });
                 setAutoOrgMenu(null);
-                showToast(`Will file ${bookCountLabel(bookIds)} under “${name}”`); // v7.10.1 - named receipt
+                rwLog.log('info', 'AUTO', `Will file ${bookCountLabel(bookIds)} under “${name}”`, null, { toast: true }); // v7.10.1 - named receipt
             };
             // v7.9.0-alpha.8 - Ron: a bare name input was a typo trap (Pournelle vs Pournell silently
             // creates a folder). Replaced with the combobox picker (autoOrgFileUnder render below).
@@ -9342,17 +9527,17 @@
                     const createdIds = new Set(subActions.filter(a => a.type === 'CREATE_FOLDER').map(a => a.folderId));
                     setFolders(placeNewFoldersAtTop(newFolders, newFolders.filter(f => createdIds.has(f.id))));
                     recordAction({ type: 'WIZARD_ORGANIZE', description: `${label} + removed ${selectedFiledIds.length} already-filed from ${where}`, subActions: stampRemovalIndices(subActions, folders) }); // v7.7.0-alpha.4 - positional undo
-                    showToast(`Organized ${bookCountLabel(plan.allBookIdsToOrganize)} and removed ${bookCountLabel(selectedFiledIds)} from ${where}`); // v7.10.1 - named receipt
+                    rwLog.log('info', 'AUTO', `Organized ${bookCountLabel(plan.allBookIdsToOrganize)} and removed ${bookCountLabel(selectedFiledIds)} from ${where}`, null, { toast: true }); // v7.10.1 - named receipt
                 } else if (willOrganize) {
                     const plan = applyOrganizePlan(moverGroupsToApply, applyOpts, label);
-                    showToast(mode === 'author'
+                    rwLog.log('info', 'AUTO', mode === 'author'
                         ? `Organized ${bookCountLabel(plan.allBookIdsToOrganize)} into author folders` // v7.10.1 - named receipt
-                        : `Organized ${bookCountLabel(plan.allBookIdsToOrganize)} with series subfolders`);
+                        : `Organized ${bookCountLabel(plan.allBookIdsToOrganize)} with series subfolders`, null, { toast: true });
                 } else {
                     const n = removeBooksFromFolder(narrowSourceId, selectedFiledIds, `Remove ${bookCountLabel(selectedFiledIds)} from ${where}`);
-                    showToast(n > 0
+                    rwLog.log('info', 'AUTO', n > 0
                         ? `Removed ${n === selectedFiledIds.length ? bookCountLabel(selectedFiledIds) : `${n} book${n !== 1 ? 's' : ''}`} from ${where} — still filed where ${n === 1 ? 'it was' : 'they were'}` // v7.10.1
-                        : `Nothing to remove from ${where}`);
+                        : `Nothing to remove from ${where}`, null, { toast: true });
                 }
                 closeAutoOrgPreview();
             };
@@ -9421,9 +9606,9 @@
                 if (!ids || ids.length === 0) return;
                 const added = addBooksToBookList(bookListId, ids);
                 const bl = bookLists.find(b => b.id === bookListId);
-                showToast(added > 0
+                rwLog.log('info', 'AUTO', added > 0
                     ? `Added ${added === ids.length ? bookCountLabel(ids) : `${added} book${added !== 1 ? 's' : ''}`} to '${bl?.name || 'Book List'}'${added < ids.length ? ` (${ids.length - added} already there)` : ''}` // v7.10.1 - named receipt
-                    : `${ids.length === 1 ? bookCountLabel(ids) + ' is' : `All ${ids.length} books`} already in '${bl?.name || 'Book List'}'`);
+                    : `${ids.length === 1 ? bookCountLabel(ids) + ' is' : `All ${ids.length} books`} already in '${bl?.name || 'Book List'}'`, null, { toast: true });
             };
             // v6.18.0 - Smart Book-List name from a selection (Ron's queue convention): all one series → "<Series> - To
             // Read"; else all one author → "<Author> - To Read"; else '' (mixed → the generic New To Read list). Shared by
@@ -9448,13 +9633,13 @@
                 const message = suggestedMatch
                     ? `A Book List named “${suggestedMatch.name}” already exists — press OK to add ${n} book${s} to it, or type a different name to create a new list.`
                     : `Add ${n} book${s} to a new Book List.`;
-                const name = await showInputDialog(title, message, suggested, 'List name (e.g. New To Read)');
+                const name = await showInputDialog('AUTO', title, message, suggested, 'List name (e.g. New To Read)');
                 if (name === null) return;
                 const trimmed = (name || '').trim() || 'New To Read';
                 const existing = bookLists.find(b => (b.name || '').trim().toLowerCase() === trimmed.toLowerCase());
                 if (existing) { addPreviewSelToBookList(existing.id, ids); return; }
                 createBookList(trimmed, ids);
-                showToast(`Created '${trimmed}' with ${bookCountLabel(ids)}`); // v7.10.1 - named receipt
+                rwLog.log('info', 'AUTO', `Created '${trimmed}' with ${bookCountLabel(ids)}`, null, { toast: true }); // v7.10.1 - named receipt
             };
 
             // v6.13.0-alpha.10 (D3) - When a double-click-opened book detail modal closes over the preview, refresh it.
@@ -9590,7 +9775,7 @@
                                                     Relay Setup…
                                                 </MenuBarItem>
                                                 <MenuDivider />
-                                                <MenuBarItem onClick={menuAction(importBackup)}>📂 Restore Backup…</MenuBarItem>
+                                                <MenuBarItem onClick={menuAction(restoreBackup)}>📂 Restore Backup…</MenuBarItem>
                                                 <MenuBarItem onClick={menuAction(exportBackup)} disabled={books.length === 0}>💾 Save Backup…</MenuBarItem>
                                                 {/* v7.10.0 - Save Spreadsheet (CSV) — first user-requested feature */}
                                                 <MenuBarItem onClick={menuAction(exportSpreadsheet)} disabled={books.length === 0}
@@ -9674,6 +9859,7 @@
                                                 <MenuBarItem onClick={menuAction(() => setHowToDialogOpen(true))}>How To Use</MenuBarItem>
                                                 <MenuBarItem onClick={menuAction(() => window.open('tutorials.html', '_blank'))}>Watch Tutorials</MenuBarItem>
                                                 <MenuBarItem onClick={menuAction(() => setShortcutsDialogOpen(true))}>Keyboard Shortcuts</MenuBarItem>
+                                                <MenuBarItem onClick={menuAction(() => setDiagnosticsOpen(true))} title="The log of what ReaderWrangler did and what went wrong — to read, or to copy for us">Diagnostics…</MenuBarItem>
                                                 <MenuDivider />
                                                 <MenuBarItem onClick={menuAction(() => setAboutDialogOpen(true))}>About ReaderWrangler™</MenuBarItem>
                                             </>
@@ -10929,12 +11115,12 @@
                                                             let proposed = autoNameView(buildCurrentFilters());
                                                             if (proposed === 'New View') proposed = '';
                                                             while (true) {
-                                                                const name = await showInputDialog('New Book List', `Save these ${count} book${count !== 1 ? 's' : ''} as a new Book List.`, proposed, 'List name (optional)');
+                                                                const name = await showInputDialog('MOVE', 'New Book List', `Save these ${count} book${count !== 1 ? 's' : ''} as a new Book List.`, proposed, 'List name (optional)');
                                                                 if (name === null) return;
                                                                 const trimmed = (name || '').trim() || 'Saved results';
                                                                 const existing = bookLists.find(b => (b.name || '').trim().toLowerCase() === trimmed.toLowerCase());
                                                                 if (existing) {
-                                                                    const choice = await showChoiceDialog('Name already in use', `A Book List named "${existing.name}" already exists.`, [
+                                                                    const choice = await showChoiceDialog('MOVE', 'Name already in use', `A Book List named "${existing.name}" already exists.`, [
                                                                         { label: 'Cancel', value: 'cancel' },
                                                                         { label: 'Use a different name', value: 'rename' },
                                                                         { label: `Add to "${existing.name}"`, value: 'add', primary: true }
@@ -10942,12 +11128,12 @@
                                                                     if (choice === 'rename') { proposed = trimmed; continue; }
                                                                     if (choice === 'add') {
                                                                         const added = addBooksToBookList(existing.id, displayedIds);
-                                                                        showToast(added > 0 ? `Added ${added === displayedIds.length ? bookCountLabel(displayedIds) : added} to "${existing.name}"` : `All ${count} already in "${existing.name}"`); // v7.10.1
+                                                                        rwLog.log('info', 'MOVE', added > 0 ? `Added ${added === displayedIds.length ? bookCountLabel(displayedIds) : added} to "${existing.name}"` : `All ${count} already in "${existing.name}"`, null, { toast: true }); // v7.10.1
                                                                     }
                                                                     return; // cancel / backdrop / add → done
                                                                 }
                                                                 createBookList(trimmed, displayedIds);
-                                                                showToast(`Saved ${bookCountLabel(displayedIds)} to "${trimmed}"`); // v7.10.1 - named receipt
+                                                                rwLog.log('info', 'MOVE', `Saved ${bookCountLabel(displayedIds)} to "${trimmed}"`, null, { toast: true }); // v7.10.1 - named receipt
                                                                 return;
                                                             }
                                                         }}>
@@ -10960,7 +11146,7 @@
                                                             className={`block w-full text-left px-3 py-1.5 truncate ${count === 0 ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100'}`}
                                                             onClick={() => {
                                                                 const added = addBooksToBookList(bl.id, displayedIds);
-                                                                showToast(added > 0 ? `Added ${added === displayedIds.length ? bookCountLabel(displayedIds) : added} to "${bl.name}"` : `All ${count} already in "${bl.name}"`); // v7.10.1
+                                                                rwLog.log('info', 'MOVE', added > 0 ? `Added ${added === displayedIds.length ? bookCountLabel(displayedIds) : added} to "${bl.name}"` : `All ${count} already in "${bl.name}"`, null, { toast: true }); // v7.10.1
                                                                 setSaveResultsMenuOpen(false);
                                                             }}>
                                                             {bl.name}
@@ -11382,7 +11568,7 @@
                             const updatedBooks = books.filter(b => !removedIds.has(b.id));
                             setBooks(updatedBooks);
                             saveBooksToIndexedDB(updatedBooks);
-                            showToast(`Removed ${bookCountLabel(removedBooks.map(b => b.id))} — duplicate copies merged into the kept books`); // v7.10.1-alpha.4 - receipt
+                            rwLog.log('info', 'EDIT', `Removed ${bookCountLabel(removedBooks.map(b => b.id))} — duplicate copies merged into the kept books`, null, { toast: true }); // v7.10.1-alpha.4 - receipt
 
                             setDupReviewOpen(false);
                         };
@@ -11579,7 +11765,7 @@
                                                                                 'Credentials loaded — not yet verified'
                                                                             )
                                                                         ),
-                                                                        React.createElement('p', { className: 'mt-1', style: { color: 'var(--text-secondary)' } }, `Channel: ${stored.channelId.slice(0, 8)}...${stored.channelId.slice(-4)}`),
+                                                                        React.createElement('p', { className: 'mt-1', style: { color: 'var(--text-secondary)' } }, `Channel: ${rwLog.shortChannelId(stored.channelId)}`),   // 7.26.0 - the one short form (logger.js), shared with the log
                                                                         RELAY_IS_DEV && React.createElement('p', { className: 'mt-1 font-medium', style: { color: '#9333ea' } }, '🔧 Dev relay worker + storage') // v7.13.2 - the store this build reads (dev only)
                                                                     ),
                                                                     React.createElement('button', {
@@ -11612,7 +11798,7 @@
                                                                 React.createElement('button', {
                                                                     onClick: async () => {
                                                                         if (hasCreds) {
-                                                                            const confirmed = await showConfirmDialog('Regenerate credentials', 'This will invalidate your current bookmarklet and unpair any mobile devices. You will need to drag a new bookmarklet to your bookmarks bar and re-pair your phone.', 'Regenerate', 'Cancel');
+                                                                            const confirmed = await showConfirmDialog('SYNC', 'Regenerate credentials', 'This will invalidate your current bookmarklet and unpair any mobile devices. You will need to drag a new bookmarklet to your bookmarks bar and re-pair your phone.', 'Regenerate', 'Cancel');
                                                                             if (!confirmed) return;
                                                                         }
                                                                         const channelId = crypto.randomUUID();
@@ -11657,9 +11843,9 @@
                                                                                         setRelaySetupOpen(false);
                                                                                         setTimeout(() => { setRelaySetupOpen(true); setRelaySetupSection('credentials'); }, 100);
                                                                                     } else {
-                                                                                        showInfoDialog('No credentials found', 'No credentials found in this file.');
+                                                                                        showInfoDialog('SYNC', 'No credentials found', 'No credentials found in this file.');
                                                                                     }
-                                                                                } catch { showInfoDialog('Invalid file', 'Could not read file. Make sure it is a ReaderWrangler backup (.json).'); }
+                                                                                } catch { showInfoDialog('SYNC', 'Invalid file', 'Could not read file. Make sure it is a ReaderWrangler backup (.json).'); }
                                                                             };
                                                                             reader.readAsText(file);
                                                                         };
@@ -11668,7 +11854,7 @@
                                                                     className: 'px-3 py-1.5 rounded text-sm',
                                                                     style: { background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', cursor: 'pointer', width: '100%' },
                                                                     title: 'Load credentials from a ReaderWrangler backup file — your library data is not affected'
-                                                                }, 'Load credentials from backup')
+                                                                }, 'Load credentials from backup file')
                                                             )
                                                         ),
                                                         // ── Danger zone ──
@@ -11677,7 +11863,7 @@
                                                             React.createElement('button', {
                                                                 onClick: async () => {
                                                                     const confirmed = await showConfirmDialog(
-                                                                        'Revoke credentials & wipe relay',
+                                                                        'SYNC', 'Revoke credentials & wipe relay',
                                                                         'This will erase the temporary copy on the relay and block these credentials from future use. Your Amazon library and local ReaderWrangler data are not affected. You will need to generate new credentials to continue syncing.',
                                                                         'Revoke & delete',
                                                                         'Cancel'
@@ -11688,9 +11874,9 @@
                                                                         await relayOp('clearKeys');
                                                                         setRelaySetupOpen(false);
                                                                         setTimeout(() => { setRelaySetupOpen(true); setRelaySetupSection('credentials'); }, 100);
-                                                                        showToast('Relay credentials revoked. Generate new credentials to continue syncing.');
+                                                                        rwLog.log('info', 'SYNC', 'Relay credentials revoked. Generate new credentials to continue syncing.', null, { toast: true });
                                                                     } catch (err) {
-                                                                        showInfoDialog('Revocation failed', err.message);
+                                                                        showInfoDialog('SYNC', 'Revocation failed', err.message);
                                                                     }
                                                                 },
                                                                 className: 'px-3 py-1.5 rounded text-sm',
@@ -11834,7 +12020,7 @@
                                             <ul style={{ paddingLeft: '18px', marginTop: '6px', listStyleType: 'disc' }}>
                                                 <li><strong>Generate credentials</strong> — creates a new random channel and passphrase</li>
                                                 <li><strong>Enter credentials manually</strong> — type in credentials from another device</li>
-                                                <li><strong>Load credentials from backup</strong> — restore credentials from a saved backup file</li>
+                                                <li><strong>Load credentials from backup file</strong> — restore credentials from a saved backup file</li>
                                                 <li><strong>Test connection</strong> — verifies the relay can be reached with your credentials</li>
                                             </ul>
                                         </div>
@@ -11950,6 +12136,7 @@
                     )}
 
                     {/* v5.0.0-alpha.175.2 - About Dialog */}
+                    {diagnosticsOpen && <DiagnosticsWindow onClose={() => setDiagnosticsOpen(false)} />}
                     {aboutDialogOpen && (
                         <Dialog onClose={() => setAboutDialogOpen(false)} showClose={false} maxWidthClassName="max-w-md">
                                 <div className="flex justify-between items-start p-4 bg-gray-200 rounded-t-lg border-b border-gray-300">
@@ -12328,7 +12515,7 @@
                                     <pre className="text-xs text-gray-800 bg-gray-50 border border-gray-200 rounded p-3" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{window.RW_RECOVERY_NUMBERED || 'Save a backup (File → Save Backup…), then re-download your library and collections from Amazon with the bookmarklet, then File → Import from Relay.'}</pre>
                                 </div>
                                 <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-                                    <button onClick={() => { navigator.clipboard.writeText(window.RW_RECOVERY_STEPS || ''); showToast('Recovery steps copied'); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors">Copy instructions</button>
+                                    <button onClick={() => { navigator.clipboard.writeText(window.RW_RECOVERY_STEPS || ''); rwLog.log('info', 'SYNC', 'Recovery steps copied', null, { toast: true }); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors">Copy instructions</button>
                                     <button onClick={() => setCorruptionRecovery(false)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">OK</button>
                                 </div>
                         </Dialog>
@@ -12347,7 +12534,7 @@
                         };
                         const losses = lostLists.length + lostSearches.length;
                         return (
-                        <Dialog onClose={() => { console.log('📋 Backup restore cancelled by user'); setRestoreConfirm(null); }}
+                        <Dialog onClose={() => { rwLog.log('debug', 'BACKUP', 'Restore cancelled'); setRestoreConfirm(null); }}
                             showClose={false} closeButton zIndexClass="z-[100]" panelClassName="bg-white rounded-lg shadow-2xl w-full" panelStyle={{ maxWidth: '560px' }}>
                                 <div className="p-4 bg-amber-100 rounded-t-lg border-b border-amber-300">
                                     <h2 data-select-text className="text-lg font-bold text-gray-900">Restore backup?</h2>
@@ -12376,11 +12563,11 @@
                                     )}
                                 </div>
                                 <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-                                    <button onClick={async () => { await exportBackup(); showToast('Current state backed up'); }}
+                                    <button onClick={async () => { await exportBackup(); rwLog.log('info', 'BACKUP', 'Current state backed up', null, { toast: true }); }}
                                         className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors">
                                         Back up current first…
                                     </button>
-                                    <button onClick={() => { console.log('📋 Backup restore cancelled by user'); setRestoreConfirm(null); }}
+                                    <button onClick={() => { rwLog.log('debug', 'BACKUP', 'Restore cancelled'); setRestoreConfirm(null); }}
                                         className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors">
                                         Cancel
                                     </button>
@@ -13439,7 +13626,7 @@
                                                     if (tagsCreated > 0) parts.push(`created ${tagsCreated} tag${tagsCreated !== 1 ? 's' : ''}`);
                                                     if (booksTagged > 0) parts.push(`tagged ${booksTagged} book${booksTagged !== 1 ? 's' : ''}`);
                                                     if (booksUntagged > 0) parts.push(`removed tags from ${booksUntagged} book${booksUntagged !== 1 ? 's' : ''}`);
-                                                    showToast(parts.length > 0 ? parts.join(', ') : 'No changes made');
+                                                    rwLog.log('info', 'EDIT', parts.length > 0 ? parts.join(', ') : 'No changes made', null, { toast: true });
                                                 }}
                                                 disabled={!hasChanges}
                                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${!hasChanges ? 'bg-blue-300 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
@@ -13468,7 +13655,7 @@
                                         const price = parseFloat(bulkPriceInput);
                                         if (!isNaN(price) && price > 0) {
                                             applyPriceGoal(bulkPriceBookIds, price); // v7.12.0 - chokepoint (undo + snapshot)
-                                            showToast(`Price goal set to $${price.toFixed(2)} for ${bookCountLabel(bulkPriceBookIds)}`); // v7.10.1 - named receipt
+                                            rwLog.log('info', 'EDIT', `Price goal set to $${price.toFixed(2)} for ${bookCountLabel(bulkPriceBookIds)}`, null, { toast: true }); // v7.10.1 - named receipt
                                         }
                                         setShowBulkPriceModal(false);
                                         setBulkPriceInput('');
@@ -13762,7 +13949,7 @@
                                                         className="text-3xl font-bold text-gray-900 hover:text-blue-700 transition-colors"
                                                         title="View on Amazon">{modalBook.title}</a>
                                                     <button
-                                                        onClick={() => { navigator.clipboard.writeText(modalBook.title); showToast('Title copied!'); }}
+                                                        onClick={() => { navigator.clipboard.writeText(modalBook.title); rwLog.log('info', 'SHARE', 'Title copied!', null, { toast: true }); }}
                                                         className="ml-2 align-middle text-base opacity-40 hover:opacity-90 transition-opacity"
                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
                                                         title="Copy title" aria-label="Copy title">📋</button>
@@ -13825,7 +14012,7 @@
                                                    random passwords; one chip would make this line look like it forgot its own */
                                                 <p className="text-xl text-gray-700 mb-4">by {modalBook.author}
                                                     <button
-                                                        onClick={() => { navigator.clipboard.writeText(modalBook.author || ''); showToast('Author copied!'); }}
+                                                        onClick={() => { navigator.clipboard.writeText(modalBook.author || ''); rwLog.log('info', 'SHARE', 'Author copied!', null, { toast: true }); }}
                                                         className="ml-2 align-middle text-sm opacity-40 hover:opacity-90 transition-opacity"
                                                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
                                                         title="Copy author" aria-label="Copy author">📋</button>
@@ -14772,7 +14959,7 @@
                                                             onClick={async (e) => {
                                                                 e.stopPropagation();
                                                                 const viewId = getViewId(viewFolderId);
-                                                                if (await showConfirmDialog('Delete Search', `Remove "${viewLabel}" from Searches?`)) {
+                                                                if (await showConfirmDialog('ORG', 'Delete Search', `Remove "${viewLabel}" from Searches?`)) {
                                                                     deleteSearch(viewId); // v7.10.1-alpha.6 - undoable + receipt via chokepoint
                                                                     if (selectedFolderId === viewFolderId) navigateToFolder('__all__');
                                                                 }
@@ -14896,10 +15083,10 @@
                                                                     { type: 'BOOKLIST_ADD', bookListId: bl.id, bookIds: toAdd },
                                                                     { type: 'BOOKLIST_REMOVE', bookListId: srcListId, bookIds: dropIds }
                                                                 ] }); // v7.8.0-alpha.4 named target
-                                                                showToast(`Moved ${bookCountLabel(dropIds)} to "${bl.name}"`, e.clientX, e.clientY); // v7.10.1 - named receipt
+                                                                rwLog.log('info', 'MOVE', `Moved ${bookCountLabel(dropIds)} to "${bl.name}"`, null, { toast: { x: e.clientX, y: e.clientY } }); // v7.10.1 - named receipt
                                                             } else {
                                                                 const added = addBooksToBookList(bl.id, dropIds);
-                                                                showToast(added > 0 ? `Added ${added === dropIds.length ? bookCountLabel(dropIds) : `${added} book${added !== 1 ? 's' : ''}`} to "${bl.name}"` : `Already in "${bl.name}"`, e.clientX, e.clientY); // v7.10.1
+                                                                rwLog.log('info', 'MOVE', added > 0 ? `Added ${added === dropIds.length ? bookCountLabel(dropIds) : `${added} book${added !== 1 ? 's' : ''}`} to "${bl.name}"` : `Already in "${bl.name}"`, null, { toast: { x: e.clientX, y: e.clientY } }); // v7.10.1
                                                             }
                                                             setExplorerSelectedItems(new Set());
                                                             stopDragVirtualization();
@@ -15136,7 +15323,7 @@
                                                 try {
                                                     const folderDragData = JSON.parse(folderDataStr);
                                                     reparentFolder(folderDragData.folderIds, '__inbox__');
-                                                } catch (err) { console.warn('Folder reparent failed:', err); }
+                                                } catch (err) { rwLog.log('error', 'MOVE-01', "That move didn't work.", { where: 'folders dropped on the Inbox', error: err && err.message, stack: err && err.stack }, { toast: true }); }
                                             }
                                             if (!bookDataStr) { setFolderDropHighlight(null); return; }
                                             const dragData = JSON.parse(bookDataStr);
@@ -15144,7 +15331,7 @@
 
                                             // Check if dragging from All Books (view-only)
                                             if (sourceFolder === '__all__') {
-                                                showToast('All Books is view-only. Organize from folders.', e.clientX, e.clientY);
+                                                rwLog.log('info', 'MOVE', 'All Books is view-only. Organize from folders.', null, { toast: { x: e.clientX, y: e.clientY } });
                                                 setFolderDropHighlight(null);
                                                 setExplorerSelectedItems(new Set());
                                                 return;
@@ -15174,7 +15361,7 @@
                                                     }
                                                     return f;
                                                 }));
-                                                showToast(`Restored ${bookCountLabel(bookIds)} to Inbox`); // v7.10.1 - named receipt
+                                                rwLog.log('info', 'MOVE', `Restored ${bookCountLabel(bookIds)} to Inbox`, null, { toast: true }); // v7.10.1 - named receipt
                                                 setFolderDropHighlight(null);
                                                 setExplorerSelectedItems(new Set());
                                                 stopDragVirtualization();
@@ -15384,7 +15571,7 @@
                                                                     }
                                                                     repositionSearch(draggedViewId, newPos); // v7.10.1-alpha.6 - undoable via chokepoint
                                                                 } catch (err) {
-                                                                    console.error('Tag view on folder drop error:', err);
+                                                                    rwLog.log('error', 'MOVE-02', "That move didn't work.", { where: 'a Search dropped into a new place in the left pane', error: err && err.message, stack: err && err.stack }, { toast: true });
                                                                 }
                                                                 return;
                                                             }
@@ -15437,7 +15624,7 @@
                                                                         }
                                                                     }
                                                                 } catch (err) {
-                                                                    console.error('Sidebar folder drop error:', err);
+                                                                    rwLog.log('error', 'MOVE-03', "That move didn't work.", { where: 'a drop on a folder in the left pane', error: err && err.message, stack: err && err.stack }, { toast: true });
                                                                 }
                                                                 // v6.11.2 - Don't return early; fall through to also process books
                                                             }
@@ -15450,14 +15637,14 @@
                                                             const { sourceFolder, bookIds } = dragData;
 
                                                             if (sourceFolder === '__all__') {
-                                                                showToast('All Books is view-only. Organize from folders.', e.clientX, e.clientY);
+                                                                rwLog.log('info', 'MOVE', 'All Books is view-only. Organize from folders.', null, { toast: { x: e.clientX, y: e.clientY } });
                                                                 setFolderDropHighlight(null);
                                                                 setExplorerSelectedItems(new Set());
                                                                 return;
                                                             }
                                                             // v5.5.15-alpha.34 - 1I: Disallow drag from tag view to real folder
                                                             if (isViewFolder(sourceFolder)) {
-                                                                showToast('Can\'t move from tag view to folder. Use folders to organize.', e.clientX, e.clientY);
+                                                                rwLog.log('info', 'MOVE', 'Can\'t move from tag view to folder. Use folders to organize.', null, { toast: { x: e.clientX, y: e.clientY } });
                                                                 setFolderDropHighlight(null);
                                                                 setExplorerSelectedItems(new Set());
                                                                 return;
@@ -15488,7 +15675,7 @@
                                                                     }
                                                                     return f;
                                                                 }));
-                                                                showToast(`Restored ${bookCountLabel(bookIds)} to "${folder.name}"`); // v7.10.1 - named receipt
+                                                                rwLog.log('info', 'MOVE', `Restored ${bookCountLabel(bookIds)} to "${folder.name}"`, null, { toast: true }); // v7.10.1 - named receipt
                                                                 setFolderDropHighlight(null);
                                                                 setExplorerSelectedItems(new Set());
                                                                 stopDragVirtualization();
@@ -15842,7 +16029,7 @@
                                                                     const newParentId = folder.id === '__library__' ? null : folder.id;
                                                                     reparentFolder(folderIds, newParentId);
                                                                 } catch (err) {
-                                                                    console.error('Breadcrumb folder drop error:', err);
+                                                                    rwLog.log('error', 'MOVE-04', "That move didn't work.", { where: 'folders dropped on the folder path above the right pane', error: err && err.message, stack: err && err.stack }, { toast: true });
                                                                 }
                                                                 return;
                                                             }
@@ -15862,7 +16049,7 @@
                                                                     setExplorerDragBookId(null);
                                                                     setExplorerDragData(null);
                                                                 } catch (err) {
-                                                                    console.error('Breadcrumb book drop error:', err);
+                                                                    rwLog.log('error', 'MOVE-05', "That move didn't work.", { where: 'books dropped on the folder path above the right pane', error: err && err.message, stack: err && err.stack }, { toast: true });
                                                                 }
                                                             }
                                                         }}
@@ -16805,9 +16992,9 @@
                                                                                     reorderFoldersInParent(parentForReorder, dragData.folderIds, folder.id, target.position);
                                                                                 }
                                                                             } else if (selectedFolderId === '__all__') {
-                                                                                showToast("Folder reordering not available in All Books", e.clientX, e.clientY);
+                                                                                rwLog.log('info', 'MOVE', "Folder reordering not available in All Books", null, { toast: { x: e.clientX, y: e.clientY } });
                                                                             } else {
-                                                                                showToast("Change sort to Manual Order to reorder folders", e.clientX, e.clientY);
+                                                                                rwLog.log('info', 'MOVE', "Change sort to Manual Order to reorder folders", null, { toast: { x: e.clientX, y: e.clientY } });
                                                                             }
                                                                         }
                                                                     } catch (err) {
@@ -16819,7 +17006,7 @@
                                                                         const dragData = JSON.parse(bookDataStr2);
                                                                         const { sourceFolder, bookIds } = dragData;
                                                                         if (sourceFolder === '__all__') {
-                                                                            showToast('All Books is view-only. Organize from folders.', e.clientX, e.clientY);
+                                                                            rwLog.log('info', 'MOVE', 'All Books is view-only. Organize from folders.', null, { toast: { x: e.clientX, y: e.clientY } });
                                                                         } else {
                                                                             // v6.6.0 - Capture isCopy BEFORE setFolders — updater runs after event handler so ref would already be reset
                                                                             const isCopy = ctrlKeyRef.current;
@@ -17119,9 +17306,9 @@
                                                                         }
                                                                     }
                                                                 } else if (selectedFolderId === '__all__' || selectedFolderId === '__library__') {
-                                                                    showToast('Manual ordering not available in All Books and My Library. These views aggregate books from multiple folders. Use column sorting instead.', e.clientX, e.clientY);
+                                                                    rwLog.log('info', 'MOVE', 'Manual ordering not available in All Books and My Library. These views aggregate books from multiple folders. Use column sorting instead.', null, { toast: { x: e.clientX, y: e.clientY } });
                                                                 } else if (explorerSort[0].column !== 'custom') {
-                                                                    showToast('Clear sort to reorder', e.clientX, e.clientY);
+                                                                    rwLog.log('info', 'MOVE', 'Clear sort to reorder', null, { toast: { x: e.clientX, y: e.clientY } });
                                                                 }
                                                                 setExplorerDragBookId(null);
                                                             }}
@@ -17551,9 +17738,9 @@
                                                                             reorderFoldersInParent(parentForReorder, dragData.folderIds, folder.id, target.position);
                                                                         }
                                                                     } else if (selectedFolderId === '__all__') {
-                                                                        showToast("Folder reordering not available in All Books", e.clientX, e.clientY);
+                                                                        rwLog.log('info', 'MOVE', "Folder reordering not available in All Books", null, { toast: { x: e.clientX, y: e.clientY } });
                                                                     } else {
-                                                                        showToast("Change sort to Manual Order to reorder folders", e.clientX, e.clientY);
+                                                                        rwLog.log('info', 'MOVE', "Change sort to Manual Order to reorder folders", null, { toast: { x: e.clientX, y: e.clientY } });
                                                                     }
                                                                 }
                                                             } catch (err) {
@@ -17565,7 +17752,7 @@
                                                                 const dragData = JSON.parse(bookDataStr);
                                                                 const { sourceFolder, bookIds } = dragData;
                                                                 if (sourceFolder === '__all__') {
-                                                                    showToast('All Books is view-only. Organize from folders.', e.clientX, e.clientY);
+                                                                    rwLog.log('info', 'MOVE', 'All Books is view-only. Organize from folders.', null, { toast: { x: e.clientX, y: e.clientY } });
                                                                 } else {
                                                                     // v6.6.0 - Capture isCopy BEFORE setFolders — updater runs after event handler so ref would already be reset
                                                                     const isCopy = ctrlKeyRef.current;
@@ -17742,9 +17929,9 @@
                                                                     }
                                                                 }
                                                             } else if (selectedFolderId === '__all__' || selectedFolderId === '__library__') {
-                                                                showToast('Manual ordering not available in All Books and My Library. These views aggregate books from multiple folders. Use column sorting instead.', e.clientX, e.clientY);
+                                                                rwLog.log('info', 'MOVE', 'Manual ordering not available in All Books and My Library. These views aggregate books from multiple folders. Use column sorting instead.', null, { toast: { x: e.clientX, y: e.clientY } });
                                                             } else if (explorerSort[0].column !== 'custom') {
-                                                                showToast('Clear sort to reorder', e.clientX, e.clientY);
+                                                                rwLog.log('info', 'MOVE', 'Clear sort to reorder', null, { toast: { x: e.clientX, y: e.clientY } });
                                                             }
                                                             setExplorerDragBookId(null);
                                                         }}
@@ -17998,7 +18185,7 @@
                                             const msg = totalBooks > 0
                                                 ? `Delete ${selectedTags.size} tag${selectedTags.size !== 1 ? 's' : ''} (${tagNames})? This will remove tags from ${totalBooks} book${totalBooks !== 1 ? 's' : ''}.`
                                                 : `Delete ${selectedTags.size} tag${selectedTags.size !== 1 ? 's' : ''} (${tagNames})?`;
-                                            if (await showConfirmDialog('Delete Tags', msg)) {
+                                            if (await showConfirmDialog('ORG', 'Delete Tags', msg)) {
                                                 const toDelete = new Set(selectedTags);
                                                 const delInfo = recordDeleteTags([...toDelete]); // v7.10.1-alpha.4 - undoable cascade
                                                 setBooks(prev => {
@@ -18011,7 +18198,7 @@
                                                     saveBooksToIndexedDB(updated);
                                                     return updated;
                                                 });
-                                                showToast(`Deleted ${toDelete.size} tag${toDelete.size !== 1 ? 's' : ''}${delInfo.affectedCount > 0 ? ` — removed from ${delInfo.affectedCount} book${delInfo.affectedCount !== 1 ? 's' : ''}` : ''}${delInfo.removedSearchCount > 0 ? `, ${delInfo.removedSearchCount} Search${delInfo.removedSearchCount !== 1 ? 'es' : ''} deleted` : ''}`); // v7.10.1-alpha.4 - receipt
+                                                rwLog.log('info', 'ORG', `Deleted ${toDelete.size} tag${toDelete.size !== 1 ? 's' : ''}${delInfo.affectedCount > 0 ? ` — removed from ${delInfo.affectedCount} book${delInfo.affectedCount !== 1 ? 's' : ''}` : ''}${delInfo.removedSearchCount > 0 ? `, ${delInfo.removedSearchCount} Search${delInfo.removedSearchCount !== 1 ? 'es' : ''} deleted` : ''}`, null, { toast: true }); // v7.10.1-alpha.4 - receipt
                                                 setTagRegistry(prev => {
                                                     const updated = { ...prev };
                                                     toDelete.forEach(tagId => delete updated[tagId]);
@@ -18132,7 +18319,7 @@
                                                                     <button
                                                                         onClick={async () => {
                                                                             const bookCount = getTagCount(tagId);
-                                                                            if (await showConfirmDialog('Delete Tag', `Delete tag "${label}"?${bookCount > 0 ? ` This will remove it from ${bookCount} book${bookCount !== 1 ? 's' : ''}.` : ''}`)) {
+                                                                            if (await showConfirmDialog('ORG', 'Delete Tag', `Delete tag "${label}"?${bookCount > 0 ? ` This will remove it from ${bookCount} book${bookCount !== 1 ? 's' : ''}.` : ''}`)) {
                                                                                 const delInfo = recordDeleteTags([tagId]); // v7.10.1-alpha.4 - undoable cascade
                                                                                 setBooks(prev => {
                                                                                     const updated = prev.map(b => {
@@ -18144,7 +18331,7 @@
                                                                                     saveBooksToIndexedDB(updated);
                                                                                     return updated;
                                                                                 });
-                                                                                showToast(`Deleted tag "${label}"${delInfo.affectedCount > 0 ? ` — removed from ${delInfo.affectedCount} book${delInfo.affectedCount !== 1 ? 's' : ''}` : ''}`); // v7.10.1-alpha.4 - receipt
+                                                                                rwLog.log('info', 'ORG', `Deleted tag "${label}"${delInfo.affectedCount > 0 ? ` — removed from ${delInfo.affectedCount} book${delInfo.affectedCount !== 1 ? 's' : ''}` : ''}`, null, { toast: true }); // v7.10.1-alpha.4 - receipt
                                                                                 setTagRegistry(prev => {
                                                                                     const updated = { ...prev };
                                                                                     delete updated[tagId];
@@ -18185,11 +18372,11 @@
                                                 setTagInputValue('');
                                                 // v7.24.0 - identity is EXACT text: an identical name already exists → say so; a name that
                                                 // differs only in capitals → findOrCreateTag asks once (it used to refuse those outright)
-                                                if (tagKeyByExactName(inputValue)) { showToast(`Tag "${inputValue}" already exists`); return; }
+                                                if (tagKeyByExactName(inputValue)) { rwLog.log('info', 'ORG', `Tag "${inputValue}" already exists`, null, { toast: true }); return; }
                                                 (async () => {
                                                     const made = await findOrCreateTag(inputValue);
-                                                    if (made && made.created) showToast(`Created tag "${made.label}"`);
-                                                    else if (made) showToast(`Kept the existing tag "${made.label}"`);
+                                                    if (made && made.created) rwLog.log('info', 'ORG', `Created tag "${made.label}"`, null, { toast: true });
+                                                    else if (made) rwLog.log('info', 'ORG', `Kept the existing tag "${made.label}"`, null, { toast: true });
                                                 })();
                                             } else if (e.key === 'Escape') {
                                                 setTagInputValue('');
@@ -18805,7 +18992,7 @@
                                         onClick={() => {
                                             setFolderClipboard({ items: [folder.id], operation: 'cut' });
                                             setFolderContextMenu(null);
-                                            console.log(`✂️ Cut folder "${folder.name}"`);
+                                            rwLog.log('debug', 'MOVE', 'Cut a folder (right-click)');
                                         }}>
                                         <span>✂️</span>
                                         <span>Cut</span>
@@ -18821,7 +19008,7 @@
                                         onClick={() => {
                                             setFolderClipboard({ items: [folder.id], operation: 'copy' });
                                             setFolderContextMenu(null);
-                                            console.log(`📋 Copied folder "${folder.name}"`);
+                                            rwLog.log('debug', 'MOVE', 'Copied a folder (right-click)');
                                         }}>
                                         <span>📋</span>
                                         <span>Copy</span>
@@ -18860,7 +19047,7 @@
                                                 return false;
                                             };
                                             if (folder.id === folderId || isDescendantOf(folder.id, folderId)) {
-                                                showInfoDialog('Cannot Paste', 'Cannot paste folder into itself or its descendants.');
+                                                showInfoDialog('MOVE', 'Cannot Paste', 'Cannot paste folder into itself or its descendants.');
                                                 setFolderContextMenu(null);
                                                 return;
                                             }
@@ -18913,7 +19100,7 @@
                                                         delete topCopy.sortIndex;
                                                         return placeNewFoldersAtTop([...prev, topCopy, ...newFolders.slice(1)], [topCopy]);
                                                     });
-                                                    console.log(`📋 Pasted (copied) "${folderToPaste.name}" into "${folder.name}"`);
+                                                    rwLog.log('debug', 'MOVE', 'Pasted a copied folder into another folder (right-click)');
                                                 }
                                             }
                                             setFolderContextMenu(null);
@@ -19013,7 +19200,7 @@
                                     onClick={async () => {
                                         setFolderContextMenu(null);
                                         const label = isNamedSearch ? `"${view.name}"` : `this search (${searchLabel})`;
-                                        if (await showConfirmDialog('Delete Search', `Remove ${label} from Searches?\n\nYour books and tags are not affected.`)) {
+                                        if (await showConfirmDialog('ORG', 'Delete Search', `Remove ${label} from Searches?\n\nYour books and tags are not affected.`)) {
                                             deleteSearch(view.id); // v7.10.1-alpha.6 - undoable + receipt via chokepoint
                                             if (isViewFolder(selectedFolderId) && getViewId(selectedFolderId) === view.id) {
                                                 navigateToFolder('__all__');
@@ -19079,9 +19266,9 @@
                             // stay right where they are), so you can keep scanning and adding without re-selecting.
                             setExplorerBookContextMenu(null);
                             setContextSubmenu(null);
-                            showToast(added > 0
+                            rwLog.log('info', 'MOVE', added > 0
                                 ? `Added ${added} book${added !== 1 ? 's' : ''} to '${bl?.name || 'Book List'}'${added < ids.length ? ` (${ids.length - added} already there)` : ''}`
-                                : `All ${ids.length} book${ids.length !== 1 ? 's' : ''} already in '${bl?.name || 'Book List'}'`);
+                                : `All ${ids.length} book${ids.length !== 1 ? 's' : ''} already in '${bl?.name || 'Book List'}'`, null, { toast: true });
                         };
                         const handleAddToNewBookList = async () => {
                             const ids = getSelectedBookIds();
@@ -19094,7 +19281,7 @@
                             const message = suggestedMatch
                                 ? `A Book List named “${suggestedMatch.name}” already exists — press OK to add ${n} book${s} to it, or type a different name to create a new list.`
                                 : `Add ${n} book${s} to a new Book List.`;
-                            const name = await showInputDialog(title, message, suggested, 'List name (e.g. New To Read)');
+                            const name = await showInputDialog('MOVE', title, message, suggested, 'List name (e.g. New To Read)');
                             if (name === null) return;
                             const trimmed = (name || '').trim() || 'New To Read';
                             const existing = bookLists.find(b => (b.name || '').trim().toLowerCase() === trimmed.toLowerCase());
@@ -19103,7 +19290,7 @@
                             // v6.18.0 - KEEP the selection (see handleAddToExistingBookList) — non-destructive overlay.
                             setExplorerBookContextMenu(null);
                             setContextSubmenu(null);
-                            showToast(`Added ${bookCountLabel(ids)} to new list '${trimmed}'`); // v7.10.1 - named receipt
+                            rwLog.log('info', 'MOVE', `Added ${bookCountLabel(ids)} to new list '${trimmed}'`, null, { toast: true }); // v7.10.1 - named receipt
                         };
                         const handleRemoveFromCurrentBookList = () => {
                             const ids = getSelectedBookIds();
@@ -19114,7 +19301,7 @@
                             setExplorerSelectedItems(new Set());
                             setExplorerBookContextMenu(null);
                             setContextSubmenu(null);
-                            showToast(`Removed ${bookCountLabel(ids)} from '${bl?.name || 'Book List'}'`); // v7.10.1 - named receipt
+                            rwLog.log('info', 'MOVE', `Removed ${bookCountLabel(ids)} from '${bl?.name || 'Book List'}'`, null, { toast: true }); // v7.10.1 - named receipt
                         };
 
                         // v6.12.0-alpha.60 (E) - Create a new folder and move/copy the selected books into it.
@@ -19122,7 +19309,7 @@
                         const handleNewFolderThenPlace = async (parentId, isCopy) => {
                             const ids = getSelectedBookIds();
                             if (ids.length === 0) return;
-                            const name = await showInputDialog('New Folder', `Create a folder${parentId ? ' inside this one' : ''} and ${isCopy ? 'copy' : 'move'} ${ids.length} book${ids.length !== 1 ? 's' : ''} into it.`, '', 'Folder name');
+                            const name = await showInputDialog('MOVE', 'New Folder', `Create a folder${parentId ? ' inside this one' : ''} and ${isCopy ? 'copy' : 'move'} ${ids.length} book${ids.length !== 1 ? 's' : ''} into it.`, '', 'Folder name');
                             if (name === null) return;
                             const trimmed = (name || '').trim() || 'New Folder';
                             const newId = `folder-${Date.now()}`;
@@ -19143,7 +19330,7 @@
                             setExplorerSelectedItems(new Set());
                             setExplorerBookContextMenu(null);
                             setContextSubmenu(null);
-                            showToast(`${isCopy ? 'Copied' : 'Moved'} ${bookCountLabel(ids)} to new folder '${trimmed}'`); // v7.10.1 - named receipt
+                            rwLog.log('info', 'MOVE', `${isCopy ? 'Copied' : 'Moved'} ${bookCountLabel(ids)} to new folder '${trimmed}'`, null, { toast: true }); // v7.10.1 - named receipt
                         };
 
                         // Build folder tree for submenu (reused for both Move to and Copy to)
@@ -19426,7 +19613,7 @@
                                                 folderId: selectedFolderId
                                             }));
                                             setClipboard({ type: 'cut', bookIds, sourcePositions });
-                                            showToast(`Cut ${bookCountLabel(bookIds)}`); // v7.10.1 - named receipt
+                                            rwLog.log('info', 'MOVE', `Cut ${bookCountLabel(bookIds)}`, null, { toast: true }); // v7.10.1 - named receipt
                                             setExplorerBookContextMenu(null);
                                             setContextSubmenu(null);
                                         }}>
@@ -19447,7 +19634,7 @@
                                             folderId: selectedFolderId
                                         }));
                                         setClipboard({ type: 'copy', bookIds, sourcePositions });
-                                        showToast(`Copied ${bookCountLabel(bookIds)}`); // v7.10.1 - named receipt
+                                        rwLog.log('info', 'MOVE', `Copied ${bookCountLabel(bookIds)}`, null, { toast: true }); // v7.10.1 - named receipt
                                         setExplorerBookContextMenu(null);
                                         setContextSubmenu(null);
                                     }}>
@@ -19540,16 +19727,16 @@
                                                             onClick={() => {
                                                                 const booksWithAsin = selectedBooksArray.filter(b => b.asin);
                                                                 if (booksWithAsin.length === 0) {
-                                                                    showToast(count === 1 ? 'No Amazon link available for this book' : 'No Amazon links available for selected books');
+                                                                    rwLog.log('info', 'SHARE', count === 1 ? 'No Amazon link available for this book' : 'No Amazon links available for selected books', null, { toast: true });
                                                                 } else if (count === 1) {
                                                                     navigator.clipboard.writeText(getAmazonUrl(booksWithAsin[0].asin));
-                                                                    showToast('Link copied!');
+                                                                    rwLog.log('info', 'SHARE', 'Link copied!', null, { toast: true });
                                                                 } else if (booksWithAsin.length === count) {
                                                                     navigator.clipboard.writeText(booksWithAsin.map(b => getAmazonUrl(b.asin)).join('\n'));
-                                                                    showToast(`${count} Amazon links copied!`);
+                                                                    rwLog.log('info', 'SHARE', `${count} Amazon links copied!`, null, { toast: true });
                                                                 } else {
                                                                     navigator.clipboard.writeText(booksWithAsin.map(b => getAmazonUrl(b.asin)).join('\n'));
-                                                                    showToast(`${booksWithAsin.length} of ${count} links copied (${count - booksWithAsin.length} books have no Amazon link)`);
+                                                                    rwLog.log('info', 'SHARE', `${booksWithAsin.length} of ${count} links copied (${count - booksWithAsin.length} books have no Amazon link)`, null, { toast: true });
                                                                 }
                                                                 setExplorerBookContextMenu(null);
                                                                 setContextSubmenu(null);
@@ -19561,7 +19748,7 @@
                                                         <div className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3" role="menuitem"
                                                             onClick={() => {
                                                                 if (count > 20) {
-                                                                    showToast('Select up to 20 books to share by email');
+                                                                    rwLog.log('info', 'SHARE', 'Select up to 20 books to share by email', null, { toast: true });
                                                                 } else {
                                                                     const shareData = getShareData(selectedBooksArray);
                                                                     openShareEmail(shareData);
@@ -19599,7 +19786,7 @@
                                                 onClick={() => {
                                                     const titles = selectedBooksArray.map(book => book.title).join('\n');
                                                     navigator.clipboard.writeText(titles);
-                                                    showToast(count !== 1 ? `${count} titles copied!` : 'Title copied!'); // v7.13.0-alpha.1 - receipt (clipboard family, non-undoable by doctrine)
+                                                    rwLog.log('info', 'SHARE', count !== 1 ? `${count} titles copied!` : 'Title copied!', null, { toast: true }); // v7.13.0-alpha.1 - receipt (clipboard family, non-undoable by doctrine)
                                                     setExplorerBookContextMenu(null);
                                                     setContextSubmenu(null);
                                                 }}>
@@ -19618,7 +19805,7 @@
                                                         role="menuitem"
                                                         onClick={() => {
                                                             navigator.clipboard.writeText(uniqueAuthors.join('\n'));
-                                                            showToast(uniqueAuthors.length !== 1 ? `${uniqueAuthors.length} authors copied!` : 'Author copied!');
+                                                            rwLog.log('info', 'SHARE', uniqueAuthors.length !== 1 ? `${uniqueAuthors.length} authors copied!` : 'Author copied!', null, { toast: true });
                                                             setExplorerBookContextMenu(null);
                                                             setContextSubmenu(null);
                                                         }}>
@@ -19703,12 +19890,12 @@
                                                                 setContextSubmenu(null);
                                                                 const orderedIds = explorerDisplayItems.filter(it => it.type === 'book' && explorerSelectedItems.has(it.book.id)).map(it => it.book.id);
                                                                 if (orderedIds.length < 2) {
-                                                                    await showConfirmDialog('Number by current order', "Select 2 or more books first.\n\nThis numbers the selected books 1, 2, 3… in the order currently shown — it sets each book's series position, handy for putting an author's books in publication order. Tip: switch to Manual Order sort, drag them into the order you want, select them, then run this.", 'OK', 'Close');
+                                                                    await showConfirmDialog('EDIT', 'Number by current order', "Select 2 or more books first.\n\nThis numbers the selected books 1, 2, 3… in the order currently shown — it sets each book's series position, handy for putting an author's books in publication order. Tip: switch to Manual Order sort, drag them into the order you want, select them, then run this.", 'OK', 'Close');
                                                                     return;
                                                                 }
                                                                 const sortCol = explorerSort[0]?.column;
                                                                 const sortLabel = !sortCol || sortCol === 'custom' ? 'Manual' : sortCol;
-                                                                const name = await showInputDialog('Number by current order', `Number the ${orderedIds.length} selected books 1, 2, 3… in the order currently shown (sorted by ${sortLabel}), setting each book's series position.\n\nOptionally give them a series name (blank = none):`, '', 'Series name (optional)', 'Apply', 'Cancel');
+                                                                const name = await showInputDialog('EDIT', 'Number by current order', `Number the ${orderedIds.length} selected books 1, 2, 3… in the order currently shown (sorted by ${sortLabel}), setting each book's series position.\n\nOptionally give them a series name (blank = none):`, '', 'Series name (optional)', 'Apply', 'Cancel');
                                                                 if (name === null) return;
                                                                 applySequentialNumbering(orderedIds, name);
                                                             }}>
@@ -19720,16 +19907,16 @@
                                                                 setContextSubmenu(null);
                                                                 const orderedIds = explorerDisplayItems.filter(it => it.type === 'book' && explorerSelectedItems.has(it.book.id)).map(it => it.book.id);
                                                                 if (orderedIds.length < 1) {
-                                                                    await showConfirmDialog('Set numbers', 'Select one or more books first.\n\nThis maps a comma-separated list of numbers onto the selected books in the order currently shown — so you can place in-between volumes at 13.5, 14.5, etc.', 'OK', 'Close');
+                                                                    await showConfirmDialog('EDIT', 'Set numbers', 'Select one or more books first.\n\nThis maps a comma-separated list of numbers onto the selected books in the order currently shown — so you can place in-between volumes at 13.5, 14.5, etc.', 'OK', 'Close');
                                                                     return;
                                                                 }
-                                                                const raw = await showInputDialog('Set numbers', `Enter ${orderedIds.length} number${orderedIds.length !== 1 ? 's' : ''}, comma-separated, mapped to the selected books in the order shown.\n\nDecimals are fine for in-between volumes — e.g. "13, 13.5, 14, 14.5".`, '', 'e.g. 13, 13.5, 14, 14.5', 'Apply', 'Cancel');
+                                                                const raw = await showInputDialog('EDIT', 'Set numbers', `Enter ${orderedIds.length} number${orderedIds.length !== 1 ? 's' : ''}, comma-separated, mapped to the selected books in the order shown.\n\nDecimals are fine for in-between volumes — e.g. "13, 13.5, 14, 14.5".`, '', 'e.g. 13, 13.5, 14, 14.5', 'Apply', 'Cancel');
                                                                 if (raw === null) return;
                                                                 const tokens = raw.split(',').map(t => t.trim()).filter(t => t.length > 0);
                                                                 const nums = tokens.map(t => Number(t));
                                                                 if (tokens.length !== orderedIds.length || nums.some(n => !isFinite(n))) {
                                                                     const bad = nums.some(n => !isFinite(n));
-                                                                    await showConfirmDialog('Set numbers', `Enter exactly ${orderedIds.length} number${orderedIds.length !== 1 ? 's' : ''} — you entered ${tokens.length}${bad ? ', and some weren’t numbers' : ''}. They map one-to-one to the selected books in display order.`, 'OK', 'Close');
+                                                                    await showConfirmDialog('EDIT', 'Set numbers', `Enter exactly ${orderedIds.length} number${orderedIds.length !== 1 ? 's' : ''} — you entered ${tokens.length}${bad ? ', and some weren’t numbers' : ''}. They map one-to-one to the selected books in display order.`, 'OK', 'Close');
                                                                     return;
                                                                 }
                                                                 applyNumbering(orderedIds, '', nums);
@@ -19826,7 +20013,7 @@
                                                                                                  saveBooksToIndexedDB(updated);
                                                                                                 return updated;
                                                                                             });
-                                                                                            showToast(`Removed "${tagRegistry[tagId]?.label || tagId}" from ${bookCount === 1 && selectedBookIds.length === 1 ? bookCountLabel(selectedBookIds) : `${bookCount} book${bookCount !== 1 ? 's' : ''}`}`); // v7.10.1
+                                                                                            rwLog.log('info', 'EDIT', `Removed "${tagRegistry[tagId]?.label || tagId}" from ${bookCount === 1 && selectedBookIds.length === 1 ? bookCountLabel(selectedBookIds) : `${bookCount} book${bookCount !== 1 ? 's' : ''}`}`, null, { toast: true }); // v7.10.1
                                                                                         }}>
                                                                                         ×
                                                                                     </button>
@@ -19969,7 +20156,7 @@
                                                                                      return updated;
                                                                                 });
                                                                                 if (addedCount > 0) {
-                                                                                    showToast(`Added "${tagData.label}" to ${addedCount === selectedBookIds.length ? bookCountLabel(selectedBookIds) : `${addedCount} book${addedCount !== 1 ? 's' : ''}`}`); // v7.10.1
+                                                                                    rwLog.log('info', 'EDIT', `Added "${tagData.label}" to ${addedCount === selectedBookIds.length ? bookCountLabel(selectedBookIds) : `${addedCount} book${addedCount !== 1 ? 's' : ''}`}`, null, { toast: true }); // v7.10.1
                                                                                 }
                                                                                 setTagInputValue('');
                                                                                 setExplorerBookContextMenu(null);
@@ -20039,7 +20226,7 @@
                                                                     onClick={async () => {
                                                                     const selectedBookIds = getSelectedBookIds();
                                                                     applyPriceGoal(selectedBookIds, price); // v7.12.0 - chokepoint (undo + snapshot)
-                                                                    showToast(`Price goal set to $${price.toFixed(2)} for ${bookCountLabel(selectedBookIds)}`); // v7.10.1 - named receipt
+                                                                    rwLog.log('info', 'EDIT', `Price goal set to $${price.toFixed(2)} for ${bookCountLabel(selectedBookIds)}`, null, { toast: true }); // v7.10.1 - named receipt
                                                                     setExplorerBookContextMenu(null);
                                                                     setContextSubmenu(null);
                                                                 }}>
@@ -20064,7 +20251,7 @@
                                                             onClick={async () => {
                                                                 const selectedBookIds = getSelectedBookIds();
                                                                 applyPriceGoal(selectedBookIds, null); // v7.12.0 - chokepoint (undo + snapshot cleared)
-                                                                showToast(`Price goal cleared for ${bookCountLabel(selectedBookIds)}`); // v7.10.1 - named receipt
+                                                                rwLog.log('info', 'EDIT', `Price goal cleared for ${bookCountLabel(selectedBookIds)}`, null, { toast: true }); // v7.10.1 - named receipt
                                                                 setExplorerBookContextMenu(null);
                                                                 setContextSubmenu(null);
                                                             }}>
@@ -20105,7 +20292,7 @@
                                                                 newState: newHiddenState,
                                                                 label: `${newHiddenState ? 'Hide' : 'Unhide'} ${bookCountLabel(bookIdsToToggle)}` // v7.8.0-alpha.5 named target (missed site)
                                                             });
-                                                            showToast(`${newHiddenState ? 'Hid' : 'Unhid'} ${bookCountLabel(bookIdsToToggle)}`); // v7.10.1-alpha.5 (Ron #9) - action receipt
+                                                            rwLog.log('info', 'EDIT', `${newHiddenState ? 'Hid' : 'Unhid'} ${bookCountLabel(bookIdsToToggle)}`, null, { toast: true }); // v7.10.1-alpha.5 (Ron #9) - action receipt
 
                                                             setExplorerBookContextMenu(null);
                                                             setContextSubmenu(null);
@@ -20156,7 +20343,7 @@
                                                         const removedIds = (bl?.bookIds || []).filter(id => ids.includes(id));
                                                         setBookLists(prev => prev.map(b => b.id === blId ? { ...b, bookIds: (b.bookIds || []).filter(id => !ids.includes(id)) } : b));
                                                         if (removedIds.length) recordAction({ type: 'BOOKLIST_REMOVE', bookListId: blId, bookIds: removedIds, label: `Remove ${bookCountLabel(removedIds)} from '${(bookLists.find(b => b.id === blId) || {}).name || 'Book List'}'` }); // v6.12.0 - undoable; v7.8.0-alpha.4 named target
-                                                        showToast(`Removed ${bookCountLabel(ids)} from "${bl?.name || 'list'}"`); // v7.10.1 - named receipt
+                                                        rwLog.log('info', 'MOVE', `Removed ${bookCountLabel(ids)} from "${bl?.name || 'list'}"`, null, { toast: true }); // v7.10.1 - named receipt
                                                         setExplorerSelectedItems(new Set());
                                                         setExplorerBookContextMenu(null);
                                                         setContextSubmenu(null);
@@ -20229,14 +20416,14 @@
                         // v5.0.0-alpha.143 - Use top-level state for edited name to avoid hooks violation
                         const handleSave = () => {
                             if (!folderPropertiesEditedName.trim()) {
-                                showInfoDialog('Invalid Name', 'Folder name cannot be empty.');
+                                showInfoDialog('ORG', 'Invalid Name', 'Folder name cannot be empty.');
                                 return;
                             }
 
                             // Check for duplicate names at same level
                             const siblings = folders.filter(f => f.parentId === folder.parentId && f.id !== folder.id);
                             if (siblings.some(f => f.name === folderPropertiesEditedName.trim())) {
-                                showInfoDialog('Duplicate Name', 'A folder with this name already exists at this level.');
+                                showInfoDialog('ORG', 'Duplicate Name', 'A folder with this name already exists at this level.');
                                 return;
                             }
 
@@ -20386,7 +20573,7 @@
                                         className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium"
                                         onClick={() => {
                                             navigator.clipboard.writeText(`Subject: ${shareEmailChoice.subject}\n\n${shareEmailChoice.body}`);
-                                            showToast('Email content copied — paste into your email app');
+                                            rwLog.log('info', 'SHARE', 'Email content copied — paste into your email app', null, { toast: true });
                                             setShareEmailChoice(null);
                                         }}>
                                         📋 Copy to clipboard
@@ -20450,6 +20637,11 @@
                                                 </div>
                                             ))
                                         )}
+                                        </div>
+                                        {/* 7.26.0 - the full log: this history is the session's receipts; the Diagnostics window is everything kept */}
+                                        <div className="px-3 py-1.5 border-t border-gray-200 bg-gray-50 text-xs text-right">
+                                            <button type="button" className="text-blue-600 hover:underline"
+                                                onClick={() => { setToastHistoryOpen(false); setDiagnosticsOpen(true); }}>Full log…</button>
                                         </div>
                                     </Popover>
                                 )}

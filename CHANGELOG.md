@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.26.0] - 2026-11-10
+
+### Added
+- **Diagnostics — a record of what ReaderWrangler did and what went wrong**, kept in your browser (the last ~500
+  lines). Open it from **Help → Diagnostics…**, or **Full log…** at the bottom of the 🕐 recent-messages list. Newest
+  first, filter by kind, area and time; lines with more information show **details ▸**. **Copy diagnostics** copies
+  the whole record for a message to us; **Clear** starts fresh before you reproduce a problem. Nothing in it leaves your
+  computer unless you copy it; your Passphrase is never in it, and Channel IDs appear only shortened (as Relay Setup
+  shows them).
+- **Two switches for chasing a problem**, at the bottom of the Diagnostics window: **Show a banner when something goes
+  wrong** (a red bar at the top of the page, with Copy) and **Also record extra detail**. Both are off normally. If we
+  ask, you can turn both on with a link (`?errorBanner=on&logDetail=on`).
+- **On the phone: Copy diagnostics** in the menu (⋮), under Help & About.
+
+### Changed
+- **Every message you see is also recorded** in Diagnostics — each toast and each box, and your answer to the boxes
+  that ask — so the record reads as one timeline of what you saw and what happened underneath.
+- **A refused move is no longer shown in red** ("Inbox cannot be moved") — it's your gesture being declined, not
+  something going wrong.
+- **Relay Setup says "Load credentials from backup file"**, to make clear it reads a file.
+
+### Fixed
+- **Import no longer reports a false "Library repair".** There were two causes, both fixed. First, every Import with
+  new books ran the library's safety check before filing those books into the Inbox, so it "repaired" brand-new books.
+  Then, once that was fixed, a second check showed up: an Import that found nothing to bring in (a brand-new channel,
+  for example) left a follow-up check waiting, and it misfired during your next Restore or Import — reporting
+  "Library repair: 22 issues fixed" for books that were fine. Real repairs are still found and reported.
+- **Restore puts back exactly the backup.** A backup missing a part — its Book Lists, say — used to leave your current
+  ones in place beside the backup's books, even though the "restore?" box had just said they'd be removed. Now a
+  missing part restores as none (with no folders, every book lands in the Inbox). Your Cloud Sync credentials are the
+  one exception, as before: a restore never switches them without asking. Your view settings stay as they are.
+- **A backup that can't be restored says everything that's wrong at once** — *"This backup can't be restored: it's
+  missing its list of books, and its folders aren't readable. Nothing was changed."* — before anything changes,
+  instead of failing part-way or naming one problem at a time.
+- **Restore's messages say "Restore", not "Import".**
+- **If your library can't be loaded, you're told** — a box says so, with what to do, instead of an empty library and
+  no reason. Until it has loaded, Save Backup waits: a backup made then would be missing your folders.
+- **A damaged library-status note no longer stops your library from loading.** (It only holds how fresh your library
+  is; it now shows as unknown until the next fetch.)
+- **On the phone, if your library can't be loaded, you're told** — before, the app just stayed empty.
+- **A drag-and-drop that fails says "That move didn't work."** — before, it silently did nothing.
+- **Two saves of your books started at the same moment now take turns** — before, the second could begin while the
+  first was still writing.
+- **The emergency reset page no longer suggests "Import amazon-library.json"**, a way back that hasn't existed since
+  Cloud Sync replaced the library file; it offers restoring a backup file.
+
 ## [7.25.1] - 2026-11-06
 
 ### Fixed

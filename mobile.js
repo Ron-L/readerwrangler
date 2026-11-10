@@ -1,7 +1,7 @@
 // mobile.js — ReaderWrangler Mobile Viewer
 // MOBILE_VERSION tracks mobile-specific iterations
-const MOBILE_VERSION = '1.10.2'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
-console.log(`✅ Mobile viewer ${MOBILE_VERSION} | APP_VERSION: ${APP_VERSION}`);
+const MOBILE_VERSION = '1.11.0'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
+rwLog.log('info', 'BOOT', `Phone app ${MOBILE_VERSION} running (page ${APP_VERSION})`);
 
 // v1.7.0 - Which server is this copy talking to? Derived from the page's own address, so an
 // installed app inherits the answer from wherever it was installed — which is the whole point
@@ -29,7 +29,7 @@ const SERVER_ENV = (() => {
 (() => {
     if ((isContributor() || isDevSite()) && window._RW_RELAY_WORKER_URL === undefined) {
         window._RW_RELAY_WORKER_URL = 'https://readerwrangler-relay-dev.readerwrangler.workers.dev';
-        console.log(`🔧 DEV environment: relay → dev worker (${window._RW_RELAY_WORKER_URL})`);
+        rwLog.log('info', 'BOOT', `This copy uses the dev relay (${window._RW_RELAY_WORKER_URL})`);
     }
 })();
 // v1.8.4 - Which relay store this build actually reads (the hidden var made visible). Dev/localhost
@@ -42,6 +42,10 @@ if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMou
 
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
+// 7.26.0 - The critical box's advice when the phone can't load its library (PHONE-03 at the start, PHONE-06 after pairing):
+// the usual "save a backup now" means nothing here — the phone has no Save Backup, and its copy comes from the computer.
+const PHONE_LOAD_ADVICE = "Close the app and open it again to try again. Your library on the computer isn't affected. "
+    + 'If this keeps happening, press Copy details and send it to us through Feedback on the computer.';
 const MOBILE_PREFS_KEY = 'readerwrangler-mobile-prefs';
 const NAV_STACK_KEY = 'readerwrangler-mobile-nav';
 const SHELF_LIMIT = 20;
@@ -891,6 +895,15 @@ function AppMenu({ themePreference, viewMode, showDealsOnly, showHidden, onApply
     const themeLabels = { auto: 'Auto', light: 'Light', dark: 'Dark' };
     const nextTheme = { auto: 'light', light: 'dark', dark: 'auto' };
     const [showCreds, setShowCreds] = useState(false);
+    // 7.26.0 (LOGGING.md §5 step 5.4 — Ron: just a Copy button on the phone, no viewer) - the phone's log, for a message to us
+    const [diagCopied, setDiagCopied] = useState(null);   // null | 'copied' | 'failed'
+    const copyDiagnostics = () => {
+        const text = rwLog.diagnosticsText([`Phone app ${MOBILE_VERSION} (page ${APP_VERSION})`]);
+        Promise.resolve(navigator.clipboard && navigator.clipboard.writeText(text)).then(
+            () => setDiagCopied('copied'),
+            () => { rwLog.log('warning', 'PHONE-07', "Diagnostics couldn't be copied (the browser refused the clipboard)"); setDiagCopied('failed'); });
+        setTimeout(() => setDiagCopied(null), 2000);
+    };
 
     return (
         <div className="fixed top-0 right-0 h-full z-50 flex flex-col overflow-y-auto"
@@ -1044,6 +1057,11 @@ function AppMenu({ themePreference, viewMode, showDealsOnly, showHidden, onApply
                     <p>Server: {SERVER_ENV.label}</p>
                     {RELAY_IS_DEV && <p>Relay: Dev relay worker + storage</p>}
                     {libraryAsOf && <p>Library as of {new Date(libraryAsOf).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{(() => { try { const g = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').deviceStateGen; return g ? ` (copy …${String(g).slice(-4)})` : ''; } catch (e) { return ''; } })()}</p>}
+                    <button type="button" data-copy-diagnostics onClick={copyDiagnostics}
+                        className="mt-2 py-1 px-3 rounded text-xs"
+                        style={{ border: '1px solid var(--border-default, #e2e8f0)', color: 'var(--text-primary, #1e293b)', touchAction: 'manipulation' }}>
+                        {diagCopied === 'copied' ? 'Copied' : diagCopied === 'failed' ? "Couldn't copy" : 'Copy diagnostics'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -2398,10 +2416,10 @@ function SearchView({ books, folders, folderId, showDealsOnly, showHidden, sortO
         const creds = JSON.parse(json);
         if (creds.channelId && creds.passphrase) {
             localStorage.setItem(RELAY_KEY, JSON.stringify(creds));
-            console.log('✅ Paired via QR: channel ' + creds.channelId.slice(0, 8) + '...');
+            rwLog.log('info', 'PHONE', `Paired from the QR link: channel ${rwLog.shortChannelId(creds.channelId)}`);
         }
     } catch (e) {
-        console.error('❌ Failed to parse pairing data from URL:', e);
+        rwLog.log('warning', 'PHONE-01', "The pairing link couldn't be read — pair again from the computer", { error: String(e) });
     }
     // Clear hash fragment (don't leave credentials in URL)
     history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -2536,7 +2554,7 @@ function MobileApp() {
                     const genTime = (window.RWRelay.genTimestamp?.(gen)) || 0;
                     newer = genTime > (blob.savedAt || 0) + 15 * 60 * 1000;
                 }
-                console.log(`[Freshness] cached gen ${blob.deviceStateGen || '(none)'} vs pointed ${gen} → ${newer ? 'NEWER available' : 'current'}`); // v1.7.2-alpha.3
+                rwLog.log('debug', 'PHONE', `Freshness: this phone has generation ${blob.deviceStateGen || '(none)'}, the relay points to ${gen} — ${newer ? 'a newer one is available' : 'current'}`); // v1.7.2-alpha.3
                 if (newer && gen !== dismissedGenRef.current) {
                     setNewerAvailable(gen);
                 } else if (!newer) {
@@ -2580,7 +2598,7 @@ function MobileApp() {
                 if (jsonString) {
                     const data = JSON.parse(jsonString);
                     if (data.isBackup && data.books?.items?.length) {
-                        console.log(`📡 Device-state received: ${data.books.items.length} books`);
+                        rwLog.log('info', 'PHONE', `Got the library from the relay: ${data.books.items.length} books`);
                         setLoadingMessage(`Loading ${data.books.items.length.toLocaleString()} books...`);
                         // v1.9.0 (one-table 7.17.0) - deserialize wire items through the shared unpacker
                         // (bookFields.js), with mobile safe-defaults so rendering never hits undefined.
@@ -2610,16 +2628,16 @@ function MobileApp() {
                             await saveBooksToIndexedDB(mappedBooks, false);
                             restoreOrganization(data.organization, mappedBooks.map(b => b.id), payloadSavedAt,
                                 window.RWRelay.lastDeviceStateGen ? window.RWRelay.lastDeviceStateGen() : null); // v1.7.1
-                            console.log('✅ Device-state applied to local storage');
+                            rwLog.log('info', 'PHONE', "Saved the relay's copy on this phone");
                         } else {
-                            console.log(`🛡️ Cache write skipped — local data is newer (guest guard; payload ${payloadSavedAt ? new Date(payloadSavedAt).toLocaleString() : 'unstamped'} vs local ${new Date(localSavedAt).toLocaleString()})`);
+                            rwLog.log('info', 'PHONE', `Kept this browser's copy — it's newer than the relay's (the guest guard; relay ${payloadSavedAt ? new Date(payloadSavedAt).toLocaleString() : 'unstamped'}, here ${new Date(localSavedAt).toLocaleString()})`);
                         }
                     }
                 } else {
-                    console.log('📡 No device-state on relay (404) — using local data');
+                    rwLog.log('info', 'PHONE', "No library on the relay yet — showing what's on this phone");
                 }
             } catch (err) {
-                console.warn('⚠️ Device-state pull failed, using cached data:', err.message);
+                rwLog.log('warning', 'PHONE-02', `Couldn't get the library from the relay — showing what's on this phone: ${err && err.message}`);
             }
         }
         setLoadingMessage('Loading...');
@@ -2652,7 +2670,7 @@ function MobileApp() {
             populateCoverCache(loadedBooks);
         }
 
-        console.log(`✅ Mobile loaded: ${loadedBooks.length} books, ${savedFolders.length} folders`);
+        rwLog.log('info', 'PHONE', `Phone app loaded: ${loadedBooks.length} books, ${savedFolders.length} folders`);
         return loadedBooks;
     };
 
@@ -2689,7 +2707,8 @@ function MobileApp() {
                     return prev;
                 });
             })
-            .catch(err => console.error('❌ Mobile data load failed:', err))
+            .catch(err => rwLog.log('critical', 'PHONE-03', "Your library couldn't be loaded on this phone.",
+                { error: String((err && err.message) || err), stack: err && err.stack }, { advice: PHONE_LOAD_ADVICE }))
             .finally(() => setLoading(false));
     }, []);
 
@@ -2868,13 +2887,13 @@ function MobileApp() {
                         setPairingError(null);
                         setPairingScreen('prompt');
                     } catch (e) {
-                        console.error('❌ QR decode error:', e);
+                        rwLog.log('warning', 'PHONE-04', "The scanned code isn't a ReaderWrangler pairing code", { error: String(e) });
                         setPairingError('Not a valid ReaderWrangler pairing code. Try again.');
                     }
                 }
             );
         } catch (e) {
-            console.error('❌ QR scanner failed:', e);
+            rwLog.log('warning', 'PHONE-05', `The camera couldn't start for scanning (permission refused?): ${e && e.message}`);
             setPairingError(e.message || 'Could not start camera. Check permissions.');
             setPairingScreen('prompt');
         }
@@ -2922,7 +2941,7 @@ function MobileApp() {
     const completePairing = (creds, method) => {
         localStorage.setItem(RELAY_KEY, JSON.stringify({ channelId: creds.channelId, passphrase: creds.passphrase }));
         if (window.RWRelay) window.RWRelay.initFromStorage();
-        console.log(`✅ Paired ${method}: channel ${creds.channelId.slice(0, 8)}...`);
+        rwLog.log('info', 'PHONE', `Paired ${method}: channel ${rwLog.shortChannelId(creds.channelId)}`);
         setPairingError(null);
         setPairingScreen('success');
         setLoading(true);
@@ -2930,7 +2949,11 @@ function MobileApp() {
             setPairingScreen(null);
             loadAllData()
                 .then(() => setLoading(false))
-                .catch(err => { console.error('❌ Post-pair load failed:', err); setLoading(false); });
+                .catch(err => {
+                    rwLog.log('critical', 'PHONE-06', "Your library couldn't be loaded on this phone after pairing.",
+                        { error: String((err && err.message) || err), stack: err && err.stack }, { advice: PHONE_LOAD_ADVICE });
+                    setLoading(false);
+                });
         }, 1000);
     };
 
