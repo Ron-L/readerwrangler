@@ -1,7 +1,7 @@
 // Unit tests for the logging module (logkit/logger.js) with ReaderWrangler's settings (logkit-settings.js) — run:
 // node test/logger.test.js
 // tags: logging, tier 1
-// covers: logkit/logger.js, logkit-settings.js
+// covers: logkit/logger.js, logkit-settings.js, logkit/diagnostics-window.js
 // The logging module (docs/design/LOGGING.md §1, §2, §2b, §6 — Ron + Claude, 2026-11-05/07): one call
 // rwLog.log(level, code, text, data, { test }), five levels, codes 'AREA' or 'AREA-NN' (numbered required for warning and
 // above), the kept log (info and up, the last 500, repeats counted, batched saves, page loads), the scrubber, test
@@ -443,13 +443,20 @@ test('LOG-035', 'the page-global the name check is told about is the logger\'s r
     assert.deepStrictEqual(declared, [S.settings.globalName], 'declared: ' + JSON.stringify(declared));
 });
 
+// A kit file's CODE (comments may say where it came from — whole-line ones, and a trailing "  // …" after code)
+const kitCode = (file) => require('fs').readFileSync(require('path').join(__dirname, '..', 'logkit', file), 'utf8')
+    .split('\n').filter(l => !/^\s*\/\//.test(l)).map(l => l.replace(/\s+\/\/\s.*$/, '')).join('\n');
+const RW_WORDS = ['readerwrangler-', 'ReaderWrangler', 'rwLog', 'APP_VERSION', 'ORGANIZER_VERSION', 'Channel', 'BACKUP',
+    "'BOOT'", "'SHARE", 'Desktop app'];
+
 test('LOG-036', 'the module knows nothing of ReaderWrangler: no product name, storage key, area list or Channel ID in it', () => {
-    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'logkit', 'logger.js'), 'utf8');
-    // comments may say where it came from (whole-line ones, and a trailing "  // …" after code)
-    const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).map(l => l.replace(/\s+\/\/\s.*$/, '')).join('\n');
-    for (const word of ['readerwrangler-', 'rwLog', 'APP_VERSION', 'Channel', 'BACKUP', "'BOOT'"]) {
-        assert.ok(!code.includes(word), `logkit/logger.js's code still mentions ${word}`);
-    }
+    const code = kitCode('logger.js');
+    for (const word of RW_WORDS) assert.ok(!code.includes(word), `logkit/logger.js's code still mentions ${word}`);
+});
+
+test('LOG-037', 'the Diagnostics window knows nothing of ReaderWrangler: the logger, the dialog and the copy header are handed in', () => {
+    const code = kitCode('diagnostics-window.js');
+    for (const word of RW_WORDS) assert.ok(!code.includes(word), `logkit/diagnostics-window.js's code still mentions ${word}`);
 });
 
 done();

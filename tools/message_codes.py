@@ -25,12 +25,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "git-hooks"))
 import shipped_paths  # noqa: E402  (the one "is this shipped?" rule — the scripts scanned)
 TABLE = "docs/design/MESSAGE-CODES.md"
-LOGGER = "logkit/logger.js"          # the module (7.28.0: moved into logkit/) — its own calls are log(…), not rwLog.log(…)
 SETTINGS = "logkit-settings.js"      # RW's settings for it — the areas live here
 LEVELS = ["debug", "info", "warning", "error", "critical"]
 CODE_RE = re.compile(r"^([A-Z]+)(?:-(\d{2}))?$")
 CALL_ANYWHERE = re.compile(r"rwLog\.log\(")
-CALL_IN_LOGGER = re.compile(r"(?<![\w.])log\(\s*(?=['\"`])")   # the module's own log('error', 'UI-02', …) calls
+# In the logging kit (logkit/): the module's own log('error', 'UI-02', …) calls, and the Diagnostics window's
+# log.log('warning', 'UI-06', …) — the logger is handed to it, never named rwLog (7.28.0)
+CALL_IN_KIT = re.compile(r"(?<![\w.])(?:log\.)?log\(\s*(?=['\"`])")
+KIT_DIR = "logkit/"
 
 
 def areas_from_logger(text):
@@ -103,7 +105,7 @@ def _in_comment(src, pos):
 
 def find_calls(path, src):
     """[(path, line, level or None, code or None, text)] for every logging call in one file."""
-    pattern = CALL_IN_LOGGER if path.replace("\\", "/") == LOGGER else CALL_ANYWHERE
+    pattern = CALL_IN_KIT if path.replace("\\", "/").startswith(KIT_DIR) else CALL_ANYWHERE
     calls = []
     for m in pattern.finditer(src):
         if _in_comment(src, m.start()):      # a comment that mentions rwLog.log(…) isn't a call
@@ -141,7 +143,7 @@ def check(files, areas):
             problems.append(f"{where}: badly shaped code \"{code}\" — use AREA or AREA-NN")
             continue
         if m.group(1) not in areas:
-            problems.append(f"{where}: unknown area \"{m.group(1)}\" — the areas are logger.js's LOG_AREAS")
+            problems.append(f"{where}: unknown area \"{m.group(1)}\" — the areas are {SETTINGS}'s")
         if level in LEVELS and LEVELS.index(level) >= LEVELS.index("warning") and not m.group(2):
             problems.append(f"{where}: a {level} needs a numbered code ({m.group(1)}-NN)")
         if m.group(2):
@@ -173,7 +175,7 @@ def check(files, areas):
                 problems.append(f"{where}: {m.group(1)}'s first argument must be its area, as a plain quoted word "
                                 f"(e.g. {m.group(1)}('BACKUP', title, …)) — the dialog logs what it showed there")
             elif area not in areas:
-                problems.append(f"{where}: {m.group(1)} names an unknown area \"{area}\" — the areas are logger.js's LOG_AREAS")
+                problems.append(f"{where}: {m.group(1)} names an unknown area \"{area}\" — the areas are {SETTINGS}'s")
     return calls, problems
 
 

@@ -1,6 +1,6 @@
 # Screen test: the Diagnostics window — the log you can read, filter, copy and clear, opened from Help and from the 🕐.
 # tags: logging, diagnostics, tier 2
-# covers: readerwrangler.js, logkit/logger.js, logkit-settings.js
+# covers: readerwrangler.js, logkit/logger.js, logkit-settings.js, logkit/diagnostics-window.js
 # Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python)
 #
 # 2026-11-09 (7.26.0-alpha.27, LOGGING.md §5 step 5.3 — Ron + Claude): its own window, NOT in Data Status (many messages

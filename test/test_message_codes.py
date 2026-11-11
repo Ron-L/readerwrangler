@@ -1,6 +1,6 @@
 # Tests for tools/message_codes.py — the logging rules checked from the code, and the generated support table.
 # tags: logging, commit-checks, tier 1
-# covers: tools/message_codes.py, logkit/logger.js, logkit-settings.js
+# covers: tools/message_codes.py, logkit/logger.js, logkit-settings.js, logkit/diagnostics-window.js
 # Run: python test/test_message_codes.py
 #
 # One table, a row per rule (docs/design/LOGGING.md §6): each sample file must pass or be refused for the right reason.
@@ -85,6 +85,18 @@ check("MSG-011", "the areas come from RW's settings for the logging module — i
 logger_calls = mc.find_calls("logkit/logger.js", open(os.path.join(ROOT, "logkit", "logger.js"), encoding="utf-8").read())
 check("MSG-012", "the logging module's own calls are found in logkit/ (UI-02, UI-03, UI-04, UI-05)",
       {"UI-02", "UI-03", "UI-04", "UI-05"} <= {c[3] for c in logger_calls}, [c[3] for c in logger_calls])
+
+# 7.28.0 (step 2): the kit's Diagnostics window gets the logger handed in (log.log(…)), not as rwLog — its calls must
+# still be found, or they'd drop out of the table; other things' .log( (console.log) are not calls
+kit_calls = mc.find_calls("logkit/diagnostics-window.js",
+                          "log.log('warning', 'UI-06', \"Diagnostics couldn't be copied\");\n"
+                          "console.log('x');\nfoo.log('info', 'UI', 'not ours');\n// log.log('info', 'UI', 'a comment')")
+check("MSG-020", "in the logging kit, a call through the handed-in logger (log.log(…)) is found; console.log is not",
+      [c[3] for c in kit_calls] == ["UI-06"], kit_calls)
+window_calls = mc.find_calls("logkit/diagnostics-window.js",
+                             open(os.path.join(ROOT, "logkit", "diagnostics-window.js"), encoding="utf-8").read())
+check("MSG-021", "the Diagnostics window's own calls are found: Copy diagnostics' outcome (UI, and UI-06 when refused)",
+      sorted(c[3] for c in window_calls) == ["UI", "UI-06"], [c[3] for c in window_calls])
 
 lt = mc.table(logger_calls)
 check("MSG-013", "a template's details (even a nested template) show as one \"…\" in the table",

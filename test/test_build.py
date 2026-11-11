@@ -1,6 +1,6 @@
 # Tests for tools/build.py — the app built ahead of time (TODO "Faster loading").
 # tags: build, tooling, tier 1
-# covers: tools/build.py, tools/build/compile.js
+# covers: tools/build.py, tools/build/compile.js, logkit/diagnostics-window.js
 # Run: python test/test_build.py
 #
 # 2026-11-10: the page compiled readerwrangler.js in the browser on every load — ~50 s on Ron's PC, the same with 23
@@ -154,5 +154,19 @@ def styles_from_a_subfolder_at_commit():
     check(".text-red-700" in css, "a class only a script in a folder uses is in the stylesheet the commit check builds")
 test("BUILD-008", "the commit check builds the styles from scripts in folders too (logkit/), not just the root",
      styles_from_a_subfolder_at_commit)
+
+
+# 7.28.0 ("Logging as its own module", step 2): the Diagnostics window moved out of readerwrangler.js into the logging
+# kit — JSX, so it is built like the app: logkit/diagnostics-window.js → dist/logkit/diagnostics-window.js
+WINDOW = "logkit/diagnostics-window.js"
+
+
+def window_is_built():
+    check(WINDOW in b.SOURCES, f"the window is one of the built sources: {b.SOURCES}")
+    check(b.out_path(WINDOW).replace("\\", "/").endswith("/dist/logkit/diagnostics-window.js"),
+          f"built into dist/, keeping its folder: {b.out_path(WINDOW)}")
+    out = b.compile_text(open(os.path.join(ROOT, WINDOW), encoding="utf-8").read(), WINDOW)
+    check("React.createElement" in out and "<Dialog" not in out, "its JSX became React.createElement")
+test("BUILD-009", "the logging kit's Diagnostics window is built like the app (logkit/ → dist/logkit/)", window_is_built)
 
 done()

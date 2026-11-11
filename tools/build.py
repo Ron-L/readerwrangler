@@ -26,7 +26,9 @@ import threading
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "git-hooks"))
 import shipped_paths as _shipped  # noqa: E402  (the one "is this shipped?" rule)
-SOURCES = ("readerwrangler.js", "mobile.js")       # the scripts the page used to compile in the browser
+# the scripts the page used to compile in the browser; 7.28.0: + the logging kit's Diagnostics window (JSX, moved out
+# of readerwrangler.js) — built into dist/logkit/, keeping its folder
+SOURCES = ("readerwrangler.js", "mobile.js", "logkit/diagnostics-window.js")
 OUT_DIR = "dist"
 COMPILER = os.path.join(ROOT, "tools", "build", "compile.js")
 FOOTER = "\n// Built from {name} by tools/build.py: edit {name}, never this copy (TODO \"Faster loading\").\n"

@@ -9,7 +9,9 @@ switched; it stays as the record._
 **Where it lives (7.28.0, "Logging as its own module"):** the module is `logkit/logger.js` — general, it knows nothing
 of ReaderWrangler — and RW's settings for it are `logkit-settings.js` (the 17 areas, the storage names, the Channel ID's
 short form and the passphrase to clean out, the product name, the critical box's words, the build, the global `rwLog`),
-loaded just before it. Mentions of `logger.js` below are its 7.26.0 history.
+loaded just before it. The Diagnostics window is the kit's too: `logkit/diagnostics-window.js` (JSX, built like the app
+into `dist/logkit/`, loaded before the app), handed the logger, the app's `<Dialog>` and the build line for Copy
+diagnostics; its copy-failure warning is UI-06 (was SHARE-01). Mentions of `logger.js` below are its 7.26.0 history.
 
 **Status (2026-11-10):** **released in 7.26.0** (built on `feature/logging`, alphas 1–28) — §5 lists each step and what
 changed while building. In short: one call (`rwLog.log`), 17 areas, every console line, toast and dialog through it; two
