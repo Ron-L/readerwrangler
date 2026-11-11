@@ -359,6 +359,11 @@ orphan would hide among them. Ron caught it; fixed in 7.26.0 — two causes, two
 (`return new Promise` inside a `try` — the `finally` freed the lock as the write began) both printed only a plain
 console line no one read. The always-kept log made the first an error on screen; the screen-test driver's end-of-file
 check (any error or critical line a test didn't declare fails the file) caught the second on its first runs.
+**A reassurance in a message is a claim about the app's behavior — check it in the code before writing it** (7.27.1):
+the reset words said "your copy in the cloud is not touched" — true at the instant of the reset, false for what the
+person cares about next (once books are back, the first change sends a full copy that replaces the cloud's). Ron
+caught it reading the words against what the app does. "Not touched" must hold in the moments that matter to the
+person, not only at the instant of the action.
 **Enforcement**: `feedback_mechanical_honesty` memory; the heredoc ban (three-for-three earned a ban, not a
 caution); receipts-and-honesty as a feature genre; the logging module (`logger.js` — every message has a level, an
 area and a code; the commit check `tools/message_codes.py`) and the driver's undeclared-error check (`test/ui/rw.py`).
