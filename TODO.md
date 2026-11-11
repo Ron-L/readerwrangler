@@ -528,6 +528,11 @@ Ron's real library (Ron, 2026-11-04: "it would be nice to migrate away").
 **How (technical)**
 - Packed with the app's own book packer (bookFields.js `packBook`), as the small fixture is. TESTING.md §5 gains the
   sizes and the covers when built.
+- **First user — a load-time test at scale** (the 7.27.0 post-mortem's "bug no test would have caught"): Ron's books
+  took ~7 s to show on 7.27.0-alpha.1 while every screen test (23 books, no cover copies) said under a second. With a
+  generated ~3,000-book library committed, a LOAD test can time "folders on screen" at that scale with a full cover
+  cache (as tools/time_load.py does with the private copy) and fail on a regression — with a bound loose enough that a
+  slow moment can't fail it.
 
 #### Receipts reach the screen: one screen test per area, not only the log
 <!-- id 20261110-1021 -->

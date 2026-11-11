@@ -86,4 +86,24 @@ with App() as app:
             app.page.evaluate("() => document.getElementById('drv-zero').remove()")
     test("DRV-003", "a target with no size is refused", zero_size_is_refused)
 
+    # 7.27.0 post-mortem (2026-11-11): the driver only RECORDED requests to Amazon and real relays — so timing a load
+    # with Ron's library fetched its covers from Amazon's image server. Now it blocks them: a cover gets a stand-in image
+    # (the app's cover handling still runs), anything else is refused. This test makes both requests on purpose.
+    def amazon_is_blocked():
+        got = app.page.evaluate("""async () => {
+            const out = {};
+            try { const r = await fetch('https://m.media-amazon.com/images/I/drv-test.jpg');
+                  out.cover = r.status + ' ' + r.headers.get('content-type') + ' ' + (await r.arrayBuffer()).byteLength; }
+            catch (e) { out.cover = 'refused'; }
+            try { await fetch('https://www.amazon.com/drv-test'); out.page = 'reached'; }
+            catch (e) { out.page = 'refused'; }
+            return out; }""")
+        check(got["cover"] == f"200 image/png {len(App.STAND_IN_COVER)}",
+              f"a cover from Amazon's image server gets the driver's stand-in image: {got['cover']!r}")
+        check(got["page"] == "refused", f"a request to amazon.com is refused: {got['page']!r}")
+        check(any("media-amazon" in u for u in app.violations) and any("amazon.com" in u for u in app.violations),
+              f"and both are still recorded, so a 'no requests' test sees them: {app.violations[-2:]}")
+    test("DRV-004", "requests to Amazon are blocked, not just recorded: a cover gets a stand-in, a page is refused",
+         amazon_is_blocked)
+
 done()

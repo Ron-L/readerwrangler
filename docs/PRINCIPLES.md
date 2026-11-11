@@ -8,7 +8,10 @@ prevent its recurrence — only a mechanism does.* Version confusion was documen
 and recurred ~11 more times anyway; one PM even records the lesson being read and **inverted** (a
 "Mistakes Made" entry internalized as the correct pattern). So every Law below names its **enforcement**:
 the rule, checklist item, memory file, or code pattern that makes it mechanical. A principle without an
-enforcement is a wish.
+enforcement is a wish. **And a rule that's only recorded gets broken** (7.27.0): the test driver *logged* every request
+to Amazon and let it through, so timing a load with Ron's library fetched its covers from Amazon's image server — the
+rule "tests never touch Amazon" was written down and watched, not enforced. Enforce at the chokepoint (the driver now
+blocks; DRV-004).
 
 **The newest and most literal mechanism (2026-09-17): the pre-build gate.** A `PreToolUse` hook
 (`.claude/hooks/gate-check.py`) denies the *first* edit of shipped code (any root `.js` + the relay worker) each turn and
@@ -218,6 +221,10 @@ path), never on a pattern.** **And a secret is a class too — find it by its sh
 from a backup carried a full Cloud Sync credential pair publicly for four months (2026-07-03 → 10-31); no list of
 known values could have caught it — a check for "a .json whose `relay` holds a channel id and a passphrase" does
 (`git-hooks/private_values.py`, every commit; the history scan found only that file).
+**A site map in a task doesn't fix the class — work from it, and check each place off** (7.27.0): the Reset App task
+listed all four places with the old reset words; 7.26.0's fix touched place 2 and its note read as if the page was done
+— place 4 still offered "Import amazon-library.json" until Ron saw it. Better still, make the places one: the same
+message defined once (TODO "Old words, quick win").
 **The class includes every CHECK of the same event, not only every copy of the code** (7.26.0): the false "Library
 repair" after an Import was fixed in the integrity check inside the load, and came back three days later from a second
 check of the same event — the one run after an Import settles (6.3.0) — whose code had been read the day of the first
@@ -261,6 +268,11 @@ tooltip passed a test that read its `title`, but leaving the chart switched the 
 default, and emulated zoom scales the browser's own scrollbars with the page (real zoom doesn't) — both hid a scrollbar
 the status bar covered on Ron's screen. When a person's screen shows what the test can't reproduce, ask for their
 picture FIRST, then measure the layers (Law 19).
+**Measure the moment the person sees, under the person's conditions** (7.27.0): I reported 1.3 s to Ron's books; he
+counted ~7. My end point was the "All Books" count (the data loaded, before the folders appear) and my test browser
+had no cover copies (his had 3,270, which every load read before showing the folders). When their count disagrees with
+your number, your end point or your conditions are wrong — not their stopwatch. `tools/time_load.py` now fills the
+cover cache first and times "folders on screen".
 **Enforcement**: the alpha cadence itself; test instructions with precise expected values — magnitude AND
 shape (`feedback_debugging` Rule 4); the driver's `hover()` / `click_reachable()` (`test/ui/rw.py`) move the real pointer
 and refuse a covered target (naming what covers it) or one with no size. The driver runs Chrome (Ron's browser) with scrollbars shown
@@ -376,6 +388,10 @@ Deferred mysteries return as unreproducible field issues at ten times the price 
 wishlist, sample-pair, husk, echo, token — "and once everything had a name, there was nothing left to
 fear." Beware the **numerology trap**: unrelated sets of similar size masquerade as each other; name all of
 them in one table. Never bare "not worth chasing" — chase it or log it with the evidence for a scheduled chase.
+**Time every step of a path that runs on every load, and ask what each step is for** (7.27.0): the desktop read all
+3,270 cover copies into memory before showing the folders on every load for nine months — since 5.0.0 nothing drew
+from them but one image in the book window. It cost seconds and nobody saw it, because nothing timed the load step by
+step. (The load's full rewrite of every book, 0.9 s, was the same kind.)
 **Enforcement**: `feedback_debugging` Rule 1c; telemetry tripwires instead of speculation (the
 `newOwnershipType` instrument paid off twice with zero user friction).
 
