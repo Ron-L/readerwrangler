@@ -3,9 +3,11 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [Old words, quick win: the reset messages and the collections fetcher's finish message](#old-words-quick-win-the-reset-messages-and-the-collections-fetchers-finish-message)
       - [Logging as its own module: a self-contained folder, one step from a sub-repo](#logging-as-its-own-module-a-self-contained-folder-one-step-from-a-sub-repo)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
+      - [Reset App: a Save Backup… button where the box says to save a backup](#reset-app-a-save-backup-button-where-the-box-says-to-save-a-backup)
+      - [When the app can't open: Copy diagnostics and Report this problem, right there](#when-the-app-cant-open-copy-diagnostics-and-report-this-problem-right-there)
+      - [Help → Report a problem… and Known problems (the GitHub issues)](#help--report-a-problem-and-known-problems-the-github-issues)
       - [One table for every move, copy, paste and delete: what each gesture does in each place](#one-table-for-every-move-copy-paste-and-delete-what-each-gesture-does-in-each-place)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -176,41 +178,6 @@ drifted). To change the order, move the task.
 
 ### High priority
 
-#### Old words, quick win: the reset messages and the collections fetcher's finish message
-<!-- id 20261111-0903 -->
-
-_Why it matters:_ Four reset messages and one fetcher message still describe the app before Cloud Sync — files on disk,
-an Export button that doesn't exist, a library file nobody has now. Someone resetting is often already having a bad
-day; wrong directions make it worse. All text, so a small branch right after 7.27.0 (Ron, 2026-11-11).
-
-**The places** (found 2026-11-11, the amazon-library.json sweep; wording as of 7.27.0)
-1. **Tools → Reset App** (readerwrangler.js ~12066–12077): "This will: Unload library and collections · Remove all
-   folders and organization · Reset all filters"; "Your library/collections files on disk will NOT be deleted. You can
-   reload them anytime."; **"💡 Tip: Use the Export button first to save your organization before resetting."** —
-   there is no Export button (it's File → Save Backup), and there are no library/collections files to reload.
-2. **The emergency screen** (readerwrangler.html ~349, shown when the app can't start): "ReaderWrangler failed to load.
-   This may be caused by corrupted data. You can reset the app to fix this. Your files on disk are safe."
-3. **The emergency reset's confirmation** (readerwrangler.html ~369): "This clears all ReaderWrangler data from this
-   browser. Your files on disk are safe — import your backup file after the reset to restore everything." ("import" is
-   the retired word: Restore.)
-4. **The reset page's confirmation box** (reset.js ~93): "Your files on disk are safe. To recover: • Restore backup
-   file → Books + organization" (fixed in 7.26.0 — the words to match).
-5. **The reset page's own panel** (reset.html ~58): "Good news: This only clears data from your browser. Your files on
-   disk are safe." — its bullet and tip were fixed on 7.27.0's branch ("Restore backup file", "File → Save Backup").
-6. **The collections fetcher's finish message** (amazon-collections-fetcher.js ~866): *"Updated amazon-library.json with
-   N books' collections"* — it uploads to the relay (its console says so); its header comment's steps 4–7 describe the
-   old file. A fetcher: goes to dev and prod together (it's the same for all three bookmarklets).
-7. Clean-up beside it: the wishlist and series fetchers' unused `LIBRARY_FILENAME = 'amazon-library.json'`.
-
-**The words** (decided 2026-10-30 in "Reset App: one honest message…", Before launch): what's cleared (everything
-ReaderWrangler keeps in this browser); what's kept (files you saved — backups, spreadsheets — and your copy in the
-cloud); how to come back: **Restore backup file** — the one way offered until "Restore from Cloud Sync…" exists (Ron,
-2026-11-09). Verify first whether Tools → Reset App clears the stored Cloud Sync Key (the emergency reset doesn't).
-
-**Claude's recommendation (Ron's call when the branch starts):** do that task's decision 1 here too — **one message,
-defined once**, used by places 1–5 (a small shared file both pages load) — because these copies drifted exactly as
-copies do: 7.26.0 fixed one of four. Then the Cloud Sync rename changes one place. Places 6–7 are separate (the fetcher).
-
 #### Logging as its own module: a self-contained folder, one step from a sub-repo
 <!-- id 20261110-0908 -->
 
@@ -284,6 +251,52 @@ selection before and after.
 - Today: `if (e.key === 'Delete' && !isSpecialFolder && getSelectedBookIds().length === 0) await deleteFolder(currentFolder)`
   — uses the current folder instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch
   confirm and one compound undo — the new `deleteFolders(folders)`. Surfaced during the operations refactor.
+
+#### Reset App: a Save Backup… button where the box says to save a backup
+<!-- id 20261111-1104 -->
+
+_Why it matters:_ The Reset App box says "Before you reset, save a backup: File → Save Backup." — something the person
+can do that instant, so it should be a button there (Law 20: hand them the action, not directions — Ron, 2026-11-11).
+
+**Decided** (Ron + Claude, 2026-11-11)
+1. A **Save Backup…** button in the Reset App box's tip — the same save File → Save Backup runs; the box stays open so
+   they can then reset (or cancel).
+2. "To get everything back afterwards: File → Restore Backup…" stays as directions: it can't be done from this box (a
+   restore now would replace the library, and the box is gone after the reset). Its button belongs to the after-reset
+   choice ("Restore from Cloud Sync…", item 6).
+3. Keep test/test_reset_words.py passing (the shared sentence stays word for word).
+
+#### When the app can't open: Copy diagnostics and Report this problem, right there
+<!-- id 20261111-1104a -->
+
+_Why it matters:_ A person whose app won't start sees "Something went wrong" and a Reset App button — nothing about
+telling us. The red banner with Copy shows only with "Show a banner when something goes wrong" turned on, and the
+error text only on a local server, so on readerwrangler.com they get neither (Ron, 2026-11-11; Law 20).
+
+**Decided** (Ron + Claude, 2026-11-11)
+1. **The emergency screen** ("Something went wrong") gets a **Copy diagnostics** button and a **Report this problem**
+   link (GitHub issues, as the status bar's Feedback link). The Diagnostics window can't open there — it's part of the
+   app that failed — but the logging module loads first and survives, so Copy works (`rwLog.diagnosticsText`).
+2. **Not on its "Erase and Reset" confirmation** — one place, offered before anyone reaches the reset.
+3. **The reset page** (reset.html) gets the same two — it loads the logging module too, and it's where people land when
+   the app won't open at all.
+4. Checked 2026-11-11: **no reset clears the kept log** (its key is in none of the four resets' lists, nothing clears
+   all storage) — so a copy made after a reset still has the record; offering it before is still the right moment.
+5. A screen test with the load made to fail on purpose (the driver serves a broken copy of the app's code — how
+   7.27.1's screenshots were taken): the button copies a text with the build line and the error.
+
+#### Help → Report a problem… and Known problems (the GitHub issues)
+<!-- id 20261111-1104b -->
+
+_Why it matters:_ The Help menu has nothing for reporting a problem or seeing known ones; only the status bar's small
+"Feedback" link reaches GitHub issues (Ron, 2026-11-11).
+
+**Decided** (Ron + Claude, 2026-11-11)
+1. **Help → Report a problem…** copies the diagnostics (as Diagnostics' Copy does), then opens a new GitHub issue —
+   telling the person the diagnostics are on the clipboard to paste in.
+2. **Help → Known problems** opens the issue list.
+3. **Open question (Ron, when built):** GitHub needs an account to report, and many readers won't have one — also
+   offer email (contact@readerwrangler.com), or GitHub only?
 
 #### One table for every move, copy, paste and delete: what each gesture does in each place
 <!-- id 20261106-1237 -->
@@ -3315,6 +3328,24 @@ nothing on the computer reads it back; Import from Relay merges only the books t
    otherwise straight to the file box (Claude's UX verdict; Ron to confirm when it's built).
 - How current: as of the last send (seconds); a change made in the moments before a crash may be missing — say so in
   the "restore?" box ("your cloud copy from 2 minutes ago").
+6. **After a reset: one choice, and the cloud copy held until it's made** (Ron + Claude, 2026-11-11, building
+   7.27.1's reset words). What happens today, checked in the code: the reset itself sends nothing, and nothing is sent
+   while the library is empty (the device-state push skips `books.length === 0`) — but as soon as books are back (a
+   fetch + Import from Relay, which brings books without folders) any change sends a **full** copy (no deltas: every
+   push is a whole new generation) that replaces the cloud's copy with the folders; the relay keeps two, so one more
+   push and the old organization is gone from the cloud. Decided:
+   - **The first time the app opens after ANY reset** (Tools → Reset App, the emergency screen, the reset page, the
+     phone — each sets one "just reset" mark), it asks once: *"You've reset ReaderWrangler. Bring your library back?
+     [Restore from Cloud Sync] [Restore backup file…] [Start fresh]"* — the natural moment ("what next?"), part of the
+     person's own action; "Start fresh" covers the early-days restart.
+   - **Until a choice is made, nothing is sent to the cloud** — so the cloud copy is guaranteed intact when they choose
+     to restore from it. Closing the box keeps the hold and asks again next time.
+   - **Ships with this task**, not before (Ron): until a restore from the cloud exists, the cloud copy isn't a way back,
+     so there's nothing to hold for — and a hold with no cloud restore to offer is a confusing mode. (The
+     backup-file-only version of the choice could ship earlier on its own — Ron: wait; logged here.)
+   - **Turned down:** a "last chance" prompt at the first push that would overwrite the cloud (it interrupts 60 s after
+     an unrelated change or on leaving the tab — "a stopping prompt is still a block", Law 18 — and asks about a reset
+     that may be an hour old).
 
 #### Restore checks every book, folder and list inside a backup — skip a bad one and say so
 <!-- id 20261108-1800a -->
