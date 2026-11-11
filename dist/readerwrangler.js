@@ -88,7 +88,7 @@ var Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'm
 // 7.26.0 (LOGGING.md §5 step 5.3 — Ron + Claude, 2026-11-09) - THE Diagnostics window: the kept log, readable,
 // opened from Help → Diagnostics… and from "Full log…" in the 🕐 history. 7.28.0 - it lives in the logging kit
 // (logkit/diagnostics-window.js, loaded before this file); the app hands it the logger, its own <Dialog> (so Esc,
-// ✕ and stacking are ours) and the build line Copy diagnostics puts on top.
+// ✕ and stacking are ours) and the build line Copy diagnostics puts under its first line.
 var DiagnosticsWindow = ({ onClose }) => /*#__PURE__*/
 React.createElement(LogkitDiagnosticsWindow, { log: rwLog, Dialog: Dialog, onClose: onClose,
   copyHeader: [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`] });
@@ -123,7 +123,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.28.0-alpha.2"; // Build version for this file
+var ORGANIZER_VERSION = "7.28.0-alpha.3"; // Build version for this file
 // 7.26.0 - the code's own build, once it runs: the page-load entry can't know it (it's written before this code is
 // compiled) and the page's APP_VERSION doesn't move during alphas
 rwLog.log('info', 'BOOT', `Desktop app ${ORGANIZER_VERSION} running (page ${APP_VERSION})`);

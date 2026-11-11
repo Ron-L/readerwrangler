@@ -11,7 +11,10 @@ of ReaderWrangler — and RW's settings for it are `logkit-settings.js` (the 17 
 short form and the passphrase to clean out, the product name, the critical box's words, the build, the global `rwLog`),
 loaded just before it. The Diagnostics window is the kit's too: `logkit/diagnostics-window.js` (JSX, built like the app
 into `dist/logkit/`, loaded before the app), handed the logger, the app's `<Dialog>` and the build line for Copy
-diagnostics; its copy-failure warning is UI-06 (was SHARE-01). Mentions of `logger.js` below are its 7.26.0 history.
+diagnostics; its copy-failure warning is UI-06 (was SHARE-01). So is the commit check's general half:
+`logkit/check_messages.py` (the rules on levels, areas and numbered codes, and the table), called by RW's layer
+`tools/message_codes.py`, which knows our files, the name `rwLog`, our areas' file and our own two rules (toasts through
+the logger; dialog calls name their area first). Mentions of `logger.js` below are its 7.26.0 history.
 
 **Status (2026-11-10):** **released in 7.26.0** (built on `feature/logging`, alphas 1–28) — §5 lists each step and what
 changed while building. In short: one call (`rwLog.log`), 17 areas, every console line, toast and dialog through it; two

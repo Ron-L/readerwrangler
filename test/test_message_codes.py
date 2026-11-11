@@ -1,6 +1,6 @@
 # Tests for tools/message_codes.py — the logging rules checked from the code, and the generated support table.
 # tags: logging, commit-checks, tier 1
-# covers: tools/message_codes.py, logkit/logger.js, logkit-settings.js, logkit/diagnostics-window.js
+# covers: tools/message_codes.py, logkit/check_messages.py, logkit/logger.js, logkit-settings.js, logkit/diagnostics-window.js
 # Run: python test/test_message_codes.py
 #
 # One table, a row per rule (docs/design/LOGGING.md §6): each sample file must pass or be refused for the right reason.
@@ -61,9 +61,13 @@ for tid, what, src, refusal in ROWS:
         print(f"  ✓ {tid} {what}")
 
 
+passed = len(ROWS) - failures
+
+
 def check(tid, what, cond, detail=""):
-    global failures
+    global failures, passed
     if cond:
+        passed += 1
         print(f"  ✓ {tid} {what}")
     else:
         failures += 1
@@ -102,5 +106,21 @@ lt = mc.table(logger_calls)
 check("MSG-013", "a template's details (even a nested template) show as one \"…\" in the table",
       "| UI-03 | error | Uncaught error: … | logkit/logger.js |" in lt and "${" not in lt, lt)
 
-print(f"{len(ROWS) + 4 - failures} passed, {failures} failed")
+# 7.28.0 (step 3, Ron 2026-11-11): the general rules and the table live in the logging kit (logkit/check_messages.py);
+# RW's checker sits on top — our files, our logger's name, our two rules (toasts, dialog areas) — and calls it
+kspec = importlib.util.spec_from_file_location("check_messages", os.path.join(ROOT, "logkit", "check_messages.py"))
+kit = importlib.util.module_from_spec(kspec)
+kspec.loader.exec_module(kit)
+src = open(os.path.join(ROOT, "logkit", "check_messages.py"), encoding="utf-8").read()
+code = "\n".join(ln.split("  # ")[0] for ln in src.splitlines() if not ln.lstrip().startswith("#"))
+rw = [w for w in ("rwLog", "showToast", "Dialog", "readerwrangler", "ReaderWrangler", "MESSAGE-CODES", "logkit-settings",
+                  "tools/message_codes", "LOG_AREAS", "BACKUP") if w in code]
+check("MSG-022", "the kit's checker knows nothing of ReaderWrangler (no logger name, file, routine or area of ours)", not rw,
+      f"still mentions {rw}")
+kc, kp = kit.check([("a.js", "myLog.log('warning', 'X-01', 't');\nrwLog.log('warning', 'X', 'not this logger');")], {"X"},
+                   logger="myLog")
+check("MSG-023", "the kit checks the calls of the logger the host names (myLog), and only those",
+      [c[3] for c in kc] == ["X-01"] and kp == [], (kc, kp))
+
+print(f"{passed} passed, {failures} failed")
 sys.exit(1 if failures else 0)
