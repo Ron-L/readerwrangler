@@ -11,9 +11,6 @@
     <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
     <!-- Google Fonts - Libre Baskerville for title -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,6 +24,10 @@
             font-family: 'Libre Baskerville', serif;
         }
     </style>
+    <!-- 7.27.0 - the styles built ahead of time (tools/build.py; was the in-browser builder cdn.tailwindcss.com, whose
+         styles landed here, last in the head — measured 2026-11-11). One less outside service for the emergency page
+         to depend on. -->
+    <link rel="stylesheet" href="dist/tailwind.css?v=7.27.0">
 </head>
 <body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
     <div class="max-w-2xl w-full bg-white rounded-lg shadow-xl p-8">
@@ -61,16 +62,14 @@
                 </p>
                 <p class="mb-2"><strong>What you can recover:</strong></p>
                 <ul class="space-y-2 ml-2">
-                    <li><strong>Import backup file</strong> → Restore EVERYTHING
-                        (books + folders + tags + notes + order + price goals)</li>
-                    <li><strong>Import amazon-library.json</strong> → Restore books only
-                        (lose folders, tags, notes, order, price goals)</li>
+                    <li><strong>Restore backup file</strong> → Books + organization
+                        (folders, tags, notes, order, price goals)</li>
                 </ul>
             </div>
 
             <div class="bg-yellow-50 border border-yellow-300 rounded p-4 text-sm">
                 <p class="font-semibold text-gray-800">
-                    💡 <strong>Tip:</strong> If you have access to the main app, use File → Export Backup first
+                    💡 <strong>Tip:</strong> If you have access to the main app, use File → Save Backup first
                     to save your organization before resetting.
                 </p>
             </div>
@@ -98,7 +97,7 @@
 
     <!-- Reset Logic -->
     <script src="logger.js?v=7.26.0"></script> <!-- 7.26.0 - storage.js logs through rwLog -->
-    <script src="storage.js?v=7.26.0"></script> <!-- 7.25.1 - deleteBookStore, the one delete (waits when another tab blocks it) -->
+    <script src="storage.js?v=7.27.0"></script> <!-- 7.25.1 - deleteBookStore, the one delete (waits when another tab blocks it) -->
     <script src="reset.js?v=7.26.0"></script> <!-- 7.26.0 - had no cache-buster at all -->
 
 </body>

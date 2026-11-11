@@ -3,7 +3,7 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [Faster loading: build the app ahead of time (35 seconds → 1)](#faster-loading-build-the-app-ahead-of-time-35-seconds--1)
+      - [Old words, quick win: the reset messages and the collections fetcher's finish message](#old-words-quick-win-the-reset-messages-and-the-collections-fetchers-finish-message)
       - [Logging as its own module: a self-contained folder, one step from a sub-repo](#logging-as-its-own-module-a-self-contained-folder-one-step-from-a-sub-repo)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [One table for every move, copy, paste and delete: what each gesture does in each place](#one-table-for-every-move-copy-paste-and-delete-what-each-gesture-does-in-each-place)
@@ -80,9 +80,10 @@
         - [Right-click: add "Copy ASINs" below Copy Titles / Copy Authors](#right-click-add-copy-asins-below-copy-titles--copy-authors)
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
         - [With a filter on, the right pane still shows subfolders with no matching books](#with-a-filter-on-the-right-pane-still-shows-subfolders-with-no-matching-books)
-        - [Every load saves the whole library back to storage, even when nothing changed](#every-load-saves-the-whole-library-back-to-storage-even-when-nothing-changed)
         - [A missing book description: one quiet line, on the computer and the phone](#a-missing-book-description-one-quiet-line-on-the-computer-and-the-phone)
         - [Remove the old version 4 app from the site — it shares your library's storage](#remove-the-old-version-4-app-from-the-site--it-shares-your-librarys-storage)
+        - [Every edit rewrites the whole library in storage](#every-edit-rewrites-the-whole-library-in-storage)
+        - [The phone's cover copies: still worth it? And why wasn't the browser's own cache enough?](#the-phones-cover-copies-still-worth-it-and-why-wasnt-the-browsers-own-cache-enough)
         - [Relay Setup's Test connection always checks the production relay](#relay-setups-test-connection-always-checks-the-production-relay)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
@@ -175,41 +176,40 @@ drifted). To change the order, move the task.
 
 ### High priority
 
-#### Faster loading: build the app ahead of time (35 seconds → 1)
-<!-- id 20261014-1030s -->
+#### Old words, quick win: the reset messages and the collections fetcher's finish message
+<!-- id 20261111-0903 -->
 
-_Why it matters:_ Opening ReaderWrangler takes **about 35 seconds** on Ron's PC — 32 of them the browser compiling the
-app's code, on every load. Built ahead of time, the app appeared in **1.0 second**. It's the first thing a newcomer
-meets, and it slows every load Ron does after a code change too.
+_Why it matters:_ Four reset messages and one fetcher message still describe the app before Cloud Sync — files on disk,
+an Export button that doesn't exist, a library file nobody has now. Someone resetting is often already having a bad
+day; wrong directions make it worse. All text, so a small branch right after 7.27.0 (Ron, 2026-11-11).
 
-**Measured 2026-11-03** (Ron's PC, 3,270 books; untracked test pages, timed from page start to the app replacing the
-splash): today's page **35.8 s** average of 3 (the browser's compiler alone: 32.1 s); precompiled **1.0 s** average of
-5 — same books, same messages, same behavior. The compile itself, on the PC: **1.3–2.1 s** (desktop), 0.3–0.6 s
-(phone). The August figure in the spec (~14 s) has more than doubled as the code grew.
+**The places** (found 2026-11-11, the amazon-library.json sweep; wording as of 7.27.0)
+1. **Tools → Reset App** (readerwrangler.js ~12066–12077): "This will: Unload library and collections · Remove all
+   folders and organization · Reset all filters"; "Your library/collections files on disk will NOT be deleted. You can
+   reload them anytime."; **"💡 Tip: Use the Export button first to save your organization before resetting."** —
+   there is no Export button (it's File → Save Backup), and there are no library/collections files to reload.
+2. **The emergency screen** (readerwrangler.html ~349, shown when the app can't start): "ReaderWrangler failed to load.
+   This may be caused by corrupted data. You can reset the app to fix this. Your files on disk are safe."
+3. **The emergency reset's confirmation** (readerwrangler.html ~369): "This clears all ReaderWrangler data from this
+   browser. Your files on disk are safe — import your backup file after the reset to restore everything." ("import" is
+   the retired word: Restore.)
+4. **The reset page's confirmation box** (reset.js ~93): "Your files on disk are safe. To recover: • Restore backup
+   file → Books + organization" (fixed in 7.26.0 — the words to match).
+5. **The reset page's own panel** (reset.html ~58): "Good news: This only clears data from your browser. Your files on
+   disk are safe." — its bullet and tip were fixed on 7.27.0's branch ("Restore backup file", "File → Save Backup").
+6. **The collections fetcher's finish message** (amazon-collections-fetcher.js ~866): *"Updated amazon-library.json with
+   N books' collections"* — it uploads to the relay (its console says so); its header comment's steps 4–7 describe the
+   old file. A fetcher: goes to dev and prod together (it's the same for all three bookmarklets).
+7. Clean-up beside it: the wishlist and series fetchers' unused `LIBRARY_FILENAME = 'amazon-library.json'`.
 
-**Decided** (Ron + Claude, 2026-11-03, in the TODO review — moved up from After launch → Technical clean-up)
-1. **Before launch, and early** (Ron: "I don't see why… we would not go ahead and do this sooner") — beside the
-   outside-libraries pinning task, which it also durably fixes (no in-browser compiler or style builder loaded at all).
-2. **An invisible build — two chokepoints, nothing to remember:**
-   - **serve.py builds on demand:** if a source file is newer than its built file, it rebuilds before serving — Ron's
-     loop stays edit → refresh (and gets faster: ~2 s on the PC instead of ~32 s in the browser).
-   - **A commit check refuses stale built files.** The built files are committed, so GitHub Pages serves them with no
-     build job on GitHub to maintain.
-3. **Match the browser's compile at first** (turning `const` / `let` into `var`, as the browser's compiler does — the
-   test crashed without it). The modern output exposed a real bug ("With a filter on, the right pane still shows
-   subfolders with no matching books", Small fixes); once that task's commit check comes back clean, drop the
-   conversion so the next such bug is a visible crash, not a silent "undefined".
-4. **Step 2: the styles** (the other 1–3 s, and the "not for production" warning) — the spec's Tailwind step; test it
-   the same way.
-5. The existing checks keep working on the source (name check, version guard); the cache-buster moves with the built
-   file — one more line in the version guard. What's served stays readable; the source is public on GitHub.
+**The words** (decided 2026-10-30 in "Reset App: one honest message…", Before launch): what's cleared (everything
+ReaderWrangler keeps in this browser); what's kept (files you saved — backups, spreadsheets — and your copy in the
+cloud); how to come back: **Restore backup file** — the one way offered until "Restore from Cloud Sync…" exists (Ron,
+2026-11-09). Verify first whether Tools → Reset App clears the stored Cloud Sync Key (the emergency reset doesn't).
 
-**Spec:** docs/design/PRECOMPILE.md (written before these measurements and this build plan).
-**Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): Chrome DevTools' tool server can time loads and run Lighthouse — only with
-`--no-usage-statistics --no-performance-crux` (it reports to Google by default).
-**First step: measure again** — the code has grown since 11-03 (7.26.0 shipped in between); the browser driver times
-the load, before and after. About one session. Moved to the top of High priority 2026-11-10 (Ron) — every later load,
-Ron's and the screen tests', gets about 30 times faster, so it comes before the work those tests check.
+**Claude's recommendation (Ron's call when the branch starts):** do that task's decision 1 here too — **one message,
+defined once**, used by places 1–5 (a small shared file both pages load) — because these copies drifted exactly as
+copies do: 7.26.0 fixed one of four. Then the Cloud Sync rename changes one place. Places 6–7 are separate (the fetcher).
 
 #### Logging as its own module: a self-contained folder, one step from a sub-repo
 <!-- id 20261110-0908 -->
@@ -900,6 +900,11 @@ _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
       say so in the fetch summary or console ("paced N requests to the safe rate").
    4. **Re-measure the floor** in one normal full fetch and write where the number came from beside the constant.
    5. It's also where the human-check stop lives ("Stop cleanly when Amazon asks for a human check mid-fetch").
+4. **The collections fetcher's finish message names a file it no longer writes** (found 2026-11-11 by a sweep for
+   amazon-library.json): it uploads to the relay (its console says so), then shows *"Updated amazon-library.json with N
+   books' collections"* (amazon-collections-fetcher.js ~866, its `FILENAME` constant; the header comment's steps
+   describe the old file too). Say what happened: the collections were sent to Cloud Sync. The wishlist and series
+   fetchers only define the old name (`LIBRARY_FILENAME`, never used) — remove it ("Remove code left over…").
 
 **Decided** (Ron + UX, 2026-10-22): items 1–2 as listed (the "772%" ratio can't exceed 100% — fix the formula; the
 elapsed time redraws on a one-second tick while a fetch runs). **Item 3 comes first in "Fetcher work, in build
@@ -2391,23 +2396,11 @@ time").
    really hides empty folders, a new folder hides there too.
 4. Test step: turn on a filter, open a folder with subfolders — only subfolders with matching books (or "show all
    folders") appear.
+5. **Then drop the `const` / `let` → `var` conversion in the build** (moved here from "Faster loading", decided item 3,
+   when 7.27.0 shipped it): `@babel/plugin-transform-block-scoping` in tools/build/compile.js — once item 2's check is
+   clean, so the next such bug is a visible crash, not a silent "undefined".
 - Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): ESLint's `no-use-before-define` (+ `eslint-plugin-react-hooks`) in a commit check is
   the ready-made form of item 2 — expect tuning, since it also flags reads inside functions that only run later.
-
-##### Every load saves the whole library back to storage, even when nothing changed
-<!-- id 20261103-1702 -->
-
-_Why it matters:_ Each time the app opens it rewrites all of your books (3,270 for Ron) right after reading them — work
-on every load, and a full write of the library each time is a needless chance for something to go wrong. Seen
-2026-11-03 in the precompile load test's console ("Saving 3270 books to IndexedDB…" on every load).
-
-**What to look into**
-1. The load path saves unconditionally after the integrity check (readerwrangler.js ~4602, `saveBooksToIndexedDB(
-   loadedBooks)`). It may be deliberate — keeping the integrity check's repairs — so read why it's there first.
-2. Likely fix: **save only when something changed** — the integrity check repaired a book, or the shared book
-   clean-up (`normalizeBook`) changed one. Mind "Retire two leftover book fields…" (Polish): it strips old fields in
-   that clean-up "on every load", so a stripped field must still count as a change and get saved.
-3. Measure the save's time on load (the browser driver) — it tells whether this is a speed fix or only hygiene.
 
 ##### A missing book description: one quiet line, on the computer and the phone
 <!-- id 20261014-1030ap -->
@@ -2445,6 +2438,41 @@ historical reference", docs/design/archive/V4-REMOVAL-PLAN.md)
 4. Closed at the same time: "Check nothing was lost between versions 4 and 5" — nine months and 20+ releases of daily
    use since 5.0, the book-field table's round-trip check guards the data, and outside review 4 looks at today's
    features fresh.
+
+##### Every edit rewrites the whole library in storage
+<!-- id 20261110-1734 -->
+
+_Why it matters:_ Changing one book — a tag, a rating, a move — saves all 3,270 books again (the book store is cleared
+and refilled each time, ~0.9 s on Ron's PC): slow work after every change, and a full rewrite is a needless chance
+for something to go wrong. Found 2026-11-10 while fixing the load's save ("Faster loading").
+
+**What to look into**
+1. `saveBooksToIndexedDB(updated)` is called from more than 60 places with the whole list; it clears the store and
+   adds every book (storage.js). The class needs a site map first.
+2. Likely shape: one save that writes only the books that changed (the store keys books by id) — the same "compare
+   with what's stored" idea as the load's `saveBooksIfChanged`, or the callers say which books they changed.
+3. Keep the write lock and the one-transaction safety (no moment where a reader sees half a library).
+4. **Discussed 2026-11-10 (Ron + Claude):** the save finds the delta itself — a changed book is a new copy (the app
+   doesn't edit books in place), so "not the same copy as last saved" costs ~1 ms for 3,270; only those are written,
+   removed ones deleted, in one transaction. Ron: **also change the 60 places once to call one common function** —
+   most repeat the same pattern (`setBooks(prev => { const updated = …; saveBooksToIndexedDB(updated); return
+   updated; })`), so one `updateBooks(change)` (the state update + the save, the delta inside it) is the chokepoint,
+   and a new call site can't forget the save. Claude agrees: both together. First the site map (does every site make
+   new copies?), a contributor-mode guard that compares by content now and then, and a test that edits and reloads.
+
+##### The phone's cover copies: still worth it? And why wasn't the browser's own cache enough?
+<!-- id 20261110-1734a -->
+
+_Why it matters:_ The desktop dropped its cover copies in 7.27.0 (it hadn't drawn from them since 5.0.0, and reading
+them held every load back by seconds). The phone still reads every cover copy into memory at start — maybe the same
+cost for little gain.
+
+**What to look into**
+1. Time the phone's start with and without its copies (mobile.js's load reads them before showing covers?).
+2. Ron (2026-11-10): the copies were added in 4.14.0 for speed — "we were seeing speed issues and the cache helped" —
+   and nobody remembers why the browser's own image cache wasn't enough then. Find out before removing them: the
+   browser's cache is shared with every site and can drop images; Amazon's image server may ask the browser to check
+   back; 3,270 images requested at once may have been the real cost.
 
 ##### Relay Setup's Test connection always checks the production relay
 <!-- id 20261102-1503 -->
@@ -3043,6 +3071,11 @@ Someone resetting is often already having a bad day (Ron, 2026-10-30, noticed th
    the emergency reset does NOT clear the stored Cloud Sync Key (item 4). Until "Restore from Cloud Sync…" (Before launch
    → Safety and data protection) is built, the one way back offered is the backup file (Ron); once it is, offer that as
    the second.
+7. **Update (2026-11-11, Ron found it):** item 6's fix reached only place 2 (reset.js's confirmation box) — place 4,
+   the reset page's own panel, still offered "Import amazon-library.json" and "File → Export Backup" (fixed in
+   7.27.0's branch: "Restore backup file → Books + organization", "File → Save Backup"). A sweep for
+   amazon-library.json found nothing else a person sees in the app. Still open here: place 1 ("files on disk… reload
+   them anytime", "Use the Export button") and place 3 ("Your files on disk are safe"), and the one shared message.
 
 ### Safety and data protection
 

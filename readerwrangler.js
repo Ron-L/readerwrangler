@@ -221,7 +221,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.26.0";  // Build version for this file
+        const ORGANIZER_VERSION = "7.27.0";  // Build version for this file
         // 7.26.0 - the code's own build, once it runs: the page-load entry can't know it (it's written before this code is
         // compiled) and the page's APP_VERSION doesn't move during alphas
         rwLog.log('info', 'BOOT', `Desktop app ${ORGANIZER_VERSION} running (page ${APP_VERSION})`);
@@ -321,9 +321,10 @@
         const IS_CONTRIBUTOR = isContributor();
         document.title = IS_CONTRIBUTOR ? "ReaderWrangler (local · contributor)" : IS_LOCAL_HOST ? "ReaderWrangler (local)" : "ReaderWrangler";
         // Constants and helper functions moved to uiHelpers.js and storage.js (v5.0.0)
-        // saveBooksToIndexedDB, loadBooksFromIndexedDB, deleteBookStore, onBookStoreGone - see storage.js
+        // saveBooksToIndexedDB, saveBooksIfChanged, loadBooksFromIndexedDB, deleteBookStore, onBookStoreGone - see storage.js
         // normalizeBook, parsePrice, getAmazonUrl, calculateFreshness, formatRelativeTime - see uiHelpers.js
-        // buildCoverUrlMap, populateCoverCache - see storage.js
+        // clearCoverCache - see storage.js (7.27.0: the desktop keeps no cover copies; buildCoverUrlMap and
+        // populateCoverCache serve the phone)
 
         // v5.0.0-alpha.130: Reusable info dialog for large messages (avoids alert() scrollbar issues)
         // v5.5.7-alpha.13: CSS variables for dark mode support
@@ -1674,7 +1675,6 @@
             // v5.0.0-alpha.175.47 - Phase 7: Removed filterPanelOpen and showAdvancedFilters (old filter bar removed)
             const [showHidden, setShowHidden] = useState(false); // Show hidden books toggle (NEW v4.1.0.d)
             const [, forceUpdate] = useState({});
-            const [coverUrlMap, setCoverUrlMap] = useState({}); // Cover image cache URL map (v4.13.0)
             // v4.16.0 - Clipboard state for Cut/Copy/Paste
             const [clipboard, setClipboard] = useState(null); // {type: 'cut'|'copy', bookIds: [], sourcePositions: []}
             // v4.16.0.g - Clipboard status message for footer
@@ -4907,12 +4907,19 @@
                                 }
                             } catch (_e) { rwLog.log('warning', 'FIELD-03', `The book-field self-check couldn't run: ${_e && _e.message}`); }
 
-                            await saveBooksToIndexedDB(loadedBooks);
+                            // 7.27.0 - saved only when the load itself changed something (was: always — every load rewrote
+                            // every book, ~0.9 s for 3,270, before the folders could appear)
+                            await saveBooksIfChanged(loadedBooks);
 
-                            // v4.13.0: cover cache
-                            const urlMap = await buildCoverUrlMap(loadedBooks);
-                            setCoverUrlMap(urlMap);
-                            populateCoverCache(loadedBooks); // background
+                            // 7.27.0 - No cover copies on the desktop (Ron, 2026-11-10; alpha.2's experiment: folders 4.4 s →
+                            // 2.3 s). Since 5.0.0 the grid and list draw covers from their normal address (the browser's own
+                            // cache); the copies served only the book details window, yet every load read all of them one by
+                            // one before the folders appeared. The phone keeps its copies (its own load path).
+                        }
+
+                        // 7.27.0 - ...and the copies a desktop browser still holds are removed, once (storage space)
+                        if (!localStorage.getItem(DESKTOP_COVERS_CLEARED_KEY)) {
+                            clearCoverCache().then(ok => { if (ok) localStorage.setItem(DESKTOP_COVERS_CLEARED_KEY, ORGANIZER_VERSION); });
                         }
 
                         setFolders(loadedFolders);
@@ -13922,7 +13929,7 @@
                                                 </div>
                                             </div>
                                         ) : (
-                                            <img src={coverUrlMap[modalBook.coverUrl] || modalBook.coverUrl}
+                                            <img src={modalBook.coverUrl}
                                                  alt={modalBook.title}
                                                  className="w-48 h-72 object-cover rounded shadow-lg"
                                                  style={{ cursor: 'pointer' }}
