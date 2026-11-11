@@ -9,7 +9,7 @@ message_codes.py — the logging rules, checked from the code itself, and the su
 
 It finds every rwLog.log(level, code, text…) call in the app's scripts (and the logging module's own calls) and checks:
   - the level and the code are written as plain quoted words (so they can be checked at all);
-  - the level is one of the five; the code is AREA or AREA-NN, with AREA one of the areas logger.js lists;
+  - the level is one of the five; the code is AREA or AREA-NN, with AREA one of the areas logkit-settings.js lists;
   - warning and above use a numbered code (AREA-NN) — those are what support asks about;
   - each numbered code is used at exactly ONE call (so its level has one home, and a code always means one message).
 The table lists every numbered code — code, level, message, file — sorted by area. Nobody edits it; nothing to keep in
@@ -22,8 +22,11 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "git-hooks"))
+import shipped_paths  # noqa: E402  (the one "is this shipped?" rule — the scripts scanned)
 TABLE = "docs/design/MESSAGE-CODES.md"
-LOGGER = "logger.js"
+LOGGER = "logkit/logger.js"          # the module (7.28.0: moved into logkit/) — its own calls are log(…), not rwLog.log(…)
+SETTINGS = "logkit-settings.js"      # RW's settings for it — the areas live here
 LEVELS = ["debug", "info", "warning", "error", "critical"]
 CODE_RE = re.compile(r"^([A-Z]+)(?:-(\d{2}))?$")
 CALL_ANYWHERE = re.compile(r"rwLog\.log\(")
@@ -31,7 +34,8 @@ CALL_IN_LOGGER = re.compile(r"(?<![\w.])log\(\s*(?=['\"`])")   # the module's ow
 
 
 def areas_from_logger(text):
-    """The areas, read from logger.js's LOG_AREAS — the one list (never a copy here)."""
+    """The areas, read from LOG_AREAS in RW's settings for the logging module (logkit-settings.js) — the one list (never
+    a copy here)."""
     m = re.search(r"LOG_AREAS\s*=\s*Object\.freeze\(\{(.*?)\}\)", text, re.S)
     return set(re.findall(r"\b([A-Z]+)\s*:", m.group(1))) if m else set()
 
@@ -99,7 +103,7 @@ def _in_comment(src, pos):
 
 def find_calls(path, src):
     """[(path, line, level or None, code or None, text)] for every logging call in one file."""
-    pattern = CALL_IN_LOGGER if os.path.basename(path) == LOGGER else CALL_ANYWHERE
+    pattern = CALL_IN_LOGGER if path.replace("\\", "/") == LOGGER else CALL_ANYWHERE
     calls = []
     for m in pattern.finditer(src):
         if _in_comment(src, m.start()):      # a comment that mentions rwLog.log(…) isn't a call
@@ -229,8 +233,11 @@ def _git(*args):
 
 
 def app_scripts(staged):
-    """The app's scripts at the repo root — as staged (the commit hook) or on disk."""
-    names = sorted(n for n in os.listdir(ROOT) if n.endswith(".js"))
+    """Every SHIPPED script (git-hooks/shipped_paths.py — the root, logkit/, …; never the built dist/), as git lists it —
+    as staged (the commit hook) or on disk. (7.28.0: was the root only; the logging module moved into logkit/.)"""
+    listed = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "--", "*.js"], cwd=ROOT,
+                            capture_output=True, text=True).stdout.split()
+    names = sorted(n for n in listed if shipped_paths.is_shipped_source(n) and os.path.exists(os.path.join(ROOT, n)))
     out = []
     for n in names:
         src = _git("show", ":" + n) if staged else None
@@ -250,8 +257,7 @@ def main(argv=None):
     a.add_argument("--check", action="store_true", help="check only; fail if the saved table is out of date (commit hook)")
     args = a.parse_args(argv)
     files = app_scripts(staged=args.check)
-    logger_src = dict(files).get(LOGGER, "")
-    calls, problems = check(files, areas_from_logger(logger_src))
+    calls, problems = check(files, areas_from_logger(dict(files).get(SETTINGS, "")))
     wanted = table(calls)
     if problems:
         print("message codes: the logging rules are broken —")

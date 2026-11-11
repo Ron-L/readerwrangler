@@ -1,6 +1,6 @@
 # Screen test: Manage Tags — deleting a tag tells you so, on screen, where you can see it.
 # tags: tags, toast, logging, tier 2
-# covers: readerwrangler.js, logger.js
+# covers: readerwrangler.js, logkit/logger.js, logkit-settings.js
 # Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python)
 #
 # 2026-11-10 (the 7.26.0 post-mortem's "bug no test would have caught"): while the toasts were switched to go through

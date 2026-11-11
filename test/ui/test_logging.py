@@ -1,6 +1,6 @@
 # Screen test: the logging module's switches and alerts in the real page — the address, the banner, critical for everyone.
 # tags: logging, tier 2
-# covers: logger.js, readerwrangler.html
+# covers: logkit/logger.js, logkit-settings.js, readerwrangler.html
 # Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python)
 #
 # Build step 3 (docs/design/LOGGING.md §1; Ron + Claude, 2026-11-05/07), reworked by step 5.1 (Ron, 2026-11-09): two

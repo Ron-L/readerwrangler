@@ -110,6 +110,7 @@ def compile_css_texts(texts):
         paths = []
         for name, text in texts.items():
             paths.append(os.path.join(tmp, name))
+            os.makedirs(os.path.dirname(paths[-1]), exist_ok=True)   # a script in a folder (logkit/) keeps its folder
             with open(paths[-1], "w", encoding="utf-8", newline="\n") as f:
                 f.write(text or "")
         return compile_css(paths)

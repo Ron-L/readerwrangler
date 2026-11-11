@@ -158,7 +158,7 @@ Bypass (Ron's call only): `git commit --no-verify`.
   `py tools/run_tests.py --tier all` (docs/design/TESTING.md).
 - **Logging rules + the message-code table** (`tools/message_codes.py --check`, pre-commit step 8), when an app script
   or the table is staged: every `rwLog.log(level, code, text…)` call has a known level, a code `AREA` or `AREA-NN` from
-  logger.js's areas, a numbered code for warning and above, each numbered code at ONE call — and
+  logkit-settings.js's areas (RW's settings for the logging module in logkit/), a numbered code for warning and above, each numbered code at ONE call — and
   `docs/design/MESSAGE-CODES.md` (generated, never edited) matches the code. Fix: `py tools/message_codes.py` and stage
   the table (2026-11-07; docs/design/LOGGING.md §6). It also refuses a direct `showToast(` (a toast is
   `rwLog.log(…, { toast: true })`, so it reaches the log with its area) and a dialog call without its area FIRST

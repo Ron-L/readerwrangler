@@ -221,7 +221,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.27.1"; // Build version for this file
+var ORGANIZER_VERSION = "7.28.0-alpha.1"; // Build version for this file
 // 7.26.0 - the code's own build, once it runs: the page-load entry can't know it (it's written before this code is
 // compiled) and the page's APP_VERSION doesn't move during alphas
 rwLog.log('info', 'BOOT', `Desktop app ${ORGANIZER_VERSION} running (page ${APP_VERSION})`);
@@ -11772,7 +11772,7 @@ function ReaderWrangler() {
       'Credentials loaded — not yet verified'
       )
       ),
-      React.createElement('p', { className: 'mt-1', style: { color: 'var(--text-secondary)' } }, `Channel: ${rwLog.shortChannelId(stored.channelId)}`), // 7.26.0 - the one short form (logger.js), shared with the log
+      React.createElement('p', { className: 'mt-1', style: { color: 'var(--text-secondary)' } }, `Channel: ${rwLog.shortChannelId(stored.channelId)}`), // 7.26.0 - the one short form (7.28.0: logkit-settings.js), shared with the log
       RELAY_IS_DEV && React.createElement('p', { className: 'mt-1 font-medium', style: { color: '#9333ea' } }, '🔧 Dev relay worker + storage') // v7.13.2 - the store this build reads (dev only)
       ),
       React.createElement('button', {

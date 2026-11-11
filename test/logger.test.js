@@ -1,6 +1,7 @@
-// Unit tests for logger.js — run: node test/logger.test.js
+// Unit tests for the logging module (logkit/logger.js) with ReaderWrangler's settings (logkit-settings.js) — run:
+// node test/logger.test.js
 // tags: logging, tier 1
-// covers: logger.js
+// covers: logkit/logger.js, logkit-settings.js
 // The logging module (docs/design/LOGGING.md §1, §2, §2b, §6 — Ron + Claude, 2026-11-05/07): one call
 // rwLog.log(level, code, text, data, { test }), five levels, codes 'AREA' or 'AREA-NN' (numbered required for warning and
 // above), the kept log (info and up, the last 500, repeats counted, batched saves, page loads), the scrubber, test
@@ -8,7 +9,19 @@
 'use strict';
 const assert = require('assert');
 const { test, done } = require('./harness');
-const L = require('../logger.js');
+// 7.28.0 - the module moved into logkit/ and knows nothing of ReaderWrangler; RW's settings (areas, storage names, the
+// Channel ID's short form, the product) come from logkit-settings.js — combined here exactly as the pages combine them,
+// so every assertion below is unchanged.
+const K = require('../logkit/logger.js');
+const S = require('../logkit-settings.js');
+const L = {
+    createLogger: (o) => K.createLogger({ ...S.settings, ...o }),
+    scrub: (text, secrets) => K.scrub(text, secrets, S.settings),
+    TEST_MARK: K.TEST_MARK,
+    LOG_LEVELS: K.LOG_LEVELS,
+    LOG_AREAS: S.LOG_AREAS,
+    shortChannelId: S.shortChannelId,
+};
 
 // A fake world: a console that records, a storage that records writes, a clock and a timer queue we drive by hand.
 function world(opts = {}) {
@@ -421,6 +434,22 @@ test('LOG-029', 'rwLog.dialog(area, text): a dialog logs what it showed, at info
     const codes = w.log.entries().map(e => e.code);
     assert.ok(codes.includes('UI-05'), 'a mistyped area is reported (UI-05)');
     assert.ok(w.log.entries().some(e => e.text === 'Shown: "x"'), 'and the dialog is still logged');
+});
+
+// ---- 7.28.0: the module in logkit/, RW's settings beside it ----
+test('LOG-035', 'the page-global the name check is told about is the logger\'s real name (settings.globalName)', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'logkit-settings.js'), 'utf8');
+    const declared = [...src.matchAll(/\/\*\s*page-global:\s*([A-Za-z_$][\w$]*)\s*\*\//g)].map(m => m[1]);
+    assert.deepStrictEqual(declared, [S.settings.globalName], 'declared: ' + JSON.stringify(declared));
+});
+
+test('LOG-036', 'the module knows nothing of ReaderWrangler: no product name, storage key, area list or Channel ID in it', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'logkit', 'logger.js'), 'utf8');
+    // comments may say where it came from (whole-line ones, and a trailing "  // …" after code)
+    const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).map(l => l.replace(/\s+\/\/\s.*$/, '')).join('\n');
+    for (const word of ['readerwrangler-', 'rwLog', 'APP_VERSION', 'Channel', 'BACKUP', "'BOOT'"]) {
+        assert.ok(!code.includes(word), `logkit/logger.js's code still mentions ${word}`);
+    }
 });
 
 done();

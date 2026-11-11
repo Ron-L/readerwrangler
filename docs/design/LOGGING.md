@@ -6,6 +6,11 @@ Ron's model: a severity code and text per message, a tunable display filter, eve
 the same model as Linux syslog / printk / journald). Section 3 was the sort, for Ron's red pen before any line was
 switched; it stays as the record._
 
+**Where it lives (7.28.0, "Logging as its own module"):** the module is `logkit/logger.js` — general, it knows nothing
+of ReaderWrangler — and RW's settings for it are `logkit-settings.js` (the 17 areas, the storage names, the Channel ID's
+short form and the passphrase to clean out, the product name, the critical box's words, the build, the global `rwLog`),
+loaded just before it. Mentions of `logger.js` below are its 7.26.0 history.
+
 **Status (2026-11-10):** **released in 7.26.0** (built on `feature/logging`, alphas 1–28) — §5 lists each step and what
 changed while building. In short: one call (`rwLog.log`), 17 areas, every console line, toast and dialog through it; two
 switches (the error banner, extra detail) instead of the first design's ladder of levels; the Diagnostics window

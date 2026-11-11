@@ -1,6 +1,6 @@
 # Screen test: the app opens, and the made-up library restores and shows correctly (the base every screen test uses).
 # tags: app, restore, driver, tier 2
-# covers: readerwrangler.html, readerwrangler.js, storage.js, bookFields.js, integrity.js, logger.js
+# covers: readerwrangler.html, readerwrangler.js, storage.js, bookFields.js, integrity.js, logkit/logger.js, logkit-settings.js
 # Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python)
 import os
 import sys

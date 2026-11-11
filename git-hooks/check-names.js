@@ -77,6 +77,10 @@ function definedNames(code, filename, into) {
             if (l.type === 'MemberExpression' && l.object.type === 'Identifier' && l.object.name === 'window' && !l.computed && l.property.type === 'Identifier') into.add(l.property.name);
         },
     });
+    // 7.28.0 - a global a script publishes under a name it doesn't write literally (logkit/logger.js publishes the logger
+    // as window[settings.globalName]) is DECLARED where that name is chosen: /* page-global: rwLog */ in
+    // logkit-settings.js (test/logger.test.js LOG-035 ties the comment to the setting).
+    for (const m of code.matchAll(/\/\*\s*page-global:\s*([A-Za-z_$][\w$]*)\s*\*\//g)) into.add(m[1]);
 }
 
 const htmlPath = path.join(ROOT, 'readerwrangler.html');

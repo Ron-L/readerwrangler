@@ -1,6 +1,6 @@
 # Screen test: the phone app's start — its build line, and a library it can't load is shown to the person, not hidden.
 # tags: phone, boot, logging, tier 2
-# covers: mobile.js, logger.js, storage.js, readerwrangler.html
+# covers: mobile.js, logkit/logger.js, logkit-settings.js, storage.js, readerwrangler.html
 # Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python)
 #
 # 2026-11-09 (7.26.0-alpha.20, the logging switch's PHONE area): a phone-width window loads the phone app (mobile.js;
