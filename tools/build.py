@@ -24,6 +24,8 @@ import tempfile
 import threading
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "git-hooks"))
+import shipped_paths as _shipped  # noqa: E402  (the one "is this shipped?" rule)
 SOURCES = ("readerwrangler.js", "mobile.js")       # the scripts the page used to compile in the browser
 OUT_DIR = "dist"
 COMPILER = os.path.join(ROOT, "tools", "build", "compile.js")
@@ -74,8 +76,10 @@ STYLE_INPUTS = (os.path.join(TW, "tailwind.config.js"), os.path.join(TW, "tailwi
 
 
 def style_sources(paths):
-    """The files the styles are read from: every page and script at the project root (never dist/, never other folders)."""
-    return sorted(p for p in paths if "/" not in p and p.endswith((".html", ".js")))
+    """The files the styles are read from: every SHIPPED page and script, folders included (logkit/'s Diagnostics
+    window), never the built dist/ copies — the shared rule, git-hooks/shipped_paths.py (2026-11-11: root files only
+    would have dropped the window's styles silently when it moved into logkit/)."""
+    return sorted(p for p in paths if p.endswith((".html", ".js")) and _shipped.is_shipped_source(p))
 
 
 def _tracked(including_new=False):
