@@ -2,7 +2,7 @@
 
 _Written by `py tools/message_codes.py` from every `rwLog.log(…)` call in the code (docs/design/LOGGING.md §6). The commit check refuses a commit whose copy is out of date. Support: find the code a user reports; the level says how serious it is._
 
-89 numbered codes. (202 general lines — info and debug, coded by their area alone — not listed.)
+90 numbered codes. (203 general lines — info and debug, coded by their area alone — not listed.)
 
 | Code | Level | Message | File |
 |---|---|---|---|
@@ -91,6 +91,7 @@ _Written by `py tools/message_codes.py` from every `rwLog.log(…)` call in the 
 | UI-04 | error | A failed promise nobody handled: … | logkit/logger.js |
 | UI-05 | error | A dialog named an unknown area "…" (a coding slip) | logkit/logger.js |
 | UI-06 | warning | Diagnostics couldn't be copied (the browser refused the clipboard) | logkit/diagnostics-window.js |
+| UI-07 | error | A test message from Diagnostics — not a real problem | logkit/diagnostics-window.js |
 | UNDO-01 | error | An action has no undo / redo label (a coding slip): … | readerwrangler.js |
 | UNDO-02 | error | Undo did nothing — this code doesn't know the action (a coding slip): … | readerwrangler.js |
 | UNDO-03 | error | Redo did nothing — this code doesn't know the action (a coding slip): … | readerwrangler.js |

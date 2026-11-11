@@ -99,8 +99,9 @@ check("MSG-020", "in the logging kit, a call through the handed-in logger (log.l
       [c[3] for c in kit_calls] == ["UI-06"], kit_calls)
 window_calls = mc.find_calls("logkit/diagnostics-window.js",
                              open(os.path.join(ROOT, "logkit", "diagnostics-window.js"), encoding="utf-8").read())
-check("MSG-021", "the Diagnostics window's own calls are found: Copy diagnostics' outcome (UI, and UI-06 when refused)",
-      sorted(c[3] for c in window_calls) == ["UI", "UI-06"], [c[3] for c in window_calls])
+check("MSG-021", "the Diagnostics window's own calls are found: Copy diagnostics' outcome (UI, and UI-06 when refused); "
+      "Send a test message's error (UI-07) and its banner-off note (UI)",
+      sorted(c[3] for c in window_calls) == ["UI", "UI", "UI-06", "UI-07"], [c[3] for c in window_calls])
 
 lt = mc.table(logger_calls)
 check("MSG-013", "a template's details (even a nested template) show as one \"…\" in the table",

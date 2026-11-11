@@ -51,6 +51,17 @@
         () => log.log('info', 'UI', 'Diagnostics copied — paste them into your message to us', null, { toast: true }),
         () => log.log('warning', 'UI-06', "Diagnostics couldn't be copied (the browser refused the clipboard)", null, { toast: true }));
     };
+    // 7.28.0 (Ron, 2026-11-11) - support can ask a person to press this, then Copy diagnostics: one error marked TEST goes
+    // down the real path (the log; the banner when its switch is on). Never the critical box — alarming on purpose. With
+    // the banner off, a note says so and names the switch, which is right here in this window.
+    var sendTest = () => {
+      log.log('error', 'UI-07', 'A test message from Diagnostics — not a real problem', null, { test: true });
+      if (!log.switches().errorBanner) {
+        var bannerSwitch = SWITCHES.find(([name]) => name === 'errorBanner')[1];
+        log.log('info', 'UI', `Test message recorded — the banner is off. To see one, tick “${bannerSwitch}” at the bottom of this window.`,
+        null, { test: true, toast: true });
+      }
+    };
     var select = 'border border-gray-300 rounded px-2 py-1 text-sm bg-white';
     return (/*#__PURE__*/
       React.createElement(Dialog, { onClose: onClose, title: "Diagnostics", maxWidthClassName: "max-w-4xl" }, /*#__PURE__*/
@@ -111,6 +122,8 @@
       )
       ), /*#__PURE__*/
       React.createElement("span", { className: "ml-auto flex gap-2" }, /*#__PURE__*/
+      React.createElement("button", { type: "button", className: "px-3 py-1 rounded border border-gray-300 hover:bg-gray-100",
+        title: "Record a test error (marked TEST) \u2014 to check that the log, the banner and Copy diagnostics work", onClick: sendTest }, "Send a test message"), /*#__PURE__*/
       React.createElement("button", { type: "button", className: "px-3 py-1 rounded border border-gray-300 hover:bg-gray-100",
         title: "Empty the log (like DevTools' Clear) \u2014 a good start before you reproduce a problem", onClick: () => log.clear() }, "Clear"), /*#__PURE__*/
       React.createElement("button", { type: "button", className: "px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700",
