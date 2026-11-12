@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.28.0] - 2026-11-11
+
+### Added
+- **Send a test message**, in **Help → Diagnostics…**. Press it to check that the Diagnostics record is working: it
+  adds one line, marked TEST, saying it's "not a real problem". If **Show a banner when something goes wrong** is on,
+  the red banner shows it too. If we ever ask you to check that things are working, press it, then **Copy
+  diagnostics** and send that to us.
+
+### Changed
+- Behind the scenes, the parts that keep and show the Diagnostics record are gathered into one self-contained piece.
+  Nothing you see changes.
+
 ## [7.27.1] - 2026-11-11
 
 ### Fixed
