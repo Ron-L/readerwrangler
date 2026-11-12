@@ -46,8 +46,8 @@ underneath".
 |---|---|---|---|
 | **1** | Function tests + the commit checks (names, parse, versions, private values, TOC…) | **Every commit, automatically** — only the tests covering the staged files | seconds (≤ ~10 s) |
 | **2** | Screen tests | **Before every alpha Claude hands Ron** — Ron is never the first to find a regression | a few minutes (≤ ~5 min) |
-| **3** | Relay tests (a local relay; dev only as a final check) | When relay code changes; before any worker deploy | ~1 min |
-| **all** | Every tier | **Before every release** (release checklist step) | |
+| **3** | Relay tests — against a local relay **the runner starts and stops itself** (dev only as a final check, by `--relay-url`) | When relay code changes; before any worker deploy | ~1½ min |
+| **all** | Every tier — `py tools/run_tests.py --tier all --release`: **a skipped file fails a release run**, named with why | **Before every release** (release checklist step) | |
 
 Plus a short **manual list per release** (§8) for what can't be automated.
 
@@ -65,6 +65,16 @@ Plus a short **manual list per release** (§8) for what can't be automated.
 - **The runner — one command, in Python** (`tools/run_tests.py`; Ron's scripts rule): `--tier 1|2|3|all`,
   `--tag <area>`, `--id <ID>`, `--changed` (the tests covering what changed). One summary at the end; a screen test's
   failure saves a screenshot and the console to Claude's scratch folder. The commit hook calls it with `--changed`.
+- **Tier 3 brings its own relay** (`tools/local_relay.py`, 2026-11-12): with no `--relay-url`, the runner starts
+  relay-worker.js in wrangler's local emulator (`wrangler dev --env dev --local`) on a free port with an empty,
+  throwaway store, waits for its "Ready on" line (60 s, else it fails with the end of wrangler's output), runs the relay
+  files against it, then stops every process it started **by exact id** (the whole tree) and **checks**: each one gone,
+  both its ports no longer listening. Anything left fails the run, named by id — and is left running, since the runner
+  can't show it started it. `--relay-url <address>` runs against a relay you started instead (no start, no stop). Never
+  the dev or production relay by default.
+- **`--release` — skipped is not passed** (2026-11-12; 7.28.0: "31 passed, 2 skipped" read as a pass): with it, any
+  file that didn't run fails the run, each named with why. One function decides a skip (`skip_reason` in the runner);
+  nothing skips today — tier 3 brings its own relay, and a missing tool fails loud — so this guards any skip added later.
 - **The project's own Python for screen tests** (Ron, 2026-11-04): Playwright lives in a venv at the repo root
   (`.venv/`, ignored by git), pinned in `requirements-dev.txt` — set up once with `py -m venv .venv` then
   `.venv\Scripts\pip install -r requirements-dev.txt`. The runner starts tier-2 files with that Python and fails loud
@@ -88,6 +98,13 @@ Plus a short **manual list per release** (§8) for what can't be automated.
    load time, drag with thousands of covers, "does it hold up" — not exact answers. **Committed in the private repo so
    it's backed up** (Ron): a test tied to that exact data set can always get it back, and made-up sets holding anything
    personal live there too (its README has the rules). The test loader refuses any file that still carries a key.
+
+**The relay's stored data** (Ron, 2026-11-12 — review queue Q-021): every relay test run starts from a **fresh, empty
+store, thrown away afterwards** (tier 3's own local relay, `tools/local_relay.py`), so a test never depends on what an
+earlier run left — or it isn't repeatable. A test that NEEDS history (a mailbox with old runs, a channel mid-change) gets
+it from a **frozen, labelled snapshot**: built once on purpose, saved as `relay/.wrangler/state-<what it holds>` (a
+meaningful label, not a number), with an index listing each snapshot and what it's for; a run COPIES it into place, so
+the frozen copy is always there for the next run. None exists yet — the first test that needs one makes it.
 
 Screen tests never use Amazon's pages and never the real library's cloud copy: the test app has no Cloud Sync (or a
 throwaway test channel on a local relay). Whatever the driver shows Claude goes to Anthropic — so the demo-style
@@ -121,7 +138,8 @@ fixture, never anything sensitive on screen.
 A test that fails sometimes teaches everyone to ignore failures (Law 12: an alarm on the normal path is noise). So:
 - **fixed data** (§5.1) and **a fixed clock** where dates matter (the "today / yesterday" labels);
 - **wait for conditions, never fixed sleeps** ("the toast appeared", not "wait 2 seconds");
-- **a fresh browser profile** for each run; stop what a test started by its exact process id (Law 5);
+- **a fresh browser profile** for each run; stop what a test started by its exact process id (Law 5) — **and check it
+  stopped** (each process gone, its port free: Law 12, 7.28.0);
 - **a flaky test is fixed — or set aside, with a TODO — the same day.** Never tolerated, never "just re-run it".
 - **A failing test is read first, not fixed first** (Law 3, 7.25.0): it may be the protection working.
 
@@ -162,4 +180,13 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   `app.import_from_relay()` runs File → Import from Relay. First use: `IMPORT-001`–`005`
   (`test/ui/test_import_from_relay.py`), whose `IMPORT-004` reproduces the Import's false "repair" (LOGGING.md F5)
   before its fix. Adds ~5 s to a run. Known noise gained one entry: a new, empty channel's two "not found" answers.
+- **Built 2026-11-12 (branch `tooling/relay-tests-own-relay`):** tier 3 starts and stops its own local relay
+  (`tools/local_relay.py`; §4) — no more skipping without `--relay-url`, and no more hand-stopped relays: on 2026-11-11
+  ending the shell that started one left workerd and three node processes serving its port (7.28.0 post-mortem).
+  `RUN-016`–`021` prove it with a stand-in relay: the files get its address; the relay AND its child are gone after and
+  the port free; one that never says "ready" fails loud and is stopped; a child that escaped the tree and still holds
+  the port is named by id; `--relay-url` still starts nothing; the real command is wrangler's local emulator.
+- **Built 2026-11-12 (branch `tooling/release-fails-on-skip`):** `--release` (§4) — a skipped file fails a release
+  run; `RUN-022`–`024` (fails it naming file and why; without the flag a skip still passes, as before; with nothing
+  skipped the flag passes).
 - From then on, every task follows §6.
