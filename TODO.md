@@ -4,6 +4,7 @@
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
+      - [Every project ignores Claude Code's "don't ask again" file in its own .gitignore](#every-project-ignores-claude-codes-dont-ask-again-file-in-its-own-gitignore)
       - [Reset App: a Save Backup… button where the box says to save a backup](#reset-app-a-save-backup-button-where-the-box-says-to-save-a-backup)
       - [When the app can't open: Copy diagnostics and Report this problem, right there](#when-the-app-cant-open-copy-diagnostics-and-report-this-problem-right-there)
       - [Help → Report a problem… and Known problems (the GitHub issues)](#help--report-a-problem-and-known-problems-the-github-issues)
@@ -211,6 +212,30 @@ selection before and after.
 - Today: `if (e.key === 'Delete' && !isSpecialFolder && getSelectedBookIds().length === 0) await deleteFolder(currentFolder)`
   — uses the current folder instead of `getSelectedFolderIds()`. Single via `deleteFolder`; several via a batch
   confirm and one compound undo — the new `deleteFolders(folders)`. Surfaced during the operations refactor.
+
+#### Every project ignores Claude Code's "don't ask again" file in its own .gitignore
+<!-- id 20261112-0757 -->
+
+_Why it matters:_ Claude Code saves each "Yes, and don't ask again" approval — the whole command, any password in it
+included — in `.claude/settings.local.json` inside the project. Apiiro (2026-11-05) found 1,122 public copies on GitHub
+holding real passwords and keys. Our sweep (2026-11-11) found nothing leaked anywhere, but two projects are protected
+only by this PC's own ignore file, which doesn't travel with a project (Ron, 2026-11-12).
+
+**What the sweep found** (all 18 repositories under Projects, read-only; nothing printed)
+1. No secret in any Claude settings file, on disk or ever committed; nothing under `.claude/` committed anywhere but
+   ReaderWrangler's shared hooks and settings (on purpose, clean in every version); no transcripts in any repository.
+2. **Investments and Random** don't list the file in their own `.gitignore` — only the PC-wide ignore file
+   (`~/.config/git/ignore`, written by Claude Code) keeps it out. Its first line has a backslash typo and does nothing.
+   DAR and ReaderWrangler list it in their own `.gitignore`.
+
+**To do**
+1. Add one line, `.claude/settings.local.json`, to the `.gitignore` of EVERY repository under Projects (the Projects
+   root included) — not `.claude/` as a whole (ReaderWrangler saves its shared hooks there on purpose). One small commit
+   per repository; each repo's own push rules apply.
+2. Check it with `git check-ignore -v .claude/settings.local.json` in each — the answer must name the project's own
+   `.gitignore`.
+3. Optional (Ron's call): list which repositories are public on GitHub (read-only, `gh repo list`) — a leak only matters
+   on a public one.
 
 #### Reset App: a Save Backup… button where the box says to save a backup
 <!-- id 20261111-1104 -->
