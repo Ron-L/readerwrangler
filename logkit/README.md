@@ -41,7 +41,8 @@ Without settings the logger still runs (it says so in the console) under default
 | `switchKeys` | Where the two switches are remembered: `{ errorBanner, logDetail }` | `logkit-banner`, `logkit-detail` |
 | `oldLevelKey` | An older single "log level" setting to move to the switches once, then remove | none |
 | `idPattern`, `shortId` | IDs to shorten in every message: a global regular expression, and the function that shortens one | none |
-| `secrets` | A function returning strings never to show; each becomes `[passphrase]` | none |
+| `secrets` | A function returning strings never to show, asked at every message; each is found by its exact value (4 characters or more) | none |
+| `secretLabel` | What a hidden secret shows as | `[hidden]` |
 | `build` | A function returning the app's build, for the page-load line and reports | none |
 | `critical` | The critical box's words: `{ title, advice }` | a plain "hit a problem" |
 | `extraApi` | The host's own helpers, added to the logger object | none |

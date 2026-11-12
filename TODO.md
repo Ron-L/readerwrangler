@@ -2948,6 +2948,11 @@ reopens a name, never a new argument.
 6. **Honest wording:** fix the "syncs automatically" message; the bar says what is true ("…ready — Import"); the help
    line about the bookmarklet containing the key; the security notes' statements (the record, "What we tell users").
 7. **Tests:** the round-trip (ID → key → ID, byte for byte) and the check-character test kept as permanent checks.
+8. **The log hides the key by its shape** (Ron, 2026-11-11, building 7.28.0): the logging kit's cleaner finds a secret
+   only by its exact value — today the current passphrase — so an OLD key (from before a "Make a new key") or one pasted
+   into any text would reach the log and Copy diagnostics. With the key's shape fixed, add "secret patterns" to the kit
+   (`logkit/logger.js`: a list of patterns, each match replaced by the secret label), with a test that fails first, and
+   give it the `RW1-` pattern in `logkit-settings.js`; its label becomes the key's word ("[passphrase]" today).
 
 **Build together**
 - With "Relay Setup: smoother sections and clearer Esc / Help behavior" (below, this section) — the same window,

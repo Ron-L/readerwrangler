@@ -38,6 +38,7 @@ const settings = Object.freeze({
     // What the cleaner takes out of everything kept or shown: Channel IDs → their short form; the Cloud Sync passphrase.
     idPattern: /\b([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
     shortId: shortChannelId,
+    secretLabel: '[passphrase]',                          // what the hidden passphrase shows as (the kit's own word: "[hidden]")
     secrets: () => {
         try {
             const r = JSON.parse(window.localStorage.getItem('readerwrangler-relay') || 'null');

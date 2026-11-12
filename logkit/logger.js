@@ -4,8 +4,8 @@
 // One call for every message:   log.log(level, code, text, data, { test, toast, hint, advice })
 //   level — 'debug' | 'info' | 'warning' | 'error' | 'critical', written at the call, where the message is written
 //   code  — 'IMPORT' (the bare area: a general line) or 'IMPORT-12' (one specific message — required for warning and
-//           above, each used at ONE call: the host's commit check, tools/message_codes.py in ReaderWrangler, checks it
-//           and writes the support table)
+//           above, each used at ONE call: the kit's commit check, check_messages.py beside this file — called by the
+//           host's own checker — checks it and writes the support table)
 //   data  — optional details; `test: true` marks a message a test planted (shown to people as IMPORT-12-!TEST!)
 //
 // The module knows nothing of the app that uses it. Everything the app decides — its areas, where the log is kept, the
@@ -32,15 +32,17 @@ const EXTENSION_SCRIPT_RE = /^(chrome|moz|safari-web|ms-browser)-extension:\/\//
 const CONSOLE_METHOD = { debug: 'debug', info: 'info', warning: 'warn', error: 'error', critical: 'error' };
 const rank = (level) => LOG_LEVELS.indexOf(level);
 
-// The cleaner: IDs matching the host's idPattern become the host's short form (shortId); each secret becomes
-// "[passphrase]", none of it shown. (In ReaderWrangler: Channel IDs, first 8 … last 4; the Cloud Sync passphrase.)
+// The cleaner: IDs matching the host's idPattern become the host's short form (shortId); each secret (found by its exact
+// value — the host's secrets()) becomes the host's secretLabel, "[hidden]" if it names none, none of it shown. (In
+// ReaderWrangler: Channel IDs, first 8 … last 4; the Cloud Sync passphrase, shown as "[passphrase]".)
 function scrub(text, secrets, settings) {
     let s = String(text);
     if (settings && settings.idPattern && typeof settings.shortId === 'function') {
         s = s.replace(settings.idPattern, (id) => settings.shortId(id));
     }
+    const label = (settings && typeof settings.secretLabel === 'string') ? settings.secretLabel : '[hidden]';
     for (const secret of secrets || []) {
-        if (typeof secret === 'string' && secret.length >= 4) s = s.split(secret).join('[passphrase]');
+        if (typeof secret === 'string' && secret.length >= 4) s = s.split(secret).join(label);
     }
     return s;
 }

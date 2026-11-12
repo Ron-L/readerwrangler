@@ -447,14 +447,26 @@ test('LOG-035', 'the page-global the name check is told about is the logger\'s r
 const kitCode = (file) => require('fs').readFileSync(require('path').join(__dirname, '..', 'logkit', file), 'utf8')
     .split('\n').filter(l => !/^\s*\/\//.test(l)).map(l => l.replace(/\s+\/\/\s.*$/, '')).join('\n');
 const RW_WORDS = ['readerwrangler-', 'ReaderWrangler', 'rwLog', 'APP_VERSION', 'ORGANIZER_VERSION', 'Channel', 'BACKUP',
-    "'BOOT'", "'SHARE", 'Desktop app'];
+    "'BOOT'", "'SHARE", 'Desktop app', 'passphrase'];
 
 test('LOG-036', 'the module knows nothing of ReaderWrangler: no product name, storage key, area list or Channel ID in it', () => {
     const code = kitCode('logger.js');
     for (const word of RW_WORDS) assert.ok(!code.includes(word), `logkit/logger.js's code still mentions ${word}`);
 });
 
-test('LOG-037', 'the Diagnostics window knows nothing of ReaderWrangler: the logger, the dialog and the copy header are handed in', () => {
+// 2026-11-11 (Ron): what a hidden secret becomes is the host's word — the kit's own is "[hidden]"; ours stays "[passphrase]"
+test('LOG-038', 'a hidden secret becomes the host\'s label (secretLabel) — "[hidden]" when the host names none', () => {
+    assert.strictEqual(K.scrub('key: open sesame!', ['open sesame'], {}), 'key: [hidden]!');
+    assert.strictEqual(K.scrub('key: open sesame!', ['open sesame'], { secretLabel: '[token]' }), 'key: [token]!');
+    assert.strictEqual(L.scrub('key: open sesame!', ['open sesame']), 'key: [passphrase]!', 'ReaderWrangler\'s settings keep its word');
+    const lines = [];
+    const log = K.createLogger({ console: { error: (t) => lines.push(t), warn: () => {}, info: () => {}, debug: () => {}, log: () => {} },
+        secrets: () => ['open sesame'] });
+    log.log('error', 'UI-02', 'it said open sesame');
+    assert.ok(log.entries()[0].text.endsWith('[hidden]') && !lines[0].includes('open sesame'), log.entries()[0].text);
+});
+
+test('LOG-037','the Diagnostics window knows nothing of ReaderWrangler: the logger, the dialog and the copy header are handed in', () => {
     const code = kitCode('diagnostics-window.js');
     for (const word of RW_WORDS) assert.ok(!code.includes(word), `logkit/diagnostics-window.js's code still mentions ${word}`);
 });
