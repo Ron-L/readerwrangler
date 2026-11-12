@@ -224,8 +224,11 @@ _Why it matters:_ The Help menu has nothing for reporting a problem or seeing kn
 1. **Help → Report a problem…** copies the diagnostics (as Diagnostics' Copy does), then opens a new GitHub issue —
    telling the person the diagnostics are on the clipboard to paste in.
 2. **Help → Known problems** opens the issue list.
-3. **Open question (Ron, when built):** GitHub needs an account to report, and many readers won't have one — also
-   offer email (contact@readerwrangler.com), or GitHub only?
+3. **Both — email and GitHub** (Ron, 2026-11-12, agreed before sprint 2; it was "GitHub needs an account to report, and
+   many readers won't have one"): the diagnostics are copied first, then a small choice — **Email us** (opens their
+   mail app to contact@readerwrangler.com with a subject line) or **Report on GitHub** (a new issue) — and either way
+   they're told the diagnostics are on the clipboard to paste in. Not in the email's body (a mail link cuts long text
+   off). ONE shared "report a problem" helper, used here and by "When the app can't open…" (its Report this problem).
 
 #### One table for every move, copy, paste and delete: what each gesture does in each place
 <!-- id 20261106-1237 -->
