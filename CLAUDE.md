@@ -26,7 +26,10 @@ material; for one without, the sprint drafts the design and queues it rather tha
   queue short, Ron's review, his "push to prod".
 - **A vacation sprint = as far as it can go** (Ron, 2026-11-12): tag `before-vacation` on main (the rollback point);
   work down the TODO; when a task blocks on a decision, park it (its branch, one queue entry with my prediction) and go
-  on to the next task that doesn't depend on it, branching from `main-prime` as it stood before the parked task;
+  on with other work — **branching wherever works best** (Ron, 2026-11-12: "not meant to be a limitation"): usually
+  `main-prime` as it stood before the parked task started, so the next task carries none of its half-done work; from
+  the parked branch when the next task builds on what's there; or any similar arrangement — my call, one line in
+  `DECISIONS.md`;
   nothing to prod (dev pushes as backup are fine). It stops only when every remaining task depends on a decision, a
   prompt needs an answer, or the session can't resume after a usage limit. **Before the first one:** a few days of
   normal sprints to tune the method, the pre-approved command list, Remote Control proven from the phone (answering a
