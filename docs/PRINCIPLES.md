@@ -229,6 +229,13 @@ message defined once (TODO "Old words, quick win").
 repair" after an Import was fixed in the integrity check inside the load, and came back three days later from a second
 check of the same event — the one run after an Import settles (6.3.0) — whose code had been read the day of the first
 fix and walked past. Before fixing what a check reports, list every check of that thing.
+**Moving code is a class change: list everything that keys on its PLACE or its NAME** (7.28.0, the logging into
+`logkit/`): the pages' script tags, every checker's file list *and its patterns*, every step that copies files
+somewhere else. The site map covered what the rules said (gate, version guard, style build — all fixed first, with
+tests) and missed two that handle paths and names: the commit's style check copied files into a scratch folder without
+their folders (a crash, caught by the hook), and the code checker found calls by the text `rwLog.log(` — the moved
+window gets the logger as `log`, so its messages would have left the support table with no error at all (found only by
+reading the checker first). A check keyed to a name goes quiet when the name changes; quiet is the dangerous failure.
 **Enforcement**: `feedback_investigate_completely` memory; grep-the-class before declaring done —
 for a markup change, grep the class/attr name across the file for remote matchers *before* editing.
 
@@ -364,9 +371,15 @@ the reset words said "your copy in the cloud is not touched" — true at the ins
 person cares about next (once books are back, the first change sends a full copy that replaces the cloud's). Ron
 caught it reading the words against what the app does. "Not touched" must hold in the moments that matter to the
 person, not only at the instant of the action.
+**"Done" and "passed" are claims too** (7.28.0): stopping the shell that ran a local relay left four relay processes
+serving its port — a stop isn't done until it's verified (probe the port, then stop what's left by exact id); the
+release run said "31 passed, 2 skipped" and read as a pass — a report of "passed" must never include "skipped"; and a
+test file printed "19 passed" while 21 ran (a hand-typed "+ 4") — counts are counted, never typed. (Mechanisms filed:
+TODO "Turn more of our working rules into automatic checks", items 3–4.)
 **Enforcement**: `feedback_mechanical_honesty` memory; the heredoc ban (three-for-three earned a ban, not a
-caution); receipts-and-honesty as a feature genre; the logging module (`logger.js` — every message has a level, an
-area and a code; the commit check `tools/message_codes.py`) and the driver's undeclared-error check (`test/ui/rw.py`).
+caution); receipts-and-honesty as a feature genre; the logging kit (`logkit/logger.js` — every message has a level, an
+area and a code; the commit check `tools/message_codes.py` on the kit's `logkit/check_messages.py`) and the driver's
+undeclared-error check (`test/ui/rw.py`).
 
 ### 13. Post-compaction (or post-gap) state is fragments plus assumptions — re-read, never remember
 The "Runaway Robot" law: after compaction, rules must be re-read with the Read tool (a claimed reading was
