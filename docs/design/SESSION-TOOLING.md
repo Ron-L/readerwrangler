@@ -19,8 +19,10 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
 
 ## RW's session hooks (`.claude/hooks/`, saved in git; wired in `.claude/settings.json`)
 
-- **`gate-check.py`** (PreToolUse) — the **pre-build gate**. On the first edit of shipped code (any `.js` at the
-  repo root + `relay/relay-worker.js` — `is_app_source()`, a rule not a list; widened 2026-10-08) each turn it prints the checklist and refuses that batch's app edits; re-sending them (the next batch) proceeds.
+- **`gate-check.py`** (PreToolUse) — the **pre-build gate**. On the first edit of shipped code (any shipped
+  `.js` — `is_app_source()` asks `git-hooks/shipped_paths.py`, the one "is this shipped?" rule shared with the version
+  guard and the style build, so `logkit/` and `relay/` are covered and `dist/` never is; widened 2026-10-08, shared
+  2026-11-11) each turn it prints the checklist and refuses that batch's app edits; re-sending them (the next batch) proceeds.
   **Whole-batch refusal — a three-state switch moved by real signals** (2026-10-19, Ron + Claude): **ARMED** (set by
   `gate-reset.py` at each turn's end / session start) → the first app edit flips it to **REFUSING** and gets the
   checklist; **every** app edit while REFUSING is refused, however the batch streams or is timed → **`gate-batch-end.py`
