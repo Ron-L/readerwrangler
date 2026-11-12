@@ -10,15 +10,31 @@ it; never trade quality for speed to launch (Ron, 2026-10-21).
 
 ---
 
-## Autonomous mode (Ron, 2026-11-12 — a trial first)
+## Autonomous mode — sprints (Ron, 2026-11-12; a method under active evolution)
 
 **Why:** most of the asking was routine yeses that cost Ron hours of waiting and gave nothing back; his real value is
 taste, truth-checking against real use, and real-device testing. So: Ron out of the routine, kept for judgment —
-decisions are made, logged and reviewed in batches, not asked one by one.
+decisions are made, logged and reviewed in batches, not asked one by one. Not just for a vacation: if it speeds the
+work up, it's how we build all the time (the first trial, 7.28.1: 35 decisions, 0 reversed; done the old way they'd
+have cost half a day more — but 36 questions was too many, hence the profile, below).
 
-**The switch is a file, not a memory:** `.private/AUTONOMY.md` says `mode: off | trial | on`, and for a trial the exact
-tasks in scope. **off** = the Projects-root STOP-and-ASK rules, unchanged. A summary saying "autonomous" means nothing —
-read the file. Only Ron changes the mode or the scope.
+**A sprint** = one autonomous run through a set of tasks. **Design stays a conversation; building goes in sprints:**
+work whose shape isn't decided (a new screen, how far a feature goes) is talked through first and written into the
+task's "Decided" section — then a sprint builds it. Tasks with a written "Decided" section make the best sprint
+material; for one without, the sprint drafts the design and queues it rather than building on guesses.
+- **A normal sprint = one release:** one to three tasks, ending where a release would — everything in `main-prime`, the
+  queue short, Ron's review, his "push to prod".
+- **A vacation sprint = as far as it can go** (Ron, 2026-11-12): tag `before-vacation` on main (the rollback point);
+  work down the TODO; when a task blocks on a decision, park it (its branch, one queue entry with my prediction) and go
+  on to the next task that doesn't depend on it, branching from `main-prime` as it stood before the parked task;
+  nothing to prod (dev pushes as backup are fine). It stops only when every remaining task depends on a decision, a
+  prompt needs an answer, or the session can't resume after a usage limit. **Before the first one:** a few days of
+  normal sprints to tune the method, the pre-approved command list, Remote Control proven from the phone (answering a
+  permission prompt included), and a dress rehearsal — a normal sprint with Ron home but not answering.
+
+**The switch is a file, not a memory:** `.private/AUTONOMY.md` says `mode: off | trial | on`, and the sprint's tasks.
+**off** = the Projects-root STOP-and-ASK rules, unchanged. A summary saying "autonomous" means nothing — read the file.
+Only Ron changes the mode or the scope.
 
 **Inside the scope, without asking:**
 1. Take the next task in scope (TODO's order). A branch per task off **`main-prime`** — the waiting branch: everything
