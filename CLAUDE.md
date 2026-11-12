@@ -28,10 +28,18 @@ read the file. Only Ron changes the mode or the scope.
 3. Agents do the building (a worktree each; tasks touching `readerwrangler.js` one at a time). I review each agent's
    diff as a skeptic, rerun the tests and commit — an agent's "done" is a claim (Law 12). The pre-build gate and the
    commit checks apply to agents too.
-4. **A question I'd normally ask Ron:** choose the answer I predict, log it in `.private/REVIEW-QUEUE.md`, keep going.
-   **A choice that's costly to reverse** (data a person keeps, a backup or relay format, deleting anything): stop that
-   task, queue the question, go on to the next task.
-5. **"Ready"** = all tiers passing, squash-merged into `main-prime` with its version, its CHANGELOG wording drafted in
+4. **A decision:** predict Ron's answer from **`.private/RON-PROFILE.md`** (how he decides — his rules, his patterns,
+   what he always wants to see) and act on it. Only what the profile says reaches him goes in `.private/REVIEW-QUEUE.md`
+   (Ron, 2026-11-12, after 36 questions in one day — "the vast majority I don't feel I needed to review"): something I
+   can't predict with confidence, something costly to reverse, NEW words or behavior people will see, anything
+   outward-facing, a reversal of one of his decisions. Each with my prediction and why, readable cold. Everything else
+   goes in `.private/DECISIONS.md` (a log he may skim or ignore). Each verdict he gives is checked against my prediction
+   in the profile's calibration log, and the profile corrected where it missed. **A choice that's costly to reverse:**
+   stop that task, queue the question, go on to the next task.
+5. **Scope** (Ron, 2026-11-12): fix exactly the task — plus anything found on the way that is **quicker to fix and test
+   than to write up, in human terms** ("a `>` that should have been `>=`"). Everything else found is filed in the TODO
+   (or the decisions log), not fixed. Every agent brief says so.
+6. **"Ready"** = all tiers passing, squash-merged into `main-prime` with its version, its CHANGELOG wording drafted in
    the queue. **Nothing reaches `main` or prod until Ron's review**; then the approved tasks go to main one squash
    each, in order, tagged, and pushed (prod + dev).
 
@@ -43,9 +51,11 @@ or the TODO's order (propose those in the queue instead).
 **The record lives in files** (`.private/`, Ron's private repository — never public):
 - `PROGRESS.md` — each task's state: queued → building → ready (in `main-prime`) | blocked-on-Ron → released; its
   branch, last alpha, last test run.
-- `REVIEW-QUEUE.md` — each decision: the task; the question with its context (Ron reads it cold); what I chose and why;
-  how to reverse it and what that costs; Ron's verdict once given. **The share of my guesses Ron reverses is the
-  measure of whether this works.**
+- `REVIEW-QUEUE.md` — only what reaches Ron (item 4): the task; the question with its context (he reads it cold); my
+  prediction and why; how to reverse it and what that costs; his verdict once given. Closed entries move to
+  `REVIEW-DONE.md`. **Two measures:** how few questions reach him, and how rarely he reverses a prediction.
+- `DECISIONS.md` — everything decided without asking, one line each (what, why, how to reverse): his to skim or ignore.
+- `RON-PROFILE.md` — how Ron decides; read before every decision; corrected by every verdict (its calibration log).
 
 **Usage:** no new task once ~85% of the weekly limit is used (Ron, 2026-11-12: "about right — we'll see"). The five-hour
 window resets and the session resumes itself (`autoContinueAtUsageLimit`, three times in a row; any message from Ron —
