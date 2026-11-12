@@ -1,7 +1,7 @@
 # Screen test: Restore Backup's messages — a file we refuse on purpose is the person's file (a warning, BACKUP-07),
 # never our bug (an error); a restore that works says what it brought back.
 # tags: restore, backup, logging, tier 2
-# covers: readerwrangler.js, logger.js
+# covers: readerwrangler.js, logkit/logger.js, logkit-settings.js
 # Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python)
 #
 # 2026-11-08 (7.26.0-alpha.12, the logging switch's BACKUP area): Restore's failures were three console.error lines

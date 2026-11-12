@@ -8,7 +8,11 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-11-11 (through release 7.27.1)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-11-11 (through release 7.28.0)** — all sections human-reviewed (§1–21).
+7.28.0: Diagnostics gains **Send a test message** — §19's Diagnostics answer says how to use it, and a new row explains
+a line or bar marked TEST (UI-07). The logging moved into its own kit behind the scenes: nothing a person sees changed
+but one code (Copy diagnostics' "couldn't be copied" warning is UI-06, was SHARE-01 — the KB never quoted it). Comb for
+"Diagnostics", "banner", "TEST", "SHARE", "passphrase", "Copy diagnostics": no other entry changed.
 7.27.1: the reset messages reworded (none quoted here) — §19 gains "I reset the app — is my copy in the cloud safe?"
 (checked in the code: the first change after books are back replaces the cloud copy). Comb for "reset", "files on disk",
 "Export", "amazon-library", "Download Collections", "Import from Relay": nothing else quoted the changed words.
@@ -788,10 +792,15 @@ window). Nothing in it leaves your computer unless you copy it; your Passphrase 
 only shortened (as Relay Setup shows them). **Chasing a problem?** At the bottom of Diagnostics: **Clear** to start
 fresh, then turn on **Show a banner when something goes wrong** (a red bar at the top of the page the moment anything
 fails, with Copy) and, if we ask, **Also record extra detail** (many more lines — it fills the record fast, so turn
-it off afterwards). We may send you a link that turns both on (`?errorBanner=on&logDetail=on`).
+it off afterwards). We may send you a link that turns both on (`?errorBanner=on&logDetail=on`). **Is it working?**
+(7.28.0) Press **Send a test message** at the bottom of Diagnostics: one line marked TEST appears at the top — "A test
+message from Diagnostics — not a real problem" (code UI-07) — and the red bar shows it too when **Show a banner when
+something goes wrong** is on (if it's off, a note says so). Then **Copy diagnostics** and send it: the line proves the
+record, the banner and the copy all work.
 
 | Symptom | Explanation | Fix |
 |---|---|---|
+| A line or red bar marked TEST: "A test message from Diagnostics — not a real problem" (UI-07-!TEST!) (7.28.0) | Someone pressed **Send a test message** in Help → Diagnostics — to check the record works. Nothing went wrong | Nothing to fix; **Dismiss** the bar. Lines marked TEST can be hidden with the **test entries** box at the top of Diagnostics |
 | A red bar at the top of the page with a code ("error · MOVE-03 · …") (7.26.0) | **Show a banner when something goes wrong** is on (Help → Diagnostics), and something failed | **Copy** it and send it to us; **Turn off this banner** if you don't want them |
 | A box: "ReaderWrangler hit a problem that may affect your library" (7.26.0) | Something that may put your data at risk — a save failed, the library couldn't be read; shown to everyone | Do what the box says (usually: save a backup, then reload; when the library didn't load: *don't* save a backup — reload). **Copy details** and send them to us |
 | Deleted book reappeared after a fetch | It's owned/sampled — Amazon still lists it; revive-on-sighting is by design | Hide it (owned), or delete the sample at Amazon first (truth path) |

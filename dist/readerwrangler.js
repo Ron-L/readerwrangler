@@ -85,112 +85,14 @@ var Dialog = ({ onClose, title, children, panelClassName, maxWidthClassName = 'm
   );
 };
 
-// 7.26.0 (LOGGING.md §5 step 5.3 — Ron + Claude, 2026-11-09) - THE Diagnostics window: the kept log, readable.
-// Its own window (not in Data Status — many messages have nothing to do with the data), opened from Help →
-// Diagnostics… and from "Full log…" in the 🕐 history. Newest first, one line per entry, ▸ for the details;
-// errors tinted; TEST entries badged. The filter on top; the two switches, Clear and Copy diagnostics at the
-// bottom. Updates live (rwLog.subscribe). Copy diagnostics copies EVERYTHING kept, whatever the filter shows.
-var DIAG_LEVELS = [['all', 'All levels'], ['info', 'Info and up'], ['warning', 'Warnings and up'], ['error', 'Errors and up']];
-var DIAG_TIMES = [['all', 'Everything kept'], ['page', 'Since this page loaded'], ['hour', 'The last hour'], ['day', 'The last day']];
-var DIAG_SWITCHES = [
-['errorBanner', 'Show a banner when something goes wrong',
-'A red bar at the top of the page for every error — with Copy, so you can send it to us right away'],
-['logDetail', 'Also record extra detail',
-'Records many more lines (every save, every sync check) — it fills the log fast and pushes older lines out, so turn it on only while chasing a problem']];
+// 7.26.0 (LOGGING.md §5 step 5.3 — Ron + Claude, 2026-11-09) - THE Diagnostics window: the kept log, readable,
+// opened from Help → Diagnostics… and from "Full log…" in the 🕐 history. 7.28.0 - it lives in the logging kit
+// (logkit/diagnostics-window.js, loaded before this file); the app hands it the logger, its own <Dialog> (so Esc,
+// ✕ and stacking are ours) and the build line Copy diagnostics puts under its first line.
+var DiagnosticsWindow = ({ onClose }) => /*#__PURE__*/
+React.createElement(LogkitDiagnosticsWindow, { log: rwLog, Dialog: Dialog, onClose: onClose,
+  copyHeader: [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`] });
 
-var DiagnosticsWindow = ({ onClose }) => {
-  var [entries, setEntries] = useState(() => rwLog.entries());
-  useEffect(() => rwLog.subscribe(() => setEntries(rwLog.entries())), []);
-  var [level, setLevel] = useState('all');
-  var [area, setArea] = useState('all');
-  var [time, setTime] = useState('all');
-  var [showTest, setShowTest] = useState(true);
-  var [opened, setOpened] = useState(() => new Set());
-  var [sw, setSw] = useState(() => rwLog.switches());
-  var rank = (lv) => rwLog.levels.indexOf(lv);
-  var since = { all: 0, page: performance.timeOrigin || 0, hour: Date.now() - 3600e3, day: Date.now() - 86400e3 }[time];
-  var areas = [...new Set(entries.map((e) => e.area))].sort();
-  var shown = entries.filter((e) => (level === 'all' || rank(e.level) >= rank(level)) && (area === 'all' || e.area === area) &&
-  e.time >= since && (showTest || !e.test)).reverse();
-  var today = new Date().toDateString();
-  var when = (t) => {var d = new Date(t);return (d.toDateString() === today ? '' : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ') +
-    d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });};
-  var copy = () => {
-    var text = rwLog.diagnosticsText([`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`]);
-    Promise.resolve(navigator.clipboard && navigator.clipboard.writeText(text)).then(
-      () => rwLog.log('info', 'SHARE', 'Diagnostics copied — paste them into your message to us', null, { toast: true }),
-      () => rwLog.log('warning', 'SHARE-01', "Diagnostics couldn't be copied (the browser refused the clipboard)", null, { toast: true }));
-  };
-  var select = 'border border-gray-300 rounded px-2 py-1 text-sm bg-white';
-  return (/*#__PURE__*/
-    React.createElement(Dialog, { onClose: onClose, title: "Diagnostics", maxWidthClassName: "max-w-4xl" }, /*#__PURE__*/
-    React.createElement("div", { "data-diagnostics": true, className: "flex flex-col", style: { maxHeight: '75vh' } }, /*#__PURE__*/
-    React.createElement("div", { className: "flex flex-wrap items-center gap-2 px-4 py-2 border-b border-gray-200 text-sm" }, /*#__PURE__*/
-    React.createElement("span", { className: "text-gray-600" }, "Show:"), /*#__PURE__*/
-    React.createElement("select", { "data-diag-level": true, className: select, value: level, onChange: (e) => setLevel(e.target.value) },
-    DIAG_LEVELS.map(([k, label]) => /*#__PURE__*/React.createElement("option", { key: k, value: k }, label))
-    ), /*#__PURE__*/
-    React.createElement("select", { "data-diag-area": true, className: select, value: area, onChange: (e) => setArea(e.target.value) }, /*#__PURE__*/
-    React.createElement("option", { value: "all" }, "All areas"),
-    areas.map((a) => /*#__PURE__*/React.createElement("option", { key: a, value: a }, a))
-    ), /*#__PURE__*/
-    React.createElement("select", { "data-diag-time": true, className: select, value: time, onChange: (e) => setTime(e.target.value) },
-    DIAG_TIMES.map(([k, label]) => /*#__PURE__*/React.createElement("option", { key: k, value: k }, label))
-    ), /*#__PURE__*/
-    React.createElement("label", { className: "flex items-center gap-1 text-gray-600", title: "Entries a test or a support check planted on purpose (marked TEST)" }, /*#__PURE__*/
-    React.createElement("input", { "data-diag-test": true, type: "checkbox", checked: showTest, onChange: (e) => setShowTest(e.target.checked) }), " test entries"
-    ), /*#__PURE__*/
-    React.createElement("span", { className: "ml-auto text-gray-500" }, shown.length, " of ", entries.length)
-    ), /*#__PURE__*/
-    React.createElement("div", { "data-select-text": true, "data-dialog-body": true, className: "overflow-y-auto font-mono text-xs", style: { minHeight: 160 } },
-    shown.length === 0 && /*#__PURE__*/React.createElement("div", { className: "px-4 py-3 text-gray-400 font-sans text-sm" }, "Nothing to show."),
-
-    shown.some((e) => e.data !== undefined) && /*#__PURE__*/
-    React.createElement("div", { className: "px-4 py-1 text-gray-500 font-sans text-xs border-b border-gray-100" }, "Lines with more information show \u201Cdetails \u25B8\u201D \u2014 click it to open them."),
-
-    shown.map((e, i) => {
-      var id = `${e.time}|${e.code}|${i}`;
-      var bad = e.level === 'error' || e.level === 'critical';
-      return (/*#__PURE__*/
-        React.createElement("div", { key: id, "data-diag-row": true, className: `px-4 py-1 border-b border-gray-100 ${bad ? 'bg-red-50 text-red-800' : e.level === 'warning' ? 'text-amber-800' : 'text-gray-800'}` }, /*#__PURE__*/
-        React.createElement("div", { className: "flex gap-2 items-baseline" }, /*#__PURE__*/
-
-
-        React.createElement("span", { className: "text-gray-400 flex-shrink-0", style: { width: '19ch' } }, when(e.time)), /*#__PURE__*/
-        React.createElement("span", { className: "flex-shrink-0 w-16" }, e.level), /*#__PURE__*/
-        React.createElement("span", { "data-diag-code": true, className: "flex-shrink-0 w-20 font-semibold" }, e.code),
-        e.test && /*#__PURE__*/React.createElement("span", { className: "flex-shrink-0 px-1 rounded bg-gray-200 text-gray-700" }, "TEST"), /*#__PURE__*/
-        React.createElement("span", { className: "min-w-0", style: { overflowWrap: 'anywhere' } }, e.text, e.count > 1 ? ` (×${e.count})` : ''),
-        e.data !== undefined && /*#__PURE__*/
-        React.createElement("button", { type: "button", "aria-label": "Show details", title: "Show details",
-          className: "ml-auto flex-shrink-0 text-blue-600 hover:underline",
-          onClick: () => setOpened((prev) => {var n = new Set(prev);n.has(id) ? n.delete(id) : n.add(id);return n;}) },
-        opened.has(id) ? 'details ▾' : 'details ▸')
-
-        ),
-        opened.has(id) && /*#__PURE__*/React.createElement("pre", { className: "mt-1 ml-4 p-2 bg-gray-50 text-gray-700 whitespace-pre-wrap", style: { overflowWrap: 'anywhere' } }, JSON.stringify(e.data, null, 2))
-        ));
-
-    })
-    ), /*#__PURE__*/
-    React.createElement("div", { className: "flex flex-wrap items-center gap-3 px-4 py-2 border-t border-gray-200 text-sm" },
-    DIAG_SWITCHES.map(([name, label, tip]) => /*#__PURE__*/
-    React.createElement("label", { key: name, className: "flex items-center gap-1 text-gray-700", title: tip }, /*#__PURE__*/
-    React.createElement("input", { "data-diag-switch": name, type: "checkbox", title: tip, checked: !!sw[name],
-      onChange: (e) => {rwLog.setSwitch(name, e.target.checked);setSw(rwLog.switches());} }), " ", label
-    )
-    ), /*#__PURE__*/
-    React.createElement("span", { className: "ml-auto flex gap-2" }, /*#__PURE__*/
-    React.createElement("button", { type: "button", className: "px-3 py-1 rounded border border-gray-300 hover:bg-gray-100",
-      title: "Empty the log (like DevTools' Clear) \u2014 a good start before you reproduce a problem", onClick: () => rwLog.clear() }, "Clear"), /*#__PURE__*/
-    React.createElement("button", { type: "button", className: "px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700",
-      title: "Copy everything kept, for a message to us \u2014 whatever the filter shows", onClick: copy }, "Copy diagnostics")
-    )
-    )
-    )
-    ));
-
-};
 
 // v7.19.0-alpha.4 (Ron + UX) - THE "Select all / Clear" link in a checklist SECTION's header: one piece for every
 // section (removed-books groups, Tag from Collections' books pane + "Removed from Kindle"), so they can't drift.
@@ -221,7 +123,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.27.1"; // Build version for this file
+var ORGANIZER_VERSION = "7.28.0"; // Build version for this file
 // 7.26.0 - the code's own build, once it runs: the page-load entry can't know it (it's written before this code is
 // compiled) and the page's APP_VERSION doesn't move during alphas
 rwLog.log('info', 'BOOT', `Desktop app ${ORGANIZER_VERSION} running (page ${APP_VERSION})`);
@@ -11772,7 +11674,7 @@ function ReaderWrangler() {
       'Credentials loaded — not yet verified'
       )
       ),
-      React.createElement('p', { className: 'mt-1', style: { color: 'var(--text-secondary)' } }, `Channel: ${rwLog.shortChannelId(stored.channelId)}`), // 7.26.0 - the one short form (logger.js), shared with the log
+      React.createElement('p', { className: 'mt-1', style: { color: 'var(--text-secondary)' } }, `Channel: ${rwLog.shortChannelId(stored.channelId)}`), // 7.26.0 - the one short form (7.28.0: logkit-settings.js), shared with the log
       RELAY_IS_DEV && React.createElement('p', { className: 'mt-1 font-medium', style: { color: '#9333ea' } }, '🔧 Dev relay worker + storage') // v7.13.2 - the store this build reads (dev only)
       ),
       React.createElement('button', {

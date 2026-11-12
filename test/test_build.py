@@ -1,6 +1,6 @@
 # Tests for tools/build.py — the app built ahead of time (TODO "Faster loading").
 # tags: build, tooling, tier 1
-# covers: tools/build.py, tools/build/compile.js
+# covers: tools/build.py, tools/build/compile.js, logkit/diagnostics-window.js
 # Run: python test/test_build.py
 #
 # 2026-11-10: the page compiled readerwrangler.js in the browser on every load — ~50 s on Ron's PC, the same with 23
@@ -118,11 +118,12 @@ test("BUILD-005", "the stylesheet has the styles for the classes the pages and s
 
 def reads_root_pages_and_scripts():
     tracked = ["readerwrangler.html", "reset.html", "storage.js", "dist/readerwrangler.js", "test/ui/rw.py",
-               "v4/readerwrangler.html", "docs/x.md", "readerwrangler.css", "tools/build.py"]
+               "v4/readerwrangler.html", "docs/x.md", "readerwrangler.css", "tools/build.py", "logkit/logger.js",
+               "test/logger.test.js", "tools/build/tailwind.config.js"]
     got = b.style_sources(tracked)
-    check(got == ["readerwrangler.html", "reset.html", "storage.js"],
-          f"only the pages and scripts at the project root (never the built copies, never other folders): {got}")
-test("BUILD-006", "the stylesheet is built from the tracked pages and scripts at the project root, nothing else",
+    check(got == ["logkit/logger.js", "readerwrangler.html", "reset.html", "storage.js"],
+          f"only the shipped pages and scripts (never the built copies, tests, tools or docs): {got}")
+test("BUILD-006", "the stylesheet is built from the shipped pages and scripts (the root and logkit/), nothing else",
      reads_root_pages_and_scripts)
 
 
@@ -143,5 +144,29 @@ def stale_stylesheet_refused():
         b._staged, b._tracked, b._staged_paths = real
 test("BUILD-007", "the commit check refuses a dist/tailwind.css that isn't the build of the staged pages and scripts",
      stale_stylesheet_refused)
+
+
+# 2026-11-11 (7.28.0-alpha.1): the commit check copied the staged sources into a scratch folder without their folders,
+# so the first commit with logkit/logger.js crashed it ("No such file or directory: …\logkit/logger.js").
+def styles_from_a_subfolder_at_commit():
+    files = {"readerwrangler.html": '<div class="p-4">x</div>', "logkit/window.js": "const c = 'text-red-700';"}
+    css = b.compile_css_texts(files)
+    check(".text-red-700" in css, "a class only a script in a folder uses is in the stylesheet the commit check builds")
+test("BUILD-008", "the commit check builds the styles from scripts in folders too (logkit/), not just the root",
+     styles_from_a_subfolder_at_commit)
+
+
+# 7.28.0 ("Logging as its own module", step 2): the Diagnostics window moved out of readerwrangler.js into the logging
+# kit — JSX, so it is built like the app: logkit/diagnostics-window.js → dist/logkit/diagnostics-window.js
+WINDOW = "logkit/diagnostics-window.js"
+
+
+def window_is_built():
+    check(WINDOW in b.SOURCES, f"the window is one of the built sources: {b.SOURCES}")
+    check(b.out_path(WINDOW).replace("\\", "/").endswith("/dist/logkit/diagnostics-window.js"),
+          f"built into dist/, keeping its folder: {b.out_path(WINDOW)}")
+    out = b.compile_text(open(os.path.join(ROOT, WINDOW), encoding="utf-8").read(), WINDOW)
+    check("React.createElement" in out and "<Dialog" not in out, "its JSX became React.createElement")
+test("BUILD-009", "the logging kit's Diagnostics window is built like the app (logkit/ → dist/logkit/)", window_is_built)
 
 done()

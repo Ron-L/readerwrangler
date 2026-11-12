@@ -1,0 +1,140 @@
+// logkit/diagnostics-window.js — the logging kit's Diagnostics window: the kept log, readable (moved here from
+// readerwrangler.js in 7.28.0, "Logging as its own module"; designed in 7.26.0 — LOGGING.md §5 step 5.3, Ron + Claude,
+// 2026-11-09). Its own window (not part of any status screen — many messages have nothing to do with the data). Newest
+// first, one line per entry, "details ▸" for an entry's details; errors tinted; TEST entries badged. The filter on top;
+// the two switches, Clear and Copy diagnostics at the bottom. Updates live (log.subscribe). Copy diagnostics copies
+// EVERYTHING kept, whatever the filter shows.
+//
+// It knows nothing of the app that shows it. The host hands it, as props:
+//   log        — the logger (logkit/logger.js's createLogger object)
+//   Dialog     — the host's modal window ({ onClose, title, maxWidthClassName, children }), so Esc, ✕, a click outside
+//                and stacking work as in every other window of the host
+//   copyHeader — lines Copy diagnostics puts under its first line (e.g. the build)
+//   onClose
+// JSX: built ahead of time like the app (tools/build.py → dist/logkit/diagnostics-window.js, loaded by the page after
+// logkit/logger.js and before the app). Its look is Tailwind classes, so the host's stylesheet must be built from this
+// file too. The data-select-text / data-dialog-body marks tell a host's Ctrl+A what to select (inert elsewhere).
+// Published as window.LogkitDiagnosticsWindow.
+(function () {
+  'use strict';
+  var { useState, useEffect } = React;
+
+  var LEVELS = [['all', 'All levels'], ['info', 'Info and up'], ['warning', 'Warnings and up'], ['error', 'Errors and up']];
+  var TIMES = [['all', 'Everything kept'], ['page', 'Since this page loaded'], ['hour', 'The last hour'], ['day', 'The last day']];
+  var SWITCHES = [
+  ['errorBanner', 'Show a banner when something goes wrong',
+  'A red bar at the top of the page for every error — with Copy, so you can send it to us right away'],
+  ['logDetail', 'Also record extra detail',
+  'Records many more lines (every save, every sync check) — it fills the log fast and pushes older lines out, so turn it on only while chasing a problem']];
+
+
+  var DiagnosticsWindow = ({ log, Dialog, onClose, copyHeader }) => {
+    var [entries, setEntries] = useState(() => log.entries());
+    useEffect(() => log.subscribe(() => setEntries(log.entries())), []);
+    var [level, setLevel] = useState('all');
+    var [area, setArea] = useState('all');
+    var [time, setTime] = useState('all');
+    var [showTest, setShowTest] = useState(true);
+    var [opened, setOpened] = useState(() => new Set());
+    var [sw, setSw] = useState(() => log.switches());
+    var rank = (lv) => log.levels.indexOf(lv);
+    var since = { all: 0, page: performance.timeOrigin || 0, hour: Date.now() - 3600e3, day: Date.now() - 86400e3 }[time];
+    var areas = [...new Set(entries.map((e) => e.area))].sort();
+    var shown = entries.filter((e) => (level === 'all' || rank(e.level) >= rank(level)) && (area === 'all' || e.area === area) &&
+    e.time >= since && (showTest || !e.test)).reverse();
+    var today = new Date().toDateString();
+    var when = (t) => {var d = new Date(t);return (d.toDateString() === today ? '' : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ') +
+      d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });};
+    var copy = () => {
+      var text = log.diagnosticsText(copyHeader || []);
+      Promise.resolve(navigator.clipboard && navigator.clipboard.writeText(text)).then(
+        () => log.log('info', 'UI', 'Diagnostics copied — paste them into your message to us', null, { toast: true }),
+        () => log.log('warning', 'UI-06', "Diagnostics couldn't be copied (the browser refused the clipboard)", null, { toast: true }));
+    };
+    // 7.28.0 (Ron, 2026-11-11) - support can ask a person to press this, then Copy diagnostics: one error marked TEST goes
+    // down the real path (the log; the banner when its switch is on). Never the critical box — alarming on purpose. With
+    // the banner off, a note says so and names the switch, which is right here in this window.
+    var sendTest = () => {
+      log.log('error', 'UI-07', 'A test message from Diagnostics — not a real problem', null, { test: true });
+      if (!log.switches().errorBanner) {
+        var bannerSwitch = SWITCHES.find(([name]) => name === 'errorBanner')[1];
+        log.log('info', 'UI', `Test message recorded — the banner is off. To see one, tick “${bannerSwitch}” at the bottom of this window.`,
+        null, { test: true, toast: true });
+      }
+    };
+    var select = 'border border-gray-300 rounded px-2 py-1 text-sm bg-white';
+    return (/*#__PURE__*/
+      React.createElement(Dialog, { onClose: onClose, title: "Diagnostics", maxWidthClassName: "max-w-4xl" }, /*#__PURE__*/
+      React.createElement("div", { "data-diagnostics": true, className: "flex flex-col", style: { maxHeight: '75vh' } }, /*#__PURE__*/
+      React.createElement("div", { className: "flex flex-wrap items-center gap-2 px-4 py-2 border-b border-gray-200 text-sm" }, /*#__PURE__*/
+      React.createElement("span", { className: "text-gray-600" }, "Show:"), /*#__PURE__*/
+      React.createElement("select", { "data-diag-level": true, className: select, value: level, onChange: (e) => setLevel(e.target.value) },
+      LEVELS.map(([k, label]) => /*#__PURE__*/React.createElement("option", { key: k, value: k }, label))
+      ), /*#__PURE__*/
+      React.createElement("select", { "data-diag-area": true, className: select, value: area, onChange: (e) => setArea(e.target.value) }, /*#__PURE__*/
+      React.createElement("option", { value: "all" }, "All areas"),
+      areas.map((a) => /*#__PURE__*/React.createElement("option", { key: a, value: a }, a))
+      ), /*#__PURE__*/
+      React.createElement("select", { "data-diag-time": true, className: select, value: time, onChange: (e) => setTime(e.target.value) },
+      TIMES.map(([k, label]) => /*#__PURE__*/React.createElement("option", { key: k, value: k }, label))
+      ), /*#__PURE__*/
+      React.createElement("label", { className: "flex items-center gap-1 text-gray-600", title: "Entries a test or a support check planted on purpose (marked TEST)" }, /*#__PURE__*/
+      React.createElement("input", { "data-diag-test": true, type: "checkbox", checked: showTest, onChange: (e) => setShowTest(e.target.checked) }), " test entries"
+      ), /*#__PURE__*/
+      React.createElement("span", { className: "ml-auto text-gray-500" }, shown.length, " of ", entries.length)
+      ), /*#__PURE__*/
+      React.createElement("div", { "data-select-text": true, "data-dialog-body": true, className: "overflow-y-auto font-mono text-xs", style: { minHeight: 160 } },
+      shown.length === 0 && /*#__PURE__*/React.createElement("div", { className: "px-4 py-3 text-gray-400 font-sans text-sm" }, "Nothing to show."),
+
+      shown.some((e) => e.data !== undefined) && /*#__PURE__*/
+      React.createElement("div", { className: "px-4 py-1 text-gray-500 font-sans text-xs border-b border-gray-100" }, "Lines with more information show \u201Cdetails \u25B8\u201D \u2014 click it to open them."),
+
+      shown.map((e, i) => {
+        var id = `${e.time}|${e.code}|${i}`;
+        var bad = e.level === 'error' || e.level === 'critical';
+        return (/*#__PURE__*/
+          React.createElement("div", { key: id, "data-diag-row": true, className: `px-4 py-1 border-b border-gray-100 ${bad ? 'bg-red-50 text-red-800' : e.level === 'warning' ? 'text-amber-800' : 'text-gray-800'}` }, /*#__PURE__*/
+          React.createElement("div", { className: "flex gap-2 items-baseline" }, /*#__PURE__*/
+
+
+          React.createElement("span", { className: "text-gray-400 flex-shrink-0", style: { width: '19ch' } }, when(e.time)), /*#__PURE__*/
+          React.createElement("span", { className: "flex-shrink-0 w-16" }, e.level), /*#__PURE__*/
+          React.createElement("span", { "data-diag-code": true, className: "flex-shrink-0 w-20 font-semibold" }, e.code),
+          e.test && /*#__PURE__*/React.createElement("span", { className: "flex-shrink-0 px-1 rounded bg-gray-200 text-gray-700" }, "TEST"), /*#__PURE__*/
+          React.createElement("span", { className: "min-w-0", style: { overflowWrap: 'anywhere' } }, e.text, e.count > 1 ? ` (×${e.count})` : ''),
+          e.data !== undefined && /*#__PURE__*/
+          React.createElement("button", { type: "button", "aria-label": "Show details", title: "Show details",
+            className: "ml-auto flex-shrink-0 text-blue-600 hover:underline",
+            onClick: () => setOpened((prev) => {var n = new Set(prev);n.has(id) ? n.delete(id) : n.add(id);return n;}) },
+          opened.has(id) ? 'details ▾' : 'details ▸')
+
+          ),
+          opened.has(id) && /*#__PURE__*/React.createElement("pre", { className: "mt-1 ml-4 p-2 bg-gray-50 text-gray-700 whitespace-pre-wrap", style: { overflowWrap: 'anywhere' } }, JSON.stringify(e.data, null, 2))
+          ));
+
+      })
+      ), /*#__PURE__*/
+      React.createElement("div", { className: "flex flex-wrap items-center gap-3 px-4 py-2 border-t border-gray-200 text-sm" },
+      SWITCHES.map(([name, label, tip]) => /*#__PURE__*/
+      React.createElement("label", { key: name, className: "flex items-center gap-1 text-gray-700", title: tip }, /*#__PURE__*/
+      React.createElement("input", { "data-diag-switch": name, type: "checkbox", title: tip, checked: !!sw[name],
+        onChange: (e) => {log.setSwitch(name, e.target.checked);setSw(log.switches());} }), " ", label
+      )
+      ), /*#__PURE__*/
+      React.createElement("span", { className: "ml-auto flex gap-2" }, /*#__PURE__*/
+      React.createElement("button", { type: "button", className: "px-3 py-1 rounded border border-gray-300 hover:bg-gray-100",
+        title: "Record a test error (marked TEST) \u2014 to check that the log, the banner and Copy diagnostics work", onClick: sendTest }, "Send a test message"), /*#__PURE__*/
+      React.createElement("button", { type: "button", className: "px-3 py-1 rounded border border-gray-300 hover:bg-gray-100",
+        title: "Empty the log (like DevTools' Clear) \u2014 a good start before you reproduce a problem", onClick: () => log.clear() }, "Clear"), /*#__PURE__*/
+      React.createElement("button", { type: "button", className: "px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700",
+        title: "Copy everything kept, for a message to us \u2014 whatever the filter shows", onClick: copy }, "Copy diagnostics")
+      )
+      )
+      )
+      ));
+
+  };
+
+  window.LogkitDiagnosticsWindow = DiagnosticsWindow;
+})();
+// Built from logkit/diagnostics-window.js by tools/build.py: edit logkit/diagnostics-window.js, never this copy (TODO "Faster loading").

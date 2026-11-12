@@ -1,6 +1,7 @@
-// Unit tests for logger.js — run: node test/logger.test.js
+// Unit tests for the logging module (logkit/logger.js) with ReaderWrangler's settings (logkit-settings.js) — run:
+// node test/logger.test.js
 // tags: logging, tier 1
-// covers: logger.js
+// covers: logkit/logger.js, logkit-settings.js, logkit/diagnostics-window.js
 // The logging module (docs/design/LOGGING.md §1, §2, §2b, §6 — Ron + Claude, 2026-11-05/07): one call
 // rwLog.log(level, code, text, data, { test }), five levels, codes 'AREA' or 'AREA-NN' (numbered required for warning and
 // above), the kept log (info and up, the last 500, repeats counted, batched saves, page loads), the scrubber, test
@@ -8,7 +9,19 @@
 'use strict';
 const assert = require('assert');
 const { test, done } = require('./harness');
-const L = require('../logger.js');
+// 7.28.0 - the module moved into logkit/ and knows nothing of ReaderWrangler; RW's settings (areas, storage names, the
+// Channel ID's short form, the product) come from logkit-settings.js — combined here exactly as the pages combine them,
+// so every assertion below is unchanged.
+const K = require('../logkit/logger.js');
+const S = require('../logkit-settings.js');
+const L = {
+    createLogger: (o) => K.createLogger({ ...S.settings, ...o }),
+    scrub: (text, secrets) => K.scrub(text, secrets, S.settings),
+    TEST_MARK: K.TEST_MARK,
+    LOG_LEVELS: K.LOG_LEVELS,
+    LOG_AREAS: S.LOG_AREAS,
+    shortChannelId: S.shortChannelId,
+};
 
 // A fake world: a console that records, a storage that records writes, a clock and a timer queue we drive by hand.
 function world(opts = {}) {
@@ -421,6 +434,41 @@ test('LOG-029', 'rwLog.dialog(area, text): a dialog logs what it showed, at info
     const codes = w.log.entries().map(e => e.code);
     assert.ok(codes.includes('UI-05'), 'a mistyped area is reported (UI-05)');
     assert.ok(w.log.entries().some(e => e.text === 'Shown: "x"'), 'and the dialog is still logged');
+});
+
+// ---- 7.28.0: the module in logkit/, RW's settings beside it ----
+test('LOG-035', 'the page-global the name check is told about is the logger\'s real name (settings.globalName)', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'logkit-settings.js'), 'utf8');
+    const declared = [...src.matchAll(/\/\*\s*page-global:\s*([A-Za-z_$][\w$]*)\s*\*\//g)].map(m => m[1]);
+    assert.deepStrictEqual(declared, [S.settings.globalName], 'declared: ' + JSON.stringify(declared));
+});
+
+// A kit file's CODE (comments may say where it came from — whole-line ones, and a trailing "  // …" after code)
+const kitCode = (file) => require('fs').readFileSync(require('path').join(__dirname, '..', 'logkit', file), 'utf8')
+    .split('\n').filter(l => !/^\s*\/\//.test(l)).map(l => l.replace(/\s+\/\/\s.*$/, '')).join('\n');
+const RW_WORDS = ['readerwrangler-', 'ReaderWrangler', 'rwLog', 'APP_VERSION', 'ORGANIZER_VERSION', 'Channel', 'BACKUP',
+    "'BOOT'", "'SHARE", 'Desktop app', 'passphrase'];
+
+test('LOG-036', 'the module knows nothing of ReaderWrangler: no product name, storage key, area list or Channel ID in it', () => {
+    const code = kitCode('logger.js');
+    for (const word of RW_WORDS) assert.ok(!code.includes(word), `logkit/logger.js's code still mentions ${word}`);
+});
+
+// 2026-11-11 (Ron): what a hidden secret becomes is the host's word — the kit's own is "[hidden]"; ours stays "[passphrase]"
+test('LOG-038', 'a hidden secret becomes the host\'s label (secretLabel) — "[hidden]" when the host names none', () => {
+    assert.strictEqual(K.scrub('key: open sesame!', ['open sesame'], {}), 'key: [hidden]!');
+    assert.strictEqual(K.scrub('key: open sesame!', ['open sesame'], { secretLabel: '[token]' }), 'key: [token]!');
+    assert.strictEqual(L.scrub('key: open sesame!', ['open sesame']), 'key: [passphrase]!', 'ReaderWrangler\'s settings keep its word');
+    const lines = [];
+    const log = K.createLogger({ console: { error: (t) => lines.push(t), warn: () => {}, info: () => {}, debug: () => {}, log: () => {} },
+        secrets: () => ['open sesame'] });
+    log.log('error', 'UI-02', 'it said open sesame');
+    assert.ok(log.entries()[0].text.endsWith('[hidden]') && !lines[0].includes('open sesame'), log.entries()[0].text);
+});
+
+test('LOG-037','the Diagnostics window knows nothing of ReaderWrangler: the logger, the dialog and the copy header are handed in', () => {
+    const code = kitCode('diagnostics-window.js');
+    for (const word of RW_WORDS) assert.ok(!code.includes(word), `logkit/diagnostics-window.js's code still mentions ${word}`);
 });
 
 done();

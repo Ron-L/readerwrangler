@@ -53,11 +53,13 @@ fi
 python tools/run_tests.py --changed --tier 1 --quiet || exit 1
 
 # 8. The logging rules + the support table (2026-11-07, docs/design/LOGGING.md §6): when an app script at the repo root
-#    or the table is staged, every rwLog.log(…) call is checked — a known level; code AREA or AREA-NN from logger.js's
+#    or the table is staged, every rwLog.log(…) call is checked — a known level; code AREA or AREA-NN from logkit-settings.js's
 #    areas; warning and above numbered; each numbered code at ONE call — and docs/design/MESSAGE-CODES.md must match what
 #    the code says (refused with "run py tools/message_codes.py" if not). Checks the STAGED copies.
-#    (tools/message_codes.py; its tests: test/test_message_codes.py)
-if git diff --cached --name-only --diff-filter=ACMD | grep -qE '^[^/]+\.js$|^docs/design/MESSAGE-CODES\.md$'; then
+#    (tools/message_codes.py — RW's layer — on the logging kit's logkit/check_messages.py; tests: test/test_message_codes.py).
+#    7.28.0: on ANY staged .js — the logging module moved into logkit/, and a root-only trigger would have skipped a change
+#    to it (the checker itself scans every shipped script) — and when either layer of the checker changes.
+if git diff --cached --name-only --diff-filter=ACMD | grep -qE '\.js$|^docs/design/MESSAGE-CODES\.md$|^tools/message_codes\.py$|^logkit/check_messages\.py$'; then
     python tools/message_codes.py --check || exit 1
 fi
 

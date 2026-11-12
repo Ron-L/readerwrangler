@@ -77,6 +77,10 @@ function definedNames(code, filename, into) {
             if (l.type === 'MemberExpression' && l.object.type === 'Identifier' && l.object.name === 'window' && !l.computed && l.property.type === 'Identifier') into.add(l.property.name);
         },
     });
+    // 7.28.0 - a global a script publishes under a name it doesn't write literally (logkit/logger.js publishes the logger
+    // as window[settings.globalName]) is DECLARED where that name is chosen: /* page-global: rwLog */ in
+    // logkit-settings.js (test/logger.test.js LOG-035 ties the comment to the setting).
+    for (const m of code.matchAll(/\/\*\s*page-global:\s*([A-Za-z_$][\w$]*)\s*\*\//g)) into.add(m[1]);
 }
 
 const htmlPath = path.join(ROOT, 'readerwrangler.html');
@@ -96,7 +100,8 @@ for (const m of html.matchAll(/<script\b(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/scri
     definedNames(m[2], 'readerwrangler.html <inline script>', pageNames);
 }
 
-const targets = process.argv.slice(2).length ? process.argv.slice(2) : ['readerwrangler.js', 'mobile.js'];
+// 7.28.0: + the logging kit's Diagnostics window (JSX, built like the app — its source is checked, not the built copy)
+const targets = process.argv.slice(2).length ? process.argv.slice(2) : ['readerwrangler.js', 'mobile.js', 'logkit/diagnostics-window.js'];
 let problems = 0;
 for (const t of targets) {
     const file = path.join(ROOT, t);

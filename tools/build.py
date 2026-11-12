@@ -24,7 +24,11 @@ import tempfile
 import threading
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SOURCES = ("readerwrangler.js", "mobile.js")       # the scripts the page used to compile in the browser
+sys.path.insert(0, os.path.join(ROOT, "git-hooks"))
+import shipped_paths as _shipped  # noqa: E402  (the one "is this shipped?" rule)
+# the scripts the page used to compile in the browser; 7.28.0: + the logging kit's Diagnostics window (JSX, moved out
+# of readerwrangler.js) — built into dist/logkit/, keeping its folder
+SOURCES = ("readerwrangler.js", "mobile.js", "logkit/diagnostics-window.js")
 OUT_DIR = "dist"
 COMPILER = os.path.join(ROOT, "tools", "build", "compile.js")
 FOOTER = "\n// Built from {name} by tools/build.py: edit {name}, never this copy (TODO \"Faster loading\").\n"
@@ -74,8 +78,10 @@ STYLE_INPUTS = (os.path.join(TW, "tailwind.config.js"), os.path.join(TW, "tailwi
 
 
 def style_sources(paths):
-    """The files the styles are read from: every page and script at the project root (never dist/, never other folders)."""
-    return sorted(p for p in paths if "/" not in p and p.endswith((".html", ".js")))
+    """The files the styles are read from: every SHIPPED page and script, folders included (logkit/'s Diagnostics
+    window), never the built dist/ copies — the shared rule, git-hooks/shipped_paths.py (2026-11-11: root files only
+    would have dropped the window's styles silently when it moved into logkit/)."""
+    return sorted(p for p in paths if p.endswith((".html", ".js")) and _shipped.is_shipped_source(p))
 
 
 def _tracked(including_new=False):
@@ -106,6 +112,7 @@ def compile_css_texts(texts):
         paths = []
         for name, text in texts.items():
             paths.append(os.path.join(tmp, name))
+            os.makedirs(os.path.dirname(paths[-1]), exist_ok=True)   # a script in a folder (logkit/) keeps its folder
             with open(paths[-1], "w", encoding="utf-8", newline="\n") as f:
                 f.write(text or "")
         return compile_css(paths)

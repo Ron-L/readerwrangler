@@ -6,12 +6,32 @@ Ron's model: a severity code and text per message, a tunable display filter, eve
 the same model as Linux syslog / printk / journald). Section 3 was the sort, for Ron's red pen before any line was
 switched; it stays as the record._
 
+**Where it lives (7.28.0, "Logging as its own module" — Ron + Claude, 2026-11-11):** a kit in `logkit/` that knows
+nothing of ReaderWrangler — **`logkit/README.md`** is its guide (the pieces, the settings and their defaults, the calls,
+the kit's own codes). Mentions of `logger.js` below are its 7.26.0 history.
+1. **The module:** `logkit/logger.js` (one file: the core and the browser wiring). RW's settings for it are
+   `logkit-settings.js`, loaded just before it: the 17 areas, the storage names, the Channel ID's pattern and short
+   form, the passphrase to hide (shown as "[passphrase]" — the kit's own word is "[hidden]"), the product name, the
+   critical box's words, the build, the global `rwLog`.
+2. **The Diagnostics window:** `logkit/diagnostics-window.js` (JSX, built like the app into `dist/logkit/`, loaded
+   before the app), handed the logger, the app's `<Dialog>` and the build line for Copy diagnostics. Its copy-failure
+   warning is UI-06 (was SHARE-01). **Send a test message** (§5 step 5.5, built here): one error marked TEST, UI-07 —
+   the banner shows it when its switch is on; with the switch off, a note says so and names it; never the critical box.
+   Its text is fixed on purpose (Ron, 2026-11-11): support recognizes it, and nothing a person types reaches the log.
+3. **The commit check, in two layers:** the kit's `logkit/check_messages.py` (the rules on levels, areas and numbered
+   codes, the table, the source readers) is called by RW's `tools/message_codes.py`, which knows our files, the name
+   `rwLog`, our areas' file, the table's place, and our own two rules (toasts through the logger; dialog calls name
+   their area first).
+4. **Waiting for the Cloud Sync Key:** "secret patterns" — hiding secrets by their shape, not only the current value,
+   so an old or pasted key can't reach the log (Ron, 2026-11-11; item 8 of that TODO task).
+5. **Waiting for a second user:** the kit as its own repo (a submodule, like pytools).
+
 **Status (2026-11-10):** **released in 7.26.0** (built on `feature/logging`, alphas 1–28) — §5 lists each step and what
 changed while building. In short: one call (`rwLog.log`), 17 areas, every console line, toast and dialog through it; two
 switches (the error banner, extra detail) instead of the first design's ladder of levels; the Diagnostics window
 (Help → Diagnostics…, and "Full log…" in the 🕐 history); the screen tests fail on any undeclared error or critical.
 Left (TODO, 2026-11-10): the module as its own folder, with "Send a test message" (§5 step 5.5) and the flaky-test note
-— "Logging as its own module…", High priority; the fetchers' own logging — "The fetchers' own logging…", in "Fetcher
+— "Logging as its own module…", High priority (the folder and the button: done in 7.28.0, above); the fetchers' own logging — "The fetchers' own logging…", in "Fetcher
 work, in build order".
 
 **Reasons kept from the TODO task when it was removed** (2026-11-10 — the decisions themselves are in the sections
@@ -69,7 +89,7 @@ may plant `IMPORT-12` to test how `IMPORT-12` is handled). What marks them is ex
    constants in the logging module; everything else imports them. The screen tests read the kept log as structured
    entries, so they need no pattern at all.
 - Also for later: a "Send a test message" button in Diagnostics (support: "do you see the banner?") plants flagged
-  entries on a real device — the flag keeps them from looking like trouble.
+  entries on a real device — the flag keeps them from looking like trouble. (Built in 7.28.0: UI-07, marked TEST.)
 
 | Area | What |
 |---|---|
@@ -401,7 +421,8 @@ the other modules or the page's inline scripts. Totals: **critical** 6, **error*
      problem from before a reload is exactly what support asks about).
    5. **Later, not this release:** the fetch's problems as their own group, *"From your last fetch (date)"* — not
       interleaved by time, so two computers' clocks never need to agree (rides on the fetcher's own logging, §4 note 6);
-      a "Send a test message" button (plants TEST-marked entries so support can say "do you see the banner?").
+      a "Send a test message" button (plants TEST-marked entries so support can say "do you see the banner?") — ✅ built
+      in 7.28.0 (DIAG-010; see "Where it lives" at the top).
 6. ✅ The browser driver with both switches on, failing a test on any error or critical (2026-11-09, test/ui/rw.py):
    every session turns both switches on before the page's scripts, once per browser profile (a test that turns one off
    keeps it off; the switches' own tests opt out with `App(log=None)`), and its end fails the file on any `error ·` /

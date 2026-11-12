@@ -37,14 +37,22 @@ import sys, os, json, tempfile
 # it's created. (2026-10-08, 7.18.0 PM: the old list {"readerwrangler.js","mobile.js"} let an unapproved
 # post-compaction edit to overlayRegistry.js skip the gate.) Docs/TODO/memory/CHANGELOG/HTML/config/tests/
 # scripts deliberately do NOT trip the gate.
-EXTRA_APP_SOURCE = {"relay/relay-worker.js"}
+# 2026-11-11 ("Logging as its own module" moves code into logkit/): the rule is now the SHARED one —
+# git-hooks/shipped_paths.py (every .js outside the non-shipped folders, never the built dist/) — so code in a new
+# folder can't skip the gate, and the gate, the version guard and the style build can't disagree.
+def _shipped_paths():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("shipped_paths", os.path.join(repo_root(), "git-hooks", "shipped_paths.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def is_app_source(file_path):
     rel = os.path.relpath(os.path.abspath(file_path), repo_root()).replace("\\", "/")
     if rel.startswith("../"):
         return False                                  # outside this repo
-    return (rel.endswith(".js") and "/" not in rel) or rel in EXTRA_APP_SOURCE
+    return rel.endswith(".js") and _shipped_paths().is_shipped_source(rel)
 
 # Match the FULL comment markers (not the bare tokens) so a prose mention of the marker names
 # elsewhere in PRINCIPLES.md can't be mistaken for the real delimiters.

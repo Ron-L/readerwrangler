@@ -1,7 +1,7 @@
 # Screen test: starting up — the build line; a damaged status note no longer stops the library; a library that can't
 # be loaded is shown to EVERY user, with advice that fits, and Save Backup refuses to save half a library.
 # tags: boot, logging, storage, backup, tier 2
-# covers: readerwrangler.js, storage.js, logger.js, readerwrangler.html
+# covers: readerwrangler.js, storage.js, logkit/logger.js, logkit-settings.js, readerwrangler.html
 # Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python)
 #
 # 2026-11-09 (7.26.0-alpha.15, the logging switch's BOOT area): when the library didn't load, the app printed one

@@ -114,8 +114,10 @@ particulars:
 ## RW session tooling (`.claude/`, saved in the repo; only `settings.local.json` is gitignored)
 
 - **Pre-build gate** — a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the first edit of shipped
-  code each turn — **any `.js` at the repo root, plus `relay/relay-worker.js`** (a rule, so new modules are covered;
-  widened 2026-10-08 from just readerwrangler.js/mobile.js) — with a checklist (mechanism, not memory). Consider it, then
+  code each turn — **any shipped `.js`: everything outside the non-shipped folders, never `dist/`** — the one rule in
+  `git-hooks/shipped_paths.py`, shared with the version guard and the style build, so a new module or folder (`logkit/`,
+  `relay/`) is covered (widened 2026-10-08 from just readerwrangler.js/mobile.js; the shared rule 2026-11-11) — with a
+  checklist (mechanism, not memory). Consider it, then
   re-send EVERY app edit from that batch (the whole batch is refused; PostToolBatch clears it for the next one).
   `Stop`/`SessionStart` re-arm it per turn. The checklist is the **single source** in
   `docs/PRINCIPLES.md` (the `GATE-CHECKLIST` block); the hook just pulls + prints it and **fails LOUD** if
@@ -138,7 +140,9 @@ Bypass (Ron's call only): `git commit --no-verify`.
 - **Name check** (`git-hooks/check-names.js`), whenever a `.js`/`.html`
   is staged: refuses app code that uses a name nothing defines (a syntax check can't see that — 7.18.0-alpha.55's
   "shareBtnRef is not defined" crash), and any `readerwrangler.html` inline script that doesn't parse. Page-level
-  names are derived from `readerwrangler.html`'s scripts, so new modules need no upkeep. Needs
+  names are derived from `readerwrangler.html`'s scripts, so new modules need no upkeep; a global published under a
+  computed name is declared where the name is chosen (`/* page-global: rwLog */` in logkit-settings.js). It checks
+  readerwrangler.js, mobile.js and the Diagnostics window's source (`logkit/diagnostics-window.js`). Needs
   `npm i --no-save @babel/core @babel/preset-react` (fails loud if missing).
 - **Shared-numbers check** (`git-hooks/check-shared-numbers.js`), when `relay-client.js` or `relay/relay-worker.js` is
   staged: refuses a commit where the app and the worker disagree on the 90-day upload life, keep-2, the unfinished-copy
@@ -156,9 +160,11 @@ Bypass (Ron's call only): `git commit --no-verify`.
 - **Tier-1 tests for what changed** (`tools/run_tests.py --changed`, pre-commit step 7): the function tests whose
   `covers:` header names a changed file run on every commit; silent when none apply. The whole library:
   `py tools/run_tests.py --tier all` (docs/design/TESTING.md).
-- **Logging rules + the message-code table** (`tools/message_codes.py --check`, pre-commit step 8), when an app script
-  or the table is staged: every `rwLog.log(level, code, text…)` call has a known level, a code `AREA` or `AREA-NN` from
-  logger.js's areas, a numbered code for warning and above, each numbered code at ONE call — and
+- **Logging rules + the message-code table** (`tools/message_codes.py --check`, pre-commit step 8 — RW's layer on the
+  logging kit's general `logkit/check_messages.py`, 7.28.0; the kit's guide: `logkit/README.md`), when an app script,
+  either checker or the table is staged: every `rwLog.log(level, code, text…)` call has a known level, a code `AREA` or
+  `AREA-NN` from logkit-settings.js's areas (RW's settings for the logging kit), a numbered code for warning and above,
+  each numbered code at ONE call — and
   `docs/design/MESSAGE-CODES.md` (generated, never edited) matches the code. Fix: `py tools/message_codes.py` and stage
   the table (2026-11-07; docs/design/LOGGING.md §6). It also refuses a direct `showToast(` (a toast is
   `rwLog.log(…, { toast: true })`, so it reaches the log with its area) and a dialog call without its area FIRST
@@ -173,9 +179,11 @@ Bypass (Ron's call only): `git commit --no-verify`.
   minute is taken) — and a task that absorbs others lists them: `<!-- id … ; merged <id>, <id> -->`. The same check
   refuses a missing or repeated ID; `tools/backlog_report.py` follows tasks by them (Ron, 2026-10-21).
 - **The built app** (`tools/build.py --check-staged`, pre-commit step 9; 7.27.0): the page loads `dist/readerwrangler.js`
-  and `dist/mobile.js`, compiled ahead of time by `tools/build.py` (Babel 7.29.7 pinned in `tools/build/`; once:
-  `cd tools/build && npm ci`), and the app, reset and security pages link `dist/tailwind.css` — the styles built from every
-  tracked root page and script (Tailwind 3.4.17, what the in-browser builder served). When a source, a page, a script or a
+  and `dist/mobile.js` (and, since 7.28.0, the logging kit's `dist/logkit/diagnostics-window.js`), compiled ahead of time
+  by `tools/build.py` (`SOURCES`; Babel 7.29.7 pinned in `tools/build/`; once: `cd tools/build && npm ci`), and the app,
+  reset and security pages link `dist/tailwind.css` — the styles built from every tracked SHIPPED page and script,
+  folders included (Tailwind 3.4.17, what the in-browser builder served). Restart `serve.py` after `SOURCES` changes (it
+  reads the list once). When a source, a page, a script or a
   built copy is staged, the staged copy must be exactly the build of the staged files. `serve.py` rebuilds on demand, so
   the local loop is still edit → refresh. **Never edit `dist/`.** A changed `dist/tailwind.css` moves its `?v=` stamp in
   every page that links it (the version guard reads the pages).

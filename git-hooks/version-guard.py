@@ -26,6 +26,7 @@ alpha testing), so they carry an INTERNAL const that bumps every alpha instead.
 Deliberate exception (Ron's call only, per CLAUDE.md): git commit --no-verify.
 """
 import datetime
+import os
 import subprocess
 import sys
 import re
@@ -84,12 +85,15 @@ def const_bumped(path, const_name):
     return any(pat.search(ln) for ln in added_lines(path))
 
 
-NOT_SHIPPED_DIRS = ("git-hooks/", "test/", "docs/", "v4/", "tools/", ".claude/", "pytools/", "post-mortems/")  # tools/ (dev tools, incl. the demo library prep) replaced tutorials/ 2026-11-02
+# 2026-11-11 - the SHARED answer to "is this shipped?" (git-hooks/shipped_paths.py — also the gate's and the style
+# build's), replacing this file's own folder list
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from shipped_paths import is_shipped  # noqa: E402
 
 
 def shipped_code_staged(files):
     """Any staged .js / .html / .css that is part of the product (the app, phone app, modules, fetchers, worker, pages)."""
-    return any(f.endswith((".js", ".html", ".css")) and not f.startswith(NOT_SHIPPED_DIRS) for f in files)
+    return any(f.endswith((".js", ".html", ".css")) and is_shipped(f) for f in files)
 
 
 def staged_copyright_year():

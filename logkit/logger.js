@@ -1,71 +1,69 @@
-// logger.js — THE logging module (7.26.0; design: docs/design/LOGGING.md §1, §2, §2b, §6 — Ron + Claude, 2026-11-05/07).
+// logkit/logger.js — a logging module for a web page (written for ReaderWrangler 7.26.0, made its own module in 7.28.0;
+// design: docs/design/LOGGING.md, the README beside this file — Ron + Claude, 2026-11-05/07/11).
 //
-// One call for every message:   rwLog.log(level, code, text, data, { test: true })
+// One call for every message:   log.log(level, code, text, data, { test, toast, hint, advice })
 //   level — 'debug' | 'info' | 'warning' | 'error' | 'critical', written at the call, where the message is written
 //   code  — 'IMPORT' (the bare area: a general line) or 'IMPORT-12' (one specific message — required for warning and
-//           above, each used at ONE call: tools/message_codes.py checks it at every commit and writes the support table,
-//           docs/design/MESSAGE-CODES.md, from the calls themselves)
+//           above, each used at ONE call: the kit's commit check, check_messages.py beside this file — called by the
+//           host's own checker — checks it and writes the support table)
 //   data  — optional details; `test: true` marks a message a test planted (shown to people as IMPORT-12-!TEST!)
 //
-// The module is agnostic about the messages: it knows only the five levels and the 13 areas. It keeps a log on the
-// device (info and up, the last 500, repeats counted, saved in batches), scrubs Channel IDs and the passphrase out of
-// everything, sends each message to the console method of its level, and logs uncaught errors and failed promises.
-// It never throws — logging must never break the app. Its own codes: UI-02 (a malformed logging call), UI-03 (an
-// uncaught error), UI-04 (a failed promise nobody handled). Tests: test/logger.test.js (LOG-001…).
+// The module knows nothing of the app that uses it. Everything the app decides — its areas, where the log is kept, the
+// switches' storage names, what to clean out (secrets, and IDs to shorten), the product's name, the critical box's
+// words, the build — comes from the host's SETTINGS (in ReaderWrangler: logkit-settings.js, loaded just before this file,
+// as window.LOGKIT_SETTINGS). The host's areas must include UI: the module's own codes are UI-02 (a malformed logging
+// call), UI-03 (an uncaught error), UI-04 (a failed promise nobody handled), UI-05 (a dialog naming an unknown area).
+//
+// It keeps a log on the device (info and up, the last 500, repeats counted, saved in batches), cleans every message,
+// sends each to the console method of its level, logs uncaught errors and failed promises, and draws two alerts in plain
+// page elements (they must work when the app has crashed). It never throws — logging must never break the app.
+// Tests: test/logger.test.js (LOG-001…), test/ui/test_logging.py.
 //
 // Wrapped in a function: a classic script's top-level names are shared by the whole page, and a second script declaring
-// the same name (`rank`, `scrub`…) would stop the page loading. Only window.rwLog (and Node's exports) leave this file.
+// the same name (`rank`, `scrub`…) would stop the page loading. Only the logger's global (settings.globalName) and
+// Node's exports leave this file.
 (function () {
 'use strict';
 
 const LOG_LEVELS = ['debug', 'info', 'warning', 'error', 'critical'];
-// The areas (LOGGING.md §2). JavaScript has no enums; a frozen object is the standard stand-in.
-const LOG_AREAS = Object.freeze({
-    BOOT: 'BOOT', SYNC: 'SYNC', IMPORT: 'IMPORT', BACKUP: 'BACKUP', STORE: 'STORE', INTEG: 'INTEG', FIELD: 'FIELD',
-    MOVE: 'MOVE', UNDO: 'UNDO', COVER: 'COVER', PREF: 'PREF', PHONE: 'PHONE', UI: 'UI',
-    // 2026-11-09 (Ron) - for the toasts none of the 13 fit: folders, Book Lists, Searches and tags as things (ORG); a
-    // book's details (EDIT); Auto-Organize (AUTO); copying titles, authors, links, the email text (SHARE)
-    ORG: 'ORG', EDIT: 'EDIT', AUTO: 'AUTO', SHARE: 'SHARE'
-});
 const TEST_MARK = '-!TEST!';                          // written after the code of a planted test message — defined ONCE
-const LOG_STORAGE_KEY = 'readerwrangler-log';
-const LOG_LEVEL_KEY = 'readerwrangler-log-level';     // the OLD remembered ?log= level (before 2026-11-09) — read once, then removed
-// The two switches (LOGGING.md §5 step 5.1 — Ron, 2026-11-09): remembered in this browser as 'on'; absent = off.
-const LOG_SWITCH_KEYS = Object.freeze({ errorBanner: 'readerwrangler-log-banner', logDetail: 'readerwrangler-log-detail' });
 const CODE_RE = /^([A-Z]+)(?:-(\d{2}))?$/;            // 'IMPORT' or 'IMPORT-12'
-const CHANNEL_ID_RE = /\b([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 const EXTENSION_SCRIPT_RE = /^(chrome|moz|safari-web|ms-browser)-extension:\/\//;
 const CONSOLE_METHOD = { debug: 'debug', info: 'info', warning: 'warn', error: 'error', critical: 'error' };
 const rank = (level) => LOG_LEVELS.indexOf(level);
 
-// THE short form of a Channel ID — first 8 … last 4, as Relay Setup shows it — used by the log's cleaner AND Relay Setup
-// (rwLog.shortChannelId), so the two can never show one channel two ways, and two keys that share their first 8 still
-// read differently (Ron, 2026-11-09: telling old credentials from new matters most when they've just changed).
-function shortChannelId(id) {
-    const s = id == null ? '' : String(id);
-    return s.length > 12 ? `${s.slice(0, 8)}...${s.slice(-4)}` : s;
-}
-
-// Channel IDs become their short form (above); a secret (the passphrase) becomes "[passphrase]", none of it shown.
-function scrub(text, secrets) {
-    let s = String(text).replace(CHANNEL_ID_RE, (id) => shortChannelId(id));
+// The cleaner: IDs matching the host's idPattern become the host's short form (shortId); each secret (found by its exact
+// value — the host's secrets()) becomes the host's secretLabel, "[hidden]" if it names none, none of it shown. (In
+// ReaderWrangler: Channel IDs, first 8 … last 4; the Cloud Sync passphrase, shown as "[passphrase]".)
+function scrub(text, secrets, settings) {
+    let s = String(text);
+    if (settings && settings.idPattern && typeof settings.shortId === 'function') {
+        s = s.replace(settings.idPattern, (id) => settings.shortId(id));
+    }
+    const label = (settings && typeof settings.secretLabel === 'string') ? settings.secretLabel : '[hidden]';
     for (const secret of secrets || []) {
-        if (typeof secret === 'string' && secret.length >= 4) s = s.split(secret).join('[passphrase]');
+        if (typeof secret === 'string' && secret.length >= 4) s = s.split(secret).join(label);
     }
     return s;
 }
-function scrubData(data, secrets) {
-    try { return JSON.parse(scrub(JSON.stringify(data), secrets)); } catch (e) { return scrub(String(data), secrets); }
+function scrubData(data, secrets, settings) {
+    try { return JSON.parse(scrub(JSON.stringify(data), secrets, settings)); } catch (e) { return scrub(String(data), secrets, settings); }
 }
 function asText(value) {
     if (typeof value === 'string') return value;
     try { return JSON.stringify(value); } catch (e) { return String(value); }
 }
 
+// opts: the host's settings (areas, storageKey, oldLevelKey, switchKeys, idPattern, shortId, product, extraApi) plus the
+// environment (console, storage, now, schedule, secrets, cap, keepLevel, saveDelayMs, onAlert).
 function createLogger(opts = {}) {
+    const AREAS = opts.areas || { UI: 'UI' };            // the host's areas (must include UI — the module's own codes)
+    const SWITCH_KEYS = opts.switchKeys || { errorBanner: 'logkit-banner', logDetail: 'logkit-detail' };
+    const OLD_LEVEL_KEY = opts.oldLevelKey || null;      // a host's old single "level" setting, moved to the switches once
+    const product = opts.product || 'Diagnostics';
     const con = opts.console || console;
     const storage = opts.storage || null;
-    const key = opts.storageKey || LOG_STORAGE_KEY;
+    const key = opts.storageKey || 'logkit-log';
     const now = opts.now || (() => Date.now());
     const schedule = opts.schedule || ((fn, ms) => setTimeout(fn, ms));
     const getSecrets = opts.secrets || (() => []);
@@ -77,25 +75,25 @@ function createLogger(opts = {}) {
     // error raises the banner; logDetail — debug lines are recorded too. Independent (all four combinations make sense);
     // both off for an ordinary user. Set in the Diagnostics window, on the address (?errorBanner= / ?logDetail=) or the
     // console (rwLog.setSwitch), and remembered in this browser.
-    const readSwitch = (name) => { try { return !!storage && storage.getItem(LOG_SWITCH_KEYS[name]) === 'on'; } catch (e) { return false; } };
+    const readSwitch = (name) => { try { return !!storage && storage.getItem(SWITCH_KEYS[name]) === 'on'; } catch (e) { return false; } };
     const writeSwitch = (name, on) => {
         try {
             if (!storage) return;
-            if (on) storage.setItem(LOG_SWITCH_KEYS[name], 'on');
-            else if (storage.removeItem) storage.removeItem(LOG_SWITCH_KEYS[name]);
-            else storage.setItem(LOG_SWITCH_KEYS[name], '');
+            if (on) storage.setItem(SWITCH_KEYS[name], 'on');
+            else if (storage.removeItem) storage.removeItem(SWITCH_KEYS[name]);
+            else storage.setItem(SWITCH_KEYS[name], '');
         } catch (e) { /* not remembered: still applies to this page */ }
     };
     const switches = { errorBanner: readSwitch('errorBanner'), logDetail: readSwitch('logDetail') };
     // the old ladder's remembered level becomes the switches once (debug: both on; any other level: the banner)
     try {
-        const old = storage && storage.getItem(LOG_LEVEL_KEY);
+        const old = OLD_LEVEL_KEY && storage && storage.getItem(OLD_LEVEL_KEY);
         if (old) {
             if (LOG_LEVELS.includes(old)) {
                 switches.errorBanner = true; writeSwitch('errorBanner', true);
                 if (old === 'debug') { switches.logDetail = true; writeSwitch('logDetail', true); }
             }
-            if (storage.removeItem) storage.removeItem(LOG_LEVEL_KEY); else storage.setItem(LOG_LEVEL_KEY, '');
+            if (storage.removeItem) storage.removeItem(OLD_LEVEL_KEY); else storage.setItem(OLD_LEVEL_KEY, '');
         }
     } catch (e) { /* storage refused: nothing to move */ }
     const recorded = (level) => rank(level) >= (switches.logDetail ? rank('debug') : keepRank);
@@ -128,8 +126,8 @@ function createLogger(opts = {}) {
     const record = (level, code, text, data, isTest, toastOptions) => {
         let secrets = [];
         try { secrets = getSecrets() || []; } catch (e) { /* none */ }
-        const entry = { time: now(), level, code, area: code.split('-')[0], text: scrub(asText(text), secrets), count: 1 };
-        if (data != null) entry.data = scrubData(data, secrets);
+        const entry = { time: now(), level, code, area: code.split('-')[0], text: scrub(asText(text), secrets, opts), count: 1 };
+        if (data != null) entry.data = scrubData(data, secrets, opts);
         if (isTest) entry.test = true;
         // a message's own advice for the critical box, in place of the usual words (BOOT-01: "don't save a backup now")
         if (toastOptions && typeof toastOptions.advice === 'string') entry.advice = toastOptions.advice;
@@ -170,7 +168,7 @@ function createLogger(opts = {}) {
             const cd = typeof code === 'string' ? code : '';
             const m = CODE_RE.exec(cd);
             if (!m) problems.push(`badly shaped code "${code}" — use AREA or AREA-NN`);
-            else if (!LOG_AREAS[m[1]]) problems.push(`unknown area "${m[1]}"`);
+            else if (!AREAS[m[1]]) problems.push(`unknown area "${m[1]}"`);
             else if (rank(lv) >= rank('warning') && !m[2]) problems.push(`a ${lv} needs a numbered code (${m[1]}-NN)`);
             record(lv, cd || '?', text, data, !!(options && options.test === true), options);
             // (through log() itself, like every message — so the code scan sees UI-02; a well-formed call, so no loop)
@@ -180,12 +178,12 @@ function createLogger(opts = {}) {
 
     // One switch on or off, remembered; an unknown name changes nothing.
     const setSwitch = (name, on) => {
-        if (!Object.prototype.hasOwnProperty.call(LOG_SWITCH_KEYS, name)) return;
+        if (!Object.prototype.hasOwnProperty.call(SWITCH_KEYS, name)) return;
         switches[name] = !!on;
         writeSwitch(name, !!on);
     };
 
-    return {
+    const api = {
         log,
         format,
         TEST_MARK,
@@ -200,7 +198,7 @@ function createLogger(opts = {}) {
         // EVERY kept entry, oldest first, each entry's details on the line below it. Already cleaned (scrub) when recorded.
         diagnosticsText: (headerLines) => {
             const browser = typeof navigator !== 'undefined' && navigator.userAgent ? navigator.userAgent : 'unknown';
-            const lines = [`ReaderWrangler diagnostics — ${new Date(now()).toISOString()}`, ...(headerLines || []),
+            const lines = [`${product} diagnostics — ${new Date(now()).toISOString()}`, ...(headerLines || []),
                 `Browser: ${browser}`,
                 `Switches: error banner ${switches.errorBanner ? 'on' : 'off'}, extra detail ${switches.logDetail ? 'on' : 'off'}`,
                 `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} kept`, ''];
@@ -210,7 +208,6 @@ function createLogger(opts = {}) {
             }
             return lines.join('\n');
         },
-        shortChannelId,
         switches: () => ({ ...switches }),
         setSwitch,
         // The app hands over its toast routine: fn(text, { level, x, y, hint }). Until then (or if the app has crashed) a
@@ -221,7 +218,7 @@ function createLogger(opts = {}) {
         // none), or null if neither was there (leave the address alone). An unknown value changes nothing but is removed.
         applyAddress: (search) => {
             const params = new URLSearchParams(search || '');
-            const named = Object.keys(LOG_SWITCH_KEYS).filter(n => params.has(n));
+            const named = Object.keys(SWITCH_KEYS).filter(n => params.has(n));
             if (named.length === 0) return null;
             for (const n of named) {
                 const v = params.get(n);
@@ -236,14 +233,21 @@ function createLogger(opts = {}) {
         // this checks it again when it runs. A mistyped area is UI-05; the dialog is still logged (as UI).
         dialog: (area, text) => {
             try {
-                const known = typeof area === 'string' && LOG_AREAS[area] ? area : null;
+                const known = typeof area === 'string' && AREAS[area] ? area : null;
                 if (!known) log('error', 'UI-05', `A dialog named an unknown area "${area}" (a coding slip)`);
                 record('info', known || 'UI', text, null, false, null);
             } catch (e) { /* logging must never break the app */ }
         },
-        // A page-load entry: the build, and whether the browser had discarded the tab (LOGGING.md §1).
-        pageLoad: ({ build, discarded } = {}) => log('info', 'BOOT',
-            `Page loaded — build ${build || 'unknown'}${discarded ? '; the browser had discarded this tab and reloaded it' : ''}`),
+        // A page-load entry: the build, and whether the browser had discarded the tab (LOGGING.md §1) — in the host's
+        // start-up area (RW: BOOT), UI if it names none or an unknown one. (Through record(), like dialog(): its area comes
+        // from the settings, not a quoted word at the call — and an info line needs no number.)
+        pageLoad: ({ build, discarded } = {}) => {
+            try {
+                const area = typeof opts.pageLoadArea === 'string' && AREAS[opts.pageLoadArea] ? opts.pageLoadArea : 'UI';
+                record('info', area, `Page loaded — build ${build || 'unknown'}${discarded ? '; the browser had discarded this tab and reloaded it' : ''}`,
+                    null, false, null);
+            } catch (e) { /* logging must never break the app */ }
+        },
         // Uncaught errors and failed promises (UI-03 / UI-04). Everything is logged — a crash inside React or another
         // library we load included — except an error whose source is a browser extension's script.
         installGlobalHandlers: (target) => {
@@ -258,14 +262,19 @@ function createLogger(opts = {}) {
             });
         },
     };
+    return Object.assign(api, opts.extraApi || {});   // a host's own helpers on the logger (RW: shortChannelId)
 }
 
-// Browser: one logger for the page, as window.rwLog. It reads the Cloud Sync passphrase only to scrub it out.
+// Browser: one logger for the page, built from the host's settings (window.LOGKIT_SETTINGS — in ReaderWrangler,
+// logkit-settings.js, loaded just before this file) and published as window[settings.globalName].
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    const relaySecrets = () => {
-        try { const r = JSON.parse(window.localStorage.getItem('readerwrangler-relay') || 'null'); return r && r.passphrase ? [r.passphrase] : []; }
-        catch (e) { return []; }
-    };
+    const S = window.LOGKIT_SETTINGS || {};
+    if (!window.LOGKIT_SETTINGS) {
+        try { console.error('logkit: no settings (window.LOGKIT_SETTINGS) — load the host\'s settings file before logkit/logger.js'); } catch (e) { /* none */ }
+    }
+    const product = S.product || 'This app';
+    const idPrefix = S.elementIdPrefix || 'logkit';
+    const buildOf = () => { try { return typeof S.build === 'function' ? S.build() : undefined; } catch (e) { return undefined; } };
     let pageStorage = null;
     try { pageStorage = window.localStorage; } catch (e) { /* storage blocked: the log lives in memory */ }
 
@@ -291,9 +300,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     const button = (label, css, onClick) => { const b = el('button', css, label); b.type = 'button'; b.addEventListener('click', onClick); return b; };
     const codeOf = (e) => `${e.code}${e.test ? TEST_MARK : ''}`;
     const report = (list) => [
-        `ReaderWrangler diagnostics — build ${typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'unknown'} — ${new Date().toISOString()}`,
-        ...list.map(e => `${new Date(e.time).toISOString()}  ${rwLog.format(e)}`),
-        '', 'Recent log:', ...rwLog.entries().slice(-50).map(e => `${new Date(e.time).toISOString()}  ${rwLog.format(e)}`)
+        `${product} diagnostics — build ${buildOf() || 'unknown'} — ${new Date().toISOString()}`,
+        ...list.map(e => `${new Date(e.time).toISOString()}  ${pageLog.format(e)}`),
+        '', 'Recent log:', ...pageLog.entries().slice(-50).map(e => `${new Date(e.time).toISOString()}  ${pageLog.format(e)}`)
     ].join('\n');
     const copyInto = (btn, list, label) => {
         try {
@@ -304,8 +313,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     };
     const showBanner = (entry) => whenBody(() => {
         shown.banner.push(entry);
-        let bar = document.getElementById('rw-log-banner');
-        if (!bar) { bar = el('div', BANNER_CSS); bar.id = 'rw-log-banner'; bar.setAttribute('role', 'alert'); document.body.appendChild(bar); }
+        let bar = document.getElementById(`${idPrefix}-banner`);
+        if (!bar) { bar = el('div', BANNER_CSS); bar.id = `${idPrefix}-banner`; bar.setAttribute('role', 'alert'); document.body.appendChild(bar); }
         bar.textContent = '';
         const msg = el('span', 'flex:1;min-width:0;overflow-wrap:anywhere', '🐞 ');
         msg.appendChild(el('strong', '', `${entry.level} · ${codeOf(entry)}`));
@@ -314,23 +323,22 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         const close = () => { shown.banner = []; bar.remove(); };
         const copyBtn = button('Copy', BANNER_BTN, () => copyInto(copyBtn, shown.banner, 'Copy'));
         bar.append(msg, copyBtn, button('Dismiss', BANNER_BTN, close),
-            button('Turn off this banner', BANNER_LINK, () => { rwLog.setSwitch('errorBanner', false); close(); }));
+            button('Turn off this banner', BANNER_LINK, () => { pageLog.setSwitch('errorBanner', false); close(); }));
         debugger; // eslint-disable-line no-debugger -- stops here only when DevTools is open (TODO decision 3)
     });
     const showCritical = (entry) => whenBody(() => {
         shown.critical.push(entry);
-        let box = document.getElementById('rw-log-critical');
-        if (!box) { box = el('div', CRITICAL_CSS); box.id = 'rw-log-critical'; box.setAttribute('role', 'alert'); document.body.appendChild(box); }
+        let box = document.getElementById(`${idPrefix}-critical`);
+        if (!box) { box = el('div', CRITICAL_CSS); box.id = `${idPrefix}-critical`; box.setAttribute('role', 'alert'); document.body.appendChild(box); }
         box.textContent = '';
         // a message's own advice outranks the usual words — kept while it's among those shown (a later message without
         // advice must not bring "save a backup now" back over a "don't")
         const advised = shown.critical.slice().reverse().find(e => e.advice);
         box.append(
-            el('div', 'font-weight:700;font-size:15px;margin-bottom:6px', 'ReaderWrangler hit a problem that may affect your library.'),
+            el('div', 'font-weight:700;font-size:15px;margin-bottom:6px', (S.critical && S.critical.title) || `${product} hit a problem.`),
             el('div', 'margin-bottom:8px', `${entry.text} (code ${codeOf(entry)})`),
             el('div', 'margin-bottom:12px;color:var(--text-secondary,#475569)', advised ? advised.advice
-                : 'To be safe, save a backup now: File → Save Backup. If ReaderWrangler stops responding, reload the page. '
-                + 'If this keeps happening, press Copy details and send it to us through Feedback at the bottom of the window.'));
+                : ((S.critical && S.critical.advice) || 'If this keeps happening, press Copy details and send it to us.')));
         if (shown.critical.length > 1) box.append(el('div', 'margin-bottom:8px;font-style:italic', `and ${shown.critical.length - 1} more`));
         const row = el('div', 'text-align:right');
         const copyBtn = button('Copy details', CRITICAL_BTN, () => copyInto(copyBtn, shown.critical, 'Copy details'));
@@ -338,27 +346,27 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         box.append(row);
     });
 
-    const rwLog = createLogger({ console: window.console, storage: pageStorage, secrets: relaySecrets,
+    const pageLog = createLogger({ ...S, console: window.console, storage: pageStorage,
+        secrets: typeof S.secrets === 'function' ? S.secrets : () => [],
         onAlert: (kind, entry) => (kind === 'critical' ? showCritical(entry) : showBanner(entry)) });
     // ?errorBanner= / ?logDetail= on the address: applied, remembered, and removed from the address bar
-    const remaining = rwLog.applyAddress(window.location.search);
+    const remaining = pageLog.applyAddress(window.location.search);
     if (remaining !== null) {
         try { window.history.replaceState(window.history.state, '', window.location.pathname + remaining + window.location.hash); }
         catch (e) { /* the address stays; the choice still applies */ }
     }
-    rwLog.installGlobalHandlers(window);
-    window.addEventListener('pagehide', () => rwLog.flush());
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') rwLog.flush(); });
-    // This file loads first (to catch errors from everything after it), before the page defines APP_VERSION — so the
+    pageLog.installGlobalHandlers(window);
+    window.addEventListener('pagehide', () => pageLog.flush());
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') pageLog.flush(); });
+    // This file loads first (to catch errors from everything after it), before the page defines its build — so the
     // page-load entry waits until the page has been read.
-    const recordPageLoad = () => rwLog.pageLoad({
-        build: typeof APP_VERSION !== 'undefined' ? APP_VERSION : undefined, discarded: !!document.wasDiscarded });
+    const recordPageLoad = () => pageLog.pageLoad({ build: buildOf(), discarded: !!document.wasDiscarded });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', recordPageLoad, { once: true });
     else recordPageLoad();
-    window.rwLog = rwLog;
+    window[S.globalName || 'logkit'] = pageLog;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { createLogger, scrub, shortChannelId, LOG_LEVELS, LOG_AREAS, TEST_MARK, LOG_STORAGE_KEY, LOG_LEVEL_KEY, LOG_SWITCH_KEYS };
+    module.exports = { createLogger, scrub, LOG_LEVELS, TEST_MARK };
 }
 })();

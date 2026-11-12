@@ -2,7 +2,7 @@
 
 _Written by `py tools/message_codes.py` from every `rwLog.log(…)` call in the code (docs/design/LOGGING.md §6). The commit check refuses a commit whose copy is out of date. Support: find the code a user reports; the level says how serious it is._
 
-89 numbered codes. (203 general lines — info and debug, coded by their area alone — not listed.)
+90 numbered codes. (203 general lines — info and debug, coded by their area alone — not listed.)
 
 | Code | Level | Message | File |
 |---|---|---|---|
@@ -57,7 +57,6 @@ _Written by `py tools/message_codes.py` from every `rwLog.log(…)` call in the 
 | PREF-02 | warning | Your filters couldn't be saved (is the browser's storage full?) | readerwrangler.js |
 | PREF-03 | warning | Your saved Auto-Organize settings couldn't be read — the defaults are used | readerwrangler.js |
 | PREF-04 | warning | Your Auto-Organize settings couldn't be saved (is the browser's storage full?) | readerwrangler.js |
-| SHARE-01 | warning | Diagnostics couldn't be copied (the browser refused the clipboard) | readerwrangler.js |
 | STORE-01 | critical | Your saved organization could not be read — ReaderWrangler is using a fallback copy. | readerwrangler.js |
 | STORE-02 | critical | Your library organization could not be saved — browser storage may be full. | readerwrangler.js |
 | STORE-03 | error | Reset App failed: … | readerwrangler.js |
@@ -87,10 +86,12 @@ _Written by `py tools/message_codes.py` from every `rwLog.log(…)` call in the 
 | SYNC-15 | warning | Sending to the relay failed (it can be retried): … | relay-client.js |
 | SYNC-16 | warning | Checking for old batches on the relay was skipped: … | relay-client.js |
 | UI-01 | error | A popup's button is missing {...popupTrigger(isOpen)} — spread it onto the button so other popups switch to it in one click (a coding slip) | readerwrangler.js |
-| UI-02 | error | A logging call was malformed: … | logger.js |
-| UI-03 | error | Uncaught error: … | logger.js |
-| UI-04 | error | A failed promise nobody handled: … | logger.js |
-| UI-05 | error | A dialog named an unknown area "…" (a coding slip) | logger.js |
+| UI-02 | error | A logging call was malformed: … | logkit/logger.js |
+| UI-03 | error | Uncaught error: … | logkit/logger.js |
+| UI-04 | error | A failed promise nobody handled: … | logkit/logger.js |
+| UI-05 | error | A dialog named an unknown area "…" (a coding slip) | logkit/logger.js |
+| UI-06 | warning | Diagnostics couldn't be copied (the browser refused the clipboard) | logkit/diagnostics-window.js |
+| UI-07 | error | A test message from Diagnostics — not a real problem | logkit/diagnostics-window.js |
 | UNDO-01 | error | An action has no undo / redo label (a coding slip): … | readerwrangler.js |
 | UNDO-02 | error | Undo did nothing — this code doesn't know the action (a coding slip): … | readerwrangler.js |
 | UNDO-03 | error | Redo did nothing — this code doesn't know the action (a coding slip): … | readerwrangler.js |

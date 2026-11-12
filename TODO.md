@@ -3,7 +3,6 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [Logging as its own module: a self-contained folder, one step from a sub-repo](#logging-as-its-own-module-a-self-contained-folder-one-step-from-a-sub-repo)
       - [The Delete key deletes the folder you're in — not the folders you selected](#the-delete-key-deletes-the-folder-youre-in--not-the-folders-you-selected)
       - [Reset App: a Save Backup… button where the box says to save a backup](#reset-app-a-save-backup-button-where-the-box-says-to-save-a-backup)
       - [When the app can't open: Copy diagnostics and Report this problem, right there](#when-the-app-cant-open-copy-diagnostics-and-report-this-problem-right-there)
@@ -141,6 +140,7 @@
   - [👀 Watching](#watching)
     - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
     - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
+    - [A screen test that failed once: the File menu not found after the start-up test](#a-screen-test-that-failed-once-the-file-menu-not-found-after-the-start-up-test)
   - [🧊 Someday](#someday)
     - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
     - [Find out whether reading progress can be fetched from Amazon](#find-out-whether-reading-progress-can-be-fetched-from-amazon)
@@ -177,46 +177,6 @@ tasks themselves sit in that order; the numbered "order of work" list that used 
 drifted). To change the order, move the task.
 
 ### High priority
-
-#### Logging as its own module: a self-contained folder, one step from a sub-repo
-<!-- id 20261110-0908 -->
-
-_Why it matters:_ The logging is a clean, general piece — a core with no screen, a browser layer, a window — tangled
-into RW's files. Kept in one self-contained folder, it reads and tests as one thing inside RW, and it's one step from
-its own repo (a git submodule, like pytools) when another project wants it (Ron, 2026-11-10).
-
-**Decided** (Ron + Claude, 2026-11-10)
-1. **After 7.26.0 ships, on its own small branch** — moving files mid-release would put every cache-buster and check
-   on the line at once.
-2. **The folder** (not `logging/` — that's Python's built-in library, which a folder of that name holding Python code
-   would shadow; Claude suggested `logkit/`, Ron's call) holds:
-   1. **the core** — levels, codes, the kept log, the two switches, the cleaner, subscribe / clear / the Copy text; no
-      screen; Node-tested (today: `createLogger` in logger.js);
-   2. **the browser wiring** — storage, the address switches, uncaught errors, the banner and the critical box, in
-      plain page elements (today: the rest of logger.js);
-   3. **the Diagnostics window**, taking the host's dialog frame as a parameter (in RW: `<Dialog>`, so the overlay
-      rules — Esc, stacking, the fence — still hold) (today: `DiagnosticsWindow` in readerwrangler.js);
-   4. **the commit checker** (tools/message_codes.py) and its tests, reading the areas from the host's settings;
-   5. **a README** — what it is, the model, how a host sets it up.
-3. **RW keeps one small settings file** outside the folder: the 17 areas, the storage key names, the product name, the
-   critical box's advice, the secrets to clean (the Cloud Sync passphrase, the Channel ID's shape).
-4. **The tooling learns the folder** — each a silent hole if missed, so the move gets its own site map and a test that
-   each check still fires: the version check's cache-buster pattern (today it can't see a script in a folder), the
-   commit checker's file scan, the test runner's discovery, readerwrangler.html's and reset.html's script paths.
-5. **The sub-repo itself waits for a second user** — two repos to keep in step, and it must be public (RW is served by
-   GitHub Pages, which only fetches public submodules). If the next project is Python, it wants a Python twin of the
-   same model, not this file.
-6. **"Send a test message"** goes with it (Ron, 2026-11-10 — the rest of the logging up top, finished in one go): a
-   button in the Diagnostics window that plants an entry marked TEST, so support can ask "do you see the banner?" on a
-   real device and the mark keeps it from looking like trouble (LOGGING.md §2 and §5 step 5.5; the marker and its
-   formatting exist).
-7. **A flaky screen test, seen once** (2026-11-09, not reproduced in the next 3 runs): test_boot.py stopped outside any
-   test — the driver couldn't find the File menu button (30 s) when restoring the test library right after BOOT-001.
-   Read it before fixing it (TESTING.md §7): what was on screen (the failure screenshot), whether the menu bar was
-   covered or not yet drawn. If it comes back, set it aside the same day rather than re-run past it.
-
-The module's design of record is docs/design/LOGGING.md (7.26.0). The fetchers' own logging is its own task, in
-"Fetcher work, in build order".
 
 #### The Delete key deletes the folder you're in — not the folders you selected
 <!-- id 20261014-1030ay -->
@@ -2948,6 +2908,11 @@ reopens a name, never a new argument.
 6. **Honest wording:** fix the "syncs automatically" message; the bar says what is true ("…ready — Import"); the help
    line about the bookmarklet containing the key; the security notes' statements (the record, "What we tell users").
 7. **Tests:** the round-trip (ID → key → ID, byte for byte) and the check-character test kept as permanent checks.
+8. **The log hides the key by its shape** (Ron, 2026-11-11, building 7.28.0): the logging kit's cleaner finds a secret
+   only by its exact value — today the current passphrase — so an OLD key (from before a "Make a new key") or one pasted
+   into any text would reach the log and Copy diagnostics. With the key's shape fixed, add "secret patterns" to the kit
+   (`logkit/logger.js`: a list of patterns, each match replaced by the secret label), with a test that fails first, and
+   give it the `RW1-` pattern in `logkit-settings.js`; its label becomes the key's word ("[passphrase]" today).
 
 **Build together**
 - With "Relay Setup: smoother sections and clearer Esc / Help behavior" (below, this section) — the same window,
@@ -3889,6 +3854,22 @@ _Why it matters:_ Rare reports of books in no folder at all; watch whether it st
 
 **How (technical)**
 - The event is `integrity-homeless`; the suspect was a stale `FOLDERS_KEY`.
+
+### A screen test that failed once: the File menu not found after the start-up test
+<!-- id 20261111-1825 -->
+
+_Why it matters:_ A test that fails now and then teaches everyone to ignore failures (TESTING.md §7) — so one that
+failed once is watched, not forgotten. (Moved here from "Logging as its own module" at its release, 7.28.0 — Ron.)
+
+**What happened**
+- Once (2026-11-09): test_boot.py stopped outside any test — the browser driver couldn't find the File menu button
+  (30 s) when restoring the test library right after BOOT-001. Not reproduced in the next 3 runs, nor in the 8 full
+  screen-test runs of 2026-11-11.
+
+**Next time it happens**
+- **Read it before fixing it** (TESTING.md §7): what was on screen (the failure screenshot) — was the menu bar covered,
+  or not yet drawn?
+- **Set it aside the same day** (with a TODO) rather than re-run past it.
 
 ---
 

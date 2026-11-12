@@ -1,6 +1,6 @@
 # Screen test: the Diagnostics window — the log you can read, filter, copy and clear, opened from Help and from the 🕐.
 # tags: logging, diagnostics, tier 2
-# covers: readerwrangler.js, logger.js
+# covers: readerwrangler.js, logkit/logger.js, logkit-settings.js, logkit/diagnostics-window.js
 # Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python)
 #
 # 2026-11-09 (7.26.0-alpha.27, LOGGING.md §5 step 5.3 — Ron + Claude): its own window, NOT in Data Status (many messages
@@ -140,5 +140,34 @@ with App() as app:
         page.keyboard.press("Escape")
     test("DIAG-009", "a line with details says so in words ('details ▸'), with one line explaining it; others don't",
          details_label)
+
+    # 2026-11-11 (7.28.0, Ron): "Send a test message" — support can ask a person to press it, then Copy diagnostics, and
+    # see the log, the banner and the copy work, with no real failure. One error marked TEST (UI-07); the banner shows it
+    # when its switch is on; when it's off, a note says so and names the switch (in the same window). Never the critical box.
+    def test_message():
+        app.menu("Help", "Diagnostics").click()
+        page.locator(WINDOW).wait_for(timeout=10_000)
+        page.evaluate("() => { const b = document.getElementById('rw-log-banner'); if (b) b.remove(); }")
+        page.locator(WINDOW).get_by_role("button", name="Send a test message").click(timeout=5000)
+        row = page.locator(ROWS).filter(has_text="A test message from Diagnostics").first
+        row.wait_for(timeout=5000)
+        check("error" in row.inner_text() and "UI-07" in row.inner_text() and "TEST" in row.inner_text(),
+              "the test message isn't an error, UI-07, badged TEST: " + row.inner_text())
+        page.locator("#rw-log-banner").wait_for(timeout=5000)
+        banner = page.locator("#rw-log-banner").inner_text()
+        check("UI-07-!TEST!" in banner and "A test message from Diagnostics" in banner, f"the banner says: {banner!r}")
+        check(page.locator("#rw-log-critical").count() == 0, "the test message raised the critical box")
+
+        page.locator("#rw-log-banner").get_by_text("Dismiss", exact=True).click()
+        page.locator("[data-diag-switch=errorBanner]").uncheck()
+        page.locator(WINDOW).get_by_role("button", name="Send a test message").click()
+        page.get_by_text("the banner is off", exact=False).first.wait_for(timeout=5000)
+        note = page.evaluate("() => window.rwLog.entries().filter(e => /banner is off/.test(e.text)).map(e => e.text)")
+        check(note and "Show a banner when something goes wrong" in note[-1], f"the note doesn't name the switch: {note}")
+        check(page.locator("#rw-log-banner").count() == 0, "a banner appeared with the banner switch off")
+        page.locator("[data-diag-switch=errorBanner]").check()
+        page.keyboard.press("Escape")
+    test("DIAG-010", "Send a test message: an error marked TEST (UI-07) — the banner shows it, or a note says the banner is off",
+         test_message)
 
 done()

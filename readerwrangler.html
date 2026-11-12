@@ -136,7 +136,12 @@
     <!-- Shared modules (pure JS, no Babel needed) -->
     <!-- 7.26.0 - THE logging module (window.rwLog; docs/design/LOGGING.md §6) — first of our scripts, so its handlers
          catch an error in anything after it -->
-    <script src="logger.js?v=7.26.0"></script>
+    <!-- 7.28.0 - the module moved into logkit/ ("Logging as its own module"); RW's settings for it load just before it -->
+    <script src="logkit-settings.js?v=7.28.0"></script>
+    <script src="logkit/logger.js?v=7.28.0"></script>
+    <!-- 7.28.0 - the logging kit's Diagnostics window (JSX, built ahead of time like the app: tools/build.py) — before
+         the app, which shows it -->
+    <script src="dist/logkit/diagnostics-window.js?v=7.28.0"></script>
     <script src="uiHelpers.js?v=7.27.0"></script>
     <!-- v7.17.0 - The ONE book-field table (merge classes + wire mapping) + serialize/deserialize; node-unit-tested; loads before bookMerge/storage -->
     <script src="bookFields.js?v=7.19.0"></script>
@@ -174,7 +179,7 @@
     <script>
         // APP_VERSION - Single source of truth for cache busting
         // Update this on each release to force browsers to fetch new code
-        const APP_VERSION = "7.27.1";
+        const APP_VERSION = "7.28.0";
 
         // v7.21.2 - Every year the code actually changed, listed — About shows "Copyright © ‹this›". A list, not a range:
         // a year with no changes is skipped (a range like 2025–2030 would claim the gap years too), and nothing is

@@ -60,4 +60,15 @@ def not_ours_or_not_stamped_here():
     check(p == [], f"the app script (stamped by APP_VERSION at run time), a page, an unlinked file: no problem — {p}")
 test("VG-004", "outside addresses and files no page stamps with a literal ?v= are left alone", not_ours_or_not_stamped_here)
 
+
+# 7.28.0: the logging kit's Diagnostics window is built into a FOLDER of dist/ (dist/logkit/) and loaded by its own tag
+def built_file_in_a_folder():
+    page = {"readerwrangler.html": '<script src="dist/logkit/diagnostics-window.js?v=1"></script>\n'}
+    p = vg.stamp_problems({"dist/logkit/diagnostics-window.js"}, page, lambda _: [])
+    check(len(p) == 1 and "dist/logkit/diagnostics-window.js" in p[0], f"its stamp didn't move: {p}")
+    p = vg.stamp_problems({"dist/logkit/diagnostics-window.js"}, page,
+                          lambda _: ['<script src="dist/logkit/diagnostics-window.js?v=2"></script>'])
+    check(p == [], f"moved: no problem — {p}")
+test("VG-005", "a built file in a folder (dist/logkit/) has its stamp checked like any other", built_file_in_a_folder)
+
 done()

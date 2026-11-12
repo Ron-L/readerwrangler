@@ -1,6 +1,6 @@
 # Tests for tools/message_codes.py — the logging rules checked from the code, and the generated support table.
 # tags: logging, commit-checks, tier 1
-# covers: tools/message_codes.py, logger.js
+# covers: tools/message_codes.py, logkit/check_messages.py, logkit/logger.js, logkit-settings.js, logkit/diagnostics-window.js
 # Run: python test/test_message_codes.py
 #
 # One table, a row per rule (docs/design/LOGGING.md §6): each sample file must pass or be refused for the right reason.
@@ -13,7 +13,7 @@ spec = importlib.util.spec_from_file_location("message_codes", os.path.join(ROOT
 mc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mc)
 
-AREAS = mc.areas_from_logger(open(os.path.join(ROOT, "logger.js"), encoding="utf-8").read())
+AREAS = mc.areas_from_logger(open(os.path.join(ROOT, "logkit-settings.js"), encoding="utf-8").read())
 
 # (id, what, source, refusal it must give — None = must pass)
 ROWS = [
@@ -61,9 +61,13 @@ for tid, what, src, refusal in ROWS:
         print(f"  ✓ {tid} {what}")
 
 
+passed = len(ROWS) - failures
+
+
 def check(tid, what, cond, detail=""):
-    global failures
+    global failures, passed
     if cond:
+        passed += 1
         print(f"  ✓ {tid} {what}")
     else:
         failures += 1
@@ -78,15 +82,46 @@ rows = [ln for ln in t.splitlines() if ln.startswith("| ") and not ln.startswith
 check("MSG-010", "the table lists numbered codes sorted by area, escapes |, counts general lines",
       rows == ["| BACKUP-03 | error | a \\| pipe | a.js |", "| SYNC-02 | warning | relay unreachable | b.js |"]
       and "1 general line" in t, t)
-check("MSG-011", "the areas come from logger.js's own list (17)",
+check("MSG-011", "the areas come from RW's settings for the logging module — its own list (17)",
       len(AREAS) == 17 and "IMPORT" in AREAS and "SHARE" in AREAS, sorted(AREAS))
-logger_calls = mc.find_calls("logger.js", open(os.path.join(ROOT, "logger.js"), encoding="utf-8").read())
-check("MSG-012", "the logging module's own calls are found (UI-02, UI-03, UI-04, the page-load line)",
-      {"UI-02", "UI-03", "UI-04", "BOOT"} <= {c[3] for c in logger_calls}, [c[3] for c in logger_calls])
+# (7.28.0: the module moved into logkit/; its page-load line now takes its area from the settings, through record() like
+# dialog() — an info line with no number, so the scan doesn't list it)
+logger_calls = mc.find_calls("logkit/logger.js", open(os.path.join(ROOT, "logkit", "logger.js"), encoding="utf-8").read())
+check("MSG-012", "the logging module's own calls are found in logkit/ (UI-02, UI-03, UI-04, UI-05)",
+      {"UI-02", "UI-03", "UI-04", "UI-05"} <= {c[3] for c in logger_calls}, [c[3] for c in logger_calls])
+
+# 7.28.0 (step 2): the kit's Diagnostics window gets the logger handed in (log.log(…)), not as rwLog — its calls must
+# still be found, or they'd drop out of the table; other things' .log( (console.log) are not calls
+kit_calls = mc.find_calls("logkit/diagnostics-window.js",
+                          "log.log('warning', 'UI-06', \"Diagnostics couldn't be copied\");\n"
+                          "console.log('x');\nfoo.log('info', 'UI', 'not ours');\n// log.log('info', 'UI', 'a comment')")
+check("MSG-020", "in the logging kit, a call through the handed-in logger (log.log(…)) is found; console.log is not",
+      [c[3] for c in kit_calls] == ["UI-06"], kit_calls)
+window_calls = mc.find_calls("logkit/diagnostics-window.js",
+                             open(os.path.join(ROOT, "logkit", "diagnostics-window.js"), encoding="utf-8").read())
+check("MSG-021", "the Diagnostics window's own calls are found: Copy diagnostics' outcome (UI, and UI-06 when refused); "
+      "Send a test message's error (UI-07) and its banner-off note (UI)",
+      sorted(c[3] for c in window_calls) == ["UI", "UI", "UI-06", "UI-07"], [c[3] for c in window_calls])
 
 lt = mc.table(logger_calls)
 check("MSG-013", "a template's details (even a nested template) show as one \"…\" in the table",
-      "| UI-03 | error | Uncaught error: … | logger.js |" in lt and "${" not in lt, lt)
+      "| UI-03 | error | Uncaught error: … | logkit/logger.js |" in lt and "${" not in lt, lt)
 
-print(f"{len(ROWS) + 4 - failures} passed, {failures} failed")
+# 7.28.0 (step 3, Ron 2026-11-11): the general rules and the table live in the logging kit (logkit/check_messages.py);
+# RW's checker sits on top — our files, our logger's name, our two rules (toasts, dialog areas) — and calls it
+kspec = importlib.util.spec_from_file_location("check_messages", os.path.join(ROOT, "logkit", "check_messages.py"))
+kit = importlib.util.module_from_spec(kspec)
+kspec.loader.exec_module(kit)
+src = open(os.path.join(ROOT, "logkit", "check_messages.py"), encoding="utf-8").read()
+code = "\n".join(ln.split("  # ")[0] for ln in src.splitlines() if not ln.lstrip().startswith("#"))
+rw = [w for w in ("rwLog", "showToast", "Dialog", "readerwrangler", "ReaderWrangler", "MESSAGE-CODES", "logkit-settings",
+                  "tools/message_codes", "LOG_AREAS", "BACKUP") if w in code]
+check("MSG-022", "the kit's checker knows nothing of ReaderWrangler (no logger name, file, routine or area of ours)", not rw,
+      f"still mentions {rw}")
+kc, kp = kit.check([("a.js", "myLog.log('warning', 'X-01', 't');\nrwLog.log('warning', 'X', 'not this logger');")], {"X"},
+                   logger="myLog")
+check("MSG-023", "the kit checks the calls of the logger the host names (myLog), and only those",
+      [c[3] for c in kc] == ["X-01"] and kp == [], (kc, kp))
+
+print(f"{passed} passed, {failures} failed")
 sys.exit(1 if failures else 0)
