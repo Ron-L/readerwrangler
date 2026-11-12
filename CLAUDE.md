@@ -84,14 +84,12 @@ console warning flags an anchored popup whose button lacks it.
 
 ## RW terminology & copy
 
-* Backup terminology: **"Save/Restore"**, not "Import/Export".
-* **"Toast"** = small floating text near the status bar, not an overlay dialog.
-* Sync vocabulary exposed to users: **Relay, Credentials, Channel ID, Passphrase, bookmarklet,
-  Import from Relay, Download Library/Collections, Data Status** — mirror these exact words on their named
-  surfaces (don't invent "Cloud Storage"). Plain "cloud" is fine in ordinary prose ("syncs through the cloud") — the
-  2026-08-28 vocabulary rule (7.0.1–7.4.0 PM). Pre-launch, these names become "Cloud Sync" and one "Cloud Sync Key" (TODO:
-  "Cloud Sync: rename Relay, show one Cloud Sync Key…"; decided in docs/design/CLOUD-SYNC-NAMING.md) — update this rule
-  when that ships.
+**The single list of the words people see is `docs/design/GLOSSARY.md` — read it before writing any words a person
+sees** (a message, a button, a help line, a page, the CHANGELOG), and name it in every agent brief that touches words.
+A new term, or a change, is proposed there first and decided by Ron. It holds the decided terms (Save / Restore Backup,
+never Import/Export; Toast; Cloud Sync and the Cloud Sync Key once the rename ships), the words on screen until then
+(Relay, Credentials…), and the words people never see. (Ron, 2026-11-12: neither of us found it when we needed it —
+this section had its own short list and never named it; the list moved there.)
 
 ---
 
