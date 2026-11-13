@@ -4,6 +4,8 @@
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
       - [Copy buttons tell the truth: "copied" only when something was copied, and a refusal said](#copy-buttons-tell-the-truth-copied-only-when-something-was-copied-and-a-refusal-said)
+      - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
+      - [One safe way to read saved settings — a damaged one can blank the phone app today](#one-safe-way-to-read-saved-settings--a-damaged-one-can-blank-the-phone-app-today)
       - [One table for every move, copy, paste and delete: what each gesture does in each place](#one-table-for-every-move-copy-paste-and-delete-what-each-gesture-does-in-each-place)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -46,8 +48,6 @@
         - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
         - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
       - [Tag from Collections, round 2: clearer window, safer tags (decided 2026-10-20)](#tag-from-collections-round-2-clearer-window-safer-tags-decided-2026-10-20)
-      - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
-      - [One safe way to read saved settings — a damaged one can blank the phone app today](#one-safe-way-to-read-saved-settings--a-damaged-one-can-blank-the-phone-app-today)
     - [Polish](#polish)
       - ["N now owned" after an import: a Show them button, and each column reads its date from one place](#n-now-owned-after-an-import-a-show-them-button-and-each-column-reads-its-date-from-one-place)
       - [Phone: Report a problem in the ⋮ menu, like the desktop's Help](#phone-report-a-problem-in-the--menu-like-the-desktops-help)
@@ -197,6 +197,78 @@ Found while building 7.29.0's Report a problem (sprint 2), whose own copy alread
 2. **The red banner's Copy and the critical box's Copy details** (`logkit/logger.js` `copyInto`): an empty rejection
    handler and a bare `catch {}` — a refused clipboard fails silently. Say it on the button ("Couldn't copy").
 3. One shared "copy, and say what happened" — the kit's own, so all four use it (the kit can't use reportProblem.js).
+
+**Decided** (Ron, 2026-11-13, before sprint 3)
+- **ONE copy routine in the whole app** — the logging kit's — used by all four AND by `reportProblem.js` (which today
+  carries its own honest copy): Law 22, one implementation. ReaderWrangler may use the kit; the kit never uses RW.
+- A refused copy says **"Couldn't copy"** on the button (the red banner's Copy, the critical box's Copy details) —
+  matching Report a problem's wording for a refused clipboard.
+
+#### Restore dialog calls yesterday's backup "today"
+<!-- id 20260922-0000a -->
+
+_Why it matters:_ A wrong date label can lead you to restore the wrong backup.
+
+**What you see**
+- A backup from 9/21 6:54 PM was labeled **"— today"** on 9/22. Not a time-zone effect: it was yesterday everywhere.
+
+**Verified in code** (2026-10-20): the age is counted in 24-hour blocks — `Math.floor((now − backup) / 86400000)`,
+readerwrangler.js ~12228 — so a backup from 6:54 PM yesterday reads "today" until 6:54 PM today. The class (every
+day-count in the app): the restore dialog = **the bug**; `formatRelativeTime` in uiHelpers.js has the same bug but
+**nothing calls it** (dead code); `getRelativeTime` ("3h ago", "2d ago") and the freshness thresholds are elapsed time,
+not calendar words — fine.
+
+**Decided** (Ron + UX, 2026-10-20) — a 7.24.x fix on its own `fix/` branch, not done during the review (Ron: "let's not
+fall for the quickie trap again")
+1. **Calendar days, local time.** Ron: *at 12:01 AM, a backup from 2 minutes earlier (11:59 PM) is "yesterday".*
+2. **One shared helper in uiHelpers.js** that counts local calendar days between two dates (through local midnights, so
+   a 23- or 25-hour day at a clock change doesn't miscount) and gives the label: today / yesterday / N days ago / N
+   weeks ago. The restore dialog calls it.
+3. **Delete the dead `formatRelativeTime`** so nobody reuses the buggy copy.
+4. **An automated test** across midnight (11:59 PM vs 12:01 AM) and a daylight-saving date. Ron's check: any backup
+   file saved yesterday reads "yesterday".
+5. **The words** (Ron, 2026-11-13, before sprint 3): today / yesterday / 2–6 days ago / 1 week ago (7–13 days) / N
+   weeks ago. Released with sprint 3 (7.29.1), no longer a 7.24.x branch of its own.
+
+#### One safe way to read saved settings — a damaged one can blank the phone app today
+<!-- id 20261109-0912 -->
+
+_Why it matters:_ Both apps read about 20 saved settings and notes from the browser, each with its own hand-written
+guard — or none. On the phone, one damaged settings note blanks the whole app (it's read on every redraw of the main
+screen); a guard that isn't there can't be noticed until it bites. Medium-high (Ron, 2026-11-09).
+
+**Found** (2026-11-09, the logging switch's BOOT area — a sweep of every `JSON.parse` of a saved value; line numbers
+approximate)
+1. **Unprotected on the phone** (mobile.js): the phone settings (`MOBILE_PREFS_KEY`, ~2466 — read at the top of the main
+   screen on every redraw: damaged = a blank app); the same note when you change the sort or the shelves (~2472, ~2490,
+   ~2554 — that tap fails).
+2. **Unprotected on the desktop:** the old-format folders and Book Lists (readerwrangler.js ~4624, ~4635 — only
+   pre-2026 installs; "Remove code left over from older versions…" (Polish) removes them). The library status and the
+   view settings (~4533, ~4547) got their own guard in 7.26.0 (BOOT-02/03), because a damaged one stopped the library
+   from loading.
+3. **Protected by hand** (each its own try/catch, ~12 on the phone, ~8 on the desktop): filters, search history, the
+   Auto-Organize wizard, the organization, the cover cache, the Cloud Sync credentials, the phone's collapsed sections
+   and navigation.
+4. **Past damage:** a note that reads fine but holds the wrong kind of value (column widths saved as text, say) gets
+   past every one of these guards.
+
+**Decided** (Ron, 2026-11-13, before sprint 3 — the proposal below, with):
+- **a.** The before / after list (each saved setting and its fallback) goes in the decisions log for Ron to skim — not a
+  red-pen review.
+- **b.** A damaged setting: the app quietly uses the default, and ONE warning in Diagnostics names the setting — nothing
+  on screen (nothing for the person to do; the phone shows its default view instead of a blank app).
+- **c.** The commit check that refuses a new unprotected read is a **must** (Ron: "Must") — built in this task.
+
+**How (Claude's proposal, decided as above)**
+1. **One shared reader** in uiHelpers.js (both apps load it): `readSaved(name, fallback, rightKind)` — the saved value
+   when it reads and is the right kind, else the fallback and ONE warning naming the note (STORE area). Function tests
+   first.
+2. **Every read above becomes a one-line call**, the hand-written guards included — a new setting gets the guard for
+   free. Publish the before / after list (each site's fallback) for Ron's red pen.
+3. Then a commit check MUST refuse a bare `JSON.parse(localStorage.getItem(` — the way the logging check refuses a
+   stray code (decided c).
+4. Not the phone's startup load (books + organization, ~2627, no guard at all): that's the phone's "your library didn't
+   load", done in the logging switch's PHONE area (7.26.0).
 
 #### One table for every move, copy, paste and delete: what each gesture does in each place
 <!-- id 20261106-1237 -->
@@ -1489,63 +1561,6 @@ before building; this task is the plan. One concern per alpha (Law 6), smallest 
    comb and publish the list first. **Built with "Tag lists and long lists, one release"** (Polish).
 5. **Retire the hidden "seen" field** (item 10) — moved 2026-10-20/21 into the Polish task "Retire two leftover book
    fields: the hidden 'seen' flag and the old price-goal field" (one data round for both).
-
-#### Restore dialog calls yesterday's backup "today"
-<!-- id 20260922-0000a -->
-
-_Why it matters:_ A wrong date label can lead you to restore the wrong backup.
-
-**What you see**
-- A backup from 9/21 6:54 PM was labeled **"— today"** on 9/22. Not a time-zone effect: it was yesterday everywhere.
-
-**Verified in code** (2026-10-20): the age is counted in 24-hour blocks — `Math.floor((now − backup) / 86400000)`,
-readerwrangler.js ~12228 — so a backup from 6:54 PM yesterday reads "today" until 6:54 PM today. The class (every
-day-count in the app): the restore dialog = **the bug**; `formatRelativeTime` in uiHelpers.js has the same bug but
-**nothing calls it** (dead code); `getRelativeTime` ("3h ago", "2d ago") and the freshness thresholds are elapsed time,
-not calendar words — fine.
-
-**Decided** (Ron + UX, 2026-10-20) — a 7.24.x fix on its own `fix/` branch, not done during the review (Ron: "let's not
-fall for the quickie trap again")
-1. **Calendar days, local time.** Ron: *at 12:01 AM, a backup from 2 minutes earlier (11:59 PM) is "yesterday".*
-2. **One shared helper in uiHelpers.js** that counts local calendar days between two dates (through local midnights, so
-   a 23- or 25-hour day at a clock change doesn't miscount) and gives the label: today / yesterday / N days ago / N
-   weeks ago. The restore dialog calls it.
-3. **Delete the dead `formatRelativeTime`** so nobody reuses the buggy copy.
-4. **An automated test** across midnight (11:59 PM vs 12:01 AM) and a daylight-saving date. Ron's check: any backup
-   file saved yesterday reads "yesterday".
-
-#### One safe way to read saved settings — a damaged one can blank the phone app today
-<!-- id 20261109-0912 -->
-
-_Why it matters:_ Both apps read about 20 saved settings and notes from the browser, each with its own hand-written
-guard — or none. On the phone, one damaged settings note blanks the whole app (it's read on every redraw of the main
-screen); a guard that isn't there can't be noticed until it bites. Medium-high (Ron, 2026-11-09).
-
-**Found** (2026-11-09, the logging switch's BOOT area — a sweep of every `JSON.parse` of a saved value; line numbers
-approximate)
-1. **Unprotected on the phone** (mobile.js): the phone settings (`MOBILE_PREFS_KEY`, ~2466 — read at the top of the main
-   screen on every redraw: damaged = a blank app); the same note when you change the sort or the shelves (~2472, ~2490,
-   ~2554 — that tap fails).
-2. **Unprotected on the desktop:** the old-format folders and Book Lists (readerwrangler.js ~4624, ~4635 — only
-   pre-2026 installs; "Remove code left over from older versions…" (Polish) removes them). The library status and the
-   view settings (~4533, ~4547) got their own guard in 7.26.0 (BOOT-02/03), because a damaged one stopped the library
-   from loading.
-3. **Protected by hand** (each its own try/catch, ~12 on the phone, ~8 on the desktop): filters, search history, the
-   Auto-Organize wizard, the organization, the cover cache, the Cloud Sync credentials, the phone's collapsed sections
-   and navigation.
-4. **Past damage:** a note that reads fine but holds the wrong kind of value (column widths saved as text, say) gets
-   past every one of these guards.
-
-**How (Claude's proposal)**
-1. **One shared reader** in uiHelpers.js (both apps load it): `readSaved(name, fallback, rightKind)` — the saved value
-   when it reads and is the right kind, else the fallback and ONE warning naming the note (STORE area). Function tests
-   first.
-2. **Every read above becomes a one-line call**, the hand-written guards included — a new setting gets the guard for
-   free. Publish the before / after list (each site's fallback) for Ron's red pen.
-3. Then a commit check could refuse a bare `JSON.parse(localStorage.getItem(` — the way the logging check refuses a
-   stray code.
-4. Not the phone's startup load (books + organization, ~2627, no guard at all): that's the phone's "your library didn't
-   load", done in the logging switch's PHONE area (7.26.0).
 
 ### Polish
 
