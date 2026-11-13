@@ -3951,7 +3951,10 @@ or the fetch that promoted them was imported between the first look and the filt
 as wishlist / sample books with their old dates). **Ron's log (pasted that evening)** backs the second: the import at
 6:42:06 made 2 wishlist books owned, and his Add to 'New To Read' of all 4 came at 6:43:19 — a look at All Books before
 6:42 would have shown those two still as wishlist books. (The other two were likely samples, which the import doesn't
-count — see the task "'N now owned' after an import…", item 1.)
+count — see the task "'N now owned' after an import…", item 1.) Ron: "pretty sure 2 were samples and 2 wishlists" — and
+he may have been looking for a sample's title. The uncounted samples still got the order date as their date (the same
+fetch), so the count bug can't hide them from the sort; but it means all four most likely arrived in that one import,
+so before 6:42 none of them was owned or dated new. **Most likely explanation: he looked before the import.**
 
 **Next time it happens**
 - Note the folder's sort (the column header's arrow) before changing anything.
