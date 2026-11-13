@@ -153,7 +153,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.29.0"; // Build version for this file
+var ORGANIZER_VERSION = "7.29.1"; // Build version for this file
 // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
 // problem… (7.29.0: one copy, so the two can't drift)
 var DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -259,7 +259,7 @@ var IS_CONTRIBUTOR = isContributor();
 document.title = IS_CONTRIBUTOR ? "ReaderWrangler (local · contributor)" : IS_LOCAL_HOST ? "ReaderWrangler (local)" : "ReaderWrangler";
 // Constants and helper functions moved to uiHelpers.js and storage.js (v5.0.0)
 // saveBooksToIndexedDB, saveBooksIfChanged, loadBooksFromIndexedDB, deleteBookStore, onBookStoreGone - see storage.js
-// normalizeBook, parsePrice, getAmazonUrl, calculateFreshness, formatRelativeTime - see uiHelpers.js
+// normalizeBook, parsePrice, getAmazonUrl, calculateFreshness, daysAgoWords, readSaved - see uiHelpers.js
 // clearCoverCache - see storage.js (7.27.0: the desktop keeps no cover copies; buildCoverUrlMap and
 // populateCoverCache serve the phone)
 
@@ -4394,71 +4394,65 @@ function ReaderWrangler() {
   var dragHoverExpandTimeoutRef = useRef(null);
 
   // Load saved filters from localStorage on mount (v3.8.0.f, updated v3.8.0.k, v4.15.6)
+  // 7.29.1 - through the one reader (uiHelpers.js readSaved): a damaged note = no saved filters + one STORE-13
+  // warning (was its own guard, PREF-01)
   React.useEffect(() => {
-    try {
-      var savedFilters = localStorage.getItem(FILTERS_KEY);
-      if (savedFilters) {
-        var filters = JSON.parse(savedFilters);
-        if (filters.searchTerm !== undefined) setSearchTerm(filters.searchTerm);
-        if (filters.readStatusFilter !== undefined) setReadStatusFilter(filters.readStatusFilter);
-        if (filters.collectionFilter !== undefined) setCollectionFilter(filters.collectionFilter);
-        if (filters.ratingFilter !== undefined) setRatingFilter(filters.ratingFilter);
-        if (filters.ownershipFilter !== undefined) setOwnershipFilter(filters.ownershipFilter);
-        if (filters.seriesFilter !== undefined) setSeriesFilter(filters.seriesFilter);
-        if (filters.showHidden !== undefined) setShowHidden(filters.showHidden);
+    var filters = readSaved(FILTERS_KEY, null, 'object');
+    if (filters) {
+      if (filters.searchTerm !== undefined) setSearchTerm(filters.searchTerm);
+      if (filters.readStatusFilter !== undefined) setReadStatusFilter(filters.readStatusFilter);
+      if (filters.collectionFilter !== undefined) setCollectionFilter(filters.collectionFilter);
+      if (filters.ratingFilter !== undefined) setRatingFilter(filters.ratingFilter);
+      if (filters.ownershipFilter !== undefined) setOwnershipFilter(filters.ownershipFilter);
+      if (filters.seriesFilter !== undefined) setSeriesFilter(filters.seriesFilter);
+      if (filters.showHidden !== undefined) setShowHidden(filters.showHidden);
 
-        // v4.15.6: Load datePreset, with migration from old dateFrom/dateTo format
-        if (filters.datePreset) {
-          // New format: datePreset controls the filter
-          setDatePreset(filters.datePreset);
-          if (filters.datePreset === 'custom') {
-            // Custom preset: also restore the manual dates
-            if (filters.dateFrom) setDateFrom(filters.dateFrom);
-            if (filters.dateTo) setDateTo(filters.dateTo);
-          }
-          // For non-custom presets, the useEffect will compute dateFrom/dateTo
-        } else if (filters.dateFrom || filters.dateTo) {
-          // Migration: old format had dateFrom/dateTo but no datePreset
-          // Treat as custom date range
-          setDatePreset('custom');
+      // v4.15.6: Load datePreset, with migration from old dateFrom/dateTo format
+      if (filters.datePreset) {
+        // New format: datePreset controls the filter
+        setDatePreset(filters.datePreset);
+        if (filters.datePreset === 'custom') {
+          // Custom preset: also restore the manual dates
           if (filters.dateFrom) setDateFrom(filters.dateFrom);
           if (filters.dateTo) setDateTo(filters.dateTo);
         }
-        // v4.27.0: Load tag filter
-        if (filters.tagFilter && Array.isArray(filters.tagFilter)) {
-          setTagFilter(filters.tagFilter);
-        }
-        // v5.0.0-alpha.175.41: Load Collections filter
-        if (filters.selectedCollections && Array.isArray(filters.selectedCollections)) {
-          setSelectedCollections(filters.selectedCollections);
-        }
-        // v5.0.0-alpha.175.42: Load Amazon Rating filter
-        if (filters.minAmazonRating) {
-          setMinAmazonRating(filters.minAmazonRating);
-        }
-        // v5.0.0-alpha.175.43: Load My Rating filter
-        if (filters.minMyRating) {
-          setMinMyRating(filters.minMyRating);
-        }
-        // v5.0.0-alpha.175.44: Load Series filter
-        if (filters.selectedSeries && Array.isArray(filters.selectedSeries)) {
-          setSelectedSeries(filters.selectedSeries);
-        }
+        // For non-custom presets, the useEffect will compute dateFrom/dateTo
+      } else if (filters.dateFrom || filters.dateTo) {
+        // Migration: old format had dateFrom/dateTo but no datePreset
+        // Treat as custom date range
+        setDatePreset('custom');
+        if (filters.dateFrom) setDateFrom(filters.dateFrom);
+        if (filters.dateTo) setDateTo(filters.dateTo);
       }
-      // v5.4.9: Load search history (separate from filters)
-      // v6.12.0: Recents are now filter combos { filters }. Migrate legacy string entries.
-      var savedHistory = localStorage.getItem(SEARCH_HISTORY_KEY);
-      if (savedHistory) {
-        try {
-          var parsed = JSON.parse(savedHistory);
-          var migrated = (Array.isArray(parsed) ? parsed : []).
-          map((h) => typeof h === 'string' ? { filters: { search: h } } : h).
-          filter((h) => h && h.filters && Object.keys(h.filters).length > 0);
-          setSearchHistory(migrated);
-        } catch (e) {}
+      // v4.27.0: Load tag filter
+      if (filters.tagFilter && Array.isArray(filters.tagFilter)) {
+        setTagFilter(filters.tagFilter);
       }
-    } catch (e) {
-      rwLog.log('warning', 'PREF-01', "Your saved filters couldn't be read — they start empty", { error: String(e) });
+      // v5.0.0-alpha.175.41: Load Collections filter
+      if (filters.selectedCollections && Array.isArray(filters.selectedCollections)) {
+        setSelectedCollections(filters.selectedCollections);
+      }
+      // v5.0.0-alpha.175.42: Load Amazon Rating filter
+      if (filters.minAmazonRating) {
+        setMinAmazonRating(filters.minAmazonRating);
+      }
+      // v5.0.0-alpha.175.43: Load My Rating filter
+      if (filters.minMyRating) {
+        setMinMyRating(filters.minMyRating);
+      }
+      // v5.0.0-alpha.175.44: Load Series filter
+      if (filters.selectedSeries && Array.isArray(filters.selectedSeries)) {
+        setSelectedSeries(filters.selectedSeries);
+      }
+    }
+    // v5.4.9: Load search history (separate from filters)
+    // v6.12.0: Recents are now filter combos { filters }. Migrate legacy string entries.
+    var savedHistory = readSaved(SEARCH_HISTORY_KEY, null, 'array');
+    if (savedHistory) {
+      var migrated = savedHistory.
+      map((h) => typeof h === 'string' ? { filters: { search: h } } : h).
+      filter((h) => h && h.filters && Object.keys(h.filters).length > 0);
+      setSearchHistory(migrated);
     }
     // v4.15.6: Mark filters as loaded after a small delay to let React batch state updates
     setTimeout(() => {
@@ -4637,21 +4631,17 @@ function ReaderWrangler() {
   var saveRecent = async (key) => {var h = searchHistory.find((x) => filterKey(x.filters) === key);if (h) await saveFiltersAsSearch(h.filters);};
 
   // v5.1.0-alpha.23 - Load wizard settings from localStorage on mount
+  // 7.29.1 - through the one reader (uiHelpers.js readSaved; was its own guard, PREF-03)
   React.useEffect(() => {
-    try {
-      var savedWizard = localStorage.getItem(WIZARD_KEY);
-      if (savedWizard) {
-        var wizard = JSON.parse(savedWizard);
-        if (wizard.minBooksSlider !== undefined) setWizardMinBooksSlider(wizard.minBooksSlider);
-        if (wizard.minBooks !== undefined) setWizardMinBooks(wizard.minBooks);
-        if (wizard.sortBy !== undefined) setWizardSortBy(wizard.sortBy);
-        if (wizard.createSeriesFolders !== undefined) setWizardCreateSeriesFolders(wizard.createSeriesFolders);
-        if (wizard.sortByPosition !== undefined) setWizardSortByPosition(wizard.sortByPosition);
-        if (wizard.createMiscellaneous !== undefined) setWizardCreateMiscellaneous(wizard.createMiscellaneous);
-        if (wizard.seriesFolderMin !== undefined) setWizardSeriesFolderMin(wizard.seriesFolderMin);
-      }
-    } catch (e) {
-      rwLog.log('warning', 'PREF-03', "Your saved Auto-Organize settings couldn't be read — the defaults are used", { error: String(e) });
+    var wizard = readSaved(WIZARD_KEY, null, 'object');
+    if (wizard) {
+      if (wizard.minBooksSlider !== undefined) setWizardMinBooksSlider(wizard.minBooksSlider);
+      if (wizard.minBooks !== undefined) setWizardMinBooks(wizard.minBooks);
+      if (wizard.sortBy !== undefined) setWizardSortBy(wizard.sortBy);
+      if (wizard.createSeriesFolders !== undefined) setWizardCreateSeriesFolders(wizard.createSeriesFolders);
+      if (wizard.sortByPosition !== undefined) setWizardSortByPosition(wizard.sortByPosition);
+      if (wizard.createMiscellaneous !== undefined) setWizardCreateMiscellaneous(wizard.createMiscellaneous);
+      if (wizard.seriesFolderMin !== undefined) setWizardSeriesFolderMin(wizard.seriesFolderMin);
     }
     // Mark settings loaded after a small delay
     setTimeout(() => {
@@ -4711,20 +4701,6 @@ function ReaderWrangler() {
     });
   };
 
-  var getRelativeTime = (timestamp) => {
-    if (!timestamp) return '';
-    var now = Date.now();
-    var diff = now - timestamp;
-    var minutes = Math.floor(diff / 60000);
-    var hours = Math.floor(diff / 3600000);
-    var days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
-
   // checkManifest function removed in v3.6.1 - replaced with IndexedDB manifests
   // Status is now computed from libraryStatus and collectionsStatus state
 
@@ -4735,23 +4711,23 @@ function ReaderWrangler() {
         // v5.0.0-alpha.175.49.1 - Removed settings load (dead code, settings state removed in v175.48)
 
         // Restore libraryStatus and collectionsStatus from localStorage (v3.7.0.n)
-        // 7.26.0 - its own guard: a damaged status note used to stop the whole library from loading
-        // (BOOT-01) — it's only "how fresh is your library" (TODO "One safe way to read saved settings…")
-        var savedStatus = localStorage.getItem(STATUS_KEY);
-        if (savedStatus) try {
-          var statusData = JSON.parse(savedStatus);
+        // 7.26.0 - a damaged status note used to stop the whole library from loading (BOOT-01) — it's
+        // only "how fresh is your library". 7.29.1 - through the one reader (uiHelpers.js readSaved;
+        // was its own guard, BOOT-02): damaged = shown as unknown until the next fetch
+        var statusData = readSaved(STATUS_KEY, null, 'object');
+        if (statusData) {
           if (statusData.libraryStatus) setLibraryStatus(statusData.libraryStatus);
           if (statusData.collectionsStatus) setCollectionsStatus(statusData.collectionsStatus);
           rwLog.log('debug', 'BOOT', `Status restored: library ${statusData.libraryStatus && statusData.libraryStatus.loadStatus}, collections ${statusData.collectionsStatus && statusData.collectionsStatus.loadStatus}`);
-        } catch (e) {
-          rwLog.log('warning', 'BOOT-02', "The saved library status couldn't be read — it shows as unknown until the next fetch", { error: String(e) });
         }
 
         // v5.0.0 - Load Explorer settings
-        // 7.26.0 - its own guard too (BOOT-03): damaged view settings fall back to the defaults
-        var savedExplorer = localStorage.getItem(EXPLORER_KEY);
-        if (savedExplorer) try {
-          var explorerData = JSON.parse(savedExplorer);
+        // 7.29.1 - read through the one reader (uiHelpers.js readSaved): an unreadable note = the
+        // defaults + its STORE-13 warning. The guard below stays for a note that READS but holds a
+        // setting of the wrong shape (a column order that isn't a list, say): BOOT-03, the defaults
+        // for the rest — never the whole library failing to load (7.26.0).
+        var explorerData = readSaved(EXPLORER_KEY, null, 'object');
+        if (explorerData) try {
           // v5.0.2 - viewMode removed (always Explorer mode)
           if (explorerData.selectedFolderId) setSelectedFolderId(explorerData.selectedFolderId);
           if (explorerData.explorerView) setExplorerView(explorerData.explorerView);
@@ -4809,7 +4785,7 @@ function ReaderWrangler() {
             setFoldersSectionCollapsed(!!explorerData.sectionsCollapsed.folders);
           }
         } catch (e) {
-          rwLog.log('warning', 'BOOT-03', "The saved view settings couldn't be read — the defaults are used", { error: String(e) });
+          rwLog.log('warning', 'BOOT-03', "A saved view setting had the wrong shape — the defaults are used for the rest", { error: String(e) });
         }
         // v5.0.0-alpha.169.10 - Mark settings loaded (even if no saved data)
         explorerSettingsLoadedRef.current = true;
@@ -4822,15 +4798,18 @@ function ReaderWrangler() {
         // the folder-order scrambler so hard to diagnose). FOLDERS_KEY is now a READ-ONCE
         // MIGRATION source (pre-blob installs); its writers are gone; the key itself stays
         // in place one release as an inert rollback net.
-        var orgState = null;
-        try {orgState = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');}
-        catch (e) {rwLog.log('critical', 'STORE-01', 'Your saved organization could not be read — ReaderWrangler is using a fallback copy.', { error: String(e) });}
+        // 7.29.1 - through the one reader (uiHelpers.js readSaved). The organization is DATA, not a
+        // setting: damaged (unreadable, or not an object), it stays a critical box (STORE-01), never a
+        // quiet default.
+        var orgState = readSaved(STORAGE_KEY, null, 'object', { onDamaged: (problem) =>
+          rwLog.log('critical', 'STORE-01', 'Your saved organization could not be read — ReaderWrangler is using a fallback copy.', { problem }) });
         var org = orgState && orgState.organization || null;
 
+        // the old-format stores (pre-blob installs) — unguarded until 7.29.1: a damaged one stopped the
+        // whole library from loading (BOOT-01)
         var loadedFolders = org && Array.isArray(org.folders) && org.folders.length > 0 ? org.folders : [];
         if (loadedFolders.length === 0) {
-          var savedFolders = localStorage.getItem(FOLDERS_KEY);
-          loadedFolders = savedFolders ? JSON.parse(savedFolders) : [];
+          loadedFolders = readSaved(FOLDERS_KEY, [], 'array');
           if (loadedFolders.length > 0) rwLog.log('info', 'BOOT', 'Folders moved from the old storage format (a one-time move)');
         }
 
@@ -4840,8 +4819,7 @@ function ReaderWrangler() {
         if (org && Array.isArray(org.bookLists)) {
           loadedBookLists = org.bookLists.map((bl) => ({ ...bl, bookIds: bl.bookIds || [] }));
         } else {
-          var savedBookLists = localStorage.getItem(BOOKLISTS_KEY);
-          loadedBookLists = savedBookLists ? JSON.parse(savedBookLists) : [];
+          loadedBookLists = readSaved(BOOKLISTS_KEY, [], 'array');
         }
 
         // v6.0.0-alpha.53 - Ensure Inbox exists for fresh installs (memory only — the
@@ -6119,8 +6097,7 @@ function ReaderWrangler() {
     // only), keeping current by default. Decided here so the confirm isn't stacked on progress.
     var adoptBackupCreds = false;
     if (parsedData.relay && parsedData.relay.channelId) {
-      var currentCreds = null;
-      try {currentCreds = JSON.parse(localStorage.getItem(RELAY_KEY));} catch {/* none */}
+      var currentCreds = readSaved(RELAY_KEY, null, 'object');
       var haveCurrent = currentCreds && currentCreds.channelId;
       if (!haveCurrent || currentCreds.channelId === parsedData.relay.channelId) {
         adoptBackupCreds = true; // new machine / migration, or same channel — adopt silently
@@ -6395,7 +6372,7 @@ function ReaderWrangler() {
         // payload serializes — NOT the send time (a wall-clock stamp would be newer than the
         // blob it was built from and mobile's guest guard would misfire). Same clock lineage
         // as the blob, so the guard's comparison is exact.
-        savedAt: (() => {try {return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').savedAt || Date.now();} catch {return Date.now();}})(),
+        savedAt: readSaved(STORAGE_KEY, {}, 'object').savedAt || Date.now(),
         blankImageBooks: Array.from(blankImageBooks),
         // v6.12.0 - Deny-list serialization: spread the whole object so a newly-added field
         // persists automatically. The old allow-list silently dropped sortIndex (bug #3).
@@ -6549,12 +6526,10 @@ function ReaderWrangler() {
       };
 
       // v6.0.0 - Include relay credentials in backup
-      try {
-        var relayData = JSON.parse(localStorage.getItem(RELAY_KEY));
-        if (relayData && relayData.channelId) {
-          exportData.relay = relayData;
-        }
-      } catch {/* no relay configured */}
+      var relayData = readSaved(RELAY_KEY, null, 'object');
+      if (relayData && relayData.channelId) {
+        exportData.relay = relayData;
+      }
 
       // v4.15.1.b: Only add collections section if we have real data (fix 0-A bug)
       if (hasRealCollections) {
@@ -7002,18 +6977,13 @@ function ReaderWrangler() {
       orgToRestore = organizationFromFile;
       orgSource = 'backup file';
     } else {
-      // Library file - try to restore from localStorage
-      try {
-        var saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          var state = JSON.parse(saved);
-          if (state.organization) {
-            orgToRestore = state.organization;
-            orgSource = 'localStorage';
-          }
-        }
-      } catch (e) {
-        rwLog.log('warning', 'STORE-04', 'Could not read the saved organization while loading a library — the folders were left as they are', { error: String(e) });
+      // Library file - try to restore from localStorage (7.29.1 - through the one reader; the organization
+      // is data, so its damage keeps its own message, STORE-04)
+      var state = readSaved(STORAGE_KEY, null, 'object', { onDamaged: (problem) =>
+        rwLog.log('warning', 'STORE-04', 'Could not read the saved organization while loading a library — the folders were left as they are', { problem }) });
+      if (state && state.organization) {
+        orgToRestore = state.organization;
+        orgSource = 'localStorage';
       }
     }
     loadNote(orgSource ? `Organization taken from ${orgSource === 'backup file' ? 'the backup' : "this browser's saved copy"}` : 'No saved organization — the books load without one');
@@ -7208,23 +7178,17 @@ function ReaderWrangler() {
 
   var openBookModal = (book, columnId, navList) => {
     setModalNavOverride(navList && navList.length ? navList : null); // v6.16.0 - explicit nav context (e.g. a preview shelf)
-    try {
-      var cache = localStorage.getItem(CACHE_KEY);
-      if (cache) {
-        var cacheData = JSON.parse(cache);
-        if (cacheData[book.asin]) {
-          var cached = cacheData[book.asin];
-          book = {
-            ...book,
-            description: cached.description || book.description,
-            rating: cached.rating || book.rating,
-            ratingCount: cached.ratingCount || book.ratingCount,
-            topReviews: cached.topReviews || book.topReviews
-          };
-        }
-      }
-    } catch (e) {
-      rwLog.log('warning', 'COVER-01', "The old book-details cache couldn't be read (a leftover from older versions)", { error: String(e) });
+    // the old book-details cache (a leftover from older versions) — 7.29.1: through the one reader (was its
+    // own guard, COVER-01)
+    var cached = readSaved(CACHE_KEY, {}, 'object')[book.asin];
+    if (cached) {
+      book = {
+        ...book,
+        description: cached.description || book.description,
+        rating: cached.rating || book.rating,
+        ratingCount: cached.ratingCount || book.ratingCount,
+        topReviews: cached.topReviews || book.topReviews
+      };
     }
 
     setModalBook(book);
@@ -7292,8 +7256,8 @@ function ReaderWrangler() {
       if (!modalBook.asin) {
         rwLog.log('info', 'SHARE', 'No Amazon link available for this book', null, { toast: true });
       } else {
-        navigator.clipboard.writeText(getAmazonUrl(modalBook.asin));
-        rwLog.log('info', 'SHARE', 'Link copied!', null, { toast: true });
+        // 7.29.1 - through the logging kit's one copy routine: "copied" only when it was (Law 22)
+        rwLog.copyText(getAmazonUrl(modalBook.asin), { what: 'Link', toast: true });
       }
       setShareDropdownOpen(false);
     } }, /*#__PURE__*/
@@ -11711,7 +11675,7 @@ function ReaderWrangler() {
     ), /*#__PURE__*/
     React.createElement("div", { "data-select-text": true, "data-dialog-body": true, style: { overflowY: 'auto', flex: 1 } },
     (() => {
-      var stored = (() => {try {return JSON.parse(localStorage.getItem(RELAY_KEY));} catch {return null;}})();
+      var stored = readSaved(RELAY_KEY, null, 'object');
       var hasCreds = stored && stored.channelId;
       var bookmarklets = hasCreds ? generateRelayBookmarklets(stored.channelId, stored.passphrase) : [];
       // v7.21.0 - (local isLocalhost / isDevRepo copies removed: the dev-mode note and the pairing QR ask
@@ -12003,11 +11967,13 @@ function ReaderWrangler() {
       React.createElement('div', null, React.createElement('span', { style: { color: 'var(--text-muted)' } }, 'Passphrase: '), stored.passphrase)
       ),
       React.createElement('button', {
+        // 7.29.1 - the one copy routine; the button says what happened ("Couldn't copy"
+        // on a refusal — it said nothing before), as the phone's and the alerts' Copy do
         onClick: () => {
           var text = `Channel ID: ${stored.channelId}\nPassphrase: ${stored.passphrase}`;
-          navigator.clipboard.writeText(text).then(() => {
+          rwLog.copyText(text, { what: 'Credentials', where: 'Relay Setup' }).then((ok) => {
             var btn = document.getElementById('relay-copy-creds-btn');
-            if (btn) {btn.textContent = 'Copied!';setTimeout(() => {btn.textContent = 'Copy';}, 2000);}
+            if (btn) {btn.textContent = ok ? 'Copied' : "Couldn't copy";setTimeout(() => {btn.textContent = 'Copy';}, 2000);}
           });
         },
         id: 'relay-copy-creds-btn',
@@ -12576,7 +12542,7 @@ function ReaderWrangler() {
     React.createElement("pre", { className: "text-xs text-gray-800 bg-gray-50 border border-gray-200 rounded p-3", style: { whiteSpace: 'pre-wrap', fontFamily: 'inherit' } }, window.RW_RECOVERY_NUMBERED || 'Save a backup (File → Save Backup…), then re-download your library and collections from Amazon with the bookmarklet, then File → Import from Relay.')
     ), /*#__PURE__*/
     React.createElement("div", { className: "p-4 border-t border-gray-200 flex justify-end gap-2" }, /*#__PURE__*/
-    React.createElement("button", { onClick: () => {navigator.clipboard.writeText(window.RW_RECOVERY_STEPS || '');rwLog.log('info', 'SYNC', 'Recovery steps copied', null, { toast: true });}, className: "px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors" }, "Copy instructions"), /*#__PURE__*/
+    React.createElement("button", { onClick: () => rwLog.copyText(window.RW_RECOVERY_STEPS || '', { what: 'Recovery steps', toast: true }), className: "px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors" }, "Copy instructions"), /*#__PURE__*/
     React.createElement("button", { onClick: () => setCorruptionRecovery(false), className: "px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors" }, "OK")
     )
     ),
@@ -12586,9 +12552,7 @@ function ReaderWrangler() {
 
     restoreConfirm && (() => {
       var { lostLists, lostSearches, backupDate } = restoreConfirm;
-      var ageDays = backupDate ? Math.floor((Date.now() - new Date(backupDate).getTime()) / 86400000) : null;
-      var ageLabel = ageDays == null ? '' : ageDays <= 0 ? 'today' : ageDays === 1 ? 'yesterday' :
-      ageDays < 14 ? `${ageDays} days ago` : `${Math.round(ageDays / 7)} weeks ago`;
+      var ageLabel = daysAgoWords(backupDate); // 7.29.1 - calendar days, local time (uiHelpers.js); was 24-hour blocks
       var nameList = (arr) => {
         var names = arr.map((x) => `“${x.name || '(unnamed)'}”`);
         return names.length > 5 ? `${names.slice(0, 5).join(', ')} and ${names.length - 5} more` : names.join(', ');
@@ -14010,7 +13974,7 @@ function ReaderWrangler() {
       className: "text-3xl font-bold text-gray-900 hover:text-blue-700 transition-colors",
       title: "View on Amazon" }, modalBook.title), /*#__PURE__*/
     React.createElement("button", {
-      onClick: () => {navigator.clipboard.writeText(modalBook.title);rwLog.log('info', 'SHARE', 'Title copied!', null, { toast: true });},
+      onClick: () => rwLog.copyText(modalBook.title, { what: 'Title', toast: true }),
       className: "ml-2 align-middle text-base opacity-40 hover:opacity-90 transition-opacity",
       style: { background: 'none', border: 'none', cursor: 'pointer', padding: '2px' },
       title: "Copy title", "aria-label": "Copy title" }, "\uD83D\uDCCB")
@@ -14073,7 +14037,7 @@ function ReaderWrangler() {
        random passwords; one chip would make this line look like it forgot its own */
     React.createElement("p", { className: "text-xl text-gray-700 mb-4" }, "by ", modalBook.author, /*#__PURE__*/
     React.createElement("button", {
-      onClick: () => {navigator.clipboard.writeText(modalBook.author || '');rwLog.log('info', 'SHARE', 'Author copied!', null, { toast: true });},
+      onClick: () => rwLog.copyText(modalBook.author || '', { what: 'Author', toast: true }),
       className: "ml-2 align-middle text-sm opacity-40 hover:opacity-90 transition-opacity",
       style: { background: 'none', border: 'none', cursor: 'pointer', padding: '2px' },
       title: "Copy author", "aria-label": "Copy author" }, "\uD83D\uDCCB")
@@ -19780,15 +19744,13 @@ function ReaderWrangler() {
             var booksWithAsin = selectedBooksArray.filter((b) => b.asin);
             if (booksWithAsin.length === 0) {
               rwLog.log('info', 'SHARE', count === 1 ? 'No Amazon link available for this book' : 'No Amazon links available for selected books', null, { toast: true });
-            } else if (count === 1) {
-              navigator.clipboard.writeText(getAmazonUrl(booksWithAsin[0].asin));
-              rwLog.log('info', 'SHARE', 'Link copied!', null, { toast: true });
-            } else if (booksWithAsin.length === count) {
-              navigator.clipboard.writeText(booksWithAsin.map((b) => getAmazonUrl(b.asin)).join('\n'));
-              rwLog.log('info', 'SHARE', `${count} Amazon links copied!`, null, { toast: true });
             } else {
-              navigator.clipboard.writeText(booksWithAsin.map((b) => getAmazonUrl(b.asin)).join('\n'));
-              rwLog.log('info', 'SHARE', `${booksWithAsin.length} of ${count} links copied (${count - booksWithAsin.length} books have no Amazon link)`, null, { toast: true });
+              // 7.29.1 - one copy for the three cases, through the logging kit's one copy routine
+              var missing = count - booksWithAsin.length;
+              rwLog.copyText(booksWithAsin.map((b) => getAmazonUrl(b.asin)).join('\n'), {
+                what: count === 1 ? 'Link' : missing ? `${booksWithAsin.length} of ${count} links` : `${count} Amazon links`,
+                next: missing ? `${missing} book${missing === 1 ? ' has' : 's have'} no Amazon link` : undefined,
+                toast: true });
             }
             setExplorerBookContextMenu(null);
             setContextSubmenu(null);
@@ -19837,8 +19799,8 @@ function ReaderWrangler() {
           role: "menuitem",
           onClick: () => {
             var titles = selectedBooksArray.map((book) => book.title).join('\n');
-            navigator.clipboard.writeText(titles);
-            rwLog.log('info', 'SHARE', count !== 1 ? `${count} titles copied!` : 'Title copied!', null, { toast: true }); // v7.13.0-alpha.1 - receipt (clipboard family, non-undoable by doctrine)
+            // v7.13.0-alpha.1 - receipt (clipboard family, non-undoable by doctrine); 7.29.1 - an honest one
+            rwLog.copyText(titles, { what: count !== 1 ? `${count} titles` : 'Title', toast: true });
             setExplorerBookContextMenu(null);
             setContextSubmenu(null);
           } }, /*#__PURE__*/
@@ -19856,8 +19818,8 @@ function ReaderWrangler() {
               className: "px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-3",
               role: "menuitem",
               onClick: () => {
-                navigator.clipboard.writeText(uniqueAuthors.join('\n'));
-                rwLog.log('info', 'SHARE', uniqueAuthors.length !== 1 ? `${uniqueAuthors.length} authors copied!` : 'Author copied!', null, { toast: true });
+                rwLog.copyText(uniqueAuthors.join('\n'),
+                { what: uniqueAuthors.length !== 1 ? `${uniqueAuthors.length} authors` : 'Author', toast: true });
                 setExplorerBookContextMenu(null);
                 setContextSubmenu(null);
               } }, /*#__PURE__*/
@@ -20618,9 +20580,10 @@ function ReaderWrangler() {
     React.createElement("button", {
       className: "w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium",
       onClick: () => {
-        navigator.clipboard.writeText(`Subject: ${shareEmailChoice.subject}\n\n${shareEmailChoice.body}`);
-        rwLog.log('info', 'SHARE', 'Email content copied — paste into your email app', null, { toast: true });
-        setShareEmailChoice(null);
+        // 7.29.1 - the one copy routine; a refusal keeps this window open, its other ways in reach
+        rwLog.copyText(`Subject: ${shareEmailChoice.subject}\n\n${shareEmailChoice.body}`,
+        { what: 'Email content', next: 'paste into your email app', toast: true }).
+        then((ok) => {if (ok) setShareEmailChoice(null);});
       } }, "\uD83D\uDCCB Copy to clipboard"
 
     ), /*#__PURE__*/

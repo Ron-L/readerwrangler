@@ -1,6 +1,6 @@
 // mobile.js — ReaderWrangler Mobile Viewer
 // MOBILE_VERSION tracks mobile-specific iterations
-const MOBILE_VERSION = '1.12.0'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
+const MOBILE_VERSION = '1.12.1'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
 rwLog.log('info', 'BOOT', `Phone app ${MOBILE_VERSION} running (page ${APP_VERSION})`);
 
 // v1.7.0 - Which server is this copy talking to? Derived from the page's own address, so an
@@ -131,12 +131,18 @@ function restoreOrganization(org, bookIds, sourceStamp, sourceGen) {
 
 // v1.8.0-alpha.1 (F1 consolidation) - Single read path for the cached folder tree:
 // blob first, legacy FOLDERS_KEY only as a migration fallback for pre-1.8 caches.
+// 7.29.1 (TODO 20261109-0912) - the phone's settings note (sort, view, shelves, deals, hidden): ONE reader and ONE
+// writer. It was read at the top of the main screen on every redraw with no guard — damaged, it blanked the phone app —
+// and merged-and-saved by three hand-written copies (Law 22). A damaged note reads as no settings (the defaults, one
+// warning in Diagnostics); the next change saves a good one.
+const readPhonePrefs = () => readSaved(MOBILE_PREFS_KEY, {}, 'object');
+const savePhonePrefs = (updates) => localStorage.setItem(MOBILE_PREFS_KEY, JSON.stringify({ ...readPhonePrefs(), ...updates }));
+
+// 7.29.1 - both reads through the one reader (uiHelpers.js readSaved)
 function readCachedFolders() {
-    try {
-        const org = (JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').organization) || {};
-        if (Array.isArray(org.folders) && org.folders.length > 0) return org.folders;
-    } catch (e) {}
-    try { return JSON.parse(localStorage.getItem(FOLDERS_KEY) || '[]'); } catch (e) { return []; }
+    const org = readSaved(STORAGE_KEY, {}, 'object').organization || {};
+    if (Array.isArray(org.folders) && org.folders.length > 0) return org.folders;
+    return readSaved(FOLDERS_KEY, [], 'array');
 }
 
 // --- SVG Icons (inline, no external deps) ---
@@ -689,7 +695,7 @@ function FolderDrawer({ folders, books, pinnedTagFolders, tagRegistry, bookLists
 
     // v1.6.9 - per-folder collapse in the drawer tree (drawer-local, persisted)
     const [collapsedFolders, setCollapsedFolders] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('rw_mobile_folders_collapsed')) || {}; } catch (e) { return {}; }
+        return readSaved('rw_mobile_folders_collapsed', {}, 'object');
     });
     const toggleFolder = (id) => setCollapsedFolders(prev => {
         const next = { ...prev, [id]: !prev[id] };
@@ -891,19 +897,31 @@ function FolderDrawer({ folders, books, pinnedTagFolders, tagRegistry, bookLists
 
 // --- App Menu ---
 
+// 7.29.1 (TODO 20261112-1755 "Copy buttons tell the truth") - a Copy button's word after a press: copies through the
+// logging kit's ONE copy routine (rwLog.copyText — Law 22), then 'copied' or 'failed' for 2 s, then null (its label).
+// A page with no clipboard (a phone on an insecure address) is 'failed', never 'copied'.
+function useCopyResult() {
+    const [result, setResult] = useState(null);   // null | 'copied' | 'failed'
+    const timer = useRef(null);
+    useEffect(() => () => clearTimeout(timer.current), []);
+    const copy = (text, how) => rwLog.copyText(text, how).then(ok => {
+        setResult(ok ? 'copied' : 'failed');
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => setResult(null), 2000);
+    });
+    return [result, copy];
+}
+const copyResultLabel = (result, label) => (result === 'copied' ? 'Copied' : result === 'failed' ? "Couldn't copy" : label);
+
 function AppMenu({ themePreference, viewMode, showDealsOnly, showHidden, onApplyTheme, onToggleViewMode, onToggleDeals, onToggleHidden, onDesktopMode, onUnpair, onPair, onReset, relayCreds, libraryAsOf, onClose }) {
     const themeLabels = { auto: 'Auto', light: 'Light', dark: 'Dark' };
     const nextTheme = { auto: 'light', light: 'dark', dark: 'auto' };
     const [showCreds, setShowCreds] = useState(false);
     // 7.26.0 (LOGGING.md §5 step 5.4 — Ron: just a Copy button on the phone, no viewer) - the phone's log, for a message to us
-    const [diagCopied, setDiagCopied] = useState(null);   // null | 'copied' | 'failed'
-    const copyDiagnostics = () => {
-        const text = rwLog.diagnosticsText([`Phone app ${MOBILE_VERSION} (page ${APP_VERSION})`]);
-        Promise.resolve(navigator.clipboard && navigator.clipboard.writeText(text)).then(
-            () => setDiagCopied('copied'),
-            () => { rwLog.log('warning', 'PHONE-07', "Diagnostics couldn't be copied (the browser refused the clipboard)"); setDiagCopied('failed'); });
-        setTimeout(() => setDiagCopied(null), 2000);
-    };
+    const [diagCopied, copyDiag] = useCopyResult();
+    const copyDiagnostics = () => copyDiag(rwLog.diagnosticsText([`Phone app ${MOBILE_VERSION} (page ${APP_VERSION})`]),
+        { what: 'Diagnostics', where: 'the phone' });
+    const [credsCopied, copyCreds] = useCopyResult();   // 7.29.1 - the credentials' Copy says what happened too
 
     return (
         <div className="fixed top-0 right-0 h-full z-50 flex flex-col overflow-y-auto"
@@ -984,14 +1002,12 @@ function AppMenu({ themePreference, viewMode, showDealsOnly, showHidden, onApply
                                 <div style={{ fontSize: '0.75em', fontFamily: 'monospace', background: 'var(--bg-muted, #f1f5f9)', padding: '8px', borderRadius: '6px', marginBottom: '8px', wordBreak: 'break-all', lineHeight: 1.5 }}>
                                     <div><span style={{ color: 'var(--text-muted, #64748b)' }}>Channel:</span><br />{relayCreds.channelId}</div>
                                     <div style={{ marginTop: '4px' }}><span style={{ color: 'var(--text-muted, #64748b)' }}>Passphrase:</span><br />{relayCreds.passphrase}</div>
-                                    <button onClick={() => {
-                                        const text = 'Channel ID: ' + relayCreds.channelId + '\nPassphrase: ' + relayCreds.passphrase;
-                                        navigator.clipboard.writeText(text).catch(() => {});
-                                    }} style={{
+                                    <button onClick={() => copyCreds('Channel ID: ' + relayCreds.channelId + '\nPassphrase: ' + relayCreds.passphrase,
+                                        { what: 'Credentials', where: 'the phone' })} style={{
                                         marginTop: '6px', padding: '4px 10px', fontSize: '0.9em',
                                         background: 'var(--bg-surface, #ffffff)', border: '1px solid var(--border-default, #e2e8f0)',
                                         borderRadius: '4px', cursor: 'pointer', touchAction: 'manipulation'
-                                    }}>Copy</button>
+                                    }}>{copyResultLabel(credsCopied, 'Copy')}</button>
                                 </div>
                             )}
                             <button onClick={() => {
@@ -1056,11 +1072,11 @@ function AppMenu({ themePreference, viewMode, showDealsOnly, showHidden, onApply
                     <p>Mobile v{MOBILE_VERSION}</p>
                     <p>Server: {SERVER_ENV.label}</p>
                     {RELAY_IS_DEV && <p>Relay: Dev relay worker + storage</p>}
-                    {libraryAsOf && <p>Library as of {new Date(libraryAsOf).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{(() => { try { const g = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').deviceStateGen; return g ? ` (copy …${String(g).slice(-4)})` : ''; } catch (e) { return ''; } })()}</p>}
+                    {libraryAsOf && <p>Library as of {new Date(libraryAsOf).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{(() => { const g = readSaved(STORAGE_KEY, {}, 'object').deviceStateGen; return g ? ` (copy …${String(g).slice(-4)})` : ''; })()}</p>}
                     <button type="button" data-copy-diagnostics onClick={copyDiagnostics}
                         className="mt-2 py-1 px-3 rounded text-xs"
                         style={{ border: '1px solid var(--border-default, #e2e8f0)', color: 'var(--text-primary, #1e293b)', touchAction: 'manipulation' }}>
-                        {diagCopied === 'copied' ? 'Copied' : diagCopied === 'failed' ? "Couldn't copy" : 'Copy diagnostics'}
+                        {copyResultLabel(diagCopied, 'Copy diagnostics')}
                     </button>
                 </div>
             </div>
@@ -1535,7 +1551,7 @@ function Shelf({ title, count, sections, isCapped, isExpanded, coverUrlMap, blan
 function Dashboard({ books, folders, pinnedTagFolders, tagRegistry, bookLists, savedSearches, showDealsOnly, showHidden, folderListSort, libraryAsOf, coverUrlMap, blankImageBooks, setBlankImageBooks, onTapBook, onTapFolderTitle, onTapSeries, expandedShelves, setExpandedShelves, collapsed, toggleSection }) {
     // v1.6.10 - per-shelf collapse on the Dashboard (folder shelves), Dashboard-local + persisted
     const [collapsedShelves, setCollapsedShelves] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('rw_mobile_shelves_collapsed')) || {}; } catch (e) { return {}; }
+        return readSaved('rw_mobile_shelves_collapsed', {}, 'object');
     });
     const toggleShelf = (id) => setCollapsedShelves(prev => {
         const next = { ...prev, [id]: !prev[id] };
@@ -2453,8 +2469,7 @@ function MobileApp() {
     // v6.0.0 Phase 2 - Pairing state
     const [pairingScreen, setPairingScreen] = useState(() => {
         // Show pairing screen if no relay credentials AND no local books
-        const hasCreds = (() => { try { const r = JSON.parse(localStorage.getItem(RELAY_KEY)); return r && r.channelId; } catch { return false; } })();
-        if (hasCreds) return null; // Already paired
+        if (readSaved(RELAY_KEY, null, 'object')?.channelId) return null; // Already paired
         return 'prompt'; // 'prompt' | 'scanning' | 'success' | 'error'
     });
     const [pairingError, setPairingError] = useState(null);
@@ -2471,32 +2486,28 @@ function MobileApp() {
         return isIOS && !isStandalone;
     });
     const [navStack, setNavStack] = useState(() => {
-        try {
-            const saved = JSON.parse(localStorage.getItem(NAV_STACK_KEY));
-            if (Array.isArray(saved) && saved.length > 0 && saved[0]?.view === 'dashboard') {
-                return saved.map(entry => ({ ...entry, scrollY: 0, shelfScrolls: undefined }));
-            }
-        } catch {}
+        const saved = readSaved(NAV_STACK_KEY, [], 'array');
+        if (saved.length > 0 && saved[0]?.view === 'dashboard') {
+            return saved.map(entry => ({ ...entry, scrollY: 0, shelfScrolls: undefined }));
+        }
         return [{ view: 'dashboard', scrollY: 0 }];
     });
     const scrollRestoreRef = useRef(null);
     // Persisted preferences
-    const savedPrefs = JSON.parse(localStorage.getItem(MOBILE_PREFS_KEY) || '{}');
+    const savedPrefs = readPhonePrefs();
     const [sortOption, setSortOptionRaw] = useState(() => savedPrefs.sortOption || 'dateAdded');
     const cycleSortOption = useCallback(() => {
         setSortOptionRaw(prev => {
             const idx = SORT_OPTIONS.findIndex(o => o.key === prev);
             const next = SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length].key;
-            const current = JSON.parse(localStorage.getItem(MOBILE_PREFS_KEY) || '{}');
-            localStorage.setItem(MOBILE_PREFS_KEY, JSON.stringify({ ...current, sortOption: next }));
+            savePhonePrefs({ sortOption: next });
             return next;
         });
     }, []);
-    const [expandedShelves, setExpandedShelvesRaw] = useState(() => new Set(savedPrefs.expandedShelves || []));
+    // (a list, or none: a Set of anything else throws — and this runs while the main screen draws)
+    const [expandedShelves, setExpandedShelvesRaw] = useState(() => new Set(Array.isArray(savedPrefs.expandedShelves) ? savedPrefs.expandedShelves : []));
     // v1.6.8 - collapsed sections lifted here so the drawer AND Dashboard stay in sync (persisted per-device)
-    const [drawerCollapsed, setDrawerCollapsed] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('rw_mobile_drawer_collapsed')) || {}; } catch (e) { return {}; }
-    });
+    const [drawerCollapsed, setDrawerCollapsed] = useState(() => readSaved('rw_mobile_drawer_collapsed', {}, 'object'));
     const toggleSection = (key) => setDrawerCollapsed(prev => {
         const next = { ...prev, [key]: !prev[key] };
         try { localStorage.setItem('rw_mobile_drawer_collapsed', JSON.stringify(next)); } catch (e) {}
@@ -2505,8 +2516,7 @@ function MobileApp() {
     const setExpandedShelves = useCallback((updater) => {
         setExpandedShelvesRaw(prev => {
             const next = typeof updater === 'function' ? updater(prev) : updater;
-            const current = JSON.parse(localStorage.getItem(MOBILE_PREFS_KEY) || '{}');
-            localStorage.setItem(MOBILE_PREFS_KEY, JSON.stringify({ ...current, expandedShelves: [...next] }));
+            savePhonePrefs({ expandedShelves: [...next] });
             return next;
         });
     }, []);
@@ -2535,8 +2545,7 @@ function MobileApp() {
     useEffect(() => {
         const check = async () => {
             try {
-                const creds = JSON.parse(localStorage.getItem(RELAY_KEY) || 'null');
-                if (!creds || !creds.channelId || !window.RWRelay) return;
+                if (!readSaved(RELAY_KEY, null, 'object')?.channelId || !window.RWRelay) return;
                 if (Date.now() - lastFreshCheckRef.current < 60000) return;
                 lastFreshCheckRef.current = Date.now();
                 window.RWRelay.initFromStorage();
@@ -2546,7 +2555,7 @@ function MobileApp() {
                 // came from? The old timestamp compare raced the save stamp against the push time —
                 // always ~a debounce apart — so a fully-synced phone nagged forever. Caches that
                 // predate the gen record fall back to timestamps with a WIDE margin (15 min).
-                const blob = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (e) { return {}; } })();
+                const blob = readSaved(STORAGE_KEY, {}, 'object');
                 let newer;
                 if (blob.deviceStateGen) {
                     newer = gen !== blob.deviceStateGen;
@@ -2568,11 +2577,6 @@ function MobileApp() {
         return () => { clearTimeout(t); document.removeEventListener('visibilitychange', onVis); };
     }, []);
 
-    const savePrefs = (updates) => {
-        const current = JSON.parse(localStorage.getItem(MOBILE_PREFS_KEY) || '{}');
-        localStorage.setItem(MOBILE_PREFS_KEY, JSON.stringify({ ...current, ...updates }));
-    };
-
     const applyTheme = (pref) => {
         setThemePreference(pref);
         localStorage.setItem(THEME_KEY, pref);
@@ -2589,8 +2593,7 @@ function MobileApp() {
 
     const loadAllData = async () => {
         // v6.0.0 Phase 2 - Pull device-state from relay before loading local data
-        const hasCreds = (() => { try { const r = JSON.parse(localStorage.getItem(RELAY_KEY)); return r && r.channelId; } catch { return false; } })();
-        if (hasCreds && window.RWRelay) {
+        if (readSaved(RELAY_KEY, null, 'object')?.channelId && window.RWRelay) {
             try {
                 setLoadingMessage('Syncing with desktop...');
                 window.RWRelay.initFromStorage();
@@ -2622,7 +2625,7 @@ function MobileApp() {
                         // from the cache either way, so a skip DISPLAYS the fresher local data.
                         // Transition: unstamped payload (pre-alpha.6 push) = stamp 0 → never overwrites an
                         // existing blob; a truly empty universe (new phone pairing) accepts it anyway.
-                        const localSavedAt = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').savedAt || 0; } catch { return 0; } })();
+                        const localSavedAt = readSaved(STORAGE_KEY, {}, 'object').savedAt || 0;
                         const payloadSavedAt = data.organization?.savedAt || 0;
                         if (payloadSavedAt > localSavedAt || !localSavedAt) {
                             await saveBooksToIndexedDB(mappedBooks, false);
@@ -2648,6 +2651,8 @@ function MobileApp() {
         const savedFolders = readCachedFolders(); // v1.8.0-alpha.1 (F1) - blob-first
         setFolders(savedFolders);
 
+        // not-readSaved: the phone's startup load — a damaged organization here is "your library couldn't be loaded on
+        // this phone" (PHONE-03, the critical box), not a quiet default (TODO 20261109-0912, item 4)
         const orgState = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
         const org = orgState.organization || {};
         setTagRegistry(org.tagRegistry || {});
@@ -2660,7 +2665,7 @@ function MobileApp() {
         // same-origin EXPLORER_KEY (dev machine, where the guest guard skips the cache and the
         // freshest value is the desktop's own) -> default Manual (null).
         let fls = org.folderListSort || null;
-        if (!fls) { try { fls = JSON.parse(localStorage.getItem(EXPLORER_KEY) || '{}').folderListSort || null; } catch (e) {} }
+        if (!fls) fls = readSaved(EXPLORER_KEY, {}, 'object').folderListSort || null;
         setFolderListSort(fls);
         setLibraryAsOf(orgState.savedAt || null); // v1.7.0-alpha.24 - the cache's source stamp
 
@@ -2796,17 +2801,17 @@ function MobileApp() {
     const handleToggleViewMode = () => {
         const next = viewMode === 'covers' ? 'list' : 'covers';
         setViewMode(next);
-        savePrefs({ viewMode: next });
+        savePhonePrefs({ viewMode: next });
     };
     const handleToggleDeals = () => {
         const next = !showDealsOnly;
         setShowDealsOnly(next);
-        savePrefs({ showDealsOnly: next });
+        savePhonePrefs({ showDealsOnly: next });
     };
     const handleToggleHidden = () => {
         const next = !showHidden;
         setShowHidden(next);
-        savePrefs({ showHidden: next });
+        savePhonePrefs({ showHidden: next });
     };
     const handleDesktopMode = () => {
         localStorage.setItem('readerwrangler-desktopMode', 'true');
@@ -3101,7 +3106,7 @@ function MobileApp() {
                             const withSeconds = minuteOf(libraryAsOf) === minuteOf(newerTime);
                             const fmt = (t) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', ...(withSeconds ? { second: '2-digit' } : {}) });
                             const sfx = (g) => g ? ` (…${String(g).slice(-4)})` : '';
-                            const cachedGen = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').deviceStateGen || null; } catch (e) { return null; } })();
+                            const cachedGen = readSaved(STORAGE_KEY, {}, 'object').deviceStateGen || null;
                             return `📡 Your library is from ${fmt(libraryAsOf)}${sfx(cachedGen)} — a newer one from ${fmt(newerTime)}${sfx(newerAvailable)} is available. Tap to refresh.`;
                         })()}
                     </span>
@@ -3162,7 +3167,7 @@ function MobileApp() {
                     onUnpair={handleUnpair}
                     onPair={() => setPairingScreen('prompt')}
                     onReset={handleReset}
-                    relayCreds={(() => { try { return JSON.parse(localStorage.getItem(RELAY_KEY)); } catch { return null; } })()}
+                    relayCreds={readSaved(RELAY_KEY, null, 'object')}
                     libraryAsOf={libraryAsOf}
                     onClose={closeOverlay}
                 />
