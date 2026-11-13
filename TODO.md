@@ -1559,6 +1559,11 @@ Amazon's site; "RW is not making this easier"). Law 20: hand them the action.
 **Decided** (Ron + Claude, 2026-11-12)
 1. **Show them** on the import's finish message whenever books became owned — it puts exactly those books on screen,
    selected, ready for Add to Book List (the import already knows them: `upgradedGoalIds` and the "now owned" count).
+   **First, count bought SAMPLES too** (found 2026-11-12 from Ron's log — four books bought, the import said "2 now
+   owned"): `storage.js` counts only wishlist → owned (`isWishlisted(existing) && !isWishlisted(book)`), though its
+   comment says "wishlist/sample → owned" — so a bought sample is in neither "now owned" nor "Clear those goals". A
+   failing test first (a sample becoming purchased in an import), then count every temporary type → purchased
+   (sample, and the borrow-like types the fetcher promotes).
 2. **One value per column:** today the Date Added column's display, its sort and the filter / grouping each write their
    own expression for the date (they agree in practice — `dateAdded` is empty everywhere — but three copies is how they'd
    drift). Each column in `COLUMN_CONFIG` gets one function giving its value; showing, sorting, grouping and filtering
@@ -3943,7 +3948,10 @@ acquisition date, which the library fetcher sets to the ORDER date when a sample
 `dateAdded` is empty on every book (Ron's 10-31 backup: 2,625 of 2,629 owned books carry an acquisition date, none a
 `dateAdded`); organizing doesn't touch dates. **Candidates:** All Books' remembered sort wasn't Date Added at the time;
 or the fetch that promoted them was imported between the first look and the filter (until then the app still had them
-as wishlist / sample books with their old dates).
+as wishlist / sample books with their old dates). **Ron's log (pasted that evening)** backs the second: the import at
+6:42:06 made 2 wishlist books owned, and his Add to 'New To Read' of all 4 came at 6:43:19 — a look at All Books before
+6:42 would have shown those two still as wishlist books. (The other two were likely samples, which the import doesn't
+count — see the task "'N now owned' after an import…", item 1.)
 
 **Next time it happens**
 - Note the folder's sort (the column header's arrow) before changing anything.
