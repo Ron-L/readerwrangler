@@ -3,9 +3,7 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [Reset App: a Save Backup… button where the box says to save a backup](#reset-app-a-save-backup-button-where-the-box-says-to-save-a-backup)
-      - [When the app can't open: Copy diagnostics and Report this problem, right there](#when-the-app-cant-open-copy-diagnostics-and-report-this-problem-right-there)
-      - [Help → Report a problem… and Known problems (the GitHub issues)](#help--report-a-problem-and-known-problems-the-github-issues)
+      - [Copy buttons tell the truth: "copied" only when something was copied, and a refusal said](#copy-buttons-tell-the-truth-copied-only-when-something-was-copied-and-a-refusal-said)
       - [One table for every move, copy, paste and delete: what each gesture does in each place](#one-table-for-every-move-copy-paste-and-delete-what-each-gesture-does-in-each-place)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -51,6 +49,7 @@
       - [Restore dialog calls yesterday's backup "today"](#restore-dialog-calls-yesterdays-backup-today)
       - [One safe way to read saved settings — a damaged one can blank the phone app today](#one-safe-way-to-read-saved-settings--a-damaged-one-can-blank-the-phone-app-today)
     - [Polish](#polish)
+      - [Phone: Report a problem in the ⋮ menu, like the desktop's Help](#phone-report-a-problem-in-the--menu-like-the-desktops-help)
       - [Buttons name their action: replace the remaining OK, Yes and No buttons](#buttons-name-their-action-replace-the-remaining-ok-yes-and-no-buttons)
       - [Move and copy books anywhere — folders, Book Lists, All Books, Searches](#move-and-copy-books-anywhere--folders-book-lists-all-books-searches)
       - [Retire two leftover book fields: the hidden "seen" flag and the old price-goal field](#retire-two-leftover-book-fields-the-hidden-seen-flag-and-the-old-price-goal-field)
@@ -181,54 +180,21 @@ drifted). To change the order, move the task.
 
 ### High priority
 
-#### Reset App: a Save Backup… button where the box says to save a backup
-<!-- id 20261111-1104 -->
+#### Copy buttons tell the truth: "copied" only when something was copied, and a refusal said
+<!-- id 20261112-1755 -->
 
-_Why it matters:_ The Reset App box says "Before you reset, save a backup: File → Save Backup." — something the person
-can do that instant, so it should be a button there (Law 20: hand them the action, not directions — Ron, 2026-11-11).
+_Why it matters:_ A support report starts with "I pressed Copy" — if Copy says "copied" when nothing was, the person
+pastes nothing and we get an empty report; if it fails without a word, they don't know to try again (Law 12, Law 16).
+Found while building 7.29.0's Report a problem (sprint 2), whose own copy already does this right.
 
-**Decided** (Ron + Claude, 2026-11-11)
-1. A **Save Backup…** button in the Reset App box's tip — the same save File → Save Backup runs; the box stays open so
-   they can then reset (or cancel).
-2. "To get everything back afterwards: File → Restore Backup…" stays as directions: it can't be done from this box (a
-   restore now would replace the library, and the box is gone after the reset). Its button belongs to the after-reset
-   choice ("Restore from Cloud Sync…", item 6).
-3. Keep test/test_reset_words.py passing (the shared sentence stays word for word).
-
-#### When the app can't open: Copy diagnostics and Report this problem, right there
-<!-- id 20261111-1104a -->
-
-_Why it matters:_ A person whose app won't start sees "Something went wrong" and a Reset App button — nothing about
-telling us. The red banner with Copy shows only with "Show a banner when something goes wrong" turned on, and the
-error text only on a local server, so on readerwrangler.com they get neither (Ron, 2026-11-11; Law 20).
-
-**Decided** (Ron + Claude, 2026-11-11)
-1. **The emergency screen** ("Something went wrong") gets a **Copy diagnostics** button and a **Report this problem**
-   link (GitHub issues, as the status bar's Feedback link). The Diagnostics window can't open there — it's part of the
-   app that failed — but the logging module loads first and survives, so Copy works (`rwLog.diagnosticsText`).
-2. **Not on its "Erase and Reset" confirmation** — one place, offered before anyone reaches the reset.
-3. **The reset page** (reset.html) gets the same two — it loads the logging module too, and it's where people land when
-   the app won't open at all.
-4. Checked 2026-11-11: **no reset clears the kept log** (its key is in none of the four resets' lists, nothing clears
-   all storage) — so a copy made after a reset still has the record; offering it before is still the right moment.
-5. A screen test with the load made to fail on purpose (the driver serves a broken copy of the app's code — how
-   7.27.1's screenshots were taken): the button copies a text with the build line and the error.
-
-#### Help → Report a problem… and Known problems (the GitHub issues)
-<!-- id 20261111-1104b -->
-
-_Why it matters:_ The Help menu has nothing for reporting a problem or seeing known ones; only the status bar's small
-"Feedback" link reaches GitHub issues (Ron, 2026-11-11).
-
-**Decided** (Ron + Claude, 2026-11-11)
-1. **Help → Report a problem…** copies the diagnostics (as Diagnostics' Copy does), then opens a new GitHub issue —
-   telling the person the diagnostics are on the clipboard to paste in.
-2. **Help → Known problems** opens the issue list.
-3. **Both — email and GitHub** (Ron, 2026-11-12, agreed before sprint 2; it was "GitHub needs an account to report, and
-   many readers won't have one"): the diagnostics are copied first, then a small choice — **Email us** (opens their
-   mail app to contact@readerwrangler.com with a subject line) or **Report on GitHub** (a new issue) — and either way
-   they're told the diagnostics are on the clipboard to paste in. Not in the email's body (a mail link cuts long text
-   off). ONE shared "report a problem" helper, used here and by "When the app can't open…" (its Report this problem).
+**To do** (each place: a failing test first)
+1. **The Diagnostics window's Copy diagnostics** (`logkit/diagnostics-window.js`, ~line 50) and **the phone's Copy
+   diagnostics** (`mobile.js`, ~line 902): `Promise.resolve(navigator.clipboard && navigator.clipboard.writeText(…))`
+   reports success when the page has NO clipboard at all — on an insecure address (a phone on the home network reaching
+   a self-hosted copy). Treat a missing clipboard as a refusal, as `reportProblem.js` does.
+2. **The red banner's Copy and the critical box's Copy details** (`logkit/logger.js` `copyInto`): an empty rejection
+   handler and a bare `catch {}` — a refused clipboard fails silently. Say it on the button ("Couldn't copy").
+3. One shared "copy, and say what happened" — the kit's own, so all four use it (the kit can't use reportProblem.js).
 
 #### One table for every move, copy, paste and delete: what each gesture does in each place
 <!-- id 20261106-1237 -->
@@ -1580,6 +1546,16 @@ approximate)
    load", done in the logging switch's PHONE area (7.26.0).
 
 ### Polish
+
+#### Phone: Report a problem in the ⋮ menu, like the desktop's Help
+<!-- id 20261112-1756 -->
+
+_Why it matters:_ Since 7.29.0 the desktop has Help → Report a problem… (copy the diagnostics, then email us or report
+on GitHub); the phone's ⋮ menu has only Copy diagnostics, so a phone reader has to find our address on their own.
+Found while building it (sprint 2).
+
+**To do:** a **Report a problem** item in the phone's ⋮ menu (beside Copy diagnostics), using `reportProblem.js`'s
+words and flow (the phone page already loads it). A screen test at phone size first.
 
 #### Buttons name their action: replace the remaining OK, Yes and No buttons
 <!-- id 20261112-1241 -->
