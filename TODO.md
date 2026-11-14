@@ -143,6 +143,7 @@
     - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
     - [A screen test that failed once: the File menu not found after the start-up test](#a-screen-test-that-failed-once-the-file-menu-not-found-after-the-start-up-test)
     - [A screen test that failed once: the logging script not loaded at start-up (Diagnostics)](#a-screen-test-that-failed-once-the-logging-script-not-loaded-at-start-up-diagnostics)
+    - [A screen test that failed once: Reset's reload hung while a commit ran alongside](#a-screen-test-that-failed-once-resets-reload-hung-while-a-commit-ran-alongside)
     - [Books just bought weren't at the top of All Books sorted by Date Added — once, not reproduced](#books-just-bought-werent-at-the-top-of-all-books-sorted-by-date-added--once-not-reproduced)
   - [🧊 Someday](#someday)
     - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
@@ -3919,6 +3920,24 @@ looked like the page starting without its logging script, which on a real visit 
 - **Read it before fixing it** (TESTING.md §7): did the logging script's request fail or arrive late (the failure's
   console and network), and was `serve.py` rebuilding `dist/` at that moment?
 - **Set it aside the same day** (with a TODO) rather than re-run past it.
+
+### A screen test that failed once: Reset's reload hung while a commit ran alongside
+<!-- id 20261113-2359 -->
+
+_Why it matters:_ A test that fails now and then teaches everyone to ignore failures (TESTING.md §7) — and Reset is
+the one place where a hang would leave a person stuck mid-reset.
+
+**What happened**
+- Once (2026-11-13 ~23:45, sprint 4, on 7.30.0-alpha.8): in a full tier-2 run, test_reset.py failed 5 of 7 — RESET-003
+  "the reset tab reloads normally (it hung) and stays reset (the other tab's folders came back)", then RESET-004–006 and
+  the session's log. **A commit (TODO.md only) ran its checks during that run.** The file passed alone (6/6) right
+  after, and the full tier 2 passed again with nothing else running. The full output wasn't kept (the run was filtered).
+
+**Next time it happens**
+- **Read it before fixing it** (TESTING.md §7): keep the run's full output; was anything else using the machine (a
+  commit's checks, another test run, `serve.py` rebuilding)? Reset waits on the browser letting go of the book store —
+  a slow machine may be enough.
+- Meanwhile: **no commits during a test run** (Claude's practice from 2026-11-13).
 
 ### Books just bought weren't at the top of All Books sorted by Date Added — once, not reproduced
 <!-- id 20261112-1925 -->
