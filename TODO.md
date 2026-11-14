@@ -1636,6 +1636,20 @@ rows.
   true for a cut from a Book List pasted into a FOLDER after 7.25.1; a cut from a Book List pasted into another Book List
   now leaves the first list — 7.25.1's Book List paste.) Found in
   7.10.1-alpha.7, filed not fixed.
+- **7.30.0 (sprint 4) changed the ground under this task** — the one table answers every move / copy / paste of today's
+  keys, menus and drags (`gestureTable.decide`, `placeByTable`, `dropItems`, `dropTreeFolders`; ONE-TABLE.md §7). The
+  "How" lines above describe the code before it; decision 11's "say what happened" is done there. What's left here are
+  the NEW gestures, plus these leftovers the sprint found (ONE-TABLE.md §7, alpha.2–8):
+  1. **Fake drop signals** (decision 11): the move cursor shows, then the drop is refused or does something else — a
+     Search entry (books), the "Book Lists" crumb (folders, books), the Folders header and the Inbox while Ctrl will
+     copy; the edge line's colour for a left-pane folder drag in a sorted mode can show red where a move then happens.
+  2. **A Ctrl-drag of a LEFT-pane folder doesn't copy** (the left pane's drag only allows a move).
+  3. **The tree's "＋ New subfolder here" box says "inside this one"** — it means the folder next to the ＋, not the one
+     you're in.
+  4. On a right-pane folder row, a right-pane folder drag whose parent isn't the open folder does nothing and says
+     nothing — reachable only if the right pane changes place mid-drag.
+  5. During a left-pane folder drag, hovering a collapsed folder opens it after 500 ms (timing-dependent; it can shift
+     the rows below the pointer).
 
 #### Retire two leftover book fields: the hidden "seen" flag and the old price-goal field
 <!-- id 20261012-0000b -->
