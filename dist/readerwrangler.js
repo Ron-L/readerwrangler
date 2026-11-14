@@ -153,7 +153,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.30.0-alpha.7"; // Build version for this file
+var ORGANIZER_VERSION = "7.30.0-alpha.8"; // Build version for this file
 // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
 // problem… (7.29.0: one copy, so the two can't drift)
 var DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -2261,6 +2261,20 @@ function ReaderWrangler() {
     var ids = (folderIds || []).filter((id) => folders.some((f) => f.id === id));
     var parent = ids.length ? folders.find((f) => f.id === ids[0]).parentId : null;
     return placeByTable('drag', [], ids, parent || '__library__', target, { slot });
+  };
+  // 7.30.0-alpha.8 - A left-pane folder dropped on a folder's top / bottom quarter — in the left pane, or on a
+  // right-pane folder row / tile (list and cover view): ONE answer for all three. Under the same parent as that
+  // folder: a reorder (reorderFoldersInParent — outside the table; it says why in a sorted mode). Under another
+  // parent: the table's move there, at that position (dropTreeFolders with slot). Was the left pane's own code; the
+  // right pane's rows compared the drag's parentId, which a left-pane drag doesn't carry, and did nothing, silently.
+  var dropTreeFoldersAtEdge = (folderIds, edgeFolder, position) => {
+    var dragged = folders.find((f) => f.id === (folderIds || [])[0]);
+    if (!dragged) return false;
+    if (dragged.parentId !== edgeFolder.parentId) {
+      return dropTreeFolders(folderIds, edgeFolder.parentId || '__library__', { targetFolderId: edgeFolder.id, position });
+    }
+    reorderFoldersInParent(edgeFolder.parentId, folderIds, edgeFolder.id, position);
+    return true;
   };
 
   // Books and / or folders into a place, as the table's row says: ONE undo step (a COMPOUND of the operations' own
@@ -15425,16 +15439,9 @@ function ReaderWrangler() {
                     // v7.6.0-alpha.1 (wave A) - Consolidated onto the canonical operations. The old inline
                     // reorder recorded a REORDER_FOLDER payload the undo reducer couldn't read (sidebar
                     // reorders were silently not undoable) and its cross-parent path read stale state.
-                    var draggedFolder = folders.find((f) => f.id === folderIds[0]);
-                    if (!draggedFolder) return;
-                    if (draggedFolder.parentId !== folder.parentId) {
-                      // Cross-parent drag to a position: placed at the drop target (Manual mode) — the
-                      // table's move to that parent, with the position (7.30.0-alpha.7; was reparentFolder)
-                      dropTreeFolders(folderIds, folder.parentId || '__library__', { targetFolderId: folder.id, position: _target2.position });
-                    } else {
-                      // Same-parent: canonical reorder (guards non-Manual sort with its own toast)
-                      reorderFoldersInParent(folder.parentId, folderIds, folder.id, _target2.position);
-                    }
+                    // Same parent: a reorder; another parent: the table's move, at that position
+                    // (7.30.0-alpha.7). 7.30.0-alpha.8 - one helper, shared with the right pane's rows.
+                    dropTreeFoldersAtEdge(folderIds, folder, _target2.position);
                   }
                 } catch (err) {
                   rwLog.log('error', 'MOVE-03', "That move didn't work.", { where: 'a drop on a folder in the left pane', error: err && err.message, stack: err && err.stack }, { toast: true });
@@ -16726,8 +16733,13 @@ function ReaderWrangler() {
                   if (target?.type === 'reparent') {
                     dropTreeFolders(dragData.folderIds, folder.id); // 7.30.0-alpha.6 - the table's (was reparentFolder)
                   } else if (target?.type === 'reorder') {
-                    // Reorder within same parent
-                    if (canReorderFolders) {
+                    if (!rwItemsStr) {
+                      // 7.30.0-alpha.8 - a folder dragged from the LEFT pane (no x-rw-items): what the
+                      // left pane's own edge does — a reorder under the same parent, else the table's
+                      // move at this position (was: nothing, silently — it has no parentId)
+                      dropTreeFoldersAtEdge(dragData.folderIds, folder, target.position);
+                    } else if (canReorderFolders) {
+                      // Reorder within same parent
                       if (dragData.parentId === parentForReorder) {
                         // v5.0.0-alpha.90 - Pass folder.id and position (not visual index)
                         reorderFoldersInParent(parentForReorder, dragData.folderIds, folder.id, target.position);
@@ -17456,8 +17468,12 @@ function ReaderWrangler() {
                   // Move folder(s) INTO target folder
                   dropTreeFolders(dragData.folderIds, folder.id); // 7.30.0-alpha.6 - the table's (was reparentFolder)
                 } else if (target?.type === 'reorder') {
-                  // Reorder within same parent
-                  if (canReorderFolders) {
+                  if (!rwItemsStr) {
+                    // 7.30.0-alpha.8 - a folder dragged from the LEFT pane: the left pane's own edge (see the
+                    // list-view twin)
+                    dropTreeFoldersAtEdge(dragData.folderIds, folder, target.position);
+                  } else if (canReorderFolders) {
+                    // Reorder within same parent
                     if (dragData.parentId === parentForReorder) {
                       // v5.0.0-alpha.90 - Pass folder.id and position (not visual index)
                       reorderFoldersInParent(parentForReorder, dragData.folderIds, folder.id, target.position);

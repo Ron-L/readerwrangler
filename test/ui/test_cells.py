@@ -18,6 +18,9 @@
 # 7.30.0-alpha.7: the left pane's own folder drops ask the table — the Folders header, the Inbox, a folder's middle and
 # its edge under another parent, its position kept (CELL-099–104); a right-pane drag onto the Folders header (CELL-105,
 # 106); books dragged onto "Book Lists" in the folder path say a drag's words (CELL-107).
+# 7.30.0-alpha.8: a left-pane folder dropped on a right-pane folder row's or tile's top / bottom quarter does what the left
+# pane's own edge does — a reorder under the same parent, a move at that position under another (CELL-108–112); a
+# right-pane tile's own edge drop still reorders (CELL-113).
 # A cell whose decided behavior isn't written anywhere records TODAY's behavior instead, and says so in its name
 # ("today's, not decided") — those are listed in the sprint's report for Ron, never guessed.
 #
@@ -1128,6 +1131,91 @@ with App() as app:
     add("CELL-107", "a book dragged onto \"Book Lists\" in the folder path (a Book List open): nothing moves, in a drag's "
         "words (was the paste's: \"Open a folder or Book List to paste into it\")",
         cell(books_onto_book_lists_crumb, {}, ["Nothing moved", "Book Lists heading", "Drop them on one in the left pane"]))
+
+    # ── 7.30.0-alpha.8: a LEFT-pane folder dropped on a right-pane folder row's (or tile's) top / bottom quarter ────────
+    # What the same drop does on the left pane's own edge (CELL-104): under the same parent as that row, a reorder; under
+    # another parent, moved there AT that position — the table's move, one undo step, its words; a refusal says why. Was:
+    # nothing, silently (the row's reorder compared the drag's parentId, which a left-pane drag doesn't carry).
+    def tile(name):
+        return page.locator('div[class*="hover:opacity-80"]', has_text=name).first
+
+    def shown_order(names, cover):
+        """`names` in the order the right pane shows them (list rows, or cover tiles)."""
+        texts = page.locator('div[class*="hover:opacity-80"]' if cover else "tbody tr").all_inner_texts()
+        at = {n: next((i for i, t in enumerate(texts) if n in t), None) for n in names}
+        return [n for n in sorted(names, key=lambda n: (at[n] is None, at[n] or 0)) if at[n] is not None]
+
+    def onto_right_edge(src, row, edge, decided, says=(), order=None, cover=False, setup=False):
+        """Open Science Fiction (setup=True: An Empty Folder moved into it first — two_subfolders, its own undo step), then
+        drag `src` — a LEFT-pane folder (its name), or a function giving a right-pane row / tile — onto `row`'s top or bottom quarter
+        in the right pane (List View, or cover=True Cover View). Then: what changed; the words; Science Fiction's
+        subfolders in `order` (stored, and as the right pane shows them); one Ctrl+Z puts it all back, the order fields
+        included; the next Ctrl+Z is the setup's (or finds nothing) — one drop, one undo step."""
+        def run():
+            try:
+                two_subfolders() if setup else go("Science Fiction")
+                if cover:
+                    app.menu("View", "Cover View").click()
+                dst = tile(row) if cover else page.locator("tbody tr", has_text=row).first
+                dst.wait_for(timeout=3000)
+                before, fields = state(), page.evaluate(ORDER_JS)
+                h = dst.bounding_box()["height"]
+                source = src() if callable(src) else left_row(src)
+                mark()
+                source.drag_to(dst, target_position={"x": 20 if cover else 120, "y": 3 if edge == "top" else h - 3},
+                               timeout=10_000)
+                said = words()
+                got = delta(before, state())
+                check(got == decided, f"changed {got}; decided {decided} — said {said!r}")
+                for s in says:
+                    check(norm(s) in norm(said), f"the words should say {s!r} — said {said!r}")
+                if order:
+                    kids = {f["id"]: f["kids"] for f in page.evaluate(ORDER_JS)}["f-scifi"]
+                    names = {v: k for k, v in FOLDER_IDS.items()}
+                    check(kids == order, f"Science Fiction's subfolders should be {[names[i] for i in order]} — stored: "
+                                         f"{[names.get(i, i) for i in (kids or [])]}")
+                    shown = shown_order([names[i] for i in order], cover)
+                    check(shown == [names[i] for i in order], f"the right pane should show {[names[i] for i in order]} "
+                                                              f"— it shows {shown}")
+                undone = undo_once()
+                back = not_exactly(before, state())
+                check(not back and page.evaluate(ORDER_JS) == fields,
+                      f"one Ctrl+Z ({undone or 'nothing to undo'}) left: {back}; the order fields back: "
+                      f"{page.evaluate(ORDER_JS) == fields} — said {said!r}")
+                more = undo_once()
+                if setup:
+                    check("An Empty Folder" in more, f"the second Ctrl+Z should undo the setup's Move to (one drop = one "
+                                                     f"undo step) — it undid {more!r}")
+                else:
+                    check(not more, f"a second Ctrl+Z still undid something (one drop = one undo step): {more!r}")
+            finally:
+                if cover:
+                    app.menu("View", "List View").click()
+                clean_up()
+        return run
+    SO_FIRST = ["f-space", "f-empty"]      # Space Opera, then An Empty Folder (two_subfolders leaves An Empty Folder first)
+    add("CELL-108", "a left-pane folder dropped on the top quarter of a right-pane folder row under the SAME parent: a "
+        "reorder (as the left pane's own edge) — nothing moves in or out; one Ctrl+Z (was: nothing, silently)",
+        onto_right_edge("Space Opera", "An Empty Folder", "top", {}, order=SO_FIRST, setup=True))
+    add("CELL-109", "a left-pane folder dropped on the bottom quarter of a right-pane folder row under ANOTHER parent: moved "
+        "to that parent AT that position (just below the row — not at the top); the table's words; one Ctrl+Z (was: "
+        "nothing, silently)",
+        onto_right_edge("An Empty Folder", "Space Opera", "bottom", {"An Empty Folder ⇒": "Science Fiction"},
+                        ["Moved 'An Empty Folder' to 'Science Fiction'"], order=SO_FIRST))
+    add("CELL-110", "Cover View: a left-pane folder on a folder tile's top quarter, the same parent — a reorder (the list "
+        "view's twin, CELL-108)",
+        onto_right_edge("Space Opera", "An Empty Folder", "top", {}, order=SO_FIRST, cover=True, setup=True))
+    add("CELL-111", "Cover View: a left-pane folder on a folder tile's bottom quarter, another parent — moved there at that "
+        "position (the list view's twin, CELL-109)",
+        onto_right_edge("An Empty Folder", "Space Opera", "bottom", {"An Empty Folder ⇒": "Science Fiction"},
+                        ["Moved 'An Empty Folder' to 'Science Fiction'"], order=SO_FIRST, cover=True))
+    add("CELL-112", "a left-pane folder dropped on the edge of its OWN subfolder's row: refused, and the words say why "
+        "(never into itself or below; was: nothing, silently)",
+        onto_right_edge("Science Fiction", "Space Opera", "top", {}, ["Can't move a folder into itself"]))
+    add("CELL-113", "Cover View: a folder tile dragged alone onto another folder tile's top quarter (the right pane's own "
+        "drag): still a reorder — the guard beside CELL-091 (list view)",
+        onto_right_edge(lambda: tile("Space Opera"), "An Empty Folder", "top", {}, order=SO_FIRST, cover=True,
+                        setup=True))
 
     # ── §6 item 6: a warning looks like a warning — amber, and it stays where it appeared ~4 s (others 1.5 s) ────────────
     TOAST_JS = """el => {

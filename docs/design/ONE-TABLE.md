@@ -510,26 +510,48 @@ hadn't listed, and the cells whose answer wasn't clear:
    **The site map (Law 5 — two searches: every `onDrop`, and every call of `reparentFolder` / `dropItems` /
    `dropTreeFolders` / `placeByTable` / `reorderFoldersInParent`):**
 
-   | Drop (readerwrangler.js, alpha.7) | What answers it |
+   | Drop (readerwrangler.js, alpha.8 — the lines as of alpha.8) | What answers it |
    |---|---|
-   | Left pane: a Search entry (~14756) | `repositionSearch` — a reorder, outside the table |
-   | Left pane: a Book List entry (~14925) | `reorderBookLists` (a list among lists) / `dropItems` (books) |
-   | Left pane: the Folders header (~15014) | `dropItems` (right-pane items — alpha.7); `dropTreeFolders` (a left-pane folder — alpha.7) |
-   | Left pane: the Inbox (~15167) | `dropItems` (right-pane items); `dropTreeFolders` (a left-pane folder — alpha.7) |
-   | Left pane: a folder (~15357) | `dropItems` (right-pane items, middle — or anything carrying books); a folder on its middle: `dropTreeFolders` (alpha.7); on its edge, another parent: `dropTreeFolders` with the position (alpha.7); on its edge, the same parent: `reorderFoldersInParent` (a reorder) |
-   | Left pane: the Trash (~15693) | `softDeleteBooks` — §6 Q5, unchanged |
-   | The folder path (~15758) | `dropItems` (right-pane items); `dropTreeFolders` (a left-pane folder) |
-   | Right pane: a column header (~16419) | `handleColumnDrop` — the columns' order, outside the table |
-   | Right pane: a folder row, list (~16698) / cover (~17428) | `dropItems` (anything carrying books, or folders on the middle); `dropTreeFolders` (a left-pane folder on the middle); `reorderFoldersInParent` (right-pane folders alone on the edge) |
-   | Right pane: a book row, list (~17016) / cover (~17622) | `reorderBooksInFolder` (Manual order) — outside the table |
-   | Tag Manager rows (~17970) | `reorderTags` — outside the table |
+   | Left pane: a Search entry (~14770) | `repositionSearch` — a reorder, outside the table |
+   | Left pane: a Book List entry (~14939) | `reorderBookLists` (a list among lists) / `dropItems` (books) |
+   | Left pane: the Folders header (~15028) | `dropItems` (right-pane items — alpha.7); `dropTreeFolders` (a left-pane folder — alpha.7) |
+   | Left pane: the Inbox (~15181) | `dropItems` (right-pane items); `dropTreeFolders` (a left-pane folder — alpha.7) |
+   | Left pane: a folder (~15371) | `dropItems` (right-pane items, middle — or anything carrying books); a folder on its middle: `dropTreeFolders` (alpha.7); on its edge: `dropTreeFoldersAtEdge` (alpha.8 — another parent: `dropTreeFolders` with the position; the same parent: `reorderFoldersInParent`, a reorder) |
+   | Left pane: the Trash (~15700) | `softDeleteBooks` — §6 Q5, unchanged |
+   | The folder path (~15765) | `dropItems` (right-pane items); `dropTreeFolders` (a left-pane folder) |
+   | Right pane: a column header (~16426) | `handleColumnDrop` — the columns' order, outside the table |
+   | Right pane: a folder row, list (~16705) / cover (~17440) | `dropItems` (anything carrying books, or folders on the middle); `dropTreeFolders` (a left-pane folder on the middle); `dropTreeFoldersAtEdge` (a left-pane folder on the edge — alpha.8, as the left pane's own edge); `reorderFoldersInParent` (right-pane folders alone on the edge) |
+   | Right pane: a book row, list (~17028) / cover (~17638) | `reorderBooksInFolder` (Manual order) — outside the table |
+   | Tag Manager rows (~17986) | `reorderTags` — outside the table |
 
    **No drop of books or folders answers a move or copy outside the table any more.** What's left outside it is
    reordering within one parent or list (Searches, Book Lists, folders, books, columns, tags), and the Trash's drop
    (`softDeleteBooks`, §6 Q5). `reparentFolder` has one caller left: the folder menu's Move to › with folders only (its
    large-move confirmation; its targets come from the folder tree — the guard, `reparentProblem`, stands under it).
    Found, not changed: a left-pane folder dropped on the top / bottom quarter of a right-pane folder row does nothing and
-   says nothing (that row's reorder compares `dragData.parentId`, which a left-pane drag doesn't carry).
+   says nothing (that row's reorder compares `dragData.parentId`, which a left-pane drag doesn't carry). — **fixed in
+   alpha.8, below.** (The table above carries alpha.8's two changed rows and its line numbers.)
+
+   — **7.30.0-alpha.8, a left-pane folder on a right-pane folder row's edge — built** (decided 2026-11-13, following the
+   left pane's own edge drop): a folder dragged from the LEFT pane and dropped on the top / bottom quarter of a right-pane
+   folder row (list view) or tile (cover view) does what the same drop does on the left pane's edge — **one helper,
+   `dropTreeFoldersAtEdge(folderIds, edgeFolder, position)`**, now called by all three (the left pane's inline code moved
+   into it, Law 22): under the same parent as that folder, a reorder (`reorderFoldersInParent` — outside the table; in a
+   sorted mode it says why, *"Switch folder sort to Manual…"*); under another parent, the table's move there at that
+   position (`dropTreeFolders` with `slot` — one undo step, the table's words, a refusal in its words). The rows tell a
+   left-pane drag by what it carries: no `x-rw-items` (every right-pane dragstart sets it). Was: nothing, silently.
+   A right-pane folder's own edge drop is unchanged (`reorderFoldersInParent`, gated by `canReorderFolders`). CELL-108
+   (list, same parent: a reorder), 109 (list, another parent: moved there just BELOW the row — the position checked,
+   stored and shown), 110 / 111 (their cover-view twins), 112 (onto its own subfolder's edge: refused, *"Can't move a
+   folder into itself…"*) — each failed first (nothing changed, nothing said); 109 and 111 also seen failing with the
+   position left out (landed at the top, as CELL-104 did). CELL-113 (cover view: a right-pane tile's own edge drop still
+   reorders) and CELL-091 (its list-view twin) guard what didn't change.
+   Found, not changed: (1) on that row, a right-pane folder drag whose `parentId` isn't the open folder's still does
+   nothing silently (`dragData.parentId === parentForReorder` with no else — reachable only if the right pane changes
+   place mid-drag); (2) the edge line's color for a left-pane drag reads `canReorderFolders`, whose pinned half
+   (`draggedFoldersAllPinnedRef`) only a right-pane dragstart sets — in a sorted mode it can show red where a move to
+   another parent then happens (the "no fake drop signals" task); (3) a left-pane folder dropped on its OWN row's edge in
+   the same parent records a reorder that changes nothing, saying nothing (as the left pane's own edge always has).
 5. One keyboard listener for the clipboard keys (§5); the harmful cells (§4.1 items 1, 3, 4, 5) fixed by their rows.
    — **7.30.0-alpha.1 — built:** the second listener and its folder clipboard are gone; ONE clipboard
    `{ type, bookIds, folderIds, from }` filled by `putOnClipboard` (Ctrl+X / Ctrl+C on the selection — books, folders or
