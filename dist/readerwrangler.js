@@ -153,7 +153,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.30.0-alpha.10"; // Build version for this file
+var ORGANIZER_VERSION = "7.30.0-alpha.11"; // Build version for this file
 // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
 // problem… (7.29.0: one copy, so the two can't drift)
 var DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -2024,7 +2024,7 @@ function ReaderWrangler() {
     if (col === 'author') return book.author || 'Unknown Author';
     if (col === 'series') return book.series || 'No Series';
     if (col === 'title') return book.title || 'Untitled';
-    if (col === 'seriesNum') return `#${book.seriesPosition || '?'}`;
+    if (col === 'seriesNum') return `#${seriesPositionText(book.seriesPosition) || '?'}`; // 7.30.0 - Book 0 is "#0" (uiHelpers.js)
     if (col === 'rating') return book.rating ? `${book.rating} Stars` : 'Unrated';
     if (col === 'myRating') return book.myRating ? `${book.myRating} Stars` : 'Not Rated';
     if (col === 'dateAdded') {
@@ -3015,15 +3015,12 @@ function ReaderWrangler() {
           // v6.12.0 - Sort by series name, then by reading position within the series
           comparison = (a.series || '').localeCompare(b.series || '');
           // v6.12.0-alpha.93 - defer within-series order to an explicit '#' (seriesNum) level when present
+          // 7.30.0 - THE series-position order (uiHelpers.js): Book 0 before Book 1, no number last
           if (comparison === 0 && !hasSeriesNumLevel) {
-            var posA = parseFloat(a.seriesPosition) || Infinity;
-            var posB = parseFloat(b.seriesPosition) || Infinity;
-            comparison = posA - posB;
+            comparison = compareSeriesPositions(a.seriesPosition, b.seriesPosition);
           }
         } else if (sort.column === 'seriesNum') {
-          var _posA = parseFloat(a.seriesPosition) || Infinity;
-          var _posB = parseFloat(b.seriesPosition) || Infinity;
-          comparison = _posA - _posB;
+          comparison = compareSeriesPositions(a.seriesPosition, b.seriesPosition);
         } else if (sort.column === 'rating') {
           comparison = (a.rating || 0) - (b.rating || 0);
         } else if (sort.column === 'myRating') {
@@ -3061,14 +3058,10 @@ function ReaderWrangler() {
         if (comparison !== 0) return dir * comparison;
       }
       // v7.6.0-alpha.4 - Universal deterministic tiebreak (ratified: reading order
-      // beats dictionary order — a same-day batch is usually one series). Mobile
-      // applies the IDENTICAL chain, so both surfaces produce byte-identical order.
-      // (Infinity - Infinity is NaN, which is falsy, so the || chain skips it.)
-      return (a.author || '').localeCompare(b.author || '') ||
-      (a.series || '').localeCompare(b.series || '') ||
-      (parseFloat(a.seriesPosition) || Infinity) - (parseFloat(b.seriesPosition) || Infinity) ||
-      (a.title || '').localeCompare(b.title || '') ||
-      (a.asin || '').localeCompare(b.asin || '');
+      // beats dictionary order — a same-day batch is usually one series). 7.30.0 - ONE
+      // function, the phone's too (uiHelpers.js bookOrderTiebreak), so both surfaces
+      // produce byte-identical order.
+      return bookOrderTiebreak(a, b);
     });
     // Group: build flat display items (headers + books via sequential scan)
     if (!explorerGroupOn || explorerSort[0].column === 'custom') {
@@ -7433,9 +7426,11 @@ function ReaderWrangler() {
       previousValues.series = modalBook.series || null;
       newValues.series = newSeries;
     }
-    var newPosition = editBookFields.seriesPosition.trim() ? parseFloat(editBookFields.seriesPosition) : null;
+    // 7.30.0 - the one reading of a position (uiHelpers.js seriesNumber): typed 0 saves 0, a blank (or a lone
+    // ".") saves no number; compared as numbers, so Amazon's "3" and a typed 3 are no change
+    var newPosition = seriesNumber(editBookFields.seriesPosition);
     var oldPosition = modalBook.seriesPosition != null ? modalBook.seriesPosition : null;
-    if (newPosition !== oldPosition) {
+    if (newPosition !== seriesNumber(oldPosition)) {
       previousValues.seriesPosition = oldPosition;
       newValues.seriesPosition = newPosition;
     }
@@ -7554,7 +7549,7 @@ function ReaderWrangler() {
     var fieldKey = bulkEditField === 'position' ? 'seriesPosition' : bulkEditField === 'ownership' ? 'onWishlist' : bulkEditField === 'format' ? 'binding' : bulkEditField; // v7.7.0-alpha.13
     var newValue;
     if (bulkEditField === 'position') {
-      newValue = bulkEditInput.trim() ? parseFloat(bulkEditInput) : null;
+      newValue = seriesNumber(bulkEditInput); // 7.30.0 - the one reading (uiHelpers.js): 0 is a number
     } else if (bulkEditField === 'ownership') {
       newValue = bulkEditInput === 'true'; // boolean
     } else {
@@ -13083,7 +13078,7 @@ function ReaderWrangler() {
           style: { maxWidth: '260px', maxHeight: '60vh', overflowY: 'auto' } },
 
 
-        tb && /*#__PURE__*/React.createElement("div", { className: "font-semibold text-gray-800 mb-1" }, tb.title || 'Untitled', tb.series ? ` — ${tb.series}${tb.seriesPosition ? ' #' + tb.seriesPosition : ''}` : ''),
+        tb && /*#__PURE__*/React.createElement("div", { className: "font-semibold text-gray-800 mb-1" }, tb.title || 'Untitled', tb.series ? ` — ${tb.series}${seriesPositionText(tb.seriesPosition) ? ' #' + seriesPositionText(tb.seriesPosition) : ''}` : ''),
         flds.length === 0 && lists.length === 0 ? /*#__PURE__*/
         React.createElement("div", { className: "text-gray-400 italic" }, "Only in Inbox \u2014 not filed or listed yet") : /*#__PURE__*/
         React.createElement(React.Fragment, null,
@@ -14107,12 +14102,12 @@ function ReaderWrangler() {
     modalBook.series ? /*#__PURE__*/
     React.createElement("div", { className: "mb-3" }, /*#__PURE__*/
     React.createElement("p", { className: "text-lg", style: { color: 'var(--text-series)' } },
-    modalBook.seriesPosition && modalBook.seriesTotal ?
-    `Book ${modalBook.seriesPosition} of ${modalBook.seriesTotal}: ${modalBook.series}` :
-    modalBook.seriesPosition ?
-    `Book ${modalBook.seriesPosition}: ${modalBook.series}` :
-    modalBook.series
-
+    (() => {// 7.30.0 - Book 0 says "Book 0" (uiHelpers.js seriesPositionText)
+      var pos = seriesPositionText(modalBook.seriesPosition);
+      return pos && modalBook.seriesTotal ?
+      `Book ${pos} of ${modalBook.seriesTotal}: ${modalBook.series}` :
+      pos ? `Book ${pos}: ${modalBook.series}` : modalBook.series;
+    })()
     )
     ) : /*#__PURE__*/
 
@@ -17199,7 +17194,7 @@ function ReaderWrangler() {
                     cellClass += ' text-gray-600 text-xs';
                     break;
                   case 'seriesNum':
-                    content = book.seriesPosition || '-';
+                    content = seriesPositionText(book.seriesPosition) || '-'; // 7.30.0 - Book 0 shows 0
                     cellClass += ' text-gray-600 text-xs text-center';
                     break;
                   case 'rating':

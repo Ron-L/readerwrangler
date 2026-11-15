@@ -1,6 +1,6 @@
 // mobile.js — ReaderWrangler Mobile Viewer
 // MOBILE_VERSION tracks mobile-specific iterations
-const MOBILE_VERSION = '1.12.1'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
+const MOBILE_VERSION = '1.12.2-alpha.11'; // suffix mirrors ORGANIZER_VERSION's -alpha.N in any alpha commit touching this file (Ron, 2026-08-30: invisible changes + no build marker = guaranteed mystery)
 rwLog.log('info', 'BOOT', `Phone app ${MOBILE_VERSION} running (page ${APP_VERSION})`);
 
 // v1.7.0 - Which server is this copy talking to? Derived from the page's own address, so an
@@ -269,16 +269,9 @@ const SORT_OPTIONS = [
 
 function sortBooks(books, sortKey) {
     if (sortKey === 'manual') return books; // Preserve folder.bookIds / bookOrder array order
-    // v1.7.0-alpha.4 - Universal deterministic tiebreak, IDENTICAL to desktop's (ratified: reading
-    // order beats dictionary order — a same-day batch is usually one series). Both surfaces now
-    // produce byte-identical order for the same data; ties are never left to array order again.
-    // (Infinity - Infinity is NaN, which is falsy, so the || chain skips it.)
-    const tiebreak = (a, b) =>
-        (a.author || '').localeCompare(b.author || '')
-        || (a.series || '').localeCompare(b.series || '')
-        || ((parseFloat(a.seriesPosition) || Infinity) - (parseFloat(b.seriesPosition) || Infinity))
-        || (a.title || '').localeCompare(b.title || '')
-        || (a.asin || '').localeCompare(b.asin || '');
+    // v1.7.0-alpha.4 - Universal deterministic tiebreak (ratified: reading order beats dictionary order — a
+    // same-day batch is usually one series); ties are never left to array order again. 1.12.2 - the desktop's
+    // own function, not a copy (uiHelpers.js bookOrderTiebreak), so Book 0 comes before Book 1 on both.
     return [...books].sort((a, b) => {
         let c = 0;
         switch (sortKey) {
@@ -295,7 +288,7 @@ function sortBooks(books, sortKey) {
             // consumer — preserving the wishlist date-added sort.
             default: c = parseBookDate(b.dateAdded || b.acquired || b.addedToWishlist) - parseBookDate(a.dateAdded || a.acquired || a.addedToWishlist);
         }
-        return c || tiebreak(a, b);
+        return c || bookOrderTiebreak(a, b);
     });
 }
 
@@ -2191,7 +2184,7 @@ function BookDetailView({ bookId, books, coverUrlMap, blankImageBooks, setBlankI
             {book.series && (
                 <DetailRow label="Series">
                     <span style={{ color: 'var(--text-series, #6366f1)' }}>
-                        {book.seriesPosition ? `Book ${book.seriesPosition}: ${book.series}` : book.series}
+                        {seriesPositionText(book.seriesPosition) ? `Book ${seriesPositionText(book.seriesPosition)}: ${book.series}` : book.series}
                     </span>
                 </DetailRow>
             )}
@@ -2407,7 +2400,7 @@ function SearchView({ books, folders, folderId, showDealsOnly, showHidden, sortO
                                         <div className="truncate" style={{
                                             fontSize: '11px', fontStyle: 'italic',
                                             color: 'var(--text-muted, #64748b)'
-                                        }}>{book.series}{book.seriesPosition ? ` #${book.seriesPosition}` : ''}</div>
+                                        }}>{book.series}{seriesPositionText(book.seriesPosition) ? ` #${seriesPositionText(book.seriesPosition)}` : ''}</div>
                                     )}
                                 </div>
                             </div>

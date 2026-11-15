@@ -81,6 +81,46 @@ const parsePrice = (price) => {
     return null;
 };
 
+// ===== Series position — THE reading =====
+// 7.30.0 (bug found by Ron 2026-11-13: a prequel at position 0 — "Book 0" — was treated as having no position) - every
+// sort and every display of a book's series position, desktop and phone, reads it here. Each place used to test it with
+// `||` or a truthiness check (`parseFloat(x) || Infinity`, `x || '?'`), which reads 0 as "nothing": Book 0 sorted last
+// with the blanks and showed "?" / "-" / nothing. A position arrives as text from Amazon ("3", "2.5"), as a number from
+// the book dialog and Set numbers, and as '' or null when there is none. Tests: test/seriesNumber.test.js (SERIES-).
+// What a place shows: the saved position, trimmed — '' when there is none. 0 shows as "0".
+const seriesPositionText = (v) => {
+    if (v == null) return '';
+    if (typeof v === 'number') return Number.isFinite(v) ? String(v) : '';
+    return String(v).trim();
+};
+
+// The number a sort uses (text read as parseFloat reads it, as before: "2.5" → 2.5): null when blank, missing or not a
+// number. 0 is a number.
+const seriesNumber = (v) => {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+    if (typeof v !== 'string') return null;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+};
+
+// THE order of two positions: lower first; no number after every number (ascending — a highest-first sort flips the
+// whole comparison, as for every column); two blanks tie (0, so the next sort level decides — never NaN).
+const compareSeriesPositions = (a, b) => {
+    const x = seriesNumber(a), y = seriesNumber(b);
+    if (x === null || y === null) return (x === null) - (y === null);
+    return x - y;
+};
+
+// THE book list's and the phone's last word on order (v7.6.0-alpha.4, ratified: reading order beats dictionary order —
+// a same-day batch is usually one series): author, series, position, title, ASIN — so both give the same order for the
+// same books. Was two hand-kept copies (readerwrangler.js, mobile.js).
+const bookOrderTiebreak = (a, b) =>
+    (a.author || '').localeCompare(b.author || '')
+    || (a.series || '').localeCompare(b.series || '')
+    || compareSeriesPositions(a.seriesPosition, b.seriesPosition)
+    || (a.title || '').localeCompare(b.title || '')
+    || (a.asin || '').localeCompare(b.asin || '');
+
 // ===== Ownership =====
 // v7.8.0 (onWishlist retirement, batch item 0) - THE wishlist-truth accessor, shared by the app
 // and storage.js (uiHelpers loads first). ownershipType is the ONLY decision source fleet-wide;
@@ -247,5 +287,6 @@ if (typeof module !== 'undefined' && module.exports) {
         parsePrice, getAmazonUrl, isWishlisted, normalizeBook,
         calculateFreshness, calendarDaysBetween, daysAgoWords, readSaved, SAVED_KINDS,
         datePresetRange, datePresetLabel, datePresetOptions, datePresetEarlierYears, bookAcquiredYear,
+        seriesPositionText, seriesNumber, compareSeriesPositions, bookOrderTiebreak,
     };
 }
