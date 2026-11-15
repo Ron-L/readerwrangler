@@ -8,7 +8,19 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-11-13 (through release 7.29.1)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-11-15 (through release 7.30.0)** — all sections human-reviewed (§1–21).
+7.30.0: one set of rules for Cut, Copy, Paste, Move to, Copy to and dragging — §6 gains "Do Cut, Copy, Paste… all follow
+the same rules?" (what's selected, never the folder you're in; the receipts' words; paste back where it came from;
+exact Undo), "I cut books in All Books… — what does Paste do?" (the re-file and its question) and "Why did my Cut turn
+into a copy?" (a folder onto a Book List, the Inbox); its drag line (a plain drag from All Books, a Search or onto a Book
+List only adds), "already in folder" words and the folder paragraph (a copy's whole tree, Redo, the "Book Lists"
+heading) rewritten. §8: a whole folder's books onto a list. §12: every way out of the Trash restores (a copy too, said
+in amber at both ends); the right-click "Delete 2 Books and 1 Folder". §13: Undo puts back exactly what changed; "Why
+is a message amber?". §4: "Where does a 'Book 0' go?" (the sort, Auto-Organize's order, updating from Amazon). §18:
+Ctrl+X / C / V act on the selection. Comb for "Cut", "Copy", "Paste", "Move to", "Copy to", "drag", "drop", "Trash",
+"Restore", "Undo", "Redo", "Delete", "Inbox", "Book List", "Auto-Organize", "series", "position", "#", "Book 0",
+"warning", "amber", "toast", "re-file", "already": no other entry changed (the 7.25.1 Book List paste, the Book List
+drag rules and DEL lines, the Trash's Restore and Empty Trash, the folder sort and pin rules still hold).
 7.29.1: every Copy button tells the truth — §19's table gains the "couldn't be copied" / "Couldn't copy" row (UI-06);
 "Title copied!" lost its "!"; Share by Email's Copy to clipboard no longer promised "always works". Restore's day words
 (calendar days) and the safe reading of saved settings change nothing the notes quoted. Comb for "copied", "Copy",
@@ -197,6 +209,14 @@ books render dimmed; a cut book wears "marching ants"; hidden books dim further.
 match the current display order — arrange 32 unrelated Heinleins by publication date, select,
 number them once.
 
+**Where does a "Book 0" go?** (7.30.0) First: a book numbered 0 in its series (a prequel) sorts before Book 1 and shows
+its number — #0 in the list, "Book 0" in the book window, and on the phone. A book with **no** number sorts after every
+numbered one. (Before 7.30.0 a Book 0 sorted last and showed no number, as if it had none.) **Auto-Organize** fills a
+new series folder in the same order — Book 0 first, books with no number last, then by date added. **Updating from
+Amazon** keeps a 0 (it used to be dropped), and a number read from a book's title is kept up to 9999, for long series
+like Perry Rhodan (it stopped at 400). A book that lost its 0 in an earlier update shows no number — give it its number
+again in the book window.
+
 ## 5. Search box & filters
 
 **What does the search box match?** Title, author, or series — anywhere in the field, as you
@@ -228,8 +248,9 @@ it).
 ## 6. Folders & organizing by hand
 
 **How do I move books into folders?** Drag them (multi-select first if you like: click,
-Ctrl+click, Shift+click for ranges, Ctrl+A for all). Plain **drag moves; Ctrl+drag copies** —
-the toast confirms which happened (kept in the 🕐 message log by the status bar — see §13). Right-click → **Move to ▸ / Copy to ▸** offers the folder
+Ctrl+click, Shift+click for ranges, Ctrl+A for all). A plain **drag from one folder to another moves; Ctrl+drag
+copies**; a plain drag from All Books or a Search — or from a folder onto a Book List — only adds (the book stays where
+it was) — the toast confirms which happened (kept in the 🕐 message log by the status bar — see §13). Right-click → **Move to ▸ / Copy to ▸** offers the folder
 tree as a menu (in your sidebar's order), including "New folder…" targets. Cut/copy/paste
 works too: Ctrl+X marks books with a dashed "marching ants" border — **nothing moves until
 you paste** into the destination folder (Esc cancels a pending cut from anywhere). **Pasting into a Book List**
@@ -238,13 +259,40 @@ and a book that leaves its **last** folder goes to the Inbox (every book lives i
 yet"); the message says so, and Ctrl+Z puts it all back. Paste can't go into All Books or the Trash — it says why (to put
 books in the Trash, press Delete).
 
+**Do Cut, Copy, Paste, Move to, Copy to and dragging all follow the same rules?** Yes (7.30.0) — on books, folders, or
+both selected together (books and folders go together, in one step with one Ctrl+Z). **Ctrl+X and Ctrl+C act on what
+you selected** — never the folder you're in; with nothing selected they do nothing (before 7.30.0 they could cut or copy
+the whole folder you were in, especially when pressed right after a click). **Every move and copy says what happened**
+— where from, where to, and which books were already there: *"Moved 'Dune' from 'Sci-Fi' to 'Fantasy' (1 was already
+there)."*; a copy says *"Added…"*; *"Nothing to add — all 3 are already in 'Fantasy'."* **Pasting books back where they
+came from** changes nothing and says *"Nothing moved — those books are already in 'Sci-Fi'."* (before 7.30.0 it left
+them in no folder). **Ctrl+Z puts back exactly what changed** — books that were already in the destination stay there,
+and each book returns to its old place in its folder or Book List.
+
+**I cut books in All Books (or with a Search applied) — what does Paste do?** (7.30.0) Pasted into a folder, it
+**re-files** them: they leave the folders they were in and go into this one. When a book is in **two or more** other
+folders, it asks first — *"Move 'Dune' to 'Fantasy'? It's also in 'Sci-Fi' and 'Beach Reads' — moving takes it out of
+them."* — **Move**, **Just add it** (it keeps its other folders too), or **Cancel**. Pasted onto a Book List, the books
+are just added — a Book List doesn't take books out of their folders — and the message says so in amber (§13).
+
+**Why did my Cut turn into a copy?** (7.30.0) A Cut that can't be done as a move is done as a copy, and the message says
+so in amber: cut a **folder** and paste it onto a **Book List**, and its books — every subfolder's too — are added to the
+list while the folder stays where it was (*"…A folder can't be moved onto a Book List, so it stays where it was."*); cut
+the **Inbox**, and Ctrl+X already warns *"The Inbox can't be moved — pasting it will copy it."* — pasting makes "Inbox
+(Copy)" (or, onto a Book List, adds its books). One Ctrl+Z takes it back.
+
 **Can a book be in two folders?** Yes — a deliberate copy (Ctrl+drag or Copy to) gives it two
 homes; both show the same book. Hover a cover to see everywhere it lives ("Found in… / On
-Book Lists…"). But a book can't appear twice in the *same* folder — dropping it on a folder
-that already holds it says "Book already in folder" rather than making a duplicate.
+Book Lists…"). But a book can't appear twice in the *same* folder — copying it to a folder that already holds it says
+*"'Dune' is already in 'Fantasy'."* rather than making a duplicate; moving it there still takes it out of the folder it
+came from (*"Moved 'Dune' out of 'Sci-Fi' — it was already in 'Fantasy'."*).
 
 **How do folders themselves get organized?** Folders nest (drag one into another; a folder
-can't be dropped into its own subtree, and the Inbox can't be moved). The FOLDERS list has
+can't be dropped into its own subtree, and the Inbox can't be moved — cutting it copies it, above). **Copying a folder
+copies its whole tree** as "X (Copy)" — every book in it is filed in the copy too (a book gains a folder; it's never
+duplicated), and the copy's subfolders are its own (7.30.0; *"Copied 'Sci-Fi' (12 books, 2 subfolders) as 'Sci-Fi
+(Copy)'."*); Ctrl+Y after undoing it copies it again. A folder dropped on "Book Lists" in the folder path above your
+books stays put and says why (before 7.30.0 it disappeared from the tree). The FOLDERS list has
 **one order, mirrored everywhere it appears** — sidebar, the Folders view in the right pane,
 and the Move/Copy menus:
 - **Sort modes**: Manual (drag to reorder), Name, or book Count — pick via the FOLDERS-header
@@ -333,10 +381,14 @@ preference decides. Full patterns: WORKFLOW-PATTERNS.md.
 the suggested name); or select books anywhere → right-click → **Add to Book List** (existing
 list or "New Book List…" — the suggested name knows the series/author: `<Series> - To Read`);
 or save filter results as a snapshot list; or drag books onto a list row. From the
-Auto-Organize preview you can add straight to a list mid-organize.
+Auto-Organize preview you can add straight to a list mid-organize. **A whole folder's books onto a list** (7.30.0): Copy
+(or Cut) the folder, open the list, Paste — its books and every subfolder's are added, the folder stays where it was;
+books already on the list are counted, not added twice (*"Added 8 books from 'Science Fiction' to 'Read Next' (3 were
+already there)."*). The same from the book menu with books and folders selected: **Add to Book List ▸**.
 
 **Drag rules**: book(s) → list row *adds* (dedup, book stays put). List → list *moves* the
-book to the other list; **Ctrl+drag copies** it. Reordering the lists themselves: drag (undoable).
+book to the other list; **Ctrl+drag copies** it. Reordering the lists themselves: drag (undoable). (Dropping a folder on
+a list row isn't built yet — use Copy and Paste, above.)
 
 **Deleting**: DEL inside a list removes the selected books from *that list only*. ✕ on
 the list row deletes the list (confirmation only if it isn't empty) — the books are
@@ -510,14 +562,19 @@ Hide instead"
 to each folder's parent (the Inbox for a top-level folder); **one Ctrl+Z** puts everything back exactly. **Books and
 folders together:** both go, in one question and one Undo. **Nothing selected:** Delete does nothing — except when you
 last clicked in the left pane, where it deletes the folder highlighted there. The **Inbox** can't be deleted (it says
-so). Right-click **Delete Folders (2)** acts on all the selected folders. _"I pressed Delete and nothing happened"_ —
+so). Right-click **Delete Folders (2)** acts on all the selected folders; with books and folders selected together, the
+right-click menu has one **Delete 2 Books and 1 Folder** item that does what the key does (7.30.0). _"I pressed Delete and nothing happened"_ —
 nothing was selected: click the folder (or Ctrl+click several) first. _"It used to delete the folder I was in"_ — it
 did, by mistake, before 7.28.1: Delete now never deletes the folder you're in unless you're working in the left pane.
 
 **Trash view.** Deleted books wait here, recoverable. Hover one to see **"Was in (before
 Trash)"** — its former homes. **Restore** (right-click) returns it to all its former folders,
 and it reappears on its Book Lists (list membership survives a trip through Trash). Dragging
-a book *out* of Trash restores it to wherever you dropped it. DEL inside Trash — or
+a book *out* of Trash restores it to wherever you dropped it — and so does every other way out (7.30.0): Cut or Copy
+it in the Trash and paste it, Move to ▸ / Copy to ▸, Add to Book List ▸ (the Trash's right-click menu now has them).
+**Copying a book out of the Trash restores it** — a book can't be both thrown away and filed — so it says so twice, in
+amber: at Ctrl+C (*"Copied 2 books from the Trash. Pasting them will restore them — they'll leave the Trash."*) and at
+the paste (*"Restored 2 books from the Trash into 'Fantasy'."*). DEL inside Trash — or
 right-click the Trash row → **Empty Trash** — deletes permanently, with confirmation
 ("cannot be undone", Book-List fallout disclosed).
 
@@ -551,7 +608,14 @@ hide/unhide, renames (folders, tags, Book Lists, Searches), tag edits, price goa
 edits, reorders, Search and Book List create/delete, Auto-Organize passes (one click = one
 undo). **Every undo/redo toast names its target** — "Undone: Delete 'A People's History…'
 from 'Folder A'" — so you always know what just reverted. **Ctrl+Z** undoes; **Ctrl+Y or
-Ctrl+Shift+Z** redoes.
+Ctrl+Shift+Z** redoes. **Undo after a move, copy or paste puts back exactly what changed** (7.30.0): books that were
+already in the destination stay there, and each book returns to its old place in its folder or Book List. Redo after
+undoing a folder copy works (it used to say "Cannot redo copy operation").
+
+**Why is a message amber?** (7.30.0) It's a **warning** — something was done differently from what you might expect, or
+needs your attention: a copy out of the Trash that restores the books, a Cut done as a copy, a backup problem. A warning
+stays a few seconds where it appeared (an ordinary message goes after a moment), then joins the 🕐 log like every
+message.
 
 **Deliberately NOT undoable**: view state (sort modes, collapse/expand, filters, selection)
 and explicitly-confirmed permanent deletes (Empty Trash). Cut/copy to the clipboard isn't an
@@ -793,7 +857,7 @@ The app's own list: Help → **Keyboard Shortcuts**. The core set:
 |---|---|
 | Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) | Undo / Redo (toasts name the target) |
 | Ctrl+A | Select all in the current view · **in a window (7.19.0): acts on the part you last clicked** — a title or paragraph → just that text; a checkbox list → checks that whole list (= its Select all); nothing clicked yet → the main text. Button labels are never selected. · in a hover popup you've clicked: select its text |
-| Ctrl+X / Ctrl+C / Ctrl+V | Cut (marks) / Copy / Paste books into the current folder or Book List |
+| Ctrl+X / Ctrl+C / Ctrl+V | Cut (marks) / Copy what you selected — books, folders or both, never the folder you're in (7.30.0) / Paste into the folder or Book List you're in (§6) |
 | Ctrl+Click / Shift+Click | Multi-select / range-select |
 | DEL | Delete selection (context-aware — see §12) |
 | Esc | Close the innermost menu or window (one press per layer — closing a menu keeps your selection) · otherwise cancel pending cut · clear selection |
