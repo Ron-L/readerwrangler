@@ -7,11 +7,10 @@
 //   - Asks Amazon's own All Books request (POST /juvec — the one the page makes when you set its filters) for
 //     Kindle + the chosen language, PAGE_SIZE books at a time (Amazon sends book details for only the first 16 books
 //     of a page, however big the page).
-//   - Kindle only, said plainly. Amazon ignores the format filter without a language, and sends no book details for
-//     non-Kindle editions — so "All languages" = one request per language the author has.
+//   - Kindle only, said plainly. "All languages" asks once per language the author has.
 //   - Replaces the old page scrolling + card reading, whose Kindle check was computed but never applied (paperbacks,
 //     hardcovers and audiobooks got in) and which never recorded a format.
-//   Probed live on John Marrs + P. Djèlí Clark (2026-10-16). Request notes: .private/AMAZON-AUTHOR-PAGES.md
+//   Probed live on John Marrs + P. Djèlí Clark (2026-10-16). Request notes: AMAZON-AUTHOR-PAGES.md
 //
 // Flow: author ID from the address → load the All Books settings → you pick a language (live count) → fetch every
 // page → skip books already in your library → send the new ones as one run.
