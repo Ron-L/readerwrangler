@@ -314,6 +314,24 @@ hadn't listed, and the cells whose answer wasn't clear:
 19. **Right-click Move to › stays folders only** — "Add to Book List ›" covers putting books on a list (CELL-023: its
     expectation changes to today's).
 
+**Decided 2026-11-15 (Ron):**
+
+20. **A cut that can't be done as a move is done as a copy — the same everywhere, predictably.** The precedent was
+    already in the table: a cut from All Books or a Search pasted onto a Book List "is just added" ("Move and copy books
+    anywhere", decision 2). Wherever the move row refuses and the copy row acts, the move does the copy — a folder cut and
+    pasted onto a Book List adds its books (every subfolder's too; the folder stays where it was — was refused, "A folder
+    can't be moved onto a Book List…"); a cut of the Inbox copies it, as a copy of it does (was "The Inbox can't be
+    moved."). **Structural, not a hand list:** the table derives it (`cutToCopy` in gestureTable.js — a translated cell is
+    `{ act, translated: 'cut-to-copy', why: <the move's refusal words> }`); TABLE-029 enumerates every such cell and fails
+    if a move refusal with an acting copy is left untranslated; any gesture that asks the move rows (Move to ›, a future
+    Shift-drag) follows. **One kind of notice for one kind of translation** (with item 6's copy → restore): a gesture
+    done as something other than its verb is said as a **warning** (amber, held ~4 s) at both ends where known — at the
+    cut when the translation is already known there (the Inbox: *"The Inbox can't be moved — pasting it will copy
+    it."*), and at the paste always (*"Added 8 books from 'Science Fiction' to 'Read Next' (3 were already there). A
+    folder can't be moved onto a Book List, so it stays where it was."*). The Trash's copy → restore receipt, an ordinary
+    notice until now, is a warning too. One helper decides each end (`gestureTable.clipNotice`, `placeReceipt`), so a
+    new translation can't come with an ordinary notice (TABLE-032). Built in 7.30.0-alpha.9 (§7).
+
 ## 7. Build list
 
 **7.28.1 (this fix) — built:**
@@ -552,6 +570,41 @@ hadn't listed, and the cells whose answer wasn't clear:
    (`draggedFoldersAllPinnedRef`) only a right-pane dragstart sets — in a sorted mode it can show red where a move to
    another parent then happens (the "no fake drop signals" task); (3) a left-pane folder dropped on its OWN row's edge in
    the same parent records a reorder that changes nothing, saying nothing (as the left pane's own edge always has).
+
+   — **7.30.0-alpha.9, a cut that can't be done as a move is done as a copy (§6 item 20, decided 2026-11-15) — built:**
+   1. **The table derives it** (`cutToCopy`): every move row is its asked answer, except where that refuses and the copy
+      row acts — there it is the copy's act, `translated: 'cut-to-copy'`, `why` the move's refusal words. The Inbox is a
+      **half of its own** (`decide`'s `from.inbox`; `INBOX_ROWS` — copied like any folder, its move refusing wherever a
+      copy of it acts), on the clipboard (`clipFolders` → `{ taken, inbox }` — a cut no longer leaves it off) and in
+      `placeByTable` (a menu or a drag carrying it). Every translated cell, from TABLE-029 (from every kind of place):
+      folders → a Book List (its books added); books + folders → a Book List (the books move, the folders' half adds);
+      the Inbox → a folder, the Inbox, the Folders view (copied as "Inbox (Copy)") or a Book List (its books added); and
+      the Inbox with books and / or folders → the same places (the others do their own row; a refusing half — books into
+      the Folders view — still refuses the whole). The book rows have none (wherever a book move refuses, its copy does
+      too); decision 2's cut from All Books onto a list stays its own row (an add), not a translation.
+   2. **The words, a warning at both ends** — `clipNotice` (Ctrl+X / Ctrl+C: the one helper; MOVE-10, now also the
+      Inbox's *"The Inbox can't be moved — pasting it will copy it."*) and `placeReceipt` (every placement's receipt;
+      MOVE-12, new): a half carrying a translation adds its why — *"A folder can't be moved onto a Book List, so it stays
+      where it was."* (several: *"Folders can't be moved onto a Book List, so they stay where they were."*), *"The Inbox
+      can't be moved, so it stays where it was."* The Trash's copy → restore (`translated: 'copy-to-restore'` on the copy
+      rows out of the Trash) is a warning too, its decided words unchanged; a copy pasted a second time (no longer a
+      restore) is ordinary again. A plain drag out of the Trash is now a move out of it (`dragVerb` — the same restore,
+      no warning: the drag never asked to copy); Ctrl-drag, Copy to ›, Add to Book List › out of the Trash warn.
+   3. **The clipboard after a cut done as a copy: cleared**, as after any cut — and as decision 2's cut from All Books
+      onto a list already did (`pasteClipboard` clears a cut once `placeItems` ran) (CELL-115).
+   4. **The worst case's order, stated** (`folderTreeBooks`): the folder's own books in its order, then each subfolder the
+      same way, depth-first, in Manual order (`manualOrderOf` — was the stored list's order); each book once, those
+      already on the list counted "already there". With books and folders cut onto a list, the books move first, then
+      the folders' books are added after them (their own plan, against the list as the books left it — one undo step).
+   5. Found and fixed on the way (quicker to fix than write up): a folder whose books were all already on the list said
+      the FOLDER's name as a book's (*"'Space Opera' is already on 'Read Next'."* — now the book's title); one book added
+      from a folder said "Added 1 book from…" (now its title, as every "Added" says); folders with no books at all copied
+      onto a list said nothing (now *"Nothing to add — 'An Empty Folder' has no books."*).
+   6. Tests: TABLE-014, 015, 020, 021 changed; TABLE-029–032 new (each failed first); CELL-114–119 and TOAST-003–005 new
+      (each failed first against alpha.8 — refused, nothing on the clipboard, an ordinary notice); CELL-058 counts MOVE-12
+      as deliberate.
+   Not changed (found): the folder menu's Move to › with folders only still calls `reparentFolder`, which refuses a
+   selection holding the Inbox (MOVE-07, "Inbox cannot be moved") — it doesn't ask the table (§7 alpha.7's last row).
 5. One keyboard listener for the clipboard keys (§5); the harmful cells (§4.1 items 1, 3, 4, 5) fixed by their rows.
    — **7.30.0-alpha.1 — built:** the second listener and its folder clipboard are gone; ONE clipboard
    `{ type, bookIds, folderIds, from }` filled by `putOnClipboard` (Ctrl+X / Ctrl+C on the selection — books, folders or

@@ -153,7 +153,7 @@
         // Clear emergency reset timer — app code loaded successfully
         if (window._appMountTimer) { clearTimeout(window._appMountTimer); window._appMountTimer = null; }
 
-        const ORGANIZER_VERSION = "7.30.0-alpha.8";  // Build version for this file
+        const ORGANIZER_VERSION = "7.30.0-alpha.9";  // Build version for this file
         // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
         // problem… (7.29.0: one copy, so the two can't drift)
         const DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -1616,6 +1616,7 @@
             // 7.30.0 - ONE clipboard for books AND folders: null | { type: 'cut'|'copy', bookIds: [], folderIds: [], from: placeId }
             // (`from` = where it was filled — a cut takes the books out of THAT place). Filled by putOnClipboard, read by
             // pasteClipboard. (The second keyboard listener's separate folder clipboard is gone — ONE-TABLE.md §5.)
+            // 7.30.0-alpha.9 - and `inbox: true` when the Inbox is among the folders (its own half — never in folderIds).
             const [clipboard, setClipboard] = useState(null);
             // v4.16.0.g - Clipboard status message for footer
             const [clipboardMessage, setClipboardMessage] = useState(null); // "3 books cut" or "5 books copied"
@@ -2170,22 +2171,21 @@
                 ? ((listList.find(bl => bl.id === getBookListId(placeId)) || {}).name || 'Book List')
                 : ((folderList.find(f => f.id === placeId) || {}).name || 'folder'));
 
-            // Cut / Copy: books and folders onto the ONE clipboard, and the words (gestureTable.clipWords). A cut never takes
-            // the Inbox (it never moves — said); a copy out of the Trash warns that a paste will restore (§6 item 6 — a
-            // warning, so it gets the warning look). from: the place they're cut or copied from. Returns true when it acted.
+            // Cut / Copy: books and folders onto the ONE clipboard, and the words (gestureTable.clipNotice). The Inbox, when
+            // it's among the folders, is its own half (`inbox`): a cut can't move it, so its paste copies it (§6 item 20 —
+            // 7.30.0-alpha.9; was: left off the clipboard, "The Inbox can't be moved."). A translation already known here —
+            // a copy out of the Trash will restore (§6 item 6), the Inbox cut will be copied — is said as a WARNING (the
+            // table decides which). from: the place they're cut or copied from. Returns true when it acted.
             const putOnClipboard = (type, bookIds, folderIds, from) => {
-                const { taken, kept } = gestureTable.clipFolders(type, folderIds);
-                const inboxNote = kept.length ? gestureTable.MOVE_WORDS.inboxCantMove : '';
-                if (bookIds.length === 0 && taken.length === 0) {
-                    if (inboxNote) rwLog.log('info', 'MOVE', inboxNote, null, { toast: true });
-                    return !!inboxNote;
-                }
-                setClipboard({ type, bookIds: [...bookIds], folderIds: taken, from });
-                const words = gestureTable.clipWords(type, {
+                const { taken, inbox } = gestureTable.clipFolders(folderIds);
+                if (bookIds.length === 0 && taken.length === 0 && !inbox) return false;
+                setClipboard({ type, bookIds: [...bookIds], folderIds: taken, inbox, from });
+                const notice = gestureTable.clipNotice(type, {
                     books: bookIds.length, title: bookIds.length === 1 ? shortTitle(bookIds[0]) : undefined,
-                    folders: taken.length, folderName: taken.length === 1 ? nameOfPlace(taken[0]) : undefined, fromTrash: from === '__trash__' });
-                if (type === 'copy' && from === '__trash__' && bookIds.length > 0) rwLog.log('warning', 'MOVE-10', `${words}`, null, { toast: true });
-                else rwLog.log('info', 'MOVE', inboxNote ? `${words}. ${inboxNote}` : words, null, { toast: true });
+                    folders: taken.length, folderName: taken.length === 1 ? nameOfPlace(taken[0]) : undefined,
+                    inbox, inboxName: nameOfPlace('__inbox__'), from });
+                if (notice.warning) rwLog.log('warning', 'MOVE-10', `${notice.words}`, null, { toast: true });
+                else rwLog.log('info', 'MOVE', notice.words, null, { toast: true });
                 return true;
             };
             // Ctrl+X / Ctrl+C act on what's selected in the right pane — books, folders, or both (§6 items 13, 17); with
@@ -2201,16 +2201,17 @@
                 const bookIds = (clip.bookIds || []).filter(id => bookMap.has(id));
                 const folderIds = (clip.folderIds || []).filter(id => folders.some(f => f.id === id));
                 const what = gestureTable.selectionWhat(bookIds.length, folderIds.length);
-                return what === 'nothing' ? null : { ...clip, bookIds, folderIds, what };
+                const inbox = !!clip.inbox; // (the Inbox is never deleted)
+                return what === 'nothing' && !inbox ? null : { ...clip, bookIds, folderIds, what, inbox };
             };
-            const pasteRow = (clip, target) => gestureTable.decide('paste', clip.what, { placeId: clip.from, clip: clip.type }, { placeId: target });
+            const pasteRow = (clip, target) => gestureTable.decide('paste', clip.what, { placeId: clip.from, clip: clip.type, inbox: clip.inbox }, { placeId: target });
             // "Can this clipboard be pasted there?" — the refusal's words, or null. The menus' greyed Paste + its "why" read it.
             const pasteRefusal = (target) => {
                 const clip = clipNow(clipboard);
                 const row = clip && pasteRow(clip, target);
                 return row && row.act === 'refuse' ? row.words : null;
             };
-            const clipboardCount = () => { const clip = clipNow(clipboard); return clip ? clip.bookIds.length + clip.folderIds.length : 0; };
+            const clipboardCount = () => { const clip = clipNow(clipboard); return clip ? clip.bookIds.length + clip.folderIds.length + (clip.inbox ? 1 : 0) : 0; };
             // THE paste — Ctrl+V and both menus' Paste. target: where it's pasted (the key and the book menu: the place you're
             // in; the folder menu: the folder right-clicked). A cut pastes once. Returns true when there was something to
             // paste (the key then claims the keystroke).
@@ -2235,12 +2236,15 @@
             // (placeItems — ONE undo step, ONE receipt). A refusal says the table's words. Returns true when it acted.
             // opts: { ctrl } (a drag: Ctrl held at the drop), { at } (where the receipt shows), { create } (see placeItems),
             // { slot } (see placeItems).
+            // 7.30.0-alpha.9 - the Inbox among the folders is its own half, as on the clipboard (a move can't move it: the
+            // table's row copies it — §6 item 20; was: planReparent refused the whole drop, MOVE-07).
             const placeByTable = (gesture, bookIds, folderIds, from, target, { ctrl = false, at, create, slot } = {}) => {
-                const what = gestureTable.selectionWhat(bookIds.length, folderIds.length);
-                if (what === 'nothing') return false;
-                const row = gestureTable.decide(gesture, what, { placeId: from, ctrl }, { placeId: target });
+                const { taken, inbox } = gestureTable.clipFolders(folderIds);
+                const what = gestureTable.selectionWhat(bookIds.length, taken.length);
+                if (what === 'nothing' && !inbox) return false;
+                const row = gestureTable.decide(gesture, what, { placeId: from, ctrl, inbox }, { placeId: target });
                 if (row.act === 'refuse') { rwLog.log('info', 'MOVE', row.words, null, { toast: at || true }); return false; }
-                placeItems(row, { bookIds, folderIds, from }, target, { at, create, slot });
+                placeItems(row, { bookIds, folderIds: taken, inbox, from }, target, { at, create, slot });
                 return true;
             };
             // A drop of right-pane items (books and / or folders, as the drag carried them) onto a place — every drop target
@@ -2285,18 +2289,41 @@
             // with it in, to plan against) }; its making is part of the ONE undo step. at: where the receipt shows.
             // slot (7.30.0-alpha.7): folders moved to a POSITION among the destination's children — { targetFolderId,
             // position: 'before' | 'after' } (a left-pane folder dropped on the edge of a folder under another parent).
-            const placeItems = async (row, { bookIds, folderIds, from }, target, { at, create, slot } = {}) => {
+            // inbox (7.30.0-alpha.9): the Inbox is among the folders — its own half (row.inbox), as the table answers it: a
+            // cut copies it (§6 item 20). A half done as something other than its verb (gestureTable.translatedHalf) carries
+            // that onto its words, and the receipt is then a WARNING (gestureTable.placeReceipt — the one helper).
+            const placeItems = async (row, { bookIds, folderIds, from, inbox = false }, target, { at, create, slot } = {}) => {
                 const lists = create ? { folderList: create.folderList || folders, listList: create.listList || bookLists } : {};
-                let bookAct = row.act === 'both' ? row.books : bookIds.length ? row.act : null;
-                const folderAct = row.act === 'both' ? row.folders : folderIds.length ? row.act : null;
-                let folderPlan = null, toPlace = bookIds;
-                if (folderAct === 'add-folder-books') {
-                    // folders copied onto a Book List: their books, every subfolder's too (§6 item 8), placed with any books
-                    toPlace = [...new Set([...bookIds, ...folderTreeBooks(folderIds)])];
-                    bookAct = 'add-books';
-                } else if (folderAct) {
-                    folderPlan = folderAct === 'move-folders' ? planFolderMove(folderIds, target, { ...lists, slot }) : planFolderCopy(folderIds, target, lists);
-                    if (!folderPlan) return false; // refused by the folder operation's own check — it said why
+                const actOf = (half, there) => (row.act === 'both' ? row[half] || null : there ? row.act : null);
+                const rowBookAct = actOf('books', bookIds.length > 0);
+                let bookAct = rowBookAct;
+                // The folder halves: the folders, then the Inbox — with the same act, one half (one plan, one sentence).
+                const halves = [];
+                const folderAct = actOf('folders', folderIds.length > 0), inboxAct = actOf('inbox', inbox);
+                if (folderAct) halves.push({ act: folderAct, ids: [...folderIds], translated: gestureTable.translatedHalf(row, 'folders'), inbox: false });
+                if (inboxAct) {
+                    const same = halves.find(h => h.act === inboxAct);
+                    if (same) { same.ids.push('__inbox__'); same.translated = same.translated || gestureTable.translatedHalf(row, 'inbox'); }
+                    else halves.push({ act: inboxAct, ids: ['__inbox__'], translated: gestureTable.translatedHalf(row, 'inbox'), inbox: true });
+                }
+                // Folders onto a Book List (a copy, or a cut done as one): their books, every subfolder's too (§6 item 8)
+                const listHalf = halves.find(h => h.act === 'add-folder-books') || null;
+                const treeBooks = listHalf ? folderTreeBooks(listHalf.ids) : [];
+                // …placed with the books when those only add too (one plan, one sentence — as a copy always was); after
+                // them, in a plan of their own, when the books do something else (a cut's books move onto the list)
+                const together = listHalf && (bookIds.length === 0 || (bookAct === 'add-books' && !listHalf.translated));
+                let toPlace = bookIds;
+                if (together) { toPlace = [...new Set([...bookIds, ...treeBooks])]; bookAct = 'add-books'; }
+                const folderPlans = [];
+                let planList = lists.folderList || folders;
+                for (const h of halves.filter(x => x.act !== 'add-folder-books')) {
+                    const plan = h.act === 'move-folders' ? planFolderMove(h.ids, target, { ...lists, folderList: planList, slot })
+                        : planFolderCopy(h.ids, target, { ...lists, folderList: planList });
+                    if (!plan) return false; // refused by the folder operation's own check — it said why
+                    folderPlans.push({ h, plan });
+                    // a later plan (the Inbox's copy after the folders' move) is worked out against the folders as this one leaves them
+                    if (plan.step && plan.step.type === 'REPARENT_FOLDER') planList = planList.map(f => applyOrderFields(
+                        plan.step.folderIds.includes(f.id) ? { ...f, parentId: plan.step.newParentId } : f, plan.step.orderAfter));
                 }
                 if (bookAct === 'refile') {
                     const answer = await askRefile(toPlace, target, lists);
@@ -2304,29 +2331,54 @@
                     if (answer === 'add') bookAct = 'add-books';
                 }
                 const bookPlan = bookAct ? planBookPlacement(bookAct, toPlace, from, target, lists) : null;
-                const work = [folderPlan && folderPlan.step, bookPlan && bookPlan.step].filter(Boolean);
+                // the folders' books in their own plan: against the list as the books' plan leaves it (so they land after them)
+                const listAfter = (ll, step) => (!step ? ll : ll.map(bl => {
+                    const ch = (step.lists || []).find(c => c.id === bl.id);
+                    return ch ? { ...bl, bookIds: shiftBooks(bl.bookIds, ch, false, true) } : bl;
+                }));
+                // (a selected book that is also in the folder: the books' plan put it there — this one counts it "already there")
+                const listPlan = listHalf && !together && treeBooks.length
+                    ? planBookPlacement('add-books', treeBooks, from, target, { ...lists, listList: listAfter(lists.listList || bookLists, bookPlan && bookPlan.step) })
+                    : null;
+                const work = [...folderPlans.map(p => p.plan.step), bookPlan && bookPlan.step, listPlan && listPlan.step].filter(Boolean);
                 if (create) create.apply(); // (its redo would also open the new folder — the gesture doesn't)
                 work.forEach(step => executeRedo(step)); // doing = redoing
                 const steps = [create && create.step, ...work].filter(Boolean);
                 if (steps.length === 1) recordAction(steps[0]);
                 else if (steps.length > 1) recordAction({ type: 'COMPOUND', actions: steps, label: steps.map(s => s.label).join(' + ') });
-                const folderBooksOnly = folderAct === 'add-folder-books' && bookIds.length === 0;
-                const words = gestureTable.placeWords({
-                    books: folderBooksOnly ? null : bookPlan && bookPlan.words,
-                    folders: folderBooksOnly ? (bookPlan && { ...bookPlan.words, act: 'add-folder-books', names: folderIds.map(nameOfPlace) })
-                        : folderPlan && folderPlan.words,
+                // the words: each half's, carrying its translation while it still does that act (a copy out of the Trash
+                // pasted again only adds — no longer a restore, no warning)
+                const carry = (words, act, translated) => (words && translated && words.act === act ? { ...words, translated } : words);
+                // the folders' books have a sentence of their own unless they went in with the selected books (one sentence,
+                // as a copy always said); folders with no books at all still say so
+                const listBase = listHalf && (together ? bookPlan : listPlan);
+                const listWords = listHalf && !(together && bookIds.length > 0) ? {
+                    ...(listBase ? listBase.words : { n: 0, added: 0, already: 0, to: nameOfPlace(target, lists), toList: isBookListFolder(target) }),
+                    act: 'add-folder-books', names: listHalf.ids.map(id => nameOfPlace(id, lists)), translated: listHalf.translated || undefined } : null;
+                const planWords = (inboxHalf) => {
+                    const p = folderPlans.find(x => x.h.inbox === inboxHalf);
+                    return p ? carry(p.plan.words, p.h.act, p.h.translated) : null;
+                };
+                const listIsInbox = listHalf && listHalf.inbox;
+                const receipt = gestureTable.placeReceipt({
+                    books: together && bookIds.length === 0 ? null : bookPlan && carry(bookPlan.words, rowBookAct, gestureTable.translatedHalf(row, 'books')),
+                    folders: (listHalf && !listIsInbox ? listWords : null) || planWords(false),
+                    inbox: (listIsInbox ? listWords : null) || planWords(true),
                 });
-                if (words) rwLog.log('info', 'MOVE', words, null, { toast: at || true });
+                if (receipt.warning) rwLog.log('warning', 'MOVE-12', `${receipt.words}`, null, { toast: at || true });
+                else if (receipt.words) rwLog.log('info', 'MOVE', receipt.words, null, { toast: at || true });
                 return true;
             };
-            // Every book in these folders and all their subfolders (§6 item 8: an operation on a folder includes its tree).
+            // Every book in these folders and all their subfolders (§6 item 8: an operation on a folder includes its tree),
+            // in ONE order (7.30.0-alpha.9, stated): each folder's own books in its order, then each of its subfolders the
+            // same way, depth-first, in the order Manual sort shows them (manualOrderOf; was the stored array's order).
             const folderTreeBooks = (folderIds) => {
                 const seen = new Set();
                 const walk = (id) => {
                     const f = folders.find(x => x.id === id);
                     if (!f) return;
                     (f.bookIds || []).forEach(b => seen.add(b));
-                    folders.filter(c => c.parentId === id).forEach(c => walk(c.id));
+                    manualOrderOf(id).forEach(c => walk(c.id));
                 };
                 folderIds.forEach(walk);
                 return [...seen];

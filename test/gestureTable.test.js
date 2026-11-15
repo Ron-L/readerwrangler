@@ -11,6 +11,8 @@
 // 7.30.0-alpha.6: folders dragged onto the Book Lists / Searches headers — a drag's words (TABLE-026); a folder's new
 // parent is a real folder or the top level — planReparent's guard, reparentProblem, and the one intoItself (TABLE-027).
 // 7.30.0-alpha.7: books dragged onto the Book Lists header — a drag's words (TABLE-028).
+// 7.30.0-alpha.9 (§6 item 20, Ron 2026-11-15): a cut that can't be done as a move is done as a copy — every such cell
+// (TABLE-029), said at the cut when known there (TABLE-030) and at the paste always, as a warning (TABLE-031, 032).
 const assert = require('assert');
 const t = require('../gestureTable.js');
 const { test, done } = require('./harness');
@@ -187,9 +189,10 @@ test('TABLE-014', 'the folder rows (§5, §6 item 8): a move reparents, a copy c
     assert.strictEqual(act('copy', 'f-fantasy'), 'copy-folders');
     assert.strictEqual(act('copy', '__library__'), 'copy-folders');
     assert.strictEqual(act('copy', '__booklist_bl-1__'), 'add-folder-books', '"Move and copy books anywhere" decision 10, by the keys');
-    const ontoList = row('move', 'folders', 'f-scifi', '__booklist_bl-1__');
-    assert.strictEqual(ontoList.act, 'refuse', 'a folder MOVED onto a Book List is not decided — refused with words, for Ron');
-    assert.ok(ontoList.why && /not decided/.test(ontoList.why), 'an undecided row says so');
+    // 7.30.0-alpha.9 (§6 item 20, Ron 2026-11-15): a folder MOVED onto a Book List — refused until now ("not decided") —
+    // is done as the copy: its books (every subfolder's too) are added, the folder stays (TABLE-029)
+    assert.deepStrictEqual(row('move', 'folders', 'f-scifi', '__booklist_bl-1__'),
+        { act: 'add-folder-books', translated: 'cut-to-copy', why: t.MOVE_WORDS.folderOntoList });
     for (const verb of ['move', 'copy']) for (const to of ['__all__', '__views__', '__booklists__', '__view_ss-1__', '__trash__'])
         assert.strictEqual(act(verb, to), 'refuse', `${verb} folders → ${to}`);
 });
@@ -197,9 +200,10 @@ test('TABLE-014', 'the folder rows (§5, §6 item 8): a move reparents, a copy c
 test('TABLE-015', 'books and folders together (§6 item 17): both — each half is its own row; a half that refuses refuses the whole, with its words', () => {
     assert.deepStrictEqual(row('move', 'both', 'f-scifi', 'f-fantasy'), { act: 'both', books: 'move-books', folders: 'move-folders' });
     assert.deepStrictEqual(row('copy', 'both', 'f-scifi', '__booklist_bl-1__'), { act: 'both', books: 'add-books', folders: 'add-folder-books' });
-    const ontoList = row('move', 'both', 'f-scifi', '__booklist_bl-1__');
-    assert.strictEqual(ontoList.act, 'refuse');
-    assert.strictEqual(ontoList.words, t.MOVE_WORDS.folderOntoList);
+    // 7.30.0-alpha.9 (§6 item 20): a cut of books and a folder onto a Book List — the books move, the folder's half is
+    // done as a copy (was: the folder's refusal refused the whole)
+    assert.deepStrictEqual(row('move', 'both', 'f-scifi', '__booklist_bl-1__'),
+        { act: 'both', books: 'move-books', folders: 'add-folder-books', translated: { folders: 'cut-to-copy' } });
     assert.strictEqual(row('move', 'both', 'f-scifi', '__trash__').words, t.MOVE_WORDS.intoTrash, "the books' refusal first");
 });
 
@@ -302,9 +306,11 @@ test('TABLE-019', 'folder receipts (§6 items 8, 14, 17): the copy names what it
         "Added 'Dune' to 'Fantasy'. Copied 'Space Opera' as 'Space Opera (Copy)'.");
 });
 
-test('TABLE-020', 'which folders a cut may take: never the Inbox (it never moves) — a copy may take it', () => {
-    assert.deepStrictEqual(t.clipFolders('cut', ['__inbox__', 'f-a']), { taken: ['f-a'], kept: ['__inbox__'] });
-    assert.deepStrictEqual(t.clipFolders('copy', ['__inbox__', 'f-a']), { taken: ['__inbox__', 'f-a'], kept: [] });
+test('TABLE-020', 'the Inbox on the clipboard is its own half — a cut or a copy (a cut never moves it: its row copies it, §6 item 20)', () => {
+    // 7.30.0-alpha.9: was { taken, kept } — a cut left the Inbox off the clipboard ("The Inbox can't be moved.")
+    assert.deepStrictEqual(t.clipFolders(['__inbox__', 'f-a']), { taken: ['f-a'], inbox: true });
+    assert.deepStrictEqual(t.clipFolders(['f-a']), { taken: ['f-a'], inbox: false });
+    assert.deepStrictEqual(t.clipFolders([]), { taken: [], inbox: false });
     assert.strictEqual(t.MOVE_WORDS.inboxCantMove, "The Inbox can't be moved.");
 });
 
@@ -352,6 +358,11 @@ test('TABLE-021', "a drag's verb (\"Move and copy books anywhere\" 6–7; §6 it
     assert.strictEqual(act('folders', 'f-scifi', '__library__'), 'move-folders', 'onto the Folders header: the top level');
     assert.deepStrictEqual(t.decide('drag', 'both', { placeId: 'f-scifi' }, { placeId: 'f-fantasy' }),
         { act: 'both', books: 'move-books', folders: 'move-folders' }, 'a book and a folder dragged together: both move (§6 item 17)');
+    // 7.30.0-alpha.9: a plain drag OUT of the Trash is a move out of it — its restore, its own verb (not a copy said as a
+    // warning, §6 item 20); a Ctrl-drag is a copy, and a copy out of the Trash is a restore said as one (TABLE-031)
+    assert.strictEqual(verb('trash', 'folder'), 'move');
+    assert.strictEqual(verb('trash', 'book-list'), 'move');
+    assert.strictEqual(verb('trash', 'folder', true), 'copy');
 });
 
 test('TABLE-022', "the right-click Delete with books AND folders selected (§6 item 9): one item naming both — \"Delete 2 Books and 1 Folder\"", () => {
@@ -472,6 +483,168 @@ test('TABLE-028', 'books dragged onto the Book Lists header (the folder path): r
     // the other drag words are untouched: folders onto Book Lists, books and folders onto the top level
     assert.strictEqual(t.decide('drag', 'folders', { placeId: 'f-scifi' }, { placeId: '__booklists__' }).words, W.dragFoldersNotIntoBookLists);
     assert.strictEqual(t.decide('drag', 'both', { placeId: 'f-scifi' }, { placeId: '__library__' }).words, W.dragBothNotTopLevel);
+});
+
+// ── 7.30.0-alpha.9: a cut that can't be done as a move is done as a copy (§6 item 20, Ron 2026-11-15) ─────────────────────
+// Every combination a clipboard can hold: books, folders, both — and each with the Inbox as its own half (inbox: true).
+const CLIP_WHATS = [['books', false], ['folders', false], ['both', false], ['nothing', true], ['books', true], ['folders', true], ['both', true]];
+const label = (what, inbox) => (inbox ? (what === 'nothing' ? 'the Inbox' : `${what === 'both' ? 'books+folders' : what}+the Inbox`)
+    : what === 'both' ? 'books+folders' : what);
+const halvesOf = (r) => (r.act === 'both' ? ['books', 'folders', 'inbox'].filter(h => r[h]).map(h => [h, r[h], t.translatedHalf(r, h)])
+    : [['one', r.act, r.translated || null]]);
+
+test('TABLE-029', 'a cut that can\'t be done as a move is done as a copy — derived for EVERY cell where the move refuses and the copy acts (listed below); none is left refused', () => {
+    const problems = [], found = {};
+    for (const [what, inbox] of CLIP_WHATS) for (const fk of t.PLACE_KINDS) for (const tk of t.PLACE_KINDS) {
+        const at = `${label(what, inbox)} ${fk} → ${tk}`;
+        const from = (clip) => ({ placeId: PLACE_IDS[fk], clip, inbox });
+        const cut = t.decide('paste', what, from('cut'), { placeId: PLACE_IDS[tk] });
+        const copy = t.decide('paste', what, from('copy'), { placeId: PLACE_IDS[tk] });
+        // the move gesture (Move to ›, a future Shift-drag) asks the same rows as the cut's paste (a refusal's words may fit
+        // the menu — TABLE-024 — the act never differs)
+        const move = t.decide('move', what, { placeId: PLACE_IDS[fk], inbox }, { placeId: PLACE_IDS[tk] });
+        if (cut.act === 'refuse') assert.strictEqual(move.act, 'refuse', at); else assert.deepStrictEqual(move, cut, at);
+        if (cut.act === 'refuse' && copy.act !== 'refuse') problems.push(`${at}: the move refuses ("${cut.words}") while the copy acts (${copy.act}) — not done as the copy`);
+        const tr = halvesOf(cut).filter(([, , k]) => k === 'cut-to-copy');
+        if (!tr.length) continue;
+        // a translated half does exactly what the copy's half does
+        const copyHalves = new Map(halvesOf(copy).map(([h, a]) => [h, a]));
+        for (const [h, a] of tr) if (copyHalves.get(h) !== a) problems.push(`${at}: the ${h} half does ${a}, the copy does ${copyHalves.get(h)}`);
+        if (cut.act !== 'both' && !cut.why) problems.push(`${at}: a translated cell must say why (the move's refusal words)`);
+        const key = `${label(what, inbox)} → ${tk} (done as a copy: ${tr.map(([h, a]) => `${h === 'one' ? '' : `${h} `}${a}`).join(', ')})`;
+        (found[key] = found[key] || []).push(fk);
+    }
+    assert.deepStrictEqual(problems, []);
+    // the list, for the report (from = where the clipboard was filled; "every place" = all nine kinds)
+    const summary = Object.fromEntries(Object.entries(found).map(([k, froms]) => [k, froms.length === t.PLACE_KINDS.length ? 'every place' : froms.join(', ')]));
+    console.log('    translated cells (a cut done as a copy):');
+    Object.entries(summary).forEach(([k, v]) => console.log(`      ${k} — from ${v}`));
+    const E = 'every place';
+    assert.deepStrictEqual(summary, {
+        'folders → book-list (done as a copy: add-folder-books)': E,
+        'books+folders → book-list (done as a copy: folders add-folder-books)': E,
+        'the Inbox → folder (done as a copy: copy-folders)': E,
+        'the Inbox → inbox (done as a copy: copy-folders)': E,
+        'the Inbox → folders-view (done as a copy: copy-folders)': E,
+        'the Inbox → book-list (done as a copy: add-folder-books)': E,
+        'books+the Inbox → folder (done as a copy: inbox copy-folders)': E,
+        'books+the Inbox → inbox (done as a copy: inbox copy-folders)': E,
+        'books+the Inbox → book-list (done as a copy: inbox add-folder-books)': E,
+        'folders+the Inbox → folder (done as a copy: inbox copy-folders)': E,
+        'folders+the Inbox → inbox (done as a copy: inbox copy-folders)': E,
+        'folders+the Inbox → folders-view (done as a copy: inbox copy-folders)': E,
+        'folders+the Inbox → book-list (done as a copy: folders add-folder-books, inbox add-folder-books)': E,
+        'books+folders+the Inbox → folder (done as a copy: inbox copy-folders)': E,
+        'books+folders+the Inbox → inbox (done as a copy: inbox copy-folders)': E,
+        'books+folders+the Inbox → book-list (done as a copy: folders add-folder-books, inbox add-folder-books)': E,
+    });
+    // the book rows have none: wherever a book move refuses, its copy refuses too (All Books, the headers, the Trash)
+    for (const fk of t.PLACE_KINDS) for (const tk of t.PLACE_KINDS) assert.ok(!t.BOOK_ROWS.move[fk][tk].translated, `books ${fk} → ${tk}`);
+    // the precedent (decision 2 of "Move and copy books anywhere"): a cut from All Books onto a Book List is just added —
+    // its own row (a move from no container), not a translation
+    assert.deepStrictEqual(row('paste', 'books', '__all__', '__booklist_bl-1__', 'cut'), { act: 'add-books' });
+    // the Inbox's cut: its why is the Inbox's own words
+    assert.deepStrictEqual(t.decide('paste', 'nothing', { placeId: '__library__', clip: 'cut', inbox: true }, { placeId: 'f-scifi' }),
+        { act: 'copy-folders', translated: 'cut-to-copy', why: t.MOVE_WORDS.inboxCantMove });
+    // where the copy refuses too, the cut keeps the refusal (and its words)
+    assert.strictEqual(t.decide('paste', 'nothing', { placeId: '__library__', clip: 'cut', inbox: true }, { placeId: '__trash__' }).words, t.MOVE_WORDS.foldersIntoTrash);
+    // a copy of the Inbox is no translation: it is copied, as any folder
+    assert.deepStrictEqual(t.decide('paste', 'nothing', { placeId: '__library__', clip: 'copy', inbox: true }, { placeId: 'f-scifi' }), { act: 'copy-folders' });
+});
+
+test('TABLE-030', 'the cut / copy end: a translation already known at Ctrl+X / Ctrl+C (whatever the destination) is said there, as a warning — the Inbox\'s cut, the Trash\'s copy', () => {
+    const n = t.clipNotice;
+    // the Inbox, cut: wherever it's pasted it is copied — so the cut says so
+    assert.deepStrictEqual(n('cut', { inbox: true, inboxName: 'Inbox' }), { words: "The Inbox can't be moved — pasting it will copy it.", warning: true });
+    assert.deepStrictEqual(n('cut', { folders: 1, folderName: 'Space Opera', inbox: true, inboxName: 'Inbox' }),
+        { words: "Cut 'Space Opera'. The Inbox can't be moved — pasting it will copy it.", warning: true });
+    // the Inbox, copied: a folder like any other — no warning (was the same words before alpha.9)
+    assert.deepStrictEqual(n('copy', { inbox: true, inboxName: 'Inbox' }), { words: "Copied 'Inbox'", warning: false });
+    assert.deepStrictEqual(n('copy', { folders: 1, folderName: 'Space Opera', inbox: true, inboxName: 'Inbox' }), { words: 'Copied 2 folders', warning: false });
+    // the Trash, copied: a paste will restore (§6 item 6 — MOVE-10's words, unchanged) — now read from the table
+    assert.deepStrictEqual(n('copy', { books: 2, from: '__trash__' }),
+        { words: "Copied 2 books from the Trash. Pasting them will restore them — they'll leave the Trash.", warning: true });
+    // a cut in the Trash: a move out of it IS its restore — nothing to warn of
+    assert.deepStrictEqual(n('cut', { books: 1, title: 'Dune', from: '__trash__' }), { words: "Cut 'Dune'", warning: false });
+    // folders cut: only a Book List would copy them — not known until the paste, so nothing is said at the cut
+    assert.deepStrictEqual(n('cut', { folders: 1, folderName: 'Space Opera', from: 'f-scifi' }), { words: "Cut 'Space Opera'", warning: false });
+    assert.deepStrictEqual(n('cut', { books: 2, from: 'f-scifi' }), { words: 'Cut 2 books', warning: false });
+    // clipWords is the notice's words
+    assert.strictEqual(t.clipWords('cut', { inbox: true, inboxName: 'Inbox' }), "The Inbox can't be moved — pasting it will copy it.");
+});
+
+test('TABLE-031', 'the paste end: ONE kind of notice for a translation — a warning, naming what really happened and why; an ordinary receipt stays ordinary', () => {
+    const r = t.placeReceipt;
+    // a folder cut onto a Book List (its books added — every subfolder's too — the folder stays)
+    assert.deepStrictEqual(r({ folders: { act: 'add-folder-books', translated: 'cut-to-copy', names: ['Science Fiction'], n: 11, added: 8, already: 3, to: 'Read Next', toList: true } }), {
+        words: "Added 8 books from 'Science Fiction' to 'Read Next' (3 were already there). A folder can't be moved onto a Book List, so it stays where it was.",
+        warning: true,
+    });
+    assert.deepStrictEqual(r({ folders: { act: 'add-folder-books', translated: 'cut-to-copy', names: ['A', 'B'], n: 4, added: 4, already: 0, to: 'Read Next', toList: true } }), {
+        words: "Added 4 books from 'A' and 'B' to 'Read Next'. Folders can't be moved onto a Book List, so they stay where they were.",
+        warning: true,
+    });
+    assert.deepStrictEqual(r({ folders: { act: 'add-folder-books', translated: 'cut-to-copy', names: ['Fantasy'], n: 2, added: 0, already: 2, to: 'Read Next', toList: true } }).words,
+        "Nothing to add — all 2 are already on 'Read Next'. A folder can't be moved onto a Book List, so it stays where it was.");
+    // books moved onto the list and a folder's books added: two sentences, one warning
+    assert.deepStrictEqual(r({
+        books: { act: 'move-books', n: 1, title: 'Dune', moved: 1, added: 1, already: 0, from: ['Sci-Fi'], to: 'Read Next', toList: true },
+        folders: { act: 'add-folder-books', translated: 'cut-to-copy', names: ['Space Opera'], n: 2, added: 2, already: 0, to: 'Read Next', toList: true },
+    }), {
+        words: "Moved 'Dune' from 'Sci-Fi' to 'Read Next'. Added 2 books from 'Space Opera' to 'Read Next'. A folder can't be moved onto a Book List, so it stays where it was.",
+        warning: true,
+    });
+    // one book added: its title (as every "Added" says — was "Added 1 book from …"); one already there: the BOOK's title
+    // (was the folder's name: "'Space Opera' is already on 'Read Next'.")
+    assert.strictEqual(r({ folders: { act: 'add-folder-books', translated: 'cut-to-copy', names: ['Space Opera'], n: 2, added: 1, addedTitle: 'A Book With a Note', already: 1, to: 'Read Next', toList: true } }).words,
+        "Added 'A Book With a Note' from 'Space Opera' to 'Read Next' (1 was already there). A folder can't be moved onto a Book List, so it stays where it was.");
+    assert.strictEqual(r({ folders: { act: 'add-folder-books', names: ['Space Opera'], n: 1, title: 'Dune', added: 0, already: 1, to: 'Read Next', toList: true } }).words,
+        "'Dune' is already on 'Read Next'.");
+    // a folder with no books at all onto a list: said (was: nothing)
+    assert.strictEqual(r({ folders: { act: 'add-folder-books', translated: 'cut-to-copy', names: ['An Empty Folder'], n: 0, added: 0, already: 0, to: 'Read Next', toList: true } }).words,
+        "Nothing to add — 'An Empty Folder' has no books. A folder can't be moved onto a Book List, so it stays where it was.");
+    assert.strictEqual(r({ folders: { act: 'add-folder-books', names: ['A', 'B'], n: 0, to: 'Read Next', toList: true } }).words, 'Nothing to add — those 2 folders have no books.');
+    // the Inbox cut, pasted onto a list: its books added, the Inbox's own words
+    assert.deepStrictEqual(r({ inbox: { act: 'add-folder-books', translated: 'cut-to-copy', names: ['Inbox'], n: 2, added: 2, already: 0, to: 'Read Next', toList: true } }), {
+        words: "Added 2 books from 'Inbox' to 'Read Next'. The Inbox can't be moved, so it stays where it was.", warning: true });
+    // the Inbox cut, pasted into a folder: copied
+    assert.deepStrictEqual(r({ inbox: { act: 'copy-folders', translated: 'cut-to-copy', names: ['Inbox'], books: 2, subfolders: 0, to: 'Fantasy' } }), {
+        words: "Copied 'Inbox' (2 books) as 'Inbox (Copy)'. The Inbox can't be moved, so it stays where it was.", warning: true });
+    // … with another folder moved by the same cut
+    assert.deepStrictEqual(r({ folders: { act: 'move-folders', names: ['An Empty Folder'], from: null, to: 'Fantasy' },
+        inbox: { act: 'copy-folders', translated: 'cut-to-copy', names: ['Inbox'], books: 2, subfolders: 0, to: 'Fantasy' } }), {
+        words: "Moved 'An Empty Folder' to 'Fantasy'. Copied 'Inbox' (2 books) as 'Inbox (Copy)'. The Inbox can't be moved, so it stays where it was.",
+        warning: true });
+    // the Trash's copy → restore (§6 item 6): its decided words, now said as a warning — the same kind of notice
+    assert.deepStrictEqual(r({ books: { act: 'restore', translated: 'copy-to-restore', n: 2, to: 'Fantasy' } }),
+        { words: "Restored 2 books from the Trash into 'Fantasy'.", warning: true });
+    // a cut out of the Trash (a move out of it = its restore): ordinary
+    assert.deepStrictEqual(r({ books: { act: 'restore', n: 2, to: 'Fantasy' } }), { words: "Restored 2 books from the Trash into 'Fantasy'.", warning: false });
+    // ordinary receipts stay ordinary
+    assert.strictEqual(r({ books: { act: 'add-books', n: 1, title: 'Dune', addedTitle: 'Dune', added: 1, already: 0, to: 'Read Next', toList: true } }).warning, false);
+    assert.strictEqual(r({ folders: { act: 'add-folder-books', names: ['Sci-Fi'], n: 2, added: 2, already: 0, to: 'Read Next', toList: true } }).warning, false, 'a COPY of a folder onto a list is no translation');
+    // placeWords is the receipt's words
+    assert.strictEqual(t.placeWords({ books: { act: 'restore', translated: 'copy-to-restore', n: 2, to: 'Fantasy' } }), "Restored 2 books from the Trash into 'Fantasy'.");
+});
+
+test('TABLE-032', 'no translation can come with an ordinary notice: every translated half the table can answer, receipted, is a warning', () => {
+    const misses = [];
+    const gestures = [['paste', 'cut'], ['paste', 'copy'], ['move'], ['copy'], ['drag', false], ['drag', true]];
+    // the smallest words each act's sentence needs
+    const wordsFor = (act, translated) => ({ act, translated, n: 1, title: 'Dune', addedTitle: 'Dune', moved: 1, added: 1, already: 0,
+        from: ['Sci-Fi'], to: 'Fantasy', names: ['Sci-Fi'], books: 1, subfolders: 0 });
+    for (const [g, x] of gestures) for (const [what, inbox] of CLIP_WHATS) for (const fk of t.PLACE_KINDS) for (const tk of t.PLACE_KINDS) {
+        const from = g === 'drag' ? { placeId: PLACE_IDS[fk], ctrl: x, inbox } : { placeId: PLACE_IDS[fk], clip: x, inbox };
+        const d = t.decide(g, what, from, { placeId: PLACE_IDS[tk] });
+        for (const [h, a, k] of halvesOf(d)) {
+            if (!k || a === 'refuse') continue;
+            const half = h === 'one' ? (inbox && what === 'nothing' ? 'inbox' : what === 'books' ? 'books' : 'folders') : h;
+            const rec = t.placeReceipt({ [half]: wordsFor(a, k) });
+            if (!rec.warning) misses.push(`${g}${x !== undefined ? '/' + x : ''} ${label(what, inbox)} ${fk} → ${tk}: ${half} ${a} (${k}) — an ordinary notice`);
+        }
+    }
+    assert.deepStrictEqual(misses, []);
+    assert.deepStrictEqual([...t.TRANSLATIONS].sort(), ['copy-to-restore', 'cut-to-copy']);
 });
 
 done();

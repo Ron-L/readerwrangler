@@ -21,6 +21,9 @@
 # 7.30.0-alpha.8: a left-pane folder dropped on a right-pane folder row's or tile's top / bottom quarter does what the left
 # pane's own edge does — a reorder under the same parent, a move at that position under another (CELL-108–112); a
 # right-pane tile's own edge drop still reorders (CELL-113).
+# 7.30.0-alpha.9 (§6 item 20, Ron 2026-11-15): a cut that can't be done as a move is done as a copy — a folder cut onto a
+# Book List adds its books (CELL-114, 116; the clipboard then empty, CELL-115; the worst case — a deep tree — CELL-117),
+# the Inbox cut is copied (CELL-118, 119); said as a warning at both ends, and the Trash's copy → restore too (TOAST-003–005).
 # A cell whose decided behavior isn't written anywhere records TODAY's behavior instead, and says so in its name
 # ("today's, not decided") — those are listed in the sprint's report for Ron, never guessed.
 #
@@ -39,9 +42,12 @@
 #     ⊃ Old Favorites: 20 Deep in the Folders, 19 A Book With a Note
 #   Every Ownership Kind: 6–16; An Empty Folder; Book Lists: Read Next 3 20 16, An Empty Book List
 #   Trash: 21 A Book in the Trash (was in Science Fiction). Searches: The Saga ("Test Saga"), Tagged Read.
+import json
 import os
 import re
+import shutil
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, differs_today, done, test   # noqa: E402
@@ -1258,10 +1264,166 @@ with App() as app:
     add("TOAST-002", "an ordinary toast (Ctrl+C in a folder) is not amber, and is gone from where it appeared by ~3 s",
         toast_look("Science Fiction", ND, "c", warning=False))
 
-    # Warnings on purpose: CELL-053's refusal (MOVE-06); CELL-039's "a paste will restore" (MOVE-10, §6 item 6)
-    DELIBERATE = ("MOVE-06", "MOVE-10")
+    # ── 7.30.0-alpha.9 (§6 item 20, Ron 2026-11-15): a cut that can't be done as a move is done as a copy — the same
+    # everywhere; said as a WARNING (amber, held ~4 s) at the paste always, and at the cut when it's known there ──────────
+    def said_at(words_part):
+        """The level · code of the gesture's message holding words_part ('' = none)."""
+        for _, x in app.console[_mark[0]:]:
+            m = re.match(r"^(\w+) · ([A-Z]+(?:-\d+)?) · (.*)", x)
+            if m and norm(words_part) in norm(m.group(3)):
+                return f"{m.group(1)} · {m.group(2)}"
+        return ""
+
+    def warned(gesture, decided, says, level_of):
+        """cell(), and: the message holding level_of was a WARNING (MOVE-10 at the cut, MOVE-12 at the paste)."""
+        def g():
+            gesture()
+            words()
+            lv = said_at(level_of)
+            check(lv.startswith("warning"), f"{level_of!r} should be said as a warning — it was {lv or 'not said'!r}")
+        return cell(g, decided, says)
+
+    OFF_LIST = "A folder can't be moved onto a Book List, so it stays where it was."
+    add("CELL-114", "Ctrl+X on a folder → Ctrl+V on a Book List: done as a COPY — its books (its subfolders' too) added, "
+        "the folder stays where it was; the receipt says what happened and why, as a warning; one Ctrl+Z (was: refused, "
+        "\"A folder can't be moved onto a Book List…\")",
+        warned(lambda: (pick("Science Fiction", "Space Opera"), key("x"), paste_key("Read Next")),
+               {"Read Next": "+19"},
+               ["Added 'A Book With a Note' from 'Space Opera' to 'Read Next' (1 was already there). " + OFF_LIST],
+               OFF_LIST))
+
+    def translated_then_second_paste():
+        pick("Science Fiction", "Space Opera")
+        key("x")
+        paste_key("Read Next")
+        words()
+        mark()
+        paste_key("An Empty Book List")               # a cut pastes once — done as a copy or not: nothing left to paste
+    add("CELL-115", "after a cut done as a copy is pasted, the clipboard is empty — as after any cut (a second Ctrl+V "
+        "elsewhere does nothing; as decision 2's cut from All Books onto a list)",
+        cell(translated_then_second_paste, {"Read Next": "+19"}))
+    add("CELL-116", "Ctrl+X on a book AND a folder → Ctrl+V on a Book List: the book MOVES onto the list (its last folder: "
+        "to the Inbox, said), the folder's half is done as a copy — its books added after it; one warning; one Ctrl+Z "
+        "(was: the folder's refusal refused both)",
+        warned(lambda: (pick(*MIXED), key("x"), paste_key("Read Next")),
+               {"Science Fiction": "-18", "Inbox": "+18", "Read Next": "+18 +19"},
+               ["Moved 'A Book With No Description' from 'Science Fiction' to 'Read Next'.",
+                "it went to the Inbox", "Added 'A Book With a Note' from 'Space Opera' to 'Read Next' (1 was already there). "
+                + OFF_LIST], OFF_LIST))
+
+    def restore_deep_tree():
+        """A variant of the fixture (from a file, as DELKEY-008's): Science Fiction (17 18 5) ⊃ Space Opera (7 6) ⊃ Zeta
+        Stories (8 3) and Old Favorites (20 19) ⊃ Deepest (9 16) — Zeta Stories FIRST in Space Opera's Manual order, but
+        last in the stored list and after Old Favorites by name, so the order checked is the Manual one. Read Next holds
+        3 20 16 — one book from each of the three deepest folders."""
+        data = json.load(open(FIXTURE, encoding="utf-8"))
+        fs = data["organization"]["folders"]
+        tst = lambda *ns: [f"TST{n:07d}" for n in ns]   # noqa: E731
+        space = next(f for f in fs if f["id"] == "f-space")
+        space["bookIds"], space["childFolderIds"] = tst(7, 6), ["f-zeta", "f-old"]
+        old = next(f for f in fs if f["id"] == "f-old")
+        old["bookIds"], old["childFolderIds"] = tst(20, 19), ["f-deep"]
+        fs.append({"id": "f-deep", "name": "Deepest", "bookIds": tst(9, 16), "parentId": "f-old", "collapsed": False,
+                   "sortIndex": 0})
+        fs.append({"id": "f-zeta", "name": "Zeta Stories", "bookIds": tst(8, 3), "parentId": "f-space", "collapsed": False,
+                   "sortIndex": 0})
+        folder = tempfile.mkdtemp(prefix="rw-cells-")
+        variant = os.path.join(folder, "deep-tree.json")
+        with open(variant, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
+        try:
+            app.restore(variant)
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+        app.menu("View", "List View").click()
+
+    def deep_tree_onto_list():
+        try:
+            restore_deep_tree()
+            before = state()
+            folders_view()
+            select("Science Fiction")
+            key("x")
+            paste_key("Read Next")
+            said = words()
+            after = state()
+            got = delta(before, after)
+            check(got == {"Read Next": "+5 +6 +7 +8 +9 +17 +18 +19"}, f"changed {got} — every book in the tree added "
+                                                                    f"once, nothing out of any folder")
+            order = [short(i) for i in next(x for x in after["lists"] if x["name"] == "Read Next")["books"]]
+            # the folder's own books, then each subfolder depth-first in Manual order: Space Opera (7 6), Zeta Stories (8;
+            # 3 was there), Old Favorites (19; 20 was there), Deepest (9; 16 was there) — after the list's own 3 20 16
+            check(order == [3, 20, 16, 17, 18, 5, 7, 6, 8, 19, 9], f"Read Next's order: {order}")
+            want = "Added 8 books from 'Science Fiction' to 'Read Next' (3 were already there). " + OFF_LIST
+            check(norm(want) in norm(said), f"the receipt should say {want!r} — said {said!r}")
+            lv = said_at(OFF_LIST)
+            check(lv.startswith("warning"), f"the receipt should be a warning — it was {lv!r}")
+            undone = undo_once()
+            back = not_exactly(before, state())
+            check(not back, f"one Ctrl+Z ({undone or 'nothing to undo'}) left: {back}")
+            more = undo_once()
+            check(not more, f"a second Ctrl+Z still undid something: {more}")
+        finally:
+            clean_up()
+            restore_fixture()
+    add("CELL-117", "the worst case: a folder three levels deep (books at every level, some already on the list) cut → "
+        "pasted onto a Book List: every book in the tree added ONCE, in the stated order (its own books, then each "
+        "subfolder depth-first in Manual order), nothing out of any folder, the count right, one warning, one Ctrl+Z",
+        deep_tree_onto_list)
+
+    INBOX_CUT = "The Inbox can't be moved — pasting it will copy it."
+
+    def cut_inbox():
+        folders_view()
+        select("Inbox")
+        mark()
+        key("x")
+    add("CELL-118", "Ctrl+X on the Inbox (the Folders view) says at once that a paste will copy it — a warning (was: "
+        "\"The Inbox can't be moved.\" and nothing on the clipboard)",
+        warned(cut_inbox, {}, [INBOX_CUT], INBOX_CUT))
+    INBOX_STAYS = "The Inbox can't be moved, so it stays where it was."
+    add("CELL-119", "Ctrl+X on the Inbox → Ctrl+V in a folder: COPIED, as a copy of the Inbox is (\"Inbox (Copy)\" with its "
+        "books); the Inbox stays; the receipt is a warning; one Ctrl+Z",
+        warned(lambda: (cut_inbox(), paste_key("Fantasy")), {"new Inbox (Copy)": "in Fantasy: 22 23"},
+               ["Copied 'Inbox' (2 books) as 'Inbox (Copy)'. " + INBOX_STAYS], INBOX_STAYS))
+
+    def toast_after(gesture, words_part):
+        """The look of the toast that says words_part, right after gesture(): amber (a warning), and still there ~3 s on."""
+        def run():
+            try:
+                gesture()
+                t = page.locator(".clipboard-toast", has_text=words_part).first
+                t.wait_for(state="visible", timeout=4000)
+                shown = page.evaluate("() => performance.now()")
+                # a toast that replaces another (the cut's, then the paste's) fades to its colors (.clipboard-toast's 1 s
+                # transition) — read the look once it has settled
+                for _ in range(30):
+                    look = t.evaluate(TOAST_JS)
+                    if look["bg"] == look["amber"]:
+                        break
+                    page.wait_for_timeout(50)
+                check("warning" in look["cls"] and look["bg"] == look["amber"],
+                      f"the toast {words_part!r} should be amber — its class {look['cls']!r}, background {look['bg']}")
+                page.wait_for_timeout(max(0, 2800 - (page.evaluate("() => performance.now()") - shown)))
+                check(page.locator(".clipboard-toast:not(.animating)", has_text=words_part).count() > 0,
+                      f"~3 s on, the warning {words_part!r} is no longer where it appeared (a warning stays ~4 s)")
+            finally:
+                clean_up()
+        return run
+    add("TOAST-003", "the receipt of a cut done as a copy (a folder onto a Book List) looks like a warning: amber, held",
+        toast_after(lambda: (pick("Science Fiction", "Space Opera"), key("x"), paste_key("Read Next")), "stays where it was"))
+    add("TOAST-004", "… and so does the Inbox's Ctrl+X, which says it at the cut",
+        toast_after(lambda: (folders_view(), select("Inbox"), page.keyboard.press("Control+x")), "pasting it will copy it"))
+    add("TOAST-005", "the same kind of notice for the Trash's copy → restore: its paste receipt (\"Restored … from the "
+        "Trash into …\") is a warning now — amber, held (was an ordinary notice)",
+        toast_after(lambda: (pick("Trash", TR), key("c"), paste_key("Fantasy")), "from the Trash into"))
+
+    # Warnings on purpose: CELL-053's refusal (MOVE-06); CELL-039's "a paste will restore" and CELL-118's "pasting it will
+    # copy it" (MOVE-10, §6 items 6, 20); the receipts of a gesture done as something other than its verb (MOVE-12, §6
+    # item 20 — CELL-040, 063, 066, 069, 114, 116, 117, 119)
+    DELIBERATE = ("MOVE-06", "MOVE-10", "MOVE-12")
     if not ONLY:
-        test("CELL-058", "no unexpected console messages (the warnings MOVE-06 and MOVE-10 are on purpose)",
+        test("CELL-058", "no unexpected console messages (the warnings MOVE-06, MOVE-10 and MOVE-12 are on purpose)",
              lambda: check(not [x for x in app.unexpected_console() if not any(c in x for c in DELIBERATE)],
                            [x for x in app.unexpected_console() if not any(c in x for c in DELIBERATE)]))
 
