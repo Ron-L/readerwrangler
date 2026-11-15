@@ -153,7 +153,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.30.0-alpha.8"; // Build version for this file
+var ORGANIZER_VERSION = "7.30.0-alpha.10"; // Build version for this file
 // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
 // problem… (7.29.0: one copy, so the two can't drift)
 var DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -1616,6 +1616,7 @@ function ReaderWrangler() {
   // 7.30.0 - ONE clipboard for books AND folders: null | { type: 'cut'|'copy', bookIds: [], folderIds: [], from: placeId }
   // (`from` = where it was filled — a cut takes the books out of THAT place). Filled by putOnClipboard, read by
   // pasteClipboard. (The second keyboard listener's separate folder clipboard is gone — ONE-TABLE.md §5.)
+  // 7.30.0-alpha.9 - and `inbox: true` when the Inbox is among the folders (its own half — never in folderIds).
   var [clipboard, setClipboard] = useState(null);
   // v4.16.0.g - Clipboard status message for footer
   var [clipboardMessage, setClipboardMessage] = useState(null); // "3 books cut" or "5 books copied"
@@ -2170,22 +2171,21 @@ function ReaderWrangler() {
   (listList.find((bl) => bl.id === getBookListId(placeId)) || {}).name || 'Book List' :
   (folderList.find((f) => f.id === placeId) || {}).name || 'folder';
 
-  // Cut / Copy: books and folders onto the ONE clipboard, and the words (gestureTable.clipWords). A cut never takes
-  // the Inbox (it never moves — said); a copy out of the Trash warns that a paste will restore (§6 item 6 — a
-  // warning, so it gets the warning look). from: the place they're cut or copied from. Returns true when it acted.
+  // Cut / Copy: books and folders onto the ONE clipboard, and the words (gestureTable.clipNotice). The Inbox, when
+  // it's among the folders, is its own half (`inbox`): a cut can't move it, so its paste copies it (§6 item 20 —
+  // 7.30.0-alpha.9; was: left off the clipboard, "The Inbox can't be moved."). A translation already known here —
+  // a copy out of the Trash will restore (§6 item 6), the Inbox cut will be copied — is said as a WARNING (the
+  // table decides which). from: the place they're cut or copied from. Returns true when it acted.
   var putOnClipboard = (type, bookIds, folderIds, from) => {
-    var { taken, kept } = gestureTable.clipFolders(type, folderIds);
-    var inboxNote = kept.length ? gestureTable.MOVE_WORDS.inboxCantMove : '';
-    if (bookIds.length === 0 && taken.length === 0) {
-      if (inboxNote) rwLog.log('info', 'MOVE', inboxNote, null, { toast: true });
-      return !!inboxNote;
-    }
-    setClipboard({ type, bookIds: [...bookIds], folderIds: taken, from });
-    var words = gestureTable.clipWords(type, {
+    var { taken, inbox } = gestureTable.clipFolders(folderIds);
+    if (bookIds.length === 0 && taken.length === 0 && !inbox) return false;
+    setClipboard({ type, bookIds: [...bookIds], folderIds: taken, inbox, from });
+    var notice = gestureTable.clipNotice(type, {
       books: bookIds.length, title: bookIds.length === 1 ? shortTitle(bookIds[0]) : undefined,
-      folders: taken.length, folderName: taken.length === 1 ? nameOfPlace(taken[0]) : undefined, fromTrash: from === '__trash__' });
-    if (type === 'copy' && from === '__trash__' && bookIds.length > 0) rwLog.log('warning', 'MOVE-10', `${words}`, null, { toast: true });else
-    rwLog.log('info', 'MOVE', inboxNote ? `${words}. ${inboxNote}` : words, null, { toast: true });
+      folders: taken.length, folderName: taken.length === 1 ? nameOfPlace(taken[0]) : undefined,
+      inbox, inboxName: nameOfPlace('__inbox__'), from });
+    if (notice.warning) rwLog.log('warning', 'MOVE-10', `${notice.words}`, null, { toast: true });else
+    rwLog.log('info', 'MOVE', notice.words, null, { toast: true });
     return true;
   };
   // Ctrl+X / Ctrl+C act on what's selected in the right pane — books, folders, or both (§6 items 13, 17); with
@@ -2201,16 +2201,17 @@ function ReaderWrangler() {
     var bookIds = (clip.bookIds || []).filter((id) => bookMap.has(id));
     var folderIds = (clip.folderIds || []).filter((id) => folders.some((f) => f.id === id));
     var what = gestureTable.selectionWhat(bookIds.length, folderIds.length);
-    return what === 'nothing' ? null : { ...clip, bookIds, folderIds, what };
+    var inbox = !!clip.inbox; // (the Inbox is never deleted)
+    return what === 'nothing' && !inbox ? null : { ...clip, bookIds, folderIds, what, inbox };
   };
-  var pasteRow = (clip, target) => gestureTable.decide('paste', clip.what, { placeId: clip.from, clip: clip.type }, { placeId: target });
+  var pasteRow = (clip, target) => gestureTable.decide('paste', clip.what, { placeId: clip.from, clip: clip.type, inbox: clip.inbox }, { placeId: target });
   // "Can this clipboard be pasted there?" — the refusal's words, or null. The menus' greyed Paste + its "why" read it.
   var pasteRefusal = (target) => {
     var clip = clipNow(clipboard);
     var row = clip && pasteRow(clip, target);
     return row && row.act === 'refuse' ? row.words : null;
   };
-  var clipboardCount = () => {var clip = clipNow(clipboard);return clip ? clip.bookIds.length + clip.folderIds.length : 0;};
+  var clipboardCount = () => {var clip = clipNow(clipboard);return clip ? clip.bookIds.length + clip.folderIds.length + (clip.inbox ? 1 : 0) : 0;};
   // THE paste — Ctrl+V and both menus' Paste. target: where it's pasted (the key and the book menu: the place you're
   // in; the folder menu: the folder right-clicked). A cut pastes once. Returns true when there was something to
   // paste (the key then claims the keystroke).
@@ -2235,12 +2236,17 @@ function ReaderWrangler() {
   // (placeItems — ONE undo step, ONE receipt). A refusal says the table's words. Returns true when it acted.
   // opts: { ctrl } (a drag: Ctrl held at the drop), { at } (where the receipt shows), { create } (see placeItems),
   // { slot } (see placeItems).
-  var placeByTable = (gesture, bookIds, folderIds, from, target, { ctrl = false, at, create, slot } = {}) => {
-    var what = gestureTable.selectionWhat(bookIds.length, folderIds.length);
-    if (what === 'nothing') return false;
-    var row = gestureTable.decide(gesture, what, { placeId: from, ctrl }, { placeId: target });
+  // 7.30.0-alpha.9 - the Inbox among the folders is its own half, as on the clipboard (a move can't move it: the
+  // table's row copies it — §6 item 20; was: planReparent refused the whole drop, MOVE-07).
+  // { confirmLarge } (7.30.0-alpha.10): the folder menu's Move to › asks before moving folders with more than 20
+  // subfolders (see placeItems) — a drag doesn't.
+  var placeByTable = (gesture, bookIds, folderIds, from, target, { ctrl = false, at, create, slot, confirmLarge } = {}) => {
+    var { taken, inbox } = gestureTable.clipFolders(folderIds);
+    var what = gestureTable.selectionWhat(bookIds.length, taken.length);
+    if (what === 'nothing' && !inbox) return false;
+    var row = gestureTable.decide(gesture, what, { placeId: from, ctrl, inbox }, { placeId: target });
     if (row.act === 'refuse') {rwLog.log('info', 'MOVE', row.words, null, { toast: at || true });return false;}
-    placeItems(row, { bookIds, folderIds, from }, target, { at, create, slot });
+    placeItems(row, { bookIds, folderIds: taken, inbox, from }, target, { at, create, slot, confirmLarge });
     return true;
   };
   // A drop of right-pane items (books and / or folders, as the drag carried them) onto a place — every drop target
@@ -2285,18 +2291,48 @@ function ReaderWrangler() {
   // with it in, to plan against) }; its making is part of the ONE undo step. at: where the receipt shows.
   // slot (7.30.0-alpha.7): folders moved to a POSITION among the destination's children — { targetFolderId,
   // position: 'before' | 'after' } (a left-pane folder dropped on the edge of a folder under another parent).
-  var placeItems = async (row, { bookIds, folderIds, from }, target, { at, create, slot } = {}) => {
+  // inbox (7.30.0-alpha.9): the Inbox is among the folders — its own half (row.inbox), as the table answers it: a
+  // cut copies it (§6 item 20). A half done as something other than its verb (gestureTable.translatedHalf) carries
+  // that onto its words, and the receipt is then a WARNING (gestureTable.placeReceipt — the one helper).
+  // confirmLarge (7.30.0-alpha.10 — the folder menu's Move to ›; was reparentFolder's, now gone): once the plans
+  // are made, folders that MOVE with more than 20 subfolders between them are asked about first (confirmLargeMove);
+  // Cancel changes nothing.
+  var placeItems = async (row, { bookIds, folderIds, from, inbox = false }, target, { at, create, slot, confirmLarge } = {}) => {
     var lists = create ? { folderList: create.folderList || folders, listList: create.listList || bookLists } : {};
-    var bookAct = row.act === 'both' ? row.books : bookIds.length ? row.act : null;
-    var folderAct = row.act === 'both' ? row.folders : folderIds.length ? row.act : null;
-    var folderPlan = null,toPlace = bookIds;
-    if (folderAct === 'add-folder-books') {
-      // folders copied onto a Book List: their books, every subfolder's too (§6 item 8), placed with any books
-      toPlace = [...new Set([...bookIds, ...folderTreeBooks(folderIds)])];
-      bookAct = 'add-books';
-    } else if (folderAct) {
-      folderPlan = folderAct === 'move-folders' ? planFolderMove(folderIds, target, { ...lists, slot }) : planFolderCopy(folderIds, target, lists);
-      if (!folderPlan) return false; // refused by the folder operation's own check — it said why
+    var actOf = (half, there) => row.act === 'both' ? row[half] || null : there ? row.act : null;
+    var rowBookAct = actOf('books', bookIds.length > 0);
+    var bookAct = rowBookAct;
+    // The folder halves: the folders, then the Inbox — with the same act, one half (one plan, one sentence).
+    var halves = [];
+    var folderAct = actOf('folders', folderIds.length > 0),inboxAct = actOf('inbox', inbox);
+    if (folderAct) halves.push({ act: folderAct, ids: [...folderIds], translated: gestureTable.translatedHalf(row, 'folders'), inbox: false });
+    if (inboxAct) {
+      var same = halves.find((h) => h.act === inboxAct);
+      if (same) {same.ids.push('__inbox__');same.translated = same.translated || gestureTable.translatedHalf(row, 'inbox');} else
+      halves.push({ act: inboxAct, ids: ['__inbox__'], translated: gestureTable.translatedHalf(row, 'inbox'), inbox: true });
+    }
+    // Folders onto a Book List (a copy, or a cut done as one): their books, every subfolder's too (§6 item 8)
+    var listHalf = halves.find((h) => h.act === 'add-folder-books') || null;
+    var treeBooks = listHalf ? folderTreeBooks(listHalf.ids) : [];
+    // …placed with the books when those only add too (one plan, one sentence — as a copy always was); after
+    // them, in a plan of their own, when the books do something else (a cut's books move onto the list)
+    var together = listHalf && (bookIds.length === 0 || bookAct === 'add-books' && !listHalf.translated);
+    var toPlace = bookIds;
+    if (together) {toPlace = [...new Set([...bookIds, ...treeBooks])];bookAct = 'add-books';}
+    var folderPlans = [];
+    var planList = lists.folderList || folders;var _loop = async function ()
+      {
+        var plan = h.act === 'move-folders' ? planFolderMove(h.ids, target, { ...lists, folderList: planList, slot }) :
+        planFolderCopy(h.ids, target, { ...lists, folderList: planList });
+        if (!plan) return { v: false }; // refused by the folder operation's own check — it said why
+        folderPlans.push({ h, plan });
+        // a later plan (the Inbox's copy after the folders' move) is worked out against the folders as this one leaves them
+        if (plan.step && plan.step.type === 'REPARENT_FOLDER') planList = planList.map((f) => applyOrderFields(
+          plan.step.folderIds.includes(f.id) ? { ...f, parentId: plan.step.newParentId } : f, plan.step.orderAfter));
+      },_ret;for (var h of halves.filter((x) => x.act !== 'add-folder-books')) {_ret = await _loop();if (_ret) return _ret.v;}
+    if (confirmLarge) {
+      var moving = folderPlans.flatMap((p) => p.plan.step && p.plan.step.type === 'REPARENT_FOLDER' ? p.plan.step.folderIds : []);
+      if (!(await confirmLargeMove(moving))) return false;
     }
     if (bookAct === 'refile') {
       var answer = await askRefile(toPlace, target, lists);
@@ -2304,29 +2340,54 @@ function ReaderWrangler() {
       if (answer === 'add') bookAct = 'add-books';
     }
     var bookPlan = bookAct ? planBookPlacement(bookAct, toPlace, from, target, lists) : null;
-    var work = [folderPlan && folderPlan.step, bookPlan && bookPlan.step].filter(Boolean);
+    // the folders' books in their own plan: against the list as the books' plan leaves it (so they land after them)
+    var listAfter = (ll, step) => !step ? ll : ll.map((bl) => {
+      var ch = (step.lists || []).find((c) => c.id === bl.id);
+      return ch ? { ...bl, bookIds: shiftBooks(bl.bookIds, ch, false, true) } : bl;
+    });
+    // (a selected book that is also in the folder: the books' plan put it there — this one counts it "already there")
+    var listPlan = listHalf && !together && treeBooks.length ?
+    planBookPlacement('add-books', treeBooks, from, target, { ...lists, listList: listAfter(lists.listList || bookLists, bookPlan && bookPlan.step) }) :
+    null;
+    var work = [...folderPlans.map((p) => p.plan.step), bookPlan && bookPlan.step, listPlan && listPlan.step].filter(Boolean);
     if (create) create.apply(); // (its redo would also open the new folder — the gesture doesn't)
     work.forEach((step) => executeRedo(step)); // doing = redoing
     var steps = [create && create.step, ...work].filter(Boolean);
     if (steps.length === 1) recordAction(steps[0]);else
     if (steps.length > 1) recordAction({ type: 'COMPOUND', actions: steps, label: steps.map((s) => s.label).join(' + ') });
-    var folderBooksOnly = folderAct === 'add-folder-books' && bookIds.length === 0;
-    var words = gestureTable.placeWords({
-      books: folderBooksOnly ? null : bookPlan && bookPlan.words,
-      folders: folderBooksOnly ? bookPlan && { ...bookPlan.words, act: 'add-folder-books', names: folderIds.map(nameOfPlace) } :
-      folderPlan && folderPlan.words
+    // the words: each half's, carrying its translation while it still does that act (a copy out of the Trash
+    // pasted again only adds — no longer a restore, no warning)
+    var carry = (words, act, translated) => words && translated && words.act === act ? { ...words, translated } : words;
+    // the folders' books have a sentence of their own unless they went in with the selected books (one sentence,
+    // as a copy always said); folders with no books at all still say so
+    var listBase = listHalf && (together ? bookPlan : listPlan);
+    var listWords = listHalf && !(together && bookIds.length > 0) ? {
+      ...(listBase ? listBase.words : { n: 0, added: 0, already: 0, to: nameOfPlace(target, lists), toList: isBookListFolder(target) }),
+      act: 'add-folder-books', names: listHalf.ids.map((id) => nameOfPlace(id, lists)), translated: listHalf.translated || undefined } : null;
+    var planWords = (inboxHalf) => {
+      var p = folderPlans.find((x) => x.h.inbox === inboxHalf);
+      return p ? carry(p.plan.words, p.h.act, p.h.translated) : null;
+    };
+    var listIsInbox = listHalf && listHalf.inbox;
+    var receipt = gestureTable.placeReceipt({
+      books: together && bookIds.length === 0 ? null : bookPlan && carry(bookPlan.words, rowBookAct, gestureTable.translatedHalf(row, 'books')),
+      folders: (listHalf && !listIsInbox ? listWords : null) || planWords(false),
+      inbox: (listIsInbox ? listWords : null) || planWords(true)
     });
-    if (words) rwLog.log('info', 'MOVE', words, null, { toast: at || true });
+    if (receipt.warning) rwLog.log('warning', 'MOVE-12', `${receipt.words}`, null, { toast: at || true });else
+    if (receipt.words) rwLog.log('info', 'MOVE', receipt.words, null, { toast: at || true });
     return true;
   };
-  // Every book in these folders and all their subfolders (§6 item 8: an operation on a folder includes its tree).
+  // Every book in these folders and all their subfolders (§6 item 8: an operation on a folder includes its tree),
+  // in ONE order (7.30.0-alpha.9, stated): each folder's own books in its order, then each of its subfolders the
+  // same way, depth-first, in the order Manual sort shows them (manualOrderOf; was the stored array's order).
   var folderTreeBooks = (folderIds) => {
     var seen = new Set();
     var walk = (id) => {
       var f = folders.find((x) => x.id === id);
       if (!f) return;
       (f.bookIds || []).forEach((b) => seen.add(b));
-      folders.filter((c) => c.parentId === id).forEach((c) => walk(c.id));
+      manualOrderOf(id).forEach((c) => walk(c.id));
     };
     folderIds.forEach(walk);
     return [...seen];
@@ -2712,12 +2773,12 @@ function ReaderWrangler() {
   // collapse a "building up" sequence of recents (Niven → Niven+Purchased) against the adjacent top.
   var isSupersetFilters = (f, g) => {
     if (filterKey(f) === filterKey(g)) return false; // identical, not a strict superset
-    var _loop = function () {
+    var _loop2 = function () {
         var gv = g[k],fv = f[k];
         if (Array.isArray(gv)) {
           if (!Array.isArray(fv) || !gv.every((x) => fv.includes(x))) return { v: false };
         } else if (fv !== gv) return { v: false };
-      },_ret;for (var k of Object.keys(g)) {_ret = _loop();if (_ret) return _ret.v;}
+      },_ret2;for (var k of Object.keys(g)) {_ret2 = _loop2();if (_ret2) return _ret2.v;}
     return true;
   };
   // v6.12.0 - Save a filter set as a Search (optional name; blank → chips). Shared by the "Save as a
@@ -3618,7 +3679,7 @@ function ReaderWrangler() {
       if (!byParent.has(pid)) byParent.set(pid, []);
       byParent.get(pid).push(nf.id);
     });
-    var next = folderArr;var _loop2 = function (pid, ids)
+    var next = folderArr;var _loop3 = function (pid, ids)
     {
       var idPos = new Map(ids.map((id, i) => [id, i]));
       if (pid === null) {
@@ -3647,7 +3708,7 @@ function ReaderWrangler() {
           return { ...f, childFolderIds: [...ids, ...existing] };
         });
       }
-    };for (var [pid, ids] of byParent) {_loop2(pid, ids);}
+    };for (var [pid, ids] of byParent) {_loop3(pid, ids);}
     return next;
   };
 
@@ -4072,37 +4133,24 @@ function ReaderWrangler() {
     rwLog.log('info', 'ORG', `Manual order now matches the ${modeLabel} order — switch to Manual to tweak it`, null, { toast: true });
   };
 
-  // v5.0.0-alpha.78 - Phase D: Reparent folder (move into another folder) with undo
-  // v6.11.2 - Extracted from reparentFolder for reuse by moveItems
   // 7.30.0-alpha.4 - "Would this put a folder into itself or below it?" — the ONE check: a folder move, a folder copy,
   // and the menus' greyed targets (Law 16). Walks UP from the target, so a destination that a gesture is making
   // ("New folder here…" — in folderList, not yet in `folders`) is checked too. (Was isDescendantFolder, walking down.)
   // 7.30.0-alpha.6 - the check itself is gestureTable.intoItself (pure, function-tested — TABLE-027).
   var intoItself = (folderIds, target, folderList = folders) => gestureTable.intoItself(folderIds, target, folderList);
 
-  // v6.13.1-alpha.14 (ops refactor #4) - THE single source of truth for reparenting folder(s) — moving them
-  // to a new parent (or root, newParentId=null). Used by drag, the folder menu "Move to" (via moveFolder),
-  // and cut→paste-move. `opts.confirmLarge` folds in the retired moveFolder's >20-subfolder prompt (menu
-  // asks; drag doesn't). Async, but drag callers don't await — with confirmLarge falsy there's no await, so
-  // the mutation runs synchronously exactly as before. Reorder-within-a-parent and paste-COPY stay separate.
-  // 7.30.0 - the working-out on its own (planReparent: the checks, then the REPARENT_FOLDER step and its words —
-  // it changes nothing), so a paste of books AND folders makes ONE undo step of it and the book step. Doing it =
-  // redoing it (executeRedo), so the gesture and Ctrl+Y can't drift. Returns { step, words }, or null when refused
-  // (it said why).
-  var reparentFolder = async (folderIds, newParentId, opts = {}) => {
-    var plan = planReparent(folderIds, newParentId, opts);
-    if (!plan) return false;
-    if (opts.confirmLarge) {
-      var countDesc = (fid) => folders.filter((f) => f.parentId === fid).reduce((n, k) => n + 1 + countDesc(k.id), 0);
-      var descCount = folderIds.reduce((n, id) => n + countDesc(id), 0);
-      if (descCount > 20 && !(await showConfirmDialog('MOVE', 'Move Folder', `Move folder with ${descCount} subfolders?`))) return false;
-    }
-    executeRedo(plan.step);
-    recordAction(plan.step);
-    rwLog.log('info', 'MOVE', gestureTable.placeWords({ folders: plan.words }), null, { toast: true });
-    rwLog.log('debug', 'MOVE', `Moved ${folderIds.length} folder(s) ${newParentId ? 'into a folder' : 'to the top level'}`);
-    return true;
+  // The folder menu's Move to › asks first when the folders moving hold more than 20 subfolders between them (the
+  // retired moveFolder's prompt, v6.13.1; a drag doesn't ask). Resolves true to go ahead. 7.30.0-alpha.10: all that
+  // is left of reparentFolder — its last caller, that Move to ›, now asks the table (placeByTable → placeItems →
+  // planFolderMove → planReparent, the working-out it shared since 7.30.0), so it is gone (Law 22).
+  var confirmLargeMove = async (folderIds) => {
+    var countDesc = (fid) => folders.filter((f) => f.parentId === fid).reduce((n, k) => n + 1 + countDesc(k.id), 0);
+    var descCount = folderIds.reduce((n, id) => n + countDesc(id), 0);
+    return descCount <= 20 || showConfirmDialog('MOVE', 'Move Folder', `Move folder with ${descCount} subfolders?`);
   };
+  // THE working-out of a folder move (7.30.0 — split out of reparentFolder): the checks, then the REPARENT_FOLDER
+  // step and its words; it changes nothing, so a placement of books AND folders makes ONE undo step of it and the
+  // book step. Doing it = redoing it (executeRedo). Returns { step, words }, or null when refused (it said why).
   // opts.folderList (7.30.0-alpha.4): the folders to plan against — with a destination the gesture is making in
   // ("New folder here…", placeItems' create)
   // 7.30.0-alpha.6 - its checks are gestureTable.reparentProblem (TABLE-027), and a new one under the table: the new
@@ -4155,21 +4203,21 @@ function ReaderWrangler() {
 
     // Order-field snapshots: undo/redo restore these verbatim (see applyOrderFields)
     var sortIndexBefore = {},sortIndexAfter = {},childIdsBefore = {},childIdsAfter = {};
-    var oldNestedParents = new Set(oldParentIds.map((o) => o.oldParentId).filter((pid) => pid && pid !== newParentId));var _loop3 = function (pid)
+    var oldNestedParents = new Set(oldParentIds.map((o) => o.oldParentId).filter((pid) => pid && pid !== newParentId));var _loop4 = function (pid)
     {
       var p = fl.find((f) => f.id === pid);
       if (!p || !p.childFolderIds || !p.childFolderIds.some((id) => moveSet.has(id))) return 1; // continue
       childIdsBefore[pid] = p.childFolderIds;
       childIdsAfter[pid] = p.childFolderIds.filter((id) => !moveSet.has(id));
-    };for (var pid of oldNestedParents) {if (_loop3(pid)) continue;}
+    };for (var pid of oldNestedParents) {if (_loop4(pid)) continue;}
     if (newParentId) {
       var p = fl.find((f) => f.id === newParentId);
       childIdsBefore[newParentId] = p?.childFolderIds ?? null;
-      childIdsAfter[newParentId] = destIds;var _loop4 = function (id)
+      childIdsAfter[newParentId] = destIds;var _loop5 = function (id)
       {// leaving root: clear the stale root index
         var f = fl.find((x) => x.id === id);
         if (f && f.sortIndex !== undefined) {sortIndexBefore[id] = f.sortIndex;sortIndexAfter[id] = null;}
-      };for (var id of folderIds) {_loop4(id);}
+      };for (var id of folderIds) {_loop5(id);}
     } else {
       destIds.forEach((id, idx) => {
         var f = fl.find((x) => x.id === id);
@@ -9017,7 +9065,7 @@ function ReaderWrangler() {
   // Show-All fold — the same fromIndices idea MOVE_ITEMS and REMOVE_BOOKS_FOLDER already
   // use). Pairs sort ascending so sequential splice on undo reconstructs the original
   // order; a book not found (-1, defensive) sorts last and appends.
-  var stampRemovalIndices = (subActions, preFolders) => {var _loop5 = function (sa)
+  var stampRemovalIndices = (subActions, preFolders) => {var _loop6 = function (sa)
     {
       if (sa.type !== 'REMOVE_BOOKS_FROM_FOLDER') return 1; // continue
       var srcIds = preFolders.find((f) => f.id === sa.folderId)?.bookIds || [];
@@ -9025,7 +9073,7 @@ function ReaderWrangler() {
       sort((a, b) => (a[1] < 0 ? 1e9 : a[1]) - (b[1] < 0 ? 1e9 : b[1]));
       sa.bookIds = pairs.map((p) => p[0]);
       sa.fromIndices = pairs.map((p) => p[1]);
-    };for (var sa of subActions) {if (_loop5(sa)) continue;}
+    };for (var sa of subActions) {if (_loop6(sa)) continue;}
     return subActions;
   };
 
@@ -10979,7 +11027,7 @@ function ReaderWrangler() {
             setSaveResultsMenuOpen(false);
             if (count === 0) return;
             var proposed = autoNameView(buildCurrentFilters());
-            if (proposed === 'New View') proposed = '';var _loop6 = async function ()
+            if (proposed === 'New View') proposed = '';var _loop7 = async function ()
               {
                 var name = await showInputDialog('MOVE', 'New Book List', `Save these ${count} book${count !== 1 ? 's' : ''} as a new Book List.`, proposed, 'List name (optional)');
                 if (name === null) return { v: void 0 };
@@ -11001,7 +11049,7 @@ function ReaderWrangler() {
                 createBookList(trimmed, displayedIds);
                 rwLog.log('info', 'MOVE', `Saved ${bookCountLabel(displayedIds)} to "${trimmed}"`, null, { toast: true }); // v7.10.1 - named receipt
                 return { v: void 0 };
-              },_ret2;while (true) {_ret2 = await _loop6();if (_ret2 === 0) continue;if (_ret2) return _ret2.v;}
+              },_ret3;while (true) {_ret3 = await _loop7();if (_ret3 === 0) continue;if (_ret3) return _ret3.v;}
           } }, "\uFF0B New list\u2026"
 
         ),
@@ -18437,19 +18485,16 @@ function ReaderWrangler() {
       // right-clicked folder only, even with several selected.
       var menuBooks = selFolderIds.includes(folder.id) ? getSelectedBookIds() : [];
 
-      // v6.13.1-alpha.14 (ops refactor #4) - Folder menu "Move to": thin wrapper over reparentFolder
-      // (the single reparent source), with the large-move confirm. Retires the MOVE_FOLDER type.
-      // 7.30.0-alpha.4 - with books selected too: the one table's placement (placeByTable), as the book menu.
-      var moveFolder = async (targetParentId) => {
-        if (menuBooks.length) {
-          setFolderContextMenu(null);setContextSubmenu(null);
-          placeByTable('move', menuBooks, menuTargets, selectedFolderId, targetParentId || '__library__');
-          setExplorerSelectedItems(new Set());
-          return true;
-        }
-        var ok = await reparentFolder(menuTargets, targetParentId, { confirmLarge: true });
-        if (ok) {setFolderContextMenu(null);setContextSubmenu(null);}
-        return ok;
+      // v6.13.1-alpha.14 (ops refactor #4) - Folder menu "Move to", with the large-move confirm. Retires the
+      // MOVE_FOLDER type. 7.30.0-alpha.4 - with books selected too: the one table's placement (placeByTable),
+      // as the book menu. 7.30.0-alpha.10 - folders alone too (was reparentFolder on its own, the last move
+      // outside the table): the Inbox among them is then copied, as the table answers (§6 item 20; was
+      // refused whole, "Inbox cannot be moved"), and a folder already there says so (§6 item 7). The
+      // large-move question (confirmLarge) is asked inside the placement, before anything changes.
+      var moveFolder = (targetParentId) => {
+        setFolderContextMenu(null);setContextSubmenu(null);
+        placeByTable('move', menuBooks, menuTargets, selectedFolderId, targetParentId || '__library__', { confirmLarge: true });
+        if (menuBooks.length) setExplorerSelectedItems(new Set());
       };
       // Root = the top level: books can't go there (the table's words, greyed — Law 16)
       var rootWhy = (() => {

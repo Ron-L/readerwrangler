@@ -4,6 +4,7 @@
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
       - [One table for every move, copy, paste and delete: what each gesture does in each place](#one-table-for-every-move-copy-paste-and-delete-what-each-gesture-does-in-each-place)
+      - [A book left in no folder is caught the moment it happens, naming the action that did it](#a-book-left-in-no-folder-is-caught-the-moment-it-happens-naming-the-action-that-did-it)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
       - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
@@ -261,6 +262,31 @@ Also ONE-TABLE.md §6 item 9: the right-click Delete with books and folders both
 
 **Related:** "Move and copy books anywhere" (Polish) holds the move / copy semantics this table encodes; its decisions
 become rows. 7.25.1 fixes Ctrl+V's harmful cells by those decisions ahead of the table (the stopgap the table replaces).
+
+#### A book left in no folder is caught the moment it happens, naming the action that did it
+<!-- id 20261115-1239 -->
+
+_Why it matters:_ Every book lives in a folder (the Inbox catches the rest) — a book in no folder means an action just
+broke that, and today nobody hears of it until the next reload. Found 2026-11-13 (sprint 4): a cut pasted back into
+its own folder left the books in NO folder for the rest of the session (visible only in All Books), and so did a
+copy-paste back into the same folder followed by Ctrl+Z — both fixed in 7.30.0. The no-folder check runs only when the
+library loads, after an Import and after a Restore (integrity.js "Homeless books"; INTEG-02 / 04 / 06), so the report
+came later and said only THAT it happened, never what did it. (Ron, 2026-11-15: "file the debugging for unhomed books
+in TODO high priority (next)".)
+
+**Proposed** (Claude, 2026-11-15 — for Ron's word before it's built; Ron's idea: contributors get the log in front of
+them)
+1. **Check at every save** — the one save routine is the chokepoint: "is any book (not in the Trash) in no folder?"
+   Cheap (one pass over the folders). On a hit: put it in the Inbox (as the load-time repair does) and log an **error**
+   with a numbered code naming **the last action** — its Undo label (e.g. "Move 'Dune' to 'Fantasy'") — and the books.
+   That one line would have pointed straight at the 7.30.0 bugs.
+2. **Flagging: reuse, don't add** (Law 22). The red error bar already has Copy; it shows only when the **error banner**
+   switch is on, which today is separate from contributor mode. **Contributor mode turns the error banner on**, so a
+   contributor sees every error with Copy right there; ordinary users keep today's message and the log.
+3. Tests first: a screen test that leaves a book in no folder (through a test hook, since the known causes are fixed)
+   and sees the repair, the error and the action named; and one that contributor mode shows the bar.
+
+**Related:** 👀 Watching "Find out why some books end up in no folder" — the two causes above are the first found.
 
 #### Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)
 <!-- id 20261024-1045 -->
@@ -3884,6 +3910,10 @@ _Why it matters:_ Rare reports of books in no folder at all; watch whether it st
   check…" (✅ done in 7.26.0, removed from this list at release): an Import now files its new books before the check, so any
   homeless book reported after it is a real one — and the logging module (7.26.0) makes it noticeable (the "auto-fixed
   during restore" message is an error). Watch from 7.26.0 on.
+- **Two real causes found** (2026-11-13, sprint 4's measurement — CELL-007, CELL-037): a cut pasted back into its own
+  folder, and a copy pasted back into the same folder followed by Ctrl+Z, each left the books in no folder until the
+  next reload. Both fixed in 7.30.0. Catching the next cause as it happens: "A book left in no folder is caught the
+  moment it happens…" (High priority).
 
 **How (technical)**
 - The event is `integrity-homeless`; the suspect was a stale `FOLDERS_KEY`.

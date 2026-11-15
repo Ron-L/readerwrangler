@@ -6,7 +6,10 @@
 // rows (TODO "One table for every move, copy, paste and delete…", id 20261106-1237; ONE-TABLE.md §4–§6). 7.30.0-alpha.6:
 // a drag's words for folders refused at the Book Lists / Searches headers; reparentProblem + intoItself (planReparent's
 // checks, pure — a folder's new parent is a real folder or the top level). 7.30.0-alpha.7: a drag's words for books
-// dropped on the Book Lists header (DRAG_BOOK_WORDS, beside DRAG_FOLDER_WORDS).
+// dropped on the Book Lists header (DRAG_BOOK_WORDS, beside DRAG_FOLDER_WORDS). 7.30.0-alpha.9 (§6 item 20, Ron
+// 2026-11-15): a cut that can't be done as a move is done as a copy — derived from the rows (cutToCopy), the Inbox a half
+// of its own (INBOX_ROWS); every translation said as a warning at both ends (clipNotice, placeReceipt). 7.30.0-alpha.10:
+// the precedent itself (books cut from All Books / a Search onto a Book List, "just added") is marked one too (COPY_ACTS).
 //
 // Pure — no React, no DOM, no app state — so the rules are function-tested (test/gestureTable.test.js) and every
 // combination must have a row. Loaded as a classic script before readerwrangler.js (browser); required by the test
@@ -122,8 +125,22 @@ const MOVE_WORDS = {
     openAPlace: 'Open a folder or Book List to paste into it.',
     foldersOpenAFolder: 'Open a folder to paste folders into it.',
     foldersIntoTrash: "Can't paste folders into the Trash. To delete folders, press Delete.",
-    folderOntoList: "A folder can't be moved onto a Book List. To add its books to the list, copy the folder instead.",
+    // 7.30.0-alpha.9: the two below are no longer said as refusals — a cut of a folder onto a Book List, and of the Inbox,
+    // is done as a copy (§6 item 20); they are the translated cells' `why` (was: "…To add its books to the list, copy the
+    // folder instead.")
+    folderOntoList: "A folder can't be moved onto a Book List.",
     inboxCantMove: "The Inbox can't be moved.",
+    // 7.30.0-alpha.9 (§6 item 20): what a cut done as a copy says — at Ctrl+X when it's known there (the Inbox, wherever
+    // it's pasted), and at the paste always (placeReceipt), after the receipt's own sentence
+    inboxCutCopies: "The Inbox can't be moved — pasting it will copy it.",
+    inboxStaysCopied: "The Inbox can't be moved, so it stays where it was.",
+    folderStaysOffList: "A folder can't be moved onto a Book List, so it stays where it was.",
+    foldersStayOffList: "Folders can't be moved onto a Book List, so they stay where they were.",
+    // 7.30.0-alpha.10: the precedent ("Move and copy books anywhere" decision 2) — books cut from All Books or a Search
+    // onto a Book List are just added; the row's why, and what the paste's receipt says after its own sentence
+    listKeepsFolders: "A Book List doesn't take books out of their folders.",
+    bookStaysInFolders: "A Book List doesn't take a book out of its folders, so it stays where it was.",
+    booksStayInFolders: "A Book List doesn't take books out of their folders, so they stay where they were.",
     copyIntoItself: "Can't copy a folder into itself or its subfolder.",
     moveIntoItself: "Can't move a folder into itself or its subfolder.",
     // 7.30.0-alpha.4: books aimed at the top level (the Folders header) by a menu or a drag — the words name the place; the
@@ -160,9 +177,37 @@ const DRAG_BOOK_WORDS = { 'book-lists-view': MOVE_WORDS.dragBooksNotOntoBookList
 //            copy-folders — the whole tree as "X (Copy)", every book filed in the copy too (§6 items 8, 15)
 //            add-folder-books — a copy onto a Book List: the folders' books, every subfolder's too (decision 10 of
 //                           "Move and copy books anywhere", for the keys)
-//   both:    { act: 'both', books, folders } — each half by its own row; a half that refuses refuses the whole
+//   both:    { act: 'both', books, folders, inbox } — each half by its own row (the ones there); a half that refuses
+//            refuses the whole; `translated: { <half>: kind }` names the halves done as something other than the verb
 //   refuse   — nothing changes; `words` say why (Law 16). `why` on a row nobody decided: it says so, for Ron.
+// The Inbox is a half of its own (`from.inbox`: it is among what's moved — 7.30.0-alpha.9): it never moves, so its move
+// row refuses wherever a folder's would act — and the rule below then copies it.
+//
+// A TRANSLATION — a gesture done as something other than its verb — is marked on its row: `translated: <kind>`, and `why`
+// (the words the verb's own answer would have said). Two kinds, each said as a WARNING at both ends (§6 items 6, 20;
+// placeReceipt, clipNotice):
+//   cut-to-copy     — §6 item 20 (Ron, 2026-11-15): a cut that can't be done as a move is done as a copy. DERIVED, never
+//                     a hand list: wherever a move row refuses and the copy row for the same what / from / to acts, the
+//                     move's answer IS the copy's act (cutToCopy below) — so a new row, or a gesture that asks the move
+//                     rows (Move to ›, a future Shift-drag), can't leave one refused. TABLE-029 lists every such cell.
+//                     7.30.0-alpha.10: and every move answer that does a COPY's act (COPY_ACTS — it only adds or copies)
+//                     is one too: the precedent, books cut from no container onto a Book List ("just added", decision 2),
+//                     written with its why; a move cell doing a copy's act without one can't be built (TABLE-033).
+//   copy-to-restore — §6 item 6: a copy out of the Trash is a restore (a book can't be both thrown away and filed).
+const CUT_TO_COPY = 'cut-to-copy', COPY_TO_RESTORE = 'copy-to-restore';
+const TRANSLATIONS = [CUT_TO_COPY, COPY_TO_RESTORE];
+const COPY_ACTS = ['add-books', 'copy-folders', 'add-folder-books'];
 const refuse = (words, why) => (why ? { act: 'refuse', words, why } : { act: 'refuse', words });
+const asCopy = (move, copy) => {
+    if (move.act === 'refuse' && copy.act !== 'refuse') return { act: copy.act, translated: CUT_TO_COPY, why: move.words };
+    if (COPY_ACTS.includes(move.act) && !move.translated) {
+        if (!move.why) throw new Error(`gestureTable: a move answer that does a copy's act (${move.act}) must say why`);
+        return { act: move.act, translated: CUT_TO_COPY, why: move.why };
+    }
+    return move;
+};
+const cutToCopy = (moveRow, copyRow) => Object.fromEntries(PLACE_KINDS.map(k => [k, asCopy(moveRow[k], copyRow[k])]));
+const eachFrom = (fn) => Object.fromEntries(PLACE_KINDS.map(k => [k, fn(k)]));
 // One row = the answer for each place it can go to, in PLACE_KINDS' order (folder, inbox, all-books, folders-view,
 // searches-view, book-lists-view, book-list, search, trash).
 const toEach = (...answers) => {
@@ -173,26 +218,34 @@ const W = MOVE_WORDS;
 const ALL = refuse(W.intoAllBooks), OPEN = refuse(W.openAPlace), TRASH = refuse(W.intoTrash);
 // a move from a container (a folder, the Inbox, a Book List)
 const FROM_CONTAINER = toEach('move-books', 'move-books', ALL, ALL, OPEN, OPEN, 'move-books', OPEN, TRASH);
-// a move from no container (All Books, a Search; and the three headers, which show no books — that cell can't be reached)
-const FROM_NOWHERE = toEach('refile', 'refile', ALL, ALL, OPEN, OPEN, 'add-books', OPEN, TRASH);
+// a move from no container (All Books, a Search; and the three headers, which show no books — that cell can't be reached).
+// Onto a Book List it is just added — a cut done as a copy (7.30.0-alpha.10, §6 item 20: the rule's precedent; asCopy
+// marks it, with this why)
+const FROM_NOWHERE = toEach('refile', 'refile', ALL, ALL, OPEN, OPEN, { act: 'add-books', why: W.listKeepsFolders }, OPEN, TRASH);
+// a move out of the Trash: it leaves the Trash — a restore is what a move out of it IS
 const FROM_TRASH = toEach('restore', 'restore', ALL, ALL, OPEN, OPEN, 'restore', OPEN, TRASH);
+// a copy out of the Trash: a restore too — a translation (§6 item 6)
+const COPY_FROM_TRASH = eachFrom(k => (FROM_TRASH[k].act === 'restore' ? { act: 'restore', translated: COPY_TO_RESTORE } : FROM_TRASH[k]));
 const COPY = toEach('add-books', 'add-books', ALL, ALL, OPEN, OPEN, 'add-books', OPEN, TRASH);
-const BOOK_ROWS = {
-    move: {
-        'folder': FROM_CONTAINER, 'inbox': FROM_CONTAINER, 'book-list': FROM_CONTAINER,
-        'all-books': FROM_NOWHERE, 'search': FROM_NOWHERE,
-        'folders-view': FROM_NOWHERE, 'searches-view': FROM_NOWHERE, 'book-lists-view': FROM_NOWHERE,
-        'trash': FROM_TRASH,
-    },
-    copy: Object.fromEntries(PLACE_KINDS.map(k => [k, k === 'trash' ? FROM_TRASH : COPY])),
+const BOOK_COPY = eachFrom(k => (k === 'trash' ? COPY_FROM_TRASH : COPY));
+const BOOK_MOVE_ASKED = {
+    'folder': FROM_CONTAINER, 'inbox': FROM_CONTAINER, 'book-list': FROM_CONTAINER,
+    'all-books': FROM_NOWHERE, 'search': FROM_NOWHERE,
+    'folders-view': FROM_NOWHERE, 'searches-view': FROM_NOWHERE, 'book-lists-view': FROM_NOWHERE,
+    'trash': FROM_TRASH,
 };
+const BOOK_ROWS = { move: eachFrom(k => cutToCopy(BOOK_MOVE_ASKED[k], BOOK_COPY[k])), copy: BOOK_COPY };
 // Folders: the same wherever they came from (they can be selected in a folder, the Inbox and the Folders view).
 const F_OPEN = refuse(W.foldersOpenAFolder), F_TRASH = refuse(W.foldersIntoTrash);
-const FOLDER_ROWS = {
-    move: toEach('move-folders', 'move-folders', F_OPEN, 'move-folders', F_OPEN, F_OPEN,
-        refuse(W.folderOntoList, 'not decided — a folder MOVED onto a Book List (a copy adds its books); for Ron'), F_OPEN, F_TRASH),
-    copy: toEach('copy-folders', 'copy-folders', F_OPEN, 'copy-folders', F_OPEN, F_OPEN, 'add-folder-books', F_OPEN, F_TRASH),
-};
+const FOLDER_COPY = toEach('copy-folders', 'copy-folders', F_OPEN, 'copy-folders', F_OPEN, F_OPEN, 'add-folder-books', F_OPEN, F_TRASH);
+// a folder MOVED onto a Book List: refused as a move (lists don't hold folders) — so, by the rule, done as the copy: its
+// books added, every subfolder's too; the folder stays (§6 item 20; was "not decided", refused)
+const FOLDER_MOVE_ASKED = toEach('move-folders', 'move-folders', F_OPEN, 'move-folders', F_OPEN, F_OPEN, refuse(W.folderOntoList), F_OPEN, F_TRASH);
+const FOLDER_ROWS = { move: cutToCopy(FOLDER_MOVE_ASKED, FOLDER_COPY), copy: FOLDER_COPY };
+// The Inbox (7.30.0-alpha.9): copied like any folder; never moved — wherever a copy of it acts, its move refuses with its
+// own words (and so, by the rule, is done as that copy); elsewhere the folders' refusal.
+const INBOX_MOVE_ASKED = eachFrom(k => (FOLDER_COPY[k].act === 'refuse' ? FOLDER_COPY[k] : refuse(W.inboxCantMove)));
+const INBOX_ROWS = { move: cutToCopy(INBOX_MOVE_ASKED, FOLDER_COPY), copy: FOLDER_COPY };
 const CONTAINER_KINDS = ['folder', 'inbox', 'book-list'];
 
 // Today's drags — gesture → verb (§2; "Move and copy books anywhere" decisions 6–7, File Explorer's convention). Ctrl
@@ -202,8 +255,11 @@ const CONTAINER_KINDS = ['folder', 'inbox', 'book-list'];
 // only adds; a plain drag guesses safe — a re-file is Shift-drag, the drag task's). Out of the Trash, either verb is a
 // restore (§6 item 6 — the rows say so). (Shift-drag = move, always: not built — the drag task.)
 const DRAG_KINDS = { 'folder': 'folders', 'inbox': 'folders', 'folders-view': 'folders', 'book-list': 'book-lists' };
+// 7.30.0-alpha.9: a plain drag OUT of the Trash is a move out of it — its restore (the act is the same either way; a copy
+// out of the Trash is a translation, said as a warning, §6 item 20 — the plain drag never asked to copy).
 const dragVerb = (fromPlaceId, toPlaceId, ctrl) => {
     if (ctrl) return 'copy';
+    if (placeKind(fromPlaceId) === 'trash') return 'move';
     const a = DRAG_KINDS[placeKind(fromPlaceId)], b = DRAG_KINDS[placeKind(toPlaceId)];
     return a && a === b ? 'move' : 'copy';
 };
@@ -214,6 +270,8 @@ const dragVerb = (fromPlaceId, toPlaceId, ctrl) => {
 //                    the book menu's Move to › / Copy to › (copy) / Add to Book List › (copy)
 //   'paste': the clipboard's verb — from { placeId, clip: 'cut' | 'copy' } (a cut moves, a copy copies)
 //   'drag': the drag's verb (dragVerb) — from { placeId, ctrl } (Ctrl held at the drop)
+//   from.inbox (7.30.0-alpha.9): the Inbox is among the folders moved — its own half (what = the rest: 'nothing' when the
+//                    Inbox is all of it). One half there → its row; several → { act: 'both', books, folders, inbox }.
 const decide = (gesture, what, from, to) => {
     if (gesture === 'delete') {
         const kind = placeKind(from && from.placeId);
@@ -225,7 +283,8 @@ const decide = (gesture, what, from, to) => {
     const verb = gesture === 'paste' ? (from && from.clip === 'cut' ? 'move' : 'copy')
         : gesture === 'drag' ? dragVerb(from && from.placeId, to && to.placeId, !!(from && from.ctrl)) : gesture;
     if (!VERBS.includes(verb)) throw new Error(`gestureTable: no rows for the gesture "${gesture}" yet`);
-    if (!MOVE_WHATS.includes(what)) throw new Error(`gestureTable: a ${verb} of "${what}" — nothing to ${verb}`);
+    const inbox = !!(from && from.inbox);
+    if (!MOVE_WHATS.includes(what) && !(inbox && what === 'nothing')) throw new Error(`gestureTable: a ${verb} of "${what}" — nothing to ${verb}`);
     const fromKind = placeKind(from && from.placeId), toKind = placeKind(to && to.placeId);
     // A refusal's words fit the gesture (7.30.0-alpha.4): the rows' words are the paste's ("Open a folder or Book List to
     // paste into it"); books aimed at the top level (the Folders header) by a menu or a drag are told about the place
@@ -235,27 +294,34 @@ const decide = (gesture, what, from, to) => {
     const fitDrag = (r, words) => (r.act === 'refuse' && gesture === 'drag' && words[toKind] ? refuse(words[toKind]) : r);
     const books = () => (verb === 'move' && from.placeId === to.placeId && CONTAINER_KINDS.includes(toKind)
         ? { act: 'already-here' } : fitDrag(fit(BOOK_ROWS[verb][fromKind][toKind]), DRAG_BOOK_WORDS));
-    const folders = () => fitDrag(FOLDER_ROWS[verb][toKind], DRAG_FOLDER_WORDS);
-    if (what === 'books') return books();
-    if (what === 'folders') return folders();
-    const b = books(), f = folders();
-    if (b.act === 'refuse') return b;
-    if (f.act === 'refuse') return f;
-    return { act: 'both', books: b.act, folders: f.act };
+    const folders = (rows) => fitDrag(rows[verb][toKind], DRAG_FOLDER_WORDS);
+    const halves = [];
+    if (what === 'books' || what === 'both') halves.push(['books', books()]);
+    if (what === 'folders' || what === 'both') halves.push(['folders', folders(FOLDER_ROWS)]);
+    if (inbox) halves.push(['inbox', folders(INBOX_ROWS)]);
+    if (halves.length === 1) return halves[0][1];
+    const refused = halves.find(([, r]) => r.act === 'refuse');   // the books' refusal first
+    if (refused) return refused[1];
+    const joined = { act: 'both' };
+    halves.forEach(([h, r]) => { joined[h] = r.act; });
+    const translated = halves.filter(([, r]) => r.translated);
+    if (translated.length) joined.translated = Object.fromEntries(translated.map(([h, r]) => [h, r.translated]));
+    return joined;
 };
+// The translation a row's half carries (cut-to-copy, copy-to-restore), or null. half: 'books' | 'folders' | 'inbox' —
+// a row of one half answers for that half.
+const translatedHalf = (row, half) => (row.act === 'both' ? ((row.translated || {})[half] || null) : (row.translated || null));
 
 // What's selected — books and folders both, books, folders, or nothing — in one place, for every gesture (Delete since
 // 7.28.1-alpha.2; the clipboard keys since 7.30.0). bookCount / folderCount: how many of each are selected.
 const selectionWhat = (bookCount, folderCount) =>
     (bookCount > 0 && folderCount > 0 ? 'both' : bookCount > 0 ? 'books' : folderCount > 0 ? 'folders' : 'nothing');
 
-// Which selected folders a cut / copy may take: a cut never takes the Inbox (it never moves) — `kept` is what the words
-// must mention; a copy may take it (a copy of the Inbox is an ordinary folder holding its books).
-const clipFolders = (type, folderIds) => {
-    const taken = [], kept = [];
-    (folderIds || []).forEach(id => (type === 'cut' && id === '__inbox__' ? kept : taken).push(id));
-    return { taken, kept };
-};
+// The selected folders as the clipboard holds them: the Inbox, when it's among them, is its own half (decide's
+// from.inbox) — a cut can't move it, so its row copies it (§6 item 20); a copy copies it as any folder. 7.30.0-alpha.9:
+// was clipFolders(type, ids) → { taken, kept } — a cut left the Inbox off the clipboard and said "The Inbox can't be moved."
+const clipFolders = (folderIds) => ({
+    taken: (folderIds || []).filter(id => id !== '__inbox__'), inbox: (folderIds || []).includes('__inbox__') });
 
 // ── The words (§6 items 6, 7, 8, 14, 18) — pure, so each sentence is function-tested word for word ────────────────────
 const q = (s) => `'${s}'`;
@@ -297,8 +363,15 @@ const bookSentence = (b) => {
         : k === 1 ? " 1 wasn't in any other folder, so it went to the Inbox." : ` ${k} weren't in any other folder, so they went to the Inbox.`;
     return `Moved ${bookWhat(b.n, b.title)}${from.length ? ` from ${fromFolders(from)}` : ''} to ${q(b.to)}${there}.${inbox}`;
 };
-const folderSentence = (f) => {
-    if (f.act === 'add-folder-books') return bookSentence({ act: 'add-books', n: f.n, added: f.added, already: f.already, from: f.names, to: f.to, toList: f.toList, title: f.names[0] });
+// A cut done as a copy says why, after its own sentence (§6 item 20): the Inbox (its own half — isInbox), or a folder
+// onto a Book List.
+const cutNote = (f, isInbox) => (f.translated !== CUT_TO_COPY ? ''
+    : ` ${isInbox ? W.inboxStaysCopied : f.names.length === 1 ? W.folderStaysOffList : W.foldersStayOffList}`);
+const folderSentence = (f, isInbox = false) => `${folderOnly(f)}${cutNote(f, isInbox)}`;
+const folderOnly = (f) => {
+    // 7.30.0-alpha.9: folders with no books at all, onto a Book List (was: nothing said)
+    if (f.act === 'add-folder-books' && !f.n) return `Nothing to add — ${f.names.length === 1 ? `${q(f.names[0])} has` : `those ${f.names.length} folders have`} no books.`;
+    if (f.act === 'add-folder-books') return bookSentence({ act: 'add-books', n: f.n, added: f.added, already: f.already, from: f.names, to: f.to, toList: f.toList, title: f.title, addedTitle: f.addedTitle });   // (the one book's title — was the folder's name: "'Sci-Fi' is already on…")
     if (f.act === 'copy-folders') {
         const parts = [f.books ? plural(f.books, 'book') : '', f.subfolders ? plural(f.subfolders, 'subfolder') : ''].filter(Boolean);
         const counts = parts.length ? ` (${parts.join(', ')})` : '';
@@ -314,26 +387,64 @@ const folderSentence = (f) => {
 };
 // The receipt of a move / copy / paste: one sentence per half — or ONE sentence when books and folders went plainly from
 // the same place to the same place ("Moved 'Space Opera' and 'Dune' from 'Science Fiction' to 'Fantasy'.").
-const placeWords = ({ books, folders }) => {
+// inbox (7.30.0-alpha.9): the Inbox's half, when it went its own way (a cut copies it) — the folders' shape.
+const placeWords = ({ books, folders, inbox }) => {
     if (books && folders && books.act === 'move-books' && folders.act === 'move-folders' && books.added && !books.already
         && !books.sentToInbox && folders.names.length && !(folders.already || []).length && folders.to === books.to
         && (books.from || []).length === 1 && folders.from === books.from[0]) {
-        return `Moved ${folderWhat(folders.names)} and ${bookWhat(books.n, books.title)} from ${q(folders.from)} to ${q(books.to)}.`;
+        return [`Moved ${folderWhat(folders.names)} and ${bookWhat(books.n, books.title)} from ${q(folders.from)} to ${q(books.to)}.`,
+            inbox && folderSentence(inbox, true)].filter(Boolean).join(' ');
     }
-    return [books && bookSentence(books), folders && folderSentence(folders)].filter(Boolean).join(' ');
+    return [books && bookReceipt(books), folders && folderSentence(folders), inbox && folderSentence(inbox, true)].filter(Boolean).join(' ');
 };
+// The books' half of a receipt: its sentence, and — a cut of books done as a copy onto a Book List (7.30.0-alpha.10, the
+// precedent) — why, as cutNote says it for folders
+const bookReceipt = (b) => `${bookSentence(b)}${b.translated === CUT_TO_COPY && b.toList
+    ? ` ${b.n === 1 ? W.bookStaysInFolders : W.booksStayInFolders}` : ''}`;
+// THE receipt of a move / copy / paste — its words, and whether it is a WARNING (§6 items 6, 20): ONE kind of notice for
+// a translation — a gesture done as something other than its verb (a half carrying `translated` — the app copies it from
+// the table's row onto that half's words, only while the half still does that act) is said as a warning (amber, held
+// ~4 s), never as an ordinary receipt. The app logs at the level this says, so a new translation can't come with an
+// ordinary notice (TABLE-032).
+const placeReceipt = (halves) => ({
+    words: placeWords(halves),
+    warning: ['books', 'folders', 'inbox'].some(h => halves[h] && TRANSLATIONS.includes(halves[h].translated)),
+});
 
-// What Ctrl+X / Ctrl+C say. A copy out of the Trash warns where you decide (§6 item 6): a paste will restore.
-// counts: { books, title (one book's), folders, folderName (one folder's), fromTrash }
-const clipWords = (type, { books = 0, title, folders = 0, folderName, fromTrash } = {}) => {
-    if (type === 'copy' && fromTrash && books && !folders) {
-        return books === 1 ? `Copied ${q(title)} from the Trash. Pasting it will restore it — it'll leave the Trash.`
-            : `Copied ${books} books from the Trash. Pasting them will restore them — they'll leave the Trash.`;
-    }
-    const what = books && folders ? `${plural(books, 'book')} and ${plural(folders, 'folder')}`
-        : books ? bookWhat(books, title) : folders === 1 && folderName ? q(folderName) : plural(folders, 'folder');
-    return `${type === 'cut' ? 'Cut' : 'Copied'} ${what}`;
+// The translation a half of the clipboard will get wherever it's pasted — known at Ctrl+X / Ctrl+C already — or null: when
+// every place its row acts in does the same translation (a copy out of the Trash: a restore; the Inbox cut: a copy). A
+// folder cut is copied only onto a Book List: not known until the paste.
+const clipTranslation = (type, half, fromPlaceId) => {
+    const verb = type === 'cut' ? 'move' : 'copy';
+    const rows = half === 'books' ? BOOK_ROWS[verb][placeKind(fromPlaceId)] : (half === 'inbox' ? INBOX_ROWS : FOLDER_ROWS)[verb];
+    const acting = PLACE_KINDS.map(k => rows[k]).filter(r => r.act !== 'refuse');
+    const kind = acting.length ? acting[0].translated : null;
+    return kind && acting.every(r => r.translated === kind) ? kind : null;
 };
+// What Ctrl+X / Ctrl+C say, and whether it is a warning: a translation already known at the cut / copy is said there
+// (§6 items 6, 20 — at both ends): a copy out of the Trash ("pasting will restore"), a cut of the Inbox ("pasting it will
+// copy it"). counts: { books, title (one book's), folders, folderName (one folder's) — the folders other than the Inbox;
+// inbox (it's among them), inboxName; from (where they're cut / copied from; fromTrash: from the Trash) }.
+const clipNotice = (type, { books = 0, title, folders = 0, folderName, inbox = false, inboxName = 'Inbox', from, fromTrash } = {}) => {
+    const src = from || (fromTrash ? '__trash__' : undefined);
+    const bookTr = books ? clipTranslation(type, 'books', src) : null;
+    const inboxTr = inbox ? clipTranslation(type, 'inbox', src) : null;
+    const warning = !!(bookTr || inboxTr);
+    if (bookTr === COPY_TO_RESTORE && !folders && !inbox) {
+        return { warning, words: books === 1 ? `Copied ${q(title)} from the Trash. Pasting it will restore it — it'll leave the Trash.`
+            : `Copied ${books} books from the Trash. Pasting them will restore them — they'll leave the Trash.` };
+    }
+    // the Inbox is counted with the folders unless its half goes its own way
+    const withInbox = inbox && !inboxTr;
+    const f = folders + (withInbox ? 1 : 0);
+    const oneName = f !== 1 ? undefined : folders === 1 ? folderName : inboxName;
+    const what = books && f ? `${plural(books, 'book')} and ${plural(f, 'folder')}`
+        : books ? bookWhat(books, title) : f === 1 && oneName ? q(oneName) : plural(f, 'folder');
+    const said = books || f ? `${type === 'cut' ? 'Cut' : 'Copied'} ${what}` : '';
+    if (inboxTr !== CUT_TO_COPY) return { warning, words: said };
+    return { warning, words: said ? `${said}. ${W.inboxCutCopies}` : W.inboxCutCopies };
+};
+const clipWords = (type, counts) => clipNotice(type, counts).words;
 
 // The book menu's header (7.30.0-alpha.4): what's selected — the books, and the folders with them ("2 books and 1 folder
 // selected"; was the books only — the menu now acts on both, §6 item 17).
@@ -405,9 +516,9 @@ const cap = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const deleteBothLabel = (books, folders) => `Delete ${cap(books, 'Book')} and ${cap(folders, 'Folder')}`;
 
 const api = { PLACE_KINDS, DELETE_WHATS, FOCUSES, DELETE_WORDS, DELETE_ROWS, placeKind, decide, selectionWhat,
-    splitDeletableFolders, MOVE_WHATS, VERBS, MOVE_WORDS, BOOK_ROWS, FOLDER_ROWS, clipFolders, placeWords, clipWords,
-    REFILE_BUTTONS, refileAsks, refileQuestion, dragVerb, deleteBothLabel, selectedWords, newPlaceWords, intoItself,
-    reparentProblem };
+    splitDeletableFolders, MOVE_WHATS, VERBS, MOVE_WORDS, BOOK_ROWS, FOLDER_ROWS, INBOX_ROWS, clipFolders, placeWords,
+    placeReceipt, clipWords, clipNotice, TRANSLATIONS, translatedHalf, REFILE_BUTTONS, refileAsks, refileQuestion, dragVerb,
+    deleteBothLabel, selectedWords, newPlaceWords, intoItself, reparentProblem };
 if (typeof window !== 'undefined') window.gestureTable = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
