@@ -18,10 +18,19 @@
 //
 // Re-run: After pasting once, you can re-run with: importBibliography()
 
+// A bibliography product's series and number — top level so the function tests can load it offline
+// (test/fetcherSeries.test.js); a function declaration, so loading this file twice on one page still works.
+function seriesFromBibliographyProduct(product) {
+    const info = product?.bookSeriesInfo;
+    const raw = info?.position;
+    // v2.1.1 (2026-11-15) - a 0 is a number ("Book 0", a prequel), not a blank; blank or missing is still null
+    return { series: info?.seriesTitle || null, seriesPosition: raw === 0 ? 0 : (raw || null) };
+}
+
 async function importBibliography() {
     'use strict';
 
-    const FETCHER_VERSION = 'v2.1.0';
+    const FETCHER_VERSION = 'v2.1.1';
     const SCHEMA_VERSION = '2.1';
     const PAGE_SIZE = 16;      // Amazon sends book details for only the first 16 books of a page (probed 2026-10-16)
     const MAX_PAGES = 60;      // safety stop: 960 books per language
@@ -449,8 +458,7 @@ async function importBibliography() {
             }
         }
 
-        const series = product.bookSeriesInfo?.seriesTitle || null;
-        const seriesPosition = product.bookSeriesInfo?.position || null;
+        const { series, seriesPosition } = seriesFromBibliographyProduct(product);
 
         return {
             asin: product.asin.toUpperCase(),
@@ -464,7 +472,7 @@ async function importBibliography() {
             rating,
             reviewCount,
             ...(series && { series }),
-            ...(seriesPosition && { seriesPosition }),
+            ...(seriesPosition !== null && { seriesPosition }),   // 0 kept (seriesFromBibliographyProduct)
             ...(currentPrice && { currentPrice, priceAsOf: getTodayDate() })
         };
     }
@@ -647,5 +655,10 @@ async function importBibliography() {
     }
 }
 
-// Auto-run on first paste
-importBibliography();
+// Node (the function tests) loads the series reading; it never runs the fetch.
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { seriesFromBibliographyProduct };
+}
+
+// Auto-run on first paste — on a page only
+if (typeof window !== 'undefined') importBibliography();
