@@ -220,4 +220,24 @@ test('ORG-016', 'consolidate honours consolidateRemovals: pulls a copy only from
     assert.deepStrictEqual(plan.newFolders.find(f => f.id === 'fbest').bookIds, ['b4'], 'unselected Best of membership preserved');
 });
 
+test('ORG-017', 'order inside a new series folder is THE series rule: Book 0 first, no number after every number (then date added)', () => {
+    // 7.30.0 - a blank position used to subtract as 0 (an unnumbered book went first, or tied Book 0) and 'abc' gave NaN.
+    // Dates are deliberately the reverse of reading order, so a date-only sort would fail.
+    const s = 'Prequels';
+    const series = [
+        { id: 'none', author: 'A', series: s, seriesPosition: null,  dateAdded: '2024-01-02' },
+        { id: 'p2.5', author: 'A', series: s, seriesPosition: '2.5', dateAdded: '2024-01-03' },
+        { id: 'abc',  author: 'A', series: s, seriesPosition: 'abc', dateAdded: '2024-01-04' },
+        { id: 'p1',   author: 'A', series: s, seriesPosition: 1,     dateAdded: '2024-01-05' },
+        { id: 'p0',   author: 'A', series: s, seriesPosition: 0,     dateAdded: '2024-01-06' },
+        { id: 'blank', author: 'A', series: s, seriesPosition: '',   dateAdded: '2024-01-01' },
+    ];
+    const { seriesGroups } = groupBooksBySeries(series);
+    const expected = ['p0', 'p1', 'p2.5', 'blank', 'none', 'abc']; // numbered by position; the unnumbered by date added
+    assert.deepStrictEqual(seriesGroups.get('prequels').books.map(b => b.id), expected);
+    const plan = computeOrganizePlan([{ displayName: 'A', books: series }],
+        [{ id: '__inbox__', name: 'Inbox', parentId: null, bookIds: series.map(b => b.id) }], {}, counterIdGen());
+    assert.deepStrictEqual(plan.newFolders.find(f => f.name === s).bookIds, expected, 'the new series folder in that order');
+});
+
 done();
