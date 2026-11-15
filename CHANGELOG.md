@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Auto-Organize puts a new series folder in reading order — Book 0 first, books with no number last.** <!-- DRAFT -->
 - **Updating from Amazon keeps a "Book 0"**, and a series number above 400 found in a title (long series like Perry
   Rhodan). <!-- DRAFT -->
+- **F2 renames a folder you selected in the Folders view** (it did nothing). <!-- DRAFT -->
 
 ## [7.29.1] - 2026-11-13
 

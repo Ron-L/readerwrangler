@@ -153,7 +153,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.30.0"; // Build version for this file
+var ORGANIZER_VERSION = "7.30.0-alpha.13"; // Build version for this file
 // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
 // problem… (7.29.0: one copy, so the two can't drift)
 var DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -5887,23 +5887,26 @@ function ReaderWrangler() {
   // separate folder clipboard with its own Esc listener are gone: Ctrl+X / Ctrl+C / Ctrl+V live in the one listener
   // above, on the one clipboard (Esc clears it there). Its F2 moved here, unchanged.)
   // F2 - rename a folder (v5.0.0-alpha.160). Called through a ref by the key listener; true = it claimed the key.
+  // 7.30.0-alpha.13 - what's SELECTED first, wherever you are (the Delete key's rule, ONE-TABLE.md §3): it looked up
+  // the place you're in first, and the Folders view isn't a folder — so F2 on a folder selected there did nothing.
   var pressF2 = () => {
     if (folderPropertiesDialog) return false;
+    // Priority 1: exactly one folder selected in the right pane → rename it there (a folder, the Inbox, the
+    // Folders view). The Inbox can't be renamed: nothing happens.
+    var selectedFolderIds = getSelectedFolderIds();
+    if (selectedFolderIds.length === 1) {
+      var folder = folders.find((f) => f.id === selectedFolderIds[0]);
+      if (!folder || folder.id === '__inbox__') return false;
+      setRightPanelEditingId(folder.id);
+      setRightPanelEditingName(folder.name);
+      setRightPanelPlaceholderMode(false);
+      return true;
+    }
+    // Priority 2: otherwise rename the folder you're in, in the left pane (not the Inbox; not a header, a
+    // Search, a Book List or the Trash — none of them is a folder)
     var currentFolder = folders.find((f) => f.id === selectedFolderId);
     if (!currentFolder) return false;
-    var isSpecialFolder = ['__all__', '__inbox__', '__library__', '__views__'].includes(currentFolder.id);
-    // Priority 1: If exactly one folder is selected in right panel, rename it there
-    if (getSelectedFolderIds().length === 1) {
-      var folderId = getSelectedFolderIds()[0];
-      var folder = folders.find((f) => f.id === folderId);
-      if (folder && !['__all__', '__inbox__', '__library__'].includes(folder.id)) {
-        setRightPanelEditingId(folder.id);
-        setRightPanelEditingName(folder.name);
-        setRightPanelPlaceholderMode(false);
-      }
-    }
-    // Priority 2: Otherwise rename currently viewed folder in left panel
-    else if (!isSpecialFolder) {
+    if (currentFolder.id !== '__inbox__') {
       setEditingFolderId(currentFolder.id);
       setEditingFolderName(currentFolder.name);
       setIsPlaceholderMode(false);

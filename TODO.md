@@ -85,7 +85,7 @@
         - [Every edit rewrites the whole library in storage](#every-edit-rewrites-the-whole-library-in-storage)
         - [The phone's cover copies: still worth it? And why wasn't the browser's own cache enough?](#the-phones-cover-copies-still-worth-it-and-why-wasnt-the-browsers-own-cache-enough)
         - [Relay Setup's Test connection always checks the production relay](#relay-setups-test-connection-always-checks-the-production-relay)
-        - [F2 does nothing on a folder selected in the Folders view](#f2-does-nothing-on-a-folder-selected-in-the-folders-view)
+        - [F2 follows the Delete key's rule: what's selected, where you're working, and words when it can't](#f2-follows-the-delete-keys-rule-whats-selected-where-youre-working-and-words-when-it-cant)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [The "open" shortcut: start serve.py if needed and open the app](#the-open-shortcut-start-servepy-if-needed-and-open-the-app)
@@ -2408,19 +2408,21 @@ address is still hard-coded). Found by the backlog report's audit of "dropped" t
   `RWRelay.getDeviceState()`; use the one place that answers which relay this copy talks to (relay-client's
   `workerUrl()`) — comb for other hard-coded relay addresses in the same pass.
 
-##### F2 does nothing on a folder selected in the Folders view
+##### F2 follows the Delete key's rule: what's selected, where you're working, and words when it can't
 <!-- id 20261115-1639 -->
 
-_Why it matters:_ F2 renames a selected folder everywhere else; in the Folders view (the top level) it silently does
-nothing. The third of the three harmful cells found while building Delete (7.28.1), filed with the one-table task —
-the other two were fixed in 7.30.0, this one wasn't (found at the 7.30.0 release, read in the code, not yet seen on
-screen).
+_Why it matters:_ Two keys that act on "this" should agree on what "this" is. The Delete key reads the selection and
+where you're working (7.28.1, ONE-TABLE.md §3); F2 still follows the older "the folder you're in" rule. 7.30.0 fixed
+its worst case — F2 on a folder selected in the Folders view did nothing (RENAME-001) — and measured the rest
+(RENAME-003–005, 2026-11-15):
+1. **Nothing selected, last click in the right pane:** F2 renames the folder you're in; Delete does nothing.
+2. **Several folders selected:** F2 renames the folder you're IN, not one you selected (Delete's pre-7.28.1 mistake).
+3. **The Inbox** (open, or selected): F2 says nothing; Delete says "The Inbox can't be deleted." (Law 16).
+4. **Cover View** (from the code, not seen): the right pane's rename box is drawn only in the List View's table
+   (`rightPanelEditingId === folder.id`), so F2 or the right-click Rename on a folder in Cover View may show nothing.
 
-**How (technical)**
-- `pressF2` (readerwrangler.js ~5890) looks up the place you're in with `folders.find(…)` before checking the
-  selection; the Folders view (`__library__`) isn't in `folders`, so it returns before the "one folder selected →
-  rename it" branch. Check the selection first. A screen test: select a top-level folder in the Folders view, F2, the
-  name becomes editable.
+**How (technical):** `pressF2` (readerwrangler.js ~5890) — give it the Delete key's shape (the table's `selectionWhat`
+and the left-pane focus rule); F2 isn't a `gestureTable` verb yet. Tests: test/ui/test_rename_key.py.
 
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->
@@ -3882,6 +3884,11 @@ the one place where a hang would leave a person stuck mid-reset.
   commit's checks, another test run, `serve.py` rebuilding)? Reset waits on the browser letting go of the book store —
   a slow machine may be enough.
 - Meanwhile: **no commits during a test run** (Claude's practice from 2026-11-13).
+- **A cousin, 2026-11-15** (on 7.30.0-alpha.13, after a day of full runs): RENAME-006 "no unexpected console messages"
+  failed once on `net::ERR_NO_BUFFER_SPACE` loading icons/logo-transparent.png — Windows short of network buffers (659
+  connections in TIME_WAIT, no leftover test servers or browsers). The file alone and the whole tier passed right
+  after. The console checks can trip on the machine, not the app; if it recurs, consider letting those checks ignore
+  this one network error, by name.
 
 ### Books just bought weren't at the top of All Books sorted by Date Added — once, not reproduced
 <!-- id 20261112-1925 -->
