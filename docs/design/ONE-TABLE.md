@@ -658,6 +658,13 @@ hadn't listed, and the cells whose answer wasn't clear:
    redo copy operation"). Retired: PASTE_BOOKS_CUT / _COPY, PASTE_TO_BOOKLIST_CUT, COPY_PASTE_FOLDER (UNDO-04).
    Measured: CELL-001–017, 034–040, 049–052, 055, 056 do what was decided; new CELL-059–061 (the re-file question),
    062 (a copy's subfolders are its own), 063 (a Trash copy pasted twice).
+   — **7.30.0-alpha.13, F2 on a folder selected in the Folders view (the TODO's third harmful cell) — fixed:** `pressF2`
+   looked up the place you're in first, and the Folders view isn't a folder, so it returned before its "rename the
+   selected folder" step. Now what's selected comes first, wherever you are (the Delete key's rule, §3): one folder
+   selected in the right pane → its rename box (a folder, the Inbox, the Folders view). Kept as they were: the Inbox
+   selected → nothing; a book or nothing selected → the left pane's rename box for the folder you're in (any focus) —
+   several folders too [code]; in the Inbox → nothing, silently. `test/ui/test_rename_key.py`: RENAME-001 (failed first: no rename box),
+   002–005 guards.
 6. §6 item 6's words and the amber warning look; item 7's "already there" words; item 8 (folders recursive); item 9.
    — **7.30.0-alpha.1:** item 6's words (MOVE-10, a warning — the amber look is the next step), items 7, 8, 14, 15, 17,
    18 built; item 19: CELL-023 asserts it. `tools/run_tests.py --release` refuses while any test still differs from what
