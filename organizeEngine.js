@@ -4,6 +4,12 @@
 // deterministic output. Loaded as a classic <script> (functions become global, like uiHelpers.js) and
 // require()-able in Node for unit tests (see test/organizeEngine.test.js).
 
+// 7.30.0 - THE series-position order (uiHelpers.js): a global in the browser (uiHelpers loads first), require() in Node.
+// Its own name, not bookFields.js's `_uih`: classic scripts share one top-level scope, so a second `const _uih` would
+// stop this file loading.
+const _organizeCompareSeriesPositions = (typeof module !== 'undefined' && module.exports)
+    ? require('./uiHelpers.js').compareSeriesPositions : compareSeriesPositions;
+
 // Group an author's books into series buckets (position-sorted) vs standalone. Pure.
 function groupBooksBySeries(books) {
     const seriesMap = new Map(); // normalized series name → {originalName, books[]}
@@ -21,18 +27,12 @@ function groupBooksBySeries(books) {
         }
     });
 
-    // Sort books within each series by position (dateAdded tiebreaker/fallback).
+    // Sort books within each series by THE series rule (7.30.0: lower first, Book 0 before Book 1, no number after every
+    // number — a blank used to subtract as 0 and text gave NaN), then date added.
     seriesMap.forEach((seriesData) => {
-        seriesData.books.sort((a, b) => {
-            const posA = a.seriesPosition;
-            const posB = b.seriesPosition;
-            if (posA !== null && posA !== undefined && posB !== null && posB !== undefined) {
-                if (posA !== posB) return posA - posB;
-            }
-            const dateA = a.dateAdded || '';
-            const dateB = b.dateAdded || '';
-            return dateA.localeCompare(dateB);
-        });
+        seriesData.books.sort((a, b) =>
+            _organizeCompareSeriesPositions(a.seriesPosition, b.seriesPosition)
+            || (a.dateAdded || '').localeCompare(b.dateAdded || ''));
     });
 
     return { seriesGroups: seriesMap, standaloneBooks };
