@@ -605,6 +605,47 @@ hadn't listed, and the cells whose answer wasn't clear:
       as deliberate.
    Not changed (found): the folder menu's Move to › with folders only still calls `reparentFolder`, which refuses a
    selection holding the Inbox (MOVE-07, "Inbox cannot be moved") — it doesn't ask the table (§7 alpha.7's last row).
+   — **fixed in alpha.10, below.**
+
+   — **7.30.0-alpha.10, the rule truly everywhere (§6 item 20) — built:**
+   1. **The precedent is a translation too.** A cut of books from All Books or a Search pasted onto a Book List is "just
+      added" (decision 2 of "Move and copy books anywhere") — the books stay in their folders, so it IS a cut done as a
+      copy. Its act is unchanged; its row now says so: `{ act: 'add-books', translated: 'cut-to-copy', why: "A Book List
+      doesn't take books out of their folders." }`. Structural, not one marked cell: `asCopy` treats every move answer
+      that does a COPY's act (`COPY_ACTS` — add-books, copy-folders, add-folder-books) as a translation, and refuses to
+      build one without a `why` (TABLE-033 checks every move cell). Its receipt is the same amber warning (MOVE-12), at
+      the paste only — at the cut the destination isn't known (into a folder the same cut is a re-file): *"Added 'Dune'
+      to 'Read Next'. A Book List doesn't take a book out of its folders, so it stays where it was."* (several: *"…
+      doesn't take books out of their folders, so they stay where they were."*). (Replaces alpha.9 item 1's last line —
+      "decision 2's cut … stays its own row, not a translation".) TABLE-029's list gains the books' half wherever the cut
+      came from no container: *books → a Book List (add-books)*, and the books + folders / + the Inbox cells onto a Book
+      List name the books' half too (from All Books, a Search and the three headers; from a folder, the Inbox, a Book
+      List and the Trash as before). CELL-120.
+   2. **The folder menu's Move to › with folders only asks the table** (`moveFolder` → `placeByTable('move', …)` →
+      `placeItems` → `planFolderMove`), as it did with books selected since alpha.4 — the last move outside the table.
+      So the Inbox among the selected folders is copied by the rule (the others move; amber; one Ctrl+Z — was refused
+      whole, MOVE-07 *"Inbox cannot be moved"*) — CELL-121 (failed first: refused). Kept: the **large-move question**
+      (*"Move folder with 21 subfolders?"*), now `placeItems`' `confirmLarge` → `confirmLargeMove`, asked once the plans
+      are made and before anything changes, counting the subfolders of the folders that MOVE (a copied Inbox isn't
+      asked about) — CELL-122 (a guard: it passed before and after; Cancel moves nothing, OK moves, one Ctrl+Z). Kept:
+      the position — the moved folders land at the top of the destination, the batch by name (`planReparent`'s default,
+      the same as before). Changed with it (§6 item 7, as every folder drop since alpha.7): Move to › the folder it's
+      already in (its ✓) says *"Nothing moved — 'Space Opera' is already in 'Science Fiction'."* — it re-placed the folder
+      at the top, saying *"Moved 'Space Opera' from 'Science Fiction' to 'Science Fiction'."* — CELL-124, failed
+      first with those words. With books selected too, the large-move question is now asked as well (one call, one
+      answer — it wasn't before).
+   3. **`reparentFolder` is gone** (Law 22): no callers were left. What it alone did — the large-move question — is
+      `confirmLargeMove`; the working-out was `planReparent` already (since 7.30.0), under `planFolderMove`.
+   4. **A right-pane drag of a selection holding the Inbox** (it follows from alpha.9): the folders move, the Inbox is
+      copied, one warning, one Ctrl+Z — CELL-123 (a guard; no cell covered it).
+   5. Every translated cell, from TABLE-029 (from every kind of place unless named): books → a Book List (add-books; from
+      All Books, a Search, the three headers); folders → a Book List (its books added); books + folders → a Book List
+      (the folders' half adds; from no container the books' half too); the Inbox → a folder, the Inbox, the Folders view
+      (copied as "Inbox (Copy)") or a Book List (its books added); and the Inbox with books and / or folders → the same
+      places.
+   Not changed (found): `planReparent`'s Inbox check (MOVE-07, *"Inbox cannot be moved"*, a warning) can no longer be
+   reached from a gesture — every caller splits the Inbox off first — so it is now a guard under the table like MOVE-11
+   (`parentNotAFolder`, an error); its words and level were left as they are.
 5. One keyboard listener for the clipboard keys (§5); the harmful cells (§4.1 items 1, 3, 4, 5) fixed by their rows.
    — **7.30.0-alpha.1 — built:** the second listener and its folder clipboard are gone; ONE clipboard
    `{ type, bookIds, folderIds, from }` filled by `putOnClipboard` (Ctrl+X / Ctrl+C on the selection — books, folders or

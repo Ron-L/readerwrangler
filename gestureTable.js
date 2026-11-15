@@ -8,7 +8,8 @@
 // checks, pure — a folder's new parent is a real folder or the top level). 7.30.0-alpha.7: a drag's words for books
 // dropped on the Book Lists header (DRAG_BOOK_WORDS, beside DRAG_FOLDER_WORDS). 7.30.0-alpha.9 (§6 item 20, Ron
 // 2026-11-15): a cut that can't be done as a move is done as a copy — derived from the rows (cutToCopy), the Inbox a half
-// of its own (INBOX_ROWS); every translation said as a warning at both ends (clipNotice, placeReceipt).
+// of its own (INBOX_ROWS); every translation said as a warning at both ends (clipNotice, placeReceipt). 7.30.0-alpha.10:
+// the precedent itself (books cut from All Books / a Search onto a Book List, "just added") is marked one too (COPY_ACTS).
 //
 // Pure — no React, no DOM, no app state — so the rules are function-tested (test/gestureTable.test.js) and every
 // combination must have a row. Loaded as a classic script before readerwrangler.js (browser); required by the test
@@ -135,6 +136,11 @@ const MOVE_WORDS = {
     inboxStaysCopied: "The Inbox can't be moved, so it stays where it was.",
     folderStaysOffList: "A folder can't be moved onto a Book List, so it stays where it was.",
     foldersStayOffList: "Folders can't be moved onto a Book List, so they stay where they were.",
+    // 7.30.0-alpha.10: the precedent ("Move and copy books anywhere" decision 2) — books cut from All Books or a Search
+    // onto a Book List are just added; the row's why, and what the paste's receipt says after its own sentence
+    listKeepsFolders: "A Book List doesn't take books out of their folders.",
+    bookStaysInFolders: "A Book List doesn't take a book out of its folders, so it stays where it was.",
+    booksStayInFolders: "A Book List doesn't take books out of their folders, so they stay where they were.",
     copyIntoItself: "Can't copy a folder into itself or its subfolder.",
     moveIntoItself: "Can't move a folder into itself or its subfolder.",
     // 7.30.0-alpha.4: books aimed at the top level (the Folders header) by a menu or a drag — the words name the place; the
@@ -184,12 +190,22 @@ const DRAG_BOOK_WORDS = { 'book-lists-view': MOVE_WORDS.dragBooksNotOntoBookList
 //                     a hand list: wherever a move row refuses and the copy row for the same what / from / to acts, the
 //                     move's answer IS the copy's act (cutToCopy below) — so a new row, or a gesture that asks the move
 //                     rows (Move to ›, a future Shift-drag), can't leave one refused. TABLE-029 lists every such cell.
+//                     7.30.0-alpha.10: and every move answer that does a COPY's act (COPY_ACTS — it only adds or copies)
+//                     is one too: the precedent, books cut from no container onto a Book List ("just added", decision 2),
+//                     written with its why; a move cell doing a copy's act without one can't be built (TABLE-033).
 //   copy-to-restore — §6 item 6: a copy out of the Trash is a restore (a book can't be both thrown away and filed).
 const CUT_TO_COPY = 'cut-to-copy', COPY_TO_RESTORE = 'copy-to-restore';
 const TRANSLATIONS = [CUT_TO_COPY, COPY_TO_RESTORE];
+const COPY_ACTS = ['add-books', 'copy-folders', 'add-folder-books'];
 const refuse = (words, why) => (why ? { act: 'refuse', words, why } : { act: 'refuse', words });
-const asCopy = (move, copy) => (move.act === 'refuse' && copy.act !== 'refuse'
-    ? { act: copy.act, translated: CUT_TO_COPY, why: move.words } : move);
+const asCopy = (move, copy) => {
+    if (move.act === 'refuse' && copy.act !== 'refuse') return { act: copy.act, translated: CUT_TO_COPY, why: move.words };
+    if (COPY_ACTS.includes(move.act) && !move.translated) {
+        if (!move.why) throw new Error(`gestureTable: a move answer that does a copy's act (${move.act}) must say why`);
+        return { act: move.act, translated: CUT_TO_COPY, why: move.why };
+    }
+    return move;
+};
 const cutToCopy = (moveRow, copyRow) => Object.fromEntries(PLACE_KINDS.map(k => [k, asCopy(moveRow[k], copyRow[k])]));
 const eachFrom = (fn) => Object.fromEntries(PLACE_KINDS.map(k => [k, fn(k)]));
 // One row = the answer for each place it can go to, in PLACE_KINDS' order (folder, inbox, all-books, folders-view,
@@ -202,8 +218,10 @@ const W = MOVE_WORDS;
 const ALL = refuse(W.intoAllBooks), OPEN = refuse(W.openAPlace), TRASH = refuse(W.intoTrash);
 // a move from a container (a folder, the Inbox, a Book List)
 const FROM_CONTAINER = toEach('move-books', 'move-books', ALL, ALL, OPEN, OPEN, 'move-books', OPEN, TRASH);
-// a move from no container (All Books, a Search; and the three headers, which show no books — that cell can't be reached)
-const FROM_NOWHERE = toEach('refile', 'refile', ALL, ALL, OPEN, OPEN, 'add-books', OPEN, TRASH);
+// a move from no container (All Books, a Search; and the three headers, which show no books — that cell can't be reached).
+// Onto a Book List it is just added — a cut done as a copy (7.30.0-alpha.10, §6 item 20: the rule's precedent; asCopy
+// marks it, with this why)
+const FROM_NOWHERE = toEach('refile', 'refile', ALL, ALL, OPEN, OPEN, { act: 'add-books', why: W.listKeepsFolders }, OPEN, TRASH);
 // a move out of the Trash: it leaves the Trash — a restore is what a move out of it IS
 const FROM_TRASH = toEach('restore', 'restore', ALL, ALL, OPEN, OPEN, 'restore', OPEN, TRASH);
 // a copy out of the Trash: a restore too — a translation (§6 item 6)
@@ -377,8 +395,12 @@ const placeWords = ({ books, folders, inbox }) => {
         return [`Moved ${folderWhat(folders.names)} and ${bookWhat(books.n, books.title)} from ${q(folders.from)} to ${q(books.to)}.`,
             inbox && folderSentence(inbox, true)].filter(Boolean).join(' ');
     }
-    return [books && bookSentence(books), folders && folderSentence(folders), inbox && folderSentence(inbox, true)].filter(Boolean).join(' ');
+    return [books && bookReceipt(books), folders && folderSentence(folders), inbox && folderSentence(inbox, true)].filter(Boolean).join(' ');
 };
+// The books' half of a receipt: its sentence, and — a cut of books done as a copy onto a Book List (7.30.0-alpha.10, the
+// precedent) — why, as cutNote says it for folders
+const bookReceipt = (b) => `${bookSentence(b)}${b.translated === CUT_TO_COPY && b.toList
+    ? ` ${b.n === 1 ? W.bookStaysInFolders : W.booksStayInFolders}` : ''}`;
 // THE receipt of a move / copy / paste — its words, and whether it is a WARNING (§6 items 6, 20): ONE kind of notice for
 // a translation — a gesture done as something other than its verb (a half carrying `translated` — the app copies it from
 // the table's row onto that half's words, only while the half still does that act) is said as a warning (amber, held

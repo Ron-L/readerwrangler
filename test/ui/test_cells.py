@@ -24,6 +24,9 @@
 # 7.30.0-alpha.9 (§6 item 20, Ron 2026-11-15): a cut that can't be done as a move is done as a copy — a folder cut onto a
 # Book List adds its books (CELL-114, 116; the clipboard then empty, CELL-115; the worst case — a deep tree — CELL-117),
 # the Inbox cut is copied (CELL-118, 119); said as a warning at both ends, and the Trash's copy → restore too (TOAST-003–005).
+# 7.30.0-alpha.10: the rule truly everywhere — its precedent, a cut from All Books onto a Book List, said as one
+# (CELL-120); the folder menu's Move to › with the Inbox among the folders asks the table (CELL-121; its large-move
+# question kept, CELL-122; its own parent says "already in", CELL-124); a right-pane drag carrying the Inbox (CELL-123).
 # A cell whose decided behavior isn't written anywhere records TODAY's behavior instead, and says so in its name
 # ("today's, not decided") — those are listed in the sprint's report for Ron, never guessed.
 #
@@ -1311,13 +1314,24 @@ with App() as app:
                 "it went to the Inbox", "Added 'A Book With a Note' from 'Space Opera' to 'Read Next' (1 was already there). "
                 + OFF_LIST], OFF_LIST))
 
-    def restore_deep_tree():
-        """A variant of the fixture (from a file, as DELKEY-008's): Science Fiction (17 18 5) ⊃ Space Opera (7 6) ⊃ Zeta
-        Stories (8 3) and Old Favorites (20 19) ⊃ Deepest (9 16) — Zeta Stories FIRST in Space Opera's Manual order, but
-        last in the stored list and after Old Favorites by name, so the order checked is the Manual one. Read Next holds
-        3 20 16 — one book from each of the three deepest folders."""
+    def restore_variant(edit):
+        """A variant of the fixture, restored from a file (as DELKEY-008's): edit(folders) changes its folder list."""
         data = json.load(open(FIXTURE, encoding="utf-8"))
-        fs = data["organization"]["folders"]
+        edit(data["organization"]["folders"])
+        folder = tempfile.mkdtemp(prefix="rw-cells-")
+        variant = os.path.join(folder, "variant.json")
+        with open(variant, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
+        try:
+            app.restore(variant)
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+        app.menu("View", "List View").click()
+
+    def deep_tree(fs):
+        """Science Fiction (17 18 5) ⊃ Space Opera (7 6) ⊃ Zeta Stories (8 3) and Old Favorites (20 19) ⊃ Deepest (9 16)
+        — Zeta Stories FIRST in Space Opera's Manual order, but last in the stored list and after Old Favorites by name, so
+        the order checked is the Manual one. Read Next holds 3 20 16 — one book from each of the three deepest folders."""
         tst = lambda *ns: [f"TST{n:07d}" for n in ns]   # noqa: E731
         space = next(f for f in fs if f["id"] == "f-space")
         space["bookIds"], space["childFolderIds"] = tst(7, 6), ["f-zeta", "f-old"]
@@ -1327,15 +1341,9 @@ with App() as app:
                    "sortIndex": 0})
         fs.append({"id": "f-zeta", "name": "Zeta Stories", "bookIds": tst(8, 3), "parentId": "f-space", "collapsed": False,
                    "sortIndex": 0})
-        folder = tempfile.mkdtemp(prefix="rw-cells-")
-        variant = os.path.join(folder, "deep-tree.json")
-        with open(variant, "w", encoding="utf-8") as fh:
-            json.dump(data, fh)
-        try:
-            app.restore(variant)
-        finally:
-            shutil.rmtree(folder, ignore_errors=True)
-        app.menu("View", "List View").click()
+
+    def restore_deep_tree():
+        restore_variant(deep_tree)
 
     def deep_tree_onto_list():
         try:
@@ -1418,9 +1426,78 @@ with App() as app:
         "Trash into …\") is a warning now — amber, held (was an ordinary notice)",
         toast_after(lambda: (pick("Trash", TR), key("c"), paste_key("Fantasy")), "from the Trash into"))
 
+    # ── 7.30.0-alpha.10: the rule truly everywhere (§6 item 20) — its precedent, the folder menu's Move to ›, a drag ──────
+    LIST_KEEPS = "A Book List doesn't take a book out of its folders, so it stays where it was."
+    add("CELL-120", "the precedent: Ctrl+X in All Books → Ctrl+V on a Book List is \"just added\" (the book stays in its "
+        "folders) — a cut done as a copy, said as one: a warning, with why; one Ctrl+Z (was an ordinary \"Added…\")",
+        warned(lambda: (pick("All Books", S1), key("x"), paste_key("Read Next")), {"Read Next": "+1"},
+               ["Added 'The Test Saga, Book One' to 'Read Next'. " + LIST_KEEPS], LIST_KEEPS))
+    INBOX_AND_FOLDER = {"An Empty Folder ⇒": "Fantasy", "new Inbox (Copy)": "in Fantasy: 22 23"}
+    INBOX_AND_FOLDER_WORDS = ["Moved 'An Empty Folder' to 'Fantasy'. Copied 'Inbox' (2 books) as 'Inbox (Copy)'. "
+                              + INBOX_STAYS]
+
+    def inbox_and_folder_selected():
+        folders_view()
+        select("Inbox", "An Empty Folder")
+    add("CELL-121", "the Inbox and a folder selected (the Folders view), the folder menu's Move to › a folder: the folder "
+        "MOVES, the Inbox is COPIED (it can't be moved) — one warning, one Ctrl+Z (was: refused, \"Inbox cannot be moved\" "
+        "— the last Move to › outside the table)",
+        warned(lambda: (inbox_and_folder_selected(), right_folder_menu("An Empty Folder", "Move to", "Fantasy")),
+               INBOX_AND_FOLDER, INBOX_AND_FOLDER_WORDS, INBOX_STAYS))
+    add("CELL-123", "the Inbox and a folder selected (the Folders view), DRAGGED onto a folder (left pane): the folder "
+        "moves, the Inbox is copied — one warning, one Ctrl+Z (the rule, by a drag)",
+        warned(lambda: (inbox_and_folder_selected(), drag("An Empty Folder", "Fantasy")),
+               INBOX_AND_FOLDER, INBOX_AND_FOLDER_WORDS, INBOX_STAYS))
+
+    def big_tree(fs):
+        """An Empty Folder with 21 subfolders (closed in the left pane) — more than the folder menu's Move to › moves
+        without asking (20)."""
+        kids = [f"f-branch-{i:02d}" for i in range(21)]
+        empty = next(f for f in fs if f["id"] == "f-empty")
+        empty["childFolderIds"], empty["collapsed"] = kids, True
+        fs.extend({"id": k, "name": f"Branch {k[-2:]}", "bookIds": [], "parentId": "f-empty", "collapsed": False,
+                   "sortIndex": 0} for k in kids)
+
+    def large_move_asks_first():
+        """The folder menu's Move to ›, a folder with 21 subfolders: it asks first — Cancel moves nothing; OK moves it,
+        in the table's words; one Ctrl+Z puts it back; nothing more to undo."""
+        box = page.locator(".rw-imperative-overlay")
+        try:
+            restore_variant(big_tree)
+            before = state()
+            folder_menu("An Empty Folder", "Move to", "Fantasy")
+            said = words()
+            check("Move folder with 21 subfolders?" in said, f"the large move should ask first — said {said!r}")
+            box.get_by_role("button", name="Cancel", exact=True).click()
+            box.first.wait_for(state="detached", timeout=3000)
+            check(not delta(before, state()), f"Cancel moved something: {delta(before, state())}")
+            folder_menu("An Empty Folder", "Move to", "Fantasy")
+            box.first.wait_for(timeout=3000)
+            mark()
+            box.get_by_role("button", name="OK", exact=True).click()
+            box.first.wait_for(state="detached", timeout=3000)
+            said = words()
+            got = delta(before, state())
+            check(got == {"An Empty Folder ⇒": "Fantasy"}, f"changed {got} — said {said!r}")
+            check(norm("Moved 'An Empty Folder' to 'Fantasy'") in norm(said), f"said {said!r}")
+            undone = undo_once()
+            back = not_exactly(before, state())
+            check(not back, f"one Ctrl+Z ({undone or 'nothing to undo'}) left: {back}")
+            check(not undo_once(), "a second Ctrl+Z still undid something (one move = one undo step)")
+        finally:
+            clean_up()
+    add("CELL-122", "the folder menu's Move to ›, a folder with more than 20 subfolders: it asks first (\"Move folder with "
+        "21 subfolders?\") — Cancel moves nothing, OK moves it; one Ctrl+Z (the large-move question kept through the "
+        "table)", large_move_asks_first)
+    add("CELL-124", "the folder menu's Move to › the folder it's already in (its ✓): nothing changes, and the words say so "
+        "(§6 item 7, as every folder drop since alpha.7; was: re-placed at the top, \"Moved 'Space Opera' from 'Science "
+        "Fiction' to 'Science Fiction'\")",
+        cell(lambda: folder_menu("Space Opera", "Move to", "Science Fiction"), {},
+             ["Nothing moved", "'Space Opera' is already in 'Science Fiction'"]))
+
     # Warnings on purpose: CELL-053's refusal (MOVE-06); CELL-039's "a paste will restore" and CELL-118's "pasting it will
     # copy it" (MOVE-10, §6 items 6, 20); the receipts of a gesture done as something other than its verb (MOVE-12, §6
-    # item 20 — CELL-040, 063, 066, 069, 114, 116, 117, 119)
+    # item 20 — CELL-040, 063, 066, 069, 114, 116, 117, 119, 120, 121, 123)
     DELIBERATE = ("MOVE-06", "MOVE-10", "MOVE-12")
     if not ONLY:
         test("CELL-058", "no unexpected console messages (the warnings MOVE-06, MOVE-10 and MOVE-12 are on purpose)",

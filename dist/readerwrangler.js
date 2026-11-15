@@ -153,7 +153,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.30.0-alpha.9"; // Build version for this file
+var ORGANIZER_VERSION = "7.30.0-alpha.10"; // Build version for this file
 // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
 // problem… (7.29.0: one copy, so the two can't drift)
 var DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -2238,13 +2238,15 @@ function ReaderWrangler() {
   // { slot } (see placeItems).
   // 7.30.0-alpha.9 - the Inbox among the folders is its own half, as on the clipboard (a move can't move it: the
   // table's row copies it — §6 item 20; was: planReparent refused the whole drop, MOVE-07).
-  var placeByTable = (gesture, bookIds, folderIds, from, target, { ctrl = false, at, create, slot } = {}) => {
+  // { confirmLarge } (7.30.0-alpha.10): the folder menu's Move to › asks before moving folders with more than 20
+  // subfolders (see placeItems) — a drag doesn't.
+  var placeByTable = (gesture, bookIds, folderIds, from, target, { ctrl = false, at, create, slot, confirmLarge } = {}) => {
     var { taken, inbox } = gestureTable.clipFolders(folderIds);
     var what = gestureTable.selectionWhat(bookIds.length, taken.length);
     if (what === 'nothing' && !inbox) return false;
     var row = gestureTable.decide(gesture, what, { placeId: from, ctrl, inbox }, { placeId: target });
     if (row.act === 'refuse') {rwLog.log('info', 'MOVE', row.words, null, { toast: at || true });return false;}
-    placeItems(row, { bookIds, folderIds: taken, inbox, from }, target, { at, create, slot });
+    placeItems(row, { bookIds, folderIds: taken, inbox, from }, target, { at, create, slot, confirmLarge });
     return true;
   };
   // A drop of right-pane items (books and / or folders, as the drag carried them) onto a place — every drop target
@@ -2292,7 +2294,10 @@ function ReaderWrangler() {
   // inbox (7.30.0-alpha.9): the Inbox is among the folders — its own half (row.inbox), as the table answers it: a
   // cut copies it (§6 item 20). A half done as something other than its verb (gestureTable.translatedHalf) carries
   // that onto its words, and the receipt is then a WARNING (gestureTable.placeReceipt — the one helper).
-  var placeItems = async (row, { bookIds, folderIds, from, inbox = false }, target, { at, create, slot } = {}) => {
+  // confirmLarge (7.30.0-alpha.10 — the folder menu's Move to ›; was reparentFolder's, now gone): once the plans
+  // are made, folders that MOVE with more than 20 subfolders between them are asked about first (confirmLargeMove);
+  // Cancel changes nothing.
+  var placeItems = async (row, { bookIds, folderIds, from, inbox = false }, target, { at, create, slot, confirmLarge } = {}) => {
     var lists = create ? { folderList: create.folderList || folders, listList: create.listList || bookLists } : {};
     var actOf = (half, there) => row.act === 'both' ? row[half] || null : there ? row.act : null;
     var rowBookAct = actOf('books', bookIds.length > 0);
@@ -2325,6 +2330,10 @@ function ReaderWrangler() {
         if (plan.step && plan.step.type === 'REPARENT_FOLDER') planList = planList.map((f) => applyOrderFields(
           plan.step.folderIds.includes(f.id) ? { ...f, parentId: plan.step.newParentId } : f, plan.step.orderAfter));
       },_ret;for (var h of halves.filter((x) => x.act !== 'add-folder-books')) {_ret = await _loop();if (_ret) return _ret.v;}
+    if (confirmLarge) {
+      var moving = folderPlans.flatMap((p) => p.plan.step && p.plan.step.type === 'REPARENT_FOLDER' ? p.plan.step.folderIds : []);
+      if (!(await confirmLargeMove(moving))) return false;
+    }
     if (bookAct === 'refile') {
       var answer = await askRefile(toPlace, target, lists);
       if (!answer) return false;
@@ -4124,37 +4133,24 @@ function ReaderWrangler() {
     rwLog.log('info', 'ORG', `Manual order now matches the ${modeLabel} order — switch to Manual to tweak it`, null, { toast: true });
   };
 
-  // v5.0.0-alpha.78 - Phase D: Reparent folder (move into another folder) with undo
-  // v6.11.2 - Extracted from reparentFolder for reuse by moveItems
   // 7.30.0-alpha.4 - "Would this put a folder into itself or below it?" — the ONE check: a folder move, a folder copy,
   // and the menus' greyed targets (Law 16). Walks UP from the target, so a destination that a gesture is making
   // ("New folder here…" — in folderList, not yet in `folders`) is checked too. (Was isDescendantFolder, walking down.)
   // 7.30.0-alpha.6 - the check itself is gestureTable.intoItself (pure, function-tested — TABLE-027).
   var intoItself = (folderIds, target, folderList = folders) => gestureTable.intoItself(folderIds, target, folderList);
 
-  // v6.13.1-alpha.14 (ops refactor #4) - THE single source of truth for reparenting folder(s) — moving them
-  // to a new parent (or root, newParentId=null). Used by drag, the folder menu "Move to" (via moveFolder),
-  // and cut→paste-move. `opts.confirmLarge` folds in the retired moveFolder's >20-subfolder prompt (menu
-  // asks; drag doesn't). Async, but drag callers don't await — with confirmLarge falsy there's no await, so
-  // the mutation runs synchronously exactly as before. Reorder-within-a-parent and paste-COPY stay separate.
-  // 7.30.0 - the working-out on its own (planReparent: the checks, then the REPARENT_FOLDER step and its words —
-  // it changes nothing), so a paste of books AND folders makes ONE undo step of it and the book step. Doing it =
-  // redoing it (executeRedo), so the gesture and Ctrl+Y can't drift. Returns { step, words }, or null when refused
-  // (it said why).
-  var reparentFolder = async (folderIds, newParentId, opts = {}) => {
-    var plan = planReparent(folderIds, newParentId, opts);
-    if (!plan) return false;
-    if (opts.confirmLarge) {
-      var countDesc = (fid) => folders.filter((f) => f.parentId === fid).reduce((n, k) => n + 1 + countDesc(k.id), 0);
-      var descCount = folderIds.reduce((n, id) => n + countDesc(id), 0);
-      if (descCount > 20 && !(await showConfirmDialog('MOVE', 'Move Folder', `Move folder with ${descCount} subfolders?`))) return false;
-    }
-    executeRedo(plan.step);
-    recordAction(plan.step);
-    rwLog.log('info', 'MOVE', gestureTable.placeWords({ folders: plan.words }), null, { toast: true });
-    rwLog.log('debug', 'MOVE', `Moved ${folderIds.length} folder(s) ${newParentId ? 'into a folder' : 'to the top level'}`);
-    return true;
+  // The folder menu's Move to › asks first when the folders moving hold more than 20 subfolders between them (the
+  // retired moveFolder's prompt, v6.13.1; a drag doesn't ask). Resolves true to go ahead. 7.30.0-alpha.10: all that
+  // is left of reparentFolder — its last caller, that Move to ›, now asks the table (placeByTable → placeItems →
+  // planFolderMove → planReparent, the working-out it shared since 7.30.0), so it is gone (Law 22).
+  var confirmLargeMove = async (folderIds) => {
+    var countDesc = (fid) => folders.filter((f) => f.parentId === fid).reduce((n, k) => n + 1 + countDesc(k.id), 0);
+    var descCount = folderIds.reduce((n, id) => n + countDesc(id), 0);
+    return descCount <= 20 || showConfirmDialog('MOVE', 'Move Folder', `Move folder with ${descCount} subfolders?`);
   };
+  // THE working-out of a folder move (7.30.0 — split out of reparentFolder): the checks, then the REPARENT_FOLDER
+  // step and its words; it changes nothing, so a placement of books AND folders makes ONE undo step of it and the
+  // book step. Doing it = redoing it (executeRedo). Returns { step, words }, or null when refused (it said why).
   // opts.folderList (7.30.0-alpha.4): the folders to plan against — with a destination the gesture is making in
   // ("New folder here…", placeItems' create)
   // 7.30.0-alpha.6 - its checks are gestureTable.reparentProblem (TABLE-027), and a new one under the table: the new
@@ -18489,19 +18485,16 @@ function ReaderWrangler() {
       // right-clicked folder only, even with several selected.
       var menuBooks = selFolderIds.includes(folder.id) ? getSelectedBookIds() : [];
 
-      // v6.13.1-alpha.14 (ops refactor #4) - Folder menu "Move to": thin wrapper over reparentFolder
-      // (the single reparent source), with the large-move confirm. Retires the MOVE_FOLDER type.
-      // 7.30.0-alpha.4 - with books selected too: the one table's placement (placeByTable), as the book menu.
-      var moveFolder = async (targetParentId) => {
-        if (menuBooks.length) {
-          setFolderContextMenu(null);setContextSubmenu(null);
-          placeByTable('move', menuBooks, menuTargets, selectedFolderId, targetParentId || '__library__');
-          setExplorerSelectedItems(new Set());
-          return true;
-        }
-        var ok = await reparentFolder(menuTargets, targetParentId, { confirmLarge: true });
-        if (ok) {setFolderContextMenu(null);setContextSubmenu(null);}
-        return ok;
+      // v6.13.1-alpha.14 (ops refactor #4) - Folder menu "Move to", with the large-move confirm. Retires the
+      // MOVE_FOLDER type. 7.30.0-alpha.4 - with books selected too: the one table's placement (placeByTable),
+      // as the book menu. 7.30.0-alpha.10 - folders alone too (was reparentFolder on its own, the last move
+      // outside the table): the Inbox among them is then copied, as the table answers (§6 item 20; was
+      // refused whole, "Inbox cannot be moved"), and a folder already there says so (§6 item 7). The
+      // large-move question (confirmLarge) is asked inside the placement, before anything changes.
+      var moveFolder = (targetParentId) => {
+        setFolderContextMenu(null);setContextSubmenu(null);
+        placeByTable('move', menuBooks, menuTargets, selectedFolderId, targetParentId || '__library__', { confirmLarge: true });
+        if (menuBooks.length) setExplorerSelectedItems(new Set());
       };
       // Root = the top level: books can't go there (the table's words, greyed — Law 16)
       var rootWhy = (() => {

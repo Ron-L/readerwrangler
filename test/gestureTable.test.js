@@ -13,6 +13,8 @@
 // 7.30.0-alpha.7: books dragged onto the Book Lists header — a drag's words (TABLE-028).
 // 7.30.0-alpha.9 (§6 item 20, Ron 2026-11-15): a cut that can't be done as a move is done as a copy — every such cell
 // (TABLE-029), said at the cut when known there (TABLE-030) and at the paste always, as a warning (TABLE-031, 032).
+// 7.30.0-alpha.10: the precedent itself — a cut from All Books / a Search onto a Book List, "just added" — is marked a cut
+// done as a copy, with the same warning; and every move cell doing a copy's act must be (TABLE-033; TABLE-029 changed).
 const assert = require('assert');
 const t = require('../gestureTable.js');
 const { test, done } = require('./harness');
@@ -520,29 +522,37 @@ test('TABLE-029', 'a cut that can\'t be done as a move is done as a copy — der
     console.log('    translated cells (a cut done as a copy):');
     Object.entries(summary).forEach(([k, v]) => console.log(`      ${k} — from ${v}`));
     const E = 'every place';
+    // (7.30.0-alpha.10: the precedent is a translation too — books cut from no container (All Books, a Search; the
+    // headers show no books) onto a Book List are just added, TABLE-033 — so those cells name the books' half as well)
+    const CONTAINERS = 'folder, inbox, book-list, trash', NOWHERE = 'all-books, folders-view, searches-view, book-lists-view, search';
     assert.deepStrictEqual(summary, {
+        'books → book-list (done as a copy: add-books)': NOWHERE,
         'folders → book-list (done as a copy: add-folder-books)': E,
-        'books+folders → book-list (done as a copy: folders add-folder-books)': E,
+        'books+folders → book-list (done as a copy: folders add-folder-books)': CONTAINERS,
+        'books+folders → book-list (done as a copy: books add-books, folders add-folder-books)': NOWHERE,
         'the Inbox → folder (done as a copy: copy-folders)': E,
         'the Inbox → inbox (done as a copy: copy-folders)': E,
         'the Inbox → folders-view (done as a copy: copy-folders)': E,
         'the Inbox → book-list (done as a copy: add-folder-books)': E,
         'books+the Inbox → folder (done as a copy: inbox copy-folders)': E,
         'books+the Inbox → inbox (done as a copy: inbox copy-folders)': E,
-        'books+the Inbox → book-list (done as a copy: inbox add-folder-books)': E,
+        'books+the Inbox → book-list (done as a copy: inbox add-folder-books)': CONTAINERS,
+        'books+the Inbox → book-list (done as a copy: books add-books, inbox add-folder-books)': NOWHERE,
         'folders+the Inbox → folder (done as a copy: inbox copy-folders)': E,
         'folders+the Inbox → inbox (done as a copy: inbox copy-folders)': E,
         'folders+the Inbox → folders-view (done as a copy: inbox copy-folders)': E,
         'folders+the Inbox → book-list (done as a copy: folders add-folder-books, inbox add-folder-books)': E,
         'books+folders+the Inbox → folder (done as a copy: inbox copy-folders)': E,
         'books+folders+the Inbox → inbox (done as a copy: inbox copy-folders)': E,
-        'books+folders+the Inbox → book-list (done as a copy: folders add-folder-books, inbox add-folder-books)': E,
+        'books+folders+the Inbox → book-list (done as a copy: folders add-folder-books, inbox add-folder-books)': CONTAINERS,
+        'books+folders+the Inbox → book-list (done as a copy: books add-books, folders add-folder-books, inbox add-folder-books)': NOWHERE,
     });
-    // the book rows have none: wherever a book move refuses, its copy refuses too (All Books, the headers, the Trash)
-    for (const fk of t.PLACE_KINDS) for (const tk of t.PLACE_KINDS) assert.ok(!t.BOOK_ROWS.move[fk][tk].translated, `books ${fk} → ${tk}`);
-    // the precedent (decision 2 of "Move and copy books anywhere"): a cut from All Books onto a Book List is just added —
-    // its own row (a move from no container), not a translation
-    assert.deepStrictEqual(row('paste', 'books', '__all__', '__booklist_bl-1__', 'cut'), { act: 'add-books' });
+    // the book rows' only translation is the precedent (TABLE-033): wherever else a book move refuses, its copy refuses too
+    // (All Books, the headers, the Trash)
+    for (const fk of t.PLACE_KINDS) for (const tk of t.PLACE_KINDS) {
+        const precedent = NOWHERE.split(', ').includes(fk) && tk === 'book-list';
+        assert.strictEqual(t.BOOK_ROWS.move[fk][tk].translated, precedent ? 'cut-to-copy' : undefined, `books ${fk} → ${tk}`);
+    }
     // the Inbox's cut: its why is the Inbox's own words
     assert.deepStrictEqual(t.decide('paste', 'nothing', { placeId: '__library__', clip: 'cut', inbox: true }, { placeId: 'f-scifi' }),
         { act: 'copy-folders', translated: 'cut-to-copy', why: t.MOVE_WORDS.inboxCantMove });
@@ -645,6 +655,43 @@ test('TABLE-032', 'no translation can come with an ordinary notice: every transl
     }
     assert.deepStrictEqual(misses, []);
     assert.deepStrictEqual([...t.TRANSLATIONS].sort(), ['copy-to-restore', 'cut-to-copy']);
+});
+
+// ── 7.30.0-alpha.10: the precedent itself is a cut done as a copy (§6 item 20) ───────────────────────────────────────────
+test('TABLE-033', 'the precedent: a cut from All Books or a Search pasted onto a Book List is "just added" — a cut done as a copy, marked so, its receipt the same warning; nothing known at the cut', () => {
+    const W = t.MOVE_WORDS;
+    // the act is unchanged (decision 2 of "Move and copy books anywhere": lists don't file books — the books stay in their
+    // folders); the row now says it is a translation, and why
+    for (const from of ['__all__', '__view_ss-1__']) {
+        assert.deepStrictEqual(row('paste', 'books', from, '__booklist_bl-1__', 'cut'),
+            { act: 'add-books', translated: 'cut-to-copy', why: W.listKeepsFolders }, from);
+        assert.deepStrictEqual(row('move', 'books', from, '__booklist_bl-1__'),
+            { act: 'add-books', translated: 'cut-to-copy', why: W.listKeepsFolders }, `${from} (the move rows)`);
+    }
+    assert.strictEqual(W.listKeepsFolders, "A Book List doesn't take books out of their folders.");
+    // a copy of the same books is no translation; a cut into a folder is a re-file (its own verb)
+    assert.deepStrictEqual(row('paste', 'books', '__all__', '__booklist_bl-1__', 'copy'), { act: 'add-books' });
+    assert.deepStrictEqual(row('paste', 'books', '__all__', 'f-fantasy', 'cut'), { act: 'refile' });
+    // the paste end: the same kind of notice as every translation — a warning, saying what happened and why
+    const r = t.placeReceipt;
+    assert.deepStrictEqual(r({ books: { act: 'add-books', translated: 'cut-to-copy', n: 1, title: 'Dune', addedTitle: 'Dune', added: 1, already: 0, from: [], to: 'Read Next', toList: true } }), {
+        words: "Added 'Dune' to 'Read Next'. A Book List doesn't take a book out of its folders, so it stays where it was.", warning: true });
+    assert.deepStrictEqual(r({ books: { act: 'add-books', translated: 'cut-to-copy', n: 3, added: 2, already: 1, from: [], to: 'Read Next', toList: true } }), {
+        words: "Added 2 books to 'Read Next' (1 was already there). A Book List doesn't take books out of their folders, so they stay where they were.", warning: true });
+    assert.strictEqual(r({ books: { act: 'add-books', translated: 'cut-to-copy', n: 1, title: 'Dune', added: 0, already: 1, from: [], to: 'Read Next', toList: true } }).words,
+        "'Dune' is already on 'Read Next'. A Book List doesn't take a book out of its folders, so it stays where it was.");
+    // the cut end: a cut in All Books is a re-file into a folder, a copy only onto a list — not known until the paste
+    assert.deepStrictEqual(t.clipNotice('cut', { books: 1, title: 'Dune', from: '__all__' }), { words: "Cut 'Dune'", warning: false });
+    // the rule, structural: EVERY move cell that only adds or copies (a copy's act) is a translation and says why — so no
+    // move row can do a copy's act with an ordinary notice
+    const COPY_ACTS = ['add-books', 'copy-folders', 'add-folder-books'];
+    const rows = { books: t.BOOK_ROWS.move, folders: { any: t.FOLDER_ROWS.move }, inbox: { any: t.INBOX_ROWS.move } };
+    const loose = [];
+    for (const [half, byFrom] of Object.entries(rows)) for (const [fk, byTo] of Object.entries(byFrom)) for (const tk of t.PLACE_KINDS) {
+        const c = byTo[tk];
+        if (COPY_ACTS.includes(c.act) && (c.translated !== 'cut-to-copy' || !c.why)) loose.push(`${half} ${fk} → ${tk}: ${JSON.stringify(c)}`);
+    }
+    assert.deepStrictEqual(loose, []);
 });
 
 done();
