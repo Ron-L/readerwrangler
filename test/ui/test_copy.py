@@ -2,8 +2,8 @@
 # a refusal said plainly.
 # tags: copy, share, logging, tier 2
 # covers: readerwrangler.js, logkit/logger.js
-# Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python). Starts its own LOCAL relay (rw.LocalRelay)
-# — Cloud Sync is on, so Relay Setup shows the credentials and their Copy button.
+# Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python). Starts its own LOCAL relay
+# (App(relay=True) — tools/local_relay.py) — Cloud Sync is on, so Relay Setup shows the credentials and their Copy button.
 #
 # 7.29.1 (sprint 3 item 4; Ron, 2026-11-13: "ONE copy routine in the whole app" — Law 22): readerwrangler.js's own Copy
 # buttons wrote the clipboard themselves and said "Title copied!" without waiting to hear — a refused clipboard (a denied

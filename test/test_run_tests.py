@@ -1,6 +1,6 @@
 # Tests for tools/run_tests.py — the one test runner (docs/design/TESTING.md §4).
 # tags: test-runner, tier 1
-# covers: tools/run_tests.py, tools/local_relay.py, test/harness.js
+# covers: tools/run_tests.py, tools/local_relay.py, test/harness.js, test/ui/rw.py
 # Run: python test/test_run_tests.py
 #
 # Sample test files are written to a temporary folder; each row checks one thing the runner must do.
@@ -153,14 +153,27 @@ def wait_served():
         except OSError:
             time.sleep(0.1)
     sys.exit("the stand-in's server never came up")
-if mode == "serve":
+if mode in ("serve", "serve-strict"):
     note("server")
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200); self.end_headers(); self.wfile.write(b"stand-in relay")
         def log_message(self, *a):
             pass
-    http.server.HTTPServer(("127.0.0.1", port), H).serve_forever()
+    class Strict(http.server.HTTPServer):
+        allow_reuse_address = False   # a taken port is refused, as wrangler's runtime refuses it
+    srv = (Strict if mode == "serve-strict" else http.server.HTTPServer)(("127.0.0.1", port), H)
+    open(pids + ".bound-" + str(os.getpid()), "w").close()
+    srv.serve_forever()
+elif mode == "strict":                # like wrangler on a taken port: its server can't start, so it stops, never ready
+    note("relay")
+    srv = child("serve-strict")
+    while not os.path.exists(pids + ".bound-" + str(srv.pid)):
+        if srv.poll() is not None:
+            sys.exit("the stand-in's server couldn't take the port — stopping, as wrangler does")
+        time.sleep(0.05)
+    print(f"[wrangler:info] Ready on http://127.0.0.1:{port}", flush=True)
+    time.sleep(600)
 elif mode == "middle":
     note("middle")
     child("serve")
@@ -238,8 +251,10 @@ else:
     now = running()
     row("RUN-019", "a child that escaped the tree and still serves the port fails the run, named by its id — and the "
         "runner leaves it running (not provably its own)",
-        code == 1 and escaped is not None and f"process {escaped}" in out and "still in use" in out
-        and escaped in now,
+        code == 1 and escaped is not None and f"process {escaped}" in out and "left running" in out
+        and escaped in now       # (since 2026-11-16 caught at the start — not alone on its port — rather than at the stop)
+        and open(os.path.join(d, "pids-orphan.txt")).read().count("relay ") == 1,   # …and never tried again
+
         f"exit {code}, started {started}: {out[-600:]}")
     for pid in started.values():      # the test's own cleanup — by exact id, processes this test started
         if pid in now:
@@ -276,6 +291,79 @@ else:
     a = lr.WRANGLER_ARGS
     row("RUN-021", "the real relay is wrangler's LOCAL emulator on 127.0.0.1 — never the dev or production relay",
         "--local" in a and a[a.index("--ip") + 1] == "127.0.0.1" and "--remote" not in a and "{port}" in a, str(a))
+
+    # --- "Ready" is proven against the relay's OWN process (2026-11-16, TODO "Faster sprints"): the free port is chosen,
+    # then taken a moment later — and with screen tests in parallel, another run's relay can take it in between. The
+    # screen tests' old relay took ANY answer on the port as "up" (the same race as the app server's — rw.py
+    # App._server_is_ours). Here this test squats the first port the relay is given (this process listens there).
+    def all_started(pids_file):
+        """Every id the stand-in wrote — all tries — as [(role, id)]."""
+        return ([tuple(ln.split()) for ln in open(pids_file).read().splitlines() if ln.strip()]
+                if os.path.exists(pids_file) else [])
+
+    def squatted_relay(mode, name):
+        """Start the stand-in relay in `mode` with its FIRST port already taken by this process; (url or error, its
+        LocalRelay, what served the url, the answer there, what stop() left, every (role, id) it started, the port)."""
+        squat = socket.socket()
+        squat.bind(("127.0.0.1", 0))
+        squat.listen(16)
+        squatted = squat.getsockname()[1]
+        real_free_port, handed = lr.free_port, []
+
+        def squatted_first():
+            handed.append(1)
+            return squatted if len(handed) == 1 else real_free_port()
+        pids = os.path.join(d, f"pids-{name}.txt")
+        url, served, answer, left, relay = None, set(), None, ["(not stopped)"], None
+        lr.free_port = squatted_first
+        try:
+            relay = lr.LocalRelay(command=[sys.executable, standin, mode, "{port}", pids], cwd=d, start_s=20,
+                                  stop_s=1, extra_args=["--var", "ALLOWED_ORIGINS:http://localhost:1"])
+            url = relay.start()
+            served = lr.port_owners(int(url.rsplit(":", 1)[1]))
+            import urllib.request
+            answer = urllib.request.urlopen(url, timeout=5).read()
+        except Exception as e:      # noqa: BLE001 — a refusal (or, before the build, a TypeError): reported in the row
+            url = f"{type(e).__name__}: {e}"
+        finally:
+            lr.free_port = real_free_port
+            if relay is not None:
+                left = relay.stop()
+            still_squatting = os.getpid() in lr.port_owners(squatted)
+            squat.close()
+        return url, relay, served, answer, left, all_started(pids), squatted, still_squatting
+
+    url, relay, served, answer, left, started, squatted, untouched = squatted_relay("ok", "squat")
+    now = running()
+    ours_left = [f"{role} {pid}" for role, pid in started if int(pid) in now]
+    row("RUN-052", "the local relay's ready line isn't taken on trust: it printed 'Ready' on its port while another "
+        "process (here: this test, older than the relay — so proven not one of its own) listened there → not accepted; "
+        "that process left alone; started again on new ports — the address it gives is served by processes it started "
+        "and nothing else; nothing it started is left running",
+        url.startswith("http://127.0.0.1:") and not url.endswith(f":{squatted}") and served and relay is not None
+        and served <= set(relay.ours) and answer == b"stand-in relay" and not left
+        and sum(1 for r, _ in started if r == "relay") == 2 and not ours_left and untouched,
+        f"url {url[:400]}, served by {served}, ours {sorted(relay.ours) if relay else None}, answer {answer!r}, left "
+        f"{left}, started {started}, still running {ours_left}, squatter untouched {untouched}")
+    url, relay2, served, answer, left, started, squatted, _ = squatted_relay("strict", "strict")
+    now = running()
+    ours_left = [f"{role} {pid}" for role, pid in started if int(pid) in now]
+    row("RUN-057", "a relay that stops before it's ready (wrangler on a taken port: 'The Workers runtime failed to start') "
+        "is started again on new ports — the address it gives is served by processes it started and nothing else; "
+        "every try's processes are gone afterwards",
+        url.startswith("http://127.0.0.1:") and not url.endswith(f":{squatted}") and served and relay2 is not None
+        and served <= set(relay2.ours) and answer == b"stand-in relay" and not left
+        and sum(1 for r, _ in started if r == "relay") == 2 and not ours_left,
+        f"url {url[:300]}, served by {served}, ours {sorted(relay2.ours) if relay2 else None}, answer {answer!r}, "
+        f"left {left}, started {started}, still running {ours_left}")
+    rw_src = open(os.path.join(ROOT, "test", "ui", "rw.py"), encoding="utf-8").read()
+    row("RUN-053", "one relay launcher (Law 22): extra arguments reach the relay after its own (the screen tests' "
+        "ALLOWED_ORIGINS), and the screen tests start theirs through tools/local_relay.py — rw.py has no copy of its own "
+        "(no relay class, no taskkill)",
+        relay is not None and getattr(relay, "args", [])[-2:] == ["--var", "ALLOWED_ORIGINS:http://localhost:1"]
+        and "class LocalRelay" not in rw_src and "taskkill" not in rw_src and "local_relay.LocalRelay(" in rw_src,
+        f"args {getattr(relay, 'args', None)}; rw.py has a relay class: {'class LocalRelay' in rw_src}, taskkill: "
+        f"{'taskkill' in rw_src}")
 
     # --- A release run counts "skipped" as failed (TODO "Turn more of our working rules…", item 4; 7.28.0 post-mortem:
     # "31 passed, 2 skipped" read as a pass). Nothing skips today, so the test plants a reason through the runner's one

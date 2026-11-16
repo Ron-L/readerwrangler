@@ -116,7 +116,13 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   files against it, then stops every process it started **by exact id** (the whole tree) and **checks**: each one gone,
   both its ports no longer listening. Anything left fails the run, named by id — and is left running, since the runner
   can't show it started it. `--relay-url <address>` runs against a relay you started instead (no start, no stop). Never
-  the dev or production relay by default.
+  the dev or production relay by default. **The screen tests' relay is the same one** (`App(relay=True)`, 2026-11-16 —
+  Law 22; rw.py's own copy, which stopped its tree with `taskkill /T`, is gone). **"Ready" is proven against its own
+  process:** its ready line must name its port and only its own processes may listen there (by id) — the old screen-test
+  relay took any answer on the port, so with files in parallel another run's relay could answer for it. Another process
+  on its port that started BEFORE it (proven not its own) is left alone and the relay starts again on new ports, as it
+  does when wrangler stops before it's ready (what a taken port does to wrangler); any other fails loud, named by id,
+  left running, never retried (it may be one of its own that escaped). Tests: `RUN-016`–`021`, `052`, `053`, `057`.
 - **`--release` — skipped is not passed** (2026-11-12; 7.28.0: "31 passed, 2 skipped" read as a pass): with it, any
   file that didn't run fails the run, each named with why. One function decides a skip (`skip_reason` in the runner);
   nothing skips today — tier 3 brings its own relay, and a missing tool fails loud — so this guards any skip added later.
@@ -221,7 +227,8 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
      run today — the in-browser compile; the precompile cuts it;
   4. the first screen tests — from anomaly reporting and the Delete key fix (step 4), each starting from a failing test.
 - **Built 2026-11-05 (branch `feature/logging`):** **Cloud Sync in screen tests** — `App(relay=True)` starts a **local
-  relay** (`rw.LocalRelay`: Cloudflare's own emulator, `wrangler dev --local`, running relay-worker.js with an empty
+  relay** (since 2026-11-16 the runner's own `tools/local_relay.py` — one launcher, Law 22; it was `rw.LocalRelay`:
+  Cloudflare's own emulator, `wrangler dev --local`, running relay-worker.js with an empty
   store made for the run and deleted after; the test page's address allowed for that run only, wrangler.toml untouched;
   stopped by its exact process tree), points the app at it and gives the fresh profile a made-up test channel (planted at
   run time — never in a data file). `app.upload_fetch(items)` sends books as the library fetcher does;
