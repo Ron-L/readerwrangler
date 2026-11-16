@@ -60,7 +60,9 @@ alpha is committed** — the regression check. The full run is never skipped; it
 commit it ran on (§4), so an agent's "it passed" is a claim a machine can check — `py tools/run_tests.py --stamp <commit>`
 says PROVEN only for a full tier 1 + tier 2 pass on exactly that commit with nothing uncommitted. NOT PROVEN means the
 run is read (a failure, §7) or done — not taken on trust. **One full run of Claude's own before anything enters
-`main-prime` for release.**
+`main-prime` for release.** `tools/merge_branches.py` makes that run part of the merge (2026-11-16): branches built in
+parallel are merged on a scratch branch, tier 1 + tier 2 run on the merged result, and the target moves only when its
+stamp is PROVEN — two changes can merge cleanly and break together (docs/design/SESSION-TOOLING.md).
 
 ## 4. The library — layout, IDs, tags, the runner
 
@@ -92,6 +94,11 @@ run is read (a failure, §7) or done — not taken on trust. **One full run of C
   is served by ITS server (by process id), trying another if a parallel file's server took it in between — its own
   throwaway browser profile, its own local relay (free ports, a throwaway store) when it uses one, and files only in
   folders of its own (`tempfile.mkdtemp`); screenshot names are distinct per file.
+- **Working copies** (`tools/copies.py`, 2026-11-16): a git worktree beside the main folder, with `.venv` and the
+  `node_modules` folders linked in from the main folder — every tier runs there as here, with the copy's own `dist/`, its
+  own run records (so its own stamp), and its own screenshots folder: `%TEMP%\rw-test-artifacts-<copy name>` (or
+  `RW_TEST_ARTIFACTS-<copy name>`), so two copies running the same file don't overwrite each other's. The machine-wide
+  test slots are shared by every copy. Details: docs/design/SESSION-TOOLING.md.
 - **Results stamped with their commit** (2026-11-16): every run except the commit hook's `--changed` (and `--list`)
   leaves a record — the commit it ran on (and again at the end: a commit made during the run is caught), what was
   uncommitted before and after (changed tracked files, and untracked files git doesn't ignore), what ran (tier, `--id`,
