@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-PreToolUse gate. Fires on Edit/Write to APP SOURCE only.
+PreToolUse gate. Fires on Edit/Write to APP SOURCE only — and on a terminal command (Bash / PowerShell) that WRITES app
+source, read from the command's text by command_writes.py (2026-11-16: two agents changed version stamps with `sed`,
+which the Edit-only gate never saw). One state machine for both: an edit and a command are the same "app edit" below.
 On the FIRST app-source edit of a turn it shows the pre-build checklist by refusing the edit; the edit is then re-sent.
 
 The checklist is NOT stored here. It is the SINGLE SOURCE in docs/PRINCIPLES.md, between the
@@ -40,12 +42,33 @@ import sys, os, json, tempfile
 # 2026-11-11 ("Logging as its own module" moves code into logkit/): the rule is now the SHARED one —
 # git-hooks/shipped_paths.py (every .js outside the non-shipped folders, never the built dist/) — so code in a new
 # folder can't skip the gate, and the gate, the version guard and the style build can't disagree.
-def _shipped_paths(root):
+def _load(name, path):
     import importlib.util
-    spec = importlib.util.spec_from_file_location("shipped_paths", os.path.join(root, "git-hooks", "shipped_paths.py"))
+    spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def _shipped_paths(root):
+    return _load("shipped_paths", os.path.join(root, "git-hooks", "shipped_paths.py"))
+
+
+# A terminal command's written files (2026-11-16): the Bash and PowerShell tools carry a command, not a file_path.
+SHELL_TOOLS = {"Bash": "bash", "PowerShell": "powershell"}
+
+
+def written_files(data):
+    """The files this tool call writes: the edit's file_path, or what a terminal command writes (command_writes.py —
+    only what its text tells; a target it can't tell isn't listed, so that command passes)."""
+    tool_input = data.get("tool_input") or {}
+    shell = SHELL_TOOLS.get(data.get("tool_name") or "")
+    if shell:
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "command_writes.py")
+        return _load("command_writes", here).written_paths(tool_input.get("command") or "",
+                                                           data.get("cwd") or os.getcwd(), shell)
+    file_path = tool_input.get("file_path") or tool_input.get("path") or ""
+    return [file_path] if file_path else []
 
 
 RULE = os.path.join("git-hooks", "shipped_paths.py")
@@ -146,10 +169,12 @@ def main():
         return allow()
 
     try:
-        tool_input = data.get("tool_input") or {}
-        file_path = tool_input.get("file_path") or tool_input.get("path") or ""
-        if not file_path or not is_app_source(file_path):
+        app = [p for p in written_files(data) if is_app_source(p)]
+        if not app:
             return allow()
+        by_command = ("\n\n[COMMAND] This terminal command writes app code (%s) -- it gets the same checklist as an "
+                      "edit." % ", ".join(os.path.basename(p) for p in app)
+                      if (data.get("tool_name") or "") in SHELL_TOOLS else "")
 
         session = data.get("session_id") or "default"
         armed, refusing = state_file(session, "pending"), state_file(session, "refusing")
@@ -158,7 +183,7 @@ def main():
             return deny(
                 "[PRE-BUILD GATE -- BATCH REFUSED] This app-code edit came in the same batch as the one the checklist\n"
                 "just refused, so it was refused too -- NONE of this batch's app-code edits applied (non-app edits,\n"
-                "e.g. docs, did). After the checklist, RE-SEND EVERY app-code edit from the batch.")
+                "e.g. docs, did). After the checklist, RE-SEND EVERY app-code edit from the batch." + by_command)
 
         if os.path.exists(armed):                         # ARMED → REFUSING: the first app edit of the turn
             try:
@@ -170,7 +195,7 @@ def main():
             except Exception:
                 pass
             return deny(checklist_text() + "\n\n[BATCH] Every other app-code edit in this batch is refused too -- "
-                        "re-send ALL of them, not just this one.")
+                        "re-send ALL of them, not just this one." + by_command)
 
         return allow()                                    # CLEAR
     except Exception:

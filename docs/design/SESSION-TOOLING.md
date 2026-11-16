@@ -19,7 +19,7 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
 
 ## RW's session hooks (`.claude/hooks/`, saved in git; wired in `.claude/settings.json`)
 
-- **`gate-check.py`** (PreToolUse) — the **pre-build gate**. On the first edit of shipped code (any shipped
+- **`gate-check.py`** (PreToolUse: Edit, Write, Bash, PowerShell) — the **pre-build gate**. On the first edit of shipped code (any shipped
   `.js` — `is_app_source()` asks `git-hooks/shipped_paths.py`, the one "is this shipped?" rule shared with the version
   guard and the style build, so `logkit/` and `relay/` are covered and `dist/` never is; widened 2026-10-08, shared
   2026-11-11) each turn it prints the checklist and refuses that batch's app edits; re-sending them (the next batch) proceeds.
@@ -40,6 +40,23 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
   `readerwrangler.js` in a copy counted as "outside this repo" and went through while the gate was armed (seen live).
   The hooks are wired in `.claude/settings.json` by `$CLAUDE_PROJECT_DIR`, so a session started in the main folder runs
   the main folder's hooks for every copy's files, and a session started in a copy runs the copy's. Tests: `GATE-001`.
+  **Terminal commands too** (2026-11-16, TODO tooling task item 1 — decided Ron): the gate is wired for the Bash and
+  PowerShell tools as well as Edit / Write, because twice in one week an agent moved version stamps with `sed` — the
+  gate never saw it, and the brief saying "don't" failed both times. **`command_writes.py`** reads the command's TEXT
+  for the files it writes; each is judged by the same `is_app_source()` as an edit, and a hit joins the same state
+  machine (one ARMED flag per turn; an Edit and a `sed -i` in one batch see one checklist and are both refused; the
+  re-sent batch passes). It reads: redirects (`>`, `>>`, `>|`, `&>`, `2>` — not `2>&1`, not `/dev/null`), `sed -i` /
+  `--in-place`, `perl -i`, `awk -i inplace`, `tee`, `cp` / `mv` (incl. `-t DIR` and a folder as the destination), `dd
+  of=`; PowerShell `Set-Content` / `Add-Content` / `Out-File` / `Tee-Object` / `New-Item` / `Copy-Item` / `Move-Item`
+  (and their aliases), `>` and `[IO.File]::WriteAll…`; python / py / node one-liners and heredocs (`open(…, 'w'|'a'|'x')`,
+  `Path(…).write_text`, `shutil.copy`/`move`, `os.replace`, `fs.writeFileSync` …); `bash -c` / `powershell -Command`
+  read the same way; an earlier `cd` / `Set-Location` and Git Bash's `/c/…` paths are followed; wildcards are matched
+  against the files there. Heredoc bodies are data (a `>` in a commit message is not a redirect); git's own commands
+  (`checkout`, `mv`, `rm`) never trip it — but a redirect of git's output onto shipped code does (`git show X >
+  storage.js` is a write). **It never guesses**: a target it can't tell passes — a path in a variable (`$f`, `$p`), a
+  loop, `xargs` / `find -exec`, a script run from a file, `patch` / `git apply`; and a deletion (`rm`, `Remove-Item`)
+  isn't an edit. Like the Edit gate, only shipped `.js` counts (pages and styles don't). Tests: `GATE-002`–`009`
+  (`GATE-009`: settings.json's matcher really covers Edit, Write, Bash and PowerShell).
 - **`gate-batch-end.py`** (PostToolBatch) — REFUSING → CLEAR once the refused batch is over (2026-10-19).
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by
   session id) so the checklist lands exactly once, at the planning→build boundary.
