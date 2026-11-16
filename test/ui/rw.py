@@ -22,7 +22,7 @@ Rules it enforces (TESTING.md §5, §7): a fresh browser profile every time (Pla
 serve.py stopped by its exact process (Law 5); GoatCounter answered with an empty reply (tests never touch the usage
 statistics); any request to a relay or to Amazon recorded as a violation; a data file carrying a Cloud Sync Key
 refused. RW_HEADED=1 shows the browser (slowed down) for watching a test. Screenshots go to RW_TEST_ARTIFACTS, else
-%TEMP%\\rw-test-artifacts. The browser is Chrome, the one Ron uses (2026-11-06); RW_BROWSER=msedge runs Edge. Scrollbars
+%TEMP%\\rw-test-artifacts — in a working copy (tools/copies.py) with "-<copy name>" added. The browser is Chrome, the one Ron uses (2026-11-06); RW_BROWSER=msedge runs Edge. Scrollbars
 are SHOWN: Playwright hides them in a hidden browser by default, which hides exactly the bugs a person sees (the status
 bar covering the right pane's scrollbar, 2026-11-06).
 
@@ -49,10 +49,12 @@ from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import local_relay   # noqa: E402 — processes() and port_owners(): who listens on a port, by process id
+import copies        # noqa: E402 — tools/copies.py: a working copy keeps its screenshots apart
 FIXTURE = os.path.join(ROOT, "test", "fixtures", "small-fixture.json")
 DEMO = os.path.join(ROOT, "readerwrangler-demo-library-ORGANIZED.json")
 LARGE = os.path.join(ROOT, ".private", "test", "large-sample-private.json.gz")
-ARTIFACTS = os.environ.get("RW_TEST_ARTIFACTS") or os.path.join(tempfile.gettempdir(), "rw-test-artifacts")
+# RW_TEST_ARTIFACTS, else %TEMP%\rw-test-artifacts — plus "-<copy name>" in a working copy (2026-11-16)
+ARTIFACTS = copies.screenshots_folder(ROOT)
 
 # Console messages that are expected today — each with its reason. Anything else fails a test. These three go away
 # with "Faster loading: build the app ahead of time" (the in-browser compiler and style builder leave).

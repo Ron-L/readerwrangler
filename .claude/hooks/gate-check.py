@@ -40,19 +40,39 @@ import sys, os, json, tempfile
 # 2026-11-11 ("Logging as its own module" moves code into logkit/): the rule is now the SHARED one —
 # git-hooks/shipped_paths.py (every .js outside the non-shipped folders, never the built dist/) — so code in a new
 # folder can't skip the gate, and the gate, the version guard and the style build can't disagree.
-def _shipped_paths():
+def _shipped_paths(root):
     import importlib.util
-    spec = importlib.util.spec_from_file_location("shipped_paths", os.path.join(repo_root(), "git-hooks", "shipped_paths.py"))
+    spec = importlib.util.spec_from_file_location("shipped_paths", os.path.join(root, "git-hooks", "shipped_paths.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
 
 
+RULE = os.path.join("git-hooks", "shipped_paths.py")
+
+
+def working_copy_of(file_path):
+    """The RW working copy that holds this file: the nearest folder above it that is a git working tree (a `.git` folder
+    — the main folder — or a `.git` FILE — a working copy made by tools/copies.py, a git worktree) AND carries the
+    shipped-code rule. None when the file is in no RW folder. (2026-11-16, TODO "Faster sprints" item 3: the gate judged
+    every path against the session's folder only, so an edit to readerwrangler.js in a working copy — outside that
+    folder — was waved through as "outside this repo". A submodule (pytools/) has a .git file but no rule: skipped.)"""
+    d = os.path.dirname(os.path.abspath(file_path))
+    while True:
+        if os.path.exists(os.path.join(d, ".git")) and os.path.isfile(os.path.join(d, RULE)):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            return None
+        d = parent
+
+
 def is_app_source(file_path):
-    rel = os.path.relpath(os.path.abspath(file_path), repo_root()).replace("\\", "/")
-    if rel.startswith("../"):
-        return False                                  # outside this repo
-    return rel.endswith(".js") and _shipped_paths().is_shipped_source(rel)
+    root = working_copy_of(file_path)
+    if root is None or not file_path.replace("\\", "/").endswith(".js"):
+        return False                                  # in no RW working copy, or not a script
+    rel = os.path.relpath(os.path.abspath(file_path), root).replace("\\", "/")
+    return _shipped_paths(root).is_shipped_source(rel)
 
 # Match the FULL comment markers (not the bare tokens) so a prose mention of the marker names
 # elsewhere in PRINCIPLES.md can't be mistaken for the real delimiters.

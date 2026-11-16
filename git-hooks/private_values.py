@@ -25,7 +25,29 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-NOTE = os.environ.get("RW_SECRETS_NOTE") or os.path.join(ROOT, ".private", "Secrets.txt")   # override: tests only
+
+
+def main_folder(root=ROOT):
+    """The main working folder of this repository — `root` itself, or, in a working copy (tools/copies.py: a git
+    worktree), the folder whose .git the copy shares. None if git can't say."""
+    r = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=root,
+                       capture_output=True, text=True)
+    common = r.stdout.strip() if r.returncode == 0 else ""
+    return os.path.dirname(os.path.normpath(common)) if os.path.basename(os.path.normpath(common)) == ".git" else None
+
+
+def note_path(root=ROOT):
+    """The private secrets note: this folder's .private/, else the main folder's (2026-11-16, TODO "Faster sprints"
+    item 3 — a working copy has no .private/, so its commits were checked for credential SHAPES only, silently)."""
+    own = os.path.join(root, ".private", "Secrets.txt")
+    if os.path.exists(own):
+        return own
+    main = main_folder(root)
+    shared = os.path.join(main, ".private", "Secrets.txt") if main else None
+    return shared if shared and os.path.exists(shared) else own
+
+
+NOTE = os.environ.get("RW_SECRETS_NOTE") or note_path()   # override: tests only
 VALUE = re.compile(r"[A-Za-z0-9_\-]{16,}")
 # A real passphrase is what the app generates: exactly 32 letters/digits (Relay Setup). Placeholders pass - the docs'
 # '<passphrase>', the relay test harness's 'phase1-harness-passphrase' (the scan's first run, 2026-10-31). When the
