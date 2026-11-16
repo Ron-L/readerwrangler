@@ -4,6 +4,7 @@
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
       - [Faster sprints: screen tests in parallel, results stamped with their commit, working copies of the folder](#faster-sprints-screen-tests-in-parallel-results-stamped-with-their-commit-working-copies-of-the-folder)
+      - [Messages never block a click: clicks pass through to what's underneath](#messages-never-block-a-click-clicks-pass-through-to-whats-underneath)
       - [A book left in no folder is caught the moment it happens, naming the action that did it](#a-book-left-in-no-folder-is-caught-the-moment-it-happens-naming-the-action-that-did-it)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -220,6 +221,20 @@ next task. Estimate: the same day in ~6–7 hours, the same testing.
 6. Make the record agree: CLAUDE.md's "Autonomous mode — sprints" says agents build "a worktree each", but since
    sprint 1 they've worked one at a time in the main folder (memory: no worktrees — the local tools aren't in git).
    Once item 3 works, update CLAUDE.md to describe it (proposed to Ron, not edited by an agent) and the memory note.
+
+#### Messages never block a click: clicks pass through to what's underneath
+<!-- id 20261116-1109 -->
+
+_Why it matters:_ A message (a toast) appears just above the spot you last clicked — exactly where your next click is
+likely to go — and sits on top of everything, taking clicks, for its 1.5 s (4 s for an amber warning). It covered a
+menu item in sprint 5's screen tests ("Copied … from the Trash" held over the next cell's "Add to Book List"), so it can
+cover one under a person's mouse too. (Ron, 2026-11-16: "File the pass through click as next TODO task".)
+
+**Proposed** (Claude, 2026-11-16): the message lets clicks through — `pointer-events: none` on `.clipboard-toast`
+(readerwrangler.js ~9556). Nothing is lost: a message is text only — `showToast(message, x, y, { level, log })` has no
+way to add a button (Ron: the one routine answers it). A screen test first, shown failing: a message over a menu item,
+the item still clicked. Then test_cells.py's `clean_up` needn't wait warnings out (sprint 5's workaround) — check it.
+An app change: it rides with the next app release.
 
 #### A book left in no folder is caught the moment it happens, naming the action that did it
 <!-- id 20261115-1239 -->
