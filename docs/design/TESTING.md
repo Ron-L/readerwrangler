@@ -90,6 +90,15 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   Output: one line per file as it finishes, with its time; a failing file's details together, never interleaved; the
   same `Tests: N file(s) passed, M failed` line at the end. Before the screen tests start, the runner builds `dist/`
   once — otherwise each test's own serve.py would rebuild the same stale files at the same time.
+- **One file split across processes — `shards: N`** (2026-11-16): `test/ui/test_cells.py` alone set tier 2's time
+  (~5½ min, the 24 other files finishing alongside it). A file whose header says `shards: N` answers `--list-cells` with
+  its cell IDs (one a line, nothing started) and runs only the cells named in `RW_CELLS`; the runner runs it as N
+  processes at once — every Nth cell each — **each holding its own test slot**. It is still one file: passed only if
+  every shard passed, one line with the counts summed (`… — 3 shards`, and each shard's time), a failing shard's lines
+  together under it with its `RW_CELLS=…` to rerun just that shard, one entry in the record (each shard's cells, time and
+  result inside it) — so `--stamp` judges it as one file. A file that can't list its cells fails loud; more shards than
+  cells → one process per cell; `RW_CELLS` already set (a narrow run) → one process, as asked. A sharded file's cells
+  must not depend on each other (test_cells: each cell restores the fixture). Tests: `RUN-054`–`056`.
   Isolation (checked 2026-11-16): each screen-test file has its own serve.py on its own free port — and checks the port
   is served by ITS server (by process id), trying another if a parallel file's server took it in between — its own
   throwaway browser profile, its own local relay (free ports, a throwaway store) when it uses one, and files only in

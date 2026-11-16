@@ -35,6 +35,12 @@ failing file's details printed together; the same summary line at the end.
 
     py tools/run_tests.py --tier 2 --jobs 1   one file at a time, as before
 
+One file split across processes (2026-11-16): a file whose header says `shards: N` (test/ui/test_cells.py) lists its
+cells with `--list-cells` and runs as N processes at once — every Nth cell each, in RW_CELLS — each holding its own test
+slot. It is still ONE file: passed only if every shard passed, one line with the counts summed (a failing shard's lines
+under it, together, with its RW_CELLS to rerun just that shard), one entry in the record and the stamp. With RW_CELLS
+already set (a narrow run) it runs as one process, as asked.
+
 Results stamped with their commit (item 2): every run except --changed (the commit hook) and --list leaves a record —
 the commit it ran on, anything uncommitted, what ran, each file's result, start and end — in git's own folder for this
 working copy (`git rev-parse --git-path rw-test-results`: never in the working tree; a worktree has its own).
@@ -74,13 +80,14 @@ HEADER_LINES = 15
 
 
 def read_header(path):
-    """{'tags': [...], 'tier': int|None, 'covers': [...], 'problem': str|None} from the file's first lines."""
-    tags, tier, covers = None, None, None
+    """{'tags': [...], 'tier': int|None, 'covers': [...], 'shards': int, 'problem': str|None} from the file's first
+    lines. `shards: N` (optional, 2026-11-16) — run the file as N processes, each with its share of its cells."""
+    tags, tier, covers, shards, bad_shards = None, None, None, 1, None
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             head = [next(f, "") for _ in range(HEADER_LINES)]
     except OSError as e:
-        return {"tags": [], "tier": None, "covers": [], "problem": f"can't read it: {e}"}
+        return {"tags": [], "tier": None, "covers": [], "shards": 1, "problem": f"can't read it: {e}"}
     for line in head:
         text = re.sub(r"^\s*(//+|#+|\*|/\*\*?)\s?", "", line).strip()
         m = re.match(r"tags:\s*(.*)$", text)
@@ -92,12 +99,20 @@ def read_header(path):
         m = re.match(r"covers:\s*(.*)$", text)
         if m:
             covers = [p.strip() for p in m.group(1).split(",") if p.strip()]
+        m = re.match(r"shards:\s*(.*?)\s*$", text)
+        if m:
+            if re.fullmatch(r"[1-9]\d*", m.group(1)):
+                shards = int(m.group(1))
+            else:
+                bad_shards = m.group(1)
     problem = None
     if tags is None or covers is None:
         problem = "no header — every test file needs 'tags: <areas>, tier N' and 'covers: <files>' in its first lines"
     elif tier is None:
         problem = "its tags: line names no tier ('tier 1', 'tier 2' or 'tier 3')"
-    return {"tags": tags or [], "tier": tier, "covers": covers or [], "problem": problem}
+    elif bad_shards is not None:
+        problem = f"its shards: line says {bad_shards!r} — a whole number of processes, 1 or more (e.g. 'shards: 3')"
+    return {"tags": tags or [], "tier": tier, "covers": covers or [], "shards": shards, "problem": problem}
 
 
 class TestFile:
@@ -154,28 +169,96 @@ def skip_reason(tf):
     return None
 
 
-def run_file(tf, relay_url=None, timeout=600):
-    """(passed?, output) — runs one test file from the repo root."""
+def command(tf):
+    """(the command that runs this file, None) — or (None, why it can't run here)."""
     if tf.path.endswith(".py") and tf.tier == 2:
         if not os.path.exists(VENV_PY):
-            return False, f"screen tests need the project's venv (Playwright) — not found at {VENV_PY}.\n  Set it up: {VENV_SETUP}"
-        cmd = [VENV_PY, tf.path]
-    elif tf.path.endswith(".py"):
-        cmd = [sys.executable, tf.path]
-    else:
-        node = shutil.which("node")
-        if not node:
-            return False, "node isn't on the PATH"
-        cmd = [node, tf.path]
+            return None, f"screen tests need the project's venv (Playwright) — not found at {VENV_PY}.\n  Set it up: {VENV_SETUP}"
+        return [VENV_PY, tf.path], None
+    if tf.path.endswith(".py"):
+        return [sys.executable, tf.path], None
+    node = shutil.which("node")
+    if not node:
+        return None, "node isn't on the PATH"
+    return [node, tf.path], None
+
+
+def run_file(tf, relay_url=None, timeout=600, cells=None):
+    """(passed?, output) — runs one test file from the repo root. cells: run only these (RW_CELLS — one shard)."""
+    cmd, why = command(tf)
+    if cmd is None:
+        return False, why
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
     if relay_url:
         env["RELAY_URL"] = relay_url
+    if cells is not None:
+        env["RW_CELLS"] = ",".join(cells)
     try:
         r = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return False, f"timed out after {timeout} s"
     out = (r.stdout + r.stderr).decode("utf-8", "replace")
     return r.returncode == 0, out
+
+
+# --- one file split across processes (2026-11-16, TODO "Faster sprints") ------------------------------------------------
+# test_cells.py alone set tier 2's time (~5½ min; the other files finished alongside it). A file whose header says
+# `shards: N` answers `--list-cells` with its cell IDs (one a line, running nothing) and runs only the cells named in
+# RW_CELLS. The runner runs it as N processes — every Nth cell each — each holding its own test slot; the file's result
+# is theirs together: passed only if every shard passed, the counts summed, one line, one entry in the record.
+CELL_ID = re.compile(r"[A-Z][A-Z0-9]*-\d{3}")
+
+
+def list_cells(tf, timeout=120):
+    """(the file's cell IDs, in its order; None) — or (None, why they couldn't be listed)."""
+    cmd, why = command(tf)
+    if cmd is None:
+        return None, why
+    try:
+        r = subprocess.run(cmd + ["--list-cells"], cwd=ROOT, env=dict(os.environ, PYTHONIOENCODING="utf-8"),
+                           capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return None, f"listing its cells (--list-cells) timed out after {timeout} s"
+    out = (r.stdout + r.stderr).decode("utf-8", "replace")
+    ids = [ln.strip() for ln in out.splitlines() if CELL_ID.fullmatch(ln.strip())]
+    if r.returncode or not ids:
+        tail = "\n".join(out.strip().splitlines()[-6:])
+        return None, (f"✗ its header says shards: {tf.shards}, but its cells couldn't be listed (--list-cells: exit "
+                      f"{r.returncode}, {len(ids)} cell IDs)" + (f":\n      {tail}" if tail else ""))
+    twice = sorted({i for i in ids if ids.count(i) > 1})
+    if twice:
+        return None, f"✗ its cell list (--list-cells) names some cells twice: {', '.join(twice)}"
+    return ids, None
+
+
+def shares(cells, n):
+    """The cells split n ways — every nth cell each (neighbors, often alike in cost, spread out); never an empty share."""
+    n = max(1, min(n, len(cells)))
+    return [cells[i::n] for i in range(n)]
+
+
+def combine_shards(parts):
+    """One file's (passed?, output) from its shards' [(number, of, cells, passed?, output, seconds)]: each shard's output
+    under a heading saying which cells it ran, then one summary line with the counts summed (what the runner reads)."""
+    total, missing, lines = [0, 0, 0], [], []
+    for k, n, cells, ok, out, secs in sorted(parts, key=lambda p: p[0]):
+        lines.append(f"── shard {k} of {n}: {len(cells)} cells ({cells[0]} … {cells[-1]}) — "
+                     + (f"passed in {secs:.0f} s" if ok else
+                        f"FAILED in {secs:.0f} s — this shard alone: RW_CELLS={','.join(cells)}"))
+        lines += out.rstrip("\n").splitlines()
+        m = None
+        for ln in reversed(out.splitlines()):
+            m = re.search(r"(\d+) passed, (\d+) failed(?:, (\d+) differ today)?", ln)
+            if m:
+                break
+        if m:
+            total = [total[0] + int(m.group(1)), total[1] + int(m.group(2)), total[2] + int(m.group(3) or 0)]
+        else:
+            missing.append(str(k))
+    ok = all(p[3] for p in parts)
+    lines.append(f"{total[0]} passed, {total[1]} failed" + (f", {total[2]} differ today (as measured)" if total[2] else "")
+                 + f" — {len(parts)} shards" + (f" (no summary from shard {', '.join(missing)})" if missing else ""))
+    return ok, "\n".join(lines)
 
 
 def differs_today_ids(out):
@@ -381,7 +464,8 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
 
     if a.list:
         for f in chosen:
-            print(f"  tier {f.tier}  {f.rel():40}  tags: {', '.join(f.tags)}")
+            print(f"  tier {f.tier}  {f.rel():40}  tags: {', '.join(f.tags)}"
+                  + (f"  · {f.shards} shards" if f.shards > 1 else ""))
         for f in broken:
             print(f"  ✗ {f.rel()}: {f.problem}")
         print(f"{len(chosen)} file(s) would run")
@@ -420,11 +504,14 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
         with say_lock:
             print(text, flush=True)
 
-    def report(f, ok, out, seconds=None, waited=0.0):
+    def report(f, ok, out, seconds=None, waited=0.0, shards=None):
+        """One file's result: its line (and a failure's details, together) and its entry in the record. shards: a file
+        run as several processes — [{cells, seconds, waited, result}] — reported as the one file it is."""
         ids = differs_today_ids(out)
         summary = next((ln for ln in reversed(out.splitlines()) if re.search(r"\bpassed\b", ln)), "")
         wait = f", waited {waited:.0f} s for a slot" if waited >= 1 else ""
-        took = "" if seconds is None else f"  ({seconds:.0f} s{wait})"
+        each = f"; shards {', '.join(str(round(s['seconds'])) for s in shards)} s" if shards else ""
+        took = "" if seconds is None else f"  ({seconds:.0f} s{each}{wait})"
         lines = []
         if ok:
             if not a.quiet:
@@ -441,7 +528,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
             if rec:
                 rec["files"].append({"file": f.rel(), "tier": f.tier, "result": "passed" if ok else "failed",
                                      "counts": summary.strip(), "seconds": None if seconds is None else round(seconds, 1),
-                                     "waited": round(waited, 1), "differ": ids})
+                                     "waited": round(waited, 1), "differ": ids, **({"shards": shards} if shards else {})})
             if lines:
                 print("\n".join(lines), flush=True)
 
@@ -452,42 +539,77 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
 
     # Tiers 1 and 2 in parallel (item 1): --jobs files at once; each screen-test (tier 2) file holds one of the PC's test
     # slots for as long as it runs, so every run on this PC together stays within the limit. Tier 3 runs after, one file
-    # at a time (below). Longest first — by each file's time in this copy's latest record — so the long ones don't finish
+    # at a time (below). A file with `shards: N` is N units of work, each in its own process with its own slot (a narrow
+    # run — RW_CELLS already set — stays one process, as asked). Longest first — by each file's time in this copy's latest
+    # record (a shard: its file's longest shard then, or its file's time split N ways) — so the long ones don't finish
     # last on their own.
     slots = slots or test_slots.Slots()
     jobs = max(1, a.jobs or slots.count)
     if rec:
         rec["ran"]["jobs"] = jobs
     pooled = [f for f in chosen if f.tier != 3]
-    if pooled:
-        last = {}
-        for r in read_records(record_to or (results_dir() if real else None)):
-            for x in r.get("files") or []:
-                if x.get("seconds") is not None:
-                    last[x.get("file")] = x["seconds"]
-        pooled.sort(key=lambda f: -(last.get(f.rel(), 60.0 if f.tier == 2 else 5.0)))
     if any(f.tier == 2 for f in pooled) and real:
         err = prebuild()
         if err:
             count["failed"] += 1
             problems.append(f"the build (dist/) failed: {err}")
             print(f"✗ build: dist/ couldn't be built before the screen tests — {err}")
+    units = []          # (file, shard number or None, of how many, its cells or None)
+    for f in pooled:
+        if f.shards > 1 and not os.environ.get("RW_CELLS"):
+            cells, why = list_cells(f)
+            if cells is None:
+                report(f, False, why)
+                continue
+            split = shares(cells, f.shards)
+            units += [(f, k, len(split), c) for k, c in enumerate(split, 1)]
+        else:
+            units.append((f, None, None, None))
+    if units:
+        last = {}
+        for r in read_records(record_to or (results_dir() if real else None)):
+            for x in r.get("files") or []:
+                if x.get("seconds") is not None:
+                    each = [s["seconds"] for s in x.get("shards") or [] if s.get("seconds") is not None]
+                    last[x.get("file")] = (max(each), True) if each else (x["seconds"], False)
 
-    def run_pooled(f):
-        slot = slots.acquire(f"{ROOT} · {f.rel()}", on_wait=say) if f.tier == 2 else None
+        def estimate(u):
+            f, k, n, _ = u
+            t, per_shard = last.get(f.rel(), (60.0 if f.tier == 2 else 5.0, False))
+            return t if k is None or per_shard else t / n
+        units.sort(key=lambda u: -estimate(u))
+    sharded = {}        # file path -> the shards finished so far
+    shard_lock = threading.Lock()
+
+    def run_unit(u):
+        f, k, n, cells = u
+        label = f.rel() + (f" (shard {k} of {n})" if k else "")
+        slot = slots.acquire(f"{ROOT} · {label}", on_wait=say) if f.tier == 2 else None
         t0 = time.monotonic()
         try:
-            ok, out = run_file(f, relay_url=a.relay_url)
+            ok, out = run_file(f, relay_url=a.relay_url, cells=cells)
         except Exception as e:      # noqa: BLE001 — a runner error is that file's failure, never a lost thread
             ok, out = False, f"✗ the runner couldn't run it: {type(e).__name__}: {e}"
         finally:
             if slot:
                 slot.release()
-        report(f, ok, out, time.monotonic() - t0, slot.waited if slot else 0.0)
+        t1, waited = time.monotonic(), slot.waited if slot else 0.0
+        if k is None:
+            report(f, ok, out, t1 - t0, waited)
+            return
+        with shard_lock:          # the file is reported once, when its last shard is done
+            done = sharded.setdefault(f.path, [])
+            done.append((k, n, cells, ok, out, t0, t1, waited))
+            if len(done) < n:
+                return
+        f_ok, f_out = combine_shards([(k, n, c, o, x, b - s) for k, n, c, o, x, s, b, _ in done])
+        report(f, f_ok, f_out, max(p[6] for p in done) - min(p[5] for p in done), sum(p[7] for p in done),
+               shards=[{"cells": len(c), "first": c[0], "seconds": round(b - s, 1), "waited": round(w, 1),
+                        "result": "passed" if o else "failed"} for k, n, c, o, x, s, b, w in sorted(done)])
 
-    if pooled:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(jobs, len(pooled))) as pool:
-            for fut in concurrent.futures.as_completed([pool.submit(run_pooled, f) for f in pooled]):
+    if units:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(jobs, len(units))) as pool:
+            for fut in concurrent.futures.as_completed([pool.submit(run_unit, u) for u in units]):
                 fut.result()
 
     # Tier 3 with no --relay-url: the runner starts its OWN local relay around the relay files, then stops it and checks

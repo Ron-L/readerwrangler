@@ -717,6 +717,98 @@ print("1 passed, 0 failed")
     row("RUN-050", "screen-test files each hold a slot: with 1 slot two tier-2 files run one after the other, and the "
         "waiting one says so", code == 0 and apart and "waits for a test slot" in out, f"exit {code}, spans {spans}: {out[-400:]}")
 
+    # --- One file split across processes (2026-11-16, TODO "Faster sprints"): test_cells.py alone set tier 2's time. A
+    # file whose header says `shards: N` lists its cells (--list-cells, running nothing) and runs as N processes, each
+    # with RW_CELLS set to its share and each holding a test slot; the file's result is the sum, its lines together.
+    def shard_file(name, fail_cell=None, n=3, cells=7, lists=True):
+        return write(name, f"""# sample
+# tags: shard-sample, tier 2
+# covers: tools/run_tests.py
+# shards: {n}
+import os, sys, time
+CELLS = ["SHARD-%03d" % i for i in range(1, {cells} + 1)]
+if "--list-cells" in sys.argv:
+    {'print(chr(10).join(CELLS))' if lists else 'print("no list here"); sys.exit(1)'}
+    sys.exit(0)
+only = [x for x in os.environ.get("RW_CELLS", "").split(",") if x]
+mine = [c for c in CELLS if not only or c in only]
+with open(os.path.join({d!r}, {name!r} + ".log"), "a") as f:
+    f.write(f"{{os.getpid()}} {{','.join(mine)}} {{time.time()}}\\n")
+time.sleep(0.4)
+bad = [c for c in mine if c == {fail_cell!r}]
+for c in mine:
+    print(("  ✗ " if c in bad else "  ✓ ") + c + " a cell")
+    if c in bad:
+        print("      the detail of " + c)
+print(f"{{len(mine) - len(bad)}} passed, {{len(bad)}} failed")
+sys.exit(1 if bad else 0)
+""")
+
+    def shard_runs(name):
+        p = os.path.join(d, name + ".log")
+        return [ln.split() for ln in open(p).read().splitlines() if ln.strip()] if os.path.exists(p) else []
+
+    sh_ok = shard_file("test_shards_ok.py")
+    four = ts.Slots(count=4, folder=os.path.join(d, "slots4"))
+    shard_rec = os.path.join(d, "shard-results")
+    code, out = quiet_main(["--tier", "2", "--jobs", "4"], files=[rt.TestFile(sh_ok)], slots=four, results=shard_rec)
+    runs = shard_runs("test_shards_ok.py")
+    shares_seen = sorted(r[1] for r in runs)
+    every = sorted(c for r in runs for c in r[1].split(","))
+    starts = sorted(float(r[2]) for r in runs)
+    got = records_in(shard_rec)
+    entries = [f for r in got for f in r.get("files", [])] if isinstance(got, list) else []
+    row("RUN-054", "a file with 'shards: 3' runs as 3 processes at once, each with its share of the cells in RW_CELLS (all "
+        "of them, none twice); one line for the file with the summed counts; one entry in the record",
+        code == 0 and len(runs) == 3 and every == [f"SHARD-{i:03d}" for i in range(1, 8)] and len(set(every)) == 7
+        and starts[-1] - starts[0] < 0.4 and out.count("test_shards_ok.py") == 1 and "7 passed, 0 failed" in out
+        and len(entries) == 1 and entries[0].get("result") == "passed" and len(entries[0].get("shards") or []) == 3,
+        f"exit {code}, shares {shares_seen}, starts {starts}, entries {str(entries)[:300]}: {out[-500:]}")
+
+    sh_bad = shard_file("test_shards_bad.py", fail_cell="SHARD-005")
+    code, out = quiet_main(["--tier", "2", "--jobs", "4"], files=[rt.TestFile(sh_bad), rt.TestFile(sh_ok)], slots=four,
+                           results=shard_rec)
+    lines = out.splitlines()
+    head = next((i for i, ln in enumerate(lines) if "test_shards_bad.py" in ln), None)
+    block = lines[head:head + 4] if head is not None else []
+    got = records_in(shard_rec)
+    last = got[-1] if isinstance(got, list) and got else {}
+    res = {f.get("file", "").rsplit("/", 1)[-1]: f.get("result") for f in last.get("files", [])}
+    row("RUN-055", "a failing shard fails its file: the file's line shows the sum (6 passed, 1 failed), the failing "
+        "shard's lines come right under it, together, naming the shard; the record and the stamp see one failed file",
+        code == 1 and head is not None and "6 passed, 1 failed" in lines[head] and any(" of 3" in ln for ln in block)
+        and any("SHARD-005" in ln for ln in block) and any("the detail of SHARD-005" in ln for ln in block)
+        and "Tests: 1 file(s) passed, 1 failed" in out
+        and res == {"test_shards_bad.py": "failed", "test_shards_ok.py": "passed"},
+        f"exit {code}, record {res}: {out[-700:]}")
+
+    sh_nolist = shard_file("test_shards_nolist.py", lists=False)
+    code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(sh_nolist)], slots=four)
+    nolist_runs = shard_runs("test_shards_nolist.py")
+    sh_small = shard_file("test_shards_small.py", n=5, cells=2)
+    code2, out2 = quiet_main(["--tier", "2"], files=[rt.TestFile(sh_small)], slots=four)
+    small_runs = shard_runs("test_shards_small.py")
+    saved_cells = os.environ.get("RW_CELLS")
+    os.environ["RW_CELLS"] = "SHARD-002"
+    try:
+        code3, out3 = quiet_main(["--tier", "2"], files=[rt.TestFile(shard_file("test_shards_narrow.py"))], slots=four)
+    finally:
+        if saved_cells is None:
+            del os.environ["RW_CELLS"]
+        else:
+            os.environ["RW_CELLS"] = saved_cells
+    narrow_runs = shard_runs("test_shards_narrow.py")
+    bad_header = write("test_shards_header.py", "# sample\n# tags: shard-sample, tier 2\n# covers: tools/run_tests.py\n"
+                                                "# shards: many\nprint('1 passed, 0 failed')\n")
+    row("RUN-056", "shards, the edges: a file that can't list its cells fails loud (never run whole, quietly); more shards "
+        "than cells → one process per cell; RW_CELLS already set (a narrow run) → one process, as asked; a shards: line "
+        "that isn't a number is a header problem",
+        code == 1 and "list" in out and not nolist_runs and code2 == 0 and len(small_runs) == 2
+        and code3 == 0 and len(narrow_runs) == 1 and narrow_runs[0][1] == "SHARD-002"
+        and rt.TestFile(bad_header).problem and "shards" in rt.TestFile(bad_header).problem,
+        f"no list: exit {code}, runs {nolist_runs}: {out[-200:]} | small: exit {code2}, runs {small_runs} | narrow: exit "
+        f"{code3}, runs {narrow_runs} | header problem: {rt.TestFile(bad_header).problem}")
+
 failed = [r for r in results if not r[2]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
 sys.exit(1 if failed else 0)
