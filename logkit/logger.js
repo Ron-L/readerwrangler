@@ -113,6 +113,9 @@ function createLogger(opts = {}) {
     const recorded = (level) => rank(level) >= (isOn('logDetail') ? rank('debug') : keepRank);
     // 7.31.0 - The page's report button on the banner (setReportButton): { label, onClick } — null until the page gives one.
     let reportButton = null;
+    // 7.31.0 - What the alerts' Copy buttons copy, from the page (setAlertCopy): fn(entries shown) → text — null until the
+    // page gives one (then the kit's own text: alertCopyText, below).
+    let alertCopy = null;
 
     let entries = (() => {
         try {
@@ -137,7 +140,15 @@ function createLogger(opts = {}) {
         try { schedule(save, saveDelayMs); } catch (e) { saveScheduled = false; }
     };
 
-    const format = (e) => `${e.level} · ${e.code}${e.test ? TEST_MARK : ''} · ${e.text}${e.count > 1 ? ` (×${e.count})` : ''}`;
+    const codeOf = (e) => `${e.code}${e.test ? TEST_MARK : ''}`;
+    const format = (e) => `${e.level} · ${codeOf(e)} · ${e.text}${e.count > 1 ? ` (×${e.count})` : ''}`;
+    // One entry as a copy has it: its time and line, its details (if any) on the line below — every copied report
+    // (diagnosticsText, the alerts' own copy) writes entries through this one.
+    const entryLines = (e) => {
+        const lines = [`${new Date(e.time).toISOString()}  ${format(e)}`];
+        if (e.data !== undefined) { try { lines.push(`    ${JSON.stringify(e.data)}`); } catch (x) { lines.push('    (details not shown)'); } }
+        return lines;
+    };
 
     const record = (level, code, text, data, isTest, toastOptions) => {
         let secrets = [];
@@ -235,6 +246,27 @@ function createLogger(opts = {}) {
         ...(isOn('errorBanner') ? [{ id: 'turnOff', label: 'Turn off this banner' }] : []),
     ];
 
+    // 7.31.0 (Ron, 2026-11-16, review queue Q-044) - THE rule for the banner's words: the kit's prefix (level · code, drawn
+    // after a 🐞) is for a viewer who CHOSE the bar — the switch on, by their choice or the host's default (RW: contributor
+    // mode). With the switch off the bar is there only because the message asked for it ({ banner: 'always' }), and the
+    // person sees just the message; its code is still in the log and in the copy. { prefix: '' | 'error · INTEG-08', text }.
+    const bannerLine = (e) => ({ prefix: isOn('errorBanner') ? `${e.level} · ${codeOf(e)}` : '', text: e.text });
+
+    // 7.31.0 (Q-044: "we'll want to see what was going on") - What an alert's Copy copies (the banner's Copy, the critical
+    // box's Copy details): the page's text when it gave one (setAlertCopy — ReaderWrangler's: the full diagnostics, as
+    // Copy diagnostics has them, the alert's messages at the top) — else, or if the page's fails, the kit's own: the
+    // messages shown, each with its details, then the recent log.
+    const alertCopyText = (list) => {
+        if (alertCopy) {
+            try { const t = alertCopy(list.map(e => ({ ...e }))); if (typeof t === 'string' && t) return t; } catch (e) { /* the kit's own, below */ }
+        }
+        let build;
+        try { build = typeof opts.build === 'function' ? opts.build() : undefined; } catch (e) { /* unknown */ }
+        return [`${product} diagnostics — build ${build || 'unknown'} — ${new Date(now()).toISOString()}`,
+            ...list.flatMap(entryLines),
+            '', 'Recent log:', ...entries.slice(-50).map(e => `${new Date(e.time).toISOString()}  ${format(e)}`)].join('\n');
+    };
+
     const api = {
         log,
         format,
@@ -248,28 +280,33 @@ function createLogger(opts = {}) {
         clear: () => { entries = []; save(); notify(); },
         // Copy diagnostics: a header (the time, the caller's lines — the app's build —, the browser, the switches), then
         // EVERY kept entry, oldest first, each entry's details on the line below it. Already cleaned (scrub) when recorded.
-        diagnosticsText: (headerLines) => {
+        // 7.31.0 - { first }: entries to put at the very top (each with its details, then a blank line) — an alert's own
+        // messages, so its Copy is the whole report with what the person saw first.
+        diagnosticsText: (headerLines, { first } = {}) => {
             const browser = typeof navigator !== 'undefined' && navigator.userAgent ? navigator.userAgent : 'unknown';
-            const lines = [`${product} diagnostics — ${new Date(now()).toISOString()}`, ...(headerLines || []),
+            const top = Array.isArray(first) && first.length ? [...first.flatMap(entryLines), ''] : [];
+            const lines = [...top, `${product} diagnostics — ${new Date(now()).toISOString()}`, ...(headerLines || []),
                 `Browser: ${browser}`,
                 `Switches: error banner ${isOn('errorBanner') ? 'on' : 'off'}, extra detail ${isOn('logDetail') ? 'on' : 'off'}`,
                 `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} kept`, ''];
-            for (const e of entries) {
-                lines.push(`${new Date(e.time).toISOString()}  ${format(e)}`);
-                if (e.data !== undefined) { try { lines.push(`    ${JSON.stringify(e.data)}`); } catch (x) { lines.push('    (details not shown)'); } }
-            }
+            for (const e of entries) lines.push(...entryLines(e));
             return lines.join('\n');
         },
         switches: switchesNow,   // what applies now: each switch's choice, else the host's default
         setSwitch,
         copyText,
         bannerButtons,
+        bannerLine,
+        alertCopyText,
         // 7.31.0 - The page's report button on the banner: setReportButton({ label, onClick }) — its words and what it does
         // (the host's own report window). Anything else (null) takes it away.
         setReportButton: (b) => {
             reportButton = b && typeof b.label === 'string' && b.label && typeof b.onClick === 'function'
                 ? { label: b.label, onClick: b.onClick } : null;
         },
+        // 7.31.0 - What the alerts' Copy buttons copy: setAlertCopy(fn) — fn(entries shown) returns the text (ReaderWrangler:
+        // its full diagnostics with those entries at the top). Anything but a function (null) takes it away: the kit's own.
+        setAlertCopy: (fn) => { alertCopy = typeof fn === 'function' ? fn : null; },
         // The app hands over its toast routine: fn(text, { level, x, y, hint }). Until then (or if the app has crashed) a
         // { toast } message still reaches the log and the console.
         setToaster: (fn) => { toaster = typeof fn === 'function' ? fn : null; },
@@ -359,18 +396,11 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     const el = (tag, css, text) => { const n = document.createElement(tag); if (css) n.style.cssText = css; if (text != null) n.textContent = text; return n; };
     const button = (label, css, onClick) => { const b = el('button', css, label); b.type = 'button'; b.addEventListener('click', onClick); return b; };
     const codeOf = (e) => `${e.code}${e.test ? TEST_MARK : ''}`;
-    // 7.31.0 - each shown entry WITH its details on the line below it (as Copy diagnostics has them) — a message's details
-    // (ReaderWrangler's "in no folder": the last action, the books) are what support needs from this copy
-    const details = (e) => { if (e.data === undefined) return []; try { return [`    ${JSON.stringify(e.data)}`]; } catch (x) { return ['    (details not shown)']; } };
-    const report = (list) => [
-        `${product} diagnostics — build ${buildOf() || 'unknown'} — ${new Date().toISOString()}`,
-        ...list.flatMap(e => [`${new Date(e.time).toISOString()}  ${pageLog.format(e)}`, ...details(e)]),
-        '', 'Recent log:', ...pageLog.entries().slice(-50).map(e => `${new Date(e.time).toISOString()}  ${pageLog.format(e)}`)
-    ].join('\n');
     // The alerts' copy buttons, through the one copy routine (copyText): the button says what happened — "Copied", or
     // "Couldn't copy" when the browser refused (7.29.1: a refusal said nothing at all) — then its own label again.
+    // 7.31.0 - what they copy is the logger's to say (alertCopyText: the page's text when it gave one, else the kit's own).
     const copyInto = (btn, list, label, where) => {
-        pageLog.copyText(report(list), { what: 'Diagnostics', where }).then((ok) => {
+        pageLog.copyText(pageLog.alertCopyText(list), { what: 'Diagnostics', where }).then((ok) => {
             btn.textContent = ok ? 'Copied' : "Couldn't copy";
             setTimeout(() => { btn.textContent = label; }, 1500);
         });
@@ -380,9 +410,11 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         let bar = document.getElementById(`${idPrefix}-banner`);
         if (!bar) { bar = el('div', BANNER_CSS); bar.id = `${idPrefix}-banner`; bar.setAttribute('role', 'alert'); document.body.appendChild(bar); }
         bar.textContent = '';
-        const msg = el('span', 'flex:1;min-width:0;overflow-wrap:anywhere', '🐞 ');
-        msg.appendChild(el('strong', '', `${entry.level} · ${codeOf(entry)}`));
-        msg.appendChild(document.createTextNode(` · ${entry.text}`));
+        // 7.31.0 - the kit's prefix (🐞 level · code) only for a viewer who chose the bar — the logger decides (bannerLine)
+        const line = pageLog.bannerLine(entry);
+        const msg = el('span', 'flex:1;min-width:0;overflow-wrap:anywhere', line.prefix ? '🐞 ' : '');
+        if (line.prefix) msg.append(el('strong', '', line.prefix), ' · ');
+        msg.appendChild(document.createTextNode(line.text));
         if (shown.banner.length > 1) msg.appendChild(el('em', 'margin-left:8px;opacity:.85', `(+${shown.banner.length - 1} more)`));
         const close = () => { shown.banner = []; bar.remove(); };
         // 7.31.0 - which buttons, and their words, come from the logger (bannerButtons): the page's report button when it

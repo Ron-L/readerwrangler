@@ -655,4 +655,67 @@ test('LOG-048', 'ReaderWrangler: contributor mode turns the error banner on by d
     }
 });
 
+// ---- 7.31.0 (review queue Q-044; Ron, 2026-11-16) ----
+// 1. The bar an ordinary person sees (only because a message asked for it — banner: 'always') shows just the message: the
+//    kit's prefix (🐞 level · code) is for those who chose the bar (the switch on — chosen, or the host's default). ONE
+//    place decides it: bannerLine(). The code still goes into the log and the copy.
+// 2. The alerts' Copy copies what the page gives (setAlertCopy — RW: the full diagnostics, as Copy diagnostics and Report
+//    this problem copy, with the alert's messages at the top: diagnosticsText(header, { first })); without one, the kit's
+//    own text as before.
+test('LOG-049', "the banner's line: the kit's prefix (level · code) only when the viewer chose the bar — with the switch off (a banner: 'always' bar), just the message", () => {
+    const w = alertWorld();
+    w.log.log('error', 'INTEG-08', 'A book was in no folder', { books: 1 }, { banner: 'always' });
+    const e = last(w);
+    assert.deepStrictEqual(w.log.bannerLine(e), { prefix: '', text: 'A book was in no folder' }, 'the switch off: just the message');
+    assert.strictEqual(e.code, 'INTEG-08', 'the log keeps the code');
+    w.log.setSwitch('errorBanner', true);
+    assert.deepStrictEqual(w.log.bannerLine(e), { prefix: 'error · INTEG-08', text: 'A book was in no folder' },
+        'the switch on (chosen): the prefix, as before');
+    w.log.log('error', 'UI-03', 'planted', null, { test: true });
+    assert.strictEqual(w.log.bannerLine(last(w)).prefix, `error · UI-03${L.TEST_MARK}`, 'a planted message keeps its test mark');
+    const host = alertWorld({ extra: { switchDefaults: { errorBanner: () => true } } });
+    host.log.log('error', 'INTEG-08', 'x', null, { banner: 'always' });
+    assert.strictEqual(host.log.bannerLine(last(host)).prefix, 'error · INTEG-08', "the host's default on (RW: a contributor): the prefix");
+    host.log.setSwitch('errorBanner', false);
+    assert.strictEqual(host.log.bannerLine(last(host)).prefix, '', 'turned off: just the message, whatever the default');
+});
+
+test('LOG-050', "the alerts' Copy: the page's text when it gave one (setAlertCopy, handed the messages shown) — else the kit's own, as before", () => {
+    const w = alertWorld({ extra: { build: () => '9.9.9' } });
+    w.log.log('info', 'BOOT', 'started');
+    w.log.log('error', 'INTEG-08', 'in no folder', { lastAction: 'Rename' }, { banner: 'always' });
+    const shown = [last(w)];
+    const own = w.log.alertCopyText(shown);
+    const lines = own.split('\n');
+    assert.ok(/^ReaderWrangler diagnostics — build 9\.9\.9 — \d{4}-\d\d-\d\dT/.test(lines[0]), `the kit's own title: ${lines[0]}`);
+    assert.ok(lines[1].endsWith('  error · INTEG-08 · in no folder'), `the message shown, with its code: ${lines[1]}`);
+    assert.strictEqual(lines[2], '    {"lastAction":"Rename"}', 'its details below it');
+    assert.deepStrictEqual(lines.slice(3, 5), ['', 'Recent log:']);
+    assert.ok(lines.slice(5).some(l => l.endsWith('  info · BOOT · started')), 'then the recent log');
+    let given = null;
+    w.log.setAlertCopy((list) => { given = list; return "the page's text"; });
+    assert.strictEqual(w.log.alertCopyText(shown), "the page's text");
+    assert.deepStrictEqual(given.map(e => [e.code, e.text]), [['INTEG-08', 'in no folder']], 'handed the messages shown');
+    w.log.setAlertCopy(() => { throw new Error('the page broke'); });
+    assert.strictEqual(w.log.alertCopyText(shown), own, "a page's text that fails: the kit's own (the copy still works)");
+    w.log.setAlertCopy(() => '');
+    assert.strictEqual(w.log.alertCopyText(shown), own, 'no text: the kit\'s own');
+    w.log.setAlertCopy(() => 'x');
+    w.log.setAlertCopy('not a function');
+    assert.strictEqual(w.log.alertCopyText(shown), own, 'anything but a function takes it away');
+});
+
+test('LOG-051', 'diagnosticsText(header, { first }): the given messages at the top, each with its details — then the whole report, unchanged', () => {
+    const w = alertWorld();
+    w.log.log('info', 'BOOT', 'started', { tab: 1 });
+    w.log.log('error', 'INTEG-08', 'in no folder', { lastAction: 'Rename' }, { banner: 'always' });
+    const e = last(w);
+    const plain = w.log.diagnosticsText(['Desktop app 1']);
+    const top = `${new Date(e.time).toISOString()}  error · INTEG-08 · in no folder\n    {"lastAction":"Rename"}\n\n`;
+    assert.strictEqual(w.log.diagnosticsText(['Desktop app 1'], { first: [e] }), top + plain);
+    assert.ok(plain.includes('info · BOOT · started\n    {"tab":1}'), 'the report holds the earlier lines, with their details');
+    assert.strictEqual(w.log.diagnosticsText(['Desktop app 1'], { first: [] }), plain, 'none given: the report as before');
+    assert.strictEqual(w.log.diagnosticsText(['Desktop app 1'], {}), plain);
+});
+
 done();

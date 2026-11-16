@@ -70,7 +70,8 @@ both off for an ordinary user, set in the Diagnostics window, on the address (`?
 `?logDetail=on|off`) or the console (`rwLog.setSwitch`). The browser driver runs with both on and fails a test on any
 error or critical it didn't declare (§5 step 6).
 
-**7.31.0 (TODO "A book left in no folder is caught the moment it happens…", Ron 2026-11-16)** — three changes:
+**7.31.0 (TODO "A book left in no folder is caught the moment it happens…", Ron 2026-11-16)** — three changes (and two
+more from the review, items 4–5):
 1. **Contributor mode turns the error banner on by default.** A choice is now remembered as `on` OR `off` (an off used to
    be remembered as nothing), so a switch never touched takes a default: the kit's `switchDefaults` setting, RW's in
    `logkit-settings.js` — `errorBanner: isContributor()`, the ONE place the two meet (asked each time: `isContributor()`
@@ -84,6 +85,15 @@ error or critical it didn't declare (§5 step 6).
    problem"** (reportProblem.js's word, the emergency screen's button) → the Report a problem window, exactly as Help →
    Report a problem… (the diagnostics copied in the click). The banner's Copy now carries each shown message's details
    on the line under it (INTEG-08's last action and books), as Copy diagnostics does.
+4. **No kit prefix for a person who didn't choose the banner** (Ron, 2026-11-16, review queue Q-044). The banner's words
+   start with the kit's prefix (🐞 error · INTEG-08 · …) only while the error-banner switch is on — a contributor, or
+   anyone who chose it. A banner raised by `banner: 'always'` with the switch off shows just the message; the code is
+   still in the log and in the copy. One place decides it: the kit's `bannerLine()`.
+5. **The alerts copy the full diagnostics** (Q-044: "we'll want to see what was going on"). The banner's Copy and the
+   critical box's Copy details (the same need: "press Copy details and send it to us") copy what the page hands the kit
+   with `rwLog.setAlertCopy(fn)` — RW's: `rwLog.diagnosticsText(DIAGNOSTICS_HEADER, { first: shown })`, the very report
+   Copy diagnostics and Report this problem copy, with the alert's own messages (and their details) at the top. A page
+   that gives none (the reset page, or the app before it has started) gets the kit's own text, as before.
 
 ## 2. Areas and IDs
 

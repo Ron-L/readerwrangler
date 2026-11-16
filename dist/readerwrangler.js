@@ -153,7 +153,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.31.0-alpha.3"; // Build version for this file
+var ORGANIZER_VERSION = "7.31.0-alpha.4"; // Build version for this file
 // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
 // problem… (7.29.0: one copy, so the two can't drift)
 var DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -3259,6 +3259,12 @@ function ReaderWrangler() {
     // the diagnostics in this click, then the window), in the helper's words — one copy (reportProblem.js)
     if (window.rwLog && window.rwLog.setReportButton) {
       window.rwLog.setReportButton({ label: RWReport.TEXT.reportButton, onClick: () => copyForReport('the error banner') });
+    }
+    // 7.31.0 (review queue Q-044, Ron 2026-11-16: "we'll want to see what was going on") - what the bar's Copy and
+    // the critical box's Copy details copy: the full diagnostics, as Copy diagnostics and Report this problem copy
+    // them (the one report, rwLog.diagnosticsText, with the one build line), the alert's own messages at the top
+    if (window.rwLog && window.rwLog.setAlertCopy) {
+      window.rwLog.setAlertCopy((shown) => window.rwLog.diagnosticsText(DIAGNOSTICS_HEADER, { first: shown }));
     }
   }, []);
 
