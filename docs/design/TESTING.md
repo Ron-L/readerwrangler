@@ -52,9 +52,10 @@ underneath".
 Plus a short **manual list per release** (§8) for what can't be automated.
 
 **While building — narrow, then wide** (Ron, 2026-11-13: "that speedup makes perfect sense"): each fix → test round runs
-only the tests for what's being built — its own IDs (`--id`), a file's cell filter (e.g. `RW_CELLS=CELL-005,CELL-019`),
-the function tests that cover the file (`--changed`). Once those pass: the **full tier 1 + tier 2, once, before the
-alpha is committed** — the regression check. The full run is never skipped; it just isn't repeated on every try.
+only the tests for what's being built — its own IDs (`--id`; in a file split into shards, `--id CELL-005 --id CELL-019`
+runs just those cells, as `RW_CELLS=CELL-005,CELL-019` does — §4), the function tests that cover the file
+(`--changed`). Once those pass: the **full tier 1 + tier 2, once, before the alpha is committed** — the regression check.
+The full run is never skipped; it just isn't repeated on every try.
 
 **At review, check the stamp instead of rerunning** (TODO "Faster sprints", 2026-11-16): every run leaves a record of the
 commit it ran on (§4), so an agent's "it passed" is a claim a machine can check — `py tools/run_tests.py --stamp <commit>`
@@ -97,8 +98,14 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   every shard passed, one line with the counts summed (`… — 3 shards`, and each shard's time), a failing shard's lines
   together under it with its `RW_CELLS=…` to rerun just that shard, one entry in the record (each shard's cells, time and
   result inside it) — so `--stamp` judges it as one file. A file that can't list its cells fails loud; more shards than
-  cells → one process per cell; `RW_CELLS` already set (a narrow run) → one process, as asked. A sharded file's cells
-  must not depend on each other (test_cells: each cell restores the fixture). Tests: `RUN-054`–`056`.
+  cells → one process per cell; `RW_CELLS` already set (a narrow run) → one process, as asked. **`--id` naming cells of
+  a sharded file** (2026-11-16; it ran the whole file before) → one process with `RW_CELLS` = exactly those cells, in the
+  file's order — `py tools/run_tests.py --id TOAST-006` runs that one cell (and CELL-058, the console check every
+  process of test_cells.py runs); `--list` shows `· only TOAST-006 (--id), one process`. `--id` picks a file by its
+  text, as for every file; a sharded file whose text names the id but none of whose cells is it (a comment; CELL-058,
+  not a cell) is left out, with a line saying so. With `RW_CELLS` already set, `--id` leaves the file's cells as given.
+  A sharded file's cells must not depend on each other (test_cells: each cell restores the fixture). Tests:
+  `RUN-054`–`056`, `060`–`062`.
   Isolation (checked 2026-11-16): each screen-test file has its own serve.py on its own free port — and checks the port
   is served by ITS server (by process id), trying another if a parallel file's server took it in between — its own
   throwaway browser profile, its own local relay (free ports, a throwaway store) when it uses one, and files only in
@@ -122,7 +129,9 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   counts, so a later failure isn't outvoted by an earlier pass. Otherwise **NOT PROVEN**, with why (exit 1).
   **A narrowing variable counts like `--id`** (2026-11-16: a run with `RW_CELLS` set ran a few cells and the stamp said
   PROVEN): `RW_CELLS` (test_cells.py runs only the cells it names) makes the whole run narrowed — it counts for neither
-  tier, and NOT PROVEN names it with its value; the run itself says so at its end. The others are recorded and shown on
+  tier, and NOT PROVEN names it with its value; the run itself says so at its end. (`RW_CELLS` the runner sets itself —
+  a shard's share, or the cells `--id` named — goes only to that file's process, never in the record's variables: an
+  `--id` run is already narrowed by `--id`, RUN-060.) The others are recorded and shown on
   the stamp's line but don't narrow — every test still runs: `RW_HEADED` (the browser shown, slowed), `RW_BROWSER`
   (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's limit), `RELAY_URL` (tier 3's
   relay; tier 3 isn't part of the stamp). Records written before this have no variables and are read as full runs.
