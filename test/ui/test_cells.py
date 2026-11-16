@@ -5,8 +5,9 @@
 # shards: 3
 # Run: py tools/run_tests.py --id CELL-001     (or --tier 2; or directly with the venv's Python)
 # Shards (2026-11-16): the runner runs this file as 3 processes at once, each with every 3rd cell in RW_CELLS (listed by
-# --list-cells, which starts nothing) — it alone set tier 2's time. Each cell starts from the fixture and restores it
-# after (clean_up), so no cell depends on one before it; CELL-058 (the console check) runs in every process.
+# --list-cells, which starts nothing) — it alone set tier 2's time (2, 3 and 4 measured: all ~3 min with 4 slots; 3 keeps
+# it off the critical path). No cell may depend on one before it: clean_up restores the fixture and waits out a warning
+# toast (one covered the next cell's menu when a shard ran CELL-066 right after CELL-064). CELL-058 runs in every process.
 #
 # Sprint 4, step 2 (Ron, 2026-11-13): "A screen test that tries every cell of §4–§5 and records today's answer" — the
 # LOGGING.md pattern, PASTE-001–009 its first slice. Each cell asserts the DECIDED behavior (ONE-TABLE.md §4–§6; TODO
@@ -295,6 +296,13 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
                 btn.first.click()
         page.keyboard.press("Escape")
         page.wait_for_timeout(200)
+        # A warning toast stays where it appeared for 4 s, then moves away for 1 s (readerwrangler.js TOAST_HOLD_MS), above
+        # everything — long enough to cover the NEXT cell's menu: CELL-066 run right after CELL-064 (as a shard ran them,
+        # 2026-11-16) found "Add to Book List" under CELL-064's "Copied … from the Trash" warning. Gone first, as a person
+        # would wait — a condition, not a sleep. (An ordinary toast is held 1.5 s; no grouping tried has been caught by one.)
+        warning = page.locator(".clipboard-toast.warning")
+        if warning.count():
+            warning.first.wait_for(state="detached", timeout=8000)
         filters = page.get_by_title("Clear all active filters")
         if filters.count() and filters.first.is_visible():
             filters.first.click()
