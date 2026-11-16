@@ -208,9 +208,16 @@ next task. Estimate: the same day in ~6–7 hours, the same testing.
    copy while I review and test in another, and independent tasks (not both in `readerwrangler.js`) can build at once.
    **Check first, with a test:** the pre-build gate, the version guard and the other commit checks recognise shipped
    code by its path INSIDE a copy, not only in the main folder.
-4. **Fewer, bigger rounds** (practice, not code — already in memory): every brief copies the task's own numbered list
+4. **Parallel branches, merged by a script** (Ron, 2026-11-15: "Can they all branch … and then you merge them
+   together?" — yes): independent tasks build at once, each on its own branch in its own copy — `readerwrangler.js`
+   included (git merges by lines; tasks in different parts of it merge cleanly). A merge script never hand-merges what
+   is generated or always differs: it sets a fresh version stamp, rebuilds `dist/`, regenerates MESSAGE-CODES.md and
+   TODO's table of contents, and stops only on a real conflict (resolved by Claude with both diffs). **Then the full
+   tiers on the MERGED result before anything enters `main-prime`** — two changes can merge cleanly and break together
+   (a renamed function the other calls). Not for tasks that build on each other (sprint 4's B needed A's code).
+5. **Fewer, bigger rounds** (practice, not code — already in memory): every brief copies the task's own numbered list
    and review ticks each item off; small finds get batched into the next round, not an agent each.
-5. Make the record agree: CLAUDE.md's "Autonomous mode — sprints" says agents build "a worktree each", but since
+6. Make the record agree: CLAUDE.md's "Autonomous mode — sprints" says agents build "a worktree each", but since
    sprint 1 they've worked one at a time in the main folder (memory: no worktrees — the local tools aren't in git).
    Once item 3 works, update CLAUDE.md to describe it (proposed to Ron, not edited by an agent) and the memory note.
 
