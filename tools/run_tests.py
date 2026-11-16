@@ -6,11 +6,14 @@ Finds every test file, reads its header, picks the ones asked for, runs each, an
 
     py tools/run_tests.py                     tier 1 (the default): the fast function tests
     py tools/run_tests.py --tier all          everything (tier 3 starts its own local relay — see below)
-    py tools/run_tests.py --tier all --release   the release run: a SKIPPED file fails it, named with why — and so does
-                                              a test still marked "differs today" (decided, not built), named
+    py tools/run_tests.py --tier all --release   the release run: a SKIPPED file fails it, named with why — and so do
+                                              a test still marked "differs today" (decided, not built) and a file
+                                              set aside (its skip: line), each named
     py tools/run_tests.py --tag merge         by area — in every tier unless --tier says one
-    py tools/run_tests.py --id MERGE-012      the file(s) holding that test ID — in every tier unless --tier says one
-                                              (a file split into shards: just the cells named, in one process)
+    py tools/run_tests.py --id MERGE-012      the file(s) naming that test ID AS A TEST — test("MERGE-012", …), add(…),
+                                              row(…), a table row ("MERGE-012", …); never a comment or data — in every
+                                              tier unless --tier says one (a file split into shards: just the cells
+                                              named, in one process)
     py tools/run_tests.py --changed           the tests covering what changed (staged + unstaged) — the commit hook
     py tools/run_tests.py --list              show what would run, run nothing
 
@@ -28,6 +31,11 @@ production relay. --relay-url <address> uses a relay you started instead (no sta
 Every test file declares, in its first lines:   tags: <areas>, tier N     and     covers: <source files it tests>
 A file without them is a failure ("headers are required") — the covers: lines are the one source for --changed.
 
+Set aside on purpose (2026-11-16): a header line   skip: <TODO id> — why   — the file isn't run, and every run says so
+plainly ("set aside: <file> — <TODO id> — why"); the TODO id must be a task in TODO.md, else it's a header problem (the
+file fails); a --release run refuses while any file is set aside; the stamp counts that run as not a full run of the
+file's tier. (TESTING.md §7: a flaky test is fixed — or set aside, with a TODO — the same day.)
+
 In parallel (TODO "Faster sprints", item 1; 2026-11-16): tier 1 and tier 2 files run several at once — --jobs N, by
 default the machine-wide limit — and every screen-test (tier 2) file holds one of the PC's test slots while it runs
 (tools/test_slots.py: 4 in total for every run on this PC, whatever folder it's in; RW_TEST_SLOTS overrides). A run
@@ -41,8 +49,8 @@ cells with `--list-cells` and runs as N processes at once — every Nth cell eac
 slot. It is still ONE file: passed only if every shard passed, one line with the counts summed (a failing shard's lines
 under it, together, with its RW_CELLS to rerun just that shard), one entry in the record and the stamp. With RW_CELLS
 already set (a narrow run) it runs as one process, as asked. --id naming some of its cells runs it as one process with
-RW_CELLS = exactly those cells (`--id TOAST-006`: that one cell); an --id that names none of its cells (only its
-comments) leaves it out, saying so.
+RW_CELLS = exactly those cells (`--id TOAST-006`: that one cell); an --id naming a test of it that is no cell (CELL-058,
+the console check every process runs) leaves it out, saying so.
 
 Results stamped with their commit (item 2): every run except --changed (the commit hook) and --list leaves a record —
 the commit it ran on, anything uncommitted, what ran, the environment variables that change a run (RUN_ENV: RW_CELLS…),
@@ -50,9 +58,10 @@ each file's result, start and end — in git's own folder for this working copy 
 rw-test-results`: never in the working tree; a worktree has its own).
 
     py tools/run_tests.py --stamp [<commit>]  PROVEN (exit 0) only if tier 1 and tier 2 both ran in full on exactly that
-                                              commit (default: HEAD) — not narrowed by --id, --tag or RW_CELLS — every
-                                              file passed, nothing skipped, nothing uncommitted — else NOT PROVEN, and
-                                              why (exit 1)
+                                              commit (default: HEAD) — not narrowed by --id, --tag or RW_CELLS, no file
+                                              of theirs set aside — every file passed, nothing skipped, nothing
+                                              uncommitted — else NOT PROVEN, and why (exit 1). Tier 3's latest run on
+                                              the commit is shown too (passed / failed / not run) — information only
 
 Double-clicked, the window stays open to show the results (pytools keepopen). Exit: 0 all passed · 1 a failure.
 """
@@ -85,14 +94,17 @@ HEADER_LINES = 15
 
 
 def read_header(path):
-    """{'tags': [...], 'tier': int|None, 'covers': [...], 'shards': int, 'problem': str|None} from the file's first
-    lines. `shards: N` (optional, 2026-11-16) — run the file as N processes, each with its share of its cells."""
-    tags, tier, covers, shards, bad_shards = None, None, None, 1, None
+    """{'tags': [...], 'tier': int|None, 'covers': [...], 'shards': int, 'skip': {todo, why}|None, 'problem': str|None}
+    from the file's first lines. `shards: N` (optional, 2026-11-16) — run the file as N processes, each with its share of
+    its cells. `skip: <TODO id> — why` (optional, 2026-11-16) — the file is set aside on purpose: not run, said so, and a
+    release run refuses (TESTING.md §7: a flaky test is fixed — or set aside, with a TODO — the same day). That the TODO
+    id is a task in TODO.md is checked by check_set_aside (this reads one file)."""
+    tags, tier, covers, shards, bad_shards, skip, bad_skip = None, None, None, 1, None, None, None
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             head = [next(f, "") for _ in range(HEADER_LINES)]
     except OSError as e:
-        return {"tags": [], "tier": None, "covers": [], "shards": 1, "problem": f"can't read it: {e}"}
+        return {"tags": [], "tier": None, "covers": [], "shards": 1, "skip": None, "problem": f"can't read it: {e}"}
     for line in head:
         text = re.sub(r"^\s*(//+|#+|\*|/\*\*?)\s?", "", line).strip()
         m = re.match(r"tags:\s*(.*)$", text)
@@ -110,6 +122,13 @@ def read_header(path):
                 shards = int(m.group(1))
             else:
                 bad_shards = m.group(1)
+        m = re.match(r"skip:\s*(.*?)\s*$", text)
+        if m:
+            s = re.fullmatch(TODO_ID + r"\s+(?:—|–|--?)\s+(\S.*)", m.group(1))
+            if s:
+                skip = {"todo": s.group(1), "why": s.group(2)}
+            else:
+                bad_skip = m.group(1)
     problem = None
     if tags is None or covers is None:
         problem = "no header — every test file needs 'tags: <areas>, tier N' and 'covers: <files>' in its first lines"
@@ -117,7 +136,41 @@ def read_header(path):
         problem = "its tags: line names no tier ('tier 1', 'tier 2' or 'tier 3')"
     elif bad_shards is not None:
         problem = f"its shards: line says {bad_shards!r} — a whole number of processes, 1 or more (e.g. 'shards: 3')"
-    return {"tags": tags or [], "tier": tier, "covers": covers or [], "shards": shards, "problem": problem}
+    elif bad_skip is not None:
+        problem = (f"its skip: line says {bad_skip!r} — a file is set aside with its TODO task's id and why: "
+                   "'skip: <TODO id> — why' (e.g. 'skip: 20261116-0900 — fails one time in ten')")
+    return {"tags": tags or [], "tier": tier, "covers": covers or [], "shards": shards, "skip": skip, "problem": problem}
+
+
+# --- A test file set aside on purpose (2026-11-16, TODO tooling item 5) -------------------------------------------------
+TODO_PATH = os.path.join(ROOT, "TODO.md")
+TODO_ID = r"(\d{8}-\d{4}[a-z]*)"        # a TODO task's id: when it was filed, a letter if that minute was taken
+
+
+def todo_task_ids(path=TODO_PATH):
+    """The ids of the tasks in TODO.md (each task's `<!-- id … -->` line) — read by tools/backlog_report.py's parse, the
+    one reader of TODO's format. None if the file can't be read."""
+    import backlog_report      # tools/, next to this file (on the path above); imported only when a file is set aside
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return None
+    return {t["id"] for t in backlog_report.parse(text) if t["id"]}
+
+
+def check_set_aside(files, todo_path=None):
+    """A file set aside must name a task in TODO.md — one that says how it gets fixed. A skip: line naming no task there
+    makes it a header problem (the file fails, loud), never a quiet skip. TODO.md is read only when a file is set aside."""
+    todo_path = todo_path or TODO_PATH
+    aside = [f for f in files if f.skip and not f.problem]
+    known = todo_task_ids(todo_path) if aside else set()
+    for f in aside:
+        if known is None:
+            f.problem = f"its skip: line names TODO {f.skip['todo']}, but {todo_path} couldn't be read to check it"
+        elif f.skip["todo"] not in known:
+            f.problem = (f"its skip: line names TODO {f.skip['todo']}, which is no task in TODO.md — a test is set aside "
+                         "only under the TODO task that fixes it (the id on the line under the task's header)")
 
 
 class TestFile:
@@ -136,13 +189,25 @@ def discover(root=ROOT):
     return [TestFile(p) for p in paths]
 
 
-def mentioned(tf, ids):
-    """The ids (test IDs) named anywhere in this file's text — how --id picks a file. [] if it can't be read."""
+# How a test file names its tests (2026-11-16, TODO tooling item 7 — --id picked any file whose text held the ID, so
+# `--id CELL-005` also ran test/test_run_tests.py, where it is sample data, and `--id CELL-001` test/gestureTable.test.js,
+# where a comment names it). Every file names a test by its ID as a whole quoted string, first in what follows it:
+#   - the first argument of the call that runs it — test("ID", …) and t('ID', …) (test/harness.js, test/ui/harness.py),
+#     differs_today("ID", …), add("ID", …) (test_cells.py), row("ID", …) / check("ID", …) (files with their own helper);
+#   - the first item of its row in a table — ("ID", …) (test_check_parse.py, test_message_codes.py, test_layout.py).
+# Comments are dropped first: a line that starts as one (#, //, /*, *) and a line's end after " # " or " // ".
+COMMENT_LINE = re.compile(r"^\s*(?:#|//|/\*|\*)")
+LINE_END_COMMENT = re.compile(r"\s(?:#|//)\s.*$")
+
+
+def test_names(tf, ids):
+    """The ids this file names as tests (above) — how --id picks a file, and the one lookup for it. [] if unreadable."""
     try:
         text = open(tf.path, encoding="utf-8", errors="replace").read()
     except OSError:
         return []
-    return [i for i in ids if re.search(r"\b" + re.escape(i) + r"\b", text)]
+    code = "\n".join(LINE_END_COMMENT.sub("", ln) for ln in text.splitlines() if not COMMENT_LINE.match(ln))
+    return [i for i in ids if re.search(r"\(\s*([\"'`])" + re.escape(i) + r"\1\s*,", code)]
 
 
 def select(files, tier=None, tags=None, ids=None, changed=None, base=ROOT):
@@ -155,7 +220,7 @@ def select(files, tier=None, tags=None, ids=None, changed=None, base=ROOT):
             continue
         if tags and not set(tags) & set(f.tags):
             continue
-        if ids and not mentioned(f, ids):
+        if ids and not test_names(f, ids):
             continue
         if changed is not None:
             ch = {c.replace("\\", "/") for c in changed}
@@ -247,10 +312,10 @@ def sharded(tf):
 
 
 def narrow_by_id(files, ids, environ=None):
-    """--id on a sharded file (2026-11-16, TODO tooling item 6): --id picks a file by its text, so `--id TOAST-006` ran
-    all of test_cells.py, every shard. Now a sharded file picked by --id runs as ONE process with RW_CELLS = exactly the
-    cells the ids name, in the file's order (its --list-cells); one whose cells the ids don't name (an id only in its
-    comments, or a test that isn't a cell) is left out, with a note saying so. RW_CELLS already set (a narrow run of the
+    """--id on a sharded file (2026-11-16, TODO tooling item 6): `--id TOAST-006` ran all of test_cells.py, every shard.
+    Now a sharded file picked by --id (test_names) runs as ONE process with RW_CELLS = exactly the cells the ids name, in
+    the file's order (its --list-cells); one whose cells the ids don't name (a test of it that isn't a cell — CELL-058,
+    the console check every process runs) is left out, with a note saying so. RW_CELLS already set (a narrow run of the
     caller's own): the file runs as asked, untouched. Every other file is kept as select() picked it.
     Returns (files kept, {path: its cells}, {path: why its cells couldn't be listed}, notes)."""
     env = os.environ if environ is None else environ
@@ -269,7 +334,7 @@ def narrow_by_id(files, ids, environ=None):
             keep.append(f)
             cells_of[f.path] = mine
         else:
-            notes.append(f"· {f.rel()} names {', '.join(mentioned(f, ids))}, but not as one of its cells (--list-cells) "
+            notes.append(f"· {f.rel()} names {', '.join(test_names(f, ids))}, but not as one of its cells (--list-cells) "
                          f"— left out")
     return keep, cells_of, unlisted, notes
 
@@ -359,12 +424,15 @@ def run_env(environ=None):
     return {k: env[k] for k in RUN_ENV if env.get(k)}
 
 
-def narrowed_by(r):
-    """What narrowed this run to part of its tier, in words ([] = a full run): --tag, --id, a narrowing variable."""
+def narrowed_by(r, tier=None):
+    """What narrowed this run to part of its tier, in words ([] = a full run): --tag, --id, a narrowing variable — and a
+    file set aside (its skip: line), for that file's tier only (tier None: any tier)."""
     ran = r.get("ran") or {}
     return ([f"--tag {', '.join(ran['tags'])}"] if ran.get("tags") else []) \
         + ([f"--id {', '.join(ran['ids'])}"] if ran.get("ids") else []) \
-        + [f"{k}={v}" for k, v in (r.get("env") or {}).items() if RUN_ENV.get(k, (False,))[0]]
+        + [f"{k}={v}" for k, v in (r.get("env") or {}).items() if RUN_ENV.get(k, (False,))[0]] \
+        + [f"set aside: {f.get('file')} (TODO {f.get('todo')} — {f.get('why')})" for f in r.get("files") or []
+           if f.get("result") == "set aside" and tier in (None, f.get("tier"))]
 
 
 def _git(args, root=ROOT):
@@ -450,18 +518,20 @@ def judge(records, commit):
     """(proven?, lines) — does the record prove `commit` (a full id)? Tier 1 and tier 2 each need a FULL run (not narrowed
     by --id / --tag or a narrowing variable such as RW_CELLS — narrowed_by; --tier all counts for both) on exactly this
     commit; the LATEST such run of each tier is the one that counts (a later failure isn't outvoted by an earlier pass),
-    and it must hold no failure, no skip, nothing uncommitted."""
+    and it must hold no failure, no skip, nothing uncommitted; a file of that tier set aside (its skip: line) makes it not
+    a full run. Tier 3 gets a line too (tier3_lines) — information only, never part of the verdict."""
     lines, proven, shown = [], True, {}
     for tier in (1, 2):
         runs = [r for r in records if r.get("commit") == commit
                 and str((r.get("ran") or {}).get("tier")) in (str(tier), "all")]
-        full = [r for r in runs if not narrowed_by(r)]
+        full = [r for r in runs if not narrowed_by(r, tier)]
         if not full:
             proven = False
             lines.append(f"  ✗ tier {tier}: no full tier {tier} run recorded on this commit")
             if runs:
                 lines.append(f"      its latest tier {tier} run ({str(runs[-1].get('started', '?'))[:19].replace('T', ' ')})"
-                             f" was narrowed by {'; '.join(narrowed_by(runs[-1]))} — only part of it ran, so it doesn't count")
+                             f" was narrowed by {'; '.join(narrowed_by(runs[-1], tier))} — only part of it ran, so it "
+                             "doesn't count")
             continue
         r = full[-1]
         mine = [f for f in r.get("files") or [] if f.get("tier") == tier]
@@ -476,7 +546,31 @@ def judge(records, commit):
         if id(r) not in shown:          # one 'all' run serves both tiers: its problems are listed once
             shown[id(r)] = True
             lines += [f"      {w}" for w in why]
-    return proven, lines
+    return proven, lines + tier3_lines(records, commit)
+
+
+def tier3_lines(records, commit):
+    """Tier 3's latest run on this commit, as a line — passed / failed / not run (2026-11-16: after a --tier all --release
+    run the stamp showed only tiers 1 and 2). Information only: tier 3 needs a relay and isn't part of every review, so
+    PROVEN stays tiers 1 and 2. Starts with '·', never '✗' (tools/copies.py lists a NOT PROVEN's '✗' lines as its why)."""
+    note = "information only — the stamp proves tiers 1 and 2"
+    runs = [r for r in records if r.get("commit") == commit and str((r.get("ran") or {}).get("tier")) in ("3", "all")]
+    if not runs:
+        return [f"  · tier 3: not run on this commit ({note})"]
+    r = runs[-1]
+    mine = [f for f in r.get("files") or [] if f.get("tier") == 3 and f.get("result") != "set aside"]  # (named in extra)
+    relay = [p for p in r.get("problems") or [] if "local relay" in p]     # the runner's own relay (main(), below)
+    bad = [f for f in mine if f.get("result") != "passed"]
+    state = "failed" if bad or relay else "passed" if mine else "not run"
+    passed = sum(1 for f in mine if f.get("result") == "passed")
+    extra = narrowed_by(r, 3) + (["with uncommitted changes"] if any((r.get("uncommitted") or {}).values()) else [])
+    out = [f"  · tier 3: {state} — {passed} of {len(mine)} file(s) passed — run "
+           f"{str(r.get('started', '?'))[:19].replace('T', ' ')} → {str(r.get('ended', '?'))[11:19]} "
+           f"(--tier {(r.get('ran') or {}).get('tier')}" + (" --release" if (r.get("ran") or {}).get("release") else "")
+           + "".join(f"; {x}" for x in extra) + f") — {note}"]
+    out += [f"      {f.get('file')} {f.get('result')} ({f.get('counts') or f.get('why') or 'no summary'})" for f in bad]
+    out += [f"      {p}" for p in relay]
+    return out
 
 
 def show_stamp(commit_arg, folder):
@@ -496,11 +590,12 @@ def show_stamp(commit_arg, folder):
     return 1
 
 
-def main(argv=None, files=None, relay=None, results=None, slots=None):
+def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None):
     """files: the test files to choose from (None = every one in the repo); relay: makes the local relay for tier 3
     (None = the real one); results: the folder for the run's record (None = this working copy's, and only when `files` is
-    None — the runner's own sample runs leave no record); slots: the machine-wide limit (None = test_slots.Slots()) — all
-    for the runner's own tests (test/test_run_tests.py)."""
+    None — the runner's own sample runs leave no record); slots: the machine-wide limit (None = test_slots.Slots()); todo:
+    the TODO file a skip: line's task must be in (None = the repo's TODO.md) — all for the runner's own tests
+    (test/test_run_tests.py)."""
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
@@ -517,14 +612,15 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
     ap.add_argument("--list", action="store_true", help="show what would run, run nothing")
     ap.add_argument("--quiet", action="store_true", help="print only failures and the summary (the commit hook)")
     ap.add_argument("--release", action="store_true",
-                    help="a release run: a skipped file, or a test still marked 'differs today', FAILS the run (the "
-                         "release checklist: py tools/run_tests.py --tier all --release)")
+                    help="a release run: a skipped file, a file set aside (its skip: line), or a test still marked "
+                         "'differs today' FAILS the run (the release checklist: py tools/run_tests.py --tier all --release)")
     ap.add_argument("--jobs", type=int, default=None,
                     help="test files at once (tiers 1 and 2; tier 3 is always one at a time) — default: the machine-wide "
                          "limit on screen tests (RW_TEST_SLOTS, else 4), which every screen-test file also holds a slot of")
     ap.add_argument("--stamp", nargs="?", const="HEAD", default=None, metavar="COMMIT",
                     help="say whether the recorded runs PROVE this commit (default HEAD): tiers 1 and 2 in full, every file "
-                         "passed, nothing skipped, nothing uncommitted. Runs nothing. Exit 0 proven, 1 not")
+                         "passed, nothing skipped or set aside, nothing uncommitted; tier 3's latest run shown, for "
+                         "information. Runs nothing. Exit 0 proven, 1 not")
     a = ap.parse_args(argv)
 
     if a.stamp is not None:
@@ -534,10 +630,16 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
     tier = default_tier(a) if a.tier is None else ("all" if a.tier == "all" else int(a.tier))
     real = files is None          # the repo's own test files (not the runner's samples): a record, and dist/ built first
     files = discover() if real else files
+    check_set_aside(files, todo)       # a skip: line naming no TODO task is a header problem
     broken = [f for f in files if f.problem]
     chosen = select([f for f in files if not f.problem], tier=tier, tags=a.tag or None, ids=a.id or None,
                     changed=changed_files() if a.changed else None)
+    aside = [f for f in chosen if f.skip]          # set aside on purpose (skip: <TODO id> — why): not run, said so
+    chosen = [f for f in chosen if not f.skip]
     chosen, id_cells, id_unlisted, id_notes = narrow_by_id(chosen, a.id)
+
+    def aside_line(f):
+        return f"set aside: {f.rel()} — {f.skip['todo']} — {f.skip['why']}"
 
     if a.list:
         for n in id_notes:
@@ -546,9 +648,11 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
             print(f"  tier {f.tier}  {f.rel():40}  tags: {', '.join(f.tags)}"
                   + (f"  · only {', '.join(id_cells[f.path])} (--id), one process" if f.path in id_cells else
                      f"  · {f.shards} shards" if sharded(f) else ""))
+        for f in aside:
+            print(f"  - tier {f.tier}  {aside_line(f)}")
         for f in broken:
             print(f"  ✗ {f.rel()}: {f.problem}")
-        print(f"{len(chosen)} file(s) would run")
+        print(f"{len(chosen)} file(s) would run" + (f", {len(aside)} set aside" if aside else ""))
         return 0
 
     count = {"passed": 0, "failed": 0}
@@ -558,7 +662,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
     if not a.quiet:
         for n in id_notes:
             print(n)
-    if not chosen and not broken:
+    if not chosen and not broken and not aside:
         if not a.quiet:   # the commit hook stays silent when no test covers the change (Law 12: no noise on the normal path)
             print("No tests cover these changes." if a.changed else "No tests match.")
         return 0
@@ -579,6 +683,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
             print(f"- {f.rel()}: skipped — {why}")
     if rec:
         rec["files"] += [{"file": f.rel(), "tier": f.tier, "result": "skipped", "why": why} for f, why in skipped]
+        rec["files"] += [{"file": f.rel(), "tier": f.tier, "result": "set aside", **f.skip} for f in aside]
 
     differ = []   # (file, [test IDs]) — tests still marked "differs today" (test/ui/harness.py differs_today)
     problems = []  # failures that belong to no one file (the build, the local relay) — for the record
@@ -732,12 +837,20 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
             elif not a.quiet:
                 print(f"✓ local relay stopped — every process it started is gone, ports {', '.join(map(str, r.ports))} free")
     print(f"Tests: {count['passed']} file(s) passed, {count['failed']} failed"
-          + (f", {len(skipped)} skipped" if skipped else ""))
+          + (f", {len(skipped)} skipped" if skipped else "") + (f", {len(aside)} set aside" if aside else ""))
+    for f in aside:              # plainly, every run — the commit hook's too: a set-aside test is work owed
+        print(aside_line(f))
     refused = False
     if a.release and skipped:    # a release needs every file to have RUN — skipped is not passed (7.28.0)
         print(f"✗ release run: {len(skipped)} file(s) skipped — a release needs every file to run:\n    "
               + "\n    ".join(f"{f.rel()} — {why}" for f, why in skipped))
         refused = True
+    if a.release and aside:      # set aside on purpose still blocks the next release until it's fixed (2026-11-16)
+        print(f"✗ release run: {len(aside)} file(s) set aside — a set-aside test blocks the release until its TODO task "
+              "fixes it and its skip: line is gone:\n    "
+              + "\n    ".join(f"{f.rel()} — {f.skip['todo']} — {f.skip['why']}" for f in aside))
+        refused = True
+        problems.append(f"release run: {len(aside)} file(s) set aside")
     if a.release and differ:     # a decided behavior not built yet is fine while building, never in a release (7.30.0)
         n = sum(len(ids) for _, ids in differ)
         print(f"✗ release run: {n} test(s) still differ from what was decided (marked 'differs today') — build them, or "
