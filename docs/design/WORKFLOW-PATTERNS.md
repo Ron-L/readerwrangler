@@ -161,6 +161,16 @@ real case (*My Friend Ark*, a sample he'd deleted) he kept, later re-sampled it,
 fetch + import quietly cleared the Keep — the loop needs no upkeep. When in doubt, Keep: it's
 reversible (**Ask me again** in the Kept group); Permanently delete is not.
 
+## Pattern: a folder's books onto a reading list in one paste (2026-11-15, 7.30.0)
+
+When a whole folder is the next thing to read — a series, an author's shelf, a "New To Read" subfolder tree — don't
+pick the books one by one: **Copy the folder, open the Book List, Paste.** Every book in it, every subfolder's too, is
+added to the list in the folder's own order (the folder's books first, then each subfolder's), and books already on the
+list are counted, not added twice. The folder doesn't change — it's still the books' home; the list is the queue (the
+"to read" pattern above). A **Cut** does the same (a folder can't be moved onto a list, so it's done as a copy and says
+so in amber) — Copy is the plainer habit. One Ctrl+Z takes the whole batch back off the list. With books and folders
+selected together, right-click → **Add to Book List ▸** does it in one step.
+
 ## Meta
 - **There's no single right way** — these are compositions of the same primitives (folders, Book Lists, tags, saved searches, Auto-Organize). The guide should present them as menus of trade-offs, not mandates.
 - Add new patterns here as they surface, then distill for the USER-GUIDE near launch.

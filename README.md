@@ -126,6 +126,7 @@ ReaderWrangler is the **only tool specifically designed for Amazon Kindle librar
 <!-- SYNC: Keep "Recent Features" in sync with features.html -->
 ## Recent Features
 
+- **Cut, Copy, Paste and drag work the same way everywhere (7.30)** — On books, folders, or both at once, from the keyboard, the right-click menu or a drag. Every move and copy says what happened — where from, where to, and which books were already there — and Undo puts back exactly what changed. Copying a book out of the Trash restores it, a Cut that can't be a move is done as a copy, and both say so in amber: warnings now stand out. Plus one right-click Delete for books and folders selected together, and a "Book 0" now sorts first in its series.
 - **Report a problem, wherever you are (7.29)** — Help → Report a problem… copies your diagnostics and lets you email us or open a report on GitHub; Help → Known problems lists the ones already reported. If ReaderWrangler can't open, the "Something went wrong" screen and the reset page offer the same, right there. And Reset App now has a Save Backup… button right in its box.
 - **Opens in a second (7.27)** — ReaderWrangler no longer prepares its code in your browser on every visit: the app appears in about half a second, and a 3,000-book library is on screen in about two.
 - **See what happened, and restores that put back exactly the backup (7.26)** — **Help → Diagnostics** shows a record of what ReaderWrangler did and what went wrong — read it, filter it, or copy it for us in one click (the phone has Copy diagnostics too); since 7.28, **Send a test message** checks that it's working. Restore now puts back exactly the backup, and a backup it can't restore says everything that's wrong at once, before anything changes.
@@ -150,9 +151,10 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 ## Coming Soon!
 
 - **Move any window aside** — Drag any window out of the way to see what's behind it
-- **A calmer book editor** — In edit mode, nothing changes until you press Save — and one undo reverses the whole save
+- **Is this book in my library?** — Search by a book's ASIN, and search everywhere without leaving the folder you're in
 - **Fetch & import reports that tell the whole story** — "3 wishlist books now owned, 1 became a sample," in the dialog and the toast history
 - **Find your list faster** — Pinning and sorting for Book Lists and Searches, just like folders
+- **A calmer book editor** — In edit mode, nothing changes until you press Save — and one undo reverses the whole save
 
 ## Future Features
 

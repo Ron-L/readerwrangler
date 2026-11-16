@@ -3,7 +3,6 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [One table for every move, copy, paste and delete: what each gesture does in each place](#one-table-for-every-move-copy-paste-and-delete-what-each-gesture-does-in-each-place)
       - [A book left in no folder is caught the moment it happens, naming the action that did it](#a-book-left-in-no-folder-is-caught-the-moment-it-happens-naming-the-action-that-did-it)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -86,9 +85,9 @@
         - [Every edit rewrites the whole library in storage](#every-edit-rewrites-the-whole-library-in-storage)
         - [The phone's cover copies: still worth it? And why wasn't the browser's own cache enough?](#the-phones-cover-copies-still-worth-it-and-why-wasnt-the-browsers-own-cache-enough)
         - [Relay Setup's Test connection always checks the production relay](#relay-setups-test-connection-always-checks-the-production-relay)
+        - [F2 follows the Delete key's rule: what's selected, where you're working, and words when it can't](#f2-follows-the-delete-keys-rule-whats-selected-where-youre-working-and-words-when-it-cant)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
-      - [Redo should work after copying a folder](#redo-should-work-after-copying-a-folder)
       - [The "open" shortcut: start serve.py if needed and open the app](#the-open-shortcut-start-servepy-if-needed-and-open-the-app)
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
   - [🚦 Before public launch](#before-public-launch)
@@ -182,86 +181,6 @@ tasks themselves sit in that order; the numbered "order of work" list that used 
 drifted). To change the order, move the task.
 
 ### High priority
-
-#### One table for every move, copy, paste and delete: what each gesture does in each place
-<!-- id 20261106-1237 -->
-
-_Why it matters:_ "Where can books be pasted?" was answered by four lists in the code that disagreed (2026-11-06): Ctrl+V
-refused the Inbox while the menu allowed it, and a cut pasted into a Book List or the Trash took the book out of its
-folder and put it nowhere, then said "Pasted". Law 4 (Ron, 2026-11-06): the 2nd related break means a missing structure
-— one table, read by one function every gesture calls, not a fifth list.
-
-**Status (2026-11-12):** the design is written and **approved by Ron** — `docs/design/ONE-TABLE.md` (the whole matrix;
-each "today" cell marked measured, read in the code, or from the survey). Its first rows, the Delete key's, are built
-(7.28.1: `gestureTable.js`). Left for this task: the move / copy / paste rows — including three harmful cells found
-while building Delete (ONE-TABLE.md §4–5; Ron: "part of the table work"): (1) Ctrl+X then Ctrl+V back into the folder
-the books came from leaves them in NO folder while saying "Pasted…"; (2) Ctrl+X / Ctrl+C with books selected also puts
-the folder you're in on a separate folder clipboard; (3) F2 on a folder selected in the Folders view does nothing.
-Also ONE-TABLE.md §6 item 9: the right-click Delete with books and folders both selected still acts on one kind.
-
-**Decided before sprint 4** (Ron + Claude, 2026-11-13 — the words in ONE-TABLE.md §6 items 6–9):
-1. **Out of the Trash = a restore, for every gesture, a copy too** — said at both ends: Ctrl+C in the Trash warns
-   ("Pasting them will restore them — they'll leave the Trash"), the paste's receipt says "Restored", and **every warning
-   message is amber and stays ~4 s** where it appeared (app-wide; the app's hookup drew warnings as ordinary messages).
-2. **Already there: nothing changes for that book, and the words say so** — "(1 was already there)", "Nothing to add —
-   all 3 are already in 'Fantasy'", a cut pasted back where it came from: "Nothing moved…". Never a refusal.
-3. **ANY operation on a folder includes its books and subfolders, recursively** (a copy files every book in the copy
-   too).
-4. **The right-click Delete with books and folders selected:** one item, "Delete 2 Books and 1 Folder", in both menus,
-   the key's operation.
-5. **The split:** this task = the table's move / copy / paste rows for every gesture that exists today (keys, menus,
-   today's drags), one keyboard listener, the harmful cells; the NEW drag gestures (Shift-drag, the live label, the
-   left pane's Book List drops) stay in "Move and copy books anywhere". The first step measures every cell; **anything
-   found working differently from the design, beyond what's listed, comes to Ron for discussion before it's built on.**
-6. The test library's "Written Together" → "Good Omens" (it read as something the app did).
-
-**Decided** (Ron + Claude, 2026-11-06)
-1. **Two small tables, one function** — `decide(gesture, what, from, to)`:
-   - **gesture → verb:** Ctrl+X then paste = move, Ctrl+C then paste = copy, Shift-drag = move, Ctrl-drag = copy, a
-     plain drag = move within one kind / copy across kinds ("Move and copy books anywhere" decisions 6–7), right-click
-     Move to / Copy to / Add to Book List >, Delete;
-   - **verb × what's moved × from × to → outcome:** do it, with its effects (add / take out of the source / re-file /
-     last folder → Inbox) and its receipt; refuse, **with the reason's words in the table**; or ask.
-2. **The table drives everything that answers "can I do this here?":** the keys and drags; the right-click menus' enabled
-   / greyed items and their "why" tooltips (Law 16); the drag's live label; the tests — a function test fails if any
-   combination has no row (like bookMerge.js's ownership registry), and screen tests check each gesture goes through it.
-   A pure module, node-tested (the bookFields.js precedent). The work itself goes through the existing operations
-   (`moveItems`, the delete operation) — the table decides, it doesn't do.
-3. **Delete joins it** — what Del does depends on what's selected and where you are. "The Delete key deletes the folder
-   you're in…" (above) is the table's **first user**.
-4. **Design doc first, for Ron's red pen:** the whole matrix as readable tables (rows = from, columns = to, one table
-   per verb and per kind of thing moved), with **today's behavior** beside the decided one — today's measured by a
-   screen test that tries every cell (the LOGGING.md pattern; the 2026-11-06 paste probe was its first slice).
-
-**The survey — at a minimum** (Ron asked, 2026-11-06)
-- **Every gesture:** Ctrl+X / Ctrl+C / Ctrl+V; drag — plain, Shift, Ctrl — in the right pane, the left pane and between
-  them; right-click Move to / Copy to / **Add to Book List >** / Remove from list / Delete; the Delete key; Restore from
-  the Trash; the left pane's own drags (a folder onto a folder, onto a Book List, between two Book List entries — "Move
-  and copy books anywhere" decision 10); reordering (folders, pins, Book Lists, books in Manual order); the phone's
-  gestures (mobile.js), if any reach the same operations; the keyboard in the left pane.
-- **What's moved:** one book, several, books and folders together; a folder (with subfolders); a Book List; a Search.
-- **From / to — every kind of place:** a folder (top level, subfolder, pinned), the Inbox, All Books, the library view,
-  a Search, a Book List, the Trash, the Removed books review, the section headers (Searches / Book Lists / Folders), a
-  left-pane position between entries, the place itself (pasting where it came from).
-- **The book's situation:** in one folder or several (last folder → Inbox), already in the destination, hidden, in the
-  Trash, a wishlist / sample / owned book, filtered out of view.
-- **Each cell's outcome:** do / refuse / ask; the receipt or refusal wording; one undo step; what the menu shows there.
-- **Where the code answers today** (the site map — two independent searches, Law 5): the four paste lists (see "Move
-  and copy books anywhere" → How), Ctrl+X's refusal list (~5223), every `isSpecialFolder` variant, each menu's
-  enable / disable condition, the drop-target highlighting ("no fake drop signals", its decision 11), the integrity
-  check's repair (books in no folder → Inbox). **Also found 2026-11-06:** a SECOND keyboard handler (readerwrangler.js,
-  "Keyboard shortcuts for folder operations", ~5390) answers Ctrl+X / C / V too, on a separate folder clipboard — one
-  Ctrl+C on a selected book was seen copying the current folder as well (timing-dependent; no harm reproduced); and the
-  main keyboard listener's dependency list omits the clipboard (stale-closure risk — paste now reads it through a ref).
-  And a receipt that claims what didn't happen: Ctrl+V of a book into a folder it's already in changes nothing but says
-  *"Pasted 'Good Omens' into 'Fantasy'"* (seen 2026-11-06) — an "already there" row needs its own words.
-- **Built ahead of the table, in 7.25.1** (the stopgap it replaces — the operations stay): one paste for Ctrl+V and the
-  menu (`pasteClipboard`), one answer to "can books be pasted here?" (`pasteRefusal`: a real folder — the Inbox included
-  — or a Book List), and the Book List paste (`pasteBooksIntoBookList`: copy adds; cut moves, last folder → Inbox, one
-  undo step `PASTE_TO_BOOKLIST_CUT`). Tests PASTE-001–009 — the start of this table's paste rows.
-
-**Related:** "Move and copy books anywhere" (Polish) holds the move / copy semantics this table encodes; its decisions
-become rows. 7.25.1 fixes Ctrl+V's harmful cells by those decisions ahead of the table (the stopgap the table replaces).
 
 #### A book left in no folder is caught the moment it happens, naming the action that did it
 <!-- id 20261115-1239 -->
@@ -1648,8 +1567,8 @@ different one; Ctrl always copies, Shift always moves)
 12. **On ship:** update SUPPORT-KB §8 and §6 (they describe today's behavior).
 
 **The one table** (Ron + Claude, 2026-11-06): every gesture's move / copy / paste rule becomes a row of ONE table —
-see "One table for every move, copy, paste and delete…" (High, after the Delete key task). These decisions are its
-rows.
+built in 7.30.0 for every gesture that existed then (`gestureTable.js`; docs/design/ONE-TABLE.md). These decisions are
+its rows; the new gestures below read the same table.
 
 **How (technical)**
 - **Where "can books be pasted here?" is answered today — four lists that disagree** (found 2026-11-06, the logging
@@ -2489,6 +2408,22 @@ address is still hard-coded). Found by the backlog report's audit of "dropped" t
   `RWRelay.getDeviceState()`; use the one place that answers which relay this copy talks to (relay-client's
   `workerUrl()`) — comb for other hard-coded relay addresses in the same pass.
 
+##### F2 follows the Delete key's rule: what's selected, where you're working, and words when it can't
+<!-- id 20261115-1639 -->
+
+_Why it matters:_ Two keys that act on "this" should agree on what "this" is. The Delete key reads the selection and
+where you're working (7.28.1, ONE-TABLE.md §3); F2 still follows the older "the folder you're in" rule. 7.30.0 fixed
+its worst case — F2 on a folder selected in the Folders view did nothing (RENAME-001) — and measured the rest
+(RENAME-003–005, 2026-11-15):
+1. **Nothing selected, last click in the right pane:** F2 renames the folder you're in; Delete does nothing.
+2. **Several folders selected:** F2 renames the folder you're IN, not one you selected (Delete's pre-7.28.1 mistake).
+3. **The Inbox** (open, or selected): F2 says nothing; Delete says "The Inbox can't be deleted." (Law 16).
+4. **Cover View** (from the code, not seen): the right pane's rename box is drawn only in the List View's table
+   (`rightPanelEditingId === folder.id`), so F2 or the right-click Rename on a folder in Cover View may show nothing.
+
+**How (technical):** `pressF2` (readerwrangler.js ~5890) — give it the Delete key's shape (the table's `selectionWhat`
+and the left-pane focus rule); F2 isn't a `gestureTable` verb yet. Tests: test/ui/test_rename_key.py.
+
 #### Auto-Organize: Shift-click ranges should follow what you see
 <!-- id 20261014-1030d -->
 
@@ -2528,25 +2463,6 @@ _Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder 
 **How (technical)**
 - Folder menu: readerwrangler.js ~18443 (`folderContextMenu`). The Inbox menu's entry (~18348) and the book menu's
   (~19292) show how to open it scoped to a folder.
-
-#### Redo should work after copying a folder
-<!-- id 20261014-1030w -->
-
-_Why it matters:_ Ctrl+Y after undoing a folder copy shows an error instead of redoing it — and a redo that refuses
-teaches you not to trust redo.
-
-**What you see** (checked in code 2026-10-22): copy a folder, Ctrl+Z, Ctrl+Y → the error toast *"Cannot redo copy
-operation"* (readerwrangler.js ~8321, the `COPY_PASTE_FOLDER` redo case).
-
-**Rewritten 2026-10-22** (Ron + UX) from "Finish routing every change through one shared path, with undo": the rest
-of it was done in 6.13.1 and 7.11.0 (tag and Search deletes, the rename family, Search save/delete, folder and book
-moves — see CHANGELOG); its "Why" and a second "Left" list still named those. Removing a recent search has its own task.
-
-**How (technical)**
-- The redo case of `COPY_PASTE_FOLDER` (~8316–8321); the undo case ~7768. Shared operations: `deleteFolder`,
-  `moveItems`, `reparentFolder`. Design: docs/design/OPERATIONS-REFACTOR.md.
-- Note for whoever next touches this code: fold the folder-move part of `moveItems` into the one folder-move
-  operation (`reparentFolder`) — no visible change, but one path instead of two doing the same job.
 
 #### The "open" shortcut: start serve.py if needed and open the app
 <!-- id 20261104-1540 -->
@@ -3968,6 +3884,11 @@ the one place where a hang would leave a person stuck mid-reset.
   commit's checks, another test run, `serve.py` rebuilding)? Reset waits on the browser letting go of the book store —
   a slow machine may be enough.
 - Meanwhile: **no commits during a test run** (Claude's practice from 2026-11-13).
+- **A cousin, 2026-11-15** (on 7.30.0-alpha.13, after a day of full runs): RENAME-006 "no unexpected console messages"
+  failed once on `net::ERR_NO_BUFFER_SPACE` loading icons/logo-transparent.png — Windows short of network buffers (659
+  connections in TIME_WAIT, no leftover test servers or browsers). The file alone and the whole tier passed right
+  after. The console checks can trip on the machine, not the app; if it recurs, consider letting those checks ignore
+  this one network error, by name.
 
 ### Books just bought weren't at the top of All Books sorted by Date Added — once, not reproduced
 <!-- id 20261112-1925 -->
