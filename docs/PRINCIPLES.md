@@ -136,6 +136,9 @@ in" was false and paperbacks got in. A comment promising later work is not code.
 time** (7.22.0): "resolve the doc conflicts in main's favor" would have dropped the branch's own CLAUDE.md
 rule — re-check each step against the files as they are now, not as they were when the plan was written.
 (7.23.0: the plan's "CHANGELOG: backend only" was false by release — `relay-client.js` is app code and its rule changed.)
+**A number is only as true as the column it came from** (7.31.0): I told Ron Explorer used "4 GB" and Logitech
+"1.2 GB" — that was memory those programs had *committed* (much of it in the page file); Task Manager's figure, what's
+actually in RAM, was 455 MB and 70 MB. Name the measure with the number, and use the one the question is about.
 **Ron's standing trade (2026-09-21): OVER-confirm — spend the tokens and the time; that cost is always
 smaller than a mistake built on incomplete memory or an assumption. He would rather wait.**
 **Enforcement**: `feedback_verify_dont_assume` + `feedback_wait_for_answer` memory; the pre-build gate's
