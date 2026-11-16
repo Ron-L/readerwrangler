@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.31.0] - 2026-11-16
+
+### Added
+- **If a book ever ends up in no folder, ReaderWrangler catches it right away** — it puts the book in the Inbox, tells
+  you on a red bar with a **Report this problem** button, and notes what was done just before, so we can find the cause.
+  (It used to be noticed only at the next reload.)
+
+### Fixed
+- **A message never blocks a click** — clicks go through it to whatever is underneath (a message appears just above
+  where you clicked, so it could cover the next thing you meant to click).
+
 ## [7.30.0] - 2026-11-15
 
 ### Added
