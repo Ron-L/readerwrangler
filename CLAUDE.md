@@ -45,8 +45,9 @@ Only Ron changes the mode or the scope.
    tasks build on earlier ones. A branch per task off it. At release it's squashed onto main and kept as the archive;
    the next sprint starts a fresh one from main, so nothing is ever merged back (Ron, 2026-11-16 — it replaced the
    long-lived `main-prime`, kept as an archive).
-2. Build it as always — a failing test first, alphas committed, every tier passing before "ready". Push branches and
-   `main-prime` to **dev** for backup or testing (Ron, 2026-11-12); **never to prod**.
+2. Build it as always — a failing test first, alphas committed, every tier passing before "ready". Branches go to
+   **both** remotes as backup (`python tools/sync_remotes.py` — it never pushes `main` to prod); **`main` never to
+   prod** — that deploys (Ron, 2026-11-12; branches to both, 2026-11-16).
 3. Agents do the building, **each in its own working copy** (`py tools/copies.py new <name> --branch <b>` — a git
    worktree in `..\ReaderWrangler-copies\`, the tools that aren't in git linked in; `remove` takes the links out
    first). Independent tasks build at the same time — `readerwrangler.js` included; tasks that build on each other go
@@ -71,7 +72,7 @@ Only Ron changes the mode or the scope.
    the queue. **Nothing reaches `main` or prod until Ron's review**; then the sprint's branch goes to main as one
    squash, tagged, and pushed (prod + dev).
 
-**Hard stops — never in autonomous mode:** a push to prod; a relay worker deploy; changing a backup or relay data format
+**Hard stops — never in autonomous mode:** a push of `main` to prod (it deploys); a relay worker deploy; changing a backup or relay data format
 without a design Ron has seen; live Amazon fetches; email or any outside service; other projects (unless the switch file
 names them for a task); force pushes or rewriting history; launching GUI programs; changing CLAUDE.md, PRINCIPLES' laws
 or the TODO's order (propose those in the queue instead).
@@ -182,6 +183,12 @@ Follows the always-branch → squash → tag `vX.Y.Z` → keep-branch pattern in
 particulars:
 
 - **Remotes:** `dev` (testing) / `prod` (production) — no `origin`.
+- **Dev, prod and this folder hold the same branches and tags** (Ron, 2026-11-16: "simpler to understand if both dev
+  and prod match (except during a dev test) and both match the local repo") — every feature, fix and sprint branch is
+  the archive, and two remotes are its backup. `python tools/sync_remotes.py` pushes what's missing or behind to both,
+  never overwrites (a remote that's ahead or has diverged is listed — dev's `main` ahead = a dev test), never deletes,
+  and never pushes `main` to prod (that deploys — it stays `git push prod main --tags`, which asks Ron). Run it after
+  every release and at the end of every sprint.
 - **Bookmarklet changes that differ per environment** (anything tied to the repo address — what the LOCAL, DEV and
   PROD bookmarklets do differently): Dev first → test on GitHub Pages → then Prod. A change that's the same for all
   three (e.g. a fetcher fix, tested with the LOCAL bookmarklet) goes to dev and prod together (Ron, 2026-10-16).
@@ -190,7 +197,7 @@ particulars:
 | User says | Do |
 |-----------|-----|
 | "push" or "proceed" | Ask: navigator changes or ready to share? |
-| "push to prod" | Squash-merge to main, tag `vX.Y.Z`, then `git push prod main --tags` **and** `git push dev main --tags` — prod always means dev too, don't ask (Ron 2026-10-08) (keep the branch) |
+| "push to prod" | Squash-merge to main, tag `vX.Y.Z`, then `git push prod main --tags` **and** `git push dev main --tags` — prod always means dev too, don't ask (Ron 2026-10-08) (keep the branch); then `python tools/sync_remotes.py` (every branch to both) |
 | "release" | Clarify which |
 
 ---
