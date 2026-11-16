@@ -10,6 +10,9 @@ Used by git-hooks/version-guard.py, .claude/hooks/gate-check.py and tools/build.
 
 # Folders that hold no shipped code (tools, tests, docs, history, the old v4 app). Anything else is shipped.
 NOT_SHIPPED_DIRS = ("git-hooks/", "test/", "docs/", "v4/", "tools/", "pytools/", "post-mortems/")
+# A folder of this name ANYWHERE holds installed packages (npm), never shipped code — the root's (the commit checks'
+# Babel), relay/'s (wrangler), any added later (2026-11-16: the gate stopped an edit under node_modules/ as app code).
+INSTALLED_DIR = "node_modules"
 BUILT_DIR = "dist/"            # shipped, but BUILT from the sources — never a source itself, never edited
 
 
@@ -19,6 +22,8 @@ def is_shipped(path):
     if p.startswith("./"):
         p = p[2:]
     if p.startswith(".") or "/." in p:                  # .claude/, .private/, .git/ … never shipped
+        return False
+    if INSTALLED_DIR in p.split("/")[:-1]:              # a folder on the way named exactly node_modules
         return False
     return not p.startswith(NOT_SHIPPED_DIRS)
 

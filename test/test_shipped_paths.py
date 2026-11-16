@@ -58,4 +58,34 @@ def the_style_build_uses_it():
 test("SHIP-003", "the style build reads every shipped page and script — a window in logkit/ keeps its styles",
      the_style_build_uses_it)
 
+
+# 2026-11-16 (TODO "Faster sprints"): the gate stopped an edit of a file under the root node_modules/ as shipped code —
+# installed packages, never served. Every node_modules/ folder, wherever it is, holds no shipped code.
+INSTALLED = ["node_modules/@babel/core/lib/index.js", "relay/node_modules/wrangler/bin/wrangler.js",
+             "logkit/node_modules/x/y.js", "node_modules/x/page.html", "node_modules/x/style.css"]
+
+
+def node_modules_is_not_shipped():
+    wrong = [p for p in INSTALLED if sp.is_shipped(p) or sp.is_shipped_source(p)]
+    check(not wrong, f"installed packages judged shipped: {wrong}")
+    near = ["node_modules.js", "my_node_modules/x.js", "logkit/node_modulesish.js"]
+    missed = [p for p in near if not sp.is_shipped_source(p)]
+    check(not missed, f"only a folder NAMED node_modules is excluded — these are shipped code: {missed}")
+test("SHIP-004", "no node_modules/ folder (the root's, relay's, any) holds shipped code — a name that only looks like it "
+     "still does", node_modules_is_not_shipped)
+
+
+def the_checks_skip_node_modules():
+    gate = load("gate_check", ".claude/hooks/gate-check.py")
+    hit = [p for p in INSTALLED if p.endswith(".js") and gate.is_app_source(os.path.join(ROOT, p))]
+    check(not hit, f"the pre-build gate stops edits of installed packages: {hit}")
+    vg = load("version_guard", "git-hooks/version-guard.py")
+    check(not vg.shipped_code_staged(INSTALLED), "the version guard asks for a version bump for installed packages")
+    check(vg.shipped_code_staged(INSTALLED + ["storage.js"]), "…and still asks for one for app code staged with them")
+    b = load("build", "tools/build.py")
+    got = b.style_sources(INSTALLED + ["storage.js"])
+    check(got == ["storage.js"], f"the style build reads installed packages: {got}")
+test("SHIP-005", "the gate, the version guard and the style build all skip node_modules/ (one rule)",
+     the_checks_skip_node_modules)
+
 done()
