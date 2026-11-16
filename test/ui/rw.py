@@ -22,35 +22,38 @@ Rules it enforces (TESTING.md §5, §7): a fresh browser profile every time (Pla
 serve.py stopped by its exact process (Law 5); GoatCounter answered with an empty reply (tests never touch the usage
 statistics); any request to a relay or to Amazon recorded as a violation; a data file carrying a Cloud Sync Key
 refused. RW_HEADED=1 shows the browser (slowed down) for watching a test. Screenshots go to RW_TEST_ARTIFACTS, else
-%TEMP%\\rw-test-artifacts. The browser is Chrome, the one Ron uses (2026-11-06); RW_BROWSER=msedge runs Edge. Scrollbars
+%TEMP%\\rw-test-artifacts — in a working copy (tools/copies.py) with "-<copy name>" added. The browser is Chrome, the one Ron uses (2026-11-06); RW_BROWSER=msedge runs Edge. Scrollbars
 are SHOWN: Playwright hides them in a hidden browser by default, which hides exactly the bugs a person sees (the status
 bar covering the right pane's scrollbar, 2026-11-06).
 
-The local relay (LocalRelay, 2026-11-05) is Cloudflare's own emulator (`wrangler dev --local`) running relay-worker.js
-on this PC with an empty store made for the run and deleted after — never the dev or production relay, which the
-request detector still catches. Its process tree is stopped by its exact id (Law 5).
+The local relay (2026-11-05) is Cloudflare's own emulator (`wrangler dev --local`) running relay-worker.js on this PC
+with an empty store made for the run and deleted after — never the dev or production relay, which the request detector
+still catches. Since 2026-11-16 it is the ONE relay launcher, tools/local_relay.py (Law 22; this file had its own copy):
+"ready" only when its own ready line names its port and only its own processes listen there (another run's relay can't
+answer for it); every process it started stopped by exact id and CHECKED gone, its ports free — anything left fails the
+file (Law 5).
 """
 import base64
 import gzip
 import json
 import os
 import re
-import shutil
 import socket
 import subprocess
 import sys
-import tempfile
 import time
-import urllib.error
-import urllib.request
 
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import local_relay   # noqa: E402 — the local relay (LocalRelay), free ports, and who listens on a port, by process id
+import copies        # noqa: E402 — tools/copies.py: a working copy keeps its screenshots apart
 FIXTURE = os.path.join(ROOT, "test", "fixtures", "small-fixture.json")
 DEMO = os.path.join(ROOT, "readerwrangler-demo-library-ORGANIZED.json")
 LARGE = os.path.join(ROOT, ".private", "test", "large-sample-private.json.gz")
-ARTIFACTS = os.environ.get("RW_TEST_ARTIFACTS") or os.path.join(tempfile.gettempdir(), "rw-test-artifacts")
+# RW_TEST_ARTIFACTS, else %TEMP%\rw-test-artifacts — plus "-<copy name>" in a working copy (2026-11-16)
+ARTIFACTS = copies.screenshots_folder(ROOT)
 
 # Console messages that are expected today — each with its reason. Anything else fails a test. These three go away
 # with "Faster loading: build the app ahead of time" (the in-browser compiler and style builder leave).
@@ -83,86 +86,10 @@ FORBIDDEN_HOSTS = re.compile(r"workers\.dev|amazon\.|media-amazon|ssl-images-ama
 APP_TIMEOUT_MS = 180_000     # generous: the app opens in ~0.5 s since 7.27.0 (it took ~50 s while it compiled in the browser)
 BROWSER = os.environ.get("RW_BROWSER", "chrome")
 
-# The local relay: wrangler from relay/node_modules (relay/package.json), and a made-up channel that exists only in the
-# run's throwaway store. Credentials are planted at run time, never in a data file (test data never carries a key).
-RELAY_DIR = os.path.join(ROOT, "relay")
-WRANGLER = os.path.join(RELAY_DIR, "node_modules", "wrangler", "bin", "wrangler.js")
+# The local relay's test channel: made up, existing only in the run's throwaway store. Credentials are planted at run
+# time, never in a data file (test data never carries a key).
 TEST_CHANNEL = "44444444-5555-4666-8777-888888888888"
 TEST_PASSPHRASE = "screen-test-passphrase"
-RELAY_START_S = 60
-
-
-def _free_port():
-    s = socket.socket()
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
-
-
-def _stop_tree(proc):
-    """Stop a process we started, and everything it started, by its exact id (Law 5) — never by name or pattern."""
-    if proc.poll() is None:
-        if os.name == "nt":
-            subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True)
-        else:
-            proc.terminate()
-    try:
-        proc.wait(10)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-
-
-class LocalRelay:
-    """relay-worker.js in Cloudflare's emulator on this PC, accepting requests from `origin` (the test app's address —
-    the worker allows only listed pages; --var sets that for this run without touching wrangler.toml)."""
-
-    def __init__(self, origin):
-        self.origin = origin
-
-    def __enter__(self):
-        node = shutil.which("node")
-        if not node or not os.path.exists(WRANGLER):
-            raise RuntimeError("the local relay needs node and wrangler — run  npm install  in the relay folder")
-        self.port = _free_port()
-        self.store = tempfile.mkdtemp(prefix="rw-test-relay-")
-        self.log_path = os.path.join(self.store, "wrangler.log")
-        self._log = open(self.log_path, "w", encoding="utf-8")
-        self.proc = subprocess.Popen(
-            [node, WRANGLER, "dev", "--env", "dev", "--local", "--ip", "127.0.0.1", "--port", str(self.port),
-             "--inspector-port", str(_free_port()), "--persist-to", os.path.join(self.store, "state"),
-             "--var", f"ALLOWED_ORIGINS:{self.origin}", "--show-interactive-dev-session=false", "--log-level", "warn"],
-            cwd=RELAY_DIR, stdout=self._log, stderr=subprocess.STDOUT)
-        self.url = f"http://127.0.0.1:{self.port}"
-        deadline = time.time() + RELAY_START_S
-        while time.time() < deadline:
-            if self.proc.poll() is not None:
-                break
-            try:
-                urllib.request.urlopen(urllib.request.Request(self.url + "/", method="OPTIONS",
-                                                              headers={"Origin": self.origin}), timeout=2)
-                return self
-            except urllib.error.HTTPError:
-                return self                     # it answered — any answer means it's up
-            except OSError:
-                time.sleep(0.1)
-        tail = self.read_log()[-1500:]
-        self.__exit__()
-        raise RuntimeError(f"the local relay didn't start within {RELAY_START_S} s:\n{tail}")
-
-    def read_log(self):
-        try:
-            self._log.flush()
-            return open(self.log_path, encoding="utf-8", errors="replace").read()
-        except OSError:
-            return ""
-
-    def __exit__(self, *exc):
-        try:
-            _stop_tree(self.proc)
-        finally:
-            self._log.close()
-            shutil.rmtree(self.store, ignore_errors=True)
 
 
 class App:
@@ -188,18 +115,19 @@ class App:
 
     # --- start / stop -------------------------------------------------------------------------------------------
     def __enter__(self):
-        self.port = _free_port()
-        self.server = subprocess.Popen([sys.executable, "serve.py", str(self.port)], cwd=ROOT,
-                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for _ in range(100):
-            try:
-                socket.create_connection(("127.0.0.1", self.port), 0.2).close()
+        # Screen tests run in parallel (tools/run_tests.py --jobs, 2026-11-16): the free port is chosen here and taken by
+        # serve.py a moment later, so another file's server can take it in between. Then ours can't start — and a plain
+        # "does the port answer?" would be answered by the OTHER server (this file's pages from a server that stops when
+        # that file ends). So the port must be served by OUR serve.py; if it isn't, try another port.
+        for _ in range(3):
+            self.port = local_relay.free_port()
+            self.server = subprocess.Popen([sys.executable, "serve.py", str(self.port)], cwd=ROOT,
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if self._server_is_ours():
                 break
-            except OSError:
-                time.sleep(0.1)
-        else:
             self._stop_server()
-            raise RuntimeError("serve.py didn't start")
+        else:
+            raise RuntimeError("serve.py didn't start (3 ports tried)")
         try:
             return self._start_browser()
         except BaseException:
@@ -208,7 +136,10 @@ class App:
 
     def _start_browser(self):
         if self.want_relay:
-            self.relay = LocalRelay(f"http://localhost:{self.port}").__enter__()
+            # The worker answers only listed pages: --var lists this test's page for this run, wrangler.toml untouched.
+            # Kept before start(), so __exit__ stops whatever it started even if starting fails.
+            self.relay = local_relay.LocalRelay(extra_args=["--var", f"ALLOWED_ORIGINS:http://localhost:{self.port}"])
+            self.relay.start()
         self.pw = sync_playwright().start()
         self.browser = self.pw.chromium.launch(channel=BROWSER, headless=not self.headed,
                                                slow_mo=250 if self.headed else 0,
@@ -265,10 +196,33 @@ class App:
                 self.pw.stop()
         finally:
             try:
-                if self.relay:
-                    self.relay.__exit__()
+                left = self.relay.stop() if self.relay else []
+                if left:     # a process it started still running, or its port still in use: never quietly (Law 5)
+                    from harness import fail_after
+                    fail_after("the local relay", "not everything it started was stopped:\n" + "\n".join(left))
             finally:
                 self._stop_server()
+
+    def _server_is_ours(self, wait_s=10):
+        """True once our serve.py answers on self.port — False if it stopped (the port was taken) or never answered. On
+        Windows the listener is checked by process id: ours, or its child (the venv's python.exe starts the real Python
+        as a child)."""
+        deadline = time.time() + wait_s
+        while time.time() < deadline:
+            if self.server.poll() is not None:
+                return False
+            try:
+                socket.create_connection(("127.0.0.1", self.port), 0.2).close()
+            except OSError:
+                time.sleep(0.1)
+                continue
+            if os.name != "nt":
+                return True
+            ours = {self.server.pid} | {p for p, (parent, _) in local_relay.processes().items() if parent == self.server.pid}
+            if local_relay.port_owners(self.port) & ours:
+                return True
+            time.sleep(0.1)          # someone else answers there: ours either takes it or stops
+        return False
 
     def _stop_server(self):
         self.server.terminate()          # the exact process we started (Law 5) — never a pattern

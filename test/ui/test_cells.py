@@ -2,7 +2,12 @@
 # keys, clicks and drags — what each gesture does to the library, the words it says, and one Ctrl+Z.
 # tags: move, copy, paste, folders, booklists, trash, undo, keyboard, drag, tier 2
 # covers: readerwrangler.js
+# shards: 3
 # Run: py tools/run_tests.py --id CELL-001     (or --tier 2; or directly with the venv's Python)
+# Shards (2026-11-16): the runner runs this file as 3 processes at once, each with every 3rd cell in RW_CELLS (listed by
+# --list-cells, which starts nothing) — it alone set tier 2's time (2, 3 and 4 measured: all ~3 min with 4 slots; 3 keeps
+# it off the critical path). No cell may depend on one before it: clean_up restores the fixture and waits out a warning
+# toast (one covered the next cell's menu when a shard ran CELL-066 right after CELL-064). CELL-058 runs in every process.
 #
 # Sprint 4, step 2 (Ron, 2026-11-13): "A screen test that tries every cell of §4–§5 and records today's answer" — the
 # LOGGING.md pattern, PASTE-001–009 its first slice. Each cell asserts the DECIDED behavior (ONE-TABLE.md §4–§6; TODO
@@ -45,16 +50,21 @@
 #     ⊃ Old Favorites: 20 Deep in the Folders, 19 A Book With a Note
 #   Every Ownership Kind: 6–16; An Empty Folder; Book Lists: Read Next 3 20 16, An Empty Book List
 #   Trash: 21 A Book in the Trash (was in Science Fiction). Searches: The Saga ("Test Saga"), Tagged Read.
+import contextlib
 import json
 import os
 import re
 import shutil
 import sys
 import tempfile
+import types
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, differs_today, done, test   # noqa: E402
 from rw import FIXTURE, App                            # noqa: E402
+
+# --list-cells (tools/run_tests.py's shards): print every cell's ID, in order, one a line — no browser, nothing run
+LIST_CELLS = "--list-cells" in sys.argv
 
 ND = "A Book With No Description"     # 18 — Science Fiction only
 GO = "Good Omens"                     # 5 — Fantasy AND Science Fiction
@@ -132,7 +142,7 @@ def not_exactly(a, b):
     return out
 
 
-with App() as app:
+with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS else App()) as app:
     page = app.page
 
     def state():
@@ -150,8 +160,9 @@ with App() as app:
         app.restore(FIXTURE)
         app.menu("View", "List View").click()
 
-    restore_fixture()
-    BASE = state()
+    if not LIST_CELLS:
+        restore_fixture()
+        BASE = state()
     _mark = [0]
 
     def mark():
@@ -285,6 +296,13 @@ with App() as app:
                 btn.first.click()
         page.keyboard.press("Escape")
         page.wait_for_timeout(200)
+        # A warning toast stays where it appeared for 4 s, then moves away for 1 s (readerwrangler.js TOAST_HOLD_MS), above
+        # everything — long enough to cover the NEXT cell's menu: CELL-066 run right after CELL-064 (as a shard ran them,
+        # 2026-11-16) found "Add to Book List" under CELL-064's "Copied … from the Trash" warning. Gone first, as a person
+        # would wait — a condition, not a sleep. (An ordinary toast is held 1.5 s; no grouping tried has been caught by one.)
+        warning = page.locator(".clipboard-toast.warning")
+        if warning.count():
+            warning.first.wait_for(state="detached", timeout=8000)
         filters = page.get_by_title("Clear all active filters")
         if filters.count() and filters.first.is_visible():
             filters.first.click()
@@ -340,6 +358,9 @@ with App() as app:
     TODAY = {}
 
     def add(tid, name, fn):
+        if LIST_CELLS:
+            print(tid)
+            return
         if ONLY and tid not in ONLY:
             return
         (differs_today(tid, name, fn, TODAY[tid]) if tid in TODAY else test(tid, name, fn))
@@ -1499,9 +1520,13 @@ with App() as app:
     # copy it" (MOVE-10, §6 items 6, 20); the receipts of a gesture done as something other than its verb (MOVE-12, §6
     # item 20 — CELL-040, 063, 066, 069, 114, 116, 117, 119, 120, 121, 123)
     DELIBERATE = ("MOVE-06", "MOVE-10", "MOVE-12")
-    if not ONLY:
+    # This session's console — so in EVERY process when the file runs in shards (and in a narrow RW_CELLS run too; until
+    # 2026-11-16 it ran only when every cell did). Not a cell: never listed, never in a shard's share.
+    if not LIST_CELLS:
         test("CELL-058", "no unexpected console messages (the warnings MOVE-06, MOVE-10 and MOVE-12 are on purpose)",
              lambda: check(not [x for x in app.unexpected_console() if not any(c in x for c in DELIBERATE)],
                            [x for x in app.unexpected_console() if not any(c in x for c in DELIBERATE)]))
 
+if LIST_CELLS:
+    sys.exit(0)
 done()

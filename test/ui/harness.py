@@ -84,6 +84,40 @@ def fail_after(label, msg):
     print(f"  ✗ {label}\n      " + "\n      ".join(str(msg).splitlines()[:12]), flush=True)
 
 
+def remove_tree(top):
+    """Delete a throwaway test folder completely (2026-11-16). shutil.rmtree(ignore_errors=True) quietly left every
+    throwaway git repository behind — git's object files are read-only on Windows — so 45 piled up in %TEMP%. Here: every
+    link is removed by itself first, never followed (a link may point at a folder that must survive — tools/copies.py),
+    a read-only file is made writable and deleted. Returns what couldn't be deleted ([] = all gone)."""
+    import os
+    import stat
+    left = []
+
+    def is_link(p):
+        return os.path.islink(p) or (hasattr(os.path, "isjunction") and os.path.isjunction(p))
+
+    def walk(d):
+        for e in list(os.scandir(d)):
+            try:
+                if is_link(e.path):
+                    os.rmdir(e.path) if os.path.isjunction(e.path) else os.unlink(e.path)
+                elif e.is_dir(follow_symlinks=False):
+                    walk(e.path)
+                    os.rmdir(e.path)
+                else:
+                    os.chmod(e.path, stat.S_IWRITE)
+                    os.remove(e.path)
+            except OSError as err:
+                left.append(f"{e.path}: {err}")
+    if os.path.lexists(top):
+        try:
+            walk(top)
+            os.rmdir(top)
+        except OSError as err:
+            left.append(f"{top}: {err}")
+    return left
+
+
 def done():
     print(f"{_passed} passed, {len(_failures)} failed" + (f", {len(_differ)} differ today (as measured)" if _differ else ""),
           flush=True)

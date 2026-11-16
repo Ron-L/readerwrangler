@@ -4,6 +4,7 @@
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
       - [Faster sprints: screen tests in parallel, results stamped with their commit, working copies of the folder](#faster-sprints-screen-tests-in-parallel-results-stamped-with-their-commit-working-copies-of-the-folder)
+      - [Messages never block a click: clicks pass through to what's underneath](#messages-never-block-a-click-clicks-pass-through-to-whats-underneath)
       - [A book left in no folder is caught the moment it happens, naming the action that did it](#a-book-left-in-no-folder-is-caught-the-moment-it-happens-naming-the-action-that-did-it)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -220,6 +221,20 @@ next task. Estimate: the same day in ~6–7 hours, the same testing.
 6. Make the record agree: CLAUDE.md's "Autonomous mode — sprints" says agents build "a worktree each", but since
    sprint 1 they've worked one at a time in the main folder (memory: no worktrees — the local tools aren't in git).
    Once item 3 works, update CLAUDE.md to describe it (proposed to Ron, not edited by an agent) and the memory note.
+
+#### Messages never block a click: clicks pass through to what's underneath
+<!-- id 20261116-1109 -->
+
+_Why it matters:_ A message (a toast) appears just above the spot you last clicked — exactly where your next click is
+likely to go — and sits on top of everything, taking clicks, for its 1.5 s (4 s for an amber warning). It covered a
+menu item in sprint 5's screen tests ("Copied … from the Trash" held over the next cell's "Add to Book List"), so it can
+cover one under a person's mouse too. (Ron, 2026-11-16: "File the pass through click as next TODO task".)
+
+**Proposed** (Claude, 2026-11-16): the message lets clicks through — `pointer-events: none` on `.clipboard-toast`
+(readerwrangler.js ~9556). Nothing is lost: a message is text only — `showToast(message, x, y, { level, log })` has no
+way to add a button (Ron: the one routine answers it). A screen test first, shown failing: a message over a menu item,
+the item still clicked. Then test_cells.py's `clean_up` needn't wait warnings out (sprint 5's workaround) — check it.
+An app change: it rides with the next app release.
 
 #### A book left in no folder is caught the moment it happens, naming the action that did it
 <!-- id 20261115-1239 -->
@@ -482,7 +497,10 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 3. ✅ **The relay tests start and stop their own local relay** (7.28.0 post-mortem) — done 2026-11-12 (autonomous
    trial): `tools/local_relay.py`; `run_tests.py --tier 3` with no `--relay-url` starts wrangler's local emulator on a
    free port, stops each process it proves it started (by exact id, never `/T`), and checks every port is free
-   (RUN-016–021). Follow-up: the screen tests' own relay starter (`test/ui/rw.py` `LocalRelay`) should use it too.
+   (RUN-016–021). ✅ Follow-up done 2026-11-16 (sprint 5): the screen tests' own relay starter (`test/ui/rw.py`
+   `LocalRelay`, a second copy that stopped processes with `/T`) is gone — they use `tools/local_relay.py`, whose
+   readiness is now proven against its own processes, retrying on new ports when another process holds one
+   (RUN-052, 053, 057).
 4. ✅ **A release run counts "skipped" as failed** (7.28.0 post-mortem) — done 2026-11-12: `run_tests.py --release`
    fails on any skipped file, naming it and why (RUN-022–024). The release checklist's line in CLAUDE.md names it
    (Ron, 2026-11-12).
@@ -505,7 +523,9 @@ queue Q-020, Q-022, Q-024.)
 
 **Decided** (Ron + Claude, 2026-11-12)
 1. **One starter** (grown from `tools/local_relay.py`) for everything our tools launch: the relay tests' relay (done in
-   7.28.1's tooling), the screen tests' own relay (`test/ui/rw.py` `LocalRelay`) and their web server.
+   7.28.1's tooling), the screen tests' own relay (`test/ui/rw.py` `LocalRelay` — ✅ done 2026-11-16, sprint 5: it
+   uses `tools/local_relay.py` now) and their web server (still started separately by `rw.App`; since sprint 5 it
+   checks by process id that the server answering is its own).
 2. **A list in a file** of every process it started — its id, its start time, what it is, which run started it; an
    entry leaves the list only when the process is confirmed gone (Ron: "keep a list of IDs as you create them, delete
    from list when confirmed dead"). The file outlives a crashed run; the start time means a reused id is never taken

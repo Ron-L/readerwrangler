@@ -35,6 +35,11 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
   arrive by refusing — the switch makes the refusal whole. The
   checklist is **not** in the hook — it's pulled from the `GATE-CHECKLIST` block in `docs/PRINCIPLES.md`
   (single source). Unreadable → loud `CHECKLIST SOURCE MISSING` alarm + a minimal core.
+  **In a working copy too** (2026-11-16, below): a file is judged by the working copy that HOLDS it — the nearest folder
+  above it with a `.git` and `git-hooks/shipped_paths.py` — not by the session's folder. Before, an edit to
+  `readerwrangler.js` in a copy counted as "outside this repo" and went through while the gate was armed (seen live).
+  The hooks are wired in `.claude/settings.json` by `$CLAUDE_PROJECT_DIR`, so a session started in the main folder runs
+  the main folder's hooks for every copy's files, and a session started in a copy runs the copy's. Tests: `GATE-001`.
 - **`gate-batch-end.py`** (PostToolBatch) — REFUSING → CLEAR once the refused batch is over (2026-10-19).
 - **`gate-reset.py`** (Stop/SessionStart) — re-arms the gate's per-turn flag (a temp-dir file keyed by
   session id) so the checklist lands exactly once, at the planning→build boundary.
@@ -83,6 +88,55 @@ Bypass (Ron's call): `git commit --no-verify`.
   comment — it parsed, then crashed the book details window; the first run also found a `readerwrangler.html` inline
   script broken since 7.4.0 (raw line break in a string — the load-error capture had never run). Needs
   `npm i --no-save @babel/core @babel/preset-react`; exits 2 (loud) if missing.
+
+## Working copies and merging branches (`tools/copies.py`, `tools/merge_branches.py`; 2026-11-16)
+
+TODO "Faster sprints", items 3–4 (working copies: Ron's idea). One agent builds in one copy while Claude reviews and tests
+in another; independent tasks build at once, each on its own branch, and a script merges them.
+
+- **`py tools/copies.py new <name> [--branch <b>] [--from <ref>]`** — a git worktree at
+  `C:\Users\Ron\Projects\ReaderWrangler-copies\<name>` (beside the main folder) on branch `<b>` (default: the name; a new
+  branch starts at `<ref>`, default HEAD; an existing one is checked out). It **links** what git doesn't hold — `.venv`,
+  `node_modules` (the commit checks' Babel), `tools/build/node_modules`, `relay/node_modules` — each a Windows directory
+  junction to the main folder's (nothing copied), checks the **pytools submodule** out from the main folder's copy (no
+  network; a link can't work there — its `.git` file points at `../.git/modules` by a relative path, and git then fails
+  on every command), then runs **tier 1 in the copy**: READY only if it passes. Without the links, tier 1 fails in a
+  copy (proven 2026-11-16: the build tests, the parse and saved-reads checks, the runner's screen-test rows) and tier 2
+  can't start at all; serve.py won't start without pytools.
+- **`py tools/copies.py remove <name> [--force]`** — refuses while the copy has anything uncommitted, or while its branch
+  has commits no other branch, tag or remote has; `--force` removes it anyway. **The branch is always kept.** Every link
+  in the copy is removed FIRST, by itself: `git worktree remove` deletes THROUGH a junction (tried on a throwaway: the
+  linked folder's files were gone). Afterwards it checks each of the main folder's linked folders still holds what it
+  held, and says so loudly if not. **Every folder in the copy must be looked into first** (2026-11-16): one it can't
+  read might hold a link it would miss, so it refuses — even with `--force` — naming each such folder, before anything is
+  removed. Tests: `COPY-001`–`006`.
+- **`py tools/copies.py list`** (also a double-click) — each copy, its branch and commit, anything uncommitted, and its
+  test stamp (`run_tests.py --stamp` run there: each copy keeps its own run records).
+- **What works inside a copy** (checked 2026-11-16): the pre-build gate (above); the commit checks — `core.hooksPath
+  git-hooks` is shared config and relative, so git runs the COPY's `git-hooks/` from the copy's root (seen: the version
+  guard refused, the name check and the build check ran, all on the copy's files); serve.py and the test runner use the
+  copy's own `dist/`; screenshots go to `%TEMP%\rw-test-artifacts-<name>` (the main folder's stay in
+  `rw-test-artifacts`); the private-values check reads the main folder's `.private/` notes (a copy has none, and it
+  silently checked credential shapes only).
+- **serve.py's rebuild while another server reads the file:** Windows refuses to swap a new `dist/` copy in over a file
+  another program is reading. `tools/build.py` retries for ~2 s; still refused, serve.py serves the copy that's there and
+  logs `REBUILD NOT SWAPPED IN` (the next request tries again) — before, the request died. Tests: `BUILD-010`,
+  `SERVE-001`.
+- **`py tools/merge_branches.py <branch> … [--into main-prime] [--no-squash] [--no-test]`** — run in a folder ON the
+  target branch, clean. On a scratch branch `merging/<target>`, each branch in turn is squash-merged as one commit (the
+  sprints' way into `main-prime`; `--no-squash`: a merge commit). Never hand-merged — settled by the script, after every
+  branch, even when git merged them cleanly: **`dist/`** (rebuilt by `tools/build.py`), **`docs/design/MESSAGE-CODES.md`**
+  (`tools/message_codes.py`), **TODO.md's table of contents** (only the table, rebuilt from the headers with the
+  extension's link rule — the tasks are real content), and **the version stamps**: every stamp a branch moved
+  (`ORGANIZER_VERSION`, `MOBILE_VERSION`'s `-alpha.N`, each `?v=`) becomes a fresh alpha above the highest
+  `ORGANIZER_VERSION` among the target and every branch given; ORGANIZER_VERSION moves with them. One alpha per commit, so
+  the last commit's version is above everything merged. A file whose only conflict is a stamp line is merged again with
+  the stamps hidden. **Any other conflict stops the run**, naming each file, the merge left in place: resolve, `git
+  add`, then `--continue` (or `--abort`: back on the target exactly as it was). Every commit goes through the commit
+  checks. Then **tier 1 and tier 2 in full on the merged result**, committed on the scratch branch, so `run_tests.py
+  --stamp` must say PROVEN for exactly the commit that lands; only then is the target fast-forwarded and the scratch
+  branch deleted. A failure leaves the target untouched (fix and commit on the scratch branch, then `--continue`).
+  `--no-test` lands and prints `NOTHING WAS PROVEN`. Tests: `MERGE-001`–`004` (real git in throwaway repositories).
 
 ## Related
 - The gate's checklist content + the debugging law it now carries: `docs/PRINCIPLES.md` (Laws + the

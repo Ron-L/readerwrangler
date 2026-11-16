@@ -169,4 +169,39 @@ def window_is_built():
     check("React.createElement" in out and "<Dialog" not in out, "its JSX became React.createElement")
 test("BUILD-009", "the logging kit's Diagnostics window is built like the app (logkit/ → dist/logkit/)", window_is_built)
 
+
+# 2026-11-16 (TODO "Faster sprints" item 3): with screen tests in parallel and working copies, several servers can read
+# the same dist/ file while one rebuilds it — and Windows refuses to swap a file in over one another program is reading.
+# The swap is retried; if it's still refused, the old copy stays whole, no scratch file is left, and PermissionError says
+# so (serve.py then serves the old copy — test/test_serve.py).
+def swap_waits_for_a_reader():
+    with tempfile.TemporaryDirectory(prefix="rw-build-swap-") as tmp:
+        swap_in(tmp)
+
+
+def swap_in(tmp):
+    import threading
+    target = os.path.join(tmp, "app.js")
+    open(target, "w").write("old")
+    reader = open(target)                               # another program sending the old copy
+    threading.Timer(0.3, reader.close).start()          # … finishes after 0.3 s
+    b._write(target, "new")
+    check(open(target).read() == "new", "the swap waited for the reader, then the new copy went in")
+    if os.name == "nt":                                 # only Windows refuses a swap over an open file
+        reader = open(target)
+        tries = b.SWAP_TRIES
+        try:
+            b.SWAP_TRIES = 3
+            b._write(target, "newer")
+            raise AssertionError("a reader holding the file the whole time: PermissionError expected")
+        except PermissionError:
+            pass
+        finally:
+            b.SWAP_TRIES = tries
+            reader.close()
+        check(open(target).read() == "new", "still refused: the old copy is left whole")
+        check(os.listdir(tmp) == ["app.js"], f"and no scratch file is left behind: {os.listdir(tmp)}")
+test("BUILD-010", "a rebuild waits ~2 s for a server reading the old copy; still refused, the old copy stays whole",
+     swap_waits_for_a_reader)
+
 done()
