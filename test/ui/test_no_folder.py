@@ -10,9 +10,7 @@
 # readerwrangler.com). Before it, a real action (a folder renamed with F2) so the error has an action to name.
 # The fixture (test/fixtures/make-small-fixture.js): Science Fiction (3 books, Good Omens among them) ⊃ Space Opera ⊃
 # Old Favorites; Fantasy ⊃ The Test Saga; Every Ownership Kind; An Empty Folder; the Inbox (2 books).
-import json
 import os
-import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -47,6 +45,11 @@ def no_folder_errors(app):
 
 def bar_buttons(app):
     return [b.inner_text().strip() for b in app.page.locator(BANNER).locator("button").all()]
+
+
+def bar_message(app):
+    """The bar's words, without its buttons (7.31.0, Q-044: the kit's prefix only for a viewer who chose the bar)."""
+    return app.page.locator(BANNER).locator("span").first.inner_text().strip()
 
 
 def wait_bar(app, words):
@@ -96,6 +99,8 @@ with App(log=None) as app:
         [gid] = leave_in_no_folder(app, ["Good Omens"])
         text = wait_bar(app, ONE)
         check(ONE in text, f"the bar says: {text!r}")
+        check(bar_message(app) == ONE, f"an ordinary user's bar should say just the message — no 🐞, level or code (Q-044): "
+                                       f"{bar_message(app)!r}")
         check(folders_holding(app, gid) == ["__inbox__"], f"Good Omens should be in the Inbox now: {folders_holding(app, gid)}")
         errs = no_folder_errors(app)
         check(len(errs) == 1 and errs[0]["level"] == "error", f"one error, INTEG-08: {errs}")
@@ -107,18 +112,30 @@ with App(log=None) as app:
         toasts = [t.inner_text() for t in page.locator(".clipboard-toast").all()]
         check(not any("no folder" in t for t in toasts), f"a separate toast for it (the bar says it): {toasts}")
     test("NOFOLDER-001", "an ordinary user (banner switch off): a book left in no folder is in the Inbox at the next save, "
-         "the red bar says so in the one-book words (Copy, Report this problem, Dismiss), the log names the last action",
-         one_book)
+         "the red bar says so in the one-book words alone (no code), with Copy, Report this problem, Dismiss; the log names "
+         "the last action", one_book)
 
     def copy_names_the_action():
         n0 = len(app.copied())
+        # the log's lines before the bar's message (the page load, the rename…), as Copy diagnostics has them
+        earlier = page.evaluate("""() => { const es = window.rwLog.entries();
+                                           const i = es.findIndex(e => e.code === 'INTEG-08');
+                                           return es.slice(0, i).map(e => window.rwLog.format(e)); }""")
         app.click_reachable(page.locator(BANNER).locator("button").first)
         page.locator(BANNER).get_by_text("Copied", exact=True).wait_for(timeout=3000)
         copied = app.copied()[n0:]
-        check(len(copied) == 1 and ONE in copied[0], f"the bar's Copy didn't copy the message: {copied}")
-        check(RENAMED in copied[0], f"the bar's Copy should carry the details (the last action): {copied[0][:600]!r}")
-    test("NOFOLDER-002", "the bar's Copy copies the message WITH its details — the last action and the books",
-         copy_names_the_action)
+        check(len(copied) == 1, f"the bar's Copy should copy once: {copied}")
+        lines = copied[0].split("\n") if copied else [""]
+        check("error · INTEG-08 · " + ONE in lines[0], f"the bar's message, with its code, should be at the top: {lines[:3]}")
+        check(RENAMED in lines[1], f"its details (the last action) on the line below it: {lines[:3]}")
+        title = next((i for i, x in enumerate(lines) if x.startswith("ReaderWrangler diagnostics — ")), -1)
+        check(title > 0 and lines[title + 1].startswith("Desktop app "),
+              f"then the diagnostics, as Copy diagnostics has them (the app's build line under the title): "
+              f"{lines[title:title + 2] if title >= 0 else lines[:8]}")
+        check(earlier and all(x in copied[0] for x in earlier),
+              f"the copy should hold the log's earlier lines: missing {[x for x in earlier if x not in copied[0]]}")
+    test("NOFOLDER-002", "the bar's Copy copies the full diagnostics (the kept log) with the bar's message and its details "
+         "at the top", copy_names_the_action)
 
     def report_opens_the_dialog():
         n0 = len(app.copied())
@@ -198,8 +215,11 @@ with App(log=None) as app:
         check(page.evaluate(SWITCHES) == {"errorBanner": True, "logDetail": False},
               f"a contributor who never touched the switch should have the error bar on: {page.evaluate(SWITCHES)}")
         plant_error(app, "an ordinary error")
-        text = wait_bar(app, "an ordinary error")
-        check(bar_buttons(app)[-1] == "Turn off this banner", f"the switch raised this bar — its link should be there: {bar_buttons(app)}")
+        wait_bar(app, "an ordinary error")
+        check(bar_message(app) == "🐞 error · UI-03-!TEST! · an ordinary error",
+              f"a viewer with the bar on (a contributor) keeps the kit's prefix: {bar_message(app)!r}")
+        check(bar_buttons(app)[-1] == "Turn off this banner",
+              f"the switch raised this bar — its link should be there: {bar_buttons(app)}")
         check("Report this problem" in bar_buttons(app), f"the report button should be on every bar: {bar_buttons(app)}")
         dismiss(app)
     test("NOFOLDER-007", "a contributor who never touched the banner switch: it's on — an ordinary error raises the bar",
@@ -219,6 +239,7 @@ with App(log=None) as app:
         wait_bar(app, ONE)
         check(bar_buttons(app) == ["Copy", "Report this problem", "Dismiss"],
               f"the no-folder bar shows anyway, without the switch's link: {bar_buttons(app)}")
+        check(bar_message(app) == ONE, f"the bar turned off: just the message, as an ordinary user sees it: {bar_message(app)!r}")
         dismiss(app)
     test("NOFOLDER-008", "a contributor who turned the switch off: off (after a reload too) — the no-folder bar still shows",
          contributor_turned_off)

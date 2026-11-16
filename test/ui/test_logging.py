@@ -1,6 +1,6 @@
 # Screen test: the logging module's switches and alerts in the real page — the address, the banner, critical for everyone.
 # tags: logging, tier 2
-# covers: logkit/logger.js, logkit-settings.js, readerwrangler.html
+# covers: logkit/logger.js, logkit-settings.js, readerwrangler.html, readerwrangler.js
 # Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python)
 #
 # Build step 3 (docs/design/LOGGING.md §1; Ron + Claude, 2026-11-05/07), reworked by step 5.1 (Ron, 2026-11-09): two
@@ -107,6 +107,28 @@ with App(log=None) as app:     # the switches' own tests: the page's defaults (b
         app.click_reachable(page.locator(BANNER).get_by_text("Dismiss", exact=True))
     test("LOGUI-007", "the banner's Copy says Copied when it copied, and Couldn't copy when the browser refused — then Copy again",
          banner_copy)
+
+    # 7.31.0 (review queue Q-044, Ron 2026-11-16: "we'll want to see what was going on") - the critical box's Copy details
+    # copies what the banner's Copy does: the full diagnostics (as Copy diagnostics has them), its message(s) at the top.
+    def critical_copy_is_the_diagnostics():
+        app.stub_outside(refuse_clipboard=False)
+        n0 = len(app.copied())
+        plant(app, "critical", "STORE-02", "a critical to copy whole")
+        page.locator(CRITICAL).wait_for(timeout=5000)
+        app.click_reachable(page.locator(CRITICAL).get_by_text("Copy details", exact=True))
+        page.locator(CRITICAL).get_by_text("Copied", exact=True).wait_for(timeout=3000)
+        copied = app.copied()[n0:]
+        lines = copied[0].split("\n") if len(copied) == 1 else [""]
+        check("critical · STORE-02-!TEST! · a critical to copy whole" in lines[0], f"the message should be at the top: {lines[:3]}")
+        title = next((i for i, x in enumerate(lines) if x.startswith("ReaderWrangler diagnostics — ")), -1)
+        check(title > 0 and lines[title + 1].startswith("Desktop app "),
+              f"then the diagnostics, the app's build line under the title: {lines[:8]}")
+        check("a planted error" in copied[0], "the copy should hold the log's earlier lines (LOGUI-002's error)")
+        page.locator(CRITICAL).get_by_text("Copy details", exact=True).wait_for(timeout=5000)
+        app.click_reachable(page.locator(CRITICAL).get_by_text("OK", exact=True))
+        page.locator(CRITICAL).wait_for(state="detached", timeout=5000)
+    test("LOGUI-010", "the critical box's Copy details copies the full diagnostics, its message at the top (as the banner's Copy)",
+         critical_copy_is_the_diagnostics)
 
     def critical_copy_without_clipboard():
         # an insecure address (a phone reaching a copy on the home network): the page has NO clipboard at all

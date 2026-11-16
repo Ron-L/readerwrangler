@@ -71,10 +71,16 @@ kept on the device (info and up — debug too while "extra detail" is on — the
 an **error** raises the red banner when that switch is on (or when it says `banner: 'always'`); a **critical** message
 shows the critical box to everyone. The logger never throws.
 
-**The banner** shows the message (and "+N more" when several arrived), then its buttons — `bannerButtons()` decides
-them, the page draws them: **Copy** (the messages shown, each with its details, and the recent log), the page's own
-**report button** when it gave one (`setReportButton`), **Dismiss**, and **Turn off this banner** only while the switch is
-on (a banner raised by `banner: 'always'` with the switch off isn't the switch's to turn off).
+**The banner** shows the message (and "+N more" when several arrived) — after the kit's prefix (🐞 level · code) only
+for a viewer who chose the banner (the switch on, by their choice or the host's default); a banner raised by
+`banner: 'always'` with the switch off shows just the message, its code still in the log and the copy (`bannerLine()`
+decides). Then its buttons — `bannerButtons()` decides them, the page draws them: **Copy**, the page's own **report
+button** when it gave one (`setReportButton`), **Dismiss**, and **Turn off this banner** only while the switch is on (a
+banner raised by `banner: 'always'` with the switch off isn't the switch's to turn off).
+
+**What the alerts copy** — the banner's Copy and the critical box's Copy details: the page's text when it gave one
+(`setAlertCopy(fn)` — e.g. the full report, `diagnosticsText(headerLines, { first: shown })`, the alert's messages at the
+top); otherwise the kit's own: the messages shown, each with its details, then the recent log.
 
 ### The logger's other calls
 
@@ -83,10 +89,13 @@ on (a banner raised by `banner: 'always'` with the switch off isn't the switch's
 | `entries()` | A copy of the kept log, oldest first |
 | `subscribe(fn)` | Be told of every kept entry; returns the unsubscribe |
 | `clear()` | Empty the kept log (saved at once) |
-| `diagnosticsText(headerLines)` | The full report: the app's name and the time, the host's lines (e.g. the build), the browser, the switches, then every kept entry |
+| `diagnosticsText(headerLines, { first })` | The full report: the app's name and the time, the host's lines (e.g. the build), the browser, the switches, then every kept entry, each with its details. `first` (optional): entries to put at the very top, each with its details — an alert's own messages |
 | `switches()`, `setSwitch(name, on)` | The two switches: `errorBanner` (an error raises the banner) and `logDetail` (debug lines are kept too). `switches()` says what applies now — the choice remembered in this browser (`on` or `off`), else the host's default (`switchDefaults`) |
 | `setReportButton({ label, onClick })` | The page's own button on the banner — its words and what it does (e.g. open the page's "report a problem" window). `null` (or anything without both) takes it away |
 | `bannerButtons()` | The banner's buttons, in order, as `{ id, label }` (`copy`, `report` with its `onClick`, `dismiss`, `turnOff`) — what the banner draws |
+| `bannerLine(entry)` | The banner's words for a message: `{ prefix, text }` — `prefix` is `'error · INTEG-08'` while the switch is on, `''` otherwise (the banner then shows just the text) |
+| `setAlertCopy(fn)` | What the alerts' Copy buttons copy: `fn(entries shown)` returns the text. Anything but a function (`null`) takes it away; a `fn` that fails or returns nothing falls back to the kit's own |
+| `alertCopyText(entries)` | The text an alert's Copy copies — the page's (`setAlertCopy`) or the kit's own |
 | `applyAddress(search)` | `?errorBanner=on` / `?logDetail=on` on the page's address (the page does this itself) |
 | `dialog(area, text)` | A dialog logs what it showed, in the area its caller named (an unknown area is UI-05) |
 | `copyText(text, { what, where, toast, next })` | **The** copy: resolves `true` only when the clipboard took the text, `false` when it refused — a page with no clipboard (an insecure address) counts as refused. Never rejects. Logs either way: "<what> copied (<where>)" at info, or UI-06 with the browser's reason; `toast` shows that line to the person too, `next` follows a copy's line. Call it from the click itself. The banner, the critical box and the Diagnostics window copy through it — and so should the host |
@@ -148,7 +157,7 @@ area; a template's `${…}` parts show as "…". The readers a host's own rules 
 | Piece | In ReaderWrangler |
 |---|---|
 | Settings | `logkit-settings.js` (beside the pages): 17 areas, the logger as `rwLog`, the Channel ID's short form, the Cloud Sync passphrase as the secret, the critical box's words; `switchDefaults`: contributor mode turns the error banner on (7.31.0) |
-| Banner | The app hands over its report button at startup: "Report this problem" → its Report a problem window (as Help → Report a problem…); "a book was in no folder" (INTEG-08) uses `banner: 'always'` |
+| Banner | The app hands over its report button at startup: "Report this problem" → its Report a problem window (as Help → Report a problem…); "a book was in no folder" (INTEG-08) uses `banner: 'always'`. And its alert copy (`setAlertCopy`): the full diagnostics, as Copy diagnostics has them (its build line), the alert's messages at the top |
 | Pages | `readerwrangler.html` loads the settings, the logger and the built window; `reset.html` the settings and the logger |
 | Window | `tools/build.py` builds it into `dist/logkit/`; the app shows it with its own `<Dialog>` and its build line |
 | Commit check | `tools/message_codes.py` — every shipped script as staged, `rwLog`, two rules of its own (a toast goes through the logger; a dialog call names its area first) — writes `docs/design/MESSAGE-CODES.md` |
