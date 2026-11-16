@@ -47,18 +47,20 @@ underneath".
 | **1** | Function tests + the commit checks (names, parse, versions, private values, TOC…) | **Every commit, automatically** — only the tests covering the staged files | seconds (≤ ~10 s) |
 | **2** | Screen tests | **Before every alpha Claude hands Ron** — Ron is never the first to find a regression | a few minutes (≤ ~5 min) |
 | **3** | Relay tests — against a local relay **the runner starts and stops itself** (dev only as a final check, by `--relay-url`) | When relay code changes; before any worker deploy | ~1½ min |
-| **all** | Every tier — `py tools/run_tests.py --tier all --release`: **a skipped file fails a release run**, named with why | **Before every release** (release checklist step) | |
+| **all** | Every tier — `py tools/run_tests.py --tier all --release`: **a skipped or set-aside file fails a release run**, named with why | **Before every release** (release checklist step) | |
 
 Plus a short **manual list per release** (§8) for what can't be automated.
 
 **While building — narrow, then wide** (Ron, 2026-11-13: "that speedup makes perfect sense"): each fix → test round runs
-only the tests for what's being built — its own IDs (`--id`), a file's cell filter (e.g. `RW_CELLS=CELL-005,CELL-019`),
-the function tests that cover the file (`--changed`). Once those pass: the **full tier 1 + tier 2, once, before the
-alpha is committed** — the regression check. The full run is never skipped; it just isn't repeated on every try.
+only the tests for what's being built — its own IDs (`--id`; in a file split into shards, `--id CELL-005 --id CELL-019`
+runs just those cells, as `RW_CELLS=CELL-005,CELL-019` does — §4), the function tests that cover the file
+(`--changed`). Once those pass: the **full tier 1 + tier 2, once, before the alpha is committed** — the regression check.
+The full run is never skipped; it just isn't repeated on every try.
 
 **At review, check the stamp instead of rerunning** (TODO "Faster sprints", 2026-11-16): every run leaves a record of the
 commit it ran on (§4), so an agent's "it passed" is a claim a machine can check — `py tools/run_tests.py --stamp <commit>`
-says PROVEN only for a full tier 1 + tier 2 pass on exactly that commit with nothing uncommitted. NOT PROVEN means the
+says PROVEN only for a full tier 1 + tier 2 pass on exactly that commit with nothing uncommitted (tier 3's latest run is
+shown beside them, for information — §4). NOT PROVEN means the
 run is read (a failure, §7) or done — not taken on trust. **One full run of Claude's own before the sprint's branch
 (`sprint-N`) goes to main for release.** `tools/merge_branches.py` makes that run part of the merge (2026-11-16): branches built in
 parallel are merged on a scratch branch, tier 1 + tier 2 run on the merged result, and the target moves only when its
@@ -80,6 +82,18 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   and `--tag`, which look in every tier (2026-11-12: a screen test's ID said "No tests match"; RUN-025–029); `--changed`
   stays tier 1. One summary at the end; a screen test's
   failure saves a screenshot and the console to Claude's scratch folder. The commit hook calls it with `--changed`.
+- **`--id` picks a file only where it names the ID as a test** (2026-11-16; it picked any file whose text held the ID —
+  `--id CELL-005` also ran `test/test_run_tests.py`, ~25 s, where it is sample data, and `--id CELL-001`
+  `test/gestureTable.test.js`, where a comment names it). Every file names a test by its ID as a whole quoted string,
+  first in what follows: **the first argument of the call that runs it** — `test("ID", …)` / `t('ID', …)` (both
+  harnesses), `differs_today("ID", …)`, `add("ID", …)` (test_cells.py), `row("ID", …)` / `check("ID", …)` (files with
+  their own helper) — **or the first item of its row in a table**, `("ID", …)` (test_check_parse.py,
+  test_message_codes.py, test_layout.py). A comment, a message or data naming it doesn't count. One lookup
+  (`test_names` in the runner), used by `--id` and by its narrowing of a sharded file. A new test file keeps to it — a
+  table of IDs puts each ID first in its row (test_layout.py, 2026-11-16). Checked against every file: for each tier-1
+  file, the IDs found are exactly the IDs it prints (`test_run_tests.py` also names the sample tests it writes); for
+  tier 2, exactly the quoted IDs each holds. `py tools/run_tests.py --id CELL-005 --list` → test_cells.py alone. Tests:
+  `RUN-063`, `064`.
 - **In parallel, under a machine-wide limit** (2026-11-16): tier 1 and tier 2 files run several at once — `--jobs N`
   (default: the limit below; `--jobs 1` = one at a time, as before), the longest first by each file's time in the last
   record. **Every screen-test file holds one of the PC's test slots while it runs** (`tools/test_slots.py`): 4 in total
@@ -97,8 +111,15 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   every shard passed, one line with the counts summed (`… — 3 shards`, and each shard's time), a failing shard's lines
   together under it with its `RW_CELLS=…` to rerun just that shard, one entry in the record (each shard's cells, time and
   result inside it) — so `--stamp` judges it as one file. A file that can't list its cells fails loud; more shards than
-  cells → one process per cell; `RW_CELLS` already set (a narrow run) → one process, as asked. A sharded file's cells
-  must not depend on each other (test_cells: each cell restores the fixture). Tests: `RUN-054`–`056`.
+  cells → one process per cell; `RW_CELLS` already set (a narrow run) → one process, as asked. **`--id` naming cells of
+  a sharded file** (2026-11-16; it ran the whole file before) → one process with `RW_CELLS` = exactly those cells, in the
+  file's order — `py tools/run_tests.py --id TOAST-006` runs that one cell (and CELL-058, the console check every
+  process of test_cells.py runs); `--list` shows `· only TOAST-006 (--id), one process`. `--id` picks the file as it
+  picks every file — where it names the ID as a test (above); a sharded file naming the ID as a test that is no cell of
+  it (CELL-058, the console check) is left out, with a line saying so; one naming it only in a comment isn't picked at
+  all. With `RW_CELLS` already set, `--id` leaves the file's cells as given.
+  A sharded file's cells must not depend on each other (test_cells: each cell restores the fixture). Tests:
+  `RUN-054`–`056`, `060`–`062`, `064`.
   Isolation (checked 2026-11-16): each screen-test file has its own serve.py on its own free port — and checks the port
   is served by ITS server (by process id), trying another if a parallel file's server took it in between — its own
   throwaway browser profile, its own local relay (free ports, a throwaway store) when it uses one, and files only in
@@ -118,14 +139,30 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   worktree gets its own, under `.git/worktrees/<name>/`). The newest 300 are kept.
   `py tools/run_tests.py --stamp [<commit>]` (default HEAD) runs nothing; it prints **PROVEN** (exit 0) only if tier 1
   AND tier 2 each ran in full on exactly that commit (`--tier 1` and `--tier 2`, or `--tier all`; a run narrowed by
-  `--id` / `--tag` doesn't count), every file passed, nothing skipped, nothing uncommitted — the LATEST run of each tier
-  counts, so a later failure isn't outvoted by an earlier pass. Otherwise **NOT PROVEN**, with why (exit 1).
+  `--id` / `--tag` doesn't count, nor one with a file of that tier set aside — below), every file passed, nothing
+  skipped, nothing uncommitted — the LATEST run of each tier counts, so a later failure isn't outvoted by an earlier
+  pass. Otherwise **NOT PROVEN**, with why (exit 1). **Tier 3 is shown too** (2026-11-16: after a `--tier all --release`
+  run the stamp showed only tiers 1 and 2): one line for tier 3's latest run on that commit — `· tier 3: passed` /
+  `failed` (each failing file, or the local relay's problem, under it) / `not run` — **information only**: PROVEN still
+  means tiers 1 and 2 (tier 3 needs a relay and isn't part of every review), so a release run's stamp shows all three:
+
+      Test results for 3f2a9c1d7e40 (7.31.0: release stamps …)  — records: …\.git\rw-test-results
+        ✓ tier 1: 29 of 29 file(s) passed — run 2026-11-16 14:02:11 → 14:09:40 (--tier all)
+        ✓ tier 2: 26 of 26 file(s) passed — run 2026-11-16 14:02:11 → 14:09:40 (--tier all)
+        · tier 3: passed — 2 of 2 file(s) passed — run 2026-11-16 14:02:11 → 14:09:40 (--tier all --release) — information only — the stamp proves tiers 1 and 2
+      PROVEN — tier 1 and tier 2 passed in full on exactly this commit, with nothing uncommitted.
+
+  The tier 3 line starts with `·`, never `✗` — `tools/copies.py` lists a NOT PROVEN stamp's `✗` lines as its why.
+  Tests: `RUN-070`, `071`.
   **A narrowing variable counts like `--id`** (2026-11-16: a run with `RW_CELLS` set ran a few cells and the stamp said
   PROVEN): `RW_CELLS` (test_cells.py runs only the cells it names) makes the whole run narrowed — it counts for neither
-  tier, and NOT PROVEN names it with its value; the run itself says so at its end. The others are recorded and shown on
+  tier, and NOT PROVEN names it with its value; the run itself says so at its end. (`RW_CELLS` the runner sets itself —
+  a shard's share, or the cells `--id` named — goes only to that file's process, never in the record's variables: an
+  `--id` run is already narrowed by `--id`, RUN-060.) The others are recorded and shown on
   the stamp's line but don't narrow — every test still runs: `RW_HEADED` (the browser shown, slowed), `RW_BROWSER`
   (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's limit), `RELAY_URL` (tier 3's
-  relay; tier 3 isn't part of the stamp). Records written before this have no variables and are read as full runs.
+  relay; tier 3 isn't part of the stamp's verdict). Records written before this have no variables and are read as full
+  runs.
   Tests: `RUN-035`–`051`, `058`, `059`.
 - **Tier 3 brings its own relay** (`tools/local_relay.py`, 2026-11-12): with no `--relay-url`, the runner starts
   relay-worker.js in wrangler's local emulator (`wrangler dev --env dev --local`) on a free port with an empty,
@@ -145,7 +182,22 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   nothing skips today — tier 3 brings its own relay, and a missing tool fails loud — so this guards any skip added later.
   **And a test still marked "differs today" fails a release run** (7.30.0, sprint 4): `differs_today` (test/ui/harness.py)
   marks a decided behavior that isn't built yet — expected while building, never in a release. The run names each such
-  test and its file (`RUN-033`, `034`).
+  test and its file (`RUN-033`, `034`). **And so does a file set aside** (below).
+- **A test file set aside on purpose — `skip: <TODO id> — why`** (2026-11-16; Ron, 2026-11-12: "a good idea, used
+  judiciously"): §7 says a flaky test is fixed — or set aside, with a TODO — the same day; this is how the runner
+  understands "set aside". A header line beside `tags:` / `covers:` / `shards:`:
+
+      # skip: 20261116-0900 — fails one time in ten (the File menu not found); set aside until fixed
+
+  The runner doesn't run the file and says so plainly at the end of every run — the commit hook's too:
+  `Tests: 30 file(s) passed, 0 failed, 1 set aside` then `set aside: test/ui/test_x.py — 20261116-0900 — why`
+  (`--list`: `- tier 2  set aside: …`). **The TODO id must be a task in TODO.md** (the id on the line under its header,
+  read by tools/backlog_report.py's reader) — the task that fixes it; a `skip:` line naming no task, or without both the
+  id and the why, is a header problem: the file fails, loud. **A `--release` run refuses** while any file is set aside,
+  naming each with its TODO id — a set-aside test blocks the next release until it's fixed and its `skip:` line is
+  gone. **The stamp counts the run as not a full run of that file's tier** — NOT PROVEN, naming the file and its task
+  (`its latest tier 2 run … was narrowed by set aside: test/ui/test_x.py (TODO 20261116-0900 — why)`); the other tier
+  is judged on its own. Without `--release` the run itself passes. Tests: `RUN-065`–`070`.
 - **The project's own Python for screen tests** (Ron, 2026-11-04): Playwright lives in a venv at the repo root
   (`.venv/`, ignored by git), pinned in `requirements-dev.txt` — set up once with `py -m venv .venv` then
   `.venv\Scripts\pip install -r requirements-dev.txt`. The runner starts tier-2 files with that Python and fails loud
@@ -211,7 +263,9 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
 - **wait for conditions, never fixed sleeps** ("the toast appeared", not "wait 2 seconds");
 - **a fresh browser profile** for each run; stop what a test started by its exact process id (Law 5) — **and check it
   stopped** (each process gone, its port free: Law 12, 7.28.0);
-- **a flaky test is fixed — or set aside, with a TODO — the same day.** Never tolerated, never "just re-run it".
+- **a flaky test is fixed — or set aside, with a TODO — the same day.** Never tolerated, never "just re-run it". Set
+  aside = a `skip: <TODO id> — why` line in the file's header (§4): every run then says so, and the next release is
+  blocked until it's fixed.
 - **A failing test is read first, not fixed first** (Law 3, 7.25.0): it may be the protection working.
 
 ## 8. What stays manual (a short list per release)

@@ -2,7 +2,7 @@
 
 _Written by `py tools/message_codes.py` from every `rwLog.log(…)` call in the code (docs/design/LOGGING.md §6). The commit check refuses a commit whose copy is out of date. Support: find the code a user reports; the level says how serious it is._
 
-85 numbered codes. (164 general lines — info and debug, coded by their area alone — not listed.)
+86 numbered codes. (164 general lines — info and debug, coded by their area alone — not listed.)
 
 | Code | Level | Message | File |
 |---|---|---|---|
@@ -35,6 +35,7 @@ _Written by `py tools/message_codes.py` from every `rwLog.log(…)` call in the 
 | INTEG-05 | error | The integrity check found … problem(s) it couldn't fix (after an Import or Restore) | readerwrangler.js |
 | INTEG-06 | error | Library repair while loading an Import or Restore: … kind(s) of problem fixed | readerwrangler.js |
 | INTEG-07 | warning | Could not save the integrity check's results (storage full?) | integrity.js |
+| INTEG-08 | error | … … in no folder — … in the Inbox now. (That shouldn't happen; it's in the log.) | readerwrangler.js |
 | MOVE-01 | error | That move didn't work. | readerwrangler.js |
 | MOVE-02 | error | That move didn't work. | readerwrangler.js |
 | MOVE-03 | error | That move didn't work. | readerwrangler.js |

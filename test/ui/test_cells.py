@@ -6,8 +6,9 @@
 # Run: py tools/run_tests.py --id CELL-001     (or --tier 2; or directly with the venv's Python)
 # Shards (2026-11-16): the runner runs this file as 3 processes at once, each with every 3rd cell in RW_CELLS (listed by
 # --list-cells, which starts nothing) — it alone set tier 2's time (2, 3 and 4 measured: all ~3 min with 4 slots; 3 keeps
-# it off the critical path). No cell may depend on one before it: clean_up restores the fixture and waits out a warning
-# toast (one covered the next cell's menu when a shard ran CELL-066 right after CELL-064). CELL-058 runs in every process.
+# it off the critical path). No cell may depend on one before it: clean_up restores the fixture (until 7.31.0 it also
+# waited out a warning toast, which took clicks — now a message lets them through, TOAST-006). CELL-058 runs in every
+# process.
 #
 # Sprint 4, step 2 (Ron, 2026-11-13): "A screen test that tries every cell of §4–§5 and records today's answer" — the
 # LOGGING.md pattern, PASTE-001–009 its first slice. Each cell asserts the DECIDED behavior (ONE-TABLE.md §4–§6; TODO
@@ -296,13 +297,8 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
                 btn.first.click()
         page.keyboard.press("Escape")
         page.wait_for_timeout(200)
-        # A warning toast stays where it appeared for 4 s, then moves away for 1 s (readerwrangler.js TOAST_HOLD_MS), above
-        # everything — long enough to cover the NEXT cell's menu: CELL-066 run right after CELL-064 (as a shard ran them,
-        # 2026-11-16) found "Add to Book List" under CELL-064's "Copied … from the Trash" warning. Gone first, as a person
-        # would wait — a condition, not a sleep. (An ordinary toast is held 1.5 s; no grouping tried has been caught by one.)
-        warning = page.locator(".clipboard-toast.warning")
-        if warning.count():
-            warning.first.wait_for(state="detached", timeout=8000)
+        # (Until 7.31.0 a warning toast was waited out here: it took clicks, and CELL-066 run right after CELL-064 found
+        # "Add to Book List" under CELL-064's "Copied … from the Trash". A message lets clicks through now — TOAST-006.)
         filters = page.get_by_title("Clear all active filters")
         if filters.count() and filters.first.is_visible():
             filters.first.click()
@@ -1446,6 +1442,49 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
     add("TOAST-005", "the same kind of notice for the Trash's copy → restore: its paste receipt (\"Restored … from the "
         "Trash into …\") is a warning now — amber, held (was an ordinary notice)",
         toast_after(lambda: (pick("Trash", TR), key("c"), paste_key("Fantasy")), "from the Trash into"))
+
+    # ── 7.31.0 (TODO 20261116-1109): a message never blocks a click — it appears just above the last click, where the next
+    # click is likely to go, and until 7.31.0 it took that click for its 1.5 s (4 s for a warning): sprint 5's CELL-064 left
+    # "Copied … from the Trash" over CELL-066's "Add to Book List". Now clicks pass through to what's underneath. ──────
+    def message_over_menu_item():
+        try:
+            pick("Science Fiction", ND)
+            page.locator("tbody tr", has_text=ND).first.click(button="right")
+            row = menu_item("Cut")
+            row.wait_for(timeout=3000)
+            box = row.bounding_box()
+            cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+            # A message laid right over the item, through the app's one toast routine (a planted test message — a warning,
+            # so it's held 4 s; the toast's top sits 40 px above the y it's given)
+            page.evaluate("""p => window.rwLog.log('warning', 'UI-07', 'A test message laid over a menu item', null,
+                                                   { test: true, toast: { x: p.x, y: p.y } })""", {"x": cx, "y": cy + 20})
+            toast = page.locator(".clipboard-toast", has_text="A test message laid over a menu item").first
+            toast.wait_for(state="visible", timeout=3000)
+            # A toast still on screen from before (flying to the status bar) slides to the new spot over 1 s (.clipboard-
+            # toast's transition) — wait for it to arrive: a condition, not a sleep
+            for _ in range(30):
+                t = toast.bounding_box()
+                if t["x"] < cx < t["x"] + t["width"] and t["y"] < cy < t["y"] + t["height"]:
+                    break
+                page.wait_for_timeout(50)
+            check(t["x"] < cx < t["x"] + t["width"] and t["y"] < cy < t["y"] + t["height"],
+                  f"the message {t} doesn't cover the middle of Cut ({cx:.0f}, {cy:.0f}) — the test proves nothing")
+            mark()
+            try:
+                app.click_reachable(row)        # the real pointer, at the item's middle — under the message
+            except App.Unreachable as e:
+                check(False, f"the message took the click meant for Cut: {e}")
+                return
+            for _ in range(20):                 # the cut says what it took (a MOVE line)
+                if any(re.search(r" · MOVE(?:-\d+)? · ", x) for _, x in app.console[_mark[0]:]):
+                    break
+                page.wait_for_timeout(50)
+            check(any(re.search(r" · MOVE(?:-\d+)? · ", x) for _, x in app.console[_mark[0]:]),
+                  "the click at Cut, under the message, didn't cut the book (no MOVE line)")
+        finally:
+            clean_up()
+    add("TOAST-006", "a message over a menu item lets the click through: Cut, under a message, still cuts (until 7.31.0 "
+        "the message took the click)", message_over_menu_item)
 
     # ── 7.30.0-alpha.10: the rule truly everywhere (§6 item 20) — its precedent, the folder menu's Move to ›, a drag ──────
     LIST_KEEPS = "A Book List doesn't take a book out of its folders, so it stays where it was."

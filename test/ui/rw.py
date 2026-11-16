@@ -380,6 +380,30 @@ class App:
         target.page.mouse.up()
         return info
 
+    def seen(self, target):
+        """A thing shown only to be READ — a message (toast), which lets clicks pass through it (7.31.0) — is on screen:
+        it has a size and nothing is laid over its middle (a dialog above it, say). Refuses (App.Unreachable) otherwise,
+        naming what covers it. hover() can't judge it: the browser's "what's under the pointer" skips a thing that lets
+        clicks through, so it would name what's underneath. Here the target counts for that one question (its own
+        pointer-events put back at once); the pointer isn't moved."""
+        target.scroll_into_view_if_needed(timeout=10_000)
+        box = target.bounding_box()
+        if not box or box["width"] < 1 or box["height"] < 1:
+            raise App.Unreachable(f"the target has no size ({box}) — nobody can see it")
+        info = target.evaluate("""(el, pt) => {
+            const was = el.style.pointerEvents;
+            el.style.pointerEvents = 'auto';
+            const top = document.elementFromPoint(pt.x, pt.y);
+            el.style.pointerEvents = was;
+            const say = (e) => !e ? 'nothing' : e.tagName.toLowerCase() +
+                (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\\s+/).slice(0, 2).join('.') : '') +
+                (e.textContent ? ' "' + e.textContent.trim().slice(0, 40) + '"' : '');
+            return { seen: !!top && (top === el || el.contains(top)), under: say(top), self: say(el) };
+        }""", {"x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2})
+        if not info["seen"]:
+            raise App.Unreachable(f"{info['self']} is covered — on top of its middle: {info['under']}")
+        return {"width": box["width"], "height": box["height"]}
+
     # --- the world outside the page: never really reached ----------------------------------------------------------
     # 7.29.0 (Report a problem): a test must never open a real mail program or a real web page, and the clipboard is the
     # computer's, not the test's. stub_outside() replaces both IN THE PAGE with recorders — window.open(...) calls land in

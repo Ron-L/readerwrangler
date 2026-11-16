@@ -26,31 +26,34 @@ def nothing_covered(app, label):
         check(False, "\n".join(problems[:4]) + f"\n(every layer outlined: {pic})")
 
 
-# Written out, so  run_tests.py --id LAYOUT-005  finds them: (list, list with a tall bar, cover view, console) per zoom.
-IDS = {1.0: ["LAYOUT-001", "LAYOUT-002", "LAYOUT-003", "LAYOUT-004"], 1.25: ["LAYOUT-005", "LAYOUT-006", None, "LAYOUT-007"]}
+# One row per test — (its ID, zoom, what it checks), the ID first in its row: run_tests.py --id finds a test where its ID
+# is named as one — the first argument of its call or the first item of its row (TESTING.md §4).
+ROWS = [("LAYOUT-001", 1.0, "list"), ("LAYOUT-002", 1.0, "tall"), ("LAYOUT-003", 1.0, "covers"),
+        ("LAYOUT-004", 1.0, "console"), ("LAYOUT-005", 1.25, "list"), ("LAYOUT-006", 1.25, "tall"),
+        ("LAYOUT-007", 1.25, "console")]
 for zoom in (1.0, 1.25):
-    ids = IDS[zoom]
+    ids = {what: tid for tid, z, what in ROWS if z == zoom}
     pct = f"{round(zoom * 100)}%"
     with App(zoom=zoom, size=(1000, 900)) as app:
         app.restore(FIXTURE)
         app.menu("View", "List View").click()
         app.page.locator(RIGHT_PANE).first.wait_for()
-        test(ids[0], f"List View at {pct}: nothing covers a scroll area or its scrollbar",
+        test(ids["list"], f"List View at {pct}: nothing covers a scroll area or its scrollbar",
              lambda: nothing_covered(app, f"list-{pct}"))
 
         untall = app.status_bar_taller(24)
         app.page.wait_for_timeout(300)
-        test(ids[1], f"List View at {pct}, the status bar as tall as the Cloud Sync icon makes it: still nothing covered",
+        test(ids["tall"], f"List View at {pct}, the status bar as tall as the Cloud Sync icon makes it: still nothing covered",
              lambda: nothing_covered(app, f"list-tall-{pct}"))
         untall()
 
         if zoom == 1.0:
             app.menu("View", "Cover View").click()
             app.page.wait_for_timeout(500)
-            test(ids[2], "Cover View at 100%: nothing covers a scroll area or its scrollbar",
+            test(ids["covers"], "Cover View at 100%: nothing covers a scroll area or its scrollbar",
                  lambda: nothing_covered(app, "covers-100%"))
 
-        test(ids[3], f"no unexpected console messages at {pct}",
+        test(ids["console"], f"no unexpected console messages at {pct}",
              lambda: check(not app.unexpected_console(), app.unexpected_console()))
 
 done()

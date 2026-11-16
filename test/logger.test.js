@@ -558,4 +558,164 @@ test('LOG-044', 'the clipboard is written in ONE place (logkit/logger.js copyTex
     assert.deepStrictEqual(found, []);
 });
 
+// ---- 7.31.0 (TODO 20261115-1239 "A book left in no folder is caught the moment it happens…"; Ron, 2026-11-16) ----
+// Two GENERAL options for the kit (the host's specifics stay in its settings): a message can ask for the banner whatever
+// the switch says ({ banner: 'always' }), and the banner shows the page's report button when the page gave one
+// (setReportButton). And a switch's default can come from the host (switchDefaults) — ReaderWrangler's: contributor mode
+// turns the error banner on — while a choice made in the Diagnostics window (on OR off) still wins.
+test('LOG-045', "{ banner: 'always' }: an error raises the banner whatever the switch says — only an error asks that way", () => {
+    const w = alertWorld();
+    w.log.log('error', 'INTEG-06', 'plain');
+    assert.deepStrictEqual(w.alerts, [], 'a plain error with the switch off: no banner (as before)');
+    w.log.log('error', 'INTEG-06', 'asked for', null, { banner: 'always' });
+    assert.deepStrictEqual(w.alerts, [['banner', 'INTEG-06']], 'asked for: the banner, the switch off');
+    w.log.log('warning', 'PREF-02', 'a warning', null, { banner: 'always' });
+    w.log.log('info', 'BOOT', 'an info line', null, { banner: 'always' });
+    assert.strictEqual(w.alerts.length, 1, 'only an error raises the banner');
+    w.log.log('error', 'INTEG-06', 'not the word', null, { banner: true });
+    assert.strictEqual(w.alerts.length, 1, "only banner: 'always' asks");
+    assert.deepStrictEqual(w.log.switches(), { errorBanner: false, logDetail: false }, 'the switch itself is untouched');
+    w.log.log('critical', 'STORE-02', 'a critical', null, { banner: 'always' });
+    assert.deepStrictEqual(w.alerts[1], ['critical', 'STORE-02'], 'a critical message still shows its own box');
+    assert.ok(w.log.entries().some(e => e.text === 'asked for'), 'and the message is kept like any other');
+});
+
+test('LOG-046', 'the banner\'s buttons: Copy, the page\'s report button when it gave one, Dismiss — "Turn off this banner" only while the switch is on', () => {
+    const w = alertWorld();
+    const ids = () => w.log.bannerButtons().map(b => b.id);
+    assert.deepStrictEqual(ids(), ['copy', 'dismiss'], "switch off (a banner raised by banner: 'always'): no turn-off link — it isn't the switch's");
+    w.log.setSwitch('errorBanner', true);
+    assert.deepStrictEqual(ids(), ['copy', 'dismiss', 'turnOff']);
+    let opened = 0;
+    w.log.setReportButton({ label: 'Report this problem', onClick: () => { opened++; } });
+    const bs = w.log.bannerButtons();
+    assert.deepStrictEqual(bs.map(b => b.id), ['copy', 'report', 'dismiss', 'turnOff']);
+    const report = bs.find(b => b.id === 'report');
+    assert.strictEqual(report.label, 'Report this problem', "the page's own words");
+    report.onClick();
+    assert.strictEqual(opened, 1, "the page's own action");
+    assert.deepStrictEqual(bs.filter(b => b.id !== 'report').map(b => b.label), ['Copy', 'Dismiss', 'Turn off this banner'],
+        "the kit's words for its own buttons");
+    w.log.setReportButton({ label: 'Report', onClick: 'not a function' });
+    assert.ok(!ids().includes('report'), 'no action: no button');
+    w.log.setReportButton({ label: 'Report this problem', onClick: () => {} });
+    w.log.setReportButton({ label: '', onClick: () => {} });
+    assert.ok(!ids().includes('report'), 'no words: no button');
+    w.log.setReportButton({ label: 'Report this problem', onClick: () => {} });
+    w.log.setReportButton(null);
+    assert.deepStrictEqual(ids(), ['copy', 'dismiss', 'turnOff'], 'null takes it away again');
+});
+
+test('LOG-047', 'a switch\'s default comes from the host (switchDefaults), asked each time — a choice made, on or off, wins and is remembered', () => {
+    let host = true;
+    const w = alertWorld({ extra: { switchDefaults: { errorBanner: () => host } } });
+    assert.deepStrictEqual(w.log.switches(), { errorBanner: true, logDetail: false }, 'nothing chosen: the default');
+    w.log.log('error', 'INTEG-06', 'x');
+    assert.deepStrictEqual(w.alerts, [['banner', 'INTEG-06']], 'the default raises the banner');
+    host = false;
+    assert.strictEqual(w.log.switches().errorBanner, false, 'asked each time (a page may know its answer only after the logger loads)');
+    host = true;
+    w.log.setSwitch('errorBanner', false);
+    assert.strictEqual(w.log.switches().errorBanner, false, 'turned off: off, whatever the default');
+    assert.strictEqual(w.store.get('readerwrangler-log-banner'), 'off', 'an off is remembered as a choice');
+    w.log.log('error', 'INTEG-06', 'y');
+    assert.strictEqual(w.alerts.length, 1, 'no banner once turned off');
+    const again = alertWorld({ storage: { getItem: k => w.store.get(k) ?? null, setItem: () => {} },
+        extra: { switchDefaults: { errorBanner: () => true } } });
+    assert.strictEqual(again.log.switches().errorBanner, false, 'a new page keeps the choice over the default');
+    const on = alertWorld({ extra: { switchDefaults: { errorBanner: () => false } } });
+    on.log.setSwitch('errorBanner', true);
+    assert.strictEqual(on.log.switches().errorBanner, true, 'turned on: on, whatever the default');
+    assert.strictEqual(alertWorld({ extra: { switchDefaults: { errorBanner: () => { throw new Error('no'); } } } }).log.switches().errorBanner,
+        false, 'a default that fails: off');
+    const detail = alertWorld({ extra: { switchDefaults: { logDetail: true } } });
+    assert.deepStrictEqual(detail.log.switches(), { errorBanner: false, logDetail: true }, 'a plain true or false works too');
+    detail.log.log('debug', 'STORE', 'detail');
+    assert.ok(detail.log.entries().some(e => e.level === 'debug'), 'and acts like the switch itself');
+    assert.ok(detail.log.diagnosticsText([]).includes('Switches: error banner off, extra detail on'), 'the report says what applies');
+    assert.strictEqual(alertWorld().log.switches().errorBanner, false, 'no default given: off, as before');
+});
+
+test('LOG-048', 'ReaderWrangler: contributor mode turns the error banner on by default (logkit-settings.js) — a contributor\'s own choice still wins', () => {
+    const had = Object.prototype.hasOwnProperty.call(global, 'isContributor'), saved = global.isContributor;
+    try {
+        global.isContributor = () => true;          // readerwrangler.html's answer (defined after the logger loads)
+        const w = alertWorld();
+        assert.deepStrictEqual(w.log.switches(), { errorBanner: true, logDetail: false }, 'a contributor, never touched: the banner on (not extra detail)');
+        w.log.log('error', 'INTEG-06', 'an ordinary error');
+        assert.deepStrictEqual(w.alerts, [['banner', 'INTEG-06']]);
+        w.log.setSwitch('errorBanner', false);
+        assert.strictEqual(w.log.switches().errorBanner, false, 'a contributor who turned it off: off');
+        global.isContributor = () => false;
+        assert.strictEqual(alertWorld().log.switches().errorBanner, false, 'not a contributor: off');
+        delete global.isContributor;
+        assert.strictEqual(alertWorld().log.switches().errorBanner, false, 'a page without contributor mode (the reset page): off');
+    } finally {
+        if (had) global.isContributor = saved; else delete global.isContributor;
+    }
+});
+
+// ---- 7.31.0 (review queue Q-044; Ron, 2026-11-16) ----
+// 1. The bar an ordinary person sees (only because a message asked for it — banner: 'always') shows just the message: the
+//    kit's prefix (🐞 level · code) is for those who chose the bar (the switch on — chosen, or the host's default). ONE
+//    place decides it: bannerLine(). The code still goes into the log and the copy.
+// 2. The alerts' Copy copies what the page gives (setAlertCopy — RW: the full diagnostics, as Copy diagnostics and Report
+//    this problem copy, with the alert's messages at the top: diagnosticsText(header, { first })); without one, the kit's
+//    own text as before.
+test('LOG-049', "the banner's line: the kit's prefix (level · code) only when the viewer chose the bar — with the switch off (a banner: 'always' bar), just the message", () => {
+    const w = alertWorld();
+    w.log.log('error', 'INTEG-08', 'A book was in no folder', { books: 1 }, { banner: 'always' });
+    const e = last(w);
+    assert.deepStrictEqual(w.log.bannerLine(e), { prefix: '', text: 'A book was in no folder' }, 'the switch off: just the message');
+    assert.strictEqual(e.code, 'INTEG-08', 'the log keeps the code');
+    w.log.setSwitch('errorBanner', true);
+    assert.deepStrictEqual(w.log.bannerLine(e), { prefix: 'error · INTEG-08', text: 'A book was in no folder' },
+        'the switch on (chosen): the prefix, as before');
+    w.log.log('error', 'UI-03', 'planted', null, { test: true });
+    assert.strictEqual(w.log.bannerLine(last(w)).prefix, `error · UI-03${L.TEST_MARK}`, 'a planted message keeps its test mark');
+    const host = alertWorld({ extra: { switchDefaults: { errorBanner: () => true } } });
+    host.log.log('error', 'INTEG-08', 'x', null, { banner: 'always' });
+    assert.strictEqual(host.log.bannerLine(last(host)).prefix, 'error · INTEG-08', "the host's default on (RW: a contributor): the prefix");
+    host.log.setSwitch('errorBanner', false);
+    assert.strictEqual(host.log.bannerLine(last(host)).prefix, '', 'turned off: just the message, whatever the default');
+});
+
+test('LOG-050', "the alerts' Copy: the page's text when it gave one (setAlertCopy, handed the messages shown) — else the kit's own, as before", () => {
+    const w = alertWorld({ extra: { build: () => '9.9.9' } });
+    w.log.log('info', 'BOOT', 'started');
+    w.log.log('error', 'INTEG-08', 'in no folder', { lastAction: 'Rename' }, { banner: 'always' });
+    const shown = [last(w)];
+    const own = w.log.alertCopyText(shown);
+    const lines = own.split('\n');
+    assert.ok(/^ReaderWrangler diagnostics — build 9\.9\.9 — \d{4}-\d\d-\d\dT/.test(lines[0]), `the kit's own title: ${lines[0]}`);
+    assert.ok(lines[1].endsWith('  error · INTEG-08 · in no folder'), `the message shown, with its code: ${lines[1]}`);
+    assert.strictEqual(lines[2], '    {"lastAction":"Rename"}', 'its details below it');
+    assert.deepStrictEqual(lines.slice(3, 5), ['', 'Recent log:']);
+    assert.ok(lines.slice(5).some(l => l.endsWith('  info · BOOT · started')), 'then the recent log');
+    let given = null;
+    w.log.setAlertCopy((list) => { given = list; return "the page's text"; });
+    assert.strictEqual(w.log.alertCopyText(shown), "the page's text");
+    assert.deepStrictEqual(given.map(e => [e.code, e.text]), [['INTEG-08', 'in no folder']], 'handed the messages shown');
+    w.log.setAlertCopy(() => { throw new Error('the page broke'); });
+    assert.strictEqual(w.log.alertCopyText(shown), own, "a page's text that fails: the kit's own (the copy still works)");
+    w.log.setAlertCopy(() => '');
+    assert.strictEqual(w.log.alertCopyText(shown), own, 'no text: the kit\'s own');
+    w.log.setAlertCopy(() => 'x');
+    w.log.setAlertCopy('not a function');
+    assert.strictEqual(w.log.alertCopyText(shown), own, 'anything but a function takes it away');
+});
+
+test('LOG-051', 'diagnosticsText(header, { first }): the given messages at the top, each with its details — then the whole report, unchanged', () => {
+    const w = alertWorld();
+    w.log.log('info', 'BOOT', 'started', { tab: 1 });
+    w.log.log('error', 'INTEG-08', 'in no folder', { lastAction: 'Rename' }, { banner: 'always' });
+    const e = last(w);
+    const plain = w.log.diagnosticsText(['Desktop app 1']);
+    const top = `${new Date(e.time).toISOString()}  error · INTEG-08 · in no folder\n    {"lastAction":"Rename"}\n\n`;
+    assert.strictEqual(w.log.diagnosticsText(['Desktop app 1'], { first: [e] }), top + plain);
+    assert.ok(plain.includes('info · BOOT · started\n    {"tab":1}'), 'the report holds the earlier lines, with their details');
+    assert.strictEqual(w.log.diagnosticsText(['Desktop app 1'], { first: [] }), plain, 'none given: the report as before');
+    assert.strictEqual(w.log.diagnosticsText(['Desktop app 1'], {}), plain);
+});
+
 done();

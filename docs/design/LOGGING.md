@@ -43,7 +43,9 @@ below):
 - **Never a blocking pause** (`alert()`): it would break the 30-second Import timeout and leave a push half sent.
 - **Page loads record "was this tab discarded?"** (`document.wasDiscarded`) so an unexplained loss of in-memory state
   (TODO "Undo history sometimes empties by itself", Watching) can be traced to a reload.
-- **The switches live in logger.js** (it loads first), **separate from contributor mode on purpose**.
+- **The switches live in logger.js** (it loads first), **separate from contributor mode on purpose**. _(7.31.0, Ron
+  2026-11-16: still separate switches, but contributor mode now sets the error banner's DEFAULT — on until the contributor
+  chooses; see §1.)_
 - **Ours only:** uncaught errors and failed promises on our pages are logged as errors (a crash inside React or another
   library we load included); browser-extension messages ("Unchecked runtime.lastError…") never reach us.
 - **The cleaner is shared** with TODO "Bookmarklet: when your key no longer works, say so plainly — and never show the
@@ -54,7 +56,7 @@ below):
 | Level | Means | Shown | Kept | Console |
 |---|---|---|---|---|
 | **critical** | your data may be at risk (a save failed, a store unreadable) | **to every user**, as a plain box (with its own advice when the usual "save a backup now" would be wrong) | always | `console.error` |
-| **error** | "this should never happen" — a bug | the banner, when the **error banner** switch is on | always | `console.error` |
+| **error** | "this should never happen" — a bug | the banner, when the **error banner** switch is on (or the call says `banner: 'always'` — 7.31.0, below) | always | `console.error` |
 | **warning** | can legitimately happen (offline, a damaged setting, an odd file, a refused gesture) | — | always | `console.warn` |
 | **info** | a normal event worth a line — including everything the user is told | — | always | `console.info` |
 | **debug** | developer detail | — | only with the **extra detail** switch on | `console.debug` |
@@ -67,6 +69,31 @@ kept.** **The two switches** (§5 step 5.1; they replaced the first design's lad
 both off for an ordinary user, set in the Diagnostics window, on the address (`?errorBanner=on|off`,
 `?logDetail=on|off`) or the console (`rwLog.setSwitch`). The browser driver runs with both on and fails a test on any
 error or critical it didn't declare (§5 step 6).
+
+**7.31.0 (TODO "A book left in no folder is caught the moment it happens…", Ron 2026-11-16)** — three changes (and two
+more from the review, items 4–5):
+1. **Contributor mode turns the error banner on by default.** A choice is now remembered as `on` OR `off` (an off used to
+   be remembered as nothing), so a switch never touched takes a default: the kit's `switchDefaults` setting, RW's in
+   `logkit-settings.js` — `errorBanner: isContributor()`, the ONE place the two meet (asked each time: `isContributor()`
+   is defined in readerwrangler.html after the logger loads). A contributor who turns the banner off (Diagnostics, the
+   bar's "Turn off this banner", `?errorBanner=off`) keeps it off. Extra detail isn't touched by it. A contributor who
+   had turned the banner off BEFORE 7.31.0 had that remembered as nothing, so it reads as never touched — on again.
+2. **A message can ask for the banner whatever the switch says** — `{ banner: 'always' }` on an **error**: INTEG-08 (a
+   book was in no folder — put in the Inbox at the save that found it), which every person sees. A banner raised that way
+   with the switch off has no "Turn off this banner" (it isn't the switch's); the switch's banner still has it.
+3. **The banner shows the page's report button** — `rwLog.setReportButton({ label, onClick })`; RW's: **"Report this
+   problem"** (reportProblem.js's word, the emergency screen's button) → the Report a problem window, exactly as Help →
+   Report a problem… (the diagnostics copied in the click). The banner's Copy now carries each shown message's details
+   on the line under it (INTEG-08's last action and books), as Copy diagnostics does.
+4. **No kit prefix for a person who didn't choose the banner** (Ron, 2026-11-16, review queue Q-044). The banner's words
+   start with the kit's prefix (🐞 error · INTEG-08 · …) only while the error-banner switch is on — a contributor, or
+   anyone who chose it. A banner raised by `banner: 'always'` with the switch off shows just the message; the code is
+   still in the log and in the copy. One place decides it: the kit's `bannerLine()`.
+5. **The alerts copy the full diagnostics** (Q-044: "we'll want to see what was going on"). The banner's Copy and the
+   critical box's Copy details (the same need: "press Copy details and send it to us") copy what the page hands the kit
+   with `rwLog.setAlertCopy(fn)` — RW's: `rwLog.diagnosticsText(DIAGNOSTICS_HEADER, { first: shown })`, the very report
+   Copy diagnostics and Report this problem copy, with the alert's own messages (and their details) at the top. A page
+   that gives none (the reset page, or the app before it has started) gets the kit's own text, as before.
 
 ## 2. Areas and IDs
 
@@ -441,7 +468,7 @@ the other modules or the page's inline scripts. Totals: **critical** 6, **error*
    | the kept log | everything info and up (debug too with the extra-detail switch on) |
    | the console | exactly what is kept |
    | **the user (a toast)** | only messages whose call says `toast: true` (or `toast: { x, y }` — near the click); red for error and up; into the 🕐 history unless `hint: true` (a passing hint such as "Nothing to undo") |
-   | the banner / the critical box | error and up when the error-banner switch is on / critical for every user (step 3), with the message's own `advice` when it has one |
+   | the banner / the critical box | error and up when the error-banner switch is on (or the error's call says `banner: 'always'` — 7.31.0, §1) / critical for every user (step 3), with the message's own `advice` when it has one |
 
    One message, one call: a failed restore is `rwLog.log('error', 'BACKUP-04', 'Restore failed: …', data, { toast: true })`
    — the user sees it, support sees its code, the error-banner switch raises the banner. The app hands its toast routine

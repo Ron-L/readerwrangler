@@ -3,8 +3,6 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [Messages never block a click: clicks pass through to what's underneath](#messages-never-block-a-click-clicks-pass-through-to-whats-underneath)
-      - [A book left in no folder is caught the moment it happens, naming the action that did it](#a-book-left-in-no-folder-is-caught-the-moment-it-happens-naming-the-action-that-did-it)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
       - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
@@ -69,6 +67,7 @@
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
       - ["Bake this order into Manual" for a folder's books and a Book List, from the Sort menu](#bake-this-order-into-manual-for-a-folders-books-and-a-book-list-from-the-sort-menu)
       - [Small fixes](#small-fixes)
+        - [A new message glides in from the old one's spot instead of appearing where you clicked](#a-new-message-glides-in-from-the-old-ones-spot-instead-of-appearing-where-you-clicked)
         - [What a reset clears: four resets, four different lists](#what-a-reset-clears-four-resets-four-different-lists)
         - [Tidy up the notes](#tidy-up-the-notes)
         - [Leave the affiliate tag off Amazon links on the test rig](#leave-the-affiliate-tag-off-amazon-links-on-the-test-rig)
@@ -182,45 +181,6 @@ tasks themselves sit in that order; the numbered "order of work" list that used 
 drifted). To change the order, move the task.
 
 ### High priority
-
-#### Messages never block a click: clicks pass through to what's underneath
-<!-- id 20261116-1109 -->
-
-_Why it matters:_ A message (a toast) appears just above the spot you last clicked — exactly where your next click is
-likely to go — and sits on top of everything, taking clicks, for its 1.5 s (4 s for an amber warning). It covered a
-menu item in sprint 5's screen tests ("Copied … from the Trash" held over the next cell's "Add to Book List"), so it can
-cover one under a person's mouse too. (Ron, 2026-11-16: "File the pass through click as next TODO task".)
-
-**Proposed** (Claude, 2026-11-16): the message lets clicks through — `pointer-events: none` on `.clipboard-toast`
-(readerwrangler.js ~9556). Nothing is lost: a message is text only — `showToast(message, x, y, { level, log })` has no
-way to add a button (Ron: the one routine answers it). A screen test first, shown failing: a message over a menu item,
-the item still clicked. Then test_cells.py's `clean_up` needn't wait warnings out (sprint 5's workaround) — check it.
-An app change: it rides with the next app release.
-
-#### A book left in no folder is caught the moment it happens, naming the action that did it
-<!-- id 20261115-1239 -->
-
-_Why it matters:_ Every book lives in a folder (the Inbox catches the rest) — a book in no folder means an action just
-broke that, and today nobody hears of it until the next reload. Found 2026-11-13 (sprint 4): a cut pasted back into
-its own folder left the books in NO folder for the rest of the session (visible only in All Books), and so did a
-copy-paste back into the same folder followed by Ctrl+Z — both fixed in 7.30.0. The no-folder check runs only when the
-library loads, after an Import and after a Restore (integrity.js "Homeless books"; INTEG-02 / 04 / 06), so the report
-came later and said only THAT it happened, never what did it. (Ron, 2026-11-15: "file the debugging for unhomed books
-in TODO high priority (next)".)
-
-**Proposed** (Claude, 2026-11-15 — for Ron's word before it's built; Ron's idea: contributors get the log in front of
-them)
-1. **Check at every save** — the one save routine is the chokepoint: "is any book (not in the Trash) in no folder?"
-   Cheap (one pass over the folders). On a hit: put it in the Inbox (as the load-time repair does) and log an **error**
-   with a numbered code naming **the last action** — its Undo label (e.g. "Move 'Dune' to 'Fantasy'") — and the books.
-   That one line would have pointed straight at the 7.30.0 bugs.
-2. **Flagging: reuse, don't add** (Law 22). The red error bar already has Copy; it shows only when the **error banner**
-   switch is on, which today is separate from contributor mode. **Contributor mode turns the error banner on**, so a
-   contributor sees every error with Copy right there; ordinary users keep today's message and the log.
-3. Tests first: a screen test that leaves a book in no folder (through a test hook, since the known causes are fixed)
-   and sees the repair, the error and the action named; and one that contributor mode shows the bar.
-
-**Related:** 👀 Watching "Find out why some books end up in no folder" — the two causes above are the first found.
 
 #### Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)
 <!-- id 20261024-1045 -->
@@ -452,7 +412,11 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 - Guard against reminder bloat — the pre-build checklist is already 11 points.
 
 **Open items**
-1. **My code safety check can be skipped by accident** (7.19.0 post-mortem). The checklist only fires for my normal editing tool; edits made with a find-and-replace command skip it. Make it fire for those too. Small.
+1. ✅ **My code safety check can be skipped by accident** — done 2026-11-16 (sprint 6, after two agents moved version
+   stamps with `sed` that week): the pre-build gate also fires for terminal commands that write shipped code — `sed -i`,
+   `perl -i`, redirects, `tee`, `cp`/`mv`, PowerShell `Set-Content`/`Out-File`, python/node one-liners
+   (`.claude/hooks/command_writes.py`; GATE-002–009). Not covered, by design: targets in variables or loops, scripts run
+   from a file, `xargs`/`find -exec`, `patch` (see SESSION-TOOLING.md).
 2. ✅ **The version check reads only readerwrangler.html's cache-busters** (found 2026-11-09, 7.26.0-alpha.20) — done
    in 7.27.0: every page's `?v=` stamps are read from the page itself (test/test_version_guard.py, VG-001–005).
 3. ✅ **The relay tests start and stop their own local relay** (7.28.0 post-mortem) — done 2026-11-12 (autonomous
@@ -465,14 +429,30 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 4. ✅ **A release run counts "skipped" as failed** (7.28.0 post-mortem) — done 2026-11-12: `run_tests.py --release`
    fails on any skipped file, naming it and why (RUN-022–024). The release checklist's line in CLAUDE.md names it
    (Ron, 2026-11-12).
-5. **A test file can be set aside on purpose — a `skip:` line naming its TODO** (Ron, 2026-11-12: "a good idea, used
-   judiciously"). TESTING.md §7 says a flaky test is fixed or set aside, with a TODO, the same day — today there's no
-   way to set one aside that the runner understands. A `skip: <TODO id> — why` line in a test file's header: the runner
-   skips it and prints why; a release run (`--release`) refuses it (so a set-aside test blocks the next release until
-   fixed); the TODO id must exist. Small.
-
-**How (technical)**
-- Item 1: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
+5. ✅ **A test file can be set aside on purpose — a `skip:` line naming its TODO** — done 2026-11-16 (sprint 6): the
+   runner doesn't run it and says so in every summary; the TODO id must exist; `--release` refuses while any file is set
+   aside; the stamp counts such a run as not full (RUN-065–070). Use judiciously (Ron, 2026-11-12).
+6. ✅ **`--id` narrows a file split into shards** — done 2026-11-16 (sprint 6): `--id TOAST-006` runs that one cell in
+   one process (6 s, was all 132); RUN-060–062.
+7. ✅ **`--id` picks a file only where it names the id as a test** — done 2026-11-16 (sprint 6): one lookup
+   (`test_names()`) of test calls and table rows, comments dropped; `--id CELL-005` picks test_cells.py alone
+   (RUN-063, 064). The stamp also shows tier 3 now (information only; RUN-071).
+8. **Logging kit leftovers** (sprint 6): the bar's **Report this problem** copies the diagnostics without the bar's
+   messages first (Copy now puts them first — one copy routine should); a one-line `codeOf` helper exists twice in
+   logkit/logger.js (Law 22); the phone and the reset page don't hand the kit a report button or the diagnostics copy;
+   the critical box still shows "(code …)" to everyone — **Ron's call** (asked 2026-11-16: the bar's rule, no code on
+   screen for ordinary users?). Small.
+9. **A failed test file's full output is kept — every one-time failure can be read afterwards** (2026-11-16 — NEXT,
+   before anything else: five one-time failures in one week, each passed when rerun, all while the machine was busy; the
+   last two couldn't be read at all, because the runner keeps only a failing file's filtered lines — TESTING.md §7 says
+   read before rerunning). Save each failed file's whole output beside the run's record (with its screenshot), and say
+   where in the summary. **Then fail browser trouble gracefully** (Ron, 2026-11-16: "Detect that is what it is, back off
+   and slow down and repeat"): tell an ENVIRONMENT failure (the page never loaded, the browser crashed, a network error
+   to our own server such as `ERR_NO_BUFFER_SPACE`) from a TEST failure (an assertion); an environment failure waits,
+   then reruns that file once ALONE (one slot, nothing beside it) and the summary says so loudly — "1 file retried after
+   a start-up timeout — its first output: <path>" — recorded, never silent; a test failure is never retried. And check
+   free memory before screen tests start: below a threshold, use fewer slots and say why. (The PC at the time: 85% of
+   32 GB in use, mostly Chrome tabs ~11 GB, VS Code ~9 GB, Explorer ~4 GB after six weeks up — not the tests.) Small.
 
 #### One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->
@@ -2089,6 +2069,15 @@ isn't Manual** (readerwrangler.js `bakeOrderToManual`, ~3595; menu ~15947).
 Position dialog — see "Series positions…").
 
 #### Small fixes
+
+##### A new message glides in from the old one's spot instead of appearing where you clicked
+<!-- id 20261116-1234 -->
+
+_Why it matters:_ A message appears just above where you clicked — but if the last one is still showing or flying to
+the status bar, the same box is reused and slides there over a second (`transition: all 1.0s ease-in`), so the new
+message glides in from the old spot or from the status bar. It reads as wrong, and for a second it's somewhere you
+didn't look. Found by sprint 6's TOAST-006 (which now waits for a message to arrive); not changed there — it's visible
+behavior. **How:** a new message starts where it belongs (no transition for the jump), then holds and flies as today.
 
 ##### What a reset clears: four resets, four different lists
 <!-- id 20261106-1715 -->
@@ -3849,7 +3838,11 @@ _Why it matters:_ Rare reports of books in no folder at all; watch whether it st
 - **Two real causes found** (2026-11-13, sprint 4's measurement — CELL-007, CELL-037): a cut pasted back into its own
   folder, and a copy pasted back into the same folder followed by Ctrl+Z, each left the books in no folder until the
   next reload. Both fixed in 7.30.0. Catching the next cause as it happens: "A book left in no folder is caught the
-  moment it happens…" (High priority).
+  moment it happens…" (shipped in 7.31.0 — next item).
+- From 7.31.0 the event is caught when it happens: every save checks for books in no folder, puts them in the Inbox and
+  logs INTEG-08 (error) naming the last action (done, 'Undo: …' or 'Redo: …', with seconds since) and the books — on the
+  red bar for every user, with Report this problem. Watch for INTEG-08 reports; each names its suspect action. The
+  load-time INTEG-02/04/06 stay as a second net.
 
 **How (technical)**
 - The event is `integrity-homeless`; the suspect was a stale `FOLDERS_KEY`.
