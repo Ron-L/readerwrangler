@@ -404,7 +404,7 @@ else:
     # match" because the default tier 1 was applied first); --changed stays tier 1 (the commit hook's budget is seconds);
     # nothing at all stays tier 1 (the default).
     ui_id = write("test_g.py", "# sample\n# tags: screen-sample, tier 2\n# covers: readerwrangler.js\n"
-                               "# SCREENSAMPLE-001 is this file's test\n")
+                               "test(\"SCREENSAMPLE-001\", \"this file's test\", lambda: None)\n")   # named as a test (RUN-063)
     tier3 = write("test-h.mjs", "// sample\n// tags: screen-sample, tier 3\n// covers: relay/relay-worker.js\n")
     pool = [rt.TestFile(p) for p in (js_ok, py_ok, ui_id, tier3)]
 
@@ -752,16 +752,20 @@ print("1 passed, 0 failed")
     # file whose header says `shards: N` lists its cells (--list-cells, running nothing) and runs as N processes, each
     # with RW_CELLS set to its share and each holding a test slot; the file's result is the sum, its lines together.
     def shard_file(name, fail_cell=None, n=3, cells=7, lists=True):
-        # Its cell IDs written out in the file, as test_cells.py's add(<its ID>, …) calls are — --id finds a file by its
-        # text. Each sample also names SHARD-099 in a comment, never as a cell (as test_cells.py names other tests' IDs in
-        # its comments).
+        # Its cell IDs written out in the file as test names, as test_cells.py's add(<its ID>, …) calls are — --id finds a
+        # file where it names the ID as a test (RUN-063). Each sample also names SHARD-099 as a test that is no cell (as
+        # test_cells.py's CELL-058, the console check every process runs), and SHARD-098 only in a comment.
+        cell_rows = "".join(f'    ("SHARD-{i:03d}", "a cell"),\n' for i in range(1, cells + 1))
         return write(name, f"""# sample
 # tags: shard-sample, tier 2
 # covers: tools/run_tests.py
 # shards: {n}
-# SHARD-099 is named here, in a comment — it is no cell of this file
+# SHARD-098 is named here, in a comment only — it is no test of this file
 import os, sys, time
-CELLS = {["SHARD-%03d" % i for i in range(1, cells + 1)]!r}
+ROWS = [
+{cell_rows}]
+NOT_A_CELL = ("SHARD-099", "a test every process runs — not one of the cells")
+CELLS = [r[0] for r in ROWS]
 if "--list-cells" in sys.argv:
     {'print(chr(10).join(CELLS))' if lists else 'print("no list here"); sys.exit(1)'}
     sys.exit(0)
@@ -884,11 +888,145 @@ sys.exit(1 if bad else 0)
     code, out = quiet_main(["--id", "NOPE-001"], files=[rt.TestFile(sh_id3), rt.TestFile(js_ok)], slots=four)
     code2, out2 = quiet_main(["--id", "SHARD-099"], files=[rt.TestFile(sh_id3)], slots=four)
     id3_runs = shard_runs("test_shards_id3.py")
-    row("RUN-062", "--id naming no test anywhere: nothing runs and it says so (as before); an --id named in a sharded "
-        "file's text but no cell of it (SHARD-099, in a comment) leaves the file out, saying why — never runs it whole",
+    row("RUN-062", "--id naming no test anywhere: nothing runs and it says so (as before); an --id naming a test of a "
+        "sharded file that is no cell of it (SHARD-099, as CELL-058 in test_cells.py) leaves the file out, saying why — "
+        "never runs it whole",
         code == 0 and "No tests match." in out and code2 == 0 and "No tests match." in out2 and "SHARD-099" in out2
         and not id3_runs,
         f"exit {code}: {out[-200:]} | exit {code2}: {out2[-300:]} | runs {id3_runs}")
+
+    # --- --id picks a file only where it names the ID as a TEST (2026-11-16, TODO tooling item 7): --id picked any file
+    # whose text held the ID — `--id CELL-001` also ran test/gestureTable.test.js (a comment names it), `--id CELL-005`
+    # also this file (~25 s; CELL-005 is sample data here). A test is named as the first argument of the call that runs
+    # it — test("ID", …) / t('ID', …) (test/harness.js, test/ui/harness.py), add("ID", …) (test_cells.py),
+    # differs_today("ID", …), row("ID", …) / check("ID", …) (files with their own helper) — or as the first item of its
+    # row in a table: ("ID", …). Not in a comment, a message, or as data.
+    def idrule_file(name, body, js=False):
+        c = "//" if js else "#"
+        return write(name, f"{c} sample\n{c} tags: idrule-sample, tier 1\n{c} covers: tools/run_tests.py\n" + body)
+    by_comment = idrule_file("test_idrule_comment.py",
+                             "# IDRULE-001 is tested in test_idrule_call.py — here a comment names it: test(\"IDRULE-001\", …)\n"
+                             "ids = [\"IDRULE-001\"]                 # as data\n"
+                             "settings = {\"RW_CELLS\": \"IDRULE-001\"}  # as data\n"
+                             "print(\"IDRULE-001\" in \"a message naming IDRULE-001\")\n")
+    by_call = idrule_file("test_idrule_call.py", "test(\"IDRULE-001\", \"its test\", lambda: None)\n")
+    by_row = idrule_file("test_idrule_row.py", "CASES = [\n    (\"IDRULE-002\", \"a row in a table\", True),\n]\n")
+    by_alias = idrule_file("idrule.test.js", "// IDRULE-001 in a comment\nt(\n    'IDRULE-003', 'the harness under another "
+                           "name, its ID on the next line', () => {});\n", js=True)
+    rule_files = [rt.TestFile(p) for p in (by_comment, by_call, by_row, by_alias)]
+
+    def picked(*ids):
+        return sorted(os.path.basename(f.path) for f in rt.select(rule_files, ids=list(ids)))
+    got = (picked("IDRULE-001"), picked("IDRULE-002"), picked("IDRULE-003"))
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rt.main(["--id", "IDRULE-001", "--list"], files=rule_files)
+    row("RUN-063", "--id picks a file only where it names the ID as a test — the first argument of a test call "
+        "(test(\"ID\", …), t('ID', …) on the next line too) or the first item of a table row ((\"ID\", …)) — never a "
+        "file that names it only in a comment, a message or as data",
+        got == (["test_idrule_call.py"], ["test_idrule_row.py"], ["idrule.test.js"])
+        and "test_idrule_comment.py" not in buf.getvalue() and "1 file(s) would run" in buf.getvalue(),
+        f"picked {got}; --list: {buf.getvalue()[-300:]}")
+
+    sh_id4 = shard_file("test_shards_id4.py")
+    code, out = quiet_main(["--id", "SHARD-098"], files=[rt.TestFile(sh_id4)], slots=four)
+    code2, out2 = quiet_main(["--id", "SHARD-003"], files=[rt.TestFile(sh_id4)], slots=four)
+    id4_runs = shard_runs("test_shards_id4.py")
+    row("RUN-064", "the same rule for a sharded file: an ID only in its comments (SHARD-098) doesn't pick it at all — no "
+        "process, no 'left out' line; one of its cells still runs alone (SHARD-003, one process)",
+        code == 0 and "No tests match." in out and "SHARD-098" not in out and code2 == 0 and len(id4_runs) == 1
+        and id4_runs[0][1] == "SHARD-003" and "1 passed, 0 failed" in out2,
+        f"exit {code}: {out[-300:]} | exit {code2}, runs {id4_runs}: {out2[-300:]}")
+
+    # --- A test file set aside on purpose: a `skip: <TODO id> — why` header line (2026-11-16, TODO tooling item 5;
+    # TESTING.md §7: a flaky test is fixed — or set aside, with a TODO — the same day). The runner doesn't run it and says
+    # so plainly; the TODO id must be a task in TODO.md (here a sample TODO file); a release run refuses; the stamp
+    # counts the run as not a full run of that file's tier.
+    todo_sample = write("TODO-sample.md", "# TODO\n\n## Up next\n\n#### A sample test that fails one time in ten\n"
+                        "<!-- id 20261116-0900 -->\n\n_Why it matters:_ a sample.\n")
+    aside_ran = os.path.join(d, "aside-ran.txt")
+
+    def aside_file(name, skip_line, tier=1):
+        return write(name, f"# sample\n# tags: aside-sample, tier {tier}\n# covers: tools/run_tests.py\n{skip_line}"
+                           f"import sys\nopen({aside_ran!r}, 'w').write('ran')\nprint('0 passed, 1 failed')\nsys.exit(1)\n")
+    aside = aside_file("test_aside.py", "# skip: 20261116-0900 — fails one time in ten; set aside until fixed\n")
+    h = rt.read_header(aside)
+    bad_lines = [rt.read_header(aside_file(f"test_aside_bad{i}.py", ln)).get("problem") for i, ln in enumerate(
+        ["# skip: soon\n", "# skip: 20261116-0900\n", "# skip: someday — no task named\n"])]
+    row("RUN-065", "a 'skip: <TODO id> — why' header line is read (the task's id and why); a skip: line without both is "
+        "a header problem",
+        h.get("skip") == {"todo": "20261116-0900", "why": "fails one time in ten; set aside until fixed"}
+        and h.get("problem") is None and all(p and "skip:" in p for p in bad_lines),
+        f"{h} | problems {bad_lines}")
+
+    aside_rec = os.path.join(d, "aside-results")
+    code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(js_ok), rt.TestFile(aside)], results=aside_rec,
+                           todo=todo_sample)
+    got = records_in(aside_rec)
+    entry = next((f for r in got for f in r.get("files", []) if "test_aside.py" in f.get("file", "")), {}) \
+        if isinstance(got, list) else {}
+    said = [ln for ln in out.splitlines() if ln.startswith("set aside: ")]
+    row("RUN-066", "a set-aside file isn't run; the run still passes and its summary says, plainly, "
+        "'set aside: <file> — <TODO id> — why' (and '1 set aside'); the record notes it as set aside",
+        code == 0 and not os.path.exists(aside_ran) and len(said) == 1 and "test_aside.py — 20261116-0900 — fails one "
+        "time in ten; set aside until fixed" in said[0] and "1 file(s) passed, 0 failed, 1 set aside" in out
+        and entry.get("result") == "set aside" and entry.get("todo") == "20261116-0900",
+        f"exit {code}, ran {os.path.exists(aside_ran)}, entry {entry}: {out[-500:]}")
+
+    unknown = aside_file("test_aside_unknown.py", "# skip: 20261116-0999 — names a task TODO.md doesn't have\n")
+    if os.path.exists(aside_ran):
+        os.remove(aside_ran)        # each row sees only its own run
+    code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(js_ok), rt.TestFile(unknown)], todo=todo_sample)
+    row("RUN-067", "a skip: line naming a TODO id that TODO.md doesn't have is a header problem: the file fails, loud, "
+        "naming the id — never set aside quietly",
+        code == 1 and any(ln.startswith("✗") and "test_aside_unknown.py" in ln and "20261116-0999" in ln
+                          for ln in out.splitlines()) and not os.path.exists(aside_ran),
+        f"exit {code}: {out[-400:]}")
+
+    if os.path.exists(aside_ran):
+        os.remove(aside_ran)
+    code, out = quiet_main(["--tier", "1", "--release"], files=[rt.TestFile(js_ok), rt.TestFile(aside)], todo=todo_sample)
+    refusal = out.split("✗ release run", 1)[-1] if "✗ release run" in out else ""
+    row("RUN-068", "--release refuses while a file is set aside, naming it with its TODO id (a set-aside test blocks the "
+        "next release until it's fixed)",
+        code == 1 and "set aside" in refusal and "test_aside.py" in refusal and "20261116-0900" in refusal
+        and not os.path.exists(aside_ran), f"exit {code}: {out[-500:]}")
+
+    code, out = quiet_main(["--tier", "1", "--list"], files=[rt.TestFile(js_ok), rt.TestFile(aside)], todo=todo_sample)
+    row("RUN-069", "--list shows a set-aside file as set aside, with its TODO id, and doesn't count it as would-run",
+        code == 0 and "1 file(s) would run" in out
+        and any("test_aside.py" in ln and "set aside" in ln and "20261116-0900" in ln for ln in out.splitlines()),
+        f"exit {code}: {out[-400:]}")
+
+    aside2 = {"file": "test/ui/test_z.py", "tier": 2, "result": "set aside", "todo": "20261116-0900", "why": "flaky"}
+    # (a run with a file set aside passes without --release, so its record says "passed")
+    p, why = judged([dict(rec(files=t1 + t2 + [aside2]), result="passed")])
+    p2, why2 = judged([dict(rec(files=t1 + t2 + [dict(aside2, file="test/x2.test.js", tier=1)]), result="passed")])
+    row("RUN-070", "--stamp: a run with a set-aside file isn't a full run of that file's tier → NOT PROVEN, naming the "
+        "file and its TODO id; the other tier is judged on its own (tier 2 set aside: tier 1 still ✓)",
+        p is False and "tier 2" in why and "test_z.py" in why and "20261116-0900" in why and "✓ tier 1" in why
+        and p2 is False and "x2.test.js" in why2 and "✓ tier 2" in why2,
+        f"{p}: {why} | {p2}: {why2}")
+
+    # --- The stamp shows tier 3 too (2026-11-16): after a --tier all --release run that passed tier 3, the stamp showed
+    # only tiers 1 and 2. Tier 3's latest run on the commit is a line — passed / failed / not run — information only:
+    # PROVEN still means tiers 1 and 2 (tier 3 needs a relay and isn't part of every review).
+    here = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    t3 = {"file": "relay/test-x.mjs", "tier": 3, "result": "passed", "counts": "9 passed, 0 failed"}
+    t3bad = dict(t3, result="failed", counts="8 passed, 1 failed")
+    code, out = stamp_with([rec(commit=here, files=t1 + t2 + [t3])])
+    code2, out2 = stamp_with([rec(commit=here, files=t1 + t2 + [t3]),
+                              rec(commit=here, tier="3", files=[t3bad], ended="2026-11-16T11:00:00")])
+    code3, out3 = stamp_with([rec(commit=here, tier="1", files=t1), rec(commit=here, tier="2", files=t2)])
+
+    def t3_line(o):
+        return next((ln for ln in o.splitlines() if "tier 3" in ln and "PROVEN" not in ln), "")
+    row("RUN-071", "--stamp shows tier 3's latest run on the commit as a line — passed / failed (naming the file) / not "
+        "run — information only: PROVEN is still tiers 1 and 2",
+        code == 0 and "passed" in t3_line(out) and "1 of 1" in t3_line(out)
+        and code2 == 0 and "failed" in t3_line(out2) and "test-x.mjs" in out2
+        and code3 == 0 and "not run" in t3_line(out3) and all("PROVEN —" in o for o in (out, out2, out3)),
+        f"exit {code}: {t3_line(out)!r} | exit {code2}: {t3_line(out2)!r} {out2[-300:]} | exit {code3}: {t3_line(out3)!r}")
 
 failed = [r for r in results if not r[2]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
