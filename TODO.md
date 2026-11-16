@@ -3,6 +3,7 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
+      - [Faster sprints: screen tests in parallel, results stamped with their commit, working copies of the folder](#faster-sprints-screen-tests-in-parallel-results-stamped-with-their-commit-working-copies-of-the-folder)
       - [A book left in no folder is caught the moment it happens, naming the action that did it](#a-book-left-in-no-folder-is-caught-the-moment-it-happens-naming-the-action-that-did-it)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -181,6 +182,37 @@ tasks themselves sit in that order; the numbered "order of work" list that used 
 drifted). To change the order, move the task.
 
 ### High priority
+
+#### Faster sprints: screen tests in parallel, results stamped with their commit, working copies of the folder
+<!-- id 20261115-1834 -->
+
+_Why it matters:_ Sprint 4 (7.30.0) took ~11 hours of agent and review time for one big task; about half of it was
+full test runs — each round ran tier 1 + 2 (~10 min) about three times (the agent's run, often a rerun after a one-time
+failure, my review rerun), and the next agent couldn't start until my rerun finished, because they share one folder.
+"Narrow, then wide" (TESTING.md §3, 2026-11-13) already cut the tries; this cuts the full runs and the waiting. Ron,
+2026-11-15: "Testing is GOOD. But if we can do anything to speed it up, that would be VERY GOOD" — first, before the
+next task. Estimate: the same day in ~6–7 hours, the same testing.
+
+**Proposed** (Claude, 2026-11-15; Ron: "do this speed up first"; working copies — Ron's idea)
+1. **Screen tests in parallel** (`tools/run_tests.py`): several test files at once, each with its own browser and its
+   own server on a free port (confirm each file is isolated — port, browser storage — before trusting it). A
+   **machine-wide** limit (e.g. 4 browsers in total, however many copies are testing) — sprint 4's one-time failures
+   came from machine load (Watching). Target: tier 2 from ~7 min to ~2–3.
+2. **Results stamped with their commit:** the runner records each run's result with the commit it ran on and whether
+   anything was uncommitted. At review, check the stamp matches the commit under review instead of rerunning (an
+   agent's "passed" stays a claim — Law 12 — now one a machine can check). One full run of mine before anything goes
+   into `main-prime` for release.
+3. **Working copies of the folder** (git worktrees): a setup script (Python) makes a copy on a branch and **links** what
+   isn't in git — `.venv`, `tools/build/node_modules`, the name check's packages (Windows junctions, no duplication) —
+   then runs tier 1 there before handing it over; a matching script removes a copy. Then the next agent builds in one
+   copy while I review and test in another, and independent tasks (not both in `readerwrangler.js`) can build at once.
+   **Check first, with a test:** the pre-build gate, the version guard and the other commit checks recognise shipped
+   code by its path INSIDE a copy, not only in the main folder.
+4. **Fewer, bigger rounds** (practice, not code — already in memory): every brief copies the task's own numbered list
+   and review ticks each item off; small finds get batched into the next round, not an agent each.
+5. Make the record agree: CLAUDE.md's "Autonomous mode — sprints" says agents build "a worktree each", but since
+   sprint 1 they've worked one at a time in the main folder (memory: no worktrees — the local tools aren't in git).
+   Once item 3 works, update CLAUDE.md to describe it (proposed to Ron, not edited by an agent) and the memory note.
 
 #### A book left in no folder is caught the moment it happens, naming the action that did it
 <!-- id 20261115-1239 -->
