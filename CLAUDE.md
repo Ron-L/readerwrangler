@@ -204,8 +204,11 @@ particulars:
 
 ## RW session tooling (`.claude/`, saved in the repo; only `settings.local.json` is gitignored)
 
-- **Pre-build gate** — a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the first edit of shipped
-  code each turn — **any shipped `.js`: everything outside the non-shipped folders, never `dist/`** — the one rule in
+- **Pre-build gate** — before Claude changes app code, a safety checklist stops it once per turn. Since 2026-11-16
+  that also happens when the change is made by typing a command (not only with the editing tool) — two agents had
+  changed version numbers that way, skipping the checklist (Ron's wording; which commands it recognizes:
+  `docs/design/SESSION-TOOLING.md`). The mechanics: a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the
+  first edit of shipped code each turn — **any shipped `.js`: everything outside the non-shipped folders, never `dist/`** — the one rule in
   `git-hooks/shipped_paths.py`, shared with the version guard and the style build, so a new module or folder (`logkit/`,
   `relay/`) is covered (widened 2026-10-08 from just readerwrangler.js/mobile.js; the shared rule 2026-11-11) — with a
   checklist (mechanism, not memory). Consider it, then
