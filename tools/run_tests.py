@@ -10,6 +10,7 @@ Finds every test file, reads its header, picks the ones asked for, runs each, an
                                               a test still marked "differs today" (decided, not built), named
     py tools/run_tests.py --tag merge         by area — in every tier unless --tier says one
     py tools/run_tests.py --id MERGE-012      the file(s) holding that test ID — in every tier unless --tier says one
+                                              (a file split into shards: just the cells named, in one process)
     py tools/run_tests.py --changed           the tests covering what changed (staged + unstaged) — the commit hook
     py tools/run_tests.py --list              show what would run, run nothing
 
@@ -39,7 +40,9 @@ One file split across processes (2026-11-16): a file whose header says `shards: 
 cells with `--list-cells` and runs as N processes at once — every Nth cell each, in RW_CELLS — each holding its own test
 slot. It is still ONE file: passed only if every shard passed, one line with the counts summed (a failing shard's lines
 under it, together, with its RW_CELLS to rerun just that shard), one entry in the record and the stamp. With RW_CELLS
-already set (a narrow run) it runs as one process, as asked.
+already set (a narrow run) it runs as one process, as asked. --id naming some of its cells runs it as one process with
+RW_CELLS = exactly those cells (`--id TOAST-006`: that one cell); an --id that names none of its cells (only its
+comments) leaves it out, saying so.
 
 Results stamped with their commit (item 2): every run except --changed (the commit hook) and --list leaves a record —
 the commit it ran on, anything uncommitted, what ran, the environment variables that change a run (RUN_ENV: RW_CELLS…),
@@ -133,22 +136,27 @@ def discover(root=ROOT):
     return [TestFile(p) for p in paths]
 
 
+def mentioned(tf, ids):
+    """The ids (test IDs) named anywhere in this file's text — how --id picks a file. [] if it can't be read."""
+    try:
+        text = open(tf.path, encoding="utf-8", errors="replace").read()
+    except OSError:
+        return []
+    return [i for i in ids if re.search(r"\b" + re.escape(i) + r"\b", text)]
+
+
 def select(files, tier=None, tags=None, ids=None, changed=None, base=ROOT):
     """The files to run. tier: an int or 'all' (None = all); tags / ids: any match; changed: repo-relative paths —
-    a file is picked when it covers one of them or is one of them."""
+    a file is picked when it covers one of them or is one of them. (A sharded file picked by --id is then narrowed to
+    the cells named — narrow_by_id.)"""
     out = []
     for f in files:
         if tier not in (None, "all") and f.tier != tier:
             continue
         if tags and not set(tags) & set(f.tags):
             continue
-        if ids:
-            try:
-                text = open(f.path, encoding="utf-8", errors="replace").read()
-            except OSError:
-                continue
-            if not any(re.search(r"\b" + re.escape(i) + r"\b", text) for i in ids):
-                continue
+        if ids and not mentioned(f, ids):
+            continue
         if changed is not None:
             ch = {c.replace("\\", "/") for c in changed}
             if not (set(f.covers) & ch or f.rel(base) in ch):
@@ -231,6 +239,39 @@ def list_cells(tf, timeout=120):
     if twice:
         return None, f"✗ its cell list (--list-cells) names some cells twice: {', '.join(twice)}"
     return ids, None
+
+
+def sharded(tf):
+    """Is this file run as several processes? (`shards:` over 1 — tiers 1 and 2; tier 3 is always one file at a time)"""
+    return tf.shards > 1 and tf.tier != 3
+
+
+def narrow_by_id(files, ids, environ=None):
+    """--id on a sharded file (2026-11-16, TODO tooling item 6): --id picks a file by its text, so `--id TOAST-006` ran
+    all of test_cells.py, every shard. Now a sharded file picked by --id runs as ONE process with RW_CELLS = exactly the
+    cells the ids name, in the file's order (its --list-cells); one whose cells the ids don't name (an id only in its
+    comments, or a test that isn't a cell) is left out, with a note saying so. RW_CELLS already set (a narrow run of the
+    caller's own): the file runs as asked, untouched. Every other file is kept as select() picked it.
+    Returns (files kept, {path: its cells}, {path: why its cells couldn't be listed}, notes)."""
+    env = os.environ if environ is None else environ
+    keep, cells_of, unlisted, notes = [], {}, {}, []
+    for f in files:
+        if not ids or not sharded(f) or env.get("RW_CELLS"):
+            keep.append(f)
+            continue
+        cells, why = list_cells(f)
+        if cells is None:
+            keep.append(f)          # fails loud when the run reaches it, as an unlistable sharded file always does
+            unlisted[f.path] = why
+            continue
+        mine = [c for c in cells if c in ids]
+        if mine:
+            keep.append(f)
+            cells_of[f.path] = mine
+        else:
+            notes.append(f"· {f.rel()} names {', '.join(mentioned(f, ids))}, but not as one of its cells (--list-cells) "
+                         f"— left out")
+    return keep, cells_of, unlisted, notes
 
 
 def shares(cells, n):
@@ -496,11 +537,15 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
     broken = [f for f in files if f.problem]
     chosen = select([f for f in files if not f.problem], tier=tier, tags=a.tag or None, ids=a.id or None,
                     changed=changed_files() if a.changed else None)
+    chosen, id_cells, id_unlisted, id_notes = narrow_by_id(chosen, a.id)
 
     if a.list:
+        for n in id_notes:
+            print(n)
         for f in chosen:
             print(f"  tier {f.tier}  {f.rel():40}  tags: {', '.join(f.tags)}"
-                  + (f"  · {f.shards} shards" if f.shards > 1 else ""))
+                  + (f"  · only {', '.join(id_cells[f.path])} (--id), one process" if f.path in id_cells else
+                     f"  · {f.shards} shards" if sharded(f) else ""))
         for f in broken:
             print(f"  ✗ {f.rel()}: {f.problem}")
         print(f"{len(chosen)} file(s) would run")
@@ -510,6 +555,9 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
     for f in broken:
         count["failed"] += 1
         print(f"✗ {f.rel()}: {f.problem}")
+    if not a.quiet:
+        for n in id_notes:
+            print(n)
     if not chosen and not broken:
         if not a.quiet:   # the commit hook stays silent when no test covers the change (Law 12: no noise on the normal path)
             print("No tests cover these changes." if a.changed else "No tests match.")
@@ -540,14 +588,16 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
         with say_lock:
             print(text, flush=True)
 
-    def report(f, ok, out, seconds=None, waited=0.0, shards=None):
+    def report(f, ok, out, seconds=None, waited=0.0, shards=None, cells=None):
         """One file's result: its line (and a failure's details, together) and its entry in the record. shards: a file
-        run as several processes — [{cells, seconds, waited, result}] — reported as the one file it is."""
+        run as several processes — [{cells, seconds, waited, result}] — reported as the one file it is. cells: a sharded
+        file narrowed by --id to these cells (one process)."""
         ids = differs_today_ids(out)
         summary = next((ln for ln in reversed(out.splitlines()) if re.search(r"\bpassed\b", ln)), "")
         wait = f", waited {waited:.0f} s for a slot" if waited >= 1 else ""
         each = f"; shards {', '.join(str(round(s['seconds'])) for s in shards)} s" if shards else ""
-        took = "" if seconds is None else f"  ({seconds:.0f} s{each}{wait})"
+        only = f"; only {', '.join(cells)} (--id)" if cells else ""
+        took = "" if seconds is None else f"  ({seconds:.0f} s{each}{only}{wait})"
         lines = []
         if ok:
             if not a.quiet:
@@ -564,7 +614,8 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
             if rec:
                 rec["files"].append({"file": f.rel(), "tier": f.tier, "result": "passed" if ok else "failed",
                                      "counts": summary.strip(), "seconds": None if seconds is None else round(seconds, 1),
-                                     "waited": round(waited, 1), "differ": ids, **({"shards": shards} if shards else {})})
+                                     "waited": round(waited, 1), "differ": ids, **({"shards": shards} if shards else {}),
+                                     **({"cells": cells} if cells else {})})
             if lines:
                 print("\n".join(lines), flush=True)
 
@@ -576,9 +627,9 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
     # Tiers 1 and 2 in parallel (item 1): --jobs files at once; each screen-test (tier 2) file holds one of the PC's test
     # slots for as long as it runs, so every run on this PC together stays within the limit. Tier 3 runs after, one file
     # at a time (below). A file with `shards: N` is N units of work, each in its own process with its own slot (a narrow
-    # run — RW_CELLS already set — stays one process, as asked). Longest first — by each file's time in this copy's latest
-    # record (a shard: its file's longest shard then, or its file's time split N ways) — so the long ones don't finish
-    # last on their own.
+    # run — RW_CELLS already set, or --id naming some of its cells — stays one process). Longest first — by each file's
+    # time in this copy's latest record (a shard: its file's longest shard then, or its file's time split N ways) — so
+    # the long ones don't finish last on their own.
     slots = slots or test_slots.Slots()
     jobs = max(1, a.jobs or slots.count)
     if rec:
@@ -592,7 +643,11 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
             print(f"✗ build: dist/ couldn't be built before the screen tests — {err}")
     units = []          # (file, shard number or None, of how many, its cells or None)
     for f in pooled:
-        if f.shards > 1 and not os.environ.get("RW_CELLS"):
+        if f.path in id_unlisted:
+            report(f, False, id_unlisted[f.path])
+        elif f.path in id_cells:        # --id named some of its cells: one process, RW_CELLS = exactly those
+            units.append((f, None, None, id_cells[f.path]))
+        elif sharded(f) and not os.environ.get("RW_CELLS"):
             cells, why = list_cells(f)
             if cells is None:
                 report(f, False, why)
@@ -614,7 +669,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
             t, per_shard = last.get(f.rel(), (60.0 if f.tier == 2 else 5.0, False))
             return t if k is None or per_shard else t / n
         units.sort(key=lambda u: -estimate(u))
-    sharded = {}        # file path -> the shards finished so far
+    shards_done = {}    # file path -> the shards finished so far
     shard_lock = threading.Lock()
 
     def run_unit(u):
@@ -631,10 +686,10 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
                 slot.release()
         t1, waited = time.monotonic(), slot.waited if slot else 0.0
         if k is None:
-            report(f, ok, out, t1 - t0, waited)
+            report(f, ok, out, t1 - t0, waited, cells=cells)
             return
         with shard_lock:          # the file is reported once, when its last shard is done
-            done = sharded.setdefault(f.path, [])
+            done = shards_done.setdefault(f.path, [])
             done.append((k, n, cells, ok, out, t0, t1, waited))
             if len(done) < n:
                 return

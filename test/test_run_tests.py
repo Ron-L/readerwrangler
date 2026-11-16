@@ -752,12 +752,16 @@ print("1 passed, 0 failed")
     # file whose header says `shards: N` lists its cells (--list-cells, running nothing) and runs as N processes, each
     # with RW_CELLS set to its share and each holding a test slot; the file's result is the sum, its lines together.
     def shard_file(name, fail_cell=None, n=3, cells=7, lists=True):
+        # Its cell IDs written out in the file, as test_cells.py's add(<its ID>, …) calls are — --id finds a file by its
+        # text. Each sample also names SHARD-099 in a comment, never as a cell (as test_cells.py names other tests' IDs in
+        # its comments).
         return write(name, f"""# sample
 # tags: shard-sample, tier 2
 # covers: tools/run_tests.py
 # shards: {n}
+# SHARD-099 is named here, in a comment — it is no cell of this file
 import os, sys, time
-CELLS = ["SHARD-%03d" % i for i in range(1, {cells} + 1)]
+CELLS = {["SHARD-%03d" % i for i in range(1, cells + 1)]!r}
 if "--list-cells" in sys.argv:
     {'print(chr(10).join(CELLS))' if lists else 'print("no list here"); sys.exit(1)'}
     sys.exit(0)
@@ -848,6 +852,43 @@ sys.exit(1 if bad else 0)
         and rt.TestFile(bad_header).problem and "shards" in rt.TestFile(bad_header).problem,
         f"no list: exit {code}, runs {nolist_runs}: {out[-200:]} | small: exit {code2}, runs {small_runs} | narrow: exit "
         f"{code3}, runs {narrow_runs} | header problem: {rt.TestFile(bad_header).problem}")
+
+    # --- --id narrows a sharded file to the cells it names (2026-11-16, TODO tooling item 6): an --id naming one cell ran
+    # all of test_cells.py (3 shards, ~132 cells) — only RW_CELLS narrowed it. (No real test ID is written here: --id
+    # picks every file whose text names it, this one included.) Now an --id naming cells of a sharded file runs
+    # that file as ONE process with RW_CELLS = exactly those cells; the run is narrowed by --id (its record says so — and
+    # notes no RW_CELLS of its own: the runner set it for that one process, not in its environment).
+    id_rec = os.path.join(d, "id-results")
+    sh_id1 = shard_file("test_shards_id1.py")
+    code, out = quiet_main(["--id", "SHARD-005"], files=[rt.TestFile(sh_id1), rt.TestFile(js_ok)], slots=four,
+                           results=id_rec)
+    id1_runs = shard_runs("test_shards_id1.py")
+    got = records_in(id_rec)
+    r1 = got[-1] if isinstance(got, list) and got else {}
+    row("RUN-060", "--id naming one cell of a sharded file: ONE process, RW_CELLS = that cell, only it ran; the record "
+        "says narrowed by --id (no RW_CELLS of its own in the environment noted) — so it proves nothing for its tier",
+        code == 0 and len(id1_runs) == 1 and id1_runs[0][1] == "SHARD-005" and "1 passed, 0 failed" in out
+        and "a.test.js" not in out and (r1.get("ran") or {}).get("ids") == ["SHARD-005"]
+        and "RW_CELLS" not in (r1.get("env") or {}) and rt.narrowed_by(r1) == ["--id SHARD-005"]
+        and "narrowed by --id SHARD-005" in out and "RW_CELLS" not in os.environ,
+        f"exit {code}, runs {id1_runs}, record ran {r1.get('ran')} env {r1.get('env')}: {out[-500:]}")
+
+    sh_id2 = shard_file("test_shards_id2.py")
+    code, out = quiet_main(["--id", "SHARD-006", "--id", "SHARD-002"], files=[rt.TestFile(sh_id2)], slots=four)
+    id2_runs = shard_runs("test_shards_id2.py")
+    row("RUN-061", "--id naming two cells of a sharded file: both, in the file's order, in ONE process",
+        code == 0 and len(id2_runs) == 1 and id2_runs[0][1] == "SHARD-002,SHARD-006" and "2 passed, 0 failed" in out,
+        f"exit {code}, runs {id2_runs}: {out[-400:]}")
+
+    sh_id3 = shard_file("test_shards_id3.py")
+    code, out = quiet_main(["--id", "NOPE-001"], files=[rt.TestFile(sh_id3), rt.TestFile(js_ok)], slots=four)
+    code2, out2 = quiet_main(["--id", "SHARD-099"], files=[rt.TestFile(sh_id3)], slots=four)
+    id3_runs = shard_runs("test_shards_id3.py")
+    row("RUN-062", "--id naming no test anywhere: nothing runs and it says so (as before); an --id named in a sharded "
+        "file's text but no cell of it (SHARD-099, in a comment) leaves the file out, saying why — never runs it whole",
+        code == 0 and "No tests match." in out and code2 == 0 and "No tests match." in out2 and "SHARD-099" in out2
+        and not id3_runs,
+        f"exit {code}: {out[-200:]} | exit {code2}: {out2[-300:]} | runs {id3_runs}")
 
 failed = [r for r in results if not r[2]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
