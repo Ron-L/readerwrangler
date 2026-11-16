@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.30.0] - 2026-11-15
+
+### Added
+- **Cut, Copy, Paste, Move to, Copy to and dragging work the same way everywhere** — on books, folders, or both at
+  once. Copying a book out of the Trash restores it (it says so when you copy, and again when you paste). Cutting books
+  in All Books or a Search and pasting them into a folder re-files them — asking first when a book is in several
+  folders.
+- **A Cut that can't be a move is done as a copy, and says so** — cut a folder and paste it onto a Book List and its
+  books are added to the list (every subfolder's too) while the folder stays put; cut the Inbox and pasting copies it.
+  Like a copy out of the Trash, it's said in amber.
+- **One right-click Delete for books and folders selected together** ("Delete 2 Books and 1 Folder").
+- **Warnings stand out:** a warning message is amber and stays a few seconds where it appeared.
+
+### Fixed
+- **Undo after a move, copy or paste puts back exactly what changed** — books that were already there stay, and each
+  book returns to its old place in its folder or Book List.
+- **Pasting books back where they came from no longer leaves them in no folder** — it says nothing moved.
+- **Ctrl+X and Ctrl+C act on what you selected, never the folder you're in** — and pressing them right after a click no
+  longer cuts the whole folder.
+- **Every move and copy says what happened** — where from, where to, and which books were already there.
+- **Copying a folder copies its whole tree**, and the copy's subfolders are its own.
+- **A folder dropped on "Book Lists" above your books no longer disappears**, and books and folders dragged onto a
+  folder together go in as one step with one Undo.
+- **A book numbered 0 in its series ("Book 0") sorts before Book 1 and shows its number**, on the computer and the phone
+  (it sorted last, as if it had none).
+- **Auto-Organize puts a new series folder in reading order — Book 0 first, books with no number last.**
+- **Updating from Amazon keeps a "Book 0"**, and a series number above 400 found in a title (long series like Perry
+  Rhodan).
+- **F2 renames a folder you selected in the Folders view** (it did nothing).
+
 ## [7.29.1] - 2026-11-13
 
 ### Fixed

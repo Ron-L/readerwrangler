@@ -16,9 +16,63 @@
 //
 // Re-run: After pasting once, you can re-run with: fetchAmazonLibrary()
 
+// ============================================================================
+// Series reading — top level so the function tests can load it offline (test/fetcherSeries.test.js).
+// Function declarations, not const: the bookmarklet can load this file twice on one page, and a second top-level
+// `const` of the same name would refuse to load.
+// ============================================================================
+
+// v4.11.7 - Last-resort series recovery from the TITLE. Dead/delisted editions (the null-product books
+// we recover via getProducts) come back with bookSeries=null — Amazon has no series record for them.
+// But the title almost always carries it, e.g. "Where is Anybody? (A Gideon Sable novel Book 5)".
+// Precision-first (validated ~98% correct position on 800 real books): trust ONLY a clear number marker
+// inside the LAST parenthetical; leave it null otherwise. "Wrong is worse than none." Never overrides
+// real API series data — used only as a fallback when bookSeries is absent.
+// v5.4.1 (2026-11-15) - "Book N" and "#N" are clear markers: 0 (a prequel, "Book 0") up to 9999 (Perry Rhodan passed
+// 3,300). A bare number after a comma is weak — years sit there ("Collected Stories, 2019") — so it keeps 1–400.
+function parseSeriesFromTitle(title) {
+    if (!title) return { series: null, seriesPosition: null };
+    const parens = [...title.matchAll(/\(([^()]*)\)/g)];
+    if (!parens.length) return { series: null, seriesPosition: null };
+    const inner = parens[parens.length - 1][1].trim();
+    const strong = inner.match(/\bbook\s+(\d+)\b/i) || inner.match(/#\s*(\d+)\b/);
+    const pm = strong || inner.match(/,\s*(\d+)\s*$/);
+    if (!pm) return { series: null, seriesPosition: null };
+    const pos = parseInt(pm[1], 10);
+    const [min, max] = strong ? [0, 9999] : [1, 400];
+    if (!(pos >= min && pos <= max)) return { series: null, seriesPosition: null }; // guard absurd publisher numbers
+    let name = inner.slice(0, pm.index).replace(/[\s,:–—-]+$/, '').trim();
+    name = name.replace(/^(a|an|the)\s+/i, '').replace(/\s+(novels?|series|saga|trilogy|books?)$/i, '').trim();
+    if (!name) return { series: null, seriesPosition: null };
+    return { series: name, seriesPosition: String(pos) };
+}
+
+// THE series read of a library product record (Phase 1, the recovery pass and the start-up check all call it): the
+// series record wins; a book with no series name in it (a dead edition) falls back to its title. The number is kept
+// as the record carries it (text or a number); blank or missing is null. positionSentAs — how the record carried the
+// number, for the run's summary: 'text' | 'number' | 'blank' | 'missing' | 'other' (null = no series record).
+function seriesFromLibraryProduct(product) {
+    const record = product?.bookSeries?.singleBookView?.series;
+    const raw = record?.position;
+    const positionSentAs = !record ? null
+        : (raw === undefined || raw === null) ? 'missing'
+        : raw === '' ? 'blank'
+        : typeof raw === 'string' ? 'text'
+        : typeof raw === 'number' ? 'number'
+        : 'other';
+    let series = record?.title || null;
+    let seriesPosition = raw === 0 ? 0 : (raw || null);   // v5.4.1 - a 0 is a number ("Book 0"), not a blank
+    let fromTitle = false;
+    if (!series) {
+        const parsed = parseSeriesFromTitle(product?.title?.displayString);
+        if (parsed.series) { series = parsed.series; seriesPosition = parsed.seriesPosition; fromTitle = true; }
+    }
+    return { series, seriesPosition, fromTitle, positionSentAs };
+}
+
 async function fetchAmazonLibrary() {
     const PAGE_TITLE = document.title;
-    const FETCHER_VERSION = 'v5.4.0';
+    const FETCHER_VERSION = 'v5.4.1';
 
     // v5.2.4 - Site base URL for dialog assets (the logo), derived the same way the nav hub
     // derives its script base: the bookmarklet injects TARGET_ENV before loading anything.
@@ -160,6 +214,10 @@ async function fetchAmazonLibrary() {
         unknownNodeTypes: [],   // library node __typenames we don't handle (flagged + GoatCounter, never silent)
         recoveryCandidates: 0,  // how many missing books the recovery pass attempted (integrity: = recovered + unrecoverable + deferred)
         seriesFromTitle: 0,     // recovered books whose series/# was parsed from the title (dead editions with bookSeries=null)
+        // v5.4.1 - how Amazon's series records carried the number (new books): text or a number? Observability only —
+        // a numeric 0 used to be dropped ("Book 0"), and this shows whether Amazon ever sends one.
+        seriesPositionsSentAs: { text: 0, number: 0, blank: 0, missing: 0, other: 0 },
+        seriesPositionZeros: 0, // of those, numbers that were 0 (text "0" or the number 0)
         ownershipUpgraded: [],  // v4.11.8 - books promoted sample/wishlist/borrowed → purchased via pastPurchase (Amazon leaves relationshipSubType stale)
         libraryTotalCount: null, // Amazon's reported library total, for reconciliation
         errorCategories: {
@@ -701,25 +759,14 @@ async function fetchAmazonLibrary() {
         };
     };
 
-    // v4.11.7 - Last-resort series recovery from the TITLE. Dead/delisted editions (the null-product books
-    // we recover via getProducts) come back with bookSeries=null — Amazon has no series record for them.
-    // But the title almost always carries it, e.g. "Where is Anybody? (A Gideon Sable novel Book 5)".
-    // Precision-first (validated ~98% correct position on 800 real books): trust ONLY a clear number marker
-    // inside the LAST parenthetical; leave it null otherwise. "Wrong is worse than none." Never overrides
-    // real API series data — used only as a fallback when bookSeries is absent.
-    const parseSeriesFromTitle = (title) => {
-        if (!title) return { series: null, seriesPosition: null };
-        const parens = [...title.matchAll(/\(([^()]*)\)/g)];
-        if (!parens.length) return { series: null, seriesPosition: null };
-        const inner = parens[parens.length - 1][1].trim();
-        const pm = inner.match(/\bbook\s+(\d+)\b/i) || inner.match(/#\s*(\d+)\b/) || inner.match(/,\s*(\d+)\s*$/);
-        if (!pm) return { series: null, seriesPosition: null };
-        const pos = parseInt(pm[1], 10);
-        if (!(pos > 0) || pos > 400) return { series: null, seriesPosition: null }; // guard absurd publisher numbers
-        let name = inner.slice(0, pm.index).replace(/[\s,:–—-]+$/, '').trim();
-        name = name.replace(/^(a|an|the)\s+/i, '').replace(/\s+(novels?|series|saga|trilogy|books?)$/i, '').trim();
-        if (!name) return { series: null, seriesPosition: null };
-        return { series: name, seriesPosition: String(pos) };
+    // Series + number of a NEW book (Phase 1 and the recovery pass) — the one read (seriesFromLibraryProduct, top of
+    // file), counted for the run's summary: titles parsed, and how Amazon's series records carried the number.
+    const readSeries = (product) => {
+        const s = seriesFromLibraryProduct(product);
+        if (s.fromTitle) stats.seriesFromTitle++;
+        if (s.positionSentAs) stats.seriesPositionsSentAs[s.positionSentAs]++;
+        if ((s.positionSentAs === 'text' || s.positionSentAs === 'number') && parseFloat(s.seriesPosition) === 0) stats.seriesPositionZeros++;
+        return s;
     };
 
     // v5.4.0 (onWishlist retirement, item 0) - THE wishlist-truth accessor (fetcher's own copy —
@@ -1308,9 +1355,9 @@ async function fetchAmazonLibrary() {
             }
 
             // Test series extraction (Pass 1)
-            const testSeriesData = testProduct.bookSeries?.singleBookView?.series;
-            if (testSeriesData?.title) {
-                extractionResults.push(`✅ Series: "${testSeriesData.title}" #${testSeriesData.position || '?'}`);
+            const testSeries = seriesFromLibraryProduct(testProduct);
+            if (testSeries.series && !testSeries.fromTitle) {
+                extractionResults.push(`✅ Series: "${testSeries.series}" #${testSeries.seriesPosition ?? '?'} (number sent as: ${testSeries.positionSentAs})`);
             } else {
                 extractionResults.push(`⚠️  Series: none (may not be in series)`);
             }
@@ -1617,14 +1664,8 @@ async function fetchAmazonLibrary() {
                     const rating = product.customerReviewsSummary?.rating?.value || null;
                     const reviewCount = product.customerReviewsSummary?.count?.displayString || null;
 
-                    const seriesData = product.bookSeries?.singleBookView?.series;
-                    let series = seriesData?.title || null;
-                    let seriesPosition = seriesData?.position || null;
-                    if (!series) {
-                        // Dead editions resolve inline (via the ignorePSLD header) but carry bookSeries=null — parse from title.
-                        const parsed = parseSeriesFromTitle(title);
-                        if (parsed.series) { series = parsed.series; seriesPosition = parsed.seriesPosition; stats.seriesFromTitle++; }
-                    }
+                    // Dead editions resolve inline (via the ignorePSLD header) but carry bookSeries=null — read from the title.
+                    const { series, seriesPosition } = readSeries(product);
 
                     const binding = product.bindingInformation?.binding?.displayString || null;
 
@@ -1855,14 +1896,8 @@ async function fetchAmazonLibrary() {
                         const binding = product.bindingInformation?.binding?.displayString || null;
                         const authors = extractAuthors(product);
                         const { coverUrl, coverUrlHiRes } = extractCoverUrls(product);
-                        const seriesData = product.bookSeries?.singleBookView?.series;
-                        let series = seriesData?.title || null;
-                        let seriesPosition = seriesData?.position || null;
-                        if (!series) {
-                            // Dead editions return bookSeries=null; recover series + # from the title. Never overrides API data.
-                            const parsed = parseSeriesFromTitle(title);
-                            if (parsed.series) { series = parsed.series; seriesPosition = parsed.seriesPosition; stats.seriesFromTitle++; }
-                        }
+                        // Dead editions return bookSeries=null; series + # come from the title. Never overrides API data.
+                        const { series, seriesPosition } = readSeries(product);
                         const rawOwnershipType = t.relationshipSubType?.[0] || 'Purchase';
                         const ownershipType = resolveOwnershipType(rawOwnershipType, t.asin, title);
                         seenASINs.set(t.asin, newBooks.length);
@@ -2617,6 +2652,11 @@ async function fetchAmazonLibrary() {
         if (fmtEntries.length > 0) {
             console.log(`   Formats seen (new books):     ${fmtEntries.map(([f, n]) => `${f} ×${n}`).join(', ')}`);
         }
+        // v5.4.1 - how Amazon's series records carried the number (observability only — see stats.seriesPositionsSentAs)
+        const sentAs = stats.seriesPositionsSentAs;
+        if (sentAs.text + sentAs.number + sentAs.blank + sentAs.missing + sentAs.other > 0) {
+            console.log(`   Series numbers (new books):   ${sentAs.text} as text, ${sentAs.number} as numbers, ${sentAs.blank} empty, ${sentAs.missing} missing${sentAs.other ? `, ${sentAs.other} other` : ''} — ${stats.seriesPositionZeros} were 0`);
+        }
         console.log('');
 
         // v4.11.0 - COMPLETENESS / reconciliation (no silent drops)
@@ -3054,5 +3094,10 @@ async function fetchAmazonLibrary() {
     }
 }
 
-// Auto-run on first paste
-fetchAmazonLibrary();
+// Node (the function tests) loads the series reading; it never runs the fetch.
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { parseSeriesFromTitle, seriesFromLibraryProduct };
+}
+
+// Auto-run on first paste — on a page only
+if (typeof window !== 'undefined') fetchAmazonLibrary();
