@@ -153,7 +153,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.30.0"; // Build version for this file
+var ORGANIZER_VERSION = "7.31.0-alpha.1"; // Build version for this file
 // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
 // problem… (7.29.0: one copy, so the two can't drift)
 var DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -9564,6 +9564,11 @@ function ReaderWrangler() {
                             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
                             z-index: 9999;
                             transition: all 1.0s ease-in;
+                            /* 7.31.0 - a message never takes a click: it appears just above the last click, where the next
+                               one is likely to go — clicks pass through to what's underneath, in every state (held, flying
+                               to the status bar). Text only, so nothing on it to click; the status bar's copy (and its ✕) is
+                               its own element and keeps its clicks. */
+                            pointer-events: none;
                         }
 
                         .clipboard-toast.error {
