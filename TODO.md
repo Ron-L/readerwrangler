@@ -471,10 +471,16 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    way to set one aside that the runner understands. A `skip: <TODO id> — why` line in a test file's header: the runner
    skips it and prints why; a release run (`--release`) refuses it (so a set-aside test blocks the next release until
    fixed); the TODO id must exist. Small.
-6. **`--id` doesn't narrow a file split into shards** (found 2026-11-16, sprint 6): `py tools/run_tests.py --id TOAST-006`
-   runs all of test_cells.py (3 shards, 132 cells); only `RW_CELLS=…` narrows it — yet TESTING.md's example is
-   `--id CELL-001`. The runner should turn an `--id` naming cells of a sharded file into that file's `RW_CELLS`
-   (one process). Small.
+6. ✅ **`--id` narrows a file split into shards** — done 2026-11-16 (sprint 6): `--id TOAST-006` runs that one cell in
+   one process (6 s, was all 132); RUN-060–062.
+7. **`--id` picks any file whose COMMENTS name the id** (found 2026-11-16, sprint 6): `--id CELL-001` also runs
+   test/gestureTable.test.js, `--id CELL-005` also test/test_run_tests.py (~25 s more) — the file is chosen by its whole
+   text. Match only the test-naming calls (`test('ID'`, `add("ID"`, `row("ID"`). Small.
+8. **Logging kit leftovers** (sprint 6): the bar's **Report this problem** copies the diagnostics without the bar's
+   messages first (Copy now puts them first — one copy routine should); a one-line `codeOf` helper exists twice in
+   logkit/logger.js (Law 22); the phone and the reset page don't hand the kit a report button or the diagnostics copy;
+   the critical box still shows "(code …)" to everyone — **Ron's call** (asked 2026-11-16: the bar's rule, no code on
+   screen for ordinary users?). Small.
 
 **How (technical)**
 - Item 1: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
