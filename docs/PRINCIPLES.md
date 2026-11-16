@@ -178,6 +178,12 @@ carried over 2026-11-04). Ron's screen is the fact; a reading of the code is a t
 and keyboard input, read the state after each step, then report. (Paid for there: two wrong explanations of an Esc /
 Ctrl+click report, each with fixes proposed, before the first real-input run.) In RW the reproduction becomes the
 fix's first test: **a bug fix starts with a failing test** (docs/design/TESTING.md §6).
+**A design's "today" column is a theory until a test tries every cell** (7.30.0): the one table's design listed
+today's behavior from reading the code; a screen test that drove all 58 cells first (each asserting the DECIDED
+behavior, marked "differs today" with the measured words) found 45 differences — and the worst ones the design never
+listed: a Ctrl+Z after a move or copy took books out of a folder they were already in, and a copy pasted back then
+undone left a book in no folder (the first real causes of a months-old "books in no folder" mystery). Measure the whole
+matrix before building any of it; a cell that starts passing must lose its mark, and a release refuses any mark left.
 **Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule; pre-build gate item 12; the browser
 driver (`test/ui/rw.py` — real input through Edge) and the regression library's routine (TESTING.md).
 
@@ -241,6 +247,10 @@ from every branch, but read `done <id>` markers from main alone — so three fin
 only because "done" went DOWN on a day two tasks were finished. Anything that reads history reads every branch, for
 every kind of evidence. **And `taskkill /T` is a pattern, not an identity:** it follows recorded parent ids, which
 Windows reuses — an agent's relay stopper used it; review replaced it with "the processes proven ours, one by one".
+**And "the folder I'm in" is a pattern too — name the repository** (7.30.0): a commit meant for the private notes
+repository ran in the folder above it and landed in the PUBLIC one (relay rows with channel codes; never pushed, dropped
+at Ron's word). Why the shell was in the wrong folder was never found — so the fix is `git -C <the repository's path>`
+on every commit outside the working repository, not more care.
 **Enforcement**: `feedback_investigate_completely` memory; grep-the-class before declaring done —
 for a markup change, grep the class/attr name across the file for remote matchers *before* editing.
 
@@ -520,6 +530,9 @@ the book menu held three hand-kept copies of the Book List removal — one said 
 date expression, sorted by a second and filtered by a third; yesterday's `reportProblem.js` got an honest copy routine
 beside the logging kit's dishonest one. Older: two serializers that drifted eight fields apart — Law 10.) Pairs with
 Law 5 — enumerate the class, then **chokepoint** it: the comb finds the copies, this law says they become one.
+**7.30.0 kept the law:** the separate move routine (`moveItems`) and folder mover (`reparentFolder`) were deleted —
+every key, menu and drop asks one table and places through one operation; four copies of the series-number sort and two
+hand-kept tiebreaks (desktop, phone) became one shared reading (`uiHelpers.js`).
 **Enforcement**: the gate checklist's item 5 ("is there already a function for this?"); the comb's chokepoint step;
 every agent brief; the review of each agent's diff looks for a second copy of anything.
 
