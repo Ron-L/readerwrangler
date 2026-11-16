@@ -134,11 +134,13 @@ def styles_if_stale():
 
 
 def _write(path, text):
-    """Written whole, then swapped in — never half a file."""
+    """Written whole, then swapped in — never half a file. The scratch copy is named for this process (2026-11-16): two
+    servers rebuilding at once (Ron's serve.py and a screen test's) would otherwise write the SAME scratch file."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path + ".tmp", "w", encoding="utf-8", newline="\n") as f:
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
-    os.replace(path + ".tmp", path)
+    os.replace(tmp, path)
 
 
 def _staged_paths():

@@ -47,6 +47,8 @@ import urllib.request
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import local_relay   # noqa: E402 — processes() and port_owners(): who listens on a port, by process id
 FIXTURE = os.path.join(ROOT, "test", "fixtures", "small-fixture.json")
 DEMO = os.path.join(ROOT, "readerwrangler-demo-library-ORGANIZED.json")
 LARGE = os.path.join(ROOT, ".private", "test", "large-sample-private.json.gz")
@@ -188,18 +190,19 @@ class App:
 
     # --- start / stop -------------------------------------------------------------------------------------------
     def __enter__(self):
-        self.port = _free_port()
-        self.server = subprocess.Popen([sys.executable, "serve.py", str(self.port)], cwd=ROOT,
-                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for _ in range(100):
-            try:
-                socket.create_connection(("127.0.0.1", self.port), 0.2).close()
+        # Screen tests run in parallel (tools/run_tests.py --jobs, 2026-11-16): the free port is chosen here and taken by
+        # serve.py a moment later, so another file's server can take it in between. Then ours can't start — and a plain
+        # "does the port answer?" would be answered by the OTHER server (this file's pages from a server that stops when
+        # that file ends). So the port must be served by OUR serve.py; if it isn't, try another port.
+        for _ in range(3):
+            self.port = _free_port()
+            self.server = subprocess.Popen([sys.executable, "serve.py", str(self.port)], cwd=ROOT,
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if self._server_is_ours():
                 break
-            except OSError:
-                time.sleep(0.1)
-        else:
             self._stop_server()
-            raise RuntimeError("serve.py didn't start")
+        else:
+            raise RuntimeError("serve.py didn't start (3 ports tried)")
         try:
             return self._start_browser()
         except BaseException:
@@ -269,6 +272,27 @@ class App:
                     self.relay.__exit__()
             finally:
                 self._stop_server()
+
+    def _server_is_ours(self, wait_s=10):
+        """True once our serve.py answers on self.port — False if it stopped (the port was taken) or never answered. On
+        Windows the listener is checked by process id: ours, or its child (the venv's python.exe starts the real Python
+        as a child)."""
+        deadline = time.time() + wait_s
+        while time.time() < deadline:
+            if self.server.poll() is not None:
+                return False
+            try:
+                socket.create_connection(("127.0.0.1", self.port), 0.2).close()
+            except OSError:
+                time.sleep(0.1)
+                continue
+            if os.name != "nt":
+                return True
+            ours = {self.server.pid} | {p for p, (parent, _) in local_relay.processes().items() if parent == self.server.pid}
+            if local_relay.port_owners(self.port) & ours:
+                return True
+            time.sleep(0.1)          # someone else answers there: ours either takes it or stops
+        return False
 
     def _stop_server(self):
         self.server.terminate()          # the exact process we started (Law 5) — never a pattern

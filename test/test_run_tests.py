@@ -381,6 +381,254 @@ done()
     row("RUN-034", "without --release the same run passes (while building, a 'differs today' mark is expected)",
         code == 0 and "2 differ today" in out, f"exit {code}: {out[-400:]}")
 
+    # --- Results stamped with their commit (TODO "Faster sprints", item 2; 2026-11-16): every --tier run leaves a
+    # record — the commit, anything uncommitted, what ran, each file's result — and --stamp says PROVEN only for a commit
+    # whose tier 1 AND tier 2 passed in full, nothing skipped, on a clean tree. At review that check replaces a rerun.
+    # Made-up records first (the judging alone), then the runner writing and reading real ones.
+    A, B = "a" * 40, "b" * 40
+
+    def rec(commit=A, tier="all", files=None, dirty=(), after=None, tags=(), ids=(), ended="2026-11-16T10:00:00"):
+        files = files if files is not None else [
+            {"file": "test/x.test.js", "tier": 1, "result": "passed", "counts": "3 passed, 0 failed"},
+            {"file": "test/ui/test_y.py", "tier": 2, "result": "passed", "counts": "5 passed, 0 failed"}]
+        ok = all(f["result"] == "passed" for f in files)
+        return {"commit": commit, "commit_after": after or commit, "uncommitted": {"before": list(dirty), "after": []},
+                "ran": {"tier": tier, "tags": list(tags), "ids": list(ids), "release": False, "jobs": 4},
+                "files": files, "problems": [], "started": "2026-11-16T09:55:00", "ended": ended,
+                "result": "passed" if ok else "failed"}
+
+    def judged(records, commit=A):
+        try:
+            proven, lines = rt.judge(records, commit)
+            return proven, "\n".join(lines)
+        except Exception as e:      # noqa: BLE001 — not built yet: the row fails, naming why
+            return None, f"{type(e).__name__}: {e}"
+
+    t1 = [{"file": "test/x.test.js", "tier": 1, "result": "passed", "counts": "3 passed, 0 failed"}]
+    t2 = [{"file": "test/ui/test_y.py", "tier": 2, "result": "passed", "counts": "5 passed, 0 failed"}]
+    p, why = judged([rec()])
+    p2, why2 = judged([rec(tier="1", files=t1), rec(tier="2", files=t2)])
+    row("RUN-035", "--stamp: tiers 1 and 2 passed in full on exactly this commit, tree clean → PROVEN (one 'all' run, "
+        "or a tier 1 run and a tier 2 run)", p is True and p2 is True, f"{p}: {why} | {p2}: {why2}")
+    p, why = judged([rec(dirty=["M readerwrangler.js"])])
+    p2, why2 = judged([rec(after=B)])
+    row("RUN-036", "--stamp: anything uncommitted while it ran → NOT PROVEN, naming it (and so is a commit made "
+        "during the run)", p is False and "readerwrangler.js" in why and p2 is False, f"{p}: {why} | {p2}: {why2}")
+    p, why = judged([rec(commit=B)])
+    row("RUN-037", "--stamp: a run on another commit proves nothing for this one → NOT PROVEN",
+        p is False and "tier 1" in why, f"{p}: {why}")
+    p, why = judged([rec(tier="2", files=t2)])
+    p2, why2 = judged([rec(tier="1", files=t1), rec(tier="2", files=t2, ids=["CELL-005"])])
+    row("RUN-038", "--stamp: tier 2 alone → NOT PROVEN (tier 1 never ran); a run narrowed by --id / --tag doesn't count "
+        "as its tier", p is False and "tier 1" in why and p2 is False and "tier 2" in why2, f"{p}: {why} | {p2}: {why2}")
+    bad = [dict(t1[0]), {"file": "test/ui/test_y.py", "tier": 2, "result": "failed", "counts": "4 passed, 1 failed"}]
+    p, why = judged([rec(files=bad)])
+    p2, why2 = judged([rec(ended="2026-11-16T09:00:00"), rec(files=bad, ended="2026-11-16T11:00:00")])
+    row("RUN-039", "--stamp: a failed file → NOT PROVEN, naming it — and a later failure on the same commit beats an "
+        "earlier pass (a one-time failure is read, not rerun away)",
+        p is False and "test_y.py" in why and p2 is False, f"{p}: {why} | {p2}: {why2}")
+    sk = [dict(t1[0]), {"file": "test/ui/test_y.py", "tier": 2, "result": "skipped", "why": "no browser"}]
+    p, why = judged([rec(files=sk)])
+    row("RUN-040", "--stamp: a skipped file → NOT PROVEN, naming it", p is False and "test_y.py" in why, f"{p}: {why}")
+
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    rdir = os.path.join(d, "results")
+    os.makedirs(rdir)
+
+    def records_in(folder):
+        try:
+            return rt.read_records(folder)
+        except Exception as e:      # noqa: BLE001
+            return f"{type(e).__name__}: {e}"
+
+    def quiet_main(argv, **kw):
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                code = rt.main(argv, **kw)
+        except SystemExit as e:
+            code = f"SystemExit {e.code}"
+        except TypeError as e:      # main() without the new parameters yet
+            code = f"TypeError {e}"
+        return code, buf.getvalue()
+
+    code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(js_ok), rt.TestFile(js_bad)], results=rdir)
+    got = records_in(rdir)
+    r0 = got[0] if isinstance(got, list) and len(got) == 1 else {}
+    res = {f.get("file", "").rsplit("/", 1)[-1]: f.get("result") for f in r0.get("files", [])}
+    row("RUN-041", "a --tier run leaves one record: the commit it ran on, what was uncommitted, what ran, each file's "
+        "result, start and end, the overall result",
+        r0.get("commit") == head and isinstance(r0.get("uncommitted", {}).get("before"), list)
+        and r0.get("ran", {}).get("tier") == "1" and res == {"a.test.js": "passed", "b.test.js": "failed"}
+        and r0.get("result") == "failed" and r0.get("started") and r0.get("ended"),
+        f"exit {code}; records: {str(got)[:500]}")
+    # The same through the path a real run takes — files discovered, the record in this copy's folder (results_dir) —
+    # with both swapped for the test (originals kept): the first build checked "were files given?" AFTER discovery had
+    # filled them in, so a real run left no record while the sample runs above did.
+    real_dir = os.path.join(d, "real-results")
+    saved_discover, saved_results_dir = rt.discover, rt.results_dir
+    rt.discover, rt.results_dir = (lambda root=None: [rt.TestFile(js_ok)]), (lambda root=None: real_dir)
+    try:
+        code, out = quiet_main(["--tier", "1"])
+    finally:
+        rt.discover, rt.results_dir = saved_discover, saved_results_dir
+    got = records_in(real_dir)
+    row("RUN-051", "a real run (its files found by the runner, no folder given) leaves its record in this working copy's "
+        "folder and says so", isinstance(got, list) and len(got) == 1 and "· recorded for" in out,
+        f"exit {code}; {str(got)[:200]}: {out[-300:]}")
+    saved_changed = rt.changed_files
+    rt.changed_files = lambda: ["bookMerge.js"]
+    try:
+        quiet_main(["--changed"], files=[rt.TestFile(js_ok)], results=rdir)
+        quiet_main(["--tier", "1", "--list"], files=[rt.TestFile(js_ok)], results=rdir)
+    finally:
+        rt.changed_files = saved_changed
+    got2 = records_in(rdir)
+    row("RUN-042", "the commit hook's --changed runs, and --list, leave no record",
+        isinstance(got2, list) and len(got2) == 1, str(got2)[:300])
+
+    sdir = os.path.join(d, "stamp-results")
+    os.makedirs(sdir)
+
+    def stamp_with(records):
+        for name in os.listdir(sdir):
+            os.remove(os.path.join(sdir, name))
+        for i, r in enumerate(records):
+            with open(os.path.join(sdir, f"made-up-{i}.json"), "w", encoding="utf-8") as f:
+                f.write(__import__("json").dumps(r))
+        return quiet_main(["--stamp"], results=sdir)
+
+    code, out = stamp_with([rec(commit=head)])
+    code2, out2 = stamp_with([rec(commit=head, dirty=["?? scratch.txt"])])
+    row("RUN-043", "py tools/run_tests.py --stamp (HEAD by default): PROVEN and exit 0 — or NOT PROVEN, why, and exit 1",
+        code == 0 and "PROVEN" in out and "NOT PROVEN" not in out
+        and code2 == 1 and "NOT PROVEN" in out2 and "scratch.txt" in out2,
+        f"exit {code}: {out[-300:]} | exit {code2}: {out2[-300:]}")
+
+    # Per working copy, outside the working tree: git's own folder for that copy (a worktree has its own).
+    repo, wt = os.path.join(d, "repo"), os.path.join(d, "wt")
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "core.hooksPath=" + os.path.join(d, "no-hooks")]
+    os.makedirs(repo)
+    # Run from the commit hook, git's own variables (GIT_DIR, GIT_INDEX_FILE…) would point every git command here at
+    # THIS project's repository — so the throwaway repo's commands run without them (found 2026-11-16, first commit).
+    git_vars = {k: v for k, v in os.environ.items() if k.startswith("GIT_")}
+    for k in git_vars:
+        del os.environ[k]
+    try:
+        for args in (["init", "-q"], ["commit", "-q", "--allow-empty", "-m", "one"], ["worktree", "add", "-q", wt]):
+            subprocess.run(git + args, cwd=repo, capture_output=True)
+        dm, dw = rt.results_dir(repo), rt.results_dir(wt)
+    except Exception as e:      # noqa: BLE001
+        dm, dw = None, f"{type(e).__name__}: {e}"
+    finally:
+        os.environ.update(git_vars)
+    norm = lambda p: os.path.normcase(os.path.abspath(p)) if isinstance(p, str) else ""   # noqa: E731
+    in_git = lambda p: os.sep + ".git" + os.sep in norm(p) + os.sep                        # noqa: E731
+    row("RUN-044", "the records live in git's folder for each working copy — one for the main folder, another for a "
+        "worktree — never in the working tree",
+        dm and dw and norm(dm) != norm(dw) and in_git(dm) and in_git(dw) and not norm(dw).startswith(norm(wt) + os.sep),
+        f"main: {dm} | worktree: {dw}")
+
+    # --- Screen tests in parallel, under a machine-wide limit (item 1). The slots: an OS file lock per slot, so a run
+    # that dies frees its slot; a run waiting for one says so, naming the holders.
+    import importlib
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    ts = importlib.import_module("test_slots")
+    sl = ts.Slots(count=1, folder=os.path.join(d, "slots"))
+    first = sl.acquire("first-holder")
+    waits = []
+    second = sl.try_acquire("second")
+    holder = subprocess.Popen([sys.executable, "-c", "import sys,time; sys.path.insert(0, sys.argv[1]); import test_slots as t; "
+                               "s = t.Slots(count=1, folder=sys.argv[2]).acquire('crash-holder'); print('held', flush=True); "
+                               "time.sleep(600)", os.path.join(ROOT, "tools"), os.path.join(d, "slots2")],
+                              stdout=subprocess.PIPE, text=True)
+    first.release()
+    third = sl.acquire("third", on_wait=waits.append, poll_s=0.05)
+    row("RUN-045", "a slot is held: with 1 slot a second run can't take it; released, it's free again",
+        second is None and third is not None, f"second {second}, third {third}")
+    third.release()
+    import threading
+    t_hold = sl.acquire("holder-A")
+    threading.Timer(0.5, t_hold.release).start()
+    sl.acquire("waiter", on_wait=waits.append, poll_s=0.05).release()
+    row("RUN-046", "a run waiting for a slot says so once, naming who holds it",
+        len(waits) == 1 and "waits for a test slot" in waits[0] and "holder-A" in waits[0], str(waits))
+    held = holder.stdout.readline().strip() == "held"
+    sl2 = ts.Slots(count=1, folder=os.path.join(d, "slots2"))
+    taken = sl2.try_acquire("while-held")
+    holder.kill()           # the one process this test started, by its exact id (no children)
+    holder.wait(10)
+    freed = sl2.try_acquire("after-crash")
+    row("RUN-047", "a holder that dies frees its slot by itself — nothing stale to clean up",
+        held and taken is None and freed is not None, f"held {held}, taken while held {taken}, after {freed}")
+    for s in (freed,):
+        if s:
+            s.release()
+    saved_env = os.environ.get("RW_TEST_SLOTS")
+    os.environ["RW_TEST_SLOTS"] = "7"
+    n7 = ts.slot_count()
+    os.environ["RW_TEST_SLOTS"] = "nonsense"
+    nbad = ts.slot_count()
+    if saved_env is None:
+        del os.environ["RW_TEST_SLOTS"]
+    else:
+        os.environ["RW_TEST_SLOTS"] = saved_env
+    row("RUN-048", "4 slots on the PC by default; RW_TEST_SLOTS overrides", n7 == 7 and nbad == 4, f"{n7}, {nbad}")
+
+    # Two files that can only pass TOGETHER: each waits (up to 20 s) for the other's mark — run one after the other, the
+    # first gives up. The failing one prints several detail lines, which must come out together, never interleaved.
+    def pair_file(name, me, other, fail=False):
+        return write(name, f"""# sample
+# tags: parallel-sample, tier 1
+# covers: tools/run_tests.py
+import os, sys, time
+open(os.path.join({d!r}, {me!r}), "w").close()
+end = time.time() + 20
+while not os.path.exists(os.path.join({d!r}, {other!r})):
+    if time.time() > end:
+        print("  ✗ PAIR-001 the other file never ran at the same time"); print("0 passed, 1 failed"); sys.exit(1)
+    time.sleep(0.05)
+for i in range(5):
+    print("  {'✗' if fail else '✓'} {me}-line", i, flush=True)
+    time.sleep(0.05)
+print("{'0 passed, 1 failed' if fail else '1 passed, 0 failed'}")
+sys.exit({1 if fail else 0})
+""")
+    pa, pb = pair_file("pa.test_pair.py", "PA", "PB"), pair_file("pb.test_pair.py", "PB", "PA", fail=True)
+    code, out = quiet_main(["--tier", "1", "--jobs", "2"], files=[rt.TestFile(pa), rt.TestFile(pb)])
+    pb_lines = [i for i, ln in enumerate(out.splitlines()) if "PB-line" in ln]
+    row("RUN-049", "--jobs 2 runs two files at the same time; the failing one's lines come out together; the summary line "
+        "is the same as ever",
+        "Tests: 1 file(s) passed, 1 failed" in out and code == 1 and len(pb_lines) == 5
+        and pb_lines == list(range(pb_lines[0], pb_lines[0] + 5)) and "PAIR-001" not in out, f"exit {code}: {out[-700:]}")
+
+    # Screen tests (tier 2) each hold a slot: with 1 slot on the PC, two tier-2 files never overlap — even with --jobs 2.
+    def timed_file(name):
+        return write(name, f"""# sample
+# tags: slot-sample, tier 2
+# covers: tools/run_tests.py
+import os, time
+with open(os.path.join({d!r}, "times.txt"), "a") as f:
+    f.write(f"{name} start {{time.time()}}\\n")
+time.sleep(0.6)
+with open(os.path.join({d!r}, "times.txt"), "a") as f:
+    f.write(f"{name} end {{time.time()}}\\n")
+print("1 passed, 0 failed")
+""")
+    ta, tb = timed_file("test_ta.py"), timed_file("test_tb.py")
+    one = ts.Slots(count=1, folder=os.path.join(d, "slots3"))
+    code, out = quiet_main(["--tier", "2", "--jobs", "2"], files=[rt.TestFile(ta), rt.TestFile(tb)], slots=one)
+    spans = {}
+    if os.path.exists(os.path.join(d, "times.txt")):
+        for ln in open(os.path.join(d, "times.txt")).read().split("\n"):
+            if ln.strip():
+                n, what, t = ln.split()
+                spans.setdefault(n, {})[what] = float(t)
+    s = sorted(spans.values(), key=lambda x: x.get("start", 0))
+    apart = len(s) == 2 and all("start" in x and "end" in x for x in s) and s[0]["end"] <= s[1]["start"]
+    row("RUN-050", "screen-test files each hold a slot: with 1 slot two tier-2 files run one after the other, and the "
+        "waiting one says so", code == 0 and apart and "waits for a test slot" in out, f"exit {code}, spans {spans}: {out[-400:]}")
+
 failed = [r for r in results if not r[2]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
 sys.exit(1 if failed else 0)

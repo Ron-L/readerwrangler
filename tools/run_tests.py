@@ -27,19 +27,42 @@ production relay. --relay-url <address> uses a relay you started instead (no sta
 Every test file declares, in its first lines:   tags: <areas>, tier N     and     covers: <source files it tests>
 A file without them is a failure ("headers are required") — the covers: lines are the one source for --changed.
 
+In parallel (TODO "Faster sprints", item 1; 2026-11-16): tier 1 and tier 2 files run several at once — --jobs N, by
+default the machine-wide limit — and every screen-test (tier 2) file holds one of the PC's test slots while it runs
+(tools/test_slots.py: 4 in total for every run on this PC, whatever folder it's in; RW_TEST_SLOTS overrides). A run
+waiting for a slot says so. Tier 3 stays one file at a time (its own local relay). One line per file as it finishes; a
+failing file's details printed together; the same summary line at the end.
+
+    py tools/run_tests.py --tier 2 --jobs 1   one file at a time, as before
+
+Results stamped with their commit (item 2): every run except --changed (the commit hook) and --list leaves a record —
+the commit it ran on, anything uncommitted, what ran, each file's result, start and end — in git's own folder for this
+working copy (`git rev-parse --git-path rw-test-results`: never in the working tree; a worktree has its own).
+
+    py tools/run_tests.py --stamp [<commit>]  PROVEN (exit 0) only if tier 1 and tier 2 both ran in full on exactly that
+                                              commit (default: HEAD), every file passed, nothing skipped, nothing
+                                              uncommitted — else NOT PROVEN, and why (exit 1)
+
 Double-clicked, the window stays open to show the results (pytools keepopen). Exit: 0 all passed · 1 a failure.
 """
 import argparse
+import concurrent.futures
+import datetime
 import glob
+import importlib.util
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import threading
+import time
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import local_relay  # noqa: E402 — tools/local_relay.py, next to this file
+import test_slots   # noqa: E402 — tools/test_slots.py: the machine-wide limit on screen tests at once
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Screen tests (tier 2) need Playwright, which lives in the project's venv (requirements-dev.txt) — never the system
@@ -169,9 +192,156 @@ def changed_files():
     return sorted(names)
 
 
-def main(argv=None, files=None, relay=None):
+# --- dist/ built once, before the screen tests start their servers (2026-11-16) -----------------------------------------
+def prebuild():
+    """Each screen test starts its own serve.py, and serve.py rebuilds a stale dist/ copy on request — several servers
+    at once would each rebuild the same files into the same place. Built here once instead, so every server finds dist/
+    fresh (its rebuild is then a no-op). Returns the build's error in words, or None."""
+    spec = importlib.util.spec_from_file_location("rw_build", os.path.join(ROOT, "tools", "build.py"))
+    build = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(build)
+        for name in build.SOURCES:
+            build.build_if_stale(name)
+        build.styles_if_stale()
+    except Exception as e:      # noqa: BLE001 — a build that fails is reported (the screen tests then show it too)
+        return f"{type(e).__name__}: {e}"
+    return None
+
+
+# --- results stamped with their commit (TODO "Faster sprints", item 2; 2026-11-16) --------------------------------------
+RESULTS_NAME = "rw-test-results"
+KEEP_RECORDS = 300          # the newest; older records are deleted as new ones are written
+
+
+def _git(args, root=ROOT):
+    r = subprocess.run(["git", "--no-optional-locks"] + args, cwd=root, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def results_dir(root=ROOT):
+    """Where this working copy's records live: git's own folder for it (a worktree has its own) — never the working tree.
+    None if git can't say (not a git folder)."""
+    p = _git(["rev-parse", "--git-path", RESULTS_NAME], root)
+    return os.path.normpath(os.path.join(root, p)) if p else None
+
+
+def head_commit(root=ROOT):
+    return _git(["rev-parse", "HEAD"], root)
+
+
+def uncommitted(root=ROOT):
+    """What isn't committed: changed tracked files and untracked files git doesn't ignore — git status's short lines."""
+    out = _git(["status", "--porcelain", "--untracked-files=normal"], root)
+    return ["(git status failed)"] if out is None else [ln for ln in out.splitlines() if ln.strip()]
+
+
+def _now():
+    return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def write_record(rec, folder):
+    os.makedirs(folder, exist_ok=True)
+    name = f"{rec['started'][:19].replace(':', '')}-{(rec.get('commit') or 'nocommit')[:12]}-{os.getpid()}.json"
+    path = os.path.join(folder, name)
+    with open(path + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(rec, f, indent=1)
+    os.replace(path + ".tmp", path)
+    old = sorted(n for n in os.listdir(folder) if n.endswith(".json"))[:-KEEP_RECORDS]
+    for n in old:
+        try:
+            os.remove(os.path.join(folder, n))
+        except OSError:
+            pass
+    return path
+
+
+def read_records(folder):
+    """Every readable record in the folder, oldest first (by when it ended)."""
+    out = []
+    if folder and os.path.isdir(folder):
+        for n in os.listdir(folder):
+            if n.endswith(".json"):
+                try:
+                    with open(os.path.join(folder, n), encoding="utf-8") as f:
+                        r = json.load(f)
+                except (OSError, ValueError):
+                    continue
+                if isinstance(r, dict):
+                    out.append(r)
+    return sorted(out, key=lambda r: str(r.get("ended", "")))
+
+
+def record_problems(r):
+    """Why this record proves nothing, in words ([] = it proves its tiers)."""
+    why = []
+    if r.get("commit_after") != r.get("commit"):
+        why.append(f"a commit was made while it ran (HEAD moved to {str(r.get('commit_after'))[:12]})")
+    dirty = list(dict.fromkeys((r.get("uncommitted") or {}).get("before", []) + (r.get("uncommitted") or {}).get("after", [])))
+    if dirty:
+        why.append("not committed while it ran: " + ", ".join(dirty[:6]) + (f" (+{len(dirty) - 6} more)" if len(dirty) > 6 else ""))
+    files = r.get("files") or []
+    for f in files:
+        if f.get("result") == "failed":
+            why.append(f"{f.get('file')} failed ({f.get('counts') or 'no summary'})")
+        elif f.get("result") == "skipped":
+            why.append(f"{f.get('file')} was skipped — {f.get('why') or 'no reason given'}")
+    why += list(r.get("problems") or [])
+    if r.get("result") != "passed" and not why:
+        why.append("the run failed")
+    return why
+
+
+def judge(records, commit):
+    """(proven?, lines) — does the record prove `commit` (a full id)? Tier 1 and tier 2 each need a FULL run (not narrowed
+    by --id / --tag; --tier all counts for both) on exactly this commit; the LATEST such run of each tier is the one that
+    counts (a later failure isn't outvoted by an earlier pass), and it must hold no failure, no skip, nothing uncommitted."""
+    lines, proven, shown = [], True, {}
+    for tier in (1, 2):
+        full = [r for r in records if r.get("commit") == commit and not (r.get("ran") or {}).get("tags")
+                and not (r.get("ran") or {}).get("ids") and str((r.get("ran") or {}).get("tier")) in (str(tier), "all")]
+        if not full:
+            proven = False
+            lines.append(f"  ✗ tier {tier}: no full tier {tier} run recorded on this commit")
+            continue
+        r = full[-1]
+        mine = [f for f in r.get("files") or [] if f.get("tier") == tier]
+        why = record_problems(r) + ([] if mine else [f"no tier {tier} file ran"])
+        ok = not why
+        proven = proven and ok
+        passed = sum(1 for f in mine if f.get("result") == "passed")
+        lines.append(f"  {'✓' if ok else '✗'} tier {tier}: {passed} of {len(mine)} file(s) passed — run "
+                     f"{str(r.get('started', '?'))[:19].replace('T', ' ')} → {str(r.get('ended', '?'))[11:19]} "
+                     f"(--tier {(r.get('ran') or {}).get('tier')})")
+        if id(r) not in shown:          # one 'all' run serves both tiers: its problems are listed once
+            shown[id(r)] = True
+            lines += [f"      {w}" for w in why]
+    return proven, lines
+
+
+def show_stamp(commit_arg, folder):
+    commit = _git(["rev-parse", "--verify", "--quiet", f"{commit_arg}^{{commit}}"])
+    if not commit:
+        print(f"NOT PROVEN — {commit_arg!r} isn't a commit here.")
+        return 1
+    subject = _git(["log", "-1", "--format=%s", commit]) or ""
+    print(f"Test results for {commit[:12]} ({subject[:70]})  — records: {folder}")
+    proven, lines = judge(read_records(folder), commit)
+    print("\n".join(lines))
+    if proven:
+        print("PROVEN — tier 1 and tier 2 passed in full on exactly this commit, with nothing uncommitted.")
+        return 0
+    print("NOT PROVEN — see above. (Only a full run on a clean tree proves a commit: py tools/run_tests.py --tier 1, "
+          "then --tier 2 — or --tier all.)")
+    return 1
+
+
+def main(argv=None, files=None, relay=None, results=None, slots=None):
     """files: the test files to choose from (None = every one in the repo); relay: makes the local relay for tier 3
-    (None = the real one) — both for the runner's own tests (test/test_run_tests.py)."""
+    (None = the real one); results: the folder for the run's record (None = this working copy's, and only when `files` is
+    None — the runner's own sample runs leave no record); slots: the machine-wide limit (None = test_slots.Slots()) — all
+    for the runner's own tests (test/test_run_tests.py)."""
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
@@ -190,10 +360,21 @@ def main(argv=None, files=None, relay=None):
     ap.add_argument("--release", action="store_true",
                     help="a release run: a skipped file, or a test still marked 'differs today', FAILS the run (the "
                          "release checklist: py tools/run_tests.py --tier all --release)")
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="test files at once (tiers 1 and 2; tier 3 is always one at a time) — default: the machine-wide "
+                         "limit on screen tests (RW_TEST_SLOTS, else 4), which every screen-test file also holds a slot of")
+    ap.add_argument("--stamp", nargs="?", const="HEAD", default=None, metavar="COMMIT",
+                    help="say whether the recorded runs PROVE this commit (default HEAD): tiers 1 and 2 in full, every file "
+                         "passed, nothing skipped, nothing uncommitted. Runs nothing. Exit 0 proven, 1 not")
     a = ap.parse_args(argv)
 
+    if a.stamp is not None:
+        return show_stamp(a.stamp, results if results is not None else results_dir())
+
+    started, t_start = _now(), time.monotonic()
     tier = default_tier(a) if a.tier is None else ("all" if a.tier == "all" else int(a.tier))
-    files = discover() if files is None else files
+    real = files is None          # the repo's own test files (not the runner's samples): a record, and dist/ built first
+    files = discover() if real else files
     broken = [f for f in files if f.problem]
     chosen = select([f for f in files if not f.problem], tier=tier, tags=a.tag or None, ids=a.id or None,
                     changed=changed_files() if a.changed else None)
@@ -214,36 +395,106 @@ def main(argv=None, files=None, relay=None):
         if not a.quiet:   # the commit hook stays silent when no test covers the change (Law 12: no noise on the normal path)
             print("No tests cover these changes." if a.changed else "No tests match.")
         return 0
+    # The record (item 2): every run but the commit hook's --changed (and --list, above). Taken BEFORE anything runs —
+    # the commit and what's uncommitted — and again at the end, so a change made during the run is caught too.
+    record_to = None if a.changed else (results if results is not None else (results_dir() if real else None))
+    rec = None
+    if record_to:
+        rec = {"commit": head_commit(), "uncommitted": {"before": uncommitted()},
+               "ran": {"tier": str(tier), "tags": a.tag, "ids": a.id, "release": a.release, "jobs": None},
+               "files": [{"file": f.rel(), "tier": f.tier, "result": "failed", "counts": f.problem} for f in broken],
+               "problems": [], "started": started}
     skipped = [(f, why) for f, why in ((f, skip_reason(f)) for f in chosen) if why]
     chosen = [f for f in chosen if not any(f is s for s, _ in skipped)]
     if not a.quiet or a.release:
         for f, why in skipped:
             print(f"- {f.rel()}: skipped — {why}")
+    if rec:
+        rec["files"] += [{"file": f.rel(), "tier": f.tier, "result": "skipped", "why": why} for f, why in skipped]
 
     differ = []   # (file, [test IDs]) — tests still marked "differs today" (test/ui/harness.py differs_today)
+    problems = []  # failures that belong to no one file (the build, the local relay) — for the record
+    say_lock = threading.Lock()   # one file's lines are printed together, never interleaved with another's
 
-    def run_and_report(f, relay_url):
-        ok, out = run_file(f, relay_url=relay_url)
+    def say(text):
+        with say_lock:
+            print(text, flush=True)
+
+    def report(f, ok, out, seconds=None, waited=0.0):
         ids = differs_today_ids(out)
-        if ids:
-            differ.append((f, ids))
         summary = next((ln for ln in reversed(out.splitlines()) if re.search(r"\bpassed\b", ln)), "")
+        wait = f", waited {waited:.0f} s for a slot" if waited >= 1 else ""
+        took = "" if seconds is None else f"  ({seconds:.0f} s{wait})"
+        lines = []
         if ok:
-            count["passed"] += 1
             if not a.quiet:
-                print(f"✓ {f.rel()}  {summary.strip()}")
+                lines.append(f"✓ {f.rel()}  {summary.strip()}{took}")
         else:
-            count["failed"] += 1
-            print(f"✗ {f.rel()}  {summary.strip()}")
+            lines.append(f"✗ {f.rel()}  {summary.strip()}{took}")
             for ln in out.splitlines():
                 if "✗" in ln or "Error" in ln or "FAIL" in ln or ln.startswith("      "):
-                    print("    " + ln)
+                    lines.append("    " + ln)
+        with say_lock:
+            if ids:
+                differ.append((f, ids))
+            count["passed" if ok else "failed"] += 1
+            if rec:
+                rec["files"].append({"file": f.rel(), "tier": f.tier, "result": "passed" if ok else "failed",
+                                     "counts": summary.strip(), "seconds": None if seconds is None else round(seconds, 1),
+                                     "waited": round(waited, 1), "differ": ids})
+            if lines:
+                print("\n".join(lines), flush=True)
+
+    def run_and_report(f, relay_url):
+        t0 = time.monotonic()
+        ok, out = run_file(f, relay_url=relay_url)
+        report(f, ok, out, time.monotonic() - t0)
+
+    # Tiers 1 and 2 in parallel (item 1): --jobs files at once; each screen-test (tier 2) file holds one of the PC's test
+    # slots for as long as it runs, so every run on this PC together stays within the limit. Tier 3 runs after, one file
+    # at a time (below). Longest first — by each file's time in this copy's latest record — so the long ones don't finish
+    # last on their own.
+    slots = slots or test_slots.Slots()
+    jobs = max(1, a.jobs or slots.count)
+    if rec:
+        rec["ran"]["jobs"] = jobs
+    pooled = [f for f in chosen if f.tier != 3]
+    if pooled:
+        last = {}
+        for r in read_records(record_to or (results_dir() if real else None)):
+            for x in r.get("files") or []:
+                if x.get("seconds") is not None:
+                    last[x.get("file")] = x["seconds"]
+        pooled.sort(key=lambda f: -(last.get(f.rel(), 60.0 if f.tier == 2 else 5.0)))
+    if any(f.tier == 2 for f in pooled) and real:
+        err = prebuild()
+        if err:
+            count["failed"] += 1
+            problems.append(f"the build (dist/) failed: {err}")
+            print(f"✗ build: dist/ couldn't be built before the screen tests — {err}")
+
+    def run_pooled(f):
+        slot = slots.acquire(f"{ROOT} · {f.rel()}", on_wait=say) if f.tier == 2 else None
+        t0 = time.monotonic()
+        try:
+            ok, out = run_file(f, relay_url=a.relay_url)
+        except Exception as e:      # noqa: BLE001 — a runner error is that file's failure, never a lost thread
+            ok, out = False, f"✗ the runner couldn't run it: {type(e).__name__}: {e}"
+        finally:
+            if slot:
+                slot.release()
+        report(f, ok, out, time.monotonic() - t0, slot.waited if slot else 0.0)
+
+    if pooled:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(jobs, len(pooled))) as pool:
+            for fut in concurrent.futures.as_completed([pool.submit(run_pooled, f) for f in pooled]):
+                fut.result()
 
     # Tier 3 with no --relay-url: the runner starts its OWN local relay around the relay files, then stops it and checks
     # everything it started is gone and its ports are free (local_relay.py). A given --relay-url is used as is.
     own_relay = [f for f in chosen if f.tier == 3] if not a.relay_url else []
     for f in chosen:
-        if f not in own_relay:
+        if f.tier == 3 and f not in own_relay:
             run_and_report(f, a.relay_url)
     if own_relay:
         r = (relay or local_relay.LocalRelay)()
@@ -253,6 +504,7 @@ def main(argv=None, files=None, relay=None):
             url = r.start()
         except local_relay.RelayError as e:
             count["failed"] += 1
+            problems.append(f"the local relay didn't start — not run: {', '.join(f.rel() for f in own_relay)}")
             print(f"✗ local relay: {e}\n    not run: " + ", ".join(f.rel() for f in own_relay))
         else:
             try:
@@ -262,6 +514,7 @@ def main(argv=None, files=None, relay=None):
                 left = r.stop()
             if left:
                 count["failed"] += 1
+                problems.append("the local relay: not everything it started was stopped — " + "; ".join(left))
                 print("✗ local relay: not everything it started was stopped —\n    " + "\n    ".join(left))
             elif not a.quiet:
                 print(f"✓ local relay stopped — every process it started is gone, ports {', '.join(map(str, r.ports))} free")
@@ -278,7 +531,22 @@ def main(argv=None, files=None, relay=None):
               f"take the decision back to Ron, before a release:\n    "
               + "\n    ".join(f"{f.rel()}: {', '.join(ids)}" for f, ids in differ))
         refused = True
-    return 1 if refused or count["failed"] else 0
+        problems.append(f"release run: {n} test(s) still marked 'differs today'")
+    code = 1 if refused or count["failed"] else 0
+    if rec:
+        rec.update({"commit_after": head_commit(), "problems": problems, "ended": _now(),
+                    "seconds": round(time.monotonic() - t_start), "result": "passed" if code == 0 else "failed"})
+        rec["uncommitted"]["after"] = uncommitted()
+        try:
+            write_record(rec, record_to)
+            if not a.quiet:
+                dirty = rec["uncommitted"]["before"] or rec["uncommitted"]["after"]
+                print(f"· recorded for {str(rec['commit'])[:12]}" + (" — with uncommitted changes, so it proves nothing"
+                      if dirty else "") + f"; took {rec['seconds'] // 60} min {rec['seconds'] % 60} s "
+                      "(py tools/run_tests.py --stamp)")
+        except OSError as e:
+            print(f"✗ the run's record couldn't be written to {record_to}: {e}")
+    return code
 
 
 if __name__ == "__main__":
