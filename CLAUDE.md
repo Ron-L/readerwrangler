@@ -44,9 +44,15 @@ Only Ron changes the mode or the scope.
    finished and not yet reviewed, in order (Ron, 2026-11-12), so later tasks build on earlier ones.
 2. Build it as always — a failing test first, alphas committed, every tier passing before "ready". Push branches and
    `main-prime` to **dev** for backup or testing (Ron, 2026-11-12); **never to prod**.
-3. Agents do the building (a worktree each; tasks touching `readerwrangler.js` one at a time). I review each agent's
-   diff as a skeptic, rerun the tests and commit — an agent's "done" is a claim (Law 12). The pre-build gate and the
-   commit checks apply to agents too.
+3. Agents do the building, **each in its own working copy** (`py tools/copies.py new <name> --branch <b>` — a git
+   worktree in `..\ReaderWrangler-copies\`, the tools that aren't in git linked in; `remove` takes the links out
+   first). Independent tasks build at the same time — `readerwrangler.js` included; tasks that build on each other go
+   in order. Branches are combined with `py tools/merge_branches.py` (it restamps the version, regenerates `dist/`,
+   the codes table and TODO's contents, and runs the full tiers on the merged result before the target moves). I
+   review each agent's diff as a skeptic and **check its result stamp** (`py tools/run_tests.py --stamp`) instead of
+   rerunning; one full run of mine before anything enters `main-prime` for release — an agent's "done" is a claim
+   (Law 12). **Every brief copies the task's own numbered list; review ticks each item off.** The pre-build gate and
+   the commit checks apply to agents too, in a copy as in the main folder.
 4. **A decision:** predict Ron's answer from **`.private/RON-PROFILE.md`** (how he decides — his rules, his patterns,
    what he always wants to see) and act on it. Only what the profile says reaches him goes in `.private/REVIEW-QUEUE.md`
    (Ron, 2026-11-12, after 36 questions in one day — "the vast majority I don't feel I needed to review"): something I
