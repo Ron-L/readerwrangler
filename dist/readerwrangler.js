@@ -153,7 +153,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.31.0-alpha.2"; // Build version for this file
+var ORGANIZER_VERSION = "7.31.0-alpha.3"; // Build version for this file
 // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
 // problem… (7.29.0: one copy, so the two can't drift)
 var DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -1450,6 +1450,10 @@ function ReaderWrangler() {
   var [redoStack, setRedoStack] = useState([]); // Array of action records
   var undoStackRef = useRef(undoStack); // Ref to avoid stale closure in keyboard handler
   var redoStackRef = useRef(redoStack);
+  // 7.31.0 (TODO 20261115-1239) - the last thing done, undone or redone: { label, at } — "Undo: <label>" for an
+  // undo, since the undo stack's top is then the step BEFORE it (the 7.30.0 no-folder bug was a Ctrl+Z). Set by
+  // recordAction, undo and redo, synchronously (not state), so a check that runs a moment after a change names it.
+  var lastActionRef = useRef(null);
   var modalBookRef = useRef(modalBook); // v4.21.0.g - Ref to check modal state in keyboard handler
   // v7.8.0-alpha.4 (UNDO-MODEL.md) - dialog undo fence: stack depths at dialog open / ◀▶ nav.
   // While the dialog is open, undo/redo reach only actions from this book-viewing session.
@@ -1687,9 +1691,10 @@ function ReaderWrangler() {
   var [reportState, setReportState] = useState(null);
   // Copy the diagnostics (from the click — the clipboard needs it) and show the window. A copy that finishes after
   // the window was closed leaves it closed.
-  var copyForReport = () => {
+  // 7.31.0 - `where` names the button for the log (the error bar's Report this problem); a click event or nothing: Help
+  var copyForReport = (where) => {
     setReportState('copying');
-    RWReport.copyDiagnostics({ headerLines: DIAGNOSTICS_HEADER, where: 'Help → Report a problem…' }).
+    RWReport.copyDiagnostics({ headerLines: DIAGNOSTICS_HEADER, where: typeof where === 'string' ? where : 'Help → Report a problem…' }).
     then((ok) => setReportState((s) => s === null ? null : ok ? 'copied' : 'refused'));
   };
   var toastHistoryBtnRef = useRef(null); // v7.18.0-alpha.40 - anchor for the toast-history <Popover>
@@ -3250,6 +3255,11 @@ function ReaderWrangler() {
   useEffect(() => {
     if (window.rwLog) window.rwLog.setToaster((text, o) => showToast(text, o.x, o.y,
     { level: o.level === 'error' || o.level === 'critical' ? 'error' : o.level === 'warning' ? 'warning' : 'info', log: !o.hint }));
+    // 7.31.0 (TODO 20261115-1239) - the red error bar's report button: the same as Help → Report a problem… (copy
+    // the diagnostics in this click, then the window), in the helper's words — one copy (reportProblem.js)
+    if (window.rwLog && window.rwLog.setReportButton) {
+      window.rwLog.setReportButton({ label: RWReport.TEXT.reportButton, onClick: () => copyForReport('the error banner') });
+    }
   }, []);
 
   // v6.3.0 - Run integrity check, save results, fire goatcounter, return result.
@@ -5224,6 +5234,48 @@ function ReaderWrangler() {
     }
   }, [folders, blankImageBooks, dataSource, lastSyncTime, hiddenInstances, tagRegistry, savedSearches, bookLists]);
 
+  // 7.31.0 (TODO 20261115-1239 "A book left in no folder is caught the moment it happens…"; Ron, 2026-11-16) - THE
+  // check at every save: a book not in the Trash that no folder holds goes to the Inbox (integrity.js
+  // fileHomelessBooks — the load-time check's own rule, Law 22), is saved there (the guarded blob save above), and
+  // is reported as an error naming the last action and the books (INTEG-08) — on the red bar for EVERY user,
+  // whatever the error-banner switch says. Where: every save starts from one of these two states — the
+  // organization's (the blob save above runs on each change to `folders`) and the books' (each
+  // saveBooksToIndexedDB goes with its setBooks) — so a change to either is checked; a change to anything else
+  // (tags, Searches, Book Lists, the view) isn't, and costs nothing. When: a moment after the change
+  // (setTimeout 0), on the LATEST state — the app renders each setState by itself outside a click
+  // (ReactDOM.render), so one operation's setBooks and setFolders can land one at a time (a book back from the
+  // Trash a render before its folder takes it), and its undo step just after; the check must see the finished
+  // operation. Not while an Import or Restore runs (it runs the whole integrity check itself — INTEG-04 / 06),
+  // nor before the load has finished (the blob save's gate). One pass over the folders and one over the books.
+  var noFolderCheckRef = useRef({ books: null, folders: null, timer: null });
+  var catchBooksInNoFolder = () => {
+    var c = noFolderCheckRef.current;
+    c.timer = null;
+    if (!orgLoadedRef.current || dataOpInProgressRef.current) return;
+    if (c.books === books && c.folders === folders) return;
+    var filed = fileHomelessBooks(books, folders);
+    c.books = books;
+    c.folders = filed.folders; // the repaired list, so the save it causes isn't checked again
+    if (filed.homeless.length === 0) return;
+    setFolders(filed.folders);
+    var ids = filed.homeless.map((b) => b.id);
+    var last = lastActionRef.current;
+    var one = ids.length === 1; // "'Dune' was … it's" / "3 books were … they're" (Ron's words, 2026-11-16)
+    rwLog.log('error', 'INTEG-08',
+    `${bookCountLabel(ids)} ${one ? 'was' : 'were'} in no folder — ${one ? "it's" : "they're"} in the Inbox now. (That shouldn't happen; it's in the log.)`,
+    { lastAction: last ? last.label : 'no action recorded',
+      secondsSinceIt: last ? Math.round((Date.now() - last.at) / 1000) : null,
+      books: filed.homeless.map((b) => ({ id: b.id, title: b.title })) },
+    { banner: 'always' });
+  };
+  var catchBooksInNoFolderRef = useRef(catchBooksInNoFolder);
+  catchBooksInNoFolderRef.current = catchBooksInNoFolder; // the timer runs the latest render's (its books, folders)
+  useEffect(() => {
+    var c = noFolderCheckRef.current;
+    if (!orgLoadedRef.current || c.timer || c.books === books && c.folders === folders) return;
+    c.timer = setTimeout(() => catchBooksInNoFolderRef.current(), 0);
+  }, [books, folders]);
+
   // v6.0.0 Phase 2 - Debounced device-state push to relay for cross-device sync.
   // v6.12.0-alpha.58 - Debounce raised 15s → 60s AND flush-on-leave (blur / tab hidden / pagehide).
   // A 15s timer fired on every natural organizing pause → ~500 KV writes in one 2.5h session (the
@@ -5628,6 +5680,18 @@ function ReaderWrangler() {
     window.folders = folders;
     window.setFolders = setFolders;
   }, [folders]);
+
+  // 7.31.0 - TEST HOOK, on a local server only (never on readerwrangler.com): takes books out of every folder,
+  // leaving them in no folder as a broken action would — the known causes are fixed (7.30.0), so this is how
+  // test/ui/test_no_folder.py proves the check at every save catches the next one (TODO 20261115-1239).
+  useEffect(() => {
+    if (!isLocalServer()) return;
+    window._rwTestLeaveInNoFolder = (ids) => {
+      var gone = new Set(ids);
+      setFolders((prev) => prev.map((f) => (f.bookIds || []).some((id) => gone.has(id)) ?
+      { ...f, bookIds: f.bookIds.filter((id) => !gone.has(id)) } : f));
+    };
+  }, []);
 
   // v7.19.0-alpha.3 (Ron) - "where you last clicked": the element of your last mousedown or keyboard focus
   // (Tab). Ctrl+A in a window acts on the AREA around it (see the dialogUp() Ctrl+A branch). Capture phase, so a
@@ -7869,6 +7933,7 @@ function ReaderWrangler() {
 
   var recordAction = (action) => {
     var labeled = { ...action, label: actionLabel(action), timestamp: Date.now(), seq: ++undoSeqRef.current }; // v7.19.0 - seq (outside the updater)
+    lastActionRef.current = { label: labeled.label, at: labeled.timestamp }; // 7.31.0
     setUndoStack((prev) => {
       var newStack = [...prev, labeled];
       if (newStack.length > MAX_UNDO) newStack.shift();
@@ -8832,6 +8897,7 @@ function ReaderWrangler() {
       return;
     }
     var action = currentStack[currentStack.length - 1];
+    lastActionRef.current = { label: `Undo: ${actionLabel(action)}`, at: Date.now() }; // 7.31.0 - before it runs
     executeUndo(action);
     setUndoStack((prev) => prev.slice(0, -1));
     setRedoStack((prev) => [...prev, action]);
@@ -8857,6 +8923,7 @@ function ReaderWrangler() {
       return;
     }
     var action = currentStack[currentStack.length - 1];
+    lastActionRef.current = { label: `Redo: ${actionLabel(action)}`, at: Date.now() }; // 7.31.0 - before it runs
     executeRedo(action);
     setRedoStack((prev) => prev.slice(0, -1));
     setUndoStack((prev) => [...prev, action]);

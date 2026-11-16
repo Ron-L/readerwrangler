@@ -35,6 +35,13 @@ const settings = Object.freeze({
     oldLevelKey: 'readerwrangler-log-level',              // the OLD remembered ?log= level (before 2026-11-09) — read once, then removed
     // The two switches (LOGGING.md §5 step 5.1 — Ron, 2026-11-09): remembered in this browser as 'on'; absent = off.
     switchKeys: Object.freeze({ errorBanner: 'readerwrangler-log-banner', logDetail: 'readerwrangler-log-detail' }),
+    // 7.31.0 (Ron, 2026-11-16; TODO 20261115-1239) - THE one place contributor mode meets the switches: a contributor's
+    // error banner is ON until they choose (the Diagnostics window, ?errorBanner=, rwLog.setSwitch — a choice, on or off,
+    // is remembered and wins). isContributor() is readerwrangler.html's, defined AFTER this file and the logger load, so
+    // the kit asks each time, not once; a page without it (the reset page) — off. Extra detail is never turned on by it.
+    switchDefaults: Object.freeze({
+        errorBanner: () => typeof isContributor === 'function' && isContributor(),   // eslint-disable-line no-undef
+    }),
     // What the cleaner takes out of everything kept or shown: Channel IDs → their short form; the Cloud Sync passphrase.
     idPattern: /\b([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
     shortId: shortChannelId,

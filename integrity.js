@@ -64,21 +64,14 @@ const checkDataIntegrity = (books, folders) => {
 
     // ── Check 3: Homeless books ───────────────────────────────────────────────
     // Non-deleted books with no folder membership (design invariant: always in ≥1 folder)
-    const referencedIds = new Set(correctedFolders.flatMap(f => f.bookIds));
-    const homeless = [...activeBookMap.values()].filter(b => !referencedIds.has(b.id));
-    if (homeless.length > 0) {
-        const inboxIdx = correctedFolders.findIndex(f => f.id === '__inbox__');
-        if (inboxIdx !== -1) {
-            const homelessIds = homeless.map(b => b.id);
-            correctedFolders[inboxIdx] = {
-                ...correctedFolders[inboxIdx],
-                bookIds: [...homelessIds, ...correctedFolders[inboxIdx].bookIds]
-            };
-        }
+    // 7.31.0 - the rule is fileHomelessBooks (below), shared with the check at every save (readerwrangler.js)
+    const filed = fileHomelessBooks(books, correctedFolders);
+    if (filed.homeless.length > 0) {
+        correctedFolders = filed.folders;
         autoFixed.push({
             type: 'homeless',
-            description: `${homeless.length} book${homeless.length !== 1 ? 's' : ''} with no folder — placed in Inbox`,
-            books: homeless.map(b => ({ id: b.id, title: b.title, author: b.author || '' }))
+            description: `${filed.homeless.length} book${filed.homeless.length !== 1 ? 's' : ''} with no folder — placed in Inbox`,
+            books: filed.homeless
         });
     }
 
@@ -99,6 +92,26 @@ const checkDataIntegrity = (books, folders) => {
     return { correctedFolders, autoFixed, needsReview, checkedAt: Date.now() };
 };
 
+// 7.31.0 (TODO 20261115-1239 "A book left in no folder is caught the moment it happens…"; Ron, 2026-11-16) - THE rule for
+// books in no folder: every book not in the Trash that no folder holds goes to the FRONT of the Inbox. One function, used
+// by the load-time check above (Check 3) and by the check at every save (readerwrangler.js — Law 22). One pass over the
+// folders and one over the books. Returns { folders, homeless: [{ id, title, author }] }; with none in no folder, the SAME
+// folder list (nothing copied, nothing to save). The folders given are never changed. Without an Inbox, the books are
+// still reported and the folders stay as they are. Tests: test/integrity.test.js (HOMELESS-).
+const fileHomelessBooks = (books, folders) => {
+    const filed = new Set();
+    for (const f of folders) for (const id of (f.bookIds || [])) filed.add(id);
+    const active = new Map(books.filter(b => !b.isDeleted).map(b => [b.id, b]));   // one entry per id, as Check 1 sees them
+    const homeless = [...active.values()].filter(b => !filed.has(b.id))
+        .map(b => ({ id: b.id, title: b.title, author: b.author || '' }));
+    if (homeless.length === 0) return { folders, homeless };
+    const ids = homeless.map(b => b.id);
+    return {
+        folders: folders.map(f => (f.id === '__inbox__' ? { ...f, bookIds: [...ids, ...(f.bookIds || [])] } : f)),
+        homeless
+    };
+};
+
 // Persist integrity results to localStorage (replaces previous results entirely)
 const saveIntegrityResults = ({ autoFixed, needsReview, checkedAt }) => {
     try {
@@ -116,3 +129,6 @@ const loadIntegrityResults = () => {
     const saved = readSaved(INTEGRITY_KEY, null, 'object');
     return saved && Array.isArray(saved.autoFixed) && Array.isArray(saved.needsReview) ? saved : null;
 };
+
+// Node only (the function tests, test/integrity.test.js) — in the page these are plain script names
+if (typeof module !== 'undefined' && module.exports) module.exports = { checkDataIntegrity, fileHomelessBooks };
