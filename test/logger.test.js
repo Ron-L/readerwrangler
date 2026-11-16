@@ -558,4 +558,101 @@ test('LOG-044', 'the clipboard is written in ONE place (logkit/logger.js copyTex
     assert.deepStrictEqual(found, []);
 });
 
+// ---- 7.31.0 (TODO 20261115-1239 "A book left in no folder is caught the moment it happens…"; Ron, 2026-11-16) ----
+// Two GENERAL options for the kit (the host's specifics stay in its settings): a message can ask for the banner whatever
+// the switch says ({ banner: 'always' }), and the banner shows the page's report button when the page gave one
+// (setReportButton). And a switch's default can come from the host (switchDefaults) — ReaderWrangler's: contributor mode
+// turns the error banner on — while a choice made in the Diagnostics window (on OR off) still wins.
+test('LOG-045', "{ banner: 'always' }: an error raises the banner whatever the switch says — only an error asks that way", () => {
+    const w = alertWorld();
+    w.log.log('error', 'INTEG-06', 'plain');
+    assert.deepStrictEqual(w.alerts, [], 'a plain error with the switch off: no banner (as before)');
+    w.log.log('error', 'INTEG-06', 'asked for', null, { banner: 'always' });
+    assert.deepStrictEqual(w.alerts, [['banner', 'INTEG-06']], 'asked for: the banner, the switch off');
+    w.log.log('warning', 'PREF-02', 'a warning', null, { banner: 'always' });
+    w.log.log('info', 'BOOT', 'an info line', null, { banner: 'always' });
+    assert.strictEqual(w.alerts.length, 1, 'only an error raises the banner');
+    w.log.log('error', 'INTEG-06', 'not the word', null, { banner: true });
+    assert.strictEqual(w.alerts.length, 1, "only banner: 'always' asks");
+    assert.deepStrictEqual(w.log.switches(), { errorBanner: false, logDetail: false }, 'the switch itself is untouched');
+    w.log.log('critical', 'STORE-02', 'a critical', null, { banner: 'always' });
+    assert.deepStrictEqual(w.alerts[1], ['critical', 'STORE-02'], 'a critical message still shows its own box');
+    assert.ok(w.log.entries().some(e => e.text === 'asked for'), 'and the message is kept like any other');
+});
+
+test('LOG-046', 'the banner\'s buttons: Copy, the page\'s report button when it gave one, Dismiss — "Turn off this banner" only while the switch is on', () => {
+    const w = alertWorld();
+    const ids = () => w.log.bannerButtons().map(b => b.id);
+    assert.deepStrictEqual(ids(), ['copy', 'dismiss'], "switch off (a banner raised by banner: 'always'): no turn-off link — it isn't the switch's");
+    w.log.setSwitch('errorBanner', true);
+    assert.deepStrictEqual(ids(), ['copy', 'dismiss', 'turnOff']);
+    let opened = 0;
+    w.log.setReportButton({ label: 'Report this problem', onClick: () => { opened++; } });
+    const bs = w.log.bannerButtons();
+    assert.deepStrictEqual(bs.map(b => b.id), ['copy', 'report', 'dismiss', 'turnOff']);
+    const report = bs.find(b => b.id === 'report');
+    assert.strictEqual(report.label, 'Report this problem', "the page's own words");
+    report.onClick();
+    assert.strictEqual(opened, 1, "the page's own action");
+    assert.deepStrictEqual(bs.filter(b => b.id !== 'report').map(b => b.label), ['Copy', 'Dismiss', 'Turn off this banner'],
+        "the kit's words for its own buttons");
+    w.log.setReportButton({ label: 'Report', onClick: 'not a function' });
+    assert.ok(!ids().includes('report'), 'no action: no button');
+    w.log.setReportButton({ label: 'Report this problem', onClick: () => {} });
+    w.log.setReportButton({ label: '', onClick: () => {} });
+    assert.ok(!ids().includes('report'), 'no words: no button');
+    w.log.setReportButton({ label: 'Report this problem', onClick: () => {} });
+    w.log.setReportButton(null);
+    assert.deepStrictEqual(ids(), ['copy', 'dismiss', 'turnOff'], 'null takes it away again');
+});
+
+test('LOG-047', 'a switch\'s default comes from the host (switchDefaults), asked each time — a choice made, on or off, wins and is remembered', () => {
+    let host = true;
+    const w = alertWorld({ extra: { switchDefaults: { errorBanner: () => host } } });
+    assert.deepStrictEqual(w.log.switches(), { errorBanner: true, logDetail: false }, 'nothing chosen: the default');
+    w.log.log('error', 'INTEG-06', 'x');
+    assert.deepStrictEqual(w.alerts, [['banner', 'INTEG-06']], 'the default raises the banner');
+    host = false;
+    assert.strictEqual(w.log.switches().errorBanner, false, 'asked each time (a page may know its answer only after the logger loads)');
+    host = true;
+    w.log.setSwitch('errorBanner', false);
+    assert.strictEqual(w.log.switches().errorBanner, false, 'turned off: off, whatever the default');
+    assert.strictEqual(w.store.get('readerwrangler-log-banner'), 'off', 'an off is remembered as a choice');
+    w.log.log('error', 'INTEG-06', 'y');
+    assert.strictEqual(w.alerts.length, 1, 'no banner once turned off');
+    const again = alertWorld({ storage: { getItem: k => w.store.get(k) ?? null, setItem: () => {} },
+        extra: { switchDefaults: { errorBanner: () => true } } });
+    assert.strictEqual(again.log.switches().errorBanner, false, 'a new page keeps the choice over the default');
+    const on = alertWorld({ extra: { switchDefaults: { errorBanner: () => false } } });
+    on.log.setSwitch('errorBanner', true);
+    assert.strictEqual(on.log.switches().errorBanner, true, 'turned on: on, whatever the default');
+    assert.strictEqual(alertWorld({ extra: { switchDefaults: { errorBanner: () => { throw new Error('no'); } } } }).log.switches().errorBanner,
+        false, 'a default that fails: off');
+    const detail = alertWorld({ extra: { switchDefaults: { logDetail: true } } });
+    assert.deepStrictEqual(detail.log.switches(), { errorBanner: false, logDetail: true }, 'a plain true or false works too');
+    detail.log.log('debug', 'STORE', 'detail');
+    assert.ok(detail.log.entries().some(e => e.level === 'debug'), 'and acts like the switch itself');
+    assert.ok(detail.log.diagnosticsText([]).includes('Switches: error banner off, extra detail on'), 'the report says what applies');
+    assert.strictEqual(alertWorld().log.switches().errorBanner, false, 'no default given: off, as before');
+});
+
+test('LOG-048', 'ReaderWrangler: contributor mode turns the error banner on by default (logkit-settings.js) — a contributor\'s own choice still wins', () => {
+    const had = Object.prototype.hasOwnProperty.call(global, 'isContributor'), saved = global.isContributor;
+    try {
+        global.isContributor = () => true;          // readerwrangler.html's answer (defined after the logger loads)
+        const w = alertWorld();
+        assert.deepStrictEqual(w.log.switches(), { errorBanner: true, logDetail: false }, 'a contributor, never touched: the banner on (not extra detail)');
+        w.log.log('error', 'INTEG-06', 'an ordinary error');
+        assert.deepStrictEqual(w.alerts, [['banner', 'INTEG-06']]);
+        w.log.setSwitch('errorBanner', false);
+        assert.strictEqual(w.log.switches().errorBanner, false, 'a contributor who turned it off: off');
+        global.isContributor = () => false;
+        assert.strictEqual(alertWorld().log.switches().errorBanner, false, 'not a contributor: off');
+        delete global.isContributor;
+        assert.strictEqual(alertWorld().log.switches().errorBanner, false, 'a page without contributor mode (the reset page): off');
+    } finally {
+        if (had) global.isContributor = saved; else delete global.isContributor;
+    }
+});
+
 done();

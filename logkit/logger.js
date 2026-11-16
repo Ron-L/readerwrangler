@@ -1,7 +1,7 @@
 // logkit/logger.js — a logging module for a web page (written for ReaderWrangler 7.26.0, made its own module in 7.28.0;
 // design: docs/design/LOGGING.md, the README beside this file — Ron + Claude, 2026-11-05/07/11).
 //
-// One call for every message:   log.log(level, code, text, data, { test, toast, hint, advice })
+// One call for every message:   log.log(level, code, text, data, { test, toast, hint, advice, banner })
 //   level — 'debug' | 'info' | 'warning' | 'error' | 'critical', written at the call, where the message is written
 //   code  — 'IMPORT' (the bare area: a general line) or 'IMPORT-12' (one specific message — required for warning and
 //           above, each used at ONE call: the kit's commit check, check_messages.py beside this file — called by the
@@ -78,28 +78,41 @@ function createLogger(opts = {}) {
     // error raises the banner; logDetail — debug lines are recorded too. Independent (all four combinations make sense);
     // both off for an ordinary user. Set in the Diagnostics window, on the address (?errorBanner= / ?logDetail=) or the
     // console (rwLog.setSwitch), and remembered in this browser.
-    const readSwitch = (name) => { try { return !!storage && storage.getItem(SWITCH_KEYS[name]) === 'on'; } catch (e) { return false; } };
-    const writeSwitch = (name, on) => {
+    // 7.31.0 - A choice is remembered as 'on' OR 'off' (an off used to be remembered as nothing), so a switch nobody has
+    // touched can take the host's default (settings.switchDefaults: true / false, or a function asked each time — a page
+    // may know its answer only after this file loads; ReaderWrangler's: contributor mode turns the banner on), while a
+    // choice made either way wins. No default given: off, as before. One place decides what applies: isOn().
+    const SWITCH_DEFAULTS = opts.switchDefaults || {};
+    const readChoice = (name) => {
         try {
-            if (!storage) return;
-            if (on) storage.setItem(SWITCH_KEYS[name], 'on');
-            else if (storage.removeItem) storage.removeItem(SWITCH_KEYS[name]);
-            else storage.setItem(SWITCH_KEYS[name], '');
-        } catch (e) { /* not remembered: still applies to this page */ }
+            const v = storage ? storage.getItem(SWITCH_KEYS[name]) : null;
+            return v === 'on' ? true : v === 'off' ? false : null;
+        } catch (e) { return null; }
     };
-    const switches = { errorBanner: readSwitch('errorBanner'), logDetail: readSwitch('logDetail') };
+    const writeSwitch = (name, on) => {
+        try { if (storage) storage.setItem(SWITCH_KEYS[name], on ? 'on' : 'off'); } catch (e) { /* not remembered: still applies to this page */ }
+    };
+    const chosen = { errorBanner: readChoice('errorBanner'), logDetail: readChoice('logDetail') };   // true | false | null (never chosen)
+    const isOn = (name) => {
+        if (chosen[name] != null) return chosen[name];
+        const d = SWITCH_DEFAULTS[name];
+        try { return typeof d === 'function' ? !!d() : !!d; } catch (e) { return false; }
+    };
+    const switchesNow = () => ({ errorBanner: isOn('errorBanner'), logDetail: isOn('logDetail') });
     // the old ladder's remembered level becomes the switches once (debug: both on; any other level: the banner)
     try {
         const old = OLD_LEVEL_KEY && storage && storage.getItem(OLD_LEVEL_KEY);
         if (old) {
             if (LOG_LEVELS.includes(old)) {
-                switches.errorBanner = true; writeSwitch('errorBanner', true);
-                if (old === 'debug') { switches.logDetail = true; writeSwitch('logDetail', true); }
+                chosen.errorBanner = true; writeSwitch('errorBanner', true);
+                if (old === 'debug') { chosen.logDetail = true; writeSwitch('logDetail', true); }
             }
             if (storage.removeItem) storage.removeItem(OLD_LEVEL_KEY); else storage.setItem(OLD_LEVEL_KEY, '');
         }
     } catch (e) { /* storage refused: nothing to move */ }
-    const recorded = (level) => rank(level) >= (switches.logDetail ? rank('debug') : keepRank);
+    const recorded = (level) => rank(level) >= (isOn('logDetail') ? rank('debug') : keepRank);
+    // 7.31.0 - The page's report button on the banner (setReportButton): { label, onClick } — null until the page gives one.
+    let reportButton = null;
 
     let entries = (() => {
         try {
@@ -140,8 +153,11 @@ function createLogger(opts = {}) {
                 if (entry.data !== undefined) write.call(con, format(entry), entry.data); else write.call(con, format(entry));
             } catch (e) { /* no console */ }
         }
-        // the alerts: critical for EVERY user; an error raises the banner when that switch is on
-        if (onAlert && (level === 'critical' || (level === 'error' && switches.errorBanner))) {
+        // the alerts: critical for EVERY user; an error raises the banner when that switch is on — or when its call asks for
+        // it whatever the switch says ({ banner: 'always' } — 7.31.0: something every user must see, e.g. ReaderWrangler's
+        // "a book was in no folder")
+        const bannerAlways = !!toastOptions && toastOptions.banner === 'always';
+        if (onAlert && (level === 'critical' || (level === 'error' && (bannerAlways || isOn('errorBanner'))))) {
             try { onAlert(level === 'critical' ? 'critical' : 'banner', entry); } catch (e) { /* drawing must not break logging */ }
         }
         // the user: only when the call says { toast } — a critical message shows its box instead (LOGGING.md §6)
@@ -202,12 +218,22 @@ function createLogger(opts = {}) {
             });
     };
 
-    // One switch on or off, remembered; an unknown name changes nothing.
+    // One switch on or off — a choice, remembered, that outranks the host's default; an unknown name changes nothing.
     const setSwitch = (name, on) => {
         if (!Object.prototype.hasOwnProperty.call(SWITCH_KEYS, name)) return;
-        switches[name] = !!on;
+        chosen[name] = !!on;
         writeSwitch(name, !!on);
     };
+
+    // 7.31.0 - The banner's buttons, in order — decided here, drawn by the page (showBanner, below): Copy; the page's own
+    // report button when it gave one (setReportButton); Dismiss; and "Turn off this banner" only while the switch is on —
+    // a banner raised by { banner: 'always' } with the switch off isn't the switch's to turn off.
+    const bannerButtons = () => [
+        { id: 'copy', label: 'Copy' },
+        ...(reportButton ? [{ id: 'report', label: reportButton.label, onClick: reportButton.onClick }] : []),
+        { id: 'dismiss', label: 'Dismiss' },
+        ...(isOn('errorBanner') ? [{ id: 'turnOff', label: 'Turn off this banner' }] : []),
+    ];
 
     const api = {
         log,
@@ -226,7 +252,7 @@ function createLogger(opts = {}) {
             const browser = typeof navigator !== 'undefined' && navigator.userAgent ? navigator.userAgent : 'unknown';
             const lines = [`${product} diagnostics — ${new Date(now()).toISOString()}`, ...(headerLines || []),
                 `Browser: ${browser}`,
-                `Switches: error banner ${switches.errorBanner ? 'on' : 'off'}, extra detail ${switches.logDetail ? 'on' : 'off'}`,
+                `Switches: error banner ${isOn('errorBanner') ? 'on' : 'off'}, extra detail ${isOn('logDetail') ? 'on' : 'off'}`,
                 `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} kept`, ''];
             for (const e of entries) {
                 lines.push(`${new Date(e.time).toISOString()}  ${format(e)}`);
@@ -234,9 +260,16 @@ function createLogger(opts = {}) {
             }
             return lines.join('\n');
         },
-        switches: () => ({ ...switches }),
+        switches: switchesNow,   // what applies now: each switch's choice, else the host's default
         setSwitch,
         copyText,
+        bannerButtons,
+        // 7.31.0 - The page's report button on the banner: setReportButton({ label, onClick }) — its words and what it does
+        // (the host's own report window). Anything else (null) takes it away.
+        setReportButton: (b) => {
+            reportButton = b && typeof b.label === 'string' && b.label && typeof b.onClick === 'function'
+                ? { label: b.label, onClick: b.onClick } : null;
+        },
         // The app hands over its toast routine: fn(text, { level, x, y, hint }). Until then (or if the app has crashed) a
         // { toast } message still reaches the log and the console.
         setToaster: (fn) => { toaster = typeof fn === 'function' ? fn : null; },
@@ -326,9 +359,12 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     const el = (tag, css, text) => { const n = document.createElement(tag); if (css) n.style.cssText = css; if (text != null) n.textContent = text; return n; };
     const button = (label, css, onClick) => { const b = el('button', css, label); b.type = 'button'; b.addEventListener('click', onClick); return b; };
     const codeOf = (e) => `${e.code}${e.test ? TEST_MARK : ''}`;
+    // 7.31.0 - each shown entry WITH its details on the line below it (as Copy diagnostics has them) — a message's details
+    // (ReaderWrangler's "in no folder": the last action, the books) are what support needs from this copy
+    const details = (e) => { if (e.data === undefined) return []; try { return [`    ${JSON.stringify(e.data)}`]; } catch (x) { return ['    (details not shown)']; } };
     const report = (list) => [
         `${product} diagnostics — build ${buildOf() || 'unknown'} — ${new Date().toISOString()}`,
-        ...list.map(e => `${new Date(e.time).toISOString()}  ${pageLog.format(e)}`),
+        ...list.flatMap(e => [`${new Date(e.time).toISOString()}  ${pageLog.format(e)}`, ...details(e)]),
         '', 'Recent log:', ...pageLog.entries().slice(-50).map(e => `${new Date(e.time).toISOString()}  ${pageLog.format(e)}`)
     ].join('\n');
     // The alerts' copy buttons, through the one copy routine (copyText): the button says what happened — "Copied", or
@@ -349,9 +385,15 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         msg.appendChild(document.createTextNode(` · ${entry.text}`));
         if (shown.banner.length > 1) msg.appendChild(el('em', 'margin-left:8px;opacity:.85', `(+${shown.banner.length - 1} more)`));
         const close = () => { shown.banner = []; bar.remove(); };
-        const copyBtn = button('Copy', BANNER_BTN, () => copyInto(copyBtn, shown.banner, 'Copy', 'the error banner'));
-        bar.append(msg, copyBtn, button('Dismiss', BANNER_BTN, close),
-            button('Turn off this banner', BANNER_LINK, () => { pageLog.setSwitch('errorBanner', false); close(); }));
+        // 7.31.0 - which buttons, and their words, come from the logger (bannerButtons): the page's report button when it
+        // gave one; "Turn off this banner" only while the switch is on
+        const draw = {
+            copy: (b) => { const n = button(b.label, BANNER_BTN, () => copyInto(n, shown.banner, b.label, 'the error banner')); return n; },
+            report: (b) => button(b.label, BANNER_BTN, () => { try { b.onClick(); } catch (e) { /* the page's problem */ } }),
+            dismiss: (b) => button(b.label, BANNER_BTN, close),
+            turnOff: (b) => button(b.label, BANNER_LINK, () => { pageLog.setSwitch('errorBanner', false); close(); }),
+        };
+        bar.append(msg, ...pageLog.bannerButtons().map(b => draw[b.id](b)));
         debugger; // eslint-disable-line no-debugger -- stops here only when DevTools is open (TODO decision 3)
     });
     const showCritical = (entry) => whenBody(() => {
