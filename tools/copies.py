@@ -11,7 +11,8 @@ folder. One agent builds in one copy while Claude reviews and tests in another, 
         only if tier 1 passes
     py tools/copies.py remove <name> [--force]
         refuse if the copy has anything uncommitted, or its branch has commits that exist nowhere else (no other branch,
-        tag or remote) — --force removes it anyway; the BRANCH IS ALWAYS KEPT. Removes the links FIRST, then the copy.
+        tag or remote) — --force removes it anyway; the BRANCH IS ALWAYS KEPT. Removes the links FIRST, then the copy —
+        and refuses, even with --force, while any folder in the copy can't be looked into (a link there would be missed)
     py tools/copies.py list            (also what a double-click shows)
         each copy: its branch, its commit, anything uncommitted, and its test stamp (run_tests.py --stamp there)
 
@@ -130,20 +131,33 @@ def remove_link(path):
         os.unlink(path)
 
 
+class Unscannable(Exception):
+    """Folders find_links couldn't look into — a link inside one would be missed (2026-11-16)."""
+
+    def __init__(self, folders):
+        self.folders = folders
+        super().__init__("couldn't look into: " + "; ".join(f"{d} ({why})" for d, why in folders))
+
+
 def find_links(top):
-    """Every link anywhere inside `top` (not followed into), outside .git."""
-    found, stack = [], [top]
+    """Every link anywhere inside `top` (not followed into), outside .git. A folder it can't look into isn't skipped: a
+    link in it would be missed, and `git worktree remove` would delete through it — so it raises Unscannable, naming
+    every such folder (after looking through all the others)."""
+    found, stack, unread = [], [top], []
     while stack:
         d = stack.pop()
         try:
             entries = list(os.scandir(d))
-        except OSError:
+        except OSError as err:
+            unread.append((d, err.strerror or type(err).__name__))
             continue
         for e in entries:
             if is_link(e.path):
                 found.append(e.path)
             elif e.is_dir(follow_symlinks=False) and e.name != ".git":
                 stack.append(e.path)
+    if unread:
+        raise Unscannable(unread)
     return found
 
 
@@ -262,8 +276,16 @@ def cmd_remove(a, repo):
             raise SystemExit(f"NOT REMOVED — {where} has {n} commit(s) that exist nowhere else (no other branch, tag "
                              "or remote). Merge them first — or --force: the copy goes, the branch stays.")
     held = {rel: sorted(os.listdir(os.path.join(main, rel))) for rel in LINKS if os.path.isdir(os.path.join(main, rel))}
-    # The links FIRST — `git worktree remove` would delete the main folder's files through them (see the top).
-    for link in sorted(find_links(dest), key=len, reverse=True):
+    # The links FIRST — `git worktree remove` would delete the main folder's files through them (see the top). Every
+    # folder must be looked into before anything is removed: one that can't be might hold a link (even --force stops).
+    try:
+        links = find_links(dest)
+    except Unscannable as e:
+        raise SystemExit(f"NOT REMOVED — nothing was touched: these folders in the copy can't be looked into, so a link "
+                         f"inside one would be missed and git's remove would delete what it points at:\n  "
+                         + "\n  ".join(f"{d} ({why})" for d, why in e.folders)
+                         + "\nMake them readable again (or remove each link in them by hand), then run this again.")
+    for link in sorted(links, key=len, reverse=True):
         remove_link(link)
         if os.path.lexists(link):
             raise SystemExit(f"couldn't remove the link {link} — stopped before removing the copy")

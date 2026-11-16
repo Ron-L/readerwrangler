@@ -1,8 +1,8 @@
 # Screen test: File → Import from Relay brings a fetch's new books in — filed in the Inbox, with no false "repair".
 # tags: import, sync, relay, integrity, tier 2
 # covers: readerwrangler.js, relay-client.js, integrity.js, relay/relay-worker.js
-# Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python). Starts its own LOCAL relay (rw.LocalRelay)
-# with a throwaway test channel — never the dev or production relay.
+# Run: py tools/run_tests.py --tier 2     (or directly with the venv's Python). Starts its own LOCAL relay
+# (App(relay=True) — tools/local_relay.py) with a throwaway test channel — never the dev or production relay.
 #
 # IMPORT-004 is TODO "Import files new books once, before the integrity check…" part 1 (LOGGING.md finding F5): today
 # Import's library load runs the integrity check while the new books are in no folder yet, so it "repairs" them into the

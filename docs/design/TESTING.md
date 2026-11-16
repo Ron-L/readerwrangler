@@ -90,6 +90,15 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   Output: one line per file as it finishes, with its time; a failing file's details together, never interleaved; the
   same `Tests: N file(s) passed, M failed` line at the end. Before the screen tests start, the runner builds `dist/`
   once — otherwise each test's own serve.py would rebuild the same stale files at the same time.
+- **One file split across processes — `shards: N`** (2026-11-16): `test/ui/test_cells.py` alone set tier 2's time
+  (~5½ min, the 24 other files finishing alongside it). A file whose header says `shards: N` answers `--list-cells` with
+  its cell IDs (one a line, nothing started) and runs only the cells named in `RW_CELLS`; the runner runs it as N
+  processes at once — every Nth cell each — **each holding its own test slot**. It is still one file: passed only if
+  every shard passed, one line with the counts summed (`… — 3 shards`, and each shard's time), a failing shard's lines
+  together under it with its `RW_CELLS=…` to rerun just that shard, one entry in the record (each shard's cells, time and
+  result inside it) — so `--stamp` judges it as one file. A file that can't list its cells fails loud; more shards than
+  cells → one process per cell; `RW_CELLS` already set (a narrow run) → one process, as asked. A sharded file's cells
+  must not depend on each other (test_cells: each cell restores the fixture). Tests: `RUN-054`–`056`.
   Isolation (checked 2026-11-16): each screen-test file has its own serve.py on its own free port — and checks the port
   is served by ITS server (by process id), trying another if a parallel file's server took it in between — its own
   throwaway browser profile, its own local relay (free ports, a throwaway store) when it uses one, and files only in
@@ -102,21 +111,35 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
 - **Results stamped with their commit** (2026-11-16): every run except the commit hook's `--changed` (and `--list`)
   leaves a record — the commit it ran on (and again at the end: a commit made during the run is caught), what was
   uncommitted before and after (changed tracked files, and untracked files git doesn't ignore), what ran (tier, `--id`,
-  `--tag`, `--release`, jobs), each file's result, counts and time, start and end, the overall result. Kept OUTSIDE the
+  `--tag`, `--release`, jobs), **the environment variables that change a run, each with its value** (`RUN_ENV` in the
+  runner — found by searching the tests, their helpers and the runner for `os.environ` / `process.env`; a new one is
+  added there), each file's result, counts and time, start and end, the overall result. Kept OUTSIDE the
   working tree, per working copy: `git rev-parse --git-path rw-test-results` (`.git/rw-test-results` here; a git
   worktree gets its own, under `.git/worktrees/<name>/`). The newest 300 are kept.
   `py tools/run_tests.py --stamp [<commit>]` (default HEAD) runs nothing; it prints **PROVEN** (exit 0) only if tier 1
   AND tier 2 each ran in full on exactly that commit (`--tier 1` and `--tier 2`, or `--tier all`; a run narrowed by
   `--id` / `--tag` doesn't count), every file passed, nothing skipped, nothing uncommitted — the LATEST run of each tier
   counts, so a later failure isn't outvoted by an earlier pass. Otherwise **NOT PROVEN**, with why (exit 1).
-  Tests: `RUN-035`–`051`.
+  **A narrowing variable counts like `--id`** (2026-11-16: a run with `RW_CELLS` set ran a few cells and the stamp said
+  PROVEN): `RW_CELLS` (test_cells.py runs only the cells it names) makes the whole run narrowed — it counts for neither
+  tier, and NOT PROVEN names it with its value; the run itself says so at its end. The others are recorded and shown on
+  the stamp's line but don't narrow — every test still runs: `RW_HEADED` (the browser shown, slowed), `RW_BROWSER`
+  (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's limit), `RELAY_URL` (tier 3's
+  relay; tier 3 isn't part of the stamp). Records written before this have no variables and are read as full runs.
+  Tests: `RUN-035`–`051`, `058`, `059`.
 - **Tier 3 brings its own relay** (`tools/local_relay.py`, 2026-11-12): with no `--relay-url`, the runner starts
   relay-worker.js in wrangler's local emulator (`wrangler dev --env dev --local`) on a free port with an empty,
   throwaway store, waits for its "Ready on" line (60 s, else it fails with the end of wrangler's output), runs the relay
   files against it, then stops every process it started **by exact id** (the whole tree) and **checks**: each one gone,
   both its ports no longer listening. Anything left fails the run, named by id — and is left running, since the runner
   can't show it started it. `--relay-url <address>` runs against a relay you started instead (no start, no stop). Never
-  the dev or production relay by default.
+  the dev or production relay by default. **The screen tests' relay is the same one** (`App(relay=True)`, 2026-11-16 —
+  Law 22; rw.py's own copy, which stopped its tree with `taskkill /T`, is gone). **"Ready" is proven against its own
+  process:** its ready line must name its port and only its own processes may listen there (by id) — the old screen-test
+  relay took any answer on the port, so with files in parallel another run's relay could answer for it. Another process
+  on its port that started BEFORE it (proven not its own) is left alone and the relay starts again on new ports, as it
+  does when wrangler stops before it's ready (what a taken port does to wrangler); any other fails loud, named by id,
+  left running, never retried (it may be one of its own that escaped). Tests: `RUN-016`–`021`, `052`, `053`, `057`.
 - **`--release` — skipped is not passed** (2026-11-12; 7.28.0: "31 passed, 2 skipped" read as a pass): with it, any
   file that didn't run fails the run, each named with why. One function decides a skip (`skip_reason` in the runner);
   nothing skips today — tier 3 brings its own relay, and a missing tool fails loud — so this guards any skip added later.
@@ -221,7 +244,8 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
      run today — the in-browser compile; the precompile cuts it;
   4. the first screen tests — from anomaly reporting and the Delete key fix (step 4), each starting from a failing test.
 - **Built 2026-11-05 (branch `feature/logging`):** **Cloud Sync in screen tests** — `App(relay=True)` starts a **local
-  relay** (`rw.LocalRelay`: Cloudflare's own emulator, `wrangler dev --local`, running relay-worker.js with an empty
+  relay** (since 2026-11-16 the runner's own `tools/local_relay.py` — one launcher, Law 22; it was `rw.LocalRelay`:
+  Cloudflare's own emulator, `wrangler dev --local`, running relay-worker.js with an empty
   store made for the run and deleted after; the test page's address allowed for that run only, wrangler.toml untouched;
   stopped by its exact process tree), points the app at it and gives the fresh profile a made-up test channel (planted at
   run time — never in a data file). `app.upload_fetch(items)` sends books as the library fetcher does;

@@ -1,6 +1,6 @@
 # Tests for tools/run_tests.py — the one test runner (docs/design/TESTING.md §4).
 # tags: test-runner, tier 1
-# covers: tools/run_tests.py, tools/local_relay.py, test/harness.js
+# covers: tools/run_tests.py, tools/local_relay.py, test/harness.js, test/ui/rw.py
 # Run: python test/test_run_tests.py
 #
 # Sample test files are written to a temporary folder; each row checks one thing the runner must do.
@@ -153,14 +153,27 @@ def wait_served():
         except OSError:
             time.sleep(0.1)
     sys.exit("the stand-in's server never came up")
-if mode == "serve":
+if mode in ("serve", "serve-strict"):
     note("server")
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200); self.end_headers(); self.wfile.write(b"stand-in relay")
         def log_message(self, *a):
             pass
-    http.server.HTTPServer(("127.0.0.1", port), H).serve_forever()
+    class Strict(http.server.HTTPServer):
+        allow_reuse_address = False   # a taken port is refused, as wrangler's runtime refuses it
+    srv = (Strict if mode == "serve-strict" else http.server.HTTPServer)(("127.0.0.1", port), H)
+    open(pids + ".bound-" + str(os.getpid()), "w").close()
+    srv.serve_forever()
+elif mode == "strict":                # like wrangler on a taken port: its server can't start, so it stops, never ready
+    note("relay")
+    srv = child("serve-strict")
+    while not os.path.exists(pids + ".bound-" + str(srv.pid)):
+        if srv.poll() is not None:
+            sys.exit("the stand-in's server couldn't take the port — stopping, as wrangler does")
+        time.sleep(0.05)
+    print(f"[wrangler:info] Ready on http://127.0.0.1:{port}", flush=True)
+    time.sleep(600)
 elif mode == "middle":
     note("middle")
     child("serve")
@@ -238,8 +251,10 @@ else:
     now = running()
     row("RUN-019", "a child that escaped the tree and still serves the port fails the run, named by its id — and the "
         "runner leaves it running (not provably its own)",
-        code == 1 and escaped is not None and f"process {escaped}" in out and "still in use" in out
-        and escaped in now,
+        code == 1 and escaped is not None and f"process {escaped}" in out and "left running" in out
+        and escaped in now       # (since 2026-11-16 caught at the start — not alone on its port — rather than at the stop)
+        and open(os.path.join(d, "pids-orphan.txt")).read().count("relay ") == 1,   # …and never tried again
+
         f"exit {code}, started {started}: {out[-600:]}")
     for pid in started.values():      # the test's own cleanup — by exact id, processes this test started
         if pid in now:
@@ -276,6 +291,79 @@ else:
     a = lr.WRANGLER_ARGS
     row("RUN-021", "the real relay is wrangler's LOCAL emulator on 127.0.0.1 — never the dev or production relay",
         "--local" in a and a[a.index("--ip") + 1] == "127.0.0.1" and "--remote" not in a and "{port}" in a, str(a))
+
+    # --- "Ready" is proven against the relay's OWN process (2026-11-16, TODO "Faster sprints"): the free port is chosen,
+    # then taken a moment later — and with screen tests in parallel, another run's relay can take it in between. The
+    # screen tests' old relay took ANY answer on the port as "up" (the same race as the app server's — rw.py
+    # App._server_is_ours). Here this test squats the first port the relay is given (this process listens there).
+    def all_started(pids_file):
+        """Every id the stand-in wrote — all tries — as [(role, id)]."""
+        return ([tuple(ln.split()) for ln in open(pids_file).read().splitlines() if ln.strip()]
+                if os.path.exists(pids_file) else [])
+
+    def squatted_relay(mode, name):
+        """Start the stand-in relay in `mode` with its FIRST port already taken by this process; (url or error, its
+        LocalRelay, what served the url, the answer there, what stop() left, every (role, id) it started, the port)."""
+        squat = socket.socket()
+        squat.bind(("127.0.0.1", 0))
+        squat.listen(16)
+        squatted = squat.getsockname()[1]
+        real_free_port, handed = lr.free_port, []
+
+        def squatted_first():
+            handed.append(1)
+            return squatted if len(handed) == 1 else real_free_port()
+        pids = os.path.join(d, f"pids-{name}.txt")
+        url, served, answer, left, relay = None, set(), None, ["(not stopped)"], None
+        lr.free_port = squatted_first
+        try:
+            relay = lr.LocalRelay(command=[sys.executable, standin, mode, "{port}", pids], cwd=d, start_s=20,
+                                  stop_s=1, extra_args=["--var", "ALLOWED_ORIGINS:http://localhost:1"])
+            url = relay.start()
+            served = lr.port_owners(int(url.rsplit(":", 1)[1]))
+            import urllib.request
+            answer = urllib.request.urlopen(url, timeout=5).read()
+        except Exception as e:      # noqa: BLE001 — a refusal (or, before the build, a TypeError): reported in the row
+            url = f"{type(e).__name__}: {e}"
+        finally:
+            lr.free_port = real_free_port
+            if relay is not None:
+                left = relay.stop()
+            still_squatting = os.getpid() in lr.port_owners(squatted)
+            squat.close()
+        return url, relay, served, answer, left, all_started(pids), squatted, still_squatting
+
+    url, relay, served, answer, left, started, squatted, untouched = squatted_relay("ok", "squat")
+    now = running()
+    ours_left = [f"{role} {pid}" for role, pid in started if int(pid) in now]
+    row("RUN-052", "the local relay's ready line isn't taken on trust: it printed 'Ready' on its port while another "
+        "process (here: this test, older than the relay — so proven not one of its own) listened there → not accepted; "
+        "that process left alone; started again on new ports — the address it gives is served by processes it started "
+        "and nothing else; nothing it started is left running",
+        url.startswith("http://127.0.0.1:") and not url.endswith(f":{squatted}") and served and relay is not None
+        and served <= set(relay.ours) and answer == b"stand-in relay" and not left
+        and sum(1 for r, _ in started if r == "relay") == 2 and not ours_left and untouched,
+        f"url {url[:400]}, served by {served}, ours {sorted(relay.ours) if relay else None}, answer {answer!r}, left "
+        f"{left}, started {started}, still running {ours_left}, squatter untouched {untouched}")
+    url, relay2, served, answer, left, started, squatted, _ = squatted_relay("strict", "strict")
+    now = running()
+    ours_left = [f"{role} {pid}" for role, pid in started if int(pid) in now]
+    row("RUN-057", "a relay that stops before it's ready (wrangler on a taken port: 'The Workers runtime failed to start') "
+        "is started again on new ports — the address it gives is served by processes it started and nothing else; "
+        "every try's processes are gone afterwards",
+        url.startswith("http://127.0.0.1:") and not url.endswith(f":{squatted}") and served and relay2 is not None
+        and served <= set(relay2.ours) and answer == b"stand-in relay" and not left
+        and sum(1 for r, _ in started if r == "relay") == 2 and not ours_left,
+        f"url {url[:300]}, served by {served}, ours {sorted(relay2.ours) if relay2 else None}, answer {answer!r}, "
+        f"left {left}, started {started}, still running {ours_left}")
+    rw_src = open(os.path.join(ROOT, "test", "ui", "rw.py"), encoding="utf-8").read()
+    row("RUN-053", "one relay launcher (Law 22): extra arguments reach the relay after its own (the screen tests' "
+        "ALLOWED_ORIGINS), and the screen tests start theirs through tools/local_relay.py — rw.py has no copy of its own "
+        "(no relay class, no taskkill)",
+        relay is not None and getattr(relay, "args", [])[-2:] == ["--var", "ALLOWED_ORIGINS:http://localhost:1"]
+        and "class LocalRelay" not in rw_src and "taskkill" not in rw_src and "local_relay.LocalRelay(" in rw_src,
+        f"args {getattr(relay, 'args', None)}; rw.py has a relay class: {'class LocalRelay' in rw_src}, taskkill: "
+        f"{'taskkill' in rw_src}")
 
     # --- A release run counts "skipped" as failed (TODO "Turn more of our working rules…", item 4; 7.28.0 post-mortem:
     # "31 passed, 2 skipped" read as a pass). Nothing skips today, so the test plants a reason through the runner's one
@@ -387,7 +475,8 @@ done()
     # Made-up records first (the judging alone), then the runner writing and reading real ones.
     A, B = "a" * 40, "b" * 40
 
-    def rec(commit=A, tier="all", files=None, dirty=(), after=None, tags=(), ids=(), ended="2026-11-16T10:00:00"):
+    def rec(commit=A, tier="all", files=None, dirty=(), after=None, tags=(), ids=(), ended="2026-11-16T10:00:00",
+            env=None):
         files = files if files is not None else [
             {"file": "test/x.test.js", "tier": 1, "result": "passed", "counts": "3 passed, 0 failed"},
             {"file": "test/ui/test_y.py", "tier": 2, "result": "passed", "counts": "5 passed, 0 failed"}]
@@ -395,7 +484,7 @@ done()
         return {"commit": commit, "commit_after": after or commit, "uncommitted": {"before": list(dirty), "after": []},
                 "ran": {"tier": tier, "tags": list(tags), "ids": list(ids), "release": False, "jobs": 4},
                 "files": files, "problems": [], "started": "2026-11-16T09:55:00", "ended": ended,
-                "result": "passed" if ok else "failed"}
+                "result": "passed" if ok else "failed", **({"env": env} if env is not None else {})}
 
     def judged(records, commit=A):
         try:
@@ -430,6 +519,17 @@ done()
     sk = [dict(t1[0]), {"file": "test/ui/test_y.py", "tier": 2, "result": "skipped", "why": "no browser"}]
     p, why = judged([rec(files=sk)])
     row("RUN-040", "--stamp: a skipped file → NOT PROVEN, naming it", p is False and "test_y.py" in why, f"{p}: {why}")
+    # A run with RW_CELLS set ran only some cells (2026-11-16): its record looked like a full run and the stamp said
+    # PROVEN. The record notes the variables that change a run; a narrowing one makes it narrowed, like --id / --tag.
+    p, why = judged([rec(env={"RW_CELLS": "CELL-005,CELL-019"})])
+    p2, why2 = judged([rec(env={"RW_HEADED": "1", "RW_BROWSER": "msedge", "RW_TEST_SLOTS": "2"})])
+    p3, why3 = judged([rec(), rec(env={"RW_CELLS": "CELL-005"}, ended="2026-11-16T11:00:00")])
+    row("RUN-058", "--stamp: a run with RW_CELLS set (only some cells ran) doesn't count as its tier's full run → NOT "
+        "PROVEN, naming the variable and its value; a run with only variables that don't narrow (RW_HEADED, RW_BROWSER, "
+        "RW_TEST_SLOTS) is still PROVEN and shows them; a full run on the same commit still counts",
+        p is False and "tier 2" in why and "RW_CELLS=CELL-005,CELL-019" in why
+        and p2 is True and "RW_BROWSER=msedge" in why2 and p3 is True,
+        f"{p}: {why} | {p2}: {why2} | {p3}: {why3}")
 
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     rdir = os.path.join(d, "results")
@@ -486,6 +586,25 @@ done()
     got2 = records_in(rdir)
     row("RUN-042", "the commit hook's --changed runs, and --list, leave no record",
         isinstance(got2, list) and len(got2) == 1, str(got2)[:300])
+    # The record notes every variable that changes a run, with its value (RUN-058 judges them) — and says at once that a
+    # narrowed run proves nothing. One set (RW_CELLS) and one that doesn't narrow (RW_BROWSER); both put back after.
+    edir = os.path.join(d, "env-results")
+    saved_env = {k: os.environ.get(k) for k in ("RW_CELLS", "RW_BROWSER")}
+    os.environ.update({"RW_CELLS": "CELL-005", "RW_BROWSER": "msedge"})
+    try:
+        code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(js_ok)], results=edir)
+    finally:
+        for k, v in saved_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    got3 = records_in(edir)
+    env3 = got3[0].get("env") if isinstance(got3, list) and len(got3) == 1 else None
+    row("RUN-059", "a run's record notes the variables that change a run, with their values (RW_CELLS=CELL-005, "
+        "RW_BROWSER=msedge), and the run says it was narrowed",
+        env3 == {"RW_CELLS": "CELL-005", "RW_BROWSER": "msedge"} and "RW_CELLS=CELL-005" in out,
+        f"exit {code}; env {env3}; {out[-300:]}")
 
     sdir = os.path.join(d, "stamp-results")
     os.makedirs(sdir)
@@ -628,6 +747,98 @@ print("1 passed, 0 failed")
     apart = len(s) == 2 and all("start" in x and "end" in x for x in s) and s[0]["end"] <= s[1]["start"]
     row("RUN-050", "screen-test files each hold a slot: with 1 slot two tier-2 files run one after the other, and the "
         "waiting one says so", code == 0 and apart and "waits for a test slot" in out, f"exit {code}, spans {spans}: {out[-400:]}")
+
+    # --- One file split across processes (2026-11-16, TODO "Faster sprints"): test_cells.py alone set tier 2's time. A
+    # file whose header says `shards: N` lists its cells (--list-cells, running nothing) and runs as N processes, each
+    # with RW_CELLS set to its share and each holding a test slot; the file's result is the sum, its lines together.
+    def shard_file(name, fail_cell=None, n=3, cells=7, lists=True):
+        return write(name, f"""# sample
+# tags: shard-sample, tier 2
+# covers: tools/run_tests.py
+# shards: {n}
+import os, sys, time
+CELLS = ["SHARD-%03d" % i for i in range(1, {cells} + 1)]
+if "--list-cells" in sys.argv:
+    {'print(chr(10).join(CELLS))' if lists else 'print("no list here"); sys.exit(1)'}
+    sys.exit(0)
+only = [x for x in os.environ.get("RW_CELLS", "").split(",") if x]
+mine = [c for c in CELLS if not only or c in only]
+with open(os.path.join({d!r}, {name!r} + ".log"), "a") as f:
+    f.write(f"{{os.getpid()}} {{','.join(mine)}} {{time.time()}}\\n")
+time.sleep(0.4)
+bad = [c for c in mine if c == {fail_cell!r}]
+for c in mine:
+    print(("  ✗ " if c in bad else "  ✓ ") + c + " a cell")
+    if c in bad:
+        print("      the detail of " + c)
+print(f"{{len(mine) - len(bad)}} passed, {{len(bad)}} failed")
+sys.exit(1 if bad else 0)
+""")
+
+    def shard_runs(name):
+        p = os.path.join(d, name + ".log")
+        return [ln.split() for ln in open(p).read().splitlines() if ln.strip()] if os.path.exists(p) else []
+
+    sh_ok = shard_file("test_shards_ok.py")
+    four = ts.Slots(count=4, folder=os.path.join(d, "slots4"))
+    shard_rec = os.path.join(d, "shard-results")
+    code, out = quiet_main(["--tier", "2", "--jobs", "4"], files=[rt.TestFile(sh_ok)], slots=four, results=shard_rec)
+    runs = shard_runs("test_shards_ok.py")
+    shares_seen = sorted(r[1] for r in runs)
+    every = sorted(c for r in runs for c in r[1].split(","))
+    starts = sorted(float(r[2]) for r in runs)
+    got = records_in(shard_rec)
+    entries = [f for r in got for f in r.get("files", [])] if isinstance(got, list) else []
+    row("RUN-054", "a file with 'shards: 3' runs as 3 processes at once, each with its share of the cells in RW_CELLS (all "
+        "of them, none twice); one line for the file with the summed counts; one entry in the record",
+        code == 0 and len(runs) == 3 and every == [f"SHARD-{i:03d}" for i in range(1, 8)] and len(set(every)) == 7
+        and starts[-1] - starts[0] < 0.4 and out.count("test_shards_ok.py") == 1 and "7 passed, 0 failed" in out
+        and len(entries) == 1 and entries[0].get("result") == "passed" and len(entries[0].get("shards") or []) == 3,
+        f"exit {code}, shares {shares_seen}, starts {starts}, entries {str(entries)[:300]}: {out[-500:]}")
+
+    sh_bad = shard_file("test_shards_bad.py", fail_cell="SHARD-005")
+    code, out = quiet_main(["--tier", "2", "--jobs", "4"], files=[rt.TestFile(sh_bad), rt.TestFile(sh_ok)], slots=four,
+                           results=shard_rec)
+    lines = out.splitlines()
+    head = next((i for i, ln in enumerate(lines) if "test_shards_bad.py" in ln), None)
+    block = lines[head:head + 4] if head is not None else []
+    got = records_in(shard_rec)
+    last = got[-1] if isinstance(got, list) and got else {}
+    res = {f.get("file", "").rsplit("/", 1)[-1]: f.get("result") for f in last.get("files", [])}
+    row("RUN-055", "a failing shard fails its file: the file's line shows the sum (6 passed, 1 failed), the failing "
+        "shard's lines come right under it, together, naming the shard; the record and the stamp see one failed file",
+        code == 1 and head is not None and "6 passed, 1 failed" in lines[head] and any(" of 3" in ln for ln in block)
+        and any("SHARD-005" in ln for ln in block) and any("the detail of SHARD-005" in ln for ln in block)
+        and "Tests: 1 file(s) passed, 1 failed" in out
+        and res == {"test_shards_bad.py": "failed", "test_shards_ok.py": "passed"},
+        f"exit {code}, record {res}: {out[-700:]}")
+
+    sh_nolist = shard_file("test_shards_nolist.py", lists=False)
+    code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(sh_nolist)], slots=four)
+    nolist_runs = shard_runs("test_shards_nolist.py")
+    sh_small = shard_file("test_shards_small.py", n=5, cells=2)
+    code2, out2 = quiet_main(["--tier", "2"], files=[rt.TestFile(sh_small)], slots=four)
+    small_runs = shard_runs("test_shards_small.py")
+    saved_cells = os.environ.get("RW_CELLS")
+    os.environ["RW_CELLS"] = "SHARD-002"
+    try:
+        code3, out3 = quiet_main(["--tier", "2"], files=[rt.TestFile(shard_file("test_shards_narrow.py"))], slots=four)
+    finally:
+        if saved_cells is None:
+            del os.environ["RW_CELLS"]
+        else:
+            os.environ["RW_CELLS"] = saved_cells
+    narrow_runs = shard_runs("test_shards_narrow.py")
+    bad_header = write("test_shards_header.py", "# sample\n# tags: shard-sample, tier 2\n# covers: tools/run_tests.py\n"
+                                                "# shards: many\nprint('1 passed, 0 failed')\n")
+    row("RUN-056", "shards, the edges: a file that can't list its cells fails loud (never run whole, quietly); more shards "
+        "than cells → one process per cell; RW_CELLS already set (a narrow run) → one process, as asked; a shards: line "
+        "that isn't a number is a header problem",
+        code == 1 and "list" in out and not nolist_runs and code2 == 0 and len(small_runs) == 2
+        and code3 == 0 and len(narrow_runs) == 1 and narrow_runs[0][1] == "SHARD-002"
+        and rt.TestFile(bad_header).problem and "shards" in rt.TestFile(bad_header).problem,
+        f"no list: exit {code}, runs {nolist_runs}: {out[-200:]} | small: exit {code2}, runs {small_runs} | narrow: exit "
+        f"{code3}, runs {narrow_runs} | header problem: {rt.TestFile(bad_header).problem}")
 
 failed = [r for r in results if not r[2]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
