@@ -69,6 +69,7 @@
       - [Removing a recent search should offer Undo](#removing-a-recent-search-should-offer-undo)
       - ["Bake this order into Manual" for a folder's books and a Book List, from the Sort menu](#bake-this-order-into-manual-for-a-folders-books-and-a-book-list-from-the-sort-menu)
       - [Small fixes](#small-fixes)
+        - [A new message glides in from the old one's spot instead of appearing where you clicked](#a-new-message-glides-in-from-the-old-ones-spot-instead-of-appearing-where-you-clicked)
         - [What a reset clears: four resets, four different lists](#what-a-reset-clears-four-resets-four-different-lists)
         - [Tidy up the notes](#tidy-up-the-notes)
         - [Leave the affiliate tag off Amazon links on the test rig](#leave-the-affiliate-tag-off-amazon-links-on-the-test-rig)
@@ -470,6 +471,10 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    way to set one aside that the runner understands. A `skip: <TODO id> — why` line in a test file's header: the runner
    skips it and prints why; a release run (`--release`) refuses it (so a set-aside test blocks the next release until
    fixed); the TODO id must exist. Small.
+6. **`--id` doesn't narrow a file split into shards** (found 2026-11-16, sprint 6): `py tools/run_tests.py --id TOAST-006`
+   runs all of test_cells.py (3 shards, 132 cells); only `RW_CELLS=…` narrows it — yet TESTING.md's example is
+   `--id CELL-001`. The runner should turn an `--id` naming cells of a sharded file into that file's `RW_CELLS`
+   (one process). Small.
 
 **How (technical)**
 - Item 1: the gate hooks only Edit / Write. Add a PreToolUse hook on Bash that spots `sed -i` or redirects onto a root `.js` or the relay worker, and runs the same once-per-turn checklist (reuse `is_app_source()`).
@@ -2089,6 +2094,15 @@ isn't Manual** (readerwrangler.js `bakeOrderToManual`, ~3595; menu ~15947).
 Position dialog — see "Series positions…").
 
 #### Small fixes
+
+##### A new message glides in from the old one's spot instead of appearing where you clicked
+<!-- id 20261116-1234 -->
+
+_Why it matters:_ A message appears just above where you clicked — but if the last one is still showing or flying to
+the status bar, the same box is reused and slides there over a second (`transition: all 1.0s ease-in`), so the new
+message glides in from the old spot or from the status bar. It reads as wrong, and for a second it's somewhere you
+didn't look. Found by sprint 6's TOAST-006 (which now waits for a message to arrive); not changed there — it's visible
+behavior. **How:** a new message starts where it belongs (no transition for the jump), then holds and flies as today.
 
 ##### What a reset clears: four resets, four different lists
 <!-- id 20261106-1715 -->
