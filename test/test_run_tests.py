@@ -763,9 +763,14 @@ if "--list-cells" in sys.argv:
     sys.exit(0)
 only = [x for x in os.environ.get("RW_CELLS", "").split(",") if x]
 mine = [c for c in CELLS if not only or c in only]
-with open(os.path.join({d!r}, {name!r} + ".log"), "a") as f:
-    f.write(f"{{os.getpid()}} {{','.join(mine)}} {{time.time()}}\\n")
+# one note per process (2026-11-16: three processes appending to ONE file lost a line under load — on Windows an
+# append from separate processes can overwrite another's), its start time now and its end time after the work
+note = os.path.join({d!r}, {name!r} + ".%d.log" % os.getpid())
+with open(note, "w") as f:
+    f.write(f"{{os.getpid()}} {{','.join(mine)}} {{time.time()}}")
 time.sleep(0.4)
+with open(note, "a") as f:
+    f.write(f" {{time.time()}}\\n")
 bad = [c for c in mine if c == {fail_cell!r}]
 for c in mine:
     print(("  ✗ " if c in bad else "  ✓ ") + c + " a cell")
@@ -776,8 +781,12 @@ sys.exit(1 if bad else 0)
 """)
 
     def shard_runs(name):
-        p = os.path.join(d, name + ".log")
-        return [ln.split() for ln in open(p).read().splitlines() if ln.strip()] if os.path.exists(p) else []
+        notes = [os.path.join(d, f) for f in os.listdir(d) if f.startswith(name + ".") and f.endswith(".log")]
+        return [open(p).read().split() for p in sorted(notes)]
+
+    def all_at_once(runs):
+        """Every shard started before any shard finished — they overlapped (no fixed time limit, so load can't break it)."""
+        return len(runs) > 1 and all(len(r) == 4 for r in runs) and max(float(r[2]) for r in runs) < min(float(r[3]) for r in runs)
 
     sh_ok = shard_file("test_shards_ok.py")
     four = ts.Slots(count=4, folder=os.path.join(d, "slots4"))
@@ -792,7 +801,7 @@ sys.exit(1 if bad else 0)
     row("RUN-054", "a file with 'shards: 3' runs as 3 processes at once, each with its share of the cells in RW_CELLS (all "
         "of them, none twice); one line for the file with the summed counts; one entry in the record",
         code == 0 and len(runs) == 3 and every == [f"SHARD-{i:03d}" for i in range(1, 8)] and len(set(every)) == 7
-        and starts[-1] - starts[0] < 0.4 and out.count("test_shards_ok.py") == 1 and "7 passed, 0 failed" in out
+        and all_at_once(runs) and out.count("test_shards_ok.py") == 1 and "7 passed, 0 failed" in out
         and len(entries) == 1 and entries[0].get("result") == "passed" and len(entries[0].get("shards") or []) == 3,
         f"exit {code}, shares {shares_seen}, starts {starts}, entries {str(entries)[:300]}: {out[-500:]}")
 
