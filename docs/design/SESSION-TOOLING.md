@@ -122,9 +122,11 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   another program is reading. `tools/build.py` retries for ~2 s; still refused, serve.py serves the copy that's there and
   logs `REBUILD NOT SWAPPED IN` (the next request tries again) — before, the request died. Tests: `BUILD-010`,
   `SERVE-001`.
-- **`py tools/merge_branches.py <branch> … [--into main-prime] [--no-squash] [--no-test]`** — run in a folder ON the
-  target branch, clean. On a scratch branch `merging/<target>`, each branch in turn is squash-merged as one commit (the
-  sprints' way into `main-prime`; `--no-squash`: a merge commit). Never hand-merged — settled by the script, after every
+- **`py tools/merge_branches.py <branch> … [--into <target>] [--no-squash] [--no-test]`** — run in a folder ON the
+  target branch, clean; the target defaults to the folder's branch — the sprint's, `sprint-N` (made from main when a
+  sprint starts; Ron, 2026-11-16 — it replaced the long-lived `main-prime`) — and is never `main`. On a scratch branch
+  `merging/<target>`, each branch in turn is squash-merged as one commit (a task's way into the sprint's branch;
+  `--no-squash`: a merge commit). Never hand-merged — settled by the script, after every
   branch, even when git merged them cleanly: **`dist/`** (rebuilt by `tools/build.py`), **`docs/design/MESSAGE-CODES.md`**
   (`tools/message_codes.py`), **TODO.md's table of contents** (only the table, rebuilt from the headers with the
   extension's link rule — the tasks are real content), and **the version stamps**: every stamp a branch moved

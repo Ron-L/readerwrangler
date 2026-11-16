@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-merge_branches.py — merge task branches into a target branch (default main-prime), never hand-merging what is generated
+merge_branches.py — merge task branches into a target branch (default: the folder's branch — the sprint's, sprint-N;
+never main), never hand-merging what is generated
 or always differs (TODO "Faster sprints", item 4; Ron, 2026-11-15: "Can they all branch … and then you merge them
 together?").
 
@@ -12,7 +13,7 @@ Run it in a folder whose current branch is the target, with nothing uncommitted 
 the main folder. The target moves only at the end, and only once the merged result has passed.
 
   1. A scratch branch, merging/<target>, is made at the target and the folder switched to it.
-  2. Each branch, in the order given, is squash-merged onto it as ONE commit (as a sprint task goes into main-prime —
+  2. Each branch, in the order given, is squash-merged onto it as ONE commit (as a task goes into the sprint's branch —
      CLAUDE.md; --no-squash: a real merge commit). What git can't merge by itself is settled here when it is generated
      or always differs — and redone after every branch even when git merged it cleanly:
        dist/                          rebuilt by tools/build.py from the merged sources — never merged
@@ -458,10 +459,15 @@ def run_steps(repo, state):
 
 
 def begin(repo, a):
-    target = a.into
     if load_state(repo):
         raise Stop("a merge is already under way here — finish it (--continue) or give it up (--abort)")
     here = repo.out("rev-parse", "--abbrev-ref", "HEAD")
+    # 2026-11-16 (Ron): each sprint has its own branch (sprint-N, from main) — the target is the folder's branch unless
+    # --into names one; never main (main gets a sprint as one reviewed squash at release, by hand), never a detached HEAD.
+    target = a.into or here
+    if target in ("main", "HEAD"):
+        raise Stop(f"not merging into {target} — merge task branches into the sprint's branch (sprint-N); the sprint goes "
+                   "to main as one squash at release, after Ron's review")
     if here != target:
         raise Stop(f"this folder is on {here}, not {target}. Switch first (git switch {target}) — or merge into "
                    f"another branch with --into.")
@@ -523,7 +529,8 @@ def main(argv=None, folder=ROOT):
     ap = argparse.ArgumentParser(description="Merge task branches into a target branch, regenerating what's generated "
                                              "(docs/design/SESSION-TOOLING.md).")
     ap.add_argument("branches", nargs="*")
-    ap.add_argument("--into", default="main-prime", help="the target branch (default main-prime) — the folder's branch")
+    ap.add_argument("--into", default=None, help="the target branch (default: the folder's branch, e.g. sprint-6); "
+                                                 "never main")
     ap.add_argument("--no-squash", action="store_true", help="a real merge commit per branch instead of a squash")
     ap.add_argument("--no-test", action="store_true", help="land without testing (says loudly that nothing was proven)")
     ap.add_argument("--continue", dest="resume", action="store_true", help="carry on after resolving a conflict")

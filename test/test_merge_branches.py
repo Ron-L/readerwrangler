@@ -269,8 +269,13 @@ def failing_tests_dont_land():
         code, out = r.merge("task-g")
         check(code == 0 and "nothing to merge" in out, f"a branch already in: nothing to merge:\n{out}")
         git(r.dir, "switch", "-q", "task-g")
-        code, out = r.merge("main-prime")
-        check(code != 0 and "not main-prime" in out, f"a folder not on the target is refused:\n{out}")
+        code, out = r.merge("main-prime", "--into", "main-prime")
+        check(code != 0 and "not main-prime" in out, f"a folder not on the target it names is refused:\n{out}")
+        # 2026-11-16: the target defaults to the folder's branch (the sprint's, sprint-N) — and is never main
+        git(r.dir, "switch", "-q", "-c", "main", "main-prime")
+        code, out = r.merge("task-g")
+        check(code != 0 and "not merging into main" in out and r.head("main") == r.head("main-prime"),
+              f"a folder on main is refused (main gets a sprint as one squash at release):\n{out}")
 test("MERGE-004", "the merged result must pass tier 1 and tier 2 to land; --no-test lands and says nothing was proven",
      failing_tests_dont_land)
 

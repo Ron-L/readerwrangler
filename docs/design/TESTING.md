@@ -59,8 +59,8 @@ alpha is committed** — the regression check. The full run is never skipped; it
 **At review, check the stamp instead of rerunning** (TODO "Faster sprints", 2026-11-16): every run leaves a record of the
 commit it ran on (§4), so an agent's "it passed" is a claim a machine can check — `py tools/run_tests.py --stamp <commit>`
 says PROVEN only for a full tier 1 + tier 2 pass on exactly that commit with nothing uncommitted. NOT PROVEN means the
-run is read (a failure, §7) or done — not taken on trust. **One full run of Claude's own before anything enters
-`main-prime` for release.** `tools/merge_branches.py` makes that run part of the merge (2026-11-16): branches built in
+run is read (a failure, §7) or done — not taken on trust. **One full run of Claude's own before the sprint's branch
+(`sprint-N`) goes to main for release.** `tools/merge_branches.py` makes that run part of the merge (2026-11-16): branches built in
 parallel are merged on a scratch branch, tier 1 + tier 2 run on the merged result, and the target moves only when its
 stamp is PROVEN — two changes can merge cleanly and break together (docs/design/SESSION-TOOLING.md).
 

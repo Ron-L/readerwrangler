@@ -22,12 +22,12 @@ have cost half a day more — but 36 questions was too many, hence the profile, 
 work whose shape isn't decided (a new screen, how far a feature goes) is talked through first and written into the
 task's "Decided" section — then a sprint builds it. Tasks with a written "Decided" section make the best sprint
 material; for one without, the sprint drafts the design and queues it rather than building on guesses.
-- **A normal sprint = one release:** one to three tasks, ending where a release would — everything in `main-prime`, the
-  queue short, Ron's review, his "push to prod".
+- **A normal sprint = one release:** one to three tasks, ending where a release would — everything in the sprint's
+  branch, the queue short, Ron's review, his "push to prod".
 - **A vacation sprint = as far as it can go** (Ron, 2026-11-12): tag `before-vacation` on main (the rollback point);
   work down the TODO; when a task blocks on a decision, park it (its branch, one queue entry with my prediction) and go
   on with other work — **branching wherever works best** (Ron, 2026-11-12: "not meant to be a limitation"): usually
-  `main-prime` as it stood before the parked task started, so the next task carries none of its half-done work; from
+  the sprint's branch as it stood before the parked task started, so the next task carries none of its half-done work; from
   the parked branch when the next task builds on what's there; or any similar arrangement — my call, one line in
   `DECISIONS.md`;
   nothing to prod (dev pushes as backup are fine). It stops only when every remaining task depends on a decision, a
@@ -40,8 +40,11 @@ material; for one without, the sprint drafts the design and queues it rather tha
 Only Ron changes the mode or the scope.
 
 **Inside the scope, without asking:**
-1. Take the next task in scope (TODO's order). A branch per task off **`main-prime`** — the waiting branch: everything
-   finished and not yet reviewed, in order (Ron, 2026-11-12), so later tasks build on earlier ones.
+1. Take the next task in scope (TODO's order). **Each sprint has its own branch, `sprint-N`, made from `main` when the
+   sprint starts** — the waiting branch: everything finished and not yet reviewed, in order (Ron, 2026-11-12), so later
+   tasks build on earlier ones. A branch per task off it. At release it's squashed onto main and kept as the archive;
+   the next sprint starts a fresh one from main, so nothing is ever merged back (Ron, 2026-11-16 — it replaced the
+   long-lived `main-prime`, kept as an archive).
 2. Build it as always — a failing test first, alphas committed, every tier passing before "ready". Push branches and
    `main-prime` to **dev** for backup or testing (Ron, 2026-11-12); **never to prod**.
 3. Agents do the building, **each in its own working copy** (`py tools/copies.py new <name> --branch <b>` — a git
@@ -50,7 +53,7 @@ Only Ron changes the mode or the scope.
    in order. Branches are combined with `py tools/merge_branches.py` (it restamps the version, regenerates `dist/`,
    the codes table and TODO's contents, and runs the full tiers on the merged result before the target moves). I
    review each agent's diff as a skeptic and **check its result stamp** (`py tools/run_tests.py --stamp`) instead of
-   rerunning; one full run of mine before anything enters `main-prime` for release — an agent's "done" is a claim
+   rerunning; one full run of mine before the sprint's branch goes to main — an agent's "done" is a claim
    (Law 12). **Every brief copies the task's own numbered list; review ticks each item off.** The pre-build gate and
    the commit checks apply to agents too, in a copy as in the main folder.
 4. **A decision:** predict Ron's answer from **`.private/RON-PROFILE.md`** (how he decides — his rules, his patterns,
@@ -64,9 +67,9 @@ Only Ron changes the mode or the scope.
 5. **Scope** (Ron, 2026-11-12): fix exactly the task — plus anything found on the way that is **quicker to fix and test
    than to write up, in human terms** ("a `>` that should have been `>=`"). Everything else found is filed in the TODO
    (or the decisions log), not fixed. Every agent brief says so.
-6. **"Ready"** = all tiers passing, squash-merged into `main-prime` with its version, its CHANGELOG wording drafted in
-   the queue. **Nothing reaches `main` or prod until Ron's review**; then the approved tasks go to main one squash
-   each, in order, tagged, and pushed (prod + dev).
+6. **"Ready"** = all tiers passing, merged into the sprint's branch with its version, its CHANGELOG wording drafted in
+   the queue. **Nothing reaches `main` or prod until Ron's review**; then the sprint's branch goes to main as one
+   squash, tagged, and pushed (prod + dev).
 
 **Hard stops — never in autonomous mode:** a push to prod; a relay worker deploy; changing a backup or relay data format
 without a design Ron has seen; live Amazon fetches; email or any outside service; other projects (unless the switch file
@@ -74,7 +77,7 @@ names them for a task); force pushes or rewriting history; launching GUI program
 or the TODO's order (propose those in the queue instead).
 
 **The record lives in files** (`.private/`, Ron's private repository — never public):
-- `PROGRESS.md` — each task's state: queued → building → ready (in `main-prime`) | blocked-on-Ron → released; its
+- `PROGRESS.md` — each task's state: queued → building → ready (in the sprint's branch) | blocked-on-Ron → released; its
   branch, last alpha, last test run.
 - `REVIEW-QUEUE.md` — only what reaches Ron (item 4): the task; the question with its context (he reads it cold); my
   prediction and why; how to reverse it and what that costs; his verdict once given. Closed entries move to
