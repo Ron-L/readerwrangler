@@ -482,7 +482,10 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 3. ✅ **The relay tests start and stop their own local relay** (7.28.0 post-mortem) — done 2026-11-12 (autonomous
    trial): `tools/local_relay.py`; `run_tests.py --tier 3` with no `--relay-url` starts wrangler's local emulator on a
    free port, stops each process it proves it started (by exact id, never `/T`), and checks every port is free
-   (RUN-016–021). Follow-up: the screen tests' own relay starter (`test/ui/rw.py` `LocalRelay`) should use it too.
+   (RUN-016–021). ✅ Follow-up done 2026-11-16 (sprint 5): the screen tests' own relay starter (`test/ui/rw.py`
+   `LocalRelay`, a second copy that stopped processes with `/T`) is gone — they use `tools/local_relay.py`, whose
+   readiness is now proven against its own processes, retrying on new ports when another process holds one
+   (RUN-052, 053, 057).
 4. ✅ **A release run counts "skipped" as failed** (7.28.0 post-mortem) — done 2026-11-12: `run_tests.py --release`
    fails on any skipped file, naming it and why (RUN-022–024). The release checklist's line in CLAUDE.md names it
    (Ron, 2026-11-12).
@@ -505,7 +508,9 @@ queue Q-020, Q-022, Q-024.)
 
 **Decided** (Ron + Claude, 2026-11-12)
 1. **One starter** (grown from `tools/local_relay.py`) for everything our tools launch: the relay tests' relay (done in
-   7.28.1's tooling), the screen tests' own relay (`test/ui/rw.py` `LocalRelay`) and their web server.
+   7.28.1's tooling), the screen tests' own relay (`test/ui/rw.py` `LocalRelay` — ✅ done 2026-11-16, sprint 5: it
+   uses `tools/local_relay.py` now) and their web server (still started separately by `rw.App`; since sprint 5 it
+   checks by process id that the server answering is its own).
 2. **A list in a file** of every process it started — its id, its start time, what it is, which run started it; an
    entry leaves the list only when the process is confirmed gone (Ron: "keep a list of IDs as you create them, delete
    from list when confirmed dead"). The file outlives a crashed run; the start time means a reused id is never taken
