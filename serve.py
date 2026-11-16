@@ -102,13 +102,24 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     self.log_message("built %s (its source changed)", rel)
             except build.BuildError as e:
                 return self.send_script_error(f"ReaderWrangler build failed - {e}")
+            except PermissionError as e:
+                self.log_busy(rel, e)
         elif rel == STYLES:           # 2026-11-11: the styles, rebuilt when any page or script changed
             try:
                 if build.styles_if_stale():
                     self.log_message("built %s (a page or script changed)", rel)
             except build.BuildError as e:
                 return self.send_style_error(f"ReaderWrangler style build failed - {e}")
+            except PermissionError as e:
+                self.log_busy(rel, e)
         return super().send_head()
+
+    def log_busy(self, rel, err):
+        """The new build couldn't be swapped in: Windows refuses while another program — another server, e.g. a screen
+        test's — is reading the old copy, even after build.py's retries. Serve the copy that's there (the next request
+        tries again) rather than fail the page (2026-11-16, TODO "Faster sprints" item 3)."""
+        self.log_message("REBUILD NOT SWAPPED IN %s - another program is reading it (%s); serving the existing copy",
+                         rel, err)
 
     def send_style_error(self, message):
         """The styles don't build: serve a stylesheet that shows the message in a red line across the top of the page."""

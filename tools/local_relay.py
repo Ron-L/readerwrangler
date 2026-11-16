@@ -10,6 +10,21 @@ local_relay.py — a local relay for the relay tests (tier 3): relay-worker.js i
 
 Never the dev or production relay: the address is always http://127.0.0.1:<the port it chose>.
 
+The ONE relay launcher (2026-11-16, Law 22): the relay tests' (run_tests.py --tier 3) and the screen tests'
+(test/ui/rw.py App(relay=True), which adds `--var ALLOWED_ORIGINS:<its page's address>` through extra_args).
+
+"Ready" is proven against OUR process, not taken from whoever answers: the free port is chosen, then taken by wrangler a
+moment later, and with tests in parallel another run's relay can take it in between (wrangler on a taken port dies:
+"The Workers runtime failed to start", seen 2026-11-16 — while it starts, the port answers with the OTHER relay). So it
+is ready only when wrangler's own ready line names our port AND everything listening there is a process we started
+(Windows: by id). Another process on one of its ports — when it's ready, or when it stopped before it was ready (what a
+taken port does to wrangler) — is judged as stopping is (Law 5: only what's PROVEN):
+  - started BEFORE our relay → proven not ours (no process starts before its parent): left alone, and the relay is
+    started again on new ports (3 tries in all; a wrangler that just stopped early is tried again too);
+  - started after → it may be one of ours that escaped the tree, and each new try would leave another: fails loud,
+    named by id, left running — never retried.
+
+
 Stopping (PRINCIPLES Law 5, Law 12 — 7.28.0: ending the shell that started a relay left workerd and three node
 processes serving its port, caught only by checking the port): every process it started is listed by exact id — with
 its start time, so a reused id is never taken for ours — each is stopped by its exact id (`taskkill /PID <id> /F`; never
@@ -33,10 +48,11 @@ WRANGLER = os.path.join(RELAY_DIR, "node_modules", "wrangler", "bin", "wrangler.
 WRANGLER_ARGS = ["dev", "--env", "dev", "--local", "--ip", "127.0.0.1", "--port", "{port}",
                  "--inspector-port", "{inspector_port}", "--persist-to", "{store}",
                  "--show-interactive-dev-session=false"]
-READY = re.compile(r"\bReady on http://")
+READY = re.compile(r"\bReady on http://[^\s/]*:(\d+)")      # the port it says it serves
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 START_S = 60    # wrangler is ready in ~2 s on Ron's PC (2026-11-12)
 STOP_S = 10
+ATTEMPTS = 3    # tries, each on new ports, when wrangler stops before it's ready (a taken port)
 
 
 class RelayError(RuntimeError):
@@ -162,14 +178,18 @@ def listening(port):
 # --- the relay -------------------------------------------------------------------------------------------------------
 class LocalRelay:
     """command: the program and its arguments ({port}, {inspector_port}, {store} filled in) — None = wrangler.
-    The tests give a stand-in here (test/test_run_tests.py)."""
+    The tests give a stand-in here (test/test_run_tests.py). extra_args: added after them, as given (the screen tests'
+    `--var ALLOWED_ORIGINS:<address>`)."""
 
-    def __init__(self, command=None, cwd=RELAY_DIR, start_s=START_S, stop_s=STOP_S):
+    def __init__(self, command=None, cwd=RELAY_DIR, start_s=START_S, stop_s=STOP_S, extra_args=(), attempts=ATTEMPTS):
         self.command, self.cwd, self.start_s, self.stop_s = command, cwd, start_s, stop_s
+        self.extra_args, self.attempts = list(extra_args), attempts
         self.proc = None
         self.ours = {}      # pid -> (start time, program name): every process seen in our tree
         self.ports = []
         self.url = None
+        self.args = None    # the command line of the latest try
+        self._others = {}   # port -> ids of processes NOT ours found listening there (a try given up on): never "left"
 
     def _wrangler(self):
         node = shutil.which("node")
@@ -202,37 +222,88 @@ class LocalRelay:
                         todo.append(pid)
 
     def start(self):
+        """Start it; its address once it is PROVEN ready — its own ready line names our port and everything listening
+        there is ours. A try that stopped before it was ready is followed by one on new ports; anything else that isn't
+        proven ends it. RelayError, loud — with the end of its output — when no try works."""
         cmd = self.command or self._wrangler()
+        tried = []
+        for _ in range(max(1, self.attempts)):
+            why, last_try = self._try(cmd)
+            if why is None:
+                return self.url
+            tail = self.log()[-1500:].strip()
+            left = self.stop()
+            tried.append(why)
+            if last_try or left or len(tried) == max(1, self.attempts):
+                said = why if len(tried) == 1 else (f"couldn't start in {len(tried)} tries: "
+                                                    + "; ".join(f"{i}) {w}" for i, w in enumerate(tried, 1)))
+                raise RelayError(f"the local relay {said}." + (f"\n  Its output ended:\n{_indent(tail)}" if tail else "")
+                                 + ("\n  " + "\n  ".join(left) if left else ""))
+
+    def _try(self, cmd):
+        """One try, on new ports: (None, _) when ready and proven ours — else (why, no_more_tries)."""
         self.port, inspector = free_port(), free_port()
         self.ports = [self.port, inspector]
         self.store = tempfile.mkdtemp(prefix="rw-test-relay-")
         self.log_path = os.path.join(self.store, "relay.log")
-        args = [a.format(port=self.port, inspector_port=inspector, store=os.path.join(self.store, "state")) for a in cmd]
+        self.args = [a.format(port=self.port, inspector_port=inspector, store=os.path.join(self.store, "state"))
+                     for a in cmd] + self.extra_args
         with open(self.log_path, "w", encoding="utf-8") as log:
-            self.proc = subprocess.Popen(args, cwd=self.cwd, stdout=log, stderr=subprocess.STDOUT,
+            self.proc = subprocess.Popen(self.args, cwd=self.cwd, stdout=log, stderr=subprocess.STDOUT,
                                          stdin=subprocess.DEVNULL, start_new_session=(os.name != "nt"))
-        self.ours = {self.proc.pid: (started_at(self.proc.pid), os.path.basename(args[0]))}
+        self.ours = {self.proc.pid: (started_at(self.proc.pid), os.path.basename(self.args[0]))}
         self.url = f"http://127.0.0.1:{self.port}"
         deadline = time.monotonic() + self.start_s
+        said_ready = False
         try:
             while True:
-                if READY.search(self.log()):
+                m = READY.search(self.log())
+                if m:
+                    said_ready = True
                     self._note_tree()
-                    return self.url
+                    if int(m.group(1)) != self.port:
+                        return f"said it was ready on port {m.group(1)}, not on its own port {self.port}", True
+                    taken = self._taken([self.port])
+                    if taken:
+                        return taken
+                    if port_owners(self.port) or os.name != "nt":   # Windows: ours listen there (and only ours)
+                        return None, False
                 if self.proc.poll() is not None:
                     why = f"stopped before it was ready (exit code {self.proc.returncode})"
-                    break
+                    taken = self._taken(self.ports)
+                    return (f"{why} — {taken[0]}", taken[1]) if taken else (why, False)
                 if time.monotonic() > deadline:
-                    why = f"didn't say it was ready within {self.start_s} s"
-                    break
+                    return ((f"said it was ready, but nothing listened on its port {self.port} within {self.start_s} s"
+                             if said_ready else f"didn't say it was ready within {self.start_s} s"), True)
                 time.sleep(0.2)
         except BaseException:          # Ctrl+C while waiting: still stop what we started
             self.stop()
             raise
-        tail = self.log()[-1500:].strip()
-        left = self.stop()
-        raise RelayError(f"the local relay {why}." + (f"\n  Its output ended:\n{_indent(tail)}" if tail else "")
-                         + ("\n  " + "\n  ".join(left) if left else ""))
+
+    def _taken(self, ports):
+        """Other processes listening on these ports of ours, judged (see the top) — None when there are none; else
+        (why, no_more_tries). One that started BEFORE our relay is proven not ours: left alone (and never counted as
+        left by stop()), and a new try may follow. Any other can't be told from an escaped child of ours: the end."""
+        root_t = self.ours.get(self.proc.pid, (None, ""))[0]
+        older, unproven = {}, {}
+        for p in ports:
+            for o in port_owners(p) - set(self.ours):
+                t = started_at(o)
+                proven = isinstance(t, int) and isinstance(root_t, int) and t < root_t
+                (older if proven else unproven).setdefault(p, set()).add(o)
+        for p, o in list(older.items()) + list(unproven.items()):
+            self._others.setdefault(p, set()).update(o)     # not ours to stop, and not "left" by this run
+        if unproven:
+            return (f"wasn't alone on its port{'s' if len(unproven) > 1 else ''} "
+                    + "; ".join(f"{p}: {_who(o)}" for p, o in sorted(unproven.items()))
+                    + " listened there too — not a process it can show it started (another run's relay or server that "
+                    "took the port in between, or one of its own that escaped its tree), so it was left running. If "
+                    "it's a leftover, stop it by its id: "
+                    + "  ".join(f"taskkill /PID {o} /F" for ids in unproven.values() for o in sorted(ids))), True
+        if older:
+            return ("found its port taken by a process older than itself (so not one of its own; left alone) — "
+                    + "; ".join(f"{p}: {_who(o)}" for p, o in sorted(older.items()))), False
+        return None
 
     def stop(self):
         """Stop everything we started, then check. Returns what's left, in words ([] = all gone, ports free)."""
@@ -253,7 +324,8 @@ class LocalRelay:
         deadline = time.monotonic() + self.stop_s
         while True:
             alive = {pid: name for pid, (t, name) in self.ours.items() if t is not None and started_at(pid) == t}
-            ports = {p: listening(p) for p in self.ports}
+            # (a process that isn't ours, found on a port when a try was given up on, was there before — not "left")
+            ports = {p: listening(p) - self._others.get(p, set()) for p in self.ports}
             ports = {p: o for p, o in ports.items() if o}
             if (not alive and not ports) or time.monotonic() > deadline:
                 break
@@ -274,3 +346,8 @@ class LocalRelay:
 
 def _indent(text):
     return "\n".join("    " + ln for ln in text.splitlines())
+
+
+def _who(pids):
+    names = processes()
+    return ", ".join(f"process {p} ({names.get(p, (0, '?'))[1]})" for p in sorted(pids))

@@ -22,6 +22,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "git-hooks"))
@@ -133,12 +134,31 @@ def styles_if_stale():
         return True
 
 
+SWAP_TRIES, SWAP_PAUSE_S = 20, 0.1      # ~2 s in all
+
+
 def _write(path, text):
-    """Written whole, then swapped in — never half a file."""
+    """Written whole, then swapped in — never half a file. The scratch copy is named for this process (2026-11-16): two
+    servers rebuilding at once (Ron's serve.py and a screen test's) would otherwise write the SAME scratch file.
+    Windows refuses the swap while another program is reading the old copy (another server sending it) — so it's retried
+    for ~2 s; still refused, the scratch copy is removed and PermissionError raised (serve.py then serves the copy that's
+    there; TODO "Faster sprints" item 3, 2026-11-16)."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path + ".tmp", "w", encoding="utf-8", newline="\n") as f:
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
-    os.replace(path + ".tmp", path)
+    for attempt in range(SWAP_TRIES):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == SWAP_TRIES - 1:
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+                raise
+            time.sleep(SWAP_PAUSE_S)
 
 
 def _staged_paths():
