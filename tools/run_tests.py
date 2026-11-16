@@ -42,12 +42,14 @@ under it, together, with its RW_CELLS to rerun just that shard), one entry in th
 already set (a narrow run) it runs as one process, as asked.
 
 Results stamped with their commit (item 2): every run except --changed (the commit hook) and --list leaves a record —
-the commit it ran on, anything uncommitted, what ran, each file's result, start and end — in git's own folder for this
-working copy (`git rev-parse --git-path rw-test-results`: never in the working tree; a worktree has its own).
+the commit it ran on, anything uncommitted, what ran, the environment variables that change a run (RUN_ENV: RW_CELLS…),
+each file's result, start and end — in git's own folder for this working copy (`git rev-parse --git-path
+rw-test-results`: never in the working tree; a worktree has its own).
 
     py tools/run_tests.py --stamp [<commit>]  PROVEN (exit 0) only if tier 1 and tier 2 both ran in full on exactly that
-                                              commit (default: HEAD), every file passed, nothing skipped, nothing
-                                              uncommitted — else NOT PROVEN, and why (exit 1)
+                                              commit (default: HEAD) — not narrowed by --id, --tag or RW_CELLS — every
+                                              file passed, nothing skipped, nothing uncommitted — else NOT PROVEN, and
+                                              why (exit 1)
 
 Double-clicked, the window stays open to show the results (pytools keepopen). Exit: 0 all passed · 1 a failure.
 """
@@ -296,6 +298,33 @@ def prebuild():
 RESULTS_NAME = "rw-test-results"
 KEEP_RECORDS = 300          # the newest; older records are deleted as new ones are written
 
+# The environment variables that change what a run does — each one set is noted in the record, with its value
+# (2026-11-16: a run with RW_CELLS set ran a few cells and --stamp counted it as a full tier 2). A NARROWING one runs only
+# part of what was asked, so the run counts no more than an --id / --tag run. Found by searching the test files, their
+# helpers (test/ui/rw.py, test/harness.js) and the runner for os.environ / process.env; a new one is added here.
+RUN_ENV = {     # name: (narrows?, what it does)
+    "RW_CELLS": (True, "test/ui/test_cells.py runs only the cells it names (a sharded file then runs as one process)"),
+    "RW_HEADED": (False, "the screen tests show the browser, slowed down — every test still runs (test/ui/rw.py)"),
+    "RW_BROWSER": (False, "the screen tests' browser: chrome (the default) or msedge — every test still runs (rw.py)"),
+    "RW_TEST_ARTIFACTS": (False, "where a failing screen test saves its screenshot (tools/copies.py)"),
+    "RW_TEST_SLOTS": (False, "the PC's limit on screen tests at once (tools/test_slots.py)"),
+    "RELAY_URL": (False, "tier 3 runs against that relay instead of starting its own local one"),
+}
+
+
+def run_env(environ=None):
+    """{name: value} of RUN_ENV's variables that are set (not empty) — for the record."""
+    env = os.environ if environ is None else environ
+    return {k: env[k] for k in RUN_ENV if env.get(k)}
+
+
+def narrowed_by(r):
+    """What narrowed this run to part of its tier, in words ([] = a full run): --tag, --id, a narrowing variable."""
+    ran = r.get("ran") or {}
+    return ([f"--tag {', '.join(ran['tags'])}"] if ran.get("tags") else []) \
+        + ([f"--id {', '.join(ran['ids'])}"] if ran.get("ids") else []) \
+        + [f"{k}={v}" for k, v in (r.get("env") or {}).items() if RUN_ENV.get(k, (False,))[0]]
+
 
 def _git(args, root=ROOT):
     r = subprocess.run(["git", "--no-optional-locks"] + args, cwd=root, capture_output=True, text=True,
@@ -378,15 +407,20 @@ def record_problems(r):
 
 def judge(records, commit):
     """(proven?, lines) — does the record prove `commit` (a full id)? Tier 1 and tier 2 each need a FULL run (not narrowed
-    by --id / --tag; --tier all counts for both) on exactly this commit; the LATEST such run of each tier is the one that
-    counts (a later failure isn't outvoted by an earlier pass), and it must hold no failure, no skip, nothing uncommitted."""
+    by --id / --tag or a narrowing variable such as RW_CELLS — narrowed_by; --tier all counts for both) on exactly this
+    commit; the LATEST such run of each tier is the one that counts (a later failure isn't outvoted by an earlier pass),
+    and it must hold no failure, no skip, nothing uncommitted."""
     lines, proven, shown = [], True, {}
     for tier in (1, 2):
-        full = [r for r in records if r.get("commit") == commit and not (r.get("ran") or {}).get("tags")
-                and not (r.get("ran") or {}).get("ids") and str((r.get("ran") or {}).get("tier")) in (str(tier), "all")]
+        runs = [r for r in records if r.get("commit") == commit
+                and str((r.get("ran") or {}).get("tier")) in (str(tier), "all")]
+        full = [r for r in runs if not narrowed_by(r)]
         if not full:
             proven = False
             lines.append(f"  ✗ tier {tier}: no full tier {tier} run recorded on this commit")
+            if runs:
+                lines.append(f"      its latest tier {tier} run ({str(runs[-1].get('started', '?'))[:19].replace('T', ' ')})"
+                             f" was narrowed by {'; '.join(narrowed_by(runs[-1]))} — only part of it ran, so it doesn't count")
             continue
         r = full[-1]
         mine = [f for f in r.get("files") or [] if f.get("tier") == tier]
@@ -396,7 +430,8 @@ def judge(records, commit):
         passed = sum(1 for f in mine if f.get("result") == "passed")
         lines.append(f"  {'✓' if ok else '✗'} tier {tier}: {passed} of {len(mine)} file(s) passed — run "
                      f"{str(r.get('started', '?'))[:19].replace('T', ' ')} → {str(r.get('ended', '?'))[11:19]} "
-                     f"(--tier {(r.get('ran') or {}).get('tier')})")
+                     f"(--tier {(r.get('ran') or {}).get('tier')}"
+                     + "".join(f"; {k}={v}" for k, v in (r.get("env") or {}).items()) + ")")
         if id(r) not in shown:          # one 'all' run serves both tiers: its problems are listed once
             shown[id(r)] = True
             lines += [f"      {w}" for w in why]
@@ -486,6 +521,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
     if record_to:
         rec = {"commit": head_commit(), "uncommitted": {"before": uncommitted()},
                "ran": {"tier": str(tier), "tags": a.tag, "ids": a.id, "release": a.release, "jobs": None},
+               "env": run_env(),
                "files": [{"file": f.rel(), "tier": f.tier, "result": "failed", "counts": f.problem} for f in broken],
                "problems": [], "started": started}
     skipped = [(f, why) for f, why in ((f, skip_reason(f)) for f in chosen) if why]
@@ -663,8 +699,10 @@ def main(argv=None, files=None, relay=None, results=None, slots=None):
             write_record(rec, record_to)
             if not a.quiet:
                 dirty = rec["uncommitted"]["before"] or rec["uncommitted"]["after"]
+                narrow = narrowed_by(rec)
                 print(f"· recorded for {str(rec['commit'])[:12]}" + (" — with uncommitted changes, so it proves nothing"
-                      if dirty else "") + f"; took {rec['seconds'] // 60} min {rec['seconds'] % 60} s "
+                      if dirty else "") + (f" — narrowed by {'; '.join(narrow)}, so it isn't a full run of its tier"
+                      if narrow else "") + f"; took {rec['seconds'] // 60} min {rec['seconds'] % 60} s "
                       "(py tools/run_tests.py --stamp)")
         except OSError as e:
             print(f"✗ the run's record couldn't be written to {record_to}: {e}")

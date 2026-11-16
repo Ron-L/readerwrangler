@@ -475,7 +475,8 @@ done()
     # Made-up records first (the judging alone), then the runner writing and reading real ones.
     A, B = "a" * 40, "b" * 40
 
-    def rec(commit=A, tier="all", files=None, dirty=(), after=None, tags=(), ids=(), ended="2026-11-16T10:00:00"):
+    def rec(commit=A, tier="all", files=None, dirty=(), after=None, tags=(), ids=(), ended="2026-11-16T10:00:00",
+            env=None):
         files = files if files is not None else [
             {"file": "test/x.test.js", "tier": 1, "result": "passed", "counts": "3 passed, 0 failed"},
             {"file": "test/ui/test_y.py", "tier": 2, "result": "passed", "counts": "5 passed, 0 failed"}]
@@ -483,7 +484,7 @@ done()
         return {"commit": commit, "commit_after": after or commit, "uncommitted": {"before": list(dirty), "after": []},
                 "ran": {"tier": tier, "tags": list(tags), "ids": list(ids), "release": False, "jobs": 4},
                 "files": files, "problems": [], "started": "2026-11-16T09:55:00", "ended": ended,
-                "result": "passed" if ok else "failed"}
+                "result": "passed" if ok else "failed", **({"env": env} if env is not None else {})}
 
     def judged(records, commit=A):
         try:
@@ -518,6 +519,17 @@ done()
     sk = [dict(t1[0]), {"file": "test/ui/test_y.py", "tier": 2, "result": "skipped", "why": "no browser"}]
     p, why = judged([rec(files=sk)])
     row("RUN-040", "--stamp: a skipped file → NOT PROVEN, naming it", p is False and "test_y.py" in why, f"{p}: {why}")
+    # A run with RW_CELLS set ran only some cells (2026-11-16): its record looked like a full run and the stamp said
+    # PROVEN. The record notes the variables that change a run; a narrowing one makes it narrowed, like --id / --tag.
+    p, why = judged([rec(env={"RW_CELLS": "CELL-005,CELL-019"})])
+    p2, why2 = judged([rec(env={"RW_HEADED": "1", "RW_BROWSER": "msedge", "RW_TEST_SLOTS": "2"})])
+    p3, why3 = judged([rec(), rec(env={"RW_CELLS": "CELL-005"}, ended="2026-11-16T11:00:00")])
+    row("RUN-058", "--stamp: a run with RW_CELLS set (only some cells ran) doesn't count as its tier's full run → NOT "
+        "PROVEN, naming the variable and its value; a run with only variables that don't narrow (RW_HEADED, RW_BROWSER, "
+        "RW_TEST_SLOTS) is still PROVEN and shows them; a full run on the same commit still counts",
+        p is False and "tier 2" in why and "RW_CELLS=CELL-005,CELL-019" in why
+        and p2 is True and "RW_BROWSER=msedge" in why2 and p3 is True,
+        f"{p}: {why} | {p2}: {why2} | {p3}: {why3}")
 
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     rdir = os.path.join(d, "results")
@@ -574,6 +586,25 @@ done()
     got2 = records_in(rdir)
     row("RUN-042", "the commit hook's --changed runs, and --list, leave no record",
         isinstance(got2, list) and len(got2) == 1, str(got2)[:300])
+    # The record notes every variable that changes a run, with its value (RUN-058 judges them) — and says at once that a
+    # narrowed run proves nothing. One set (RW_CELLS) and one that doesn't narrow (RW_BROWSER); both put back after.
+    edir = os.path.join(d, "env-results")
+    saved_env = {k: os.environ.get(k) for k in ("RW_CELLS", "RW_BROWSER")}
+    os.environ.update({"RW_CELLS": "CELL-005", "RW_BROWSER": "msedge"})
+    try:
+        code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(js_ok)], results=edir)
+    finally:
+        for k, v in saved_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    got3 = records_in(edir)
+    env3 = got3[0].get("env") if isinstance(got3, list) and len(got3) == 1 else None
+    row("RUN-059", "a run's record notes the variables that change a run, with their values (RW_CELLS=CELL-005, "
+        "RW_BROWSER=msedge), and the run says it was narrowed",
+        env3 == {"RW_CELLS": "CELL-005", "RW_BROWSER": "msedge"} and "RW_CELLS=CELL-005" in out,
+        f"exit {code}; env {env3}; {out[-300:]}")
 
     sdir = os.path.join(d, "stamp-results")
     os.makedirs(sdir)

@@ -111,14 +111,22 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
 - **Results stamped with their commit** (2026-11-16): every run except the commit hook's `--changed` (and `--list`)
   leaves a record — the commit it ran on (and again at the end: a commit made during the run is caught), what was
   uncommitted before and after (changed tracked files, and untracked files git doesn't ignore), what ran (tier, `--id`,
-  `--tag`, `--release`, jobs), each file's result, counts and time, start and end, the overall result. Kept OUTSIDE the
+  `--tag`, `--release`, jobs), **the environment variables that change a run, each with its value** (`RUN_ENV` in the
+  runner — found by searching the tests, their helpers and the runner for `os.environ` / `process.env`; a new one is
+  added there), each file's result, counts and time, start and end, the overall result. Kept OUTSIDE the
   working tree, per working copy: `git rev-parse --git-path rw-test-results` (`.git/rw-test-results` here; a git
   worktree gets its own, under `.git/worktrees/<name>/`). The newest 300 are kept.
   `py tools/run_tests.py --stamp [<commit>]` (default HEAD) runs nothing; it prints **PROVEN** (exit 0) only if tier 1
   AND tier 2 each ran in full on exactly that commit (`--tier 1` and `--tier 2`, or `--tier all`; a run narrowed by
   `--id` / `--tag` doesn't count), every file passed, nothing skipped, nothing uncommitted — the LATEST run of each tier
   counts, so a later failure isn't outvoted by an earlier pass. Otherwise **NOT PROVEN**, with why (exit 1).
-  Tests: `RUN-035`–`051`.
+  **A narrowing variable counts like `--id`** (2026-11-16: a run with `RW_CELLS` set ran a few cells and the stamp said
+  PROVEN): `RW_CELLS` (test_cells.py runs only the cells it names) makes the whole run narrowed — it counts for neither
+  tier, and NOT PROVEN names it with its value; the run itself says so at its end. The others are recorded and shown on
+  the stamp's line but don't narrow — every test still runs: `RW_HEADED` (the browser shown, slowed), `RW_BROWSER`
+  (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's limit), `RELAY_URL` (tier 3's
+  relay; tier 3 isn't part of the stamp). Records written before this have no variables and are read as full runs.
+  Tests: `RUN-035`–`051`, `058`, `059`.
 - **Tier 3 brings its own relay** (`tools/local_relay.py`, 2026-11-12): with no `--relay-url`, the runner starts
   relay-worker.js in wrangler's local emulator (`wrangler dev --env dev --local`) on a free port with an empty,
   throwaway store, waits for its "Ready on" line (60 s, else it fails with the end of wrangler's output), runs the relay
