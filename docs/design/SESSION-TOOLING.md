@@ -107,7 +107,9 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   has commits no other branch, tag or remote has; `--force` removes it anyway. **The branch is always kept.** Every link
   in the copy is removed FIRST, by itself: `git worktree remove` deletes THROUGH a junction (tried on a throwaway: the
   linked folder's files were gone). Afterwards it checks each of the main folder's linked folders still holds what it
-  held, and says so loudly if not. Tests: `COPY-001`–`005`.
+  held, and says so loudly if not. **Every folder in the copy must be looked into first** (2026-11-16): one it can't
+  read might hold a link it would miss, so it refuses — even with `--force` — naming each such folder, before anything is
+  removed. Tests: `COPY-001`–`006`.
 - **`py tools/copies.py list`** (also a double-click) — each copy, its branch and commit, anything uncommitted, and its
   test stamp (`run_tests.py --stamp` run there: each copy keeps its own run records).
 - **What works inside a copy** (checked 2026-11-16): the pre-build gate (above); the commit checks — `core.hooksPath

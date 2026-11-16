@@ -21,6 +21,10 @@ LINKS = (".venv", "node_modules", "tools/build/node_modules", "relay/node_module
 # git's own variables (GIT_DIR, GIT_INDEX_FILE…) point every git command at THIS repository while the commit hook runs
 # (RUN-044) — everything here runs without them.
 CLEAN_ENV = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+# …and so does what runs in THIS process (COPY-005's private_values.note_path): in a commit hook run from a working copy,
+# GIT_DIR names the copy's own git folder, and git then answered for it instead of the throwaway (2026-11-16).
+for _k in [k for k in os.environ if k.startswith("GIT_")]:
+    del os.environ[_k]
 FAKE_URL = "https://invalid.example/pytools.git"     # never reachable: the submodule must come from the main folder
 
 # The stand-in runner: tier 1 "passes" only if the linked .venv is reachable from the copy; --stamp is never proven.
@@ -220,5 +224,59 @@ def a_copy_knows_itself():
         w.copies("remove", "one", "--force")
 test("COPY-005", "in a copy: its name, its own screenshots folder, the main folder's private note, the commit checks",
      a_copy_knows_itself)
+
+
+def lock_listing(folder, locked):
+    """Make `folder` one this user can't list (locked=True) — or listable again (False). Windows: a "deny list folder"
+    entry for this user (icacls); elsewhere: no permissions. Returns the command's complaint, '' when it worked."""
+    if os.name == "nt":
+        user = subprocess.run(["whoami"], capture_output=True, text=True).stdout.strip()
+        args = (["icacls", folder, "/deny", f"{user}:(RD)"] if locked else ["icacls", folder, "/remove:d", user])
+        r = subprocess.run(args, capture_output=True, text=True, errors="replace")
+        return "" if r.returncode == 0 else (r.stderr or r.stdout).strip()
+    os.chmod(folder, 0 if locked else 0o755)
+    return ""
+
+
+def remove_refuses_what_it_cant_look_into():
+    copies = load_copies()
+    with World() as w:
+        w.copies("new", "one")
+        c = w.copy("one")
+        locked = os.path.join(c, "relay", "locked")
+        os.makedirs(locked)
+        copies.make_link(os.path.join(locked, "hidden-link"), w.precious)   # a link inside a folder no one can list
+        problem = lock_listing(locked, True)
+        try:                    # unlocked whatever happens — a locked folder can't be cleaned up
+            try:
+                os.listdir(locked)
+                can_list = True
+            except OSError:
+                can_list = False
+            check(not problem and not can_list, f"(setup: the folder must be unlistable — {problem or 'it still lists'})")
+            try:
+                copies.find_links(c)
+            except copies.Unscannable as e:
+                check(os.path.normpath(locked) in str(e), f"find_links names the folder it couldn't look into: {e}")
+            else:
+                raise AssertionError("find_links skipped a folder it couldn't look into instead of refusing")
+            code, out = w.copies("remove", "one", "--force")
+            check(code != 0 and "NOT REMOVED" in out and os.path.normpath(locked) in out,
+                  f"remove refuses — even with --force — naming the folder it couldn't look into (exit {code}):\n{out}")
+            check(os.path.isdir(c) and "unlinked" not in out, f"…before removing anything — no link taken out:\n{out}")
+            print("      (the refusal: " + " / ".join(ln.strip() for ln in out.strip().splitlines()[-3:]) + ")")
+            check(all(os.path.isjunction(os.path.join(c, rel)) or os.path.islink(os.path.join(c, rel)) for rel in LINKS),
+                  "the copy's links are all still there")
+            check(os.path.exists(os.path.join(w.precious, "deep", "keep.txt")) and w.sentinels(),
+                  "nothing a link points at lost a file")
+        finally:
+            lock_listing(locked, False)
+        code, out = w.copies("remove", "one", "--force")
+        check(code == 0 and not os.path.exists(c), f"once it can be looked into, the copy is removed:\n{out}")
+        check(f"unlinked {os.path.normpath('relay/locked/hidden-link')}" in out, f"…the link in it taken out first:\n{out}")
+        check(os.path.exists(os.path.join(w.precious, "deep", "keep.txt")) and w.sentinels(),
+              "and nothing it pointed at lost a file")
+test("COPY-006", "remove REFUSES (even with --force) while any folder in the copy can't be looked into — a link in it "
+     "would be missed, and git's remove would delete through it; named, nothing removed", remove_refuses_what_it_cant_look_into)
 
 done()
