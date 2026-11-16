@@ -8,7 +8,16 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-11-15 (through release 7.30.0)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-11-16 (through release 7.31.0)** — all sections human-reviewed (§1–21).
+7.31.0: a message never blocks a click, and a book left in no folder is caught at once — §13 gains "A message popped up
+over what I wanted to click"; §19's table gains the red bar "'Dune' was in no folder — it's in the Inbox now" (shown to
+everyone, with **Report this problem**); §19's Diagnostics answer, its red-bar row and its "hit a problem" box row: the
+bar's **Copy** and the box's **Copy details** now copy the whole diagnostics, the bar has **Report this problem**, and
+the bar's code shows only to someone who turned the bar on; §14's contributor answer: contributor mode turns the red bar
+on; §3's Inbox line: a book found in no folder lands there too. Comb for "message", "toast", "click", "red bar",
+"error bar", "banner", "Report this problem", "Copy", "Copy details", "Copy diagnostics", "Diagnostics", "Inbox",
+"no folder", "contributor", "repair", "Dismiss": no other entry changed (§6's "before 7.30.0 it left them in no
+folder" and §8's "every book is filed in at least one folder" still hold).
 7.30.0: one set of rules for Cut, Copy, Paste, Move to, Copy to and dragging — §6 gains "Do Cut, Copy, Paste… all follow
 the same rules?" (what's selected, never the folder you're in; the receipts' words; paste back where it came from;
 exact Undo), "I cut books in All Books… — what does Paste do?" (the re-file and its question) and "Why did my Cut turn
@@ -172,7 +181,7 @@ _(Concepts below; per-feature details in their own sections.)_
   book from a list never moves, tags, hides, or deletes the book itself — like a library card
   catalog: destroy the index card and the book stays on the shelf.
 - **Inbox** — where newly imported books land, awaiting a decision. Drag them into folders
-  (or Auto-Organize) to file them.
+  (or Auto-Organize) to file them. A book ever found in no folder lands here too (7.31.0; §19).
 - **Folders** — your hierarchy; a folder is a book's *home*. Folders nest (author → series is
   the common shape) — but nothing says they must *all* be authors: mix in catch-all shelves
   (*Various Authors*, *Non-Fiction*, *Comics*), or anything your imagination suggests.
@@ -617,6 +626,10 @@ needs your attention: a copy out of the Trash that restores the books, a Cut don
 stays a few seconds where it appeared (an ordinary message goes after a moment), then joins the 🕐 log like every
 message.
 
+**A message popped up over what I wanted to click.** (7.31.0) Click anyway — a message never blocks a click: the click
+goes through it to whatever is underneath. (A message appears just above where you last clicked, so it can sit right
+over the next thing you meant to click; before 7.31.0 that click hit the message and did nothing.)
+
 **Deliberately NOT undoable**: view state (sort modes, collapse/expand, filters, selection)
 and explicitly-confirmed permanent deletes (Empty Trash). Cut/copy to the clipboard isn't an
 action yet — the paste is. The doctrine in one line: **toasts promise truth, not
@@ -744,7 +757,9 @@ like readerwrangler.com: a self-hosted copy behaves like the real site (badge **
 the tabs apart). Before 7.21.0 a self-hosted copy quietly used the developers' test relay and its phone-pairing code
 pointed at the test site — if a self-hoster's sync ever "lost" data across that update, that's why. People working *on*
 ReaderWrangler turn on **contributor mode** (badge **LOCAL · CONTRIBUTOR**, orange) to get the test relay and
-developer checks; setup is in CONTRIBUTING.md.
+developer checks; setup is in CONTRIBUTING.md. Since 7.31.0 contributor mode also turns on the red bar (Help →
+Diagnostics, **Show a banner when something goes wrong**), so a contributor sees every error the moment it happens; turn
+it off there, or with the bar's **Turn off this banner**, and it stays off.
 
 ## 15. Backups & spreadsheet
 
@@ -886,18 +901,22 @@ your browser, newest first. Filter it by kind, area and time; lines with more in
 window). Nothing in it leaves your computer unless you copy it; your Passphrase is never in it, and Channel IDs appear
 only shortened (as Relay Setup shows them). **Chasing a problem?** At the bottom of Diagnostics: **Clear** to start
 fresh, then turn on **Show a banner when something goes wrong** (a red bar at the top of the page the moment anything
-fails, with Copy) and, if we ask, **Also record extra detail** (many more lines — it fills the record fast, so turn
+fails, with **Copy** and **Report this problem** — since 7.31.0 the bar's Copy copies the whole diagnostics, with what
+the bar showed at the top) and, if we ask, **Also record extra detail** (many more lines — it fills the record fast, so turn
 it off afterwards). We may send you a link that turns both on (`?errorBanner=on&logDetail=on`). **Is it working?**
 (7.28.0) Press **Send a test message** at the bottom of Diagnostics: one line marked TEST appears at the top — "A test
 message from Diagnostics — not a real problem" (code UI-07) — and the red bar shows it too when **Show a banner when
 something goes wrong** is on (if it's off, a note says so). Then **Copy diagnostics** and send it: the line proves the
-record, the banner and the copy all work.
+record, the banner and the copy all work. **Some problems show the red bar to everyone** (7.31.0), whether that switch
+is on or not — so far one: a book found in no folder (in the table below). That bar shows just the message (the code is in the
+record and in the copy) and has no **Turn off this banner**.
 
 | Symptom | Explanation | Fix |
 |---|---|---|
 | A line or red bar marked TEST: "A test message from Diagnostics — not a real problem" (UI-07-!TEST!) (7.28.0) | Someone pressed **Send a test message** in Help → Diagnostics — to check the record works. Nothing went wrong | Nothing to fix; **Dismiss** the bar. Lines marked TEST can be hidden with the **test entries** box at the top of Diagnostics |
-| A red bar at the top of the page with a code ("error · MOVE-03 · …") (7.26.0) | **Show a banner when something goes wrong** is on (Help → Diagnostics), and something failed | **Copy** it and send it to us; **Turn off this banner** if you don't want them |
-| A box: "ReaderWrangler hit a problem that may affect your library" (7.26.0) | Something that may put your data at risk — a save failed, the library couldn't be read; shown to everyone | Do what the box says (usually: save a backup, then reload; when the library didn't load: *don't* save a backup — reload). **Copy details** and send them to us |
+| A red bar at the top of the page with a code ("error · MOVE-03 · …") (7.26.0) | **Show a banner when something goes wrong** is on (Help → Diagnostics, or contributor mode since 7.31.0), and something failed | Press **Report this problem**, or **Copy** it (since 7.31.0 that copies your whole diagnostics) and send it to us; **Turn off this banner** if you don't want them |
+| A red bar: "'Dune' was in no folder — it's in the Inbox now. (That shouldn't happen; it's in the log.)" — or "3 books were in no folder — they're in the Inbox now…" (7.31.0) | Every book lives in a folder (the Inbox catches the rest). Something just done left a book in none; ReaderWrangler caught it at once — it checks every time it saves — and put the book in the **Inbox**, so nothing is lost. It notes what was done just before, which is how we find the cause. Shown to everyone, whatever the Diagnostics switch says | Already fixed — the book is in the Inbox; file it where it belongs. Press **Report this problem** on the bar (or **Copy**) and send it to us, so we can find the cause; then **Dismiss** |
+| A box: "ReaderWrangler hit a problem that may affect your library" (7.26.0) | Something that may put your data at risk — a save failed, the library couldn't be read; shown to everyone | Do what the box says (usually: save a backup, then reload; when the library didn't load: *don't* save a backup — reload). **Copy details** (since 7.31.0 your whole diagnostics, the problem at the top) and send them to us |
 | Deleted book reappeared after a fetch | It's owned/sampled — Amazon still lists it; revive-on-sighting is by design | Hide it (owned), or delete the sample at Amazon first (truth path) |
 | New purchase missing after import | Import raced the fetch — give the Relay ~1 min to catch up, or it was an *upgrade* of a tracked book (didn't count as "new", stayed in its folder) | Re-import and check the **Inbox** (where new purchases land); an upgrade of a tracked book stays in its folder — find it via All Books sorted by Date Added |
 | Found a book (via search or All Books) but don't know where it's filed | Column and cover views don't show a book's folder/list membership | **Hover its cover** — the "Found in" folders and "On Book Lists" are clickable; click one to jump there |
