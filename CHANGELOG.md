@@ -30,10 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   folder together go in as one step with one Undo.
 - **A book numbered 0 in its series ("Book 0") sorts before Book 1 and shows its number**, on the computer and the phone
   (it sorted last, as if it had none).
-- **Auto-Organize puts a new series folder in reading order — Book 0 first, books with no number last.** <!-- DRAFT -->
+- **Auto-Organize puts a new series folder in reading order — Book 0 first, books with no number last.**
 - **Updating from Amazon keeps a "Book 0"**, and a series number above 400 found in a title (long series like Perry
-  Rhodan). <!-- DRAFT -->
-- **F2 renames a folder you selected in the Folders view** (it did nothing). <!-- DRAFT -->
+  Rhodan).
+- **F2 renames a folder you selected in the Folders view** (it did nothing).
 
 ## [7.29.1] - 2026-11-13
 
