@@ -26,7 +26,9 @@ def toast_says(app, words):
         shown = app.page.locator(".clipboard-toast")
         now = shown.first.inner_text() if shown.count() else "no toast at all"
         raise AssertionError(f"no toast saying {words!r} — on screen: {now!r}")
-    app.hover(toast)    # refuses a toast that is covered (e.g. under the dialog) or has no size
+    # refuses a toast that is covered (e.g. under the dialog) or has no size — seen(), not hover(): since 7.31.0 a toast
+    # lets clicks through, and the browser's "what's under the pointer" skips it
+    app.seen(toast)
     return toast.inner_text()
 
 
