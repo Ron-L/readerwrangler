@@ -80,8 +80,55 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
 - **The runner — one command, in Python** (`tools/run_tests.py`; Ron's scripts rule): `--tier 1|2|3|all`,
   `--tag <area>`, `--id <ID>`, `--changed` (the tests covering what changed). With no `--tier`: tier 1 — except `--id`
   and `--tag`, which look in every tier (2026-11-12: a screen test's ID said "No tests match"; RUN-025–029); `--changed`
-  stays tier 1. One summary at the end; a screen test's
-  failure saves a screenshot and the console to Claude's scratch folder. The commit hook calls it with `--changed`.
+  stays tier 1. One summary at the end; a failing screen test saves a screenshot of its page (the harness asks `rw.App`,
+  2026-11-17 — the path printed under the failure: `screenshot: <path>`, in `%TEMP%\rw-test-artifacts[-<copy name>]`),
+  and a failed file's whole output is kept (below). The commit hook calls it with `--changed`.
+- **A failed file's WHOLE output is kept** (2026-11-17, TODO tooling item 9 — five one-time failures in one week, the
+  last two unreadable: the runner printed only a failing file's filtered lines). Every failed file's output — stdout and
+  stderr, every line — is saved beside the run's record, in a folder named as the record
+  (`<git-path rw-test-results>\<record name>\<file>.txt`); its failure lines end with `full output: <path>`, the end of
+  the run lists each again, and the record holds the path (`output`) and the screenshots the output named
+  (`screenshots`). A failed file on the stamp's NOT PROVEN line names it too. Old outputs go with their old records (the
+  newest 300 kept). A run without a record (the commit hook's `--changed`) keeps none. Tests: `RUN-072`, `073`.
+- **The machine's or the browser's trouble (ENVIRONMENT) is told from a TEST failure — by the screen-test driver, where
+  it's known** (2026-11-17; Ron: "Detect that is what it is, back off and slow down and repeat"). `test/ui/rw.py` raises
+  `harness.EnvironmentTrouble` — or notes it with `harness.environment()` — when: our web server (serve.py) or our local
+  relay didn't start; the browser didn't start; **the page never loaded** (the start screen still up after 180 s, or the
+  page's load never finished) **and the page reported no error of its own** — with one, it's a test failure naming the
+  error (ENV-002); the browser disconnected or a tab crashed; **a request to our own server failed for the machine's
+  reasons** — short of network buffers or memory (`net::ERR_NO_BUFFER_SPACE`, `ERR_INSUFFICIENT_RESOURCES`,
+  `ERR_OUT_OF_MEMORY`) on the way to our web server or local relay, or a refused / reset / empty connection to our web
+  server (only to it: to the relay that may be the relay code under test). A request a test refuses on purpose
+  (`ERR_FAILED`), one a page change cut short (`ERR_ABORTED`) and one to anywhere else never count. **The console check
+  (`app.unexpected_console()`) reports such a network error as the machine's trouble, never as a test failure** (RENAME-006,
+  2026-11-15). The harness (`test/ui/harness.py`) then decides the file's exit code: **3 — with a line
+  `ENVIRONMENT FAILURE: <reason>` — when the trouble came before any test failed** (a failure after it counts as the
+  trouble's); **1 when a test failed first** (it failed while the machine was fine) or there was no trouble; 0 when
+  nothing failed (trouble that failed nothing is only noted: `! machine or browser trouble: …`). An assertion can never
+  give 3. The code and the line live in one place, `tools/environment_trouble.py`, read by both sides. Tests: `ENV-001`–
+  `004` (a real browser: a page that never loads → 3; one that never loads because it failed → 1; our server stopped
+  mid-session → 3; a failure's screenshot), `RUN-080`–`082`.
+- **Rerun once, ALONE — never silently** (2026-11-17): a screen-test file that exits 3 with that line (both needed; tiers
+  1 and 3 never) is not reported yet; when every other file of the run is done, the runner waits 10 s, takes **every**
+  test slot on the PC (in order — two runs doing it can't deadlock; no other run's screen test beside it either) and
+  reruns it once. A file split into shards reruns only the shard that met the trouble. The summary says so loudly,
+  every time:
+
+      ! 1 file retried after the page never loaded — … — its first output: <path>
+          test/ui/test_x.py — rerun alone: passed — the rerun's output: <path>
+
+  and the file's own line ends `; rerun alone after <reason>`. The record notes it (`retried`: the reason, both outputs,
+  how the rerun went). **Passed on its rerun, it counts as passed** — and the stamp says so under its tier, on a `·` line
+  (`· test/ui/test_x.py was rerun alone after … — passed — its first output: <path>`), still PROVEN. **Failed again, it's
+  a failure**, both outputs kept. **A test failure is never rerun.** More than 4 files meeting the trouble in one run
+  aren't rerun (that many points at something broken). Tests: `RUN-074`–`078`.
+- **Fewer browsers when memory is low** (2026-11-17): before screen tests start, the runner reads the PC's available
+  memory (Windows: `GlobalMemoryStatusEx`; elsewhere `MemAvailable`) — **under 4 GB, 2 browsers at once; under 2 GB, 1**
+  — using the first of the PC's slots, and says why: `· only 3.0 GB of memory free — running 2 browsers at once, not 4`.
+  Measured that day: one screen-test file's Chrome takes 0.15 GB of RAM typically, 0.57 GB at most; our servers and
+  relays up to 0.27 GB together — 4 at their peak ≈ 2.5 GB (tools/test_slots.py). `RW_TEST_LOW_MEMORY_GB` sets the
+  threshold (half of it → 1); `0` turns the check off. The record notes it (`memory`: free GB, browsers, of how many).
+  Test: `RUN-079`.
 - **`--id` picks a file only where it names the ID as a test** (2026-11-16; it picked any file whose text held the ID —
   `--id CELL-005` also ran `test/test_run_tests.py`, ~25 s, where it is sample data, and `--id CELL-001`
   `test/gestureTable.test.js`, where a comment names it). Every file names a test by its ID as a whole quoted string,
@@ -160,7 +207,8 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   a shard's share, or the cells `--id` named — goes only to that file's process, never in the record's variables: an
   `--id` run is already narrowed by `--id`, RUN-060.) The others are recorded and shown on
   the stamp's line but don't narrow — every test still runs: `RW_HEADED` (the browser shown, slowed), `RW_BROWSER`
-  (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's limit), `RELAY_URL` (tier 3's
+  (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's limit),
+  `RW_TEST_LOW_MEMORY_GB` (fewer browsers below it — below), `RELAY_URL` (tier 3's
   relay; tier 3 isn't part of the stamp's verdict). Records written before this have no variables and are read as full
   runs.
   Tests: `RUN-035`–`051`, `058`, `059`.
@@ -267,6 +315,14 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   aside = a `skip: <TODO id> — why` line in the file's header (§4): every run then says so, and the next release is
   blocked until it's fixed.
 - **A failing test is read first, not fixed first** (Law 3, 7.25.0): it may be the protection working.
+- **A one-time failure — how it's handled now** (2026-11-17, TODO tooling item 9; §4): it is **kept** (the failed file's
+  whole output beside the run's record, and its screenshot — `full output: <path>`), **read** before anything else, and
+  **rerun only if it is the machine's or the browser's trouble** — which the screen-test driver itself recognizes and
+  says with exit 3, never a guess at the output afterwards: once, alone, after a wait, said loudly in the summary and
+  noted in the record and on the stamp (`1 file retried after <reason> — its first output: <path>`). That rerun is the
+  machine's hiccup being waited out, not "just re-run it": a TEST failure is never rerun — it is read, and fixed or set
+  aside the same day. A file rerun after the trouble that keeps coming back is a flaky environment to look into — the
+  first outputs say what happened. With low memory the run slows down by itself (fewer browsers at once).
 
 ## 8. What stays manual (a short list per release)
 
@@ -319,4 +375,8 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   a machine-wide limit, and every run's record with its commit (`--stamp`) — §3, §4. Tier 2 went from 594 s (one at a
   time) to ~295 s; it is now as long as its longest file, `test_cells.py` (129 cells, ~250–295 s) — splitting that file's
   cells across processes is the next step. Tier 1: 119 s → ~90 s, likewise its longest file (`test_backlog_report.py`).
+- **Built 2026-11-17 (branch `tooling/failed-output-graceful`, TODO tooling item 9):** a failed file's whole output kept;
+  the machine's or the browser's trouble told from a test failure by the driver (exit 3) and rerun once, alone; fewer
+  browsers when memory is low — §4, §7. `tools/environment_trouble.py`; `test/ui/test_environment.py` (ENV-001–004);
+  RUN-072–082.
 - From then on, every task follows §6.
