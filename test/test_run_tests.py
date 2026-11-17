@@ -1,6 +1,6 @@
 # Tests for tools/run_tests.py — the one test runner (docs/design/TESTING.md §4).
 # tags: test-runner, tier 1
-# covers: tools/run_tests.py, tools/local_relay.py, tools/test_slots.py, tools/environment_trouble.py, test/harness.js, test/ui/rw.py, test/ui/harness.py
+# covers: tools/run_tests.py, tools/local_relay.py, tools/test_slots.py, tools/environment_trouble.py, tools/browser_level.py, test/harness.js, test/ui/rw.py, test/ui/harness.py
 # Run: python test/test_run_tests.py
 #
 # Sample test files are written to a temporary folder; each row checks one thing the runner must do.
@@ -692,7 +692,8 @@ done()
         del os.environ["RW_TEST_SLOTS"]
     else:
         os.environ["RW_TEST_SLOTS"] = saved_env
-    row("RUN-048", "4 slots on the PC by default; RW_TEST_SLOTS overrides", n7 == 7 and nbad == 4, f"{n7}, {nbad}")
+    row("RUN-048", "6 slots on the PC by default (the most browsers at once a run may choose); RW_TEST_SLOTS overrides",
+        n7 == 7 and nbad == 6 and ts.DEFAULT_SLOTS == 6, f"{n7}, {nbad}")
 
     # Two files that can only pass TOGETHER: each waits (up to 20 s) for the other's mark — run one after the other, the
     # first gives up. The failing one prints several detail lines, which must come out together, never interleaved.
@@ -1218,26 +1219,19 @@ done()
         and "1 file retried after a request to our own server failed" in out,
         f"exit {code}, ran {ran}, entry {str(entry)[:400]}: {out[-600:]}")
 
-    # Low memory: fewer browsers at once (the free memory injectable; the real reading checked to give a number).
+    # Free memory: recorded with every screen-test run, as evidence — no longer a fixed threshold (2026-11-17: the level
+    # the runner finds for itself replaced "under 4 GB free → 2 browsers"). The free memory injectable; the real reading
+    # checked to give a number.
     GB = 2 ** 30
-    mem_slots = ts.Slots(count=4, folder=os.path.join(d, "slots-mem"))
     ma, mb = timed_file("test_ma.py"), timed_file("test_mb.py")
 
-    def mem_run(free, env=None):
+    def mem_run(free):
         if os.path.exists(os.path.join(d, "times.txt")):
             os.remove(os.path.join(d, "times.txt"))
-        folder = os.path.join(d, f"mem-results-{free}-{bool(env)}")
-        saved = os.environ.get("RW_TEST_LOW_MEMORY_GB")
-        if env is not None:
-            os.environ["RW_TEST_LOW_MEMORY_GB"] = env
-        try:
-            code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(ma), rt.TestFile(mb)], slots=mem_slots,
-                                   results=folder, free_memory=lambda: None if free is None else free * GB)
-        finally:
-            if saved is None:
-                os.environ.pop("RW_TEST_LOW_MEMORY_GB", None)
-            else:
-                os.environ["RW_TEST_LOW_MEMORY_GB"] = saved
+        folder = os.path.join(d, f"mem-results-{free}")
+        code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(ma), rt.TestFile(mb)],
+                               slots=ts.Slots(count=6, folder=os.path.join(d, f"slots-mem-{free}")),
+                               results=folder, free_memory=lambda: None if free is None else free * GB)
         spans = {}
         if os.path.exists(os.path.join(d, "times.txt")):
             for ln in open(os.path.join(d, "times.txt")).read().split("\n"):
@@ -1245,31 +1239,124 @@ done()
                     n_, what, t = ln.split()
                     spans.setdefault(n_, {})[what] = float(t)
         s = sorted(spans.values(), key=lambda x: x.get("start", 0))
-        apart = len(s) == 2 and all("start" in x and "end" in x for x in s) and s[0]["end"] <= s[1]["start"]
+        together = len(s) == 2 and all("start" in x and "end" in x for x in s) and s[1]["start"] < s[0]["end"]
         got = records_in(folder)
-        return code, out, apart, (got[-1].get("memory") if isinstance(got, list) and got else None)
+        return code, out, together, (got[-1].get("memory") if isinstance(got, list) and got else None)
 
-    c1, o1, apart1, m1 = mem_run(1.5)
-    c2, o2, _, m2 = mem_run(3.0)
-    c3, o3, _, m3 = mem_run(8.0)
-    c4, o4, _, m4 = mem_run(1.5, env="0")
-    c5, o5, _, m5 = mem_run(None)
+    c1, o1, together1, m1 = mem_run(1.5)
+    c2, o2, _, m2 = mem_run(None)
     try:
         real = ts.free_memory()
     except Exception as e:      # noqa: BLE001 — not built yet
         real = f"{type(e).__name__}: {e}"
-    row("RUN-079", "low memory → fewer browsers at once, said and recorded: 1.5 GB free → 1 (the two files one after the "
-        "other), 3 GB → 2, 8 GB → all 4, nothing said; RW_TEST_LOW_MEMORY_GB=0 turns the check off; memory unknown → no "
-        "limit; the PC's own reading is a number",
-        c1 == c2 == c3 == c4 == c5 == 0 and apart1
-        and "only 1.5 GB of memory free — running 1 browser at once, not 4" in o1
-        and "only 3.0 GB of memory free — running 2 browsers at once, not 4" in o2
-        and "memory free" not in o3 and "memory free" not in o4
-        and (m1 or {}).get("browsers") == 1 and (m2 or {}).get("browsers") == 2 and (m3 or {}).get("browsers") == 4
-        and (m4 or {}).get("browsers") == 4 and (m5 or {}).get("browsers") == 4 and (m1 or {}).get("free_gb") == 1.5
-        and isinstance(real, (int, float)) and real > 0,
-        f"1.5: exit {c1}, apart {apart1}, {m1}: {o1[-300:]} | 3: {m2} {o2[-200:]} | 8: {m3} | off: {m4} | unknown: {m5} | "
-        f"real: {real}")
+    row("RUN-079", "free memory is recorded with every screen-test run (as evidence) and shown on its level line — but no "
+        "fixed threshold any more: 1.5 GB free still runs the two files together; memory unknown → recorded as unknown; "
+        "RW_TEST_LOW_MEMORY_GB is gone; the PC's own reading is a number",
+        c1 == c2 == 0 and together1 and (m1 or {}).get("free_gb") == 1.5 and m2 == {"free_gb": None}
+        and "1.5 GB of memory free" in o1 and "running 1 browser" not in o1 and "RW_TEST_LOW_MEMORY_GB" not in rt.RUN_ENV
+        and not hasattr(ts, "memory_slots") and isinstance(real, (int, float)) and real > 0,
+        f"1.5: exit {c1}, together {together1}, {m1}: {o1[-300:]} | unknown: {m2} | real: {real}")
+
+    # --- How many browsers at once, found by the runner itself (Ron, 2026-11-17: "similar to how TCP works";
+    # tools/browser_level.py — its rule is tested in test/test_browser_level.py). Here, the runner's side: a mid-run trouble
+    # lowers the number running at once AT ONCE; the saved level moves after a full run and says so; a forced number and a
+    # narrowed run leave it alone; a damaged saved file starts at 4, said so. Each case has its own slots folder (the
+    # level is saved beside the slots), so nothing here touches the PC's real level.
+    # Each process writes its times to files of its own — appends from several processes to one file can lose lines on
+    # Windows (seen here once: a start line missing).
+    lvl_times = os.path.join(d, "lvl-times")
+    os.makedirs(lvl_times)
+
+    def lvl_file(name, trouble_first=False, secs=2.0):
+        def mark(what):
+            return f"open(os.path.join({lvl_times!r}, f'{name}.{{n}}.{what}'), 'w').write(str(time.time()))\n"
+        body = count_runs(name) + mark("start")
+        body += (f"""def first_time():
+    if n == 0:      # the trouble comes once the 3 files beside it have started (4 at once), so 'before' is certain
+        end = time.time() + 20
+        while time.time() < end and sum(1 for x in os.listdir({lvl_times!r})
+                                        if x.startswith("lvlsteady") and x.endswith(".0.start")) < 3:
+            time.sleep(0.05)
+        raise EnvironmentTrouble("the browser closed (a sample)")
+test("LVLS-001", "a sample test", first_time)
+""" if trouble_first else f"""time.sleep({secs})
+test("LVLS-002", "a sample test", lambda: None)
+""")
+        return harness_file(f"test_{name}.py", body + mark("end") + "done()\n")
+
+    lvl_files = [lvl_file("lvltrouble", trouble_first=True)] + [lvl_file(f"lvlsteady{i}") for i in range(6)]
+    lvl_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-lvl"))
+    lvl_rec = os.path.join(d, "lvl-results")
+    code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(p) for p in lvl_files], slots=lvl_slots, results=lvl_rec,
+                           retry_wait=0.1)
+    spans = {}
+    for x in os.listdir(lvl_times):
+        who, n_, what = x.split(".")
+        spans.setdefault((who, n_), {})[what] = float(open(os.path.join(lvl_times, x)).read())
+    trouble_end = spans.get(("lvltrouble", "0"), {}).get("end")
+    firsts = [v for k, v in spans.items() if k[1] == "0" and "start" in v and "end" in v]
+
+    def at_once(s):
+        return sum(1 for v in firsts if v["start"] <= s < v["end"])
+    before = max((at_once(v["start"]) for v in firsts if trouble_end and v["start"] < trouble_end), default=0)
+    after = max((at_once(v["start"]) for v in firsts if trouble_end and v["start"] >= trouble_end), default=0)
+    started_after = sum(1 for v in firsts if trouble_end and v["start"] >= trouble_end)
+    saved, _ = rt.browser_level.load(os.path.join(lvl_slots.folder, rt.browser_level.FILE_NAME))
+    got = records_in(lvl_rec)
+    moves = (got[-1].get("browsers") if isinstance(got, list) and got else None) or {}
+    row("RUN-083", "machine trouble mid-run lowers the number of browsers running at once AT ONCE: 4 at once until a file "
+        "met the trouble, then the level halves to 2 — the files already running go on, new ones start only while fewer "
+        "than 2 are running — said when it happens; the file is rerun alone as before; the halved level is saved and the "
+        "record notes the change",
+        code == 0 and before == 4 and after <= 2 and started_after >= 3 and runs_of("lvltrouble") == 2
+        and "! browsers at once: 4 → 2 for the rest of this run" in out and saved["level"] == 2
+        and saved["history"][-1].get("outcome") == "backed off" and moves.get("level") == 4
+        and moves.get("changes") == [{"from": 4, "to": 2}] and moves.get("end") == 2 and moves.get("next") == 2,
+        f"exit {code}, before {before}, after {after} ({started_after} started after), saved {saved.get('level')}, "
+        f"moves {moves}, times from the trouble's end "
+        f"{sorted((round(v.get('start', 0) - (trouble_end or 0), 2), round(v.get('end', 0) - (trouble_end or 0), 2), k) for k, v in spans.items())}"  # noqa: E501
+        f": {out[-700:]}")
+
+    la, lb = timed_file("test_la.py"), timed_file("test_lb.py")
+    lv_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-lv"))
+    lv_path = os.path.join(lv_slots.folder, rt.browser_level.FILE_NAME)
+
+    def lv_run(argv, env=None):
+        saved_env = {k: os.environ.get(k) for k in (env or {})}
+        os.environ.update(env or {})
+        try:
+            folder = os.path.join(d, f"lv-results-{len(os.listdir(d))}")
+            code, out = quiet_main(argv, files=[rt.TestFile(la), rt.TestFile(lb)], slots=lv_slots, results=folder)
+        finally:
+            for k, v in saved_env.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        got = records_in(folder)
+        return code, out, rt.browser_level.load(lv_path)[0]["level"], \
+            (got[-1].get("browsers") if isinstance(got, list) and got else None) or {}
+
+    r1 = lv_run(["--tier", "2"])
+    r2 = lv_run(["--tier", "2", "--jobs", "2"])
+    r3 = lv_run(["--tier", "2"], env={"RW_TEST_SLOTS": "3"})
+    r4 = lv_run(["--tier", "2", "--tag", "slot-sample"])
+    with open(lv_path, "w", encoding="utf-8") as f:
+        f.write("{damaged")
+    r5 = lv_run(["--tier", "2"])
+    row("RUN-084", "the saved level, through the runner: none saved → 'starting at 4', said; a full run with no trouble → "
+        "the next run gets 5, said at its end and recorded; --jobs 2 and RW_TEST_SLOTS=3 force their number and leave it "
+        "at 5; a narrowed run (--tag) leaves it at 5; a damaged file → 'couldn't be read … starting at 4', said",
+        all(r[0] == 0 for r in (r1, r2, r3, r4, r5))
+        and "· browsers at once: 4 (no saved level yet — starting at 4" in r1[1]
+        and "· browsers at once next run: 5 — a full run with no machine trouble" in r1[1] and r1[2] == 5
+        and r1[3].get("level") == 4 and r1[3].get("next") == 5 and r1[3].get("outcome") == "grew"
+        and "· browsers at once: 2 (forced by --jobs 2 — the saved level is left as it is)" in r2[1] and r2[2] == 5
+        and r2[3].get("next") is None and "· browsers at once: 3 (forced by RW_TEST_SLOTS=3" in r3[1] and r3[2] == 5
+        and r3[3].get("level") == 3
+        and "· browsers at once: 5 (saved — a full run" in r4[1] and "unchanged: a narrowed run" in r4[1] and r4[2] == 5
+        and "couldn't be read" in r5[1] and "starting at 4" in r5[1] and r5[3].get("level") == 4,
+        " || ".join(f"exit {r[0]}, saved {r[2]}, {r[3]}: {r[1][-300:]}" for r in (r1, r2, r3, r4, r5)))
 
     # The harness's side (test/ui/harness.py) — its exit code is the mechanism: 3 only for the machine's or the
     # browser's trouble, and only when no test had failed before it. Run as their own processes, as the runner would.
