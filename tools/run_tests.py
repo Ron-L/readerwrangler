@@ -36,11 +36,11 @@ plainly ("set aside: <file> — <TODO id> — why"); the TODO id must be a task 
 file fails); a --release run refuses while any file is set aside; the stamp counts that run as not a full run of the
 file's tier. (TESTING.md §7: a flaky test is fixed — or set aside, with a TODO — the same day.)
 
-In parallel (TODO "Faster sprints", item 1; 2026-11-16): tier 1 and tier 2 files run several at once — --jobs N, by
-default the machine-wide limit — and every screen-test (tier 2) file holds one of the PC's test slots while it runs
-(tools/test_slots.py: 4 in total for every run on this PC, whatever folder it's in; RW_TEST_SLOTS overrides). A run
-waiting for a slot says so. Tier 3 stays one file at a time (its own local relay). One line per file as it finishes; a
-failing file's details printed together; the same summary line at the end.
+In parallel (TODO "Faster sprints", item 1; 2026-11-16): tier 1 and tier 2 files run several at once — --jobs N; by
+default 4, or the run's browsers-at-once level (below) when higher — and every screen-test (tier 2) file holds one of
+the PC's test slots while it runs (tools/test_slots.py: 6 in total for every run on this PC, whatever folder it's in;
+RW_TEST_SLOTS overrides). A run waiting for a slot says so. Tier 3 stays one file at a time (its own local relay). One
+line per file as it finishes; a failing file's details printed together; the same summary line at the end.
 
     py tools/run_tests.py --tier 2 --jobs 1   one file at a time, as before
 
@@ -76,9 +76,12 @@ ALONE: after the others are done and a short wait, holding every test slot on th
 "1 file retried after <reason> — its first output: <path>" — and the record notes it with both outputs; passed on its
 rerun, it counts as passed (the stamp shows the note); failed again, it's a failure. A TEST failure is never rerun.
 
-Low memory (same day): before screen tests start, the PC's free memory is read — under 4 GB, 2 browsers at once; under
-2 GB, 1 — and the run says why (tools/test_slots.py; RW_TEST_LOW_MEMORY_GB sets the threshold, 0 turns it off). The
-record notes it.
+How many browsers at once (same day — Ron: "similar to how TCP works"): the run's LEVEL, 1 to 6, chosen by the runner
+itself and saved per PC beside the test slots (tools/browser_level.py; %TEMP%\\rw-test-slots\\browsers-at-once.json —
+delete it to start again at 4). Machine trouble halves it at once, for the rest of the run and saved; a full screen-test
+run with none lets the next run try one more — kept only if it was faster than the level below by more than 5 %, else
+back down and no try again for 5 full runs. Each run says its level and why, at its start and its end; the record notes
+it, with the free memory. --jobs N or RW_TEST_SLOTS forces a number and leaves the saved level alone.
 
 Double-clicked, the window stays open to show the results (pytools keepopen). Exit: 0 all passed · 1 a failure.
 """
@@ -101,6 +104,7 @@ if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
 import local_relay  # noqa: E402 — tools/local_relay.py, next to this file
 import test_slots   # noqa: E402 — tools/test_slots.py: the machine-wide limit on screen tests at once
 import environment_trouble   # noqa: E402 — tools/environment_trouble.py: a screen test's "the machine failed, not me"
+import browser_level   # noqa: E402 — tools/browser_level.py: how many browsers at once, found by the runner itself
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Screen tests (tier 2) need Playwright, which lives in the project's venv (requirements-dev.txt) — never the system
@@ -469,8 +473,8 @@ RUN_ENV = {     # name: (narrows?, what it does)
     "RW_HEADED": (False, "the screen tests show the browser, slowed down — every test still runs (test/ui/rw.py)"),
     "RW_BROWSER": (False, "the screen tests' browser: chrome (the default) or msedge — every test still runs (rw.py)"),
     "RW_TEST_ARTIFACTS": (False, "where a failing screen test saves its screenshot (tools/copies.py)"),
-    "RW_TEST_SLOTS": (False, "the PC's limit on screen tests at once (tools/test_slots.py)"),
-    "RW_TEST_LOW_MEMORY_GB": (False, "below this much free memory, fewer browsers at once; 0 = no check (test_slots.py)"),
+    "RW_TEST_SLOTS": (False, "the PC's slots, and the browsers at once forced to it — the saved level left alone "
+                             "(tools/test_slots.py, browser_level.py)"),
     "RELAY_URL": (False, "tier 3 runs against that relay instead of starting its own local one"),
 }
 
@@ -681,7 +685,8 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     None — the runner's own sample runs leave no record); slots: the machine-wide limit (None = test_slots.Slots()); todo:
     the TODO file a skip: line's task must be in (None = the repo's TODO.md); retry_wait: seconds before a file is rerun
     alone (None = RETRY_WAIT_S); free_memory: reads the free memory in bytes (None = test_slots.free_memory) — all for the
-    runner's own tests (test/test_run_tests.py)."""
+    runner's own tests (test/test_run_tests.py). The saved browsers-at-once level lives in the slots' folder, so a test's
+    own slots keep their own level."""
     retry_wait = RETRY_WAIT_S if retry_wait is None else retry_wait
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -702,8 +707,10 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                     help="a release run: a skipped file, a file set aside (its skip: line), or a test still marked "
                          "'differs today' FAILS the run (the release checklist: py tools/run_tests.py --tier all --release)")
     ap.add_argument("--jobs", type=int, default=None,
-                    help="test files at once (tiers 1 and 2; tier 3 is always one at a time) — default: the machine-wide "
-                         "limit on screen tests (RW_TEST_SLOTS, else 4), which every screen-test file also holds a slot of")
+                    help="test files at once (tiers 1 and 2; tier 3 is always one at a time) — default: 4, or more when the "
+                         "screen tests' browsers-at-once level the runner finds for this PC (1–6, saved; "
+                         "tools/browser_level.py) is higher. Given, it also forces that many browsers at once and leaves "
+                         "the saved level alone")
     ap.add_argument("--stamp", nargs="?", const="HEAD", default=None, metavar="COMMIT",
                     help="say whether the recorded runs PROVE this commit (default HEAD): tiers 1 and 2 in full, every file "
                          "passed, nothing skipped or set aside, nothing uncommitted; tier 3's latest run shown, for "
@@ -837,22 +844,35 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     # run — RW_CELLS already set, or --id naming some of its cells — stays one process). Longest first — by each file's
     # time in this copy's latest record (a shard: its file's longest shard then, or its file's time split N ways) — so
     # the long ones don't finish last on their own.
-    slots = slots or test_slots.Slots()
-    machine_slots = slots          # every slot on the PC — a file rerun alone holds them all
-    jobs = max(1, a.jobs or slots.count)
+    slots = slots or test_slots.Slots()      # every slot on the PC — a file rerun alone holds them all
     pooled = [f for f in chosen if f.tier != 3]
-    if any(f.tier == 2 for f in pooled):
-        # Low memory (2026-11-17): fewer browsers at once for this run — the first N of the PC's slots — and say why.
+    screen = [f for f in pooled if f.tier == 2]
+    # How many browsers at once (2026-11-17, browser_level.py): the level saved for this PC — or a number forced by
+    # --jobs / RW_TEST_SLOTS, which leaves the saved level alone. Inside the run, the gate holds it: a screen test starts
+    # only while fewer than the level are running, among the first that-many of the PC's slots; trouble halves it.
+    level_path = os.path.join(slots.folder, browser_level.FILE_NAME)
+    forced = f"--jobs {a.jobs}" if a.jobs else \
+        f"RW_TEST_SLOTS={os.environ['RW_TEST_SLOTS']}" if os.environ.get("RW_TEST_SLOTS") else None
+    gate, free_gb, start_level, level_from = None, None, None, None
+    if screen:
         free = (free_memory or test_slots.free_memory)()
-        browsers, why = test_slots.memory_slots(free, slots.count)
-        if why:
-            print(f"· {why}")
-            slots = test_slots.Slots(count=browsers, folder=slots.folder)
-            if not a.jobs:
-                jobs = min(jobs, browsers)
+        free_gb = None if free is None else round(free / 2 ** 30, 1)
+        if forced:          # (more than the PC's slots: the slots still hold it to them)
+            start_level = max(1, a.jobs or test_slots.slot_count())
+            level_from = f"forced by {forced} — the saved level is left as it is"
+            line = f"{start_level} ({level_from})"
+        else:
+            state, note = browser_level.load(level_path)
+            start_level, level_from = state["level"], note or "saved"
+            line = browser_level.describe(state, note)
+        gate = browser_level.Gate(start_level)
+        if not a.quiet:
+            print(f"· browsers at once: {line}" + (f" · {free_gb} GB of memory free" if free_gb is not None else ""))
         if rec:
-            rec["memory"] = {"free_gb": None if free is None else round(free / 2 ** 30, 1), "browsers": browsers,
-                             "of": machine_slots.count, **({"why": why} if why else {})}
+            rec["memory"] = {"free_gb": free_gb}
+    # Files at once: --jobs, else 4 — or the level when it's higher. The gate, not this, holds the browsers to the level
+    # (tier-1 files beside them in a --tier all run aren't browsers: a level of 1 doesn't make them wait in line).
+    jobs = max(1, a.jobs) if a.jobs else max(browser_level.START, gate.level if gate else 0)
     if rec:
         rec["ran"]["jobs"] = jobs
     if any(f.tier == 2 for f in pooled) and real:
@@ -924,17 +944,32 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                        for k, n, c, o, x, s, b, w, t in done],
                tried=[p[8] for p in done if p[8]] or None)
 
+    troubles = []       # each first run that met the machine's or the browser's trouble (reruns not counted)
+
     def run_unit(u):
         f, k, n, cells = u
-        slot = slots.acquire(f"{ROOT} · {label_of(u)}", on_wait=say) if f.tier == 2 else None
-        t0 = time.monotonic()
+        gen = gate.enter() if f.tier == 2 else None     # waits while the run already has its level of browsers running
+        slot = None
         try:
+            if f.tier == 2:
+                slot = slots.acquire(f"{ROOT} · {label_of(u)}", on_wait=say, upto=lambda: gate.level)
+            t0 = time.monotonic()
             code, out = run_one(u)
+            t1 = time.monotonic()
+            why = environment_reason(f, code, out)
+            if why:     # back off hard, at once — before this file's place is given up (a forced number stays)
+                with say_lock:
+                    troubles.append(label_of(u))
+                moved = None if forced else gate.trouble(gen)
+                if moved:
+                    say(f"! browsers at once: {moved[0]} → {moved[1]} for the rest of this run — {label_of(u)} met the "
+                        f"machine's or the browser's trouble ({why}); the files already running go on")
         finally:
             if slot:
                 slot.release()
-        t1, waited = time.monotonic(), slot.waited if slot else 0.0
-        why = environment_reason(f, code, out)
+            if gen is not None:
+                gate.leave()
+        waited = slot.waited if slot else 0.0
         if why:     # the machine's or the browser's trouble: rerun once, alone, when the others are done
             with say_lock:
                 take = len(to_rerun) < MAX_RETRIES
@@ -948,18 +983,20 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                     " that many points at something broken, not a passing hiccup")
         finish(u, code == 0, out, t0, t1, waited)
 
+    t_pool = time.monotonic()
     if units:
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(jobs, len(units))) as pool:
             for fut in concurrent.futures.as_completed([pool.submit(run_unit, u) for u in units]):
                 fut.result()
+    pool_seconds = time.monotonic() - t_pool     # the wall time a level is judged by (not the build, reruns or tier 3)
     # The reruns, ALONE (2026-11-17): every other file of this run is done; after a wait, each holds EVERY test slot on
     # the PC (no other run's screen test beside it either). Rerun once: passed → passed (noted); failed → failed.
     for u, why, first, secs in to_rerun:
         f, k, _, _ = u
         say(f"! rerunning {label_of(u)} alone — after {why}: waiting {retry_wait:g} s, then holding every test slot on "
-            f"this PC ({machine_slots.count})")
+            f"this PC ({slots.count})")
         time.sleep(retry_wait)
-        group = machine_slots.acquire_all(f"{ROOT} · {label_of(u)} (rerun alone)", on_wait=say)
+        group = slots.acquire_all(f"{ROOT} · {label_of(u)} (rerun alone)", on_wait=say)
         t0 = time.monotonic()
         try:
             code, out = run_one(u)
@@ -972,6 +1009,28 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                  else "failed", "rerun_output": keep_output(out_dir, f, out, k, "rerun")}
         finish(u, code == 0, f"! rerun alone after {why} — its first output: {first or '(not kept: no record)'}\n" + out,
                t0, t1, group.waited, tried)
+    # The level for the next run (browser_level.decide): a forced number leaves it alone; a narrowed run moves it only on
+    # trouble. The saved file is read again here — another run on this PC may have saved since this one started.
+    if gate:
+        moves = {"level": start_level, "from": level_from, "changes": [{"from": x, "to": y} for x, y in gate.changes],
+                 "end": gate.level, "peak": gate.peak, "troubles": len(troubles), "seconds": round(pool_seconds, 1)}
+        if forced:
+            moves.update(next=None, why=level_from)
+        else:
+            narrowing = [k for k in run_env() if RUN_ENV[k][0]]
+            full = not (a.tag or a.id or a.changed or narrowing or any(f.tier == 2 for f in aside))
+            done_run = {"level": start_level, "end": gate.level, "seconds": round(pool_seconds, 1), "files": len(screen),
+                        "suite": "tier all" if tier == "all" else "tier 2", "full": full, "trouble": len(troubles),
+                        "free_gb": free_gb, "when": _now()}
+            state, _ = browser_level.load(level_path)
+            state, nxt, why, outcome = browser_level.record(state, done_run)
+            err = None if outcome == "ignored" else browser_level.save(level_path, state)
+            if not a.quiet or err or outcome == "backed off":
+                print(f"· browsers at once next run: {nxt} — " + (f"unchanged: {why}" if outcome == "ignored" else why)
+                      + (f" — ✗ {err}" if err else ""))
+            moves.update(next=nxt, why=why, outcome=outcome, full=full, **({"not_saved": err} if err else {}))
+        if rec:
+            rec["browsers"] = moves
 
     # Tier 3 with no --relay-url: the runner starts its OWN local relay around the relay files, then stops it and checks
     # everything it started is gone and its ports are free (local_relay.py). A given --relay-url is used as is.

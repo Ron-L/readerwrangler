@@ -5,8 +5,9 @@ Screen tests run in parallel (tools/run_tests.py --jobs), and several working co
 time — but sprint 4's one-time failures came from machine load. So every screen-test file, from ANY run on this PC,
 holds one of N slots for as long as it runs:
 
-    slots = Slots()                                  # N = RW_TEST_SLOTS, else 4; the slot files live in %TEMP%
+    slots = Slots()                                  # N = RW_TEST_SLOTS, else 6; the slot files live in %TEMP%
     slot = slots.acquire("test/ui/test_cells.py", on_wait=print)    # waits while all N are taken (says so, once)
+    slot = slots.acquire("…", upto=lambda: 3)        # only among the first 3 (the run's level — browser_level.py)
     ...                                              # run the file
     slot.release()
 
@@ -18,24 +19,24 @@ Every run must use the same N — a run with fewer slots just uses the first one
     group = slots.acquire_all("… (rerun alone)")     # EVERY slot: no other screen test on this PC runs meanwhile
     group.release()
 
-Low memory (2026-11-17, TODO tooling item 9): free_memory() reads what the PC has available; memory_slots() says how many
-browsers this run should run at once — fewer when memory is low — and why, in words.
+How many browsers a run uses at once — its LEVEL, 1 to 6 — is chosen by the runner itself and saved beside these slot
+files (tools/browser_level.py, 2026-11-17: it replaced the fixed low-memory rule of the same morning). A run at level L
+takes only the first L slots, so every run on this PC together stays within the PC's level too. free_memory() reads
+what the PC has available — noted in each run's record, as evidence.
 
-Tested by test/test_run_tests.py (RUN-035…, 074, 079).
+Tested by test/test_run_tests.py (RUN-035…, 074, 079, 083).
 """
 import datetime
 import os
 import tempfile
 import time
 
-DEFAULT_SLOTS = 4
-# Below LOW_MEMORY_GB free: 2 browsers at once; below half of it: 1 (RW_TEST_LOW_MEMORY_GB overrides it; 0 = no check).
+DEFAULT_SLOTS = 6       # = browser_level.TOP, the most browsers at once a run may choose (4 until 2026-11-17)
 # Measured 2026-11-17 on Ron's PC (a full tier 2, sampled every 3 s; RAM in use — working set — the same column as the
-# "available" this reads): one screen-test file's Chrome, all its processes, 0.15 GB typically, 0.48 GB at the 90th
-# percentile, 0.57 GB at most; our web servers and local relays together up to 0.27 GB. So 4 at their peak ≈ 2.5 GB: with
-# under 4 GB free that leaves Windows and everything else under ~1.5 GB, and it pages; 2 (≈ 1.4 GB) leave room. Under
-# 2 GB, even 2 would leave under ~0.6 GB: 1. (That day the PC had 3.8 GB of 31.4 free before the run, 1.4 GB at its low.)
-LOW_MEMORY_GB = 4.0
+# "available" free_memory reads): one screen-test file's Chrome, all its processes, 0.15 GB typically, 0.48 GB at the
+# 90th percentile, 0.57 GB at most; our web servers and local relays together up to 0.27 GB. (That day the PC had 3.8 GB
+# of 31.4 free before the run, 1.4 GB at its low.) A fixed threshold drawn from that was replaced the same day by the
+# level the runner finds for itself (browser_level.py); free memory is still recorded with every run.
 FOLDER = os.path.join(tempfile.gettempdir(), "rw-test-slots")
 _LOCK_AT = 1 << 30      # Windows locks are mandatory: lock one byte far past the text, so others can still read who holds it
 
@@ -71,7 +72,7 @@ else:   # Ron's PC is Windows; this keeps the runner usable elsewhere
 
 
 def slot_count():
-    """N: RW_TEST_SLOTS if it's a whole number of at least 1, else 4."""
+    """N: RW_TEST_SLOTS if it's a whole number of at least 1, else 6."""
     try:
         n = int(os.environ.get("RW_TEST_SLOTS", ""))
         return n if n >= 1 else DEFAULT_SLOTS
@@ -105,26 +106,6 @@ def free_memory():
         return os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
     except (ValueError, OSError, AttributeError):
         return None
-
-
-def memory_slots(free, count, environ=None):
-    """(browsers to run at once, why — or None when it's all of them): `count` normally; 2 with less than LOW_MEMORY_GB
-    free, 1 with less than half of it (never more than count). RW_TEST_LOW_MEMORY_GB sets the threshold; 0 turns the
-    check off. free: bytes, or None (unknown — no limit)."""
-    env = os.environ if environ is None else environ
-    try:
-        low = float(env.get("RW_TEST_LOW_MEMORY_GB", "") or LOW_MEMORY_GB)
-    except ValueError:
-        low = LOW_MEMORY_GB
-    if free is None or low <= 0:
-        return count, None
-    gb = free / 2 ** 30
-    n = count if gb >= low else 2 if gb >= low / 2 else 1
-    n = min(n, count)
-    if n >= count:
-        return count, None
-    return n, (f"only {gb:.1f} GB of memory free — running {n} browser{'s' if n > 1 else ''} at once, not {count} "
-               f"(under {low:g} GB: 2, under {low / 2:g} GB: 1 — RW_TEST_LOW_MEMORY_GB; 0 turns it off)")
 
 
 class Slot:
@@ -175,10 +156,16 @@ class Slots:
         os.close(fd)
         return None
 
-    def try_acquire(self, label):
+    def _upto(self, upto):
+        """How many of the slots to look in: all, or the first `upto` (a number, or a function giving one — a run's
+        level, which can drop while it waits)."""
+        n = upto() if callable(upto) else upto
+        return self.count if n is None else max(1, min(self.count, n))
+
+    def try_acquire(self, label, upto=None):
         """A free slot (holding it), or None if all are taken. label: what will run in it, and from which working copy
-        (shown to waiting runs)."""
-        for n in range(1, self.count + 1):
+        (shown to waiting runs). upto: look only in the first that-many slots (_upto)."""
+        for n in range(1, self._upto(upto) + 1):
             slot = self._try_one(n, label)
             if slot:
                 return slot
@@ -214,17 +201,21 @@ class Slots:
             out.append(f"slot {n}: {text or '(starting)'}")
         return out
 
-    def acquire(self, label, on_wait=None, poll_s=0.5):
-        """Wait for a free slot and hold it. on_wait(message) is called once, if it has to wait, naming the holders."""
+    def acquire(self, label, on_wait=None, poll_s=0.5, upto=None):
+        """Wait for a free slot and hold it. on_wait(message) is called once, if it has to wait, naming the holders.
+        upto: only among the first that-many slots (_upto)."""
         start = time.monotonic()
         said = False
         while True:
-            slot = self.try_acquire(label)
+            slot = self.try_acquire(label, upto)
             if slot:
                 slot.waited = time.monotonic() - start
                 return slot
             if not said and on_wait:
-                on_wait(f"· {label} waits for a test slot — all {self.count} on this PC are in use "
-                        f"(RW_TEST_SLOTS; {self.folder}):\n    " + "\n    ".join(self.holders()))
+                n = self._upto(upto)
+                on_wait(f"· {label} waits for a test slot — "
+                        + (f"all {self.count} on this PC are in use" if n >= self.count else
+                           f"the first {n} of the {self.count} on this PC (browsers at once: {n}) are in use")
+                        + f" (RW_TEST_SLOTS; {self.folder}):\n    " + "\n    ".join(self.holders()))
                 said = True
             time.sleep(poll_s)

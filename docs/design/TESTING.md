@@ -122,13 +122,44 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   (`· test/ui/test_x.py was rerun alone after … — passed — its first output: <path>`), still PROVEN. **Failed again, it's
   a failure**, both outputs kept. **A test failure is never rerun.** More than 4 files meeting the trouble in one run
   aren't rerun (that many points at something broken). Tests: `RUN-074`–`078`.
-- **Fewer browsers when memory is low** (2026-11-17): before screen tests start, the runner reads the PC's available
-  memory (Windows: `GlobalMemoryStatusEx`; elsewhere `MemAvailable`) — **under 4 GB, 2 browsers at once; under 2 GB, 1**
-  — using the first of the PC's slots, and says why: `· only 3.0 GB of memory free — running 2 browsers at once, not 4`.
-  Measured that day: one screen-test file's Chrome takes 0.15 GB of RAM typically, 0.57 GB at most; our servers and
-  relays up to 0.27 GB together — 4 at their peak ≈ 2.5 GB (tools/test_slots.py). `RW_TEST_LOW_MEMORY_GB` sets the
-  threshold (half of it → 1); `0` turns the check off. The record notes it (`memory`: free GB, browsers, of how many).
-  Test: `RUN-079`.
+- **How many browsers at once — the runner finds it itself** (2026-11-17; Ron: "similar to how TCP works" — use more
+  until failures, back off, occasionally try more; measure diminishing returns; conditions change). It replaced, the
+  same day, a fixed rule (under 4 GB free → 2 browsers, under 2 GB → 1). `tools/browser_level.py`:
+  - **The level** — how many screen-test browsers a run may run at once, **1 to 6** (the PC's slots are 6 to match).
+    It is **saved per PC**, beside the slot files: `%TEMP%\rw-test-slots\browsers-at-once.json` — the level, why, and
+    the last 30 runs (`{level, end, wall seconds, files, suite, full, trouble, free GB, when}` + what was decided after
+    each). Written to a temporary file, then put in place. **Missing or damaged → start at 4, and the run says so.**
+    **To reset it: delete that file** (the next run starts at 4).
+  - **Back off hard:** a screen test meeting the machine's or the browser's trouble (exit 3, above) **halves the level
+    at once** for the rest of the run (`! browsers at once: 4 → 2 for the rest of this run — <file> met …`): the files
+    already running go on; new ones start only while fewer than the level are running. One halving per burst (trouble
+    from a file that started before the last halving doesn't halve again); never below 1. The file is rerun alone as
+    before, and **the halved level is saved** — whether or not the run was narrowed.
+  - **Grow gently:** after a **full** screen-test run (`--tier 2` or `--tier all`, not narrowed by `--id`, `--tag`,
+    `--changed`, `RW_CELLS` or a set-aside tier-2 file) with no such trouble, the next run gets **one more** (up to 6).
+  - **Diminishing returns:** the run right after a step up is judged — its wall time (the parallel part: not the build,
+    reruns or tier 3) against **the best recent full run at the level below** (the last 10 saved runs; the same suite —
+    tier 2 or all — and about the same number of screen-test files, within 10 %; never a run with trouble). **Not
+    faster by more than 5 % → back to the level below, and no try at the higher one for the next 5 full runs** — then
+    it tries again (conditions change). A suite that changed size a lot isn't compared: the run stays at its level to
+    measure it.
+  - **Said and recorded:** each screen-test run starts with a line like
+    `· browsers at once: 4 (saved — 5 at once took 3 min 40 s — no faster than 4 at once (3 min 24 s, the best recent
+    run) — back to 4, and no try at 5 for the next 5 full runs; last 3 full runs: 4 → 3 min 24 s, 5 → 3 min 40 s, 4 →
+    3 min 22 s) · 18.2 GB of memory free` and ends with `· browsers at once next run: 4 — <why>`. The record holds
+    `browsers` (the level it started at, where from, each change, the end, the most at once, troubles, the wall time,
+    the next level and why) and `memory` (free GB — evidence, no longer a rule).
+  - **Forcing a number:** `--jobs N` or `RW_TEST_SLOTS=N` runs N at once (the slots still cap it) — **the saved level is
+    left alone**, and trouble doesn't move N within that run. `--jobs` also sets how many files at once overall; by
+    default that's 4, or the level when higher (tier-1 files beside the browsers in a `--tier all` run aren't held to
+    the browsers' level).
+  - Two runs at once (two working copies) each save their own result; the last one written wins. A run at level L takes
+    only the first L of the PC's slots, so runs at the same level together stay within it.
+  - Measured 2026-11-17 for scale: one screen-test file's Chrome takes 0.15 GB of RAM typically, 0.57 GB at most; our
+    servers and relays up to 0.27 GB together (tools/test_slots.py).
+
+  Tests: `LEVEL-001`–`016` (test/test_browser_level.py — the rule, a pure function: history in → next level and why
+  out), `RUN-079`, `083`, `084`.
 - **`--id` picks a file only where it names the ID as a test** (2026-11-16; it picked any file whose text held the ID —
   `--id CELL-005` also ran `test/test_run_tests.py`, ~25 s, where it is sample data, and `--id CELL-001`
   `test/gestureTable.test.js`, where a comment names it). Every file names a test by its ID as a whole quoted string,
@@ -142,12 +173,14 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   tier 2, exactly the quoted IDs each holds. `py tools/run_tests.py --id CELL-005 --list` → test_cells.py alone. Tests:
   `RUN-063`, `064`.
 - **In parallel, under a machine-wide limit** (2026-11-16): tier 1 and tier 2 files run several at once — `--jobs N`
-  (default: the limit below; `--jobs 1` = one at a time, as before), the longest first by each file's time in the last
-  record. **Every screen-test file holds one of the PC's test slots while it runs** (`tools/test_slots.py`): 4 in total
-  for every run on this PC, whatever working copy it's in (`RW_TEST_SLOTS` overrides — every run should use the same
+  (default: 4, or the browsers-at-once level above when higher; `--jobs 1` = one at a time, as before), the longest
+  first by each file's time in the last record. **Every screen-test file holds one of the PC's test slots while it
+  runs** (`tools/test_slots.py`): 6 in total for every run on this PC (4 until 2026-11-17, when the runner began choosing
+  its own level, 1–6, above), whatever working copy it's in (`RW_TEST_SLOTS` overrides — every run should use the same
   number). A slot is a file in `%TEMP%\rw-test-slots` held with an OS file lock, so a run that crashes or is stopped
-  frees its slot by itself. A run waiting for one prints `· <file> waits for a test slot — all 4 on this PC are in use`
-  and who holds each (process id, folder, file, since when). Tier 3 stays one file at a time (its own local relay).
+  frees its slot by itself. A run waiting for one prints `· <file> waits for a test slot — all 6 on this PC are in use`
+  (or `— the first 4 of the 6 on this PC (browsers at once: 4) are in use`) and who holds each (process id, folder,
+  file, since when). Tier 3 stays one file at a time (its own local relay).
   Output: one line per file as it finishes, with its time; a failing file's details together, never interleaved; the
   same `Tests: N file(s) passed, M failed` line at the end. Before the screen tests start, the runner builds `dist/`
   once — otherwise each test's own serve.py would rebuild the same stale files at the same time.
@@ -207,8 +240,8 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   a shard's share, or the cells `--id` named — goes only to that file's process, never in the record's variables: an
   `--id` run is already narrowed by `--id`, RUN-060.) The others are recorded and shown on
   the stamp's line but don't narrow — every test still runs: `RW_HEADED` (the browser shown, slowed), `RW_BROWSER`
-  (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's limit),
-  `RW_TEST_LOW_MEMORY_GB` (fewer browsers below it — below), `RELAY_URL` (tier 3's
+  (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's limit, and
+  the browsers at once forced to it), `RELAY_URL` (tier 3's
   relay; tier 3 isn't part of the stamp's verdict). Records written before this have no variables and are read as full
   runs.
   Tests: `RUN-035`–`051`, `058`, `059`.
@@ -322,7 +355,8 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   noted in the record and on the stamp (`1 file retried after <reason> — its first output: <path>`). That rerun is the
   machine's hiccup being waited out, not "just re-run it": a TEST failure is never rerun — it is read, and fixed or set
   aside the same day. A file rerun after the trouble that keeps coming back is a flaky environment to look into — the
-  first outputs say what happened. With low memory the run slows down by itself (fewer browsers at once).
+  first outputs say what happened. The run also slows down by itself: that trouble halves the browsers at once, at once,
+  and the next runs start from the halved level, climbing back one at a time only after full runs without it (§4).
 
 ## 8. What stays manual (a short list per release)
 
@@ -379,4 +413,8 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   the machine's or the browser's trouble told from a test failure by the driver (exit 3) and rerun once, alone; fewer
   browsers when memory is low — §4, §7. `tools/environment_trouble.py`; `test/ui/test_environment.py` (ENV-001–004);
   RUN-072–082.
+- **Built 2026-11-17 (branch `tooling/adaptive-browsers`, sprint 7):** the runner chooses how many browsers to run at
+  once by itself, 1 to 6, saved per PC — halved at once on the machine's trouble, one more after a clean full run, back
+  down when one more gained nothing (§4); the fixed low-memory rule removed; the PC's slots 4 → 6.
+  `tools/browser_level.py`; `test/test_browser_level.py` (LEVEL-001–016); RUN-079 (reworded), 083, 084.
 - From then on, every task follows §6.
