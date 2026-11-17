@@ -5,6 +5,7 @@
 #
 # Sample test files are written to a temporary folder; each row checks one thing the runner must do.
 import contextlib
+import glob
 import importlib.util
 import io
 import os
@@ -724,26 +725,44 @@ sys.exit({1 if fail else 0})
 
     # Screen tests (tier 2) each hold a slot: with 1 slot on the PC, two tier-2 files never overlap — even with --jobs 2.
     def timed_file(name):
+        # 2026-11-17: ONE file per process (two processes appending to one file can lose a line on Windows — RUN-079
+        # failed so under a busy merge run), and a handshake instead of a fixed window: each waits (up to 5 s) until
+        # another stand-in has started, so two files that really run side by side always overlap, and a busy machine
+        # starting the second late can't make them look apart. Run one after the other, the first waits out the 5 s.
         return write(name, f"""# sample
 # tags: slot-sample, tier 2
 # covers: tools/run_tests.py
-import os, time
-with open(os.path.join({d!r}, "times.txt"), "a") as f:
+import glob, os, time
+mine = os.path.join({d!r}, "times-{name}-%d.txt" % os.getpid())
+with open(mine, "w") as f:
     f.write(f"{name} start {{time.time()}}\\n")
-time.sleep(0.6)
-with open(os.path.join({d!r}, "times.txt"), "a") as f:
+deadline = time.time() + 5
+while time.time() < deadline and not [p for p in glob.glob(os.path.join({d!r}, "times-*.txt"))
+                                      if not os.path.basename(p).startswith("times-{name}-")]:
+    time.sleep(0.05)
+time.sleep(0.2)
+with open(mine, "a") as f:
     f.write(f"{name} end {{time.time()}}\\n")
 print("1 passed, 0 failed")
 """)
+
+    def read_spans():
+        spans = {}
+        for p in glob.glob(os.path.join(d, "times-*.txt")):
+            for ln in open(p).read().split("\n"):
+                if ln.strip():
+                    n_, what, t = ln.split()
+                    spans.setdefault(n_, {})[what] = float(t)
+        return spans
+
+    def clear_spans():
+        for p in glob.glob(os.path.join(d, "times-*.txt")):
+            os.remove(p)
     ta, tb = timed_file("test_ta.py"), timed_file("test_tb.py")
     one = ts.Slots(count=1, folder=os.path.join(d, "slots3"))
+    clear_spans()
     code, out = quiet_main(["--tier", "2", "--jobs", "2"], files=[rt.TestFile(ta), rt.TestFile(tb)], slots=one)
-    spans = {}
-    if os.path.exists(os.path.join(d, "times.txt")):
-        for ln in open(os.path.join(d, "times.txt")).read().split("\n"):
-            if ln.strip():
-                n, what, t = ln.split()
-                spans.setdefault(n, {})[what] = float(t)
+    spans = read_spans()
     s = sorted(spans.values(), key=lambda x: x.get("start", 0))
     apart = len(s) == 2 and all("start" in x and "end" in x for x in s) and s[0]["end"] <= s[1]["start"]
     row("RUN-050", "screen-test files each hold a slot: with 1 slot two tier-2 files run one after the other, and the "
@@ -1102,21 +1121,21 @@ import test_slots
 probe = test_slots.Slots(count=2, folder={env_slots!r}).try_acquire("probe")    # None: every slot on the PC is held
 if probe:
     probe.release()
-with open({times!r}, "a") as f:
+with open({times!r} + ".%d" % os.getpid(), "a") as f:
     f.write(f"envonce{{n}} start {{time.time()}} {{'free-slot' if probe else 'all-held'}}\\n")
 def first_time():
     if n == 0:
         raise EnvironmentTrouble("the page never loaded (a sample)")
 test("ENVS-001", "a sample test", first_time)
-with open({times!r}, "a") as f:
+with open({times!r} + ".%d" % os.getpid(), "a") as f:
     f.write(f"envonce{{n}} end {{time.time()}} -\\n")
 done()
 """)
-    steady = harness_file("test_steady.py", f"""with open({times!r}, "a") as f:
+    steady = harness_file("test_steady.py", f"""with open({times!r} + ".%d" % os.getpid(), "a") as f:
     f.write(f"steady0 start {{time.time()}} -\\n")
 time.sleep(1.5)
 test("ENVS-002", "a sample test beside it", lambda: None)
-with open({times!r}, "a") as f:
+with open({times!r} + ".%d" % os.getpid(), "a") as f:
     f.write(f"steady0 end {{time.time()}} -\\n")
 done()
 """)
@@ -1124,7 +1143,8 @@ done()
     code, out = quiet_main(["--tier", "2", "--jobs", "2"], files=[rt.TestFile(envonce), rt.TestFile(steady)],
                            slots=ts.Slots(count=2, folder=env_slots), results=env_rec, retry_wait=0.3)
     seen = {}
-    for ln in (open(times).read().splitlines() if os.path.exists(times) else []):
+    # one file per process (2026-11-17 — appends from two processes to one file can lose a line on Windows)
+    for ln in [x for p in glob.glob(times + ".*") for x in open(p).read().splitlines()]:
         who, what, t, probe = ln.split()
         seen[(who, what)] = (float(t), probe)
     rerun = seen.get(("envonce1", "start"), (0, ""))
@@ -1226,18 +1246,12 @@ done()
     ma, mb = timed_file("test_ma.py"), timed_file("test_mb.py")
 
     def mem_run(free):
-        if os.path.exists(os.path.join(d, "times.txt")):
-            os.remove(os.path.join(d, "times.txt"))
+        clear_spans()
         folder = os.path.join(d, f"mem-results-{free}")
         code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(ma), rt.TestFile(mb)],
                                slots=ts.Slots(count=6, folder=os.path.join(d, f"slots-mem-{free}")),
                                results=folder, free_memory=lambda: None if free is None else free * GB)
-        spans = {}
-        if os.path.exists(os.path.join(d, "times.txt")):
-            for ln in open(os.path.join(d, "times.txt")).read().split("\n"):
-                if ln.strip():
-                    n_, what, t = ln.split()
-                    spans.setdefault(n_, {})[what] = float(t)
+        spans = read_spans()
         s = sorted(spans.values(), key=lambda x: x.get("start", 0))
         together = len(s) == 2 and all("start" in x and "end" in x for x in s) and s[1]["start"] < s[0]["end"]
         got = records_in(folder)
