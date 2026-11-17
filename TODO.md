@@ -3121,6 +3121,10 @@ could read the key and send it away.
 6. **No self-hosting** (considered and dropped, Ron 2026-11-02): it protects against later tampering no better than
    integrity checks; its gains — the app keeps loading if a CDN is down, and a CDN doesn't see visitors — are
    availability and privacy, not security, and don't justify maintaining copies of other people's files.
+   (Evidence, 2026-11-17: in a deliberate load test, one page start failed because ReactDOM's download from unpkg.com
+   didn't arrive — "ReactDOM is not defined", the app never opened. A test-machine effect, not a CDN outage; it doesn't
+   reopen this decision, and the tests now treat a failed library download as the machine's trouble. Ron confirmed the
+   task stands as filed.)
 7. Show all of it to **outside review 2 (security)**.
 
 **How (technical)**
