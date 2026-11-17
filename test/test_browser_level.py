@@ -34,10 +34,11 @@ def row(tid, name, fn):
     print(f"  {'✓' if ok else '✗'} {tid} {name}" + ("" if ok else f" — {detail}"))
 
 
-def run(level, seconds=200.0, files=26, suite="tier 2", full=True, trouble=0, end=None, when="2026-11-17T10:00:00"):
-    """A run just done, as the runner reports it."""
+def run(level, seconds=200.0, files=26, suite="tier 2", full=True, trouble=0, end=None, when="2026-11-17T10:00:00",
+        failed=0):
+    """A run just done, as the runner reports it (failed: how many of its files failed or couldn't run)."""
     return {"level": level, "end": level if end is None else end, "seconds": seconds, "files": files, "suite": suite,
-            "full": full, "trouble": trouble, "free_gb": 3.0, "when": when}
+            "full": full, "trouble": trouble, "failed": failed, "free_gb": 3.0, "when": when}
 
 
 def past(level, outcome, nxt, **kw):
@@ -276,6 +277,89 @@ def r016():
 
 row("LEVEL-016", "the run's line says the level, where it came from and why, and the last full runs' levels and times",
     r016)
+
+
+# --- Only fully passing runs count (Ron, 2026-11-17 — Karn's algorithm: an ambiguous sample is dropped, not risked). A
+# full run with a failed file is recorded, marked, but is neither a reason to grow nor a time to compare against.
+def r017():
+    lv, why, how = bl.decide([], run(4, failed=1))
+    new, lv2, _, how2 = bl.record({"level": 4, "why": "", "history": []}, run(4, failed=2))
+    last = new["history"][-1] if new["history"] else {}
+    words = bl.describe(new, None)
+    # the hold after a try that gained nothing counts only clean runs: failed runs don't bring the next try sooner
+    hold = grown_from(4, seconds=200) + [past(5, "no gain", 4, seconds=210)] \
+        + [past(4, "failed", 4, seconds=200, failed=1) for _ in range(bl.HOLD_RUNS)]
+    lv3, why3, how3 = bl.decide(hold, run(4, seconds=200))
+    return (lv, how, lv2, how2, new["level"], last.get("failed"), last.get("outcome"), lv3, how3) \
+        == (4, "failed", 4, "failed", 4, 2, "failed", 4, "held") and "failed" in why and "(failed)" in words \
+        and f"{bl.HOLD_RUNS - 1} more" in why3, (lv, why, how, new, words, lv3, why3, how3)
+
+
+row("LEVEL-017", "a full run with a failed file doesn't grow the level (4 stays 4, saying why) — it is saved, marked "
+    "failed (and shown so), and doesn't count toward the wait after a try that gained nothing", r017)
+
+
+def r018():
+    fast_fail = [past(4, "failed", 4, seconds=100, failed=1), past(4, "grew", 5, seconds=200)]
+    lv, why, how = bl.decide(fast_fail, run(5, seconds=180))
+    # 180 is 10 % faster than the clean 200 at 4 → a gain; were the failed 100 s the yardstick, it would be no gain
+    slow_bar = [past(4, "held", 4, seconds=180), past(4, "failed", 4, seconds=80, failed=1)]
+    lv2, why2, how2 = bl.decide(slow_bar, run(4, seconds=200))
+    # 200 is not twice the clean 180 → no step down; were the failed 80 s the bar, 200 would be "more than twice"
+    return (lv, how, lv2, how2) == (6, "grew", 5, "grew"), (lv, why, how, lv2, why2, how2)
+
+
+row("LEVEL-018", "a failed run never becomes the best time — neither the yardstick for a try at one more nor the bar for "
+    "'twice as slow'", r018)
+
+
+def r019():
+    hist = grown_from(4, seconds=200)
+    lv, why, how = bl.decide(hist, run(5, seconds=400, failed=1))     # the try itself failed: not judged at all
+    hist2 = hist + [past(5, "failed", 5, seconds=400, failed=1)]
+    slow = bl.decide(hist2, run(5, seconds=199))                      # the next clean run at 5 is the one judged
+    fast = bl.decide(hist2, run(5, seconds=180))
+    return (lv, how, slow[0], slow[2], fast[0], fast[2]) == (5, "failed", 4, "no gain", 6, "grew"), \
+        (lv, why, how, slow, fast)
+
+
+row("LEVEL-019", "a try at one more is judged only by a clean run: a failed run at 5 is neither 'no gain' nor 'faster' — "
+    "it stays at 5 and the next clean run at 5 is judged against 4 as the try", r019)
+
+
+# --- Sustained slowness steps down by one (Ron, 2026-11-17): a clean full run at L more than twice the best recent clean
+# full run at the same L (the same suite) → the next run at L−1 — not halved, never below 1 — and says why.
+def r020():
+    hist = [past(4, "held", 4, seconds=100)]
+    lv, why, how = bl.decide(hist, run(4, seconds=201))
+    under = bl.decide(hist, run(4, seconds=199))                      # just under twice: the normal rules
+    exactly = bl.decide(hist, run(4, seconds=200))                    # twice is not MORE than twice
+    six = bl.decide([past(6, "top", 6, seconds=100)], run(6, seconds=250))         # one down, not halved (6 → 5, not 3)
+    one = bl.decide([past(1, "held", 1, seconds=100)], run(1, seconds=300))        # never below 1
+    best = bl.decide([past(4, "held", 4, seconds=100), past(4, "held", 4, seconds=180)], run(4, seconds=210))
+    other = bl.decide([past(4, "held", 4, seconds=100, suite="tier 2")], run(4, seconds=300, suite="tier all"))
+    trouble = bl.decide(hist, run(4, seconds=500, trouble=1))         # the machine's trouble still halves
+    failed = bl.decide(hist, run(4, seconds=500, failed=1))           # a failed run is no measure of speed
+    got = [(x[0], x[2]) for x in (under, exactly, six, one, best, other, trouble, failed)]
+    return (lv, how) == (3, "slow") and "3 min 21 s" in why and "1 min 40 s" in why and "3" in why \
+        and got == [(5, "grew"), (5, "grew"), (5, "slow"), (1, "slow"), (3, "slow"), (5, "grew"), (2, "backed off"),
+                    (4, "failed")], (lv, why, how, got)
+
+
+row("LEVEL-020", "twice as slow as the best recent clean run at the same level → one fewer next run (4 → 3; 6 → 5, not "
+    "halved; 1 stays 1), saying both times; just under or exactly twice → the normal rules; another suite isn't "
+    "compared; the machine's trouble still halves; a failed run isn't judged", r020)
+
+
+def r021():
+    hist = [past(4, "held", 4, seconds=100), past(4, "slow", 3, seconds=250)]
+    lv, why, how = bl.decide(hist, run(3, seconds=120))               # a clean run at normal speed: grows again
+    hist2 = hist + [past(3, "grew", 4, seconds=120)]
+    lv2, why2, how2 = bl.decide(hist2, run(4, seconds=100))           # the try at 4, judged as any try
+    return (lv, how, lv2, how2) == (4, "grew", 5, "grew"), (lv, why, how, lv2, why2, how2)
+
+
+row("LEVEL-021", "after a step down for slowness, growth follows the normal rules — no extra wait", r021)
 
 failed = [r for r in results if not r[1]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")

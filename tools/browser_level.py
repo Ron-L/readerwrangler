@@ -14,15 +14,24 @@ browsers-at-once.json — FILE_NAME): the level, why, and a short history of run
   - — unless it gained nothing: a run at one more is compared with the BEST recent full run at the level below (the same
     suite, about the same number of files, no trouble); not faster by more than NOISE (5 %) → back to the level below,
     and no try at the higher one for the next HOLD_RUNS full runs. Then it tries again: conditions change.
+  - Only fully passing runs count (Ron, 2026-11-17 — Karn's algorithm: an ambiguous sample is dropped, not risked): a
+    full run with a failed file (or one that couldn't run) is saved, marked `failed`, but moves nothing — it is no
+    reason to grow, never a yardstick (no "best recent time", no "no faster" judgment, no "twice as slow" bar), and no
+    full run toward the wait after a try that gained nothing. A try at one more whose run failed is judged by the next
+    clean run at that level. Machine trouble still backs off, failed or not.
+  - Sustained slowness steps down by one (Ron, 2026-11-17): a clean full run at L that took more than SLOW (twice) the
+    best recent clean full run at the same L (the same suite, about the same size) → the next run at L−1 — not halved,
+    never below 1 — and it says why. No wait afterwards: the next clean run at normal speed may grow again.
   - A narrowed run without trouble moves nothing and isn't saved. A forced number (--jobs, RW_TEST_SLOTS) never reaches
-    here: the runner leaves the saved level alone.
+    here: the runner leaves the saved level alone. The file lives in RW_TEST_SLOTS_DIR instead, when that's set
+    (tools/test_slots.py — a folder of its own without moving TEMP).
 
 decide() is the rule — a pure function (history + the run just done → the next level, why, and what kind of move);
 record() applies it to the saved state; load() / save() read and write the file (a missing or damaged file → START, 4,
 said so); describe() is the run's line; Gate is the level inside one run. Two runs at once each save their own result —
 the last one written wins (the slots, not this file, keep the PC within its limit).
 
-Tested by test/test_browser_level.py (LEVEL-001–016) and test/test_run_tests.py (RUN-083, 084).
+Tested by test/test_browser_level.py (LEVEL-001–021) and test/test_run_tests.py (RUN-083–086).
 """
 import json
 import os
@@ -35,6 +44,7 @@ HOLD_RUNS = 5       # after a try that gained nothing: this many full runs befor
 RECENT = 10         # the yardstick is the best of the last this-many saved runs (older ones: conditions changed)
 KEEP = 30           # saved runs kept
 SAME_SIZE = 0.10    # suites within this share of each other's file count compare; further apart they don't
+SLOW = 2.0          # a clean run at L taking more than this many times the best recent one at L → one fewer next run
 FILE_NAME = "browsers-at-once.json"
 
 
@@ -45,8 +55,15 @@ def minsec(seconds):
 
 
 def _clean(h):
-    """A run that can be a yardstick: full, no trouble, a time."""
-    return h.get("full") and not h.get("trouble") and isinstance(h.get("seconds"), (int, float))
+    """A run that can be a yardstick: full, no trouble, every file passed, a time."""
+    return bool(h.get("full") and not h.get("trouble") and not h.get("failed")
+                and isinstance(h.get("seconds"), (int, float)))
+
+
+def _best(history, level, run):
+    """The best (shortest) time of the recent clean runs at `level` comparable with `run` — None if there's none."""
+    times = [h["seconds"] for h in history[-RECENT:] if _clean(h) and h.get("level") == level and _comparable(h, run)]
+    return min(times) if times else None
 
 
 def _comparable(a, b):
@@ -58,9 +75,9 @@ def _comparable(a, b):
 def decide(history, run):
     """The next level — (level, why in words, outcome) — from the saved history (oldest first; each run with the
     `outcome` and `next` decided after it) and the run just done: {level it started at, end (the level it ended at — lower
-    if it was halved), seconds, files, suite, full, trouble (how many times), free_gb, when}. Outcomes: 'backed off',
-    'grew', 'no gain', 'held', 'top', 'baseline', 'ignored' (a narrowed run with no trouble — not saved). Pure: changes
-    neither argument."""
+    if it was halved), seconds, files, suite, full, trouble (how many times), failed (how many files failed or couldn't
+    run), free_gb, when}. Outcomes: 'backed off', 'failed', 'slow', 'grew', 'no gain', 'held', 'top', 'baseline',
+    'ignored' (a narrowed run with no trouble — not saved). Pure: changes neither argument."""
     level = max(1, min(TOP, int(run.get("level") or START)))
     if run.get("trouble"):
         n = max(1, min(int(run.get("end") or level), level // 2))
@@ -68,14 +85,22 @@ def decide(history, run):
             "backed off"
     if not run.get("full"):
         return level, "a narrowed run (only full runs move the level)", "ignored"
-    prev = history[-1] if history else None
+    if run.get("failed"):       # an ambiguous sample: dropped, not risked (Karn's algorithm)
+        n = int(run["failed"])
+        return level, (f"{n} file{'s' if n > 1 else ''} failed in the last run at {level} at once — only a run where "
+                       f"every file passed moves the level or is compared — staying at {level}"), "failed"
+    same = _best(history, level, run)
+    if same is not None and run["seconds"] > SLOW * same:
+        n = max(1, level - 1)
+        return n, (f"{level} at once took {minsec(run['seconds'])} — more than twice the best recent run at {level} "
+                   f"({minsec(same)}) — " + (f"one fewer: {n}" if n < level else f"staying at {n}, the fewest")), "slow"
+    prev = next((h for h in reversed(history) if h.get("outcome") != "failed"), None)   # a dropped run is skipped over
     probe = bool(prev) and prev.get("outcome") == "grew" and prev.get("next") == level and level > 1
     if probe:
         below = level - 1
         at_below = [h for h in history[-RECENT:] if _clean(h) and h.get("level") == below]
-        base = [h for h in at_below if _comparable(h, run)]
-        if base:
-            best = min(h["seconds"] for h in base)
+        best = _best(history, below, run)
+        if best is not None:
             if run["seconds"] > best * (1 - NOISE):
                 return below, (f"{level} at once took {minsec(run['seconds'])} — no faster than {below} at once "
                                f"({minsec(best)}, the best recent run) — back to {below}, and no try at {level} for the "
@@ -90,7 +115,7 @@ def decide(history, run):
         return TOP, f"{TOP} at once is the most", "top"
     gave_up = next((i for i in range(len(history) - 1, -1, -1) if history[i].get("outcome") == "no gain"), None)
     if gave_up is not None and level + 1 >= int(history[gave_up].get("level") or TOP + 1):
-        since = sum(1 for h in history[gave_up + 1:] if h.get("full")) + 1
+        since = sum(1 for h in history[gave_up + 1:] if h.get("full") and not h.get("failed")) + 1
         if since < HOLD_RUNS:
             tried = history[gave_up]
             return level, (f"{tried.get('level')} at once gained nothing ({str(tried.get('when', ''))[:10]}) — staying at "
@@ -157,7 +182,7 @@ def describe(state, note):
     """The words after 'browsers at once: ' — the level, where it came from and why, the last full runs."""
     full = [h for h in state.get("history") or [] if h.get("full") and isinstance(h.get("seconds"), (int, float))][-3:]
     runs = ", ".join(f"{h.get('level')} → {minsec(h['seconds'])}" + (" (trouble)" if h.get("trouble") else "")
-                     for h in full)
+                     + (" (failed)" if h.get("failed") else "") for h in full)
     where = note or ("saved" + (f" — {state['why']}" if state.get("why") else ""))
     return f"{state['level']} ({where}" + (f"; last {len(full)} full run{'s' if len(full) > 1 else ''}: {runs}"
                                           if full else "") + ")"

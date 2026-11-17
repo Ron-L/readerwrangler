@@ -6,6 +6,7 @@ time — but sprint 4's one-time failures came from machine load. So every scree
 holds one of N slots for as long as it runs:
 
     slots = Slots()                                  # N = RW_TEST_SLOTS, else 6; the slot files live in %TEMP%
+                                                     # (or RW_TEST_SLOTS_DIR — slots_folder())
     slot = slots.acquire("test/ui/test_cells.py", on_wait=print)    # waits while all N are taken (says so, once)
     slot = slots.acquire("…", upto=lambda: 3)        # only among the first 3 (the run's level — browser_level.py)
     ...                                              # run the file
@@ -24,7 +25,10 @@ files (tools/browser_level.py, 2026-11-17: it replaced the fixed low-memory rule
 takes only the first L slots, so every run on this PC together stays within the PC's level too. free_memory() reads
 what the PC has available — noted in each run's record, as evidence.
 
-Tested by test/test_run_tests.py (RUN-035…, 074, 079, 083).
+The folder: %TEMP%\\rw-test-slots, or RW_TEST_SLOTS_DIR when set (slots_folder() — the slots and the saved level move
+together; TEMP itself stays where it is).
+
+Tested by test/test_run_tests.py (RUN-035…, 074, 079, 083, 085).
 """
 import datetime
 import os
@@ -37,7 +41,17 @@ DEFAULT_SLOTS = 6       # = browser_level.TOP, the most browsers at once a run m
 # 90th percentile, 0.57 GB at most; our web servers and local relays together up to 0.27 GB. (That day the PC had 3.8 GB
 # of 31.4 free before the run, 1.4 GB at its low.) A fixed threshold drawn from that was replaced the same day by the
 # level the runner finds for itself (browser_level.py); free memory is still recorded with every run.
-FOLDER = os.path.join(tempfile.gettempdir(), "rw-test-slots")
+FOLDER = os.path.join(tempfile.gettempdir(), "rw-test-slots")     # the default — slots_folder() is where they are
+
+
+def slots_folder():
+    """Where the slot files and the saved level (browser_level.FILE_NAME) live: RW_TEST_SLOTS_DIR when set — a folder of
+    its own without moving TEMP (Ron, 2026-11-17: a lab that moved TEMP itself broke the local relay emulator, which
+    keeps its storage there) — else %TEMP%\\rw-test-slots. Read at each call, not at import."""
+    own = os.environ.get("RW_TEST_SLOTS_DIR")
+    return os.path.abspath(own) if own else FOLDER
+
+
 _LOCK_AT = 1 << 30      # Windows locks are mandatory: lock one byte far past the text, so others can still read who holds it
 
 if os.name == "nt":
@@ -138,7 +152,7 @@ class SlotGroup:
 class Slots:
     def __init__(self, count=None, folder=None):
         self.count = slot_count() if count is None else count
-        self.folder = folder or FOLDER
+        self.folder = folder or slots_folder()
 
     def _path(self, n):
         return os.path.join(self.folder, f"slot-{n}.lock")

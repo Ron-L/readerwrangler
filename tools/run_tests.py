@@ -77,11 +77,13 @@ ALONE: after the others are done and a short wait, holding every test slot on th
 rerun, it counts as passed (the stamp shows the note); failed again, it's a failure. A TEST failure is never rerun.
 
 How many browsers at once (same day — Ron: "similar to how TCP works"): the run's LEVEL, 1 to 6, chosen by the runner
-itself and saved per PC beside the test slots (tools/browser_level.py; %TEMP%\\rw-test-slots\\browsers-at-once.json —
-delete it to start again at 4). Machine trouble halves it at once, for the rest of the run and saved; a full screen-test
-run with none lets the next run try one more — kept only if it was faster than the level below by more than 5 %, else
-back down and no try again for 5 full runs. Each run says its level and why, at its start and its end; the record notes
-it, with the free memory. --jobs N or RW_TEST_SLOTS forces a number and leaves the saved level alone.
+itself and saved per PC beside the test slots (tools/browser_level.py; %TEMP%\\rw-test-slots\\browsers-at-once.json, or
+RW_TEST_SLOTS_DIR's folder — delete it to start again at 4). Machine trouble halves it at once, for the rest of the run
+and saved; a full screen-test run with none, every file passing, lets the next run try one more — kept only if it was
+faster than the level below by more than 5 %, else back down and no try again for 5 full runs. A run with a failed file
+moves nothing (saved, marked, never compared); a clean run more than twice as slow as the best recent one at its level
+→ one fewer. Each run says its level and why, at its start and its end; the record notes it, with the free memory.
+--jobs N or RW_TEST_SLOTS forces a number and leaves the saved level alone.
 
 Double-clicked, the window stays open to show the results (pytools keepopen). Exit: 0 all passed · 1 a failure.
 """
@@ -475,6 +477,8 @@ RUN_ENV = {     # name: (narrows?, what it does)
     "RW_TEST_ARTIFACTS": (False, "where a failing screen test saves its screenshot (tools/copies.py)"),
     "RW_TEST_SLOTS": (False, "the PC's slots, and the browsers at once forced to it — the saved level left alone "
                              "(tools/test_slots.py, browser_level.py)"),
+    "RW_TEST_SLOTS_DIR": (False, "the folder of the slot files and the saved browsers-at-once level, instead of "
+                                 "%TEMP%\\rw-test-slots — TEMP itself unmoved (tools/test_slots.py)"),
     "RELAY_URL": (False, "tier 3 runs against that relay instead of starting its own local one"),
 }
 
@@ -1010,7 +1014,10 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         finish(u, code == 0, f"! rerun alone after {why} — its first output: {first or '(not kept: no record)'}\n" + out,
                t0, t1, group.waited, tried)
     # The level for the next run (browser_level.decide): a forced number leaves it alone; a narrowed run moves it only on
-    # trouble. The saved file is read again here — another run on this PC may have saved since this one started.
+    # trouble; a run where a file failed (or couldn't run, or the build failed) moves it only on trouble too — it is saved,
+    # marked, never a yardstick (2026-11-17). Counted here, after tiers 1 and 2 and their reruns: tier 3 runs after, on
+    # its own, outside the time a level is judged by. The saved file is read again here — another run on this PC may have
+    # saved since this one started.
     if gate:
         moves = {"level": start_level, "from": level_from, "changes": [{"from": x, "to": y} for x, y in gate.changes],
                  "end": gate.level, "peak": gate.peak, "troubles": len(troubles), "seconds": round(pool_seconds, 1)}
@@ -1021,11 +1028,12 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             full = not (a.tag or a.id or a.changed or narrowing or any(f.tier == 2 for f in aside))
             done_run = {"level": start_level, "end": gate.level, "seconds": round(pool_seconds, 1), "files": len(screen),
                         "suite": "tier all" if tier == "all" else "tier 2", "full": full, "trouble": len(troubles),
+                        "failed": count["failed"] + sum(1 for f, _ in skipped if f.tier != 3),
                         "free_gb": free_gb, "when": _now()}
             state, _ = browser_level.load(level_path)
             state, nxt, why, outcome = browser_level.record(state, done_run)
             err = None if outcome == "ignored" else browser_level.save(level_path, state)
-            if not a.quiet or err or outcome == "backed off":
+            if not a.quiet or err or outcome in ("backed off", "slow"):     # a step down is always said
                 print(f"· browsers at once next run: {nxt} — " + (f"unchanged: {why}" if outcome == "ignored" else why)
                       + (f" — ✗ {err}" if err else ""))
             moves.update(next=nxt, why=why, outcome=outcome, full=full, **({"not_saved": err} if err else {}))
