@@ -127,22 +127,39 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   same day, a fixed rule (under 4 GB free → 2 browsers, under 2 GB → 1). `tools/browser_level.py`:
   - **The level** — how many screen-test browsers a run may run at once, **1 to 6** (the PC's slots are 6 to match).
     It is **saved per PC**, beside the slot files: `%TEMP%\rw-test-slots\browsers-at-once.json` — the level, why, and
-    the last 30 runs (`{level, end, wall seconds, files, suite, full, trouble, free GB, when}` + what was decided after
-    each). Written to a temporary file, then put in place. **Missing or damaged → start at 4, and the run says so.**
-    **To reset it: delete that file** (the next run starts at 4).
+    the last 30 runs (`{level, end, wall seconds, files, suite, full, trouble, failed, free GB, when}` + what was
+    decided after each). Written to a temporary file, then put in place. **Missing or damaged → start at 4, and the run
+    says so.** **To reset it: delete that file** (the next run starts at 4).
+    **A folder of its own — `RW_TEST_SLOTS_DIR`** (2026-11-17): set, it holds the slot files AND this file instead of
+    `%TEMP%\rw-test-slots` — TEMP itself stays where it is (a lab that moved TEMP broke the local relay emulator:
+    wrangler keeps its storage in TEMP). Every run that should share the PC's limit must use the same folder. Recorded
+    with the run; it doesn't narrow it. Unset → `%TEMP%\rw-test-slots`, as before. Test: `RUN-085`.
   - **Back off hard:** a screen test meeting the machine's or the browser's trouble (exit 3, above) **halves the level
     at once** for the rest of the run (`! browsers at once: 4 → 2 for the rest of this run — <file> met …`): the files
     already running go on; new ones start only while fewer than the level are running. One halving per burst (trouble
     from a file that started before the last halving doesn't halve again); never below 1. The file is rerun alone as
     before, and **the halved level is saved** — whether or not the run was narrowed.
   - **Grow gently:** after a **full** screen-test run (`--tier 2` or `--tier all`, not narrowed by `--id`, `--tag`,
-    `--changed`, `RW_CELLS` or a set-aside tier-2 file) with no such trouble, the next run gets **one more** (up to 6).
+    `--changed`, `RW_CELLS` or a set-aside tier-2 file) with no such trouble **and every file passing**, the next run
+    gets **one more** (up to 6).
+  - **Only fully passing runs count** (Ron, 2026-11-17 — Karn's algorithm: an ambiguous sample is dropped, not risked):
+    a full run where **any** file failed — or couldn't run, or the build failed (tiers 1 and 2 and their reruns; tier 3
+    runs after, outside the timed part) — is **saved, marked `failed`** (how many), shown `(failed)` on the level line,
+    and **moves nothing**: `· browsers at once next run: 4 — 1 file failed in the last run at 4 at once — only a run
+    where every file passed moves the level or is compared — staying at 4`. It is never a yardstick (not the best recent
+    time, not the bar for "twice as slow"), and doesn't count toward the 5-run wait below. A try at one more whose run
+    failed isn't judged: the next clean run at that level is. **The machine's trouble still backs off**, failed or not.
   - **Diminishing returns:** the run right after a step up is judged — its wall time (the parallel part: not the build,
     reruns or tier 3) against **the best recent full run at the level below** (the last 10 saved runs; the same suite —
-    tier 2 or all — and about the same number of screen-test files, within 10 %; never a run with trouble). **Not
-    faster by more than 5 % → back to the level below, and no try at the higher one for the next 5 full runs** — then
-    it tries again (conditions change). A suite that changed size a lot isn't compared: the run stays at its level to
-    measure it.
+    tier 2 or all — and about the same number of screen-test files, within 10 %; never a run with trouble or a failed
+    file). **Not faster by more than 5 % → back to the level below, and no try at the higher one for the next 5 full
+    runs** — then it tries again (conditions change). A suite that changed size a lot isn't compared: the run stays at
+    its level to measure it.
+  - **Sustained slowness steps down by one** (Ron, 2026-11-17): a clean full run (every file passed, no trouble) at
+    level L that took **more than twice** the best recent clean full run at the same L (the same suite and size, as
+    above) → the next run at **L−1** — not halved; never below 1 — saying both times (`4 at once took 6 min 50 s — more
+    than twice the best recent run at 4 (3 min 20 s) — one fewer: 3`). No wait afterwards: the next clean run at normal
+    speed may grow again by the rules above.
   - **Said and recorded:** each screen-test run starts with a line like
     `· browsers at once: 4 (saved — 5 at once took 3 min 40 s — no faster than 4 at once (3 min 24 s, the best recent
     run) — back to 4, and no try at 5 for the next 5 full runs; last 3 full runs: 4 → 3 min 24 s, 5 → 3 min 40 s, 4 →
@@ -158,8 +175,8 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   - Measured 2026-11-17 for scale: one screen-test file's Chrome takes 0.15 GB of RAM typically, 0.57 GB at most; our
     servers and relays up to 0.27 GB together (tools/test_slots.py).
 
-  Tests: `LEVEL-001`–`016` (test/test_browser_level.py — the rule, a pure function: history in → next level and why
-  out), `RUN-079`, `083`, `084`.
+  Tests: `LEVEL-001`–`021` (test/test_browser_level.py — the rule, a pure function: history in → next level and why
+  out; `017`–`019` a failed run, `020`–`021` slowness), `RUN-079`, `083`–`086`.
 - **`--id` picks a file only where it names the ID as a test** (2026-11-16; it picked any file whose text held the ID —
   `--id CELL-005` also ran `test/test_run_tests.py`, ~25 s, where it is sample data, and `--id CELL-001`
   `test/gestureTable.test.js`, where a comment names it). Every file names a test by its ID as a whole quoted string,
@@ -177,8 +194,8 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   first by each file's time in the last record. **Every screen-test file holds one of the PC's test slots while it
   runs** (`tools/test_slots.py`): 6 in total for every run on this PC (4 until 2026-11-17, when the runner began choosing
   its own level, 1–6, above), whatever working copy it's in (`RW_TEST_SLOTS` overrides — every run should use the same
-  number). A slot is a file in `%TEMP%\rw-test-slots` held with an OS file lock, so a run that crashes or is stopped
-  frees its slot by itself. A run waiting for one prints `· <file> waits for a test slot — all 6 on this PC are in use`
+  number). A slot is a file in `%TEMP%\rw-test-slots` (or `RW_TEST_SLOTS_DIR`, above) held with an OS file lock, so a
+  run that crashes or is stopped frees its slot by itself. A run waiting for one prints `· <file> waits for a test slot — all 6 on this PC are in use`
   (or `— the first 4 of the 6 on this PC (browsers at once: 4) are in use`) and who holds each (process id, folder,
   file, since when). Tier 3 stays one file at a time (its own local relay).
   Output: one line per file as it finishes, with its time; a failing file's details together, never interleaved; the
@@ -241,8 +258,8 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   `--id` run is already narrowed by `--id`, RUN-060.) The others are recorded and shown on
   the stamp's line but don't narrow — every test still runs: `RW_HEADED` (the browser shown, slowed), `RW_BROWSER`
   (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's limit, and
-  the browsers at once forced to it), `RELAY_URL` (tier 3's
-  relay; tier 3 isn't part of the stamp's verdict). Records written before this have no variables and are read as full
+  the browsers at once forced to it), `RW_TEST_SLOTS_DIR` (the folder of the slots and the saved level),
+  `RELAY_URL` (tier 3's relay; tier 3 isn't part of the stamp's verdict). Records written before this have no variables and are read as full
   runs.
   Tests: `RUN-035`–`051`, `058`, `059`.
 - **Tier 3 brings its own relay** (`tools/local_relay.py`, 2026-11-12): with no `--relay-url`, the runner starts
@@ -357,6 +374,10 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   aside the same day. A file rerun after the trouble that keeps coming back is a flaky environment to look into — the
   first outputs say what happened. The run also slows down by itself: that trouble halves the browsers at once, at once,
   and the next runs start from the halved level, climbing back one at a time only after full runs without it (§4).
+- **A failed run is no measure of speed** (2026-11-17, §4): the browsers-at-once level learns only from runs where every
+  file passed — a run with a failure is kept in its history, marked, but neither grows the level nor sets a time to
+  beat, so a failure can't be mistaken for "faster" or "slower". A clean run more than twice as slow as usual at its
+  level steps down by one — the PC busy with something else, answered gently, not halved.
 
 ## 8. What stays manual (a short list per release)
 

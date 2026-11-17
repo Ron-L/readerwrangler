@@ -1358,6 +1358,58 @@ test("LVLS-002", "a sample test", lambda: None)
         and "couldn't be read" in r5[1] and "starting at 4" in r5[1] and r5[3].get("level") == 4,
         " || ".join(f"exit {r[0]}, saved {r[2]}, {r[3]}: {r[1][-300:]}" for r in (r1, r2, r3, r4, r5)))
 
+    # A folder of its own for the slots and the saved level, without moving TEMP (Ron, 2026-11-17: a lab that moved TEMP
+    # itself broke the local relay emulator — wrangler keeps its storage in TEMP). The runner given no slots, as on the PC.
+    own_dir = os.path.join(d, "own-slots-dir")
+    saved_dir = os.environ.pop("RW_TEST_SLOTS_DIR", None)
+    try:
+        default_folder = ts.Slots().folder
+        os.environ["RW_TEST_SLOTS_DIR"] = own_dir
+        moved_folder = ts.Slots().folder
+        own_rec = os.path.join(d, "own-dir-results")
+        # Run only if the folder really moved: otherwise this run would save into the PC's real level (it did once, the
+        # first time, before the variable was built — 2026-11-17).
+        code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(la), rt.TestFile(lb)], results=own_rec) \
+            if os.path.normcase(moved_folder) == os.path.normcase(own_dir) else ("not run — the folder didn't move", "")
+    finally:
+        if saved_dir is None:
+            os.environ.pop("RW_TEST_SLOTS_DIR", None)
+        else:
+            os.environ["RW_TEST_SLOTS_DIR"] = saved_dir
+    in_own = sorted(os.listdir(own_dir)) if os.path.isdir(own_dir) else []
+    got = records_in(own_rec)
+    own_env = (got[-1].get("env") if isinstance(got, list) and got else None) or {}
+    own_state, own_note = rt.browser_level.load(os.path.join(own_dir, rt.browser_level.FILE_NAME))
+    row("RUN-085", "RW_TEST_SLOTS_DIR holds the slot files AND the saved level (browsers-at-once.json) instead of "
+        "%TEMP%\\rw-test-slots — TEMP itself unmoved; unset → %TEMP%\\rw-test-slots, as before; recorded with the run "
+        "and not narrowing it",
+        code == 0 and os.path.normcase(default_folder) == os.path.normcase(
+            os.path.join(tempfile.gettempdir(), "rw-test-slots"))
+        and os.path.normcase(moved_folder) == os.path.normcase(own_dir)
+        and rt.browser_level.FILE_NAME in in_own and "slot-1.lock" in in_own and own_note is None
+        and own_state["level"] == 5 and own_env.get("RW_TEST_SLOTS_DIR") == own_dir
+        and rt.RUN_ENV.get("RW_TEST_SLOTS_DIR", (True,))[0] is False
+        and rt.narrowed_by({"env": {"RW_TEST_SLOTS_DIR": own_dir}}) == [],
+        f"exit {code}, default {default_folder}, moved {moved_folder}, in it {in_own}, level {own_state} ({own_note}), "
+        f"env {own_env}: {out[-400:]}")
+
+    # Only fully passing runs count (Ron, 2026-11-17): a full run with a failed file is saved, marked, and moves nothing.
+    lfail = write("test_lfail.py", "# sample\n# tags: lvl-sample, tier 2\n# covers: tools/run_tests.py\nimport sys\n"
+                  "print('  ✗ LFAIL-001 a sample failure')\nprint('0 passed, 1 failed')\nsys.exit(1)\n")
+    fl_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-fl"))
+    fl_rec = os.path.join(d, "fl-results")
+    code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(la), rt.TestFile(lfail)], slots=fl_slots, results=fl_rec)
+    fl_state, _ = rt.browser_level.load(os.path.join(fl_slots.folder, rt.browser_level.FILE_NAME))
+    fl_last = (fl_state.get("history") or [{}])[-1]
+    got = records_in(fl_rec)
+    fl_moves = (got[-1].get("browsers") if isinstance(got, list) and got else None) or {}
+    row("RUN-086", "through the runner, a full screen-test run with a failed file: saved in the level's history marked "
+        "failed (how many), the level unchanged (4 → 4, not 5), and the run says why",
+        code == 1 and fl_state["level"] == 4 and fl_last.get("failed") == 1 and fl_last.get("outcome") == "failed"
+        and fl_moves.get("next") == 4 and fl_moves.get("outcome") == "failed"
+        and "· browsers at once next run: 4 — " in out and "failed" in out.split("· browsers at once next run: 4 — ")[-1],
+        f"exit {code}, saved {fl_state}, moves {fl_moves}: {out[-500:]}")
+
     # The harness's side (test/ui/harness.py) — its exit code is the mechanism: 3 only for the machine's or the
     # browser's trouble, and only when no test had failed before it. Run as their own processes, as the runner would.
     def harness_exit(body):
