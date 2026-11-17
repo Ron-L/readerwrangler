@@ -1,6 +1,6 @@
 # Tests for tools/run_tests.py — the one test runner (docs/design/TESTING.md §4).
 # tags: test-runner, tier 1
-# covers: tools/run_tests.py, tools/local_relay.py, test/harness.js, test/ui/rw.py
+# covers: tools/run_tests.py, tools/local_relay.py, tools/test_slots.py, tools/environment_trouble.py, test/harness.js, test/ui/rw.py, test/ui/harness.py
 # Run: python test/test_run_tests.py
 #
 # Sample test files are written to a temporary folder; each row checks one thing the runner must do.
@@ -1027,6 +1027,305 @@ sys.exit(1 if bad else 0)
         and code2 == 0 and "failed" in t3_line(out2) and "test-x.mjs" in out2
         and code3 == 0 and "not run" in t3_line(out3) and all("PROVEN —" in o for o in (out, out2, out3)),
         f"exit {code}: {t3_line(out)!r} | exit {code2}: {t3_line(out2)!r} {out2[-300:]} | exit {code3}: {t3_line(out3)!r}")
+
+    # --- A failed file's whole output kept; the machine's or the browser's trouble (ENVIRONMENT) told from a test failure
+    # and rerun once, alone; fewer browsers when memory is low (2026-11-17, TODO tooling item 9 — five one-time failures in
+    # one week, the last two unreadable: the runner kept only a failing file's filtered lines). The screen-test stand-ins
+    # use the REAL harness (test/ui/harness.py), so the runner reads the very lines and exit code a screen test gives.
+    def harness_file(name, body, tier=2, extra=""):
+        return write(name, f"# sample\n# tags: env-sample, tier {tier}\n# covers: tools/run_tests.py\n{extra}"
+                           f"import os, sys, time\nsys.path.insert(0, {ui_harness!r})\n"
+                           "from harness import EnvironmentTrouble, check, done, environment, test\n" + body)
+
+    def count_runs(name):
+        """A stand-in's own count of how many times it ran (each run adds one)."""
+        return (f"count = os.path.join({d!r}, {name!r} + '.count')\n"
+                "n = int(open(count).read()) if os.path.exists(count) else 0\n"
+                "open(count, 'w').write(str(n + 1))\n")
+
+    def runs_of(name):
+        p = os.path.join(d, name + ".count")
+        return int(open(p).read()) if os.path.exists(p) else 0
+
+    def entry_of(folder, name):
+        got = records_in(folder)
+        last = got[-1] if isinstance(got, list) and got else {}
+        return next((f for f in last.get("files", []) if f.get("file", "").endswith(name)), {}), last
+
+    def text_of(path):
+        return open(path, encoding="utf-8").read() if isinstance(path, str) and os.path.exists(path) else ""
+
+    loud = write("test_loud.py", "# sample\n# tags: env-sample, tier 1\n# covers: tools/run_tests.py\nimport sys\n"
+                 "for i in range(40):\n    print(f'plain line {i} — no mark the filter keeps')\n"
+                 "print('  ✗ LOUD-001 fails')\nprint('      screenshot: C:/nowhere/LOUD-001.png')\n"
+                 "print('a line on stderr', file=sys.stderr)\nprint('0 passed, 1 failed')\nsys.exit(1)\n")
+    out_rec = os.path.join(d, "output-results")
+    code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(loud)], results=out_rec)
+    entry, _ = entry_of(out_rec, "test_loud.py")
+    path = entry.get("output")
+    kept = text_of(path)
+    under = isinstance(path, str) and os.path.normcase(os.path.abspath(path)).startswith(
+        os.path.normcase(os.path.abspath(out_rec)) + os.sep)
+    row("RUN-072", "a failed file's WHOLE output (stdout and stderr, every line — not just the lines the summary shows) is "
+        "kept beside the run's record, in its folder; the summary says 'full output: <path>'; the record holds the path "
+        "and the screenshot the file named",
+        code == 1 and bool(path) and f"full output: {path}" in out and under
+        and all(f"plain line {i} —" in kept for i in range(40)) and "a line on stderr" in kept
+        and entry.get("screenshots") == ["C:/nowhere/LOUD-001.png"],
+        f"exit {code}, entry {str(entry)[:300]}, kept {len(kept)} chars: {out[-400:]}")
+
+    bound_rec = os.path.join(d, "bounded-results")
+    saved_keep = rt.KEEP_RECORDS
+    rt.KEEP_RECORDS = 2
+    try:
+        for _ in range(3):
+            quiet_main(["--tier", "1"], files=[rt.TestFile(loud)], results=bound_rec)
+            time.sleep(1.1)      # a record's name carries the second its run started
+    finally:
+        rt.KEEP_RECORDS = saved_keep
+    names = sorted(os.listdir(bound_rec)) if os.path.isdir(bound_rec) else []
+    jsons = [n[:-5] for n in names if n.endswith(".json")]
+    folders = [n for n in names if os.path.isdir(os.path.join(bound_rec, n))]
+    outs = [f.get("output") for r in (records_in(bound_rec) or []) if isinstance(r, dict) for f in r.get("files", [])]
+    row("RUN-073", "the kept outputs are bounded: an old record's outputs go with it (records kept: 2 → 2 output folders, "
+        "each beside its record, each output still there)",
+        len(jsons) == 2 and folders == jsons and len(outs) == 2 and all(text_of(p) for p in outs),
+        f"records {jsons}, output folders {folders}, outputs {outs}")
+
+    # Screen-test stand-ins (tier 2): one that meets machine trouble the first time only, one that runs beside it.
+    env_slots = os.path.join(d, "slots-env")
+    times = os.path.join(d, "env-times.txt")
+    tools_dir = os.path.join(ROOT, "tools")
+    envonce = harness_file("test_envonce.py", count_runs("envonce") + f"""sys.path.insert(0, {tools_dir!r})
+import test_slots
+probe = test_slots.Slots(count=2, folder={env_slots!r}).try_acquire("probe")    # None: every slot on the PC is held
+if probe:
+    probe.release()
+with open({times!r}, "a") as f:
+    f.write(f"envonce{{n}} start {{time.time()}} {{'free-slot' if probe else 'all-held'}}\\n")
+def first_time():
+    if n == 0:
+        raise EnvironmentTrouble("the page never loaded (a sample)")
+test("ENVS-001", "a sample test", first_time)
+with open({times!r}, "a") as f:
+    f.write(f"envonce{{n}} end {{time.time()}} -\\n")
+done()
+""")
+    steady = harness_file("test_steady.py", f"""with open({times!r}, "a") as f:
+    f.write(f"steady0 start {{time.time()}} -\\n")
+time.sleep(1.5)
+test("ENVS-002", "a sample test beside it", lambda: None)
+with open({times!r}, "a") as f:
+    f.write(f"steady0 end {{time.time()}} -\\n")
+done()
+""")
+    env_rec = os.path.join(d, "env-results")
+    code, out = quiet_main(["--tier", "2", "--jobs", "2"], files=[rt.TestFile(envonce), rt.TestFile(steady)],
+                           slots=ts.Slots(count=2, folder=env_slots), results=env_rec, retry_wait=0.3)
+    seen = {}
+    for ln in (open(times).read().splitlines() if os.path.exists(times) else []):
+        who, what, t, probe = ln.split()
+        seen[(who, what)] = (float(t), probe)
+    rerun = seen.get(("envonce1", "start"), (0, ""))
+    entry, _ = entry_of(env_rec, "test_envonce.py")
+    tries = entry.get("retried") or [{}]
+    first = tries[0].get("first_output")
+    said = f"1 file retried after the page never loaded (a sample) — its first output: {first}"
+    row("RUN-074", "a screen test that meets machine or browser trouble (the harness's exit 3 and its marked line) is "
+        "rerun ONCE, ALONE — after the others are done and a wait, holding every test slot on the PC — and passes: the "
+        "file counts as passed, the summary says '1 file retried after <reason> — its first output: <path>', the record "
+        "notes the retry with both outputs",
+        code == 0 and runs_of("envonce") == 2 and "Tests: 2 file(s) passed, 0 failed" in out and said in out
+        and "ENVIRONMENT FAILURE" in text_of(first) and text_of(tries[0].get("rerun_output"))
+        and rerun[1] == "all-held" and rerun[0] >= seen.get(("steady0", "end"), (1e12,))[0] + 0.29
+        and rerun[0] >= seen.get(("envonce0", "end"), (1e12,))[0] + 0.29
+        and entry.get("result") == "passed" and tries[0].get("reason") == "the page never loaded (a sample)",
+        f"exit {code}, runs {runs_of('envonce')}, times {seen}, entry {str(entry)[:400]}: {out[-700:]}")
+
+    t2_retried = dict(t2[0], retried=[dict(tries[0])]) if entry else dict(t2[0])
+    p, why = judged([rec(files=t1 + [t2_retried])])
+    row("RUN-075", "--stamp: a file that passed on its rerun alone still PROVES the commit, and the stamp says so — the "
+        "reason and its first output — on a line that starts with '·' (never '✗')",
+        p is True and any(ln.strip().startswith("·") and "rerun" in ln and "the page never loaded (a sample)" in ln
+                          and str(first) in ln for ln in why.splitlines()),
+        f"{p}: {why}")
+
+    envalways = harness_file("test_envalways.py", count_runs("envalways") + """def trouble():
+    raise EnvironmentTrouble("the browser closed (a sample)")
+test("ENVS-003", "a sample test", trouble)
+done()
+""")
+    always_rec = os.path.join(d, "always-results")
+    code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(envalways)], slots=ts.Slots(count=2, folder=env_slots),
+                           results=always_rec, retry_wait=0.1)
+    entry, _ = entry_of(always_rec, "test_envalways.py")
+    tries = entry.get("retried") or [{}]
+    row("RUN-076", "machine or browser trouble TWICE: the file fails (run twice, no more), both outputs kept and named "
+        "in the record, the summary says it was retried and failed again",
+        code == 1 and runs_of("envalways") == 2 and entry.get("result") == "failed"
+        and "ENVIRONMENT FAILURE" in text_of(tries[0].get("first_output"))
+        and "ENVIRONMENT FAILURE" in text_of(tries[0].get("rerun_output")) and text_of(entry.get("output"))
+        and "1 file retried after the browser closed (a sample)" in out and "Tests: 0 file(s) passed, 1 failed" in out,
+        f"exit {code}, runs {runs_of('envalways')}, entry {str(entry)[:400]}: {out[-500:]}")
+
+    asserts = harness_file("test_asserts.py", count_runs("asserts")
+                           + 'test("ENVS-004", "a real failure", lambda: check(False, "an assertion"))\ndone()\n')
+    tier1_env = harness_file("test_tier1env.py", count_runs("tier1env") + """def trouble():
+    raise EnvironmentTrouble("a sample")
+test("ENVS-005", "a function test", trouble)
+done()
+""", tier=1)
+    unmarked = write("test_unmarked.py", "# sample\n# tags: env-sample, tier 2\n# covers: tools/run_tests.py\n"
+                     "import os, sys\n" + count_runs("unmarked") + "print('0 passed, 1 failed')\nsys.exit(3)\n")
+    code, out = quiet_main(["--tier", "all", "--jobs", "1"], files=[rt.TestFile(p) for p in (asserts, tier1_env, unmarked)],
+                           slots=ts.Slots(count=2, folder=env_slots), results=os.path.join(d, "never-results"),
+                           retry_wait=0.1)
+    row("RUN-077", "a TEST failure is never rerun: an assertion that failed; a tier-1 file's exit 3 (only a screen test "
+        "can meet the browser's trouble); exit 3 without the harness's marked line — each ran once and failed",
+        code == 1 and (runs_of("asserts"), runs_of("tier1env"), runs_of("unmarked")) == (1, 1, 1)
+        and "retried" not in out and "Tests: 0 file(s) passed, 3 failed" in out,
+        f"exit {code}, runs {(runs_of('asserts'), runs_of('tier1env'), runs_of('unmarked'))}: {out[-500:]}")
+
+    env_mark = os.path.join(d, "envcell.ran")
+    sh_env = harness_file("test_shards_env.py", f"""CELLS = ["ENVC-001", "ENVC-002", "ENVC-003", "ENVC-004"]
+if "--list-cells" in sys.argv:
+    print(chr(10).join(CELLS))
+    sys.exit(0)
+only = [x for x in os.environ.get("RW_CELLS", "").split(",") if x]
+def cell(c):
+    def run():
+        if c == "ENVC-003":
+            first = not os.path.exists({env_mark!r})
+            open({env_mark!r}, "a").write(os.environ.get("RW_CELLS", "") + chr(10))
+            if first:
+                raise EnvironmentTrouble("a request to our own server failed: net::ERR_NO_BUFFER_SPACE (a sample)")
+    return run
+for c in CELLS:
+    if not only or c in only:
+        test(c, "a cell", cell(c))
+done()
+""", extra="# shards: 2\n")
+    shard_env_rec = os.path.join(d, "shard-env-results")
+    code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(sh_env)], slots=ts.Slots(count=2, folder=env_slots),
+                           results=shard_env_rec, retry_wait=0.1)
+    entry, _ = entry_of(shard_env_rec, "test_shards_env.py")
+    ran = open(env_mark).read().split() if os.path.exists(env_mark) else []
+    tries = entry.get("retried") or [{}]
+    row("RUN-078", "a file split into shards: only the shard that met the trouble is rerun alone (the same cells); the file "
+        "passes as one file — one line with the counts summed, one entry noting which shard was retried",
+        code == 0 and ran == ["ENVC-001,ENVC-003", "ENVC-001,ENVC-003"] and "4 passed, 0 failed" in out
+        and entry.get("result") == "passed" and len(entry.get("retried") or []) == 1 and tries[0].get("shard") == 1
+        and "1 file retried after a request to our own server failed" in out,
+        f"exit {code}, ran {ran}, entry {str(entry)[:400]}: {out[-600:]}")
+
+    # Low memory: fewer browsers at once (the free memory injectable; the real reading checked to give a number).
+    GB = 2 ** 30
+    mem_slots = ts.Slots(count=4, folder=os.path.join(d, "slots-mem"))
+    ma, mb = timed_file("test_ma.py"), timed_file("test_mb.py")
+
+    def mem_run(free, env=None):
+        if os.path.exists(os.path.join(d, "times.txt")):
+            os.remove(os.path.join(d, "times.txt"))
+        folder = os.path.join(d, f"mem-results-{free}-{bool(env)}")
+        saved = os.environ.get("RW_TEST_LOW_MEMORY_GB")
+        if env is not None:
+            os.environ["RW_TEST_LOW_MEMORY_GB"] = env
+        try:
+            code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(ma), rt.TestFile(mb)], slots=mem_slots,
+                                   results=folder, free_memory=lambda: None if free is None else free * GB)
+        finally:
+            if saved is None:
+                os.environ.pop("RW_TEST_LOW_MEMORY_GB", None)
+            else:
+                os.environ["RW_TEST_LOW_MEMORY_GB"] = saved
+        spans = {}
+        if os.path.exists(os.path.join(d, "times.txt")):
+            for ln in open(os.path.join(d, "times.txt")).read().split("\n"):
+                if ln.strip():
+                    n_, what, t = ln.split()
+                    spans.setdefault(n_, {})[what] = float(t)
+        s = sorted(spans.values(), key=lambda x: x.get("start", 0))
+        apart = len(s) == 2 and all("start" in x and "end" in x for x in s) and s[0]["end"] <= s[1]["start"]
+        got = records_in(folder)
+        return code, out, apart, (got[-1].get("memory") if isinstance(got, list) and got else None)
+
+    c1, o1, apart1, m1 = mem_run(1.5)
+    c2, o2, _, m2 = mem_run(3.0)
+    c3, o3, _, m3 = mem_run(8.0)
+    c4, o4, _, m4 = mem_run(1.5, env="0")
+    c5, o5, _, m5 = mem_run(None)
+    try:
+        real = ts.free_memory()
+    except Exception as e:      # noqa: BLE001 — not built yet
+        real = f"{type(e).__name__}: {e}"
+    row("RUN-079", "low memory → fewer browsers at once, said and recorded: 1.5 GB free → 1 (the two files one after the "
+        "other), 3 GB → 2, 8 GB → all 4, nothing said; RW_TEST_LOW_MEMORY_GB=0 turns the check off; memory unknown → no "
+        "limit; the PC's own reading is a number",
+        c1 == c2 == c3 == c4 == c5 == 0 and apart1
+        and "only 1.5 GB of memory free — running 1 browser at once, not 4" in o1
+        and "only 3.0 GB of memory free — running 2 browsers at once, not 4" in o2
+        and "memory free" not in o3 and "memory free" not in o4
+        and (m1 or {}).get("browsers") == 1 and (m2 or {}).get("browsers") == 2 and (m3 or {}).get("browsers") == 4
+        and (m4 or {}).get("browsers") == 4 and (m5 or {}).get("browsers") == 4 and (m1 or {}).get("free_gb") == 1.5
+        and isinstance(real, (int, float)) and real > 0,
+        f"1.5: exit {c1}, apart {apart1}, {m1}: {o1[-300:]} | 3: {m2} {o2[-200:]} | 8: {m3} | off: {m4} | unknown: {m5} | "
+        f"real: {real}")
+
+    # The harness's side (test/ui/harness.py) — its exit code is the mechanism: 3 only for the machine's or the
+    # browser's trouble, and only when no test had failed before it. Run as their own processes, as the runner would.
+    def harness_exit(body):
+        p = harness_file(f"harness_case_{abs(hash(body)) % 10 ** 8}.py", body, tier=1)
+        r = subprocess.run([sys.executable, p], capture_output=True, timeout=60)
+        return r.returncode, (r.stdout + r.stderr).decode("utf-8", "replace")
+
+    trouble = 'def trouble():\n    raise EnvironmentTrouble("the page never loaded (a sample)")\n'
+    cases = {
+        "trouble in a test → 3, marked": (trouble + 'test("HX-001", "t", trouble)\ndone()\n', 3, True),
+        "a failure, THEN trouble → 1": ('test("HX-002", "t", lambda: check(False, "x"))\n' + trouble
+                                       + 'test("HX-003", "t", trouble)\ndone()\n', 1, False),
+        "trouble seen, then a failure → 3": ('environment("a request to our own server failed (a sample)")\n'
+                                            'test("HX-004", "t", lambda: check(False, "x"))\ndone()\n', 3, True),
+        "trouble seen, all passed → 0": ('environment("a sample")\ntest("HX-005", "t", lambda: None)\ndone()\n', 0, False),
+        "trouble outside any test (the App's start) → 3": ('test("HX-006", "t", lambda: None)\n'
+                                                          'raise EnvironmentTrouble("our web server didn\'t start")\n', 3, True),
+        "an ordinary error outside any test → 1": ('raise RuntimeError("a bug")\n', 1, False),
+    }
+    got = {}
+    for what, (body, want, marked) in cases.items():
+        c, o = harness_exit(body)
+        has_mark = any(ln.startswith("ENVIRONMENT FAILURE:") for ln in o.splitlines())
+        got[what] = (c, has_mark, c == want and has_mark == marked)
+    row("RUN-080", "the screen-test harness exits 3 — with a line starting 'ENVIRONMENT FAILURE: <reason>' — only for the "
+        "machine's or the browser's trouble with no test failed before it; an assertion, or a failure before the trouble, "
+        "exits 1; trouble that failed nothing exits 0",
+        all(v[2] for v in got.values()), str(got))
+    c, o = harness_exit('from harness import on_failure\non_failure(lambda label: "C:/x/" + label + ".png")\n'
+                        'test("HX-007", "fails", lambda: check(False, "x"))\ntest("HX-008", "passes", lambda: None)\ndone()\n')
+    row("RUN-081", "a failing test's screenshot: the harness asks the screen (rw.App registers it) and prints where it went, "
+        "under the failure — only for a failure",
+        c == 1 and "screenshot: C:/x/HX-007.png" in o and "HX-008.png" not in o, f"exit {c}: {o[-300:]}")
+    try:
+        import environment_trouble as et
+        app = ["localhost:8123", "127.0.0.1:8123"]
+        relay = ["127.0.0.1:9000"]
+        verdicts = [et.net_error("net::ERR_NO_BUFFER_SPACE", "http://localhost:8123/icons/logo.png", app, relay),
+                    et.net_error("net::ERR_INSUFFICIENT_RESOURCES", "http://127.0.0.1:9000/pointer/x", app, relay),
+                    et.net_error("net::ERR_CONNECTION_REFUSED", "http://localhost:8123/dist/readerwrangler.js", app, relay),
+                    et.net_error("net::ERR_CONNECTION_REFUSED", "http://127.0.0.1:9000/pointer/x", app, relay),
+                    et.net_error("net::ERR_FAILED", "http://localhost:8123/x.png", app, relay),
+                    et.net_error("net::ERR_ABORTED", "http://localhost:8123/x.png", app, relay),
+                    et.net_error("net::ERR_NO_BUFFER_SPACE", "https://m.media-amazon.com/x.jpg", app, relay)]
+        reasons = [et.reason(3, "1 passed, 0 failed\nENVIRONMENT FAILURE: the page never loaded\n"),
+                   et.reason(3, "1 passed, 1 failed\n"), et.reason(1, "ENVIRONMENT FAILURE: the page never loaded\n")]
+    except Exception as e:      # noqa: BLE001 — not built yet
+        verdicts, reasons = f"{type(e).__name__}: {e}", None
+    row("RUN-082", "which network errors are the machine's: short of buffers or memory on the way to our web server or "
+        "our local relay; a refused connection to our web server only (to the relay it may be the relay code under test); "
+        "never a request a test refuses on purpose (ERR_FAILED), one a page change cut short (ERR_ABORTED), or one to "
+        "anywhere else — and a reason only from exit 3 AND the marked line",
+        verdicts == ["ERR_NO_BUFFER_SPACE", "ERR_INSUFFICIENT_RESOURCES", "ERR_CONNECTION_REFUSED", None, None, None, None]
+        and reasons == ["the page never loaded", None, None],
+        f"{verdicts} | {reasons}")
 
 failed = [r for r in results if not r[2]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")

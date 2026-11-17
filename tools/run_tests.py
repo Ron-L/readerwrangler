@@ -63,6 +63,23 @@ rw-test-results`: never in the working tree; a worktree has its own).
                                               uncommitted — else NOT PROVEN, and why (exit 1). Tier 3's latest run on
                                               the commit is shown too (passed / failed / not run) — information only
 
+A failed file's WHOLE output kept (2026-11-17, TODO tooling item 9 — five one-time failures in a week, the last two
+unreadable: only a failing file's filtered lines were printed): every failed file's output — stdout and stderr, every
+line — is saved in a folder beside the run's record (named as the record), with the screenshots it named; its failure
+lines end with "full output: <path>" and the record holds the path. Old outputs go with their old records.
+
+The machine's or the browser's trouble (ENVIRONMENT) is told from a TEST failure where it's known — by the screen-test
+driver (test/ui/rw.py, harness.py): the page never loaded, the browser crashed or closed, our own web server or relay
+didn't come up, a request to our own server failed for the machine's reasons (net::ERR_NO_BUFFER_SPACE…). Such a file
+exits 3 with a line "ENVIRONMENT FAILURE: <reason>" (tools/environment_trouble.py) — both needed. It is rerun ONCE,
+ALONE: after the others are done and a short wait, holding every test slot on the PC. The summary says so, loudly —
+"1 file retried after <reason> — its first output: <path>" — and the record notes it with both outputs; passed on its
+rerun, it counts as passed (the stamp shows the note); failed again, it's a failure. A TEST failure is never rerun.
+
+Low memory (same day): before screen tests start, the PC's free memory is read — under 4 GB, 2 browsers at once; under
+2 GB, 1 — and the run says why (tools/test_slots.py; RW_TEST_LOW_MEMORY_GB sets the threshold, 0 turns it off). The
+record notes it.
+
 Double-clicked, the window stays open to show the results (pytools keepopen). Exit: 0 all passed · 1 a failure.
 """
 import argparse
@@ -83,6 +100,7 @@ if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import local_relay  # noqa: E402 — tools/local_relay.py, next to this file
 import test_slots   # noqa: E402 — tools/test_slots.py: the machine-wide limit on screen tests at once
+import environment_trouble   # noqa: E402 — tools/environment_trouble.py: a screen test's "the machine failed, not me"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Screen tests (tier 2) need Playwright, which lives in the project's venv (requirements-dev.txt) — never the system
@@ -258,11 +276,12 @@ def command(tf):
     return [node, tf.path], None
 
 
-def run_file(tf, relay_url=None, timeout=600, cells=None):
-    """(passed?, output) — runs one test file from the repo root. cells: run only these (RW_CELLS — one shard)."""
+def run_process(tf, relay_url=None, timeout=600, cells=None):
+    """(exit code, its whole output — stdout, then stderr) — runs one test file from the repo root. Exit code None: it
+    couldn't start, or ran past `timeout` (what it printed until then is kept). cells: run only these (RW_CELLS)."""
     cmd, why = command(tf)
     if cmd is None:
-        return False, why
+        return None, why
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
     if relay_url:
         env["RELAY_URL"] = relay_url
@@ -270,10 +289,47 @@ def run_file(tf, relay_url=None, timeout=600, cells=None):
         env["RW_CELLS"] = ",".join(cells)
     try:
         r = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return False, f"timed out after {timeout} s"
-    out = (r.stdout + r.stderr).decode("utf-8", "replace")
-    return r.returncode == 0, out
+    except subprocess.TimeoutExpired as e:
+        partial = ((e.stdout or b"") + (e.stderr or b"")).decode("utf-8", "replace")
+        return None, partial + f"\n✗ timed out after {timeout} s"
+    return r.returncode, (r.stdout + r.stderr).decode("utf-8", "replace")
+
+
+def run_file(tf, relay_url=None, timeout=600, cells=None):
+    """(passed?, output) — run_process, as passed or not."""
+    code, out = run_process(tf, relay_url=relay_url, timeout=timeout, cells=cells)
+    return code == 0, out
+
+
+def environment_reason(tf, code, out):
+    """Why a screen-test file says the machine or the browser failed — its exit 3 AND its "ENVIRONMENT FAILURE:" line
+    (tools/environment_trouble.py) — else None. Tiers 1 and 3: always None (only the screen-test driver can tell)."""
+    if tf.tier != 2 or not tf.path.endswith(".py"):
+        return None
+    return environment_trouble.reason(code, out)
+
+
+def screenshots_in(out):
+    """The screenshots a file's output names ("screenshot: <path>" — the harness under a failure, rw.App at a start that
+    never finished, a test's own)."""
+    return re.findall(r"^\s*screenshot:\s*(\S.*?)\s*$", out or "", re.M)
+
+
+def keep_output(folder, tf, text, shard=None, what=""):
+    """Save a file's whole output in `folder` (the run's outputs, beside its record); its path, or None (no folder — the
+    run leaves no record — or it couldn't be written)."""
+    if not folder:
+        return None
+    name = re.sub(r"[^\w.-]+", "_", tf.rel()).strip("._")[-90:] + (f".shard-{shard}" if shard else "") \
+        + (f".{what}" if what else "") + ".txt"
+    try:
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, name)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+        return path
+    except OSError:
+        return None
 
 
 # --- one file split across processes (2026-11-16, TODO "Faster sprints") ------------------------------------------------
@@ -414,6 +470,7 @@ RUN_ENV = {     # name: (narrows?, what it does)
     "RW_BROWSER": (False, "the screen tests' browser: chrome (the default) or msedge — every test still runs (rw.py)"),
     "RW_TEST_ARTIFACTS": (False, "where a failing screen test saves its screenshot (tools/copies.py)"),
     "RW_TEST_SLOTS": (False, "the PC's limit on screen tests at once (tools/test_slots.py)"),
+    "RW_TEST_LOW_MEMORY_GB": (False, "below this much free memory, fewer browsers at once; 0 = no check (test_slots.py)"),
     "RELAY_URL": (False, "tier 3 runs against that relay instead of starting its own local one"),
 }
 
@@ -462,19 +519,29 @@ def _now():
     return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
 
 
+def record_id(rec):
+    """A record's name (without .json) — also the name of the folder holding its run's kept outputs."""
+    return rec.get("id") or f"{rec['started'][:19].replace(':', '')}-{(rec.get('commit') or 'nocommit')[:12]}-{os.getpid()}"
+
+
 def write_record(rec, folder):
     os.makedirs(folder, exist_ok=True)
-    name = f"{rec['started'][:19].replace(':', '')}-{(rec.get('commit') or 'nocommit')[:12]}-{os.getpid()}.json"
-    path = os.path.join(folder, name)
+    path = os.path.join(folder, record_id(rec) + ".json")
     with open(path + ".tmp", "w", encoding="utf-8") as f:
         json.dump(rec, f, indent=1)
     os.replace(path + ".tmp", path)
-    old = sorted(n for n in os.listdir(folder) if n.endswith(".json"))[:-KEEP_RECORDS]
-    for n in old:
+    names = sorted(n for n in os.listdir(folder) if n.endswith(".json"))
+    for n in names[:-KEEP_RECORDS]:
         try:
             os.remove(os.path.join(folder, n))
         except OSError:
             pass
+    # A run's kept outputs (a folder named as its record) go with its record — and so does any folder older than every
+    # record kept (its run never wrote one). A newer folder may be a run still going: left alone.
+    oldest = names[-KEEP_RECORDS:][0][:-len(".json")] if names[-KEEP_RECORDS:] else None
+    for n in os.listdir(folder):
+        if oldest and n < oldest and os.path.isdir(os.path.join(folder, n)):
+            shutil.rmtree(os.path.join(folder, n), ignore_errors=True)
     return path
 
 
@@ -505,7 +572,8 @@ def record_problems(r):
     files = r.get("files") or []
     for f in files:
         if f.get("result") == "failed":
-            why.append(f"{f.get('file')} failed ({f.get('counts') or 'no summary'})")
+            why.append(f"{f.get('file')} failed ({f.get('counts') or 'no summary'})"
+                       + (f" — full output: {f['output']}" if f.get("output") else ""))
         elif f.get("result") == "skipped":
             why.append(f"{f.get('file')} was skipped — {f.get('why') or 'no reason given'}")
     why += list(r.get("problems") or [])
@@ -546,7 +614,20 @@ def judge(records, commit):
         if id(r) not in shown:          # one 'all' run serves both tiers: its problems are listed once
             shown[id(r)] = True
             lines += [f"      {w}" for w in why]
+        lines += retried_lines(mine)
     return proven, lines + tier3_lines(records, commit)
+
+
+def retried_lines(files):
+    """A note for each file of the run that was rerun alone after the machine's or the browser's trouble (2026-11-17) —
+    passed on its rerun, it still proves the commit, but the stamp says so. Starts with '·', never '✗'."""
+    out = []
+    for f in files:
+        for t in f.get("retried") or []:
+            out.append(f"      · {f.get('file')}" + (f" (shard {t['shard']})" if t.get("shard") else "")
+                       + f" was rerun alone after {t.get('reason')} — {t.get('rerun') or '?'} — its first output: "
+                       f"{t.get('first_output') or '(not kept)'}")
+    return out
 
 
 def tier3_lines(records, commit):
@@ -590,12 +671,18 @@ def show_stamp(commit_arg, folder):
     return 1
 
 
-def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None):
+RETRY_WAIT_S = 10       # before a file is rerun alone: the others are done by then — this lets the machine settle too
+MAX_RETRIES = 4         # more files than that meeting the machine's trouble in one run points at something broken
+
+
+def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None, retry_wait=None, free_memory=None):
     """files: the test files to choose from (None = every one in the repo); relay: makes the local relay for tier 3
     (None = the real one); results: the folder for the run's record (None = this working copy's, and only when `files` is
     None — the runner's own sample runs leave no record); slots: the machine-wide limit (None = test_slots.Slots()); todo:
-    the TODO file a skip: line's task must be in (None = the repo's TODO.md) — all for the runner's own tests
-    (test/test_run_tests.py)."""
+    the TODO file a skip: line's task must be in (None = the repo's TODO.md); retry_wait: seconds before a file is rerun
+    alone (None = RETRY_WAIT_S); free_memory: reads the free memory in bytes (None = test_slots.free_memory) — all for the
+    runner's own tests (test/test_run_tests.py)."""
+    retry_wait = RETRY_WAIT_S if retry_wait is None else retry_wait
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
@@ -676,6 +763,8 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None)
                "env": run_env(),
                "files": [{"file": f.rel(), "tier": f.tier, "result": "failed", "counts": f.problem} for f in broken],
                "problems": [], "started": started}
+        rec["id"] = record_id(rec)
+    out_dir = os.path.join(record_to, rec["id"]) if rec else None   # failed files' whole outputs, beside the record
     skipped = [(f, why) for f, why in ((f, skip_reason(f)) for f in chosen) if why]
     chosen = [f for f in chosen if not any(f is s for s, _ in skipped)]
     if not a.quiet or a.release:
@@ -693,16 +782,22 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None)
         with say_lock:
             print(text, flush=True)
 
-    def report(f, ok, out, seconds=None, waited=0.0, shards=None, cells=None):
-        """One file's result: its line (and a failure's details, together) and its entry in the record. shards: a file
-        run as several processes — [{cells, seconds, waited, result}] — reported as the one file it is. cells: a sharded
-        file narrowed by --id to these cells (one process)."""
+    retried = []   # (file, {shard, reason, first_output, rerun_output, rerun…}) — said loudly at the end
+    kept = []      # (file, its whole output's path) — every failed file's, named again at the end
+
+    def report(f, ok, out, seconds=None, waited=0.0, shards=None, cells=None, tried=None):
+        """One file's result: its line (and a failure's details, together — ending with where its whole output was kept)
+        and its entry in the record. shards: a file run as several processes — [{cells, seconds, waited, result}] —
+        reported as the one file it is. cells: a sharded file narrowed by --id to these cells (one process). tried: the
+        reruns alone after the machine's or the browser's trouble ([{shard, reason, first_output, rerun_output…}])."""
         ids = differs_today_ids(out)
         summary = next((ln for ln in reversed(out.splitlines()) if re.search(r"\bpassed\b", ln)), "")
         wait = f", waited {waited:.0f} s for a slot" if waited >= 1 else ""
         each = f"; shards {', '.join(str(round(s['seconds'])) for s in shards)} s" if shards else ""
         only = f"; only {', '.join(cells)} (--id)" if cells else ""
-        took = "" if seconds is None else f"  ({seconds:.0f} s{each}{only}{wait})"
+        again = f"; rerun alone after {tried[0]['reason']}" if tried else ""
+        took = "" if seconds is None else f"  ({seconds:.0f} s{each}{only}{wait}{again})"
+        output = None if ok else keep_output(out_dir, f, out)
         lines = []
         if ok:
             if not a.quiet:
@@ -712,15 +807,22 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None)
             for ln in out.splitlines():
                 if "✗" in ln or "Error" in ln or "FAIL" in ln or ln.startswith("      "):
                     lines.append("    " + ln)
+            if output:
+                lines.append(f"    full output: {output}")
         with say_lock:
             if ids:
                 differ.append((f, ids))
             count["passed" if ok else "failed"] += 1
+            retried.extend((f, t) for t in tried or [])
+            if output:
+                kept.append((f, output))
             if rec:
                 rec["files"].append({"file": f.rel(), "tier": f.tier, "result": "passed" if ok else "failed",
                                      "counts": summary.strip(), "seconds": None if seconds is None else round(seconds, 1),
                                      "waited": round(waited, 1), "differ": ids, **({"shards": shards} if shards else {}),
-                                     **({"cells": cells} if cells else {})})
+                                     **({"cells": cells} if cells else {}),
+                                     **({"output": output, "screenshots": screenshots_in(out)} if output else {}),
+                                     **({"retried": tried} if tried else {})})
             if lines:
                 print("\n".join(lines), flush=True)
 
@@ -736,10 +838,23 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None)
     # time in this copy's latest record (a shard: its file's longest shard then, or its file's time split N ways) — so
     # the long ones don't finish last on their own.
     slots = slots or test_slots.Slots()
+    machine_slots = slots          # every slot on the PC — a file rerun alone holds them all
     jobs = max(1, a.jobs or slots.count)
+    pooled = [f for f in chosen if f.tier != 3]
+    if any(f.tier == 2 for f in pooled):
+        # Low memory (2026-11-17): fewer browsers at once for this run — the first N of the PC's slots — and say why.
+        free = (free_memory or test_slots.free_memory)()
+        browsers, why = test_slots.memory_slots(free, slots.count)
+        if why:
+            print(f"· {why}")
+            slots = test_slots.Slots(count=browsers, folder=slots.folder)
+            if not a.jobs:
+                jobs = min(jobs, browsers)
+        if rec:
+            rec["memory"] = {"free_gb": None if free is None else round(free / 2 ** 30, 1), "browsers": browsers,
+                             "of": machine_slots.count, **({"why": why} if why else {})}
     if rec:
         rec["ran"]["jobs"] = jobs
-    pooled = [f for f in chosen if f.tier != 3]
     if any(f.tier == 2 for f in pooled) and real:
         err = prebuild()
         if err:
@@ -776,37 +891,87 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None)
         units.sort(key=lambda u: -estimate(u))
     shards_done = {}    # file path -> the shards finished so far
     shard_lock = threading.Lock()
+    to_rerun = []       # (unit, reason, its first output's path, seconds) — the machine's or the browser's trouble
+
+    def label_of(u):
+        f, k, n, _ = u
+        return f.rel() + (f" (shard {k} of {n})" if k else "")
+
+    def run_one(u):
+        """(exit code, output) — one unit's process, a runner error reported as its failure, never a lost thread."""
+        f, _, _, cells = u
+        try:
+            return run_process(f, relay_url=a.relay_url, cells=cells)
+        except Exception as e:      # noqa: BLE001
+            return None, f"✗ the runner couldn't run it: {type(e).__name__}: {e}"
+
+    def finish(u, ok, out, t0, t1, waited, tried=None):
+        """A unit is done: a whole file is reported; a shard waits until its file's last shard is done."""
+        f, k, n, cells = u
+        if k is None:
+            report(f, ok, out, t1 - t0, waited, cells=cells, tried=[tried] if tried else None)
+            return
+        with shard_lock:          # the file is reported once, when its last shard is done
+            done = shards_done.setdefault(f.path, [])
+            done.append((k, n, cells, ok, out, t0, t1, waited, tried))
+            if len(done) < n:
+                return
+        done = sorted(done, key=lambda p: p[0])
+        f_ok, f_out = combine_shards([(k, n, c, o, x, b - s) for k, n, c, o, x, s, b, _, _ in done])
+        report(f, f_ok, f_out, max(p[6] for p in done) - min(p[5] for p in done), sum(p[7] for p in done),
+               shards=[{"cells": len(c), "first": c[0], "seconds": round(b - s, 1), "waited": round(w, 1),
+                        "result": "passed" if o else "failed", **({"retried": t} if t else {})}
+                       for k, n, c, o, x, s, b, w, t in done],
+               tried=[p[8] for p in done if p[8]] or None)
 
     def run_unit(u):
         f, k, n, cells = u
-        label = f.rel() + (f" (shard {k} of {n})" if k else "")
-        slot = slots.acquire(f"{ROOT} · {label}", on_wait=say) if f.tier == 2 else None
+        slot = slots.acquire(f"{ROOT} · {label_of(u)}", on_wait=say) if f.tier == 2 else None
         t0 = time.monotonic()
         try:
-            ok, out = run_file(f, relay_url=a.relay_url, cells=cells)
-        except Exception as e:      # noqa: BLE001 — a runner error is that file's failure, never a lost thread
-            ok, out = False, f"✗ the runner couldn't run it: {type(e).__name__}: {e}"
+            code, out = run_one(u)
         finally:
             if slot:
                 slot.release()
         t1, waited = time.monotonic(), slot.waited if slot else 0.0
-        if k is None:
-            report(f, ok, out, t1 - t0, waited, cells=cells)
-            return
-        with shard_lock:          # the file is reported once, when its last shard is done
-            done = shards_done.setdefault(f.path, [])
-            done.append((k, n, cells, ok, out, t0, t1, waited))
-            if len(done) < n:
+        why = environment_reason(f, code, out)
+        if why:     # the machine's or the browser's trouble: rerun once, alone, when the others are done
+            with say_lock:
+                take = len(to_rerun) < MAX_RETRIES
+                if take:
+                    to_rerun.append((u, why, keep_output(out_dir, f, out, k, "first"), t1 - t0))
+            if take:
+                say(f"! {label_of(u)}: the machine's or the browser's trouble — {why} — it will be rerun once, alone, "
+                    "when the others are done")
                 return
-        f_ok, f_out = combine_shards([(k, n, c, o, x, b - s) for k, n, c, o, x, s, b, _ in done])
-        report(f, f_ok, f_out, max(p[6] for p in done) - min(p[5] for p in done), sum(p[7] for p in done),
-               shards=[{"cells": len(c), "first": c[0], "seconds": round(b - s, 1), "waited": round(w, 1),
-                        "result": "passed" if o else "failed"} for k, n, c, o, x, s, b, w in sorted(done)])
+            out += (f"\n! not rerun: {MAX_RETRIES} files of this run already met the machine's or the browser's trouble —"
+                    " that many points at something broken, not a passing hiccup")
+        finish(u, code == 0, out, t0, t1, waited)
 
     if units:
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(jobs, len(units))) as pool:
             for fut in concurrent.futures.as_completed([pool.submit(run_unit, u) for u in units]):
                 fut.result()
+    # The reruns, ALONE (2026-11-17): every other file of this run is done; after a wait, each holds EVERY test slot on
+    # the PC (no other run's screen test beside it either). Rerun once: passed → passed (noted); failed → failed.
+    for u, why, first, secs in to_rerun:
+        f, k, _, _ = u
+        say(f"! rerunning {label_of(u)} alone — after {why}: waiting {retry_wait:g} s, then holding every test slot on "
+            f"this PC ({machine_slots.count})")
+        time.sleep(retry_wait)
+        group = machine_slots.acquire_all(f"{ROOT} · {label_of(u)} (rerun alone)", on_wait=say)
+        t0 = time.monotonic()
+        try:
+            code, out = run_one(u)
+        finally:
+            group.release()
+        t1 = time.monotonic()
+        again = environment_reason(f, code, out)
+        tried = {"shard": k, "reason": why, "first_output": first, "first_seconds": round(secs, 1),
+                 "rerun": "passed" if code == 0 else f"failed again — the machine's trouble again: {again}" if again
+                 else "failed", "rerun_output": keep_output(out_dir, f, out, k, "rerun")}
+        finish(u, code == 0, f"! rerun alone after {why} — its first output: {first or '(not kept: no record)'}\n" + out,
+               t0, t1, group.waited, tried)
 
     # Tier 3 with no --relay-url: the runner starts its OWN local relay around the relay files, then stops it and checks
     # everything it started is gone and its ports are free (local_relay.py). A given --relay-url is used as is.
@@ -840,6 +1005,12 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None)
           + (f", {len(skipped)} skipped" if skipped else "") + (f", {len(aside)} set aside" if aside else ""))
     for f in aside:              # plainly, every run — the commit hook's too: a set-aside test is work owed
         print(aside_line(f))
+    for f, t in retried:         # loudly, never silent: a rerun is read, not taken on trust (TESTING.md §7)
+        print(f"! 1 file retried after {t['reason']} — its first output: {t['first_output'] or '(not kept: no record)'}"
+              f"\n    {f.rel()}" + (f" (shard {t['shard']})" if t.get("shard") else "") + f" — rerun alone: {t['rerun']}"
+              + (f" — the rerun's output: {t['rerun_output']}" if t.get("rerun_output") else ""))
+    for f, path in kept:
+        print(f"✗ {f.rel()} — full output: {path}")
     refused = False
     if a.release and skipped:    # a release needs every file to have RUN — skipped is not passed (7.28.0)
         print(f"✗ release run: {len(skipped)} file(s) skipped — a release needs every file to run:\n    "
