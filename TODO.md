@@ -145,6 +145,7 @@
     - [A screen test that failed once: the File menu not found after the start-up test](#a-screen-test-that-failed-once-the-file-menu-not-found-after-the-start-up-test)
     - [A screen test that failed once: the logging script not loaded at start-up (Diagnostics)](#a-screen-test-that-failed-once-the-logging-script-not-loaded-at-start-up-diagnostics)
     - [A screen test that failed once: Reset's reload hung while a commit ran alongside](#a-screen-test-that-failed-once-resets-reload-hung-while-a-commit-ran-alongside)
+    - [A screen test that failed once: ENV-006 named the wrong trouble on a squeezed PC](#a-screen-test-that-failed-once-env-006-named-the-wrong-trouble-on-a-squeezed-pc)
     - [Books just bought weren't at the top of All Books sorted by Date Added — once, not reproduced](#books-just-bought-werent-at-the-top-of-all-books-sorted-by-date-added--once-not-reproduced)
   - [🧊 Someday](#someday)
     - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
@@ -4010,6 +4011,25 @@ the one place where a hang would leave a person stuck mid-reset.
   connections in TIME_WAIT, no leftover test servers or browsers). The file alone and the whole tier passed right
   after. Done 2026-11-17 (sprint 7): the console check now reports it as the machine's trouble (exit 3), and the file
   is rerun alone, said loudly.
+
+### A screen test that failed once: ENV-006 named the wrong trouble on a squeezed PC
+<!-- id 20261118-1402 -->
+
+_Why it matters:_ ENV-006 checks that our trouble detector names a lost library ("the network lost a library the page
+needs") — if the generic "the page never loaded after 8 s" alarm wins the race on a slow PC, the detector's own test
+fails even though both answers are the machine's trouble (exit 3).
+
+**What happened**
+- Once (2026-11-18 12:30, sprint 8's resource lab, memory squeezed to ~1 GB free, 5 browsers): test_environment.py
+  6 passed, 1 failed — ENV-006 "the same library answered with NOTHING … → exit 3, the library named" got exit 3 with
+  "the page never loaded — the app's start screen was still up after 8 s". Every other run that day passed it. Full
+  output kept in the lab copy's archive (`.git\rw-test-results\copies\s8-lab-…`).
+
+**Next time it happens**
+- Read the kept output first (TESTING.md §7). Likely cause: the detector checks for the start screen at a fixed 8 s
+  before it looks at which library is missing — a fixed moment, the kind sprint 8 removed from the screen tests. The
+  fix would be to name the missing library whenever the start screen times out with a library absent, whatever the
+  timing.
 
 ### Books just bought weren't at the top of All Books sorted by Date Added — once, not reproduced
 <!-- id 20261112-1925 -->
