@@ -184,13 +184,47 @@ def r006():
     if os.name != "nt":
         return m["cpu_seconds"] is None and m["missing"], m
     ok = code == 0 and m["cpu_seconds"] >= 1.0 and m["committed_peak_bytes"] >= 200 * MB \
-        and (m["ram_peak_sampled_bytes"] or 0) >= 150 * MB and m["io_written_bytes"] >= 20 * MB and m["processes"] >= 2
+        and m.get("ram_kind") == "private" and (m["ram_peak_sampled_bytes"] or 0) >= 200 * MB \
+        and (m.get("ram_with_shared_peak_sampled_bytes") or 0) >= m["ram_peak_sampled_bytes"] \
+        and m["io_written_bytes"] >= 20 * MB and m["processes"] >= 2
     return ok, dict(m, code=code, err=err.decode("utf-8", "replace")[-300:])
 
 
 row("COST-006", "measured for the WHOLE tree: a child holding 200 MB whose grandchild burns 1 s of CPU and exits first — "
-    "the CPU counts the grandchild (≥ 1 s), committed peak ≥ 200 MB, RAM (sampled) ≥ 150 MB, 20 MB written, ≥ 2 "
-    "processes", r006)
+    "the CPU counts the grandchild (≥ 1 s), committed peak ≥ 200 MB, RAM, private (sampled) ≥ the 200 MB it touched "
+    "(the shared-included sum at least that), 20 MB written, ≥ 2 processes", r006)
+
+
+def r014():
+    """The RAM measure is the PRIVATE working set when Windows gives it — else every process's whole working set, and
+    the record says which (ram_kind). The API is stubbed: each process reports 100 MB in all, 30 MB of it private."""
+    real = tc._process_memory
+    child = [sys.executable, "-c", "import time; time.sleep(1.6)"]
+    try:
+        tc._process_memory = lambda pid: (100 * MB, 30 * MB)
+        _, _, _, priv = tc.run(child)
+        tc._process_memory = lambda pid: (100 * MB, None)       # this Windows has no private working set
+        _, _, _, shared = tc.run(child)
+    finally:
+        tc._process_memory = real
+    n = priv["ram_with_shared_peak_sampled_bytes"] // (100 * MB) if priv.get("ram_with_shared_peak_sampled_bytes") else 0
+    ok = n >= 1 and priv["ram_kind"] == "private" and priv["ram_peak_sampled_bytes"] == n * 30 * MB \
+        and shared["ram_kind"] == "shared included" and shared["ram_peak_sampled_bytes"] == n * 100 * MB \
+        and shared["ram_with_shared_peak_sampled_bytes"] == n * 100 * MB and "private" in (shared.get("ram_note") or "")
+    # the averages hold one kind: a sample of the other kind starts the RAM measure over (time keeps its history)
+    s = {"file": "t/y.py", "tier": 2, "hash": "h", "unit": "whole", "seconds": 10.0,
+         "measures": {"ram_peak_sampled_bytes": 300 * MB, "ram_kind": "private"}}
+    st = tc.learn(tc.learn(tc.fresh(), [s], "d1"), [s], "d2")
+    s2 = dict(s, measures={"ram_peak_sampled_bytes": 900 * MB, "ram_kind": "shared included"})
+    u = tc.learn(st, [s2], "d3")["files"]["t/y.py"]["units"]["whole"]
+    ok = ok and u["ram_kind"] == "shared included" and u["measures"]["ram_peak_sampled_bytes"]["count"] == 1 \
+        and u["measures"]["ram_peak_sampled_bytes"]["avg"] == 900 * MB and u["measures"]["seconds"]["count"] == 3
+    return ok, (priv, shared, u)
+
+
+row("COST-014", "RAM is each process's PRIVATE working set, added up (what the test adds to the PC's RAM) — where Windows "
+    "can't give it, the whole working set instead, and the record says which kind was measured; an average never mixes "
+    "the two kinds", r014)
 
 
 def r007():
@@ -322,7 +356,12 @@ with tempfile.TemporaryDirectory() as d:
                 "ram_peak_sampled_bytes": {"avg": 200 * MB, "spread": 10 * MB, "count": 2, "last": 200 * MB}}}}},
             "test/fast.test.js": {"hash": "c", "tier": 1, "units": {"whole": {"count": 5, "when": "d", "measures": {
                 "seconds": {"avg": 1.0, "spread": 0.2, "count": 5, "last": 1.0},
-                "ram_peak_sampled_bytes": {"avg": 50 * MB, "spread": 1 * MB, "count": 5, "last": 50 * MB}}}}}}}
+                "ram_peak_sampled_bytes": {"avg": 50 * MB, "spread": 1 * MB, "count": 5, "last": 50 * MB}}}}},
+            # measured on a Windows without the private figure: starred, and never compared with the private ones
+            "test/ui/test_old.py": {"hash": "e", "tier": 2, "units": {"whole": {"count": 1, "when": "d",
+                                                                              "ram_kind": "shared included", "measures": {
+                "seconds": {"avg": 0.5, "spread": 0.25, "count": 1, "last": 0.5},
+                "ram_peak_sampled_bytes": {"avg": 900 * MB, "spread": 450 * MB, "count": 1, "last": 900 * MB}}}}}}}
         path = os.path.join(d, "c13.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(state, f)
@@ -330,16 +369,21 @@ with tempfile.TemporaryDirectory() as d:
         lines = out.splitlines()
         order = [i for n in ("test_small.py", "test_big.py", "fast.test.js") for i, ln in enumerate(lines) if n in ln
                  and "differ" not in ln]
-        heads = all(h in out for h in ("Test", "Runs", "Time", "Memory committed (peak)", "RAM (sampled peak)", "CPU",
-                                       "I/O read", "I/O written"))
+        heads = all(h in out for h in ("Test", "Runs", "Time", "Memory committed (peak)", "RAM, private (sampled peak)",
+                                       "CPU", "I/O read", "I/O written"))
         ratio = [ln for ln in lines if "differ in RAM by 3.0×" in ln]
+        old = [ln for ln in lines if "test_old.py" in ln and "differ" not in ln]
         return code == 0 and heads and order == sorted(order) and len(order) == 3 and "60.0 ± 5.0 s" in out \
-            and "600 ± 50 MB" in out and "1.0 ± 0.2 s" in out and any(ln.strip().startswith("Total") and "101.0 s" in ln for ln in lines) \
+            and "600 ± 50 MB" in out and "1.0 ± 0.2 s" in out \
+            and any(ln.strip().startswith("Total") and "101.5 s" in ln for ln in lines) \
             and len(ratio) == 1 and "test_big.py" in ratio[0] and "test_small.py" in ratio[0] \
-            and "at least twice" in ratio[0], out
+            and "at least twice" in ratio[0] and "private" in ratio[0] \
+            and len(old) == 1 and "900 ± 450 MB *" in old[0] and any(ln.strip().startswith("* shared pages included")
+                                                                  for ln in lines), out
 
-    row("COST-013", "--costs prints each unit — runs, average ± spread of time, committed, RAM (sampled), CPU, I/O — "
-        "slowest first, the totals, and how many times the biggest screen test's RAM is the smallest's", r013)
+    row("COST-013", "--costs prints each unit — runs, average ± spread of time, committed, RAM, private (sampled), CPU, "
+        "I/O — slowest first, the totals, and how many times the biggest screen test's private RAM is the smallest's (a "
+        "unit measured with shared pages included is starred and left out of that comparison)", r013)
 
 failed = [r for r in results if not r[1]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")

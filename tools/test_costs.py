@@ -13,9 +13,15 @@ A UNIT is one process the runner starts: a whole test file, or one shard of a fi
      - COMMITTED peak — the job's PeakJobMemoryUsed: the most private memory (commit charge: memory the processes asked
        Windows to guarantee them, backed by RAM or the page file) the tree held at once. NOT RAM in use — PRINCIPLES
        Law 2: 7.31.0 quoted committed memory as RAM;
-     - RAM peak (sampled) — the tree's working sets (RAM really in use), added up about once a second; the highest sum
-       seen. Pages shared between processes (Chrome's) are counted in each, so it reads high; a peak between two samples
-       is missed, so it can read low; a unit shorter than the first sample (¼ s) has none;
+     - RAM, private (sampled peak) — what the test adds to the PC's RAM: each process's PRIVATE working set (RAM only it
+       uses; the pages it shares — Chrome's and Python's DLLs — left out), added up about once a second; the highest sum
+       seen (ram_peak_sampled_bytes, ram_kind "private"). A peak between two samples is missed, so it can read low; a
+       unit shorter than the first sample (¼ s) has none. A Windows without the private figure (before 10 1709): the
+       whole working sets instead, shared pages counted in each — ram_kind "shared included", ram_note why. (2026-11-18:
+       the first version summed whole working sets — the same shared base added to every test squeezed the ratio
+       between tests toward 1, the number the next step decides on.) The shared-included sum is kept beside it in the
+       record (ram_with_shared_peak_sampled_bytes — the same call gives it, so it costs nothing), but never averaged or
+       shown: nothing is decided on it;
      - CPU seconds — user + kernel time of every process in the tree, exited ones included;
      - I/O bytes read and written — Windows counts ALL of a process's I/O here: files, pipes AND network, not only the
        disk;
@@ -67,8 +73,19 @@ def costs_path(folder=None):
 
 def nothing(why):
     """Measures that couldn't be taken: every one None, and why."""
-    return {"committed_peak_bytes": None, "ram_peak_sampled_bytes": None, "cpu_seconds": None, "io_read_bytes": None,
+    return {"committed_peak_bytes": None, "ram_peak_sampled_bytes": None, "ram_kind": None,
+            "ram_with_shared_peak_sampled_bytes": None, "cpu_seconds": None, "io_read_bytes": None,
             "io_written_bytes": None, "processes": None, "missing": why}
+
+
+SHARED_NOTE = "this Windows gives no private working set (PROCESS_MEMORY_COUNTERS_EX2) — whole working sets instead"
+
+
+def ram_fields(peak, shared_peak, kind):
+    """The record's RAM fields: the measure, its kind, why when it isn't the private one, and the shared-included sum."""
+    return {"ram_peak_sampled_bytes": peak, "ram_kind": kind,
+            **({"ram_note": SHARED_NOTE} if kind == "shared included" else {}),
+            "ram_with_shared_peak_sampled_bytes": shared_peak}
 
 
 # --- 1. measuring one unit's process tree (Windows job objects) ---------------------------------------------------------
@@ -124,10 +141,32 @@ if os.name == "nt":
         _fields_ = [("NumberOfAssignedProcesses", w.DWORD), ("NumberOfProcessIdsInList", w.DWORD),
                     ("ProcessIdList", ctypes.c_size_t * 1024)]
 
-    class _Memory(ctypes.Structure):         # PROCESS_MEMORY_COUNTERS
+    class _Memory(ctypes.Structure):         # PROCESS_MEMORY_COUNTERS_EX2 (Windows 10 1709+; 96 bytes on x64)
         _fields_ = [("cb", w.DWORD), ("PageFaultCount", w.DWORD)] + [(n, ctypes.c_size_t) for n in (
             "PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage", "QuotaPagedPoolUsage",
-            "QuotaPeakNonPagedPoolUsage", "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage")]
+            "QuotaPeakNonPagedPoolUsage", "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage",
+            "PrivateUsage", "PrivateWorkingSetSize")] + [("SharedCommitUsage", ctypes.c_uint64)]
+
+    _UNFILLED = 0xFFFFFFFFFFFF          # a value Windows never writes there: still there after the call → not given
+
+    def _process_memory(pid):
+        """(working set, private working set or None) of one process, in bytes — None for the whole if it can't be read
+        (it just ended). The private working set — RAM only this process uses, the pages it shares (DLLs: Chrome's,
+        Python's) left out — is PROCESS_MEMORY_COUNTERS_EX2's; a Windows without it leaves the field as it was, so it
+        is preset to a value Windows never writes (checked 2026-11-18 on Windows 11 26200: a process holding 200 MB →
+        203.9 MB, the same as WMI's WorkingSetPrivate for that process id)."""
+        h = _k32.OpenProcess(PROCESS_QUERY_LIMITED, False, pid)
+        if not h:
+            return None
+        try:
+            m = _Memory()
+            m.cb = ctypes.sizeof(_Memory)
+            m.PrivateWorkingSetSize = _UNFILLED
+            if not _k32.K32GetProcessMemoryInfo(h, ctypes.byref(m), m.cb):
+                return None
+            return m.WorkingSetSize, (None if m.PrivateWorkingSetSize == _UNFILLED else m.PrivateWorkingSetSize)
+        finally:
+            _k32.CloseHandle(h)
 
     class _Thread(ctypes.Structure):         # THREADENTRY32
         _fields_ = [("dwSize", w.DWORD), ("cntUsage", w.DWORD), ("th32ThreadID", w.DWORD),
@@ -173,7 +212,8 @@ if os.name == "nt":
             self.handle = _k32.CreateJobObjectW(None, None)
             if not self.handle:
                 raise OSError(_err("making a job object"))
-            self.ram_peak, self._stop, self._thread = None, threading.Event(), None
+            self.ram_peak, self.shared_peak, self.ram_kind = None, None, None
+            self._stop, self._thread = threading.Event(), None
 
         def adopt(self, pid):
             """Put the suspended process in the job; None, or why it couldn't be (it is NOT resumed here)."""
@@ -186,31 +226,35 @@ if os.name == "nt":
                 _k32.CloseHandle(h)
 
         def ram_now(self):
-            """The working sets (RAM in use) of the processes in the job right now, added up."""
+            """(the working sets of the processes in the job right now, added up — shared pages counted in each; their
+            PRIVATE working sets added up, or None if any process's couldn't be given)."""
             ids = _query(self.handle, BASIC_PROCESS_ID_LIST, _PidList())
-            total = 0
+            total, private = 0, 0
             for pid in ids.ProcessIdList[:min(ids.NumberOfProcessIdsInList, 1024)]:
-                h = _k32.OpenProcess(PROCESS_QUERY_LIMITED, False, pid)
-                if not h:
+                got = _process_memory(pid)
+                if got is None:
                     continue        # it just ended
-                try:
-                    m = _Memory()
-                    m.cb = ctypes.sizeof(_Memory)
-                    if _k32.K32GetProcessMemoryInfo(h, ctypes.byref(m), m.cb):
-                        total += m.WorkingSetSize
-                finally:
-                    _k32.CloseHandle(h)
-            return total
+                total += got[0]
+                private = None if private is None or got[1] is None else private + got[1]
+            return total, private
 
         def start_sampling(self):
             def loop():
                 wait = FIRST_SAMPLE_S
                 while not self._stop.wait(wait):
                     try:
-                        now = self.ram_now()
+                        total, private = self.ram_now()
                     except OSError:
                         return
+                    # The RAM measure is the private sum; where this Windows can't give it, the whole sum — and once a
+                    # sample lacks it, the whole unit is the whole sum (one kind per unit, never mixed).
+                    if private is None and self.ram_kind != "shared included":
+                        self.ram_kind, self.ram_peak = "shared included", self.shared_peak
+                    elif self.ram_kind is None:
+                        self.ram_kind = "private"
+                    now = private if self.ram_kind == "private" else total
                     self.ram_peak = now if self.ram_peak is None else max(self.ram_peak, now)
+                    self.shared_peak = total if self.shared_peak is None else max(self.shared_peak, total)
                     wait = SAMPLE_S
             self._thread = threading.Thread(target=loop, name="rw-test-costs-sampler", daemon=True)
             self._thread.start()
@@ -223,7 +267,8 @@ if os.name == "nt":
             try:
                 acc = _query(self.handle, BASIC_AND_IO_ACCOUNTING, _BasicAndIo())
                 ext = _query(self.handle, EXTENDED_LIMIT, _Extended())
-                return {"committed_peak_bytes": int(ext.PeakJobMemoryUsed), "ram_peak_sampled_bytes": self.ram_peak,
+                return {"committed_peak_bytes": int(ext.PeakJobMemoryUsed),
+                        **ram_fields(self.ram_peak, self.shared_peak, self.ram_kind),
                         "cpu_seconds": round((acc.BasicInfo.TotalUserTime + acc.BasicInfo.TotalKernelTime) / 1e7, 2),
                         "io_read_bytes": int(acc.IoInfo.ReadTransferCount),
                         "io_written_bytes": int(acc.IoInfo.WriteTransferCount),
@@ -294,7 +339,7 @@ def combine(parts):
     parts = [p or nothing("not measured") for p in parts]
     out = {}
     for k in ("cpu_seconds", "io_read_bytes", "io_written_bytes", "processes", "committed_peak_bytes",
-              "ram_peak_sampled_bytes"):
+              "ram_peak_sampled_bytes", "ram_with_shared_peak_sampled_bytes"):
         vals = [p.get(k) for p in parts]
         if not vals or any(v is None for v in vals):
             out[k] = None
@@ -302,6 +347,11 @@ def combine(parts):
             out[k] = max(vals)
         else:
             out[k] = round(sum(vals), 2) if k == "cpu_seconds" else sum(vals)
+    kinds = {p.get("ram_kind") for p in parts}
+    kind = kinds.pop() if len(kinds) == 1 else None          # shards of different kinds: no one RAM figure
+    if kind is None:
+        out["ram_peak_sampled_bytes"] = None
+    out.update(ram_fields(out["ram_peak_sampled_bytes"], out["ram_with_shared_peak_sampled_bytes"], kind))
     why = "; ".join(sorted({p["missing"] for p in parts if p.get("missing")}))
     return dict(out, **({"missing": why} if why else {}), shards=len(parts))
 
@@ -365,7 +415,8 @@ def load(path):
 
 def learn(state, samples, when):
     """The state after these samples — [{file, tier, hash, unit, seconds, measures}], each one that may teach (left_out
-    None). A file whose hash differs from the one kept starts over. Pure: a new state."""
+    None). A file whose hash differs from the one kept starts over. The RAM average holds one kind (ram_kind: private,
+    or shared included): a sample of another kind starts that measure over. Pure: a new state."""
     files = json.loads(json.dumps(state.get("files") or {}))
     for s in samples:
         entry = files.get(s["file"])
@@ -374,6 +425,10 @@ def learn(state, samples, when):
         entry["tier"] = s.get("tier")
         unit = entry["units"].setdefault(s["unit"], {"count": 0, "measures": {}})
         values = dict(s.get("measures") or {}, seconds=s.get("seconds"))
+        if isinstance(values.get("ram_peak_sampled_bytes"), (int, float)):
+            if unit.get("ram_kind") != values.get("ram_kind"):
+                unit["measures"].pop("ram_peak_sampled_bytes", None)
+            unit["ram_kind"] = values.get("ram_kind")
         for m in MEASURES:
             v = values.get(m)
             if isinstance(v, (int, float)):
@@ -445,11 +500,15 @@ def table(state, note=None, where=""):
         out.append("  Nothing measured yet: a full run (py tools/run_tests.py --tier 1, --tier 2 or --tier all) teaches it.")
         return out
     rows.sort(key=lambda r: -((r[2]["measures"].get("seconds") or {}).get("avg") or 0))
-    cols = [("Test", None), ("Runs", None), ("Time", _sec), ("Memory committed (peak)", _mb), ("RAM (sampled peak)", _mb),
-            ("CPU", _sec), ("I/O read", _mb), ("I/O written", _mb)]
+    cols = [("Test", None), ("Runs", None), ("Time", _sec), ("Memory committed (peak)", _mb),
+            ("RAM, private (sampled peak)", _mb), ("CPU", _sec), ("I/O read", _mb), ("I/O written", _mb)]
     keys = [None, None, "seconds", "committed_peak_bytes", "ram_peak_sampled_bytes", "cpu_seconds", "io_read_bytes",
             "io_written_bytes"]
-    body = [[name, str(u.get("count", 0))] + [_pm(u["measures"].get(k), fmt) for k, (_, fmt) in zip(keys[2:], cols[2:])]
+
+    def cell(u, k, fmt):
+        text = _pm(u["measures"].get(k), fmt)
+        return text + " *" if k == "ram_peak_sampled_bytes" and u.get("ram_kind") == "shared included" else text
+    body = [[name, str(u.get("count", 0))] + [cell(u, k, fmt) for k, (_, fmt) in zip(keys[2:], cols[2:])]
             for name, _, u in rows]
 
     def total(k):
@@ -465,17 +524,20 @@ def table(state, note=None, where=""):
     out.append(line([c[0] for c in cols]))
     out += [line(r) for r in body] + [line(totals)]
     out.append("  Memory committed = what the processes asked Windows to guarantee them (RAM or page file) — not RAM in "
-               "use. RAM (sampled) = RAM in use, added up about once a second (shared pages counted in each process). "
-               "I/O = files, pipes and network, not only the disk.")
+               "use. RAM, private = what the test adds to the PC's RAM: each process's own pages, added up about once a "
+               "second (pages shared between processes left out). I/O = files, pipes and network, not only the disk.")
+    if any(u.get("ram_kind") == "shared included" for _, _, u in rows):
+        out.append("  * shared pages included — " + SHARED_NOTE)
     screen = [(name, (u["measures"].get("ram_peak_sampled_bytes") or {}).get("avg")) for name, tier, u in rows
-              if tier == 2]
+              if tier == 2 and u.get("ram_kind") != "shared included"]      # one kind compared with itself only
     screen = [(n, v) for n, v in screen if v]
     if len(screen) >= 2:
         big, small = max(screen, key=lambda x: x[1]), min(screen, key=lambda x: x[1])
         ratio = big[1] / small[1]
-        out.append(f"  Screen tests differ in RAM by {ratio:.1f}× — the biggest average RAM peak (sampled) is {big[0]} "
-                   f"({_mb(big[1])}), the smallest {small[0]} ({_mb(small[1])}) — "
+        out.append(f"  Screen tests differ in RAM by {ratio:.1f}× — the biggest average private RAM peak (sampled) is "
+                   f"{big[0]} ({_mb(big[1])}), the smallest {small[0]} ({_mb(small[1])}) — "
                    + ("at least twice: worth a budget by memory" if ratio >= 2 else "less than twice"))
     else:
-        out.append("  Screen tests differ in RAM by: not known yet — fewer than two screen-test units have a RAM peak.")
+        out.append("  Screen tests differ in RAM by: not known yet — fewer than two screen-test units have a private RAM "
+                   "peak.")
     return out

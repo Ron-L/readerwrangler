@@ -235,17 +235,27 @@ merged result, and the target moves only when its stamp is PROVEN — two change
     - `committed_peak_bytes` — **memory committed, at its peak**: the most private memory the tree held at once (what
       the processes asked Windows to guarantee them — RAM or the page file). **It is NOT RAM in use** (Law 2: 7.31.0
       quoted committed memory as RAM);
-    - `ram_peak_sampled_bytes` — **RAM (sampled peak)**: the tree's working sets (RAM really in use) added up about once
-      a second (first at ¼ s), the highest sum seen. Pages shared between processes are counted in each (Chrome shares
-      many), so it reads high; a peak between two samples is missed; a unit shorter than ¼ s has none (`None`);
+    - `ram_peak_sampled_bytes` — **RAM, private (sampled peak)**: what the test adds to the PC's RAM — each process's
+      **private** working set (RAM only it uses; the pages it shares with others — Chrome's and Python's DLLs — left
+      out; `PROCESS_MEMORY_COUNTERS_EX2`), added up about once a second (first at ¼ s), the highest sum seen. A peak
+      between two samples is missed; a unit shorter than ¼ s has none (`None`). `ram_kind` says which kind was measured:
+      `private`, or — on a Windows without the private figure (before Windows 10 1709) — `shared included` (the whole
+      working sets, shared pages counted in each process; `ram_note` says why; `--costs` stars it and leaves it out of
+      the comparison below; an average never mixes the two kinds). Why private (2026-11-18, the first version summed
+      whole working sets): the same shared base — about 0.45 GB a screen test — was added to every test, squeezing the
+      ratio between tests toward 1 (1.2× whole, 1.5× private on the same three files). Checked against Windows' own
+      figure for one process: 203.9 MB from both (WMI's `WorkingSetPrivate`, by process id). The whole-working-set sum
+      is kept beside it, `ram_with_shared_peak_sampled_bytes` — the same call gives it, so it costs nothing, and it shows
+      the shared base — but it is never averaged or shown: nothing is decided on it;
     - `cpu_seconds` — user + kernel time of every process in the tree;
     - `io_read_bytes`, `io_written_bytes` — **I/O, every kind**: Windows counts files, pipes AND network here — not the
       disk alone;
     - `processes` — how many the tree started in all.
     A sharded file's own entry adds CPU, I/O and processes over its shards and takes the largest shard's peaks (they
     ran side by side — their sum would claim they all peaked at once). A file rerun alone keeps its first run's
-    measures too (`retried` → `first_measures`). Measured on 2026-11-18, one screen-test file at a time: 44–51
-    processes, 0.6–0.8 GB committed, 0.8–1.0 GB RAM (sampled), 13–27 s of CPU, 30–50 MB read, 10–21 MB written.
+    measures too (`retried` → `first_measures`). Measured on 2026-11-18, one screen-test file at a time
+    (test_app_loads, test_reset, test_delete_key): 41–51 processes, 0.66–0.82 GB committed, 0.39–0.59 GB RAM private
+    (0.83–1.09 GB with shared pages counted in each), 10–20 s of CPU, 27–40 MB read, 8–19 MB written.
     **Not on Windows, or anything about measuring fails: every measure is `None`, the test runs exactly as before, and
     the run says why once** (`· measures missing for …`). Only a run that leaves a record measures (not the commit
     hook's `--changed`).
@@ -264,13 +274,14 @@ merged result, and the target moves only when its stamp is PROVEN — two change
       swap retried for ~2 s). Six runs saving 10 times each at once: 60 of 60 kept (3 without the lock).
     - To start again: delete the file.
   - **`py tools/run_tests.py --costs`** runs nothing; it prints each unit — how many runs taught it, average ± spread of
-    time, memory committed, RAM (sampled), CPU, I/O read and written — slowest first; the totals (time, CPU and I/O
-    for one run of each, one after another); and how much the screen tests differ in RAM: `Screen tests differ in RAM
-    by 1.2× — the biggest average RAM peak (sampled) is …, the smallest … — less than twice` (the next step's question:
-    is the biggest at least twice the smallest?).
+    time, memory committed, RAM private (sampled), CPU, I/O read and written — slowest first; the totals (time, CPU
+    and I/O for one run of each, one after another); and how much the screen tests differ in RAM: `Screen tests differ
+    in RAM by 1.5× — the biggest average private RAM peak (sampled) is …, the smallest … — less than twice` (the next
+    step's question: is the biggest at least twice the smallest?).
 
-  Tests: `COST-001`–`013` (test/test_test_costs.py — `006` a real child holding 200 MB whose grandchild burns 1 s of CPU
-  and exits first: the job counts it).
+  Tests: `COST-001`–`014` (test/test_test_costs.py — `006` a real child holding 200 MB whose grandchild burns 1 s of CPU
+  and exits first: the job counts it, and its private RAM is ≥ the 200 MB; `014` private vs whole working set, the API
+  stubbed).
 - **`--id` picks a file only where it names the ID as a test** (2026-11-16; it picked any file whose text held the ID —
   `--id CELL-005` also ran `test/test_run_tests.py`, ~25 s, where it is sample data, and `--id CELL-001`
   `test/gestureTable.test.js`, where a comment names it). Every file names a test by its ID as a whole quoted string,
@@ -543,7 +554,7 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   library script that failed to download is the network's trouble; test_reset.py's waits are conditions, on the tab in
   front — §4, §7. RUN-087–091, ENV-005–007, LEVEL-022.
 - **Built 2026-11-18 (branch `tooling/measure-tests`, sprint 8):** what each test costs, measured per unit for its whole
-  process tree (a Windows job object) — memory committed, RAM (sampled), CPU, I/O — in each run's record, averaged per PC
+  process tree (a Windows job object) — memory committed, RAM private (sampled), CPU, I/O — in each run's record, averaged per PC
   (RFC 6298) by full passing runs only, and shown by `--costs` — §4. `tools/test_costs.py`; `test/test_test_costs.py`
   (COST-001–013). Measuring only; scheduling unchanged.
 - From then on, every task follows §6.
