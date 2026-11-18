@@ -466,7 +466,13 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    4. RUN-049 still waits a fixed 20 s for its partner file to start; under heavy load that can fail.
    5. With `--tier all`, heavy tier-1 files and screen tests compete for the same slots — not yet timed under load.
    6. A working copy's test-run records are deleted with the copy (`tools/copies.py remove`), so how long an agent's
-      own test runs took can't be counted afterwards — keep them (move them into the main folder's records).
+      own test runs took can't be counted afterwards — keep them (move them into the main folder's records), and have
+      the removal print where that copy's time went (Ron, 2026-11-18: "Should the agents record where their time
+      goes … so we can analyze that?"): from the copy's start to its removal — its test runs (how many, minutes,
+      passed or failed, full or narrow) and the rest (building), kept per copy for the sprint's post-mortem.
+   7. A file that needs a rerun alone (the machine's trouble) two or three runs in a row is said loudly — it may truly
+      need to run alone (Ron, 2026-11-18). So far it has never been the same file: five files, once each, all under
+      the load lab, each passed alone.
 12. **Measure each test; schedule by what it uses, not by how many** (Ron, 2026-11-17 — being talked through; TCP
    counts its window in bytes, not packets): per file and per PC, keep a smoothed average and spread (TCP's own method
    for round-trip times) of its time, peak memory, CPU and disk; the browsers-at-once number becomes a budget (e.g. GB
