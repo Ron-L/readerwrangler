@@ -483,6 +483,12 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    raising rules. Steps: (1) measure only, and see whether tests differ enough to matter; (2) the load lab squeezes one
    resource at a time, to learn which one breaks runs; (3) the budget; (4) longest-first and a "stuck" limit from the
    averages instead of a flat 10 minutes.
+   1. ✅ **Step 1, measuring, built 2026-11-18** (sprint 8, `tools/test_costs.py`; TESTING.md §4): every test file (and
+      each shard) is measured for all the processes it starts — time, memory committed, the RAM it adds (its private
+      RAM, sampled), CPU, I/O — in each run's record; a running average and spread per PC, learned only from full runs
+      that passed; `py tools/run_tests.py --costs` shows them, and whether the biggest screen test uses at least twice
+      the RAM of the smallest. First look, three screen tests one at a time: 0.39–0.59 GB of private RAM each (1.5×
+      apart) — not twice. A full run's averages answer it.
 
 #### One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->
