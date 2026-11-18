@@ -174,6 +174,16 @@ def both_gone(s):
     return "f-space" not in s["folders"] and "TST0000005" not in s["folders"]["f-scifi"]["books"]
 
 
+def omens_out_favorites_in(rows):
+    """The right pane's rows after DELKEY-009's delete: Good Omens gone, Old Favorites' books arrived."""
+    return not any("Good Omens" in r for r in rows) and any("Deep in the Folders" in r for r in rows)
+
+
+def answer_landed(s):
+    """In a state() reading: DELKEY-014/015's answer is in — Space Opera gone, the book trashed or hidden."""
+    return "f-space" not in s["folders"] and "TST0000018" in s["trashed"] + s["hidden"]
+
+
 def nothing_selected_now(app):
     return app.page.locator("tbody tr.bg-blue-50").count() == 0
 
@@ -429,10 +439,7 @@ with App() as app:
             answer(app, "Delete")
             until(app, lambda: not exists(app, "Space Opera"))
             check(not exists(app, "Space Opera"), "the selected folder is still there after Delete")
-            def shown_after():                     # the book gone from the rows, Old Favorites' books arrived
-                rows = right_rows(app)
-                return not any("Good Omens" in r for r in rows) and any("Deep in the Folders" in r for r in rows)
-            until(app, shown_after)
+            until(app, lambda: omens_out_favorites_in(right_rows(app)))
             rows = right_rows(app)
             check(not any("Good Omens" in r for r in rows), "the selected book didn't leave the folder")
             check(any("Deep in the Folders" in r for r in rows),
@@ -542,9 +549,7 @@ with App() as app:
                   f"the book goes to the Trash and is owned: the one confirmation should say it comes back from Amazon "
                   f"and offer to hide it instead: {words!r}")
             answer(app, choice)
-            def landed(s):     # the answer is in: the folder gone, the book trashed or hidden (which, and where: below)
-                return "f-space" not in s["folders"] and "TST0000018" in s["trashed"] + s["hidden"]
-            until(app, lambda: landed(state(app)))
+            until(app, lambda: answer_landed(state(app)))   # which way, and where the book is: checked below
             after = state(app)
             check("f-space" not in after["folders"], "Space Opera is still there")
             in_folders = [fid for fid, f in after["folders"].items() if "TST0000018" in f["books"]]
