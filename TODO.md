@@ -459,8 +459,12 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    squeezed the PC on purpose (Ron's idea): the number came down under load (5 → 2 → 1) and, once the load was gone,
    climbed back one step per clean run (2 → 3 → 4 → 5).
 11. **Left over from sprint 7** (filed 2026-11-17):
-   1. 79 fixed waits ("sleep 2 s") in 15 screen-test files (test_cells 25, test_delete_key 14, test_rename_key 9 …) —
-      each one is a guess that a slow PC breaks; wait for the condition instead, as test_reset.py now does.
+   1. ✅ 79 fixed waits ("sleep 2 s") in 15 screen-test files (test_cells 25, test_delete_key 14, test_rename_key 9 …) —
+      each one is a guess that a slow PC breaks; wait for the condition instead, as test_reset.py now does. — Done
+      2026-11-18 (sprint 8, three agents by file): each now waits for the thing itself under a generous limit; the 11
+      that prove a duration or that nothing happens stay, marked `# timed on purpose`; every file passed 3+ runs and
+      failed when a condition was broken on purpose; no app bug was hiding behind them except the false Restore
+      Warning (filed in Polish).
    2. ✅ No test runs a heavy tier-1 file end to end that exits with "the machine's trouble" and checks the number backs
       off and the stopped count is right (the pieces are tested; the whole path only by hand). — Done 2026-11-18
       (sprint 8): test_run_tests.py's ending is one shared routine (`environment_trouble.tally`), and RUN-093 runs a
@@ -516,6 +520,17 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    5. The copies' archive (`rw-test-results\copies\`) is never trimmed — small, but it grows forever.
    6. The joined-line check (commit check step 11) doesn't catch a comment line of dashes followed by one space and
       code, nor `'use strict'`; its glued-inside-a-word scan is slow on very long comments (fine today).
+   7. The screen tests' new wait helpers live in several files (Law 22): `until`, `toast`, `LIMIT_MS` twice (the two
+      key files); `caught_up`, `settled`, `heard`, `held`, `amber_look` in test_cells.py; `wait_loaded` in rw.py — move
+      them into rw.py as one set, with one step limit for the library.
+   8. test_cells.py still has ~39 condition waits with a 3-second limit (and 11 at 4–10 s) — not fixed waits, but the
+      same "a slow PC breaks it" guess; give them the generous limit.
+   9. `test/ui/harness.py`'s `done()` repeats what `environment_trouble.tally` now does (summary, stopped count, exit
+      code, marked line) — one implementation (Law 22).
+   10. The "rerun alone runs in a row" alert reads only the folder's own records — a file troubled in an agent's copy
+      and then in the merge doesn't add up (the copies' archive isn't read).
+   11. Found by the test_cells agent: after an Escape, Chrome gave the page no idle time for 3–5 s — so any future
+      "wait until the page is idle" helper must not rely on idle callbacks (caught_up uses a task-queue flush).
 
 #### One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->
