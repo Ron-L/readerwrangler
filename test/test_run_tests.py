@@ -1368,6 +1368,68 @@ done()
         and "1 file retried after a request to our own server failed" in out,
         f"exit {code}, ran {ran}, entry {str(entry)[:400]}: {out[-600:]}")
 
+    # More files meeting the machine's trouble than are rerun (2026-11-18 lab, 12 of 16 CPUs busy: the fifth file past
+    # its limit was reported "✗ … timed out", a slow-but-healthy test called broken). Past the rerun cap the trouble is
+    # NOT PROVEN — never a failure. Stand-ins that meet it once each; the cap made 1 (rt.MAX_RETRIES, read at each run).
+    def cap_run(names, extra=(), folder="cap"):
+        once = [harness_file(f"{n}.py", count_runs(n) + f"""def first_time():
+    if n == 0:
+        raise EnvironmentTrouble("the page never loaded ({n})")
+test("CAP-{i:03d}", "a sample test", first_time)
+done()
+""") for i, n in enumerate(names, 1)]
+        saved = rt.MAX_RETRIES
+        rt.MAX_RETRIES = 1
+        try:
+            code, out = quiet_main(["--tier", "2", "--jobs", "2"], files=[rt.TestFile(p) for p in once + list(extra)],
+                                   slots=ts.Slots(count=2, folder=os.path.join(d, f"slots-{folder}")),
+                                   results=os.path.join(d, f"{folder}-results"), retry_wait=0.1)
+        finally:
+            rt.MAX_RETRIES = saved
+        got = records_in(os.path.join(d, f"{folder}-results"))
+        last = got[-1] if isinstance(got, list) and got else {}
+        return code, out, last, {n: next((f for f in last.get("files", []) if f.get("file", "").endswith(f"{n}.py")), {})
+                                 for n in names}
+
+    names = ["test_capa", "test_capb", "test_capc"]
+    code, out, cap_rec, by = cap_run(names)
+    unproven = [n for n in names if by[n].get("result") == "not proven"]
+    rerun = [n for n in names if by[n].get("result") == "passed" and by[n].get("retried")]
+    row("RUN-095", "more files meeting the machine's trouble than are rerun (the cap made 1): the one rerun alone passes; the "
+        "others are NOT PROVEN — never a failure: run once, no ✗ line, counted apart in the summary, said plainly with "
+        "how many met the trouble, their whole output kept, the record marking each (and the run) 'not proven', a loud "
+        "warning that that many points at something broken — and the run's exit is the machine's trouble (3)",
+        code == 3 and sorted(runs_of(n) for n in names) == [1, 1, 2] and len(unproven) == 2 and len(rerun) == 1
+        and "Tests: 1 file(s) passed, 0 failed, 2 not proven (the machine's trouble)" in out
+        and not any(ln.lstrip().startswith("✗") for ln in out.splitlines())
+        and out.count("not proven — the machine was too busy (3 files met its trouble this run; only 1 is rerun)") == 2
+        and all("the page never loaded" in str(by[n].get("not_proven")) and "ENVIRONMENT FAILURE" in text_of(
+            by[n].get("output")) and f"{by[n].get('output')}" in out for n in unproven)
+        and cap_rec.get("result") == "not proven" and "that many points at something broken" in out
+        and "! 3 files met the machine's or the browser's trouble this run" in out,
+        f"exit {code}, runs {[runs_of(n) for n in names]}, entries {str(by)[:600]}: {out[-1200:]}")
+
+    cap_fail = harness_file("test_capfail.py", 'test("CAP-009", "a real failure", lambda: check(False, "an assertion"))\n'
+                            "done()\n")
+    names2 = ["test_capd", "test_cape", "test_capf"]
+    code2, out2, _, by2 = cap_run(names2, extra=[cap_fail], folder="capfail")
+    row("RUN-096", "the same with one real failure among them: the failure wins — exit 1, '1 failed', and the files past "
+        "the cap are still not proven, not failed",
+        code2 == 1 and "Tests: 1 file(s) passed, 1 failed, 2 not proven (the machine's trouble)" in out2
+        and sum(1 for n in names2 if by2[n].get("result") == "not proven") == 2,
+        f"exit {code2}, entries {str(by2)[:500]}: {out2[-800:]}")
+
+    np_entry = dict(by[unproven[0]]) if unproven else {"file": "test/ui/test_capa.py", "tier": 2,
+                                                       "result": "not proven", "not_proven": "(not built yet)"}
+    np_entry.update(file="test/ui/test_capa.py", tier=2)
+    p, why = judged([dict(rec(files=t1 + t2 + [np_entry]), result="not proven")])
+    row("RUN-097", "--stamp on a run with a file NOT PROVEN (the machine's trouble past the rerun cap) → NOT PROVEN, naming "
+        "the file, why and its kept output — never PROVEN",
+        p is False and any(ln.strip().startswith("✗ tier 2") for ln in why.splitlines())
+        and any("test/ui/test_capa.py not proven — the machine was too busy" in ln
+                and str(np_entry.get("not_proven")) in ln for ln in why.splitlines()),
+        f"{p}: {why}")
+
     # The same file rerun alone run after run is said loudly (TODO tooling 11.7; Ron, 2026-11-18: "it may truly need to
     # run alone") — told, never acted on; read from the records, where only WHOLE runs of the file count. A stand-in that
     # meets the trouble once in each run its control file says so ("trouble" — it writes "fine" as it meets it), and one

@@ -174,7 +174,26 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   how the rerun went). **Passed on its rerun, it counts as passed** — and the stamp says so under its tier, on a `·` line
   (`· test/ui/test_x.py was rerun alone after … — passed — its first output: <path>`), still PROVEN. **Failed again, it's
   a failure**, both outputs kept. **A test failure is never rerun.** More than 4 files meeting the trouble in one run
-  aren't rerun (that many points at something broken). **The same file rerun alone 2 runs in a row is said loudly**
+  aren't rerun (`MAX_RETRIES`: that many points at something broken) — **and each one past the 4 is NOT PROVEN, never a
+  failure** (2026-11-18 lab, 12 of 16 CPUs kept busy by other programs: the fifth file past its limit,
+  test_backlog_report.py, was reported `✗ … timed out after 281.747 s` — a slow-but-healthy test called broken). Its
+  line starts `?`:
+
+      ? test/x.py  not proven — the machine was too busy (5 files met its trouble this run; only 4 are rerun) — <why>
+          full output: <path>
+
+  its whole output is kept, the summary counts it apart — `Tests: 58 file(s) passed, 0 failed, 1 not proven (the
+  machine's trouble)` — and says loudly, right under it, `! 5 files met the machine's or the browser's trouble this run
+  — only 4 are rerun alone; that many points at something broken, not a passing hiccup — look at what else the PC is
+  doing`, naming them. The record marks the file (`result: "not proven"`, `not_proven`: why) and the run (`result:
+  "not proven"`); its cost sample teaches nothing (`the machine's trouble — not proven`). **The run's exit is 3** (the
+  machine's trouble, `environment_trouble.EXIT_CODE`) when nothing failed — **a real failure still wins: 1**. Nothing
+  treats it as a pass: the stamp is NOT PROVEN (the file named under its tier: `<file> not proven — the machine was
+  too busy: <why> — 5 files met its trouble this run; only 4 are rerun — full output: <path>`), so the merge script
+  doesn't land on it (and says `tier 1 not proven — the machine was too busy`, never "failed"); the commit hook's
+  `--changed` refuses the commit (any exit but 0); the browsers-at-once level backs off for the trouble and learns
+  nothing from the run. A sharded file is failed if a shard failed, else not proven if a shard was. Tests: `RUN-095`–`097`,
+  `COST-023`, `MERGE-005`. **The same file rerun alone 2 runs in a row is said loudly**
   (2026-11-18, TODO tooling 11.7; Ron: "it may truly need to run alone") — counted from this working copy's records
   (`rerun_streak`): only **whole** runs of the file count — a run that didn't run it, or ran only some of its cells
   (`--id` on a sharded file, `RW_CELLS`), is passed over; a whole run of it without a rerun ends the streak. At the end of
@@ -319,10 +338,14 @@ merged result, and the target moves only when its stamp is PROVEN — two change
     time split N ways); with neither, 60 s for a screen test, 5 s for any other. One place decides (`estimate` in the
     runner).
   - **The stuck limit — TCP's own retransmission timer** (RFC 6298: average + 4 spreads; `test_costs.stuck_limit`).
-    A unit with **at least 5 runs measured** gets **average + 4 spreads, never under twice its average or 60 s, never
-    over 600 s** (the flat 10 minutes every unit had before — the ceiling wins when twice the average is over it).
-    **Why the floor:** a loaded PC made healthy runs 2.8× slower in the lab — a limit hugging the average would call
-    them stuck; twice the average (or a minute) leaves room. **The flat 600 s stays** for a unit with fewer than 5
+    A unit with **at least 5 runs measured** gets **average + 4 spreads, never under 4 times its average or 120 s,
+    never over 600 s** (the flat 10 minutes every unit had before — the ceiling wins when 4 times the average is over
+    it). **Why the floor:** healthy tests ran 2–5× slower when other programs took the CPU — 2× stopped five healthy
+    files (the 2026-11-18 lab, 12 of 16 CPUs kept busy by other programs: test_merge_branches.py stopped at 110 s,
+    average 55; test_environment.py 170 s, average 85; test_copies.py 171 s, average 86; test_run_tests.py 207 s,
+    average 103; test_backlog_report.py 282 s, average 141 — the first four passed rerun alone, in about their normal
+    time; the fifth found the reruns taken and was reported as a failure, which is now NOT PROVEN, above). The floor
+    was twice the average or 60 s until then (an earlier lab, the CPU alone squeezed, had seen 2.8×). **The flat 600 s stays** for a unit with fewer than 5
     runs, for **every unit of a narrowed run** (`--id`, `--tag`, `--changed`, `RW_CELLS` — a narrowed unit's
     average doesn't apply), for tier 3 (one file at a time, its own relay) and for every rerun alone. The run's opening
     lines say it once: `· stuck limits from this PC's averages (59 units; the other 2: the flat 600 s — fewer than 5
@@ -338,25 +361,30 @@ merged result, and the target moves only when its stamp is PROVEN — two change
     on a retransmit) — the same rerun as for any machine trouble (above: after the others, holding every slot; said at
     the end; the record's `retried` holds the reason, `limit` and `average`; a rerun teaches no average). Its line
     ends `; rerun alone after ran past its usual time: N s, its average M s`. **Past the flat 600 s too, it's a hang
-    — a failure**, reported as before (`✗ timed out after 600 s`, both outputs kept).
+    — a failure**, reported as before (`✗ timed out after 600 s`, both outputs kept). **Stopped when the run's 4
+    reruns are already taken, it is NOT PROVEN** — never a failure (the rerun bullet above; `COST-023`).
   - **The backed-off limit is kept until a pass it can trust** (TCP keeps its backed-off timer until a sample that
     wasn't a retransmit — Karn): a unit stopped at its limit is marked `backed_off` in `test-costs.json` (the run's
     `· test costs:` line says so, the record's `costs` → `backed_off` names it), and **its next runs get the flat 600
     s** until one passes the first time — that pass teaches its average, as any, and clears the mark. Why: a rerun alone
     never teaches, so without it a test that truly got slower — the app it drives slower, its own file unchanged (so
     its history doesn't start over) — would be stopped at the old limit every run, forever, halving the level each time.
-  - What the PC's averages gave on 2026-11-18 (61 units, 59 with 5+ runs): `test_backlog_report.py` first — average
-    141 s, limit 283 s; then `test_run_tests.py` 98 s → 196 s, `test_environment.py` 88 s → 176 s, `test_copies.py`
-    88 s → 175 s, `test_merge_branches.py` 58 s → 115 s, the three `test_cells.py` shards ~46–51 s → 104–110 s. For
-    those five files twice the average sets the limit (their spreads are small); for the screen tests whose times vary
-    more (`test_cells.py`'s shards, `test_delete_key.py` 37 s → 94 s) average + 4 spreads is the higher, and sets it.
+  - What the PC's averages gave on 2026-11-18 (61 units, 59 with 5+ runs), with the first floor (2× / 60 s):
+    `test_backlog_report.py` first — average 141 s, limit 283 s; then `test_run_tests.py` 98 s → 196 s,
+    `test_environment.py` 88 s → 176 s, `test_copies.py` 88 s → 175 s, `test_merge_branches.py` 58 s → 115 s, the three
+    `test_cells.py` shards ~46–51 s → 104–110 s, `test_delete_key.py` 37 s → 94 s (average + 4 spreads, its times vary
+    more). With the floor at 4× / 120 s (the same day, after the lab), 4 times the average sets every one of those:
+    564 s, 392 s, 352 s, 352 s, 232 s, ~184–204 s, 148 s.
 
-  Tests: `COST-017` (the limit at its floor, its middle and its ceiling; fewer than 5 runs → flat), `018` (the order:
+  Tests: `COST-017` (the limit at its floor — 120 s, and 4 times the average: the lab's two files — its middle and its
+  ceiling; fewer than 5 runs → flat), `018` (the order:
   average, then the record, then the defaults; a changed file's average unused — through the runner, one at a time),
   `019` (a stand-in past its limit: its child gone too, said, the level halved 4 → 2, rerun alone with the flat limit —
   longer than the stuck one — and passing), `020` (past both: a failure, as before), `021` (fewer than 5 runs, `--id`,
   `--tag`, `RW_CELLS` → the flat limit), `022` (stopped once → marked; its next run gets the flat limit, passes, teaches,
-  and the mark is gone). The 60 s floor and the flat 600 s are made 1 s and 10 s (5 s) inside those rows.
+  and the mark is gone), `023` (past its limit with the reruns already taken — the cap made 0: not proven, exit 3, never
+  a failure). The 120 s floor, 4 times the average and the flat 600 s are made 1 s, twice and 10 s (5 s) inside those
+  rows.
 - **`--id` picks a file only where it names the ID as a test** (2026-11-16; it picked any file whose text held the ID —
   `--id CELL-005` also ran `test/test_run_tests.py`, ~25 s, where it is sample data, and `--id CELL-001`
   `test/gestureTable.test.js`, where a comment names it). Every file names a test by its ID as a whole quoted string,
@@ -416,7 +444,8 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   worktree gets its own, under `.git/worktrees/<name>/`). The newest 300 are kept.
   `py tools/run_tests.py --stamp [<commit>]` (default HEAD) runs nothing; it prints **PROVEN** (exit 0) only if tier 1
   AND tier 2 each ran in full on exactly that commit (`--tier 1` and `--tier 2`, or `--tier all`; a run narrowed by
-  `--id` / `--tag` doesn't count, nor one with a file of that tier set aside — below), every file passed, nothing
+  `--id` / `--tag` doesn't count, nor one with a file of that tier set aside — below), every file passed (a file NOT
+  PROVEN — the machine's trouble past the reruns, above — never did), nothing
   skipped, nothing uncommitted — the LATEST run of each tier counts, so a later failure isn't outvoted by an earlier
   pass. Otherwise **NOT PROVEN**, with why (exit 1). **Tier 3 is shown too** (2026-11-16: after a `--tier all --release`
   run the stamp showed only tiers 1 and 2): one line for tier 3's latest run on that commit — `· tier 3: passed` /
@@ -565,13 +594,21 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   loudly**, with each run's kept outputs (§4). The run also slows down by itself: that trouble halves the browsers at once, at once,
   and the next runs start from the halved level, climbing back one at a time only after full runs without it (§4).
 - **"Ran past its usual time" is the machine's trouble, not a failure** (2026-11-18, TODO tooling item 12 step 4; §4):
-  a unit that runs past its stuck limit — from its average on this PC: average + 4 spreads, at least twice the average
-  or a minute, at most 10 minutes — is stopped with every process it started, said plainly (`ran past its usual time:
+  a unit that runs past its stuck limit — from its average on this PC: average + 4 spreads, at least 4 times the average
+  or 2 minutes (healthy tests ran 2–5× slower when other programs took the CPU — 2× stopped five healthy files, the
+  2026-11-18 lab), at most 10 minutes — is stopped with every process it started, said plainly (`ran past its usual time:
   N s, its average M s`), the browsers at once halved, and rerun once, alone, with the flat 10 minutes. Read it as a
   busy PC, as any rerun after the machine's trouble: passed on its rerun, it counts as passed (the summary and the stamp
   say so). **Past the 10 minutes on its rerun too, it is a hang — a failure** (`✗ timed out after 600 s`), read as any
   failure: both outputs are kept. Its next run gets the full 10 minutes, so a test that truly grew slower relearns its
   average from that pass (§4) — a file that keeps being stopped at its limit is worth a look at what changed in it.
+- **"Not proven" is the machine's trouble, not a failure — and not a pass** (2026-11-18 lab; §4): when more files meet
+  the machine's or the browser's trouble in one run than are rerun (4), each one past that is reported `? <file>  not
+  proven — the machine was too busy (N files met its trouble this run; only 4 are rerun) — <why>`, counted apart in
+  the summary (`…, 0 failed, 2 not proven (the machine's trouble)`), its whole output kept; the run exits 3 (1 if a test
+  also failed). Read it as the PC, not the test: look at what else the PC was doing (the loud `! N files met …` line
+  says that many points at something broken), then run again when it's quieter — a not-proven file is never fixed as
+  a failing test, and never counted as passed: the stamp stays NOT PROVEN and the merge script won't land on it.
 - **A failed run is no measure of speed** (2026-11-17, §4): the browsers-at-once level learns only from runs where every
   file passed — a run with a failure is kept in its history, marked, but neither grows the level nor sets a time to
   beat, so a failure can't be mistaken for "faster" or "slower". A clean run more than twice as slow as usual at its

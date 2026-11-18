@@ -50,11 +50,14 @@ A UNIT is one process the runner starts: a whole test file, or one shard of a fi
    (never above today's 10 minutes): act once every file has at least 5 runs measured"): time_stat() is a unit's time
    average — only while its file's contents are the ones it was measured on — and the runner orders its units by it
    (longest first). stuck_limit() is TCP's own retransmission timer (RFC 6298: RTO = SRTT + 4·RTTVAR): a unit with at
-   least STUCK_MIN_RUNS measured runs gets average + 4 spreads, never under twice its average or STUCK_FLOOR_S (a
-   healthy run on a loaded PC — 2.8× slower in the lab — isn't called stuck), never over STUCK_FLAT_S (the flat 10
-   minutes every unit had before); fewer runs → the flat limit. A unit past its limit is the machine's trouble (TCP: a
+   least STUCK_MIN_RUNS measured runs gets average + 4 spreads, never under STUCK_FLOOR_TIMES (4) times its average or
+   STUCK_FLOOR_S (120 s), never over STUCK_FLAT_S (the flat 10 minutes every unit had before); fewer runs → the flat
+   limit. Why the floor is that high (the 2026-11-18 lab, 12 of 16 CPUs kept busy by other programs): healthy tests ran
+   2–5× slower when other programs took the CPU — the first floor, twice the average or 60 s, stopped five healthy
+   files. A unit past its limit is the machine's trouble (TCP: a
    timeout is congestion): the runner stops its whole tree (its job — run() below), halves the browsers at once, and
-   reruns it alone with the flat limit (TCP backs its timer off); past that too, a real failure. And the backed-off
+   reruns it alone with the flat limit (TCP backs its timer off); past that too, a real failure. More units meeting the
+   machine's trouble than the runner reruns (its MAX_RETRIES): those are NOT PROVEN — never failures. And the backed-off
    limit is KEPT (Karn): the unit is marked `backed_off` in the file, and its next runs get the flat limit until one
    passes the first time — that pass teaches its average and clears the mark (learn(); limit_for() is the runner's one
    lookup). A rerun alone never teaches, so without the mark a test that truly got slower — the app it drives slower,
@@ -80,8 +83,10 @@ FIRST_SAMPLE_S, SAMPLE_S = 0.25, 1.0        # the RAM sample: a quarter second a
 LOCK_LIMIT_S = 30.0                         # saving waits this long at most for another run's save, then gives up
 # The stuck limit (stuck_limit, below). Read at each call, so the runner's own tests can make them small.
 STUCK_FLAT_S = 600.0        # the flat limit: a unit without enough runs measured, a narrowed run, a rerun alone
-STUCK_FLOOR_S = 60.0        # a limit from the average is never under this…
-STUCK_FLOOR_TIMES = 2       # …nor under this many times the average
+# The floor: healthy tests ran 2–5× slower when other programs took the CPU — 2× stopped five healthy files (the
+# 2026-11-18 lab; it was 2 × and 60 s).
+STUCK_FLOOR_S = 120.0       # a limit from the average is never under this…
+STUCK_FLOOR_TIMES = 4       # …nor under this many times the average
 STUCK_SPREADS = 4           # average + this many spreads (RFC 6298's K)
 STUCK_MIN_RUNS = 5          # runs measured before the average sets the limit
 
@@ -421,16 +426,18 @@ def outside(name):
     return n == ".." or n.startswith("../") or n.startswith("/") or (len(n) > 1 and n[1] == ":")
 
 
-def left_out(narrowed, passed, rerun, outside=False):
+def left_out(narrowed, passed, rerun, outside=False, trouble=False):
     """Why this unit's sample may NOT teach the average (Karn's rule — an ambiguous sample is dropped, not risked), or
     None when it may: its file is inside the repository being tested (outside: it isn't — outside(), above), it ran in
-    full (narrowed: what narrowed the run, in words — [] for none) and passed, the first time."""
+    full (narrowed: what narrowed the run, in words — [] for none) and passed, the first time. trouble: it didn't pass
+    because it met the machine's trouble and wasn't rerun (more units met it than the runner reruns) — not proven, not
+    failed."""
     if outside:
         return "outside the repository"
     if narrowed:
         return "a narrowed run (" + "; ".join(narrowed) + ")"
     if not passed:
-        return "it failed"
+        return "the machine's trouble — not proven" if trouble else "it failed"
     if rerun:
         return "a rerun alone after the machine's trouble"
     return None
@@ -551,8 +558,9 @@ def limit_for(state, name, unit, file_hash):
 
 def stuck_limit(stat):
     """(the unit's stuck limit in seconds, the average it came from — None for the flat limit). From the average (RFC
-    6298: average + 4 spreads) only with at least STUCK_MIN_RUNS runs measured — clamped to at least twice the average
-    and STUCK_FLOOR_S, at most STUCK_FLAT_S (the ceiling wins when twice the average is over it). Else the flat one."""
+    6298: average + 4 spreads) only with at least STUCK_MIN_RUNS runs measured — clamped to at least STUCK_FLOOR_TIMES (4)
+    times the average and STUCK_FLOOR_S (120 s), at most STUCK_FLAT_S (the ceiling wins when 4 times the average is over
+    it). Else the flat one."""
     if not stat or (stat.get("count") or 0) < STUCK_MIN_RUNS:
         return float(STUCK_FLAT_S), None
     avg, spread = float(stat["avg"]), float(stat.get("spread") or 0.0)

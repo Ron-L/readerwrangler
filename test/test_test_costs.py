@@ -439,8 +439,8 @@ with tempfile.TemporaryDirectory() as d:
 
     # --- Step 4 (Ron, 2026-11-18): longest first by each unit's average, and a "stuck" limit from it — TCP's own
     # retransmission timer (RFC 6298: average + 4 spreads; a timeout is congestion, and the timer backs off). The stand-ins
-    # use tiny numbers: the 60 s floor and the flat 600 s are made 1 s and 10 s for these rows (stuck_hooks), so a limit
-    # is a second and a hang ten.
+    # use tiny numbers: the 120 s floor, 4 times the average and the flat 600 s are made 1 s, twice and 10 s for these rows
+    # (stuck_hooks), so a limit is a second and a hang ten.
     def fake_costs(path, units):
         """A costs file whose time averages are made up — units: {(sample path, unit key): (average, spread, runs)}, each
         under the sample's name inside the repository and its real contents' hash (hash: 'other' — other contents)."""
@@ -455,33 +455,41 @@ with tempfile.TemporaryDirectory() as d:
         return path
 
     @contextlib.contextmanager
-    def stuck_hooks(floor=1.0, flat=10.0):
-        """The limit's floor (60 s) and the flat limit (600 s) made small for a row — and put back."""
-        saved = tc.STUCK_FLOOR_S, tc.STUCK_FLAT_S
-        tc.STUCK_FLOOR_S, tc.STUCK_FLAT_S = floor, flat
+    def stuck_hooks(floor=1.0, flat=10.0, times=2):
+        """The limit's floor (120 s, and 4 times the average) and the flat limit (600 s) made small for a row — and put
+        back."""
+        saved = tc.STUCK_FLOOR_S, tc.STUCK_FLAT_S, tc.STUCK_FLOOR_TIMES
+        tc.STUCK_FLOOR_S, tc.STUCK_FLAT_S, tc.STUCK_FLOOR_TIMES = floor, flat, times
         try:
             yield
         finally:
-            tc.STUCK_FLOOR_S, tc.STUCK_FLAT_S = saved
+            tc.STUCK_FLOOR_S, tc.STUCK_FLAT_S, tc.STUCK_FLOOR_TIMES = saved
 
     def stat(avg, spread, runs):
         return {"avg": avg, "spread": spread, "count": runs, "last": avg}
 
     def r017():
-        got = [tc.stuck_limit(stat(10.0, 1.0, 5)),       # 14 s, under the floor of 60 s → 60
-               tc.stuck_limit(stat(100.0, 10.0, 7)),     # 140 s, under twice the average (200) → 200
-               tc.stuck_limit(stat(100.0, 30.0, 5)),     # 220 s, between the floor (200) and the ceiling → 220
+        """The floor was twice the average or 60 s until the 2026-11-18 lab (12 of 16 CPUs kept busy by other programs):
+        five healthy heavy files passed twice their average and were stopped — test_merge_branches.py at 110 s (average
+        55), test_backlog_report.py at 282 s (average 141) — and healthy tests ran 2–5× slower when other programs took
+        the CPU. Now 4 times the average or 120 s."""
+        got = [tc.stuck_limit(stat(10.0, 1.0, 5)),       # 14 s, under the floor of 120 s → 120 (was 60)
+               tc.stuck_limit(stat(100.0, 10.0, 7)),     # 140 s, under 4 times the average (400) → 400 (was 200)
+               tc.stuck_limit(stat(100.0, 80.0, 5)),     # 420 s, between the floor (400) and the ceiling → 420
+               tc.stuck_limit(stat(55.0, 3.0, 9)),       # the lab's test_merge_branches.py: 220 s (stopped at 110 before)
+               tc.stuck_limit(stat(141.0, 5.0, 9)),      # the lab's test_backlog_report.py: 564 s (was 282)
                tc.stuck_limit(stat(400.0, 100.0, 9)),    # 800 s → the ceiling, 600
-               tc.stuck_limit(stat(350.0, 10.0, 5)),     # twice the average (700) is over the ceiling too → 600
+               tc.stuck_limit(stat(160.0, 10.0, 5)),     # 4 times the average (640) is over the ceiling too → 600
                tc.stuck_limit(stat(100.0, 30.0, 4)),     # 4 runs: too few → the flat 600, no average
                tc.stuck_limit(None)]
-        want = [(60.0, 10.0), (200.0, 100.0), (220.0, 100.0), (600.0, 400.0), (600.0, 350.0), (600.0, None), (600.0, None)]
-        consts = (tc.STUCK_FLAT_S, tc.STUCK_FLOOR_S, tc.STUCK_MIN_RUNS, tc.STUCK_SPREADS)
-        return got == want and consts == (600.0, 60.0, 5, 4), (got, consts)
+        want = [(120.0, 10.0), (400.0, 100.0), (420.0, 100.0), (220.0, 55.0), (564.0, 141.0), (600.0, 400.0),
+                (600.0, 160.0), (600.0, None), (600.0, None)]
+        consts = (tc.STUCK_FLAT_S, tc.STUCK_FLOOR_S, tc.STUCK_FLOOR_TIMES, tc.STUCK_MIN_RUNS, tc.STUCK_SPREADS)
+        return got == want and consts == (600.0, 120.0, 4, 5, 4), (got, consts)
 
-    row("COST-017", "the stuck limit — average + 4 spreads, never under twice the average or 60 s, never over the flat 600 "
-        "s: at its floor (60 s, and twice the average), in its middle, at its ceiling; fewer than 5 runs, or none → the "
-        "flat 600 s", r017)
+    row("COST-017", "the stuck limit — average + 4 spreads, never under 4 times the average or 120 s (the 2026-11-18 lab: "
+        "twice stopped five healthy files), never over the flat 600 s: at its floor (120 s, and 4 times the average — the "
+        "lab's two files), in its middle, at its ceiling; fewer than 5 runs, or none → the flat 600 s", r017)
 
     def r018():
         state = json.load(open(fake_costs(os.path.join(d, "c18-pure.json"), {
@@ -626,6 +634,45 @@ with tempfile.TemporaryDirectory() as d:
     row("COST-020", "a unit that hangs past its stuck limit AND the flat limit of its rerun alone is a real failure, "
         "reported as today ('timed out after …'); a light tier-1 file in a run with no level in play halves nothing",
         r020)
+
+    cap_runs = os.path.join(d, "cap-runs")
+    cap_py = write("test_cost_cap.py", "# tags: costs, cap, tier 1\n# covers: nothing.js\nimport time\n"
+                   f"open({cap_runs!r}, 'a').write('run\\n')\nprint('slow but healthy', flush=True)\ntime.sleep(20)\n"
+                   "print('1 passed, 0 failed')\n")
+
+    def r023():
+        """The 2026-11-18 lab: test_backlog_report.py ran past its limit after MAX_RETRIES files of the run were already
+        taken for a rerun — and was reported 'timed out', a FAILURE: a slow-but-healthy test called broken. Past the
+        rerun cap, the machine's trouble is NOT PROVEN — never a failure (here the cap is made 0)."""
+        costs23 = fake_costs(os.path.join(d, "c23.json"), {(cap_py, "whole"): (0.5, 0.05, 5)})
+        rdir = os.path.join(d, "rec23")
+        saved = rt.MAX_RETRIES
+        rt.MAX_RETRIES = 0
+        try:
+            with stuck_hooks():
+                code, out = quiet_main(["--tier", "1"], files=[Inside(cap_py)], results=rdir, costs=costs23, retry_wait=0,
+                                       slots=test_slots.Slots(count=2, folder=slots_dir))
+        finally:
+            rt.MAX_RETRIES = saved
+        rec = (records_in(rdir) or [{}])[0]
+        f = (rec.get("files") or [{}])[0]
+        runs = len(open(cap_runs).read().split()) if os.path.exists(cap_runs) else 0
+        kept = open(f["output"], encoding="utf-8").read() if f.get("output") and os.path.exists(f["output"]) else ""
+        left = (rec.get("costs") or {}).get("left_out") or {}
+        backed = (rec.get("costs") or {}).get("backed_off") or []
+        ok = code == 3 and runs == 1 and f.get("result") == "not proven" \
+            and "ran past its usual time: 1.0 s" in str(f.get("not_proven")) and "slow but healthy" in kept \
+            and rec.get("result") == "not proven" and "test/samples/test_cost_cap.py" in backed \
+            and left.get("test/samples/test_cost_cap.py") == "the machine's trouble — not proven" \
+            and "Tests: 0 file(s) passed, 0 failed, 1 not proven (the machine's trouble)" in out \
+            and "not proven — the machine was too busy (1 file met its trouble this run; only 0 are rerun)" in out \
+            and "✗ test/samples/test_cost_cap.py" not in out and "timed out" not in out \
+            and tc.left_out([], False, False, trouble=True) == "the machine's trouble — not proven"
+        return ok, (code, runs, f, rec.get("result"), left, out[-900:])
+
+    row("COST-023", "a unit past its stuck limit after the rerun cap is already taken is NOT PROVEN — never a failure: "
+        "stopped once, not rerun, counted apart ('1 not proven (the machine's trouble)'), its output kept, the run's exit "
+        "3, the record marking it (and its backed-off limit), its sample left out as the machine's trouble", r023)
 
     slow_py = write("test_cost_slow.py", "# tags: costs, slow, tier 1\n# covers: nothing.js\nimport time\n"
                     "def check(tid, ok): print(('  ✓ ' if ok else '  ✗ ') + tid)\ntime.sleep(2.0)\n"

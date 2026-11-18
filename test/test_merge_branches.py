@@ -52,11 +52,13 @@ if "--stamp" in sys.argv:
     print(("PROVEN" if ok else "NOT PROVEN") + f" — stand-in stamp for {head[:12]}")
     sys.exit(0 if ok else 1)
 tier = sys.argv[sys.argv.index("--tier") + 1]
-failing = os.environ.get("RW_STUB_FAIL") == "1"
+mode = os.environ.get("RW_STUB_FAIL")      # "1": a test fails; "3": none fails, one is NOT PROVEN (the machine's trouble)
+failing = mode in ("1", "3")
 open(log, "a").write(f"{tier}:{head}:{'clean' if clean and not failing else 'no'}\\n")
-print(f"stand-in tier {tier} on {head[:12]}: " + ("Tests: 0 file(s) passed, 1 failed" if failing else
+print(f"stand-in tier {tier} on {head[:12]}: " + ("Tests: 0 file(s) passed, 1 failed" if mode == "1" else
+      "Tests: 0 file(s) passed, 0 failed, 1 not proven (the machine's trouble)" if mode == "3" else
       "Tests: 1 file(s) passed, 0 failed"))
-sys.exit(1 if failing else 0)
+sys.exit(int(mode) if failing else 0)
 '''
 FILLER = "".join(f"// line {i}\n" for i in range(12))
 APP = ('// app\nconst ORGANIZER_VERSION = "7.31.0-alpha.1";  // Build version for this file\nfunction alpha() {\n'
@@ -134,7 +136,9 @@ class Repo:
         git(self.dir, "switch", "-q", "main-prime")
 
     def merge(self, *args, fail_tests=False):
-        env = dict(CLEAN_ENV, RW_STUB_FAIL="1" if fail_tests else "0")
+        """fail_tests: True — the stand-in runner's tests fail (exit 1); "3" — none fails, but one is NOT PROVEN (the
+        machine's trouble past the reruns: exit 3)."""
+        env = dict(CLEAN_ENV, RW_STUB_FAIL="3" if fail_tests == "3" else "1" if fail_tests else "0")
         r = subprocess.run([sys.executable, os.path.join(self.dir, "tools", "merge_branches.py"), *args], cwd=self.dir,
                            env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
         return r.returncode, r.stdout + r.stderr
@@ -279,5 +283,25 @@ def failing_tests_dont_land():
               f"a folder on main is refused (main gets a sprint as one squash at release):\n{out}")
 test("MERGE-004", "the merged result must pass tier 1 and tier 2 to land; --no-test lands and says nothing was proven",
      failing_tests_dont_land)
+
+
+def not_proven_doesnt_land():
+    """2026-11-18 lab: the machine's trouble past the runner's reruns is NOT PROVEN (its exit 3), never a failure — and
+    never a pass: nothing lands on it, and the merge says what it was."""
+    with Repo() as r:
+        r.branch("task-h", [("storage.js", "// storage", "// storage, changed by H")])
+        start = r.head("main-prime")
+        code, out = r.merge("task-h", fail_tests="3")
+        check(code != 0 and "NOT LANDED" in out and r.head("main-prime") == start,
+              f"tier 1 not proven on the merged result: main-prime untouched:\n{out}")
+        check("tier 1 not proven — the machine was too busy" in out and "tier 2 not run" in out
+              and "tier 1 failed" not in out, f"said as not proven, not failed — tier 2 not run:\n{out}")
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import environment_trouble      # the runner's code for the machine's trouble — the merge script's literal matches it
+    m = re.search(r"^NOT_PROVEN_EXIT = (\d+)", open(MERGE, encoding="utf-8").read(), re.M)
+    check(m and int(m.group(1)) == environment_trouble.EXIT_CODE,
+          f"merge_branches.py's NOT_PROVEN_EXIT is environment_trouble.EXIT_CODE: {m and m.group(1)}")
+test("MERGE-005", "a tier run NOT PROVEN (the runner's exit 3: the machine's trouble past its reruns, no test failed) "
+     "doesn't land — said as not proven, never as failed; tier 2 not run", not_proven_doesnt_land)
 
 done()
