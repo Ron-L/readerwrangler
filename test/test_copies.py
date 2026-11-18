@@ -1,6 +1,6 @@
 # Tests for tools/copies.py — working copies of the folder (git worktrees with the tools linked in).
 # tags: copies, tooling, tier 1
-# covers: tools/copies.py, git-hooks/private_values.py, test/ui/rw.py
+# covers: tools/copies.py, tools/run_tests.py, git-hooks/private_values.py, test/ui/rw.py
 # heavy: yes — ~400 processes a run, up to 9 at once: git worktrees, submodules, their hooks' shells (counted 2026-11-17)
 # Run: python test/test_copies.py
 #
@@ -279,5 +279,165 @@ def remove_refuses_what_it_cant_look_into():
               "and nothing it pointed at lost a file")
 test("COPY-006", "remove REFUSES (even with --force) while any folder in the copy can't be looked into — a link in it "
      "would be missed, and git's remove would delete through it; named, nothing removed", remove_refuses_what_it_cant_look_into)
+
+
+# --- a removed copy keeps its test-run records and says where its time went (TODO tooling item 11.6; Ron, 2026-11-18) ---
+def load_runner():
+    spec = importlib.util.spec_from_file_location("run_tests_for_copies", os.path.join(ROOT, "tools", "run_tests.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def the_archive_is_never_read_nor_pruned():
+    import json
+    copies, rt = load_copies(), load_runner()
+    check(copies.ARCHIVE == rt.COPIES_ARCHIVE, f"one archive name: copies.py {copies.ARCHIVE!r}, run_tests.py "
+          f"{rt.COPIES_ARCHIVE!r}")
+    narrowing = {k for k, (narrows, _) in rt.RUN_ENV.items() if narrows}
+    check(set(copies.NARROWING_ENV) == narrowing, f"copies.py's narrowing variables {sorted(copies.NARROWING_ENV)} are "
+          f"run_tests.py's ({sorted(narrowing)}) — a run it calls 'full' must be one the stamp would")
+    folder = tempfile.mkdtemp(prefix="rw-copies-archive-")
+    saved = rt.KEEP_RECORDS
+    try:
+        kept = os.path.join(folder, copies.ARCHIVE, "one-20261118-1200")
+        write(os.path.join(kept, "old-run.json"), json.dumps({"started": "2026-01-01T00:00:00+00:00",
+                                                              "ended": "2026-01-01T00:01:00+00:00", "result": "passed"}))
+        write(os.path.join(kept, "old-run", "test_x.py.txt"), "a kept output\n")
+        rt.KEEP_RECORDS = 2
+        # named so the archive's name sorts BEFORE the oldest record kept — pruning by name order alone would take it
+        for n in range(1, 5):
+            rt.write_record({"id": f"zz-{n}", "started": f"2026-11-18T12:0{n}:00+00:00",
+                             "ended": f"2026-11-18T12:0{n}:30+00:00", "result": "passed"}, folder)
+            os.makedirs(os.path.join(folder, f"zz-{n}"), exist_ok=True)     # each run's kept outputs
+        rt.write_record({"id": "zz-5", "started": "2026-11-18T12:05:00+00:00", "ended": "2026-11-18T12:05:30+00:00",
+                         "result": "passed"}, folder)
+        left = sorted(n for n in os.listdir(folder) if n.endswith(".json"))
+        check(left == ["zz-4.json", "zz-5.json"], f"(setup: the newest records kept, the rest pruned — {left})")
+        check(not os.path.exists(os.path.join(folder, "zz-1")), "(setup: an old run's outputs pruned with its record)")
+        check(os.path.exists(os.path.join(kept, "old-run.json")) and os.path.exists(os.path.join(kept, "old-run",
+              "test_x.py.txt")), "pruning (the newest N kept) never deletes the archived copies' records")
+        got = [r.get("id") for r in rt.read_records(folder)]
+        check(got == ["zz-4", "zz-5"], f"read_records (the stamp, longest-first) reads only the folder's own records, "
+              f"never the archive's: {got}")
+    finally:
+        rt.KEEP_RECORDS = saved
+        remove_tree(folder)
+test("COPY-007", "the archive of removed copies' records (rw-test-results/copies/) is never read by the runner (stamps, "
+     "longest-first) and never pruned; copies.py and run_tests.py agree on its name and on what narrows a run",
+     the_archive_is_never_read_nor_pruned)
+
+
+def plant(folder, rec, output=None):
+    """A test-run record in a copy's records folder (the stand-in runner writes none) — and a failed file's kept output."""
+    import json
+    write(os.path.join(folder, rec["id"] + ".json"), json.dumps(rec))
+    if output:
+        write(os.path.join(folder, rec["id"], "test_x.py.txt"), output)
+
+
+def removal_keeps_records_and_says_where_the_time_went():
+    import datetime
+    import json
+    copies = load_copies()
+    with World() as w:
+        w.copies("new", "one")
+        c = w.copy("one")
+        note_path = git(c, "rev-parse", "--path-format=absolute", "--git-path", copies.NOTE).stdout.strip()
+        check(os.path.exists(note_path), f"new notes when it made the copy, in the copy's own git folder: {note_path}")
+        note = json.load(open(note_path, encoding="utf-8"))
+        made = datetime.datetime.fromisoformat(note["made"])
+        now = datetime.datetime.now().astimezone()
+        check(abs((now - made).total_seconds()) < 120 and note.get("branch") == "one" and note.get("start")
+              and note.get("ready"), f"…with the time, the branch, the commit it started at, when it was ready: {note}")
+        # Pretend it was made two hours ago: four runs planted around that, in the copy's own records folder.
+        t = now - datetime.timedelta(minutes=120)
+
+        def at(minutes):
+            return (t + datetime.timedelta(minutes=minutes)).isoformat(timespec="seconds")
+        note.update(made=at(0), ready=at(2))
+        with open(note_path, "w", encoding="utf-8") as f:
+            json.dump(note, f)
+        recs = git(c, "rev-parse", "--path-format=absolute", "--git-path", "rw-test-results").stdout.strip()
+        plant(recs, {"id": "r0", "started": at(0), "ended": at(2), "result": "passed", "ran": {"tier": "1"}})
+        plant(recs, {"id": "r1", "started": at(10), "ended": at(20), "result": "passed",
+                     "ran": {"tier": "2", "tags": None, "ids": None}})
+        plant(recs, {"id": "r2", "started": at(15), "ended": at(25), "result": "failed",
+                     "ran": {"tier": "1", "ids": ["COPY-007"]},
+                     "files": [{"file": "test/x.py", "result": "failed", "retried": [{"reason": "the machine's trouble"}]}]},
+              output="the whole failed output\n")
+        plant(recs, {"id": "r3", "started": at(60), "ended": at(65), "result": "passed", "ran": {"tier": "2"},
+                     "env": {"RW_CELLS": "CELL-005"}})
+        write(os.path.join(c, "work.txt"), "built\n")
+        git(c, "add", "work.txt")
+        git(c, "commit", "-q", "--no-verify", "-m", "the work")
+        git(w.main, "branch", "keep-one", "one")
+        code, out = w.copies("remove", "one")
+        check(code == 0 and "REMOVED" in out and not os.path.exists(c), f"removed:\n{out}")
+        print("      (the removal said:\n        " + "\n        ".join(out.strip().splitlines()[-12:]) + ")")
+        home = os.path.join(w.main, ".git", "rw-test-results", copies.ARCHIVE)
+        kept = [os.path.join(home, d) for d in os.listdir(home)] if os.path.isdir(home) else []
+        check(len(kept) == 1 and os.path.basename(kept[0]).startswith("one-"),
+              f"its records kept in the main folder's records, in their own archive folder named for it: {kept}")
+        k = kept[0]
+        check(all(os.path.exists(os.path.join(k, f"r{n}.json")) for n in range(4))
+              and open(os.path.join(k, "r2", "test_x.py.txt"), encoding="utf-8").read() == "the whole failed output\n",
+              f"every record and the kept failed output moved there: {os.listdir(k)}")
+        check(not [n for n in os.listdir(os.path.join(w.main, ".git", "rw-test-results")) if n.endswith(".json")],
+              "none of them among the main folder's own records (its stamp and estimates never see them)")
+        check(not os.path.exists(os.path.dirname(recs)), "the copy's git folder is gone, as before")
+        s = json.load(open(os.path.join(k, "time.json"), encoding="utf-8"))
+        check(abs(s["wall_seconds"] - 7200) < 180, f"wall time: made → removed ≈ 2 h: {s['wall_seconds']}")
+        check(s["test_seconds"] == 22 * 60, f"test minutes: 2 + (10..25 = 15, the overlap counted once) + 5 = 22 min: "
+              f"{s['test_seconds'] / 60}")
+        check(abs(s["everything_else_seconds"] - (s["wall_seconds"] - s["test_seconds"])) < 1, "everything else = wall − tests")
+        n = s["counts"]
+        check((n["runs"], n["full"], n["narrow"], n["passed"], n["failed"], n["reruns_alone"], n["readiness"])
+              == (4, 2, 2, 3, 1, 1, 1), f"runs 4: full 2 (1 the readiness run new made), narrow 2, passed 3, failed 1, "
+              f"1 rerun alone: {n}")
+        check(len(s["commits"]) == 1 and s["commits"][0]["subject"] == "the work", f"its commits: {s['commits']}")
+        text = open(os.path.join(k, "time.txt"), encoding="utf-8").read()
+        for want in ("test runs: 4", "22 min", "everything else", "building, reading, thinking, waiting",
+                     "--id COPY-007", "RW_CELLS=CELL-005", "commits on its branch since it was made: 1", k):
+            check(want in text and want in out, f"the printout and time.txt say {want!r}:\n{out}\n---\n{text}")
+
+        # A copy made before copies.py noted the time: its git folder's own time stands in, and says so.
+        w.copies("new", "two")
+        c2 = w.copy("two")
+        os.remove(git(c2, "rev-parse", "--path-format=absolute", "--git-path", copies.NOTE).stdout.strip())
+        code, out = w.copies("remove", "two")
+        check(code == 0 and "estimated" in out, f"no note: the made time is estimated, and says so:\n{out}")
+
+        code, out = w.copies("report")
+        print("      (the report:\n        " + "\n        ".join(out.strip().splitlines()) + ")")
+        rows = [ln for ln in out.splitlines() if ln.startswith(("one ", "two "))]
+        check(code == 0 and len(rows) == 2 and "total" in out.lower() and "22" in rows[0] and "{" not in out,
+              f"report: one row per removed copy, then the totals:\n{out}")
+        tomorrow = (now + datetime.timedelta(days=1)).date().isoformat()
+        code, out = w.copies("report", "--since", tomorrow)
+        check(code == 0 and not [ln for ln in out.splitlines() if ln.startswith(("one ", "two "))],
+              f"--since leaves out copies removed before that day:\n{out}")
+test("COPY-008", "remove keeps the copy's test-run records (and failed outputs) in the main folder's records, in their own "
+     "archive folder, and says where its time went — wall, test minutes (overlaps once), runs full / narrow, passed / "
+     "failed, reruns alone, commits, everything else; report lists the removed copies",
+     removal_keeps_records_and_says_where_the_time_went)
+
+
+def removal_stops_when_records_cant_be_kept():
+    copies = load_copies()
+    with World() as w:
+        w.copies("new", "one")
+        c = w.copy("one")
+        recs = git(c, "rev-parse", "--path-format=absolute", "--git-path", "rw-test-results").stdout.strip()
+        plant(recs, {"id": "r0", "started": "2026-11-18T10:00:00+00:00", "ended": "2026-11-18T10:01:00+00:00",
+                     "result": "passed", "ran": {"tier": "1"}})
+        write(os.path.join(w.main, ".git", "rw-test-results", copies.ARCHIVE), "a FILE where the archive folder goes\n")
+        code, out = w.copies("remove", "one", "--force")
+        check(code != 0 and "NOT REMOVED" in out and "records" in out, f"the records can't be kept: refused, said:\n{out}")
+        check(os.path.isdir(c) and os.path.exists(os.path.join(recs, "r0.json")), "the copy and its records are untouched")
+        check(all(os.path.isjunction(os.path.join(c, rel)) or os.path.islink(os.path.join(c, rel)) for rel in LINKS),
+              "…its links too (nothing was taken out)")
+test("COPY-009", "remove stops — even with --force — when the copy's records can't be kept, and says so (never lost "
+     "silently); nothing touched", removal_stops_when_records_cant_be_kept)
 
 done()

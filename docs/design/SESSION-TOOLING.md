@@ -127,6 +127,25 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   held, and says so loudly if not. **Every folder in the copy must be looked into first** (2026-11-16): one it can't
   read might hold a link it would miss, so it refuses — even with `--force` — naming each such folder, before anything is
   removed. Tests: `COPY-001`–`006`.
+- **A removed copy keeps its test-run records and says where its time went** (2026-11-18, TODO tooling item 11.6; Ron:
+  "Should the agents record where their time goes … so we can analyze that?"). A copy's records live in its own git
+  folder (`.git\worktrees\<name>\rw-test-results`), which `git worktree remove` deletes — so before anything is taken
+  out, `remove` copies them (the `.json` records AND the failed files' kept outputs) into the main folder's records, in
+  their own archive folder: **`.git\rw-test-results\copies\<name>-<YYYYMMDD-HHMM removed>\`**. The runner never reads
+  it (`read_records` reads only its folder's own `.json` files — the stamp and the longest-first estimates never see a
+  copy's runs) and its pruning (the newest 300) never deletes it (`COPIES_ARCHIVE` in run_tests.py). If they can't be
+  kept, **nothing is removed, even with `--force`**, and it says where they still are. `new` notes when it made the copy
+  (and the commit it started at, and when its tier 1 made it ready) in `rw-copy.json` in the copy's git folder — gone
+  with the copy, its content kept in the archive's `time.json`; a copy made before that note existed gets git's own
+  folder time, marked "estimated". Beside the records, `time.json` + `time.txt` (also printed at removal): made →
+  removed (wall time); its test runs — how many, the minutes they covered (overlapping runs counted once), full or
+  narrow (`--id`, `--tag`, `RW_CELLS`; a `--changed` run leaves no record, so it isn't seen), passed / failed, files
+  rerun alone after the machine's trouble, which full tier 1 was `new`'s own readiness run — each run on a line; its
+  commits since it was made; and **everything else** = wall − test minutes: building, reading, thinking, waiting (the
+  records can't tell these apart, and it doesn't pretend to).
+- **`py tools/copies.py report [--since YYYY-MM-DD]`** — for a sprint's post-mortem: one row per archived copy (name,
+  branch, made, removed, wall, test minutes and their share, runs full / narrow, passed / failed) and the totals.
+  Tests: `COPY-007`–`009`.
 - **`py tools/copies.py list`** (also a double-click) — each copy, its branch and commit, anything uncommitted, and its
   test stamp (`run_tests.py --stamp` run there: each copy keeps its own run records).
 - **What works inside a copy** (checked 2026-11-16): the pre-build gate (above); the commit checks — `core.hooksPath
