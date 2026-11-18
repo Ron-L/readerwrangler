@@ -46,6 +46,20 @@ A UNIT is one process the runner starts: a whole test file, or one shard of a fi
    measure, sorted by average time; the totals; and how much the screen tests differ in RAM (the biggest average RAM
    peak over the smallest — the later budget step asks "is the biggest at least twice the smallest?").
 
+4. USED (step 4 — Ron, 2026-11-18: "longest first by each file's average, and a 'stuck' limit of average + 4 spreads
+   (never above today's 10 minutes): act once every file has at least 5 runs measured"): time_stat() is a unit's time
+   average — only while its file's contents are the ones it was measured on — and the runner orders its units by it
+   (longest first). stuck_limit() is TCP's own retransmission timer (RFC 6298: RTO = SRTT + 4·RTTVAR): a unit with at
+   least STUCK_MIN_RUNS measured runs gets average + 4 spreads, never under twice its average or STUCK_FLOOR_S (a
+   healthy run on a loaded PC — 2.8× slower in the lab — isn't called stuck), never over STUCK_FLAT_S (the flat 10
+   minutes every unit had before); fewer runs → the flat limit. A unit past its limit is the machine's trouble (TCP: a
+   timeout is congestion): the runner stops its whole tree (its job — run() below), halves the browsers at once, and
+   reruns it alone with the flat limit (TCP backs its timer off); past that too, a real failure. And the backed-off
+   limit is KEPT (Karn): the unit is marked `backed_off` in the file, and its next runs get the flat limit until one
+   passes the first time — that pass teaches its average and clears the mark (learn(); limit_for() is the runner's one
+   lookup). A rerun alone never teaches, so without the mark a test that truly got slower — the app it drives slower,
+   its own file unchanged — would be stopped every run, forever.
+
 Tested by test/test_test_costs.py (COST-001–…).
 """
 import contextlib
@@ -64,6 +78,12 @@ MEASURES = ("seconds", "committed_peak_bytes", "ram_peak_sampled_bytes", "cpu_se
             "io_written_bytes")             # what is averaged; "processes" is kept in the run's record only
 FIRST_SAMPLE_S, SAMPLE_S = 0.25, 1.0        # the RAM sample: a quarter second after the start, then once a second
 LOCK_LIMIT_S = 30.0                         # saving waits this long at most for another run's save, then gives up
+# The stuck limit (stuck_limit, below). Read at each call, so the runner's own tests can make them small.
+STUCK_FLAT_S = 600.0        # the flat limit: a unit without enough runs measured, a narrowed run, a rerun alone
+STUCK_FLOOR_S = 60.0        # a limit from the average is never under this…
+STUCK_FLOOR_TIMES = 2       # …nor under this many times the average
+STUCK_SPREADS = 4           # average + this many spreads (RFC 6298's K)
+STUCK_MIN_RUNS = 5          # runs measured before the average sets the limit
 
 
 def costs_path(folder=None):
@@ -105,6 +125,7 @@ if os.name == "nt":
     _k32.ResumeThread.restype, _k32.ResumeThread.argtypes = w.DWORD, [w.HANDLE]
     _k32.K32GetProcessMemoryInfo.restype = w.BOOL
     _k32.K32GetProcessMemoryInfo.argtypes = [w.HANDLE, ctypes.c_void_p, w.DWORD]
+    _k32.TerminateJobObject.restype, _k32.TerminateJobObject.argtypes = w.BOOL, [w.HANDLE, w.UINT]
 
     CREATE_SUSPENDED = 0x00000004
     PROCESS_TERMINATE, PROCESS_SET_QUOTA, PROCESS_QUERY_LIMITED = 0x0001, 0x0100, 0x1000
@@ -278,6 +299,11 @@ if os.name == "nt":
             finally:
                 self.close()
 
+        def end(self):
+            """Stop every process in the job — the unit's whole tree, by the job's own handle (never by name or a
+            process list): what a unit past its time gets (step 4). True if Windows did it."""
+            return bool(self.handle) and bool(_k32.TerminateJobObject(self.handle, 1))
+
         def close(self):
             if self.handle:
                 _k32.CloseHandle(self.handle)
@@ -293,8 +319,11 @@ def available():
 
 def run(cmd, timeout=None, measure=True, **popen_kw):
     """subprocess.run(cmd, capture_output=True, timeout=timeout, **popen_kw), measured: (exit code — None when it ran past
-    `timeout` and was stopped —, stdout bytes, stderr bytes, measures). measure False: run as before, measures all None.
-    Anything about measuring that fails leaves the run itself as it would have been: measures None, and why."""
+    `timeout` and was stopped —, stdout bytes, stderr bytes, measures). Stopped = its whole tree when it runs in a job
+    (every process it started — step 4, 2026-11-18: killing only the unit's own process left its children running);
+    only its own process when it doesn't (not measured, or the job couldn't be made — `missing` says why). measure
+    False: run as before, measures all None. Anything about measuring that fails leaves the run itself as it would have
+    been: measures None, and why."""
     ok, why = available() if measure else (False, "not asked")
     job = None
     if ok:
@@ -322,7 +351,8 @@ def run(cmd, timeout=None, measure=True, **popen_kw):
             out, err = p.communicate(timeout=timeout)
             code = p.returncode
         except subprocess.TimeoutExpired:
-            p.kill()
+            if not (job and job.end()):     # the whole tree, by the job's handle — else its own process, by its handle
+                p.kill()
             out, err = p.communicate()
             code = None
         except BaseException:
@@ -424,12 +454,20 @@ def load(path):
     return s, None
 
 
-def learn(state, samples, when):
+def learn(state, samples, when, stopped=()):
     """The state after these samples — [{file, tier, hash, unit, seconds, measures}], each one that may teach (left_out
     None). A file whose hash differs from the one kept starts over. The RAM average holds one kind (ram_kind: private,
     or shared included): a sample of another kind starts that measure over. An entry — or a sample — named outside the
-    repository (outside()) is dropped: the averages hold only the repository's own test files. Pure: a new state."""
+    repository (outside()) is dropped: the averages hold only the repository's own test files. stopped: units
+    [{file, hash, unit}] stopped at their stuck limit in this run — each is marked `backed_off` (limit_for: its next runs
+    get the flat limit), and a sample that teaches a unit clears its mark (TCP keeps its backed-off timer until a sample
+    it can trust — Karn). Pure: a new state."""
     files = {k: v for k, v in json.loads(json.dumps(state.get("files") or {})).items() if not outside(k)}
+    for s in stopped:
+        entry = files.get(s["file"]) or {}
+        unit = (entry.get("units") or {}).get(s["unit"]) if entry.get("hash") == s.get("hash") else None
+        if unit is not None:
+            unit["backed_off"] = when
     for s in samples:
         if outside(s["file"]):
             continue
@@ -438,6 +476,7 @@ def learn(state, samples, when):
             entry = files[s["file"]] = {"hash": s.get("hash"), "tier": s.get("tier"), "units": {}}
         entry["tier"] = s.get("tier")
         unit = entry["units"].setdefault(s["unit"], {"count": 0, "measures": {}})
+        unit.pop("backed_off", None)
         values = dict(s.get("measures") or {}, seconds=s.get("seconds"))
         if isinstance(values.get("ram_peak_sampled_bytes"), (int, float)):
             if unit.get("ram_kind") != values.get("ram_kind"):
@@ -458,10 +497,11 @@ def _held(path):
         yield got
 
 
-def teach(path, samples, when=None):
-    """Add the samples to this PC's averages — read, merged and written under the lock, so runs finishing together each
-    add theirs. None, or why they couldn't be saved, in words (a run never fails on it)."""
-    if not samples:
+def teach(path, samples, when=None, stopped=()):
+    """Add the samples to this PC's averages — and mark the units stopped at their stuck limit (learn) — read, merged and
+    written under the lock, so runs finishing together each add theirs. None, or why they couldn't be saved, in words (a
+    run never fails on it)."""
+    if not samples and not stopped:
         return None
     when = when or datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     try:
@@ -469,7 +509,7 @@ def teach(path, samples, when=None):
             if not got:
                 return f"another run held {path}'s lock for {LOCK_LIMIT_S:g} s — this run's costs weren't saved"
             state, _ = load(path)
-            return browser_level.save(path, learn(state, samples, when))
+            return browser_level.save(path, learn(state, samples, when, stopped))
     except OSError as e:
         return f"the costs couldn't be saved to {path}: {e}"
 
@@ -481,6 +521,43 @@ def read(path):
             return load(path)
     except OSError as e:
         return fresh(), f"the costs file couldn't be read ({e})"
+
+
+# --- 4. used: the order and the stuck limit -----------------------------------------------------------------------------
+def _saved_unit(state, name, unit, file_hash):
+    """The unit's saved entry — {} when there's none, or it was measured on other contents of its file (its hash then
+    differs: the file changed since, and its history starts over at its next lesson)."""
+    entry = (state.get("files") or {}).get(name) or {}
+    if not file_hash or entry.get("hash") != file_hash:
+        return {}
+    return (entry.get("units") or {}).get(unit) or {}
+
+
+def time_stat(state, name, unit, file_hash):
+    """This unit's saved time — {avg, spread, count, last} — or None (never measured on these contents)."""
+    stat = (_saved_unit(state, name, unit, file_hash).get("measures") or {}).get("seconds")
+    return stat if isinstance(stat, dict) and isinstance(stat.get("avg"), (int, float)) else None
+
+
+def limit_for(state, name, unit, file_hash):
+    """(this unit's stuck limit, the average it came from — None for the flat limit): the runner's one lookup.
+    stuck_limit of its time — unless it was stopped at its limit last time and hasn't passed since, the first time
+    (`backed_off`, learn): then the flat limit, as TCP keeps its backed-off timer until a sample it can trust (Karn). A
+    rerun alone never teaches, so without this a test that truly got slower would be stopped every run, forever."""
+    if _saved_unit(state, name, unit, file_hash).get("backed_off"):
+        return float(STUCK_FLAT_S), None
+    return stuck_limit(time_stat(state, name, unit, file_hash))
+
+
+def stuck_limit(stat):
+    """(the unit's stuck limit in seconds, the average it came from — None for the flat limit). From the average (RFC
+    6298: average + 4 spreads) only with at least STUCK_MIN_RUNS runs measured — clamped to at least twice the average
+    and STUCK_FLOOR_S, at most STUCK_FLAT_S (the ceiling wins when twice the average is over it). Else the flat one."""
+    if not stat or (stat.get("count") or 0) < STUCK_MIN_RUNS:
+        return float(STUCK_FLAT_S), None
+    avg, spread = float(stat["avg"]), float(stat.get("spread") or 0.0)
+    low = max(STUCK_FLOOR_TIMES * avg, STUCK_FLOOR_S)
+    return float(min(STUCK_FLAT_S, max(low, avg + STUCK_SPREADS * spread))), avg
 
 
 # --- 3. the report ------------------------------------------------------------------------------------------------------

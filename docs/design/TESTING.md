@@ -242,8 +242,8 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   Tests: `LEVEL-001`–`021` (test/test_browser_level.py — the rule, a pure function: history in → next level and why
   out; `017`–`019` a failed run, `020`–`021` slowness), `RUN-079`, `083`–`086`.
 - **What each test costs this PC — measured, averaged, shown** (2026-11-18, TODO tooling item 12 step 1; Ron: "Measure
-  1st. If you don't measure you won't know if you've improved things"). **Measuring only — nothing about scheduling
-  changed.** `tools/test_costs.py`:
+  1st. If you don't measure you won't know if you've improved things"). **Step 1 measured only; step 4 puts the time
+  averages to work — the order and a "stuck" limit (the next bullet).** `tools/test_costs.py`:
   - **What is measured** — per **unit** (one process the runner starts: a whole file, or one shard of a `shards: N`
     file), per run, for its **whole process tree, exited processes included** (git, node, Chrome's helpers): the unit is
     started suspended, put in a Windows **job object** of its own, then let go — a job counts every process started
@@ -310,6 +310,53 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   up on the next save — `006` a real child holding 200 MB whose grandchild burns 1 s of CPU
   and exits first: the job counts it, and its private RAM is ≥ the 200 MB; `014` private vs whole working set, the API
   stubbed).
+- **The averages at work — longest first, and a "stuck" limit per unit** (2026-11-18, TODO tooling item 12 step 4;
+  Ron: "longest first by each file's average, and a 'stuck' limit of average + 4 spreads (never above today's 10
+  minutes): act once every file has at least 5 runs measured"). Both read this PC's averages (above), and only for a
+  unit whose file still has the contents they were measured on (its hash — a changed file starts over):
+  - **Longest first by the average** — the units of tiers 1 and 2 start in order of their average time on this PC;
+    a unit with none: its time in this copy's latest record (a shard: its file's longest shard then, or its file's
+    time split N ways); with neither, 60 s for a screen test, 5 s for any other. One place decides (`estimate` in the
+    runner).
+  - **The stuck limit — TCP's own retransmission timer** (RFC 6298: average + 4 spreads; `test_costs.stuck_limit`).
+    A unit with **at least 5 runs measured** gets **average + 4 spreads, never under twice its average or 60 s, never
+    over 600 s** (the flat 10 minutes every unit had before — the ceiling wins when twice the average is over it).
+    **Why the floor:** a loaded PC made healthy runs 2.8× slower in the lab — a limit hugging the average would call
+    them stuck; twice the average (or a minute) leaves room. **The flat 600 s stays** for a unit with fewer than 5
+    runs, for **every unit of a narrowed run** (`--id`, `--tag`, `--changed`, `RW_CELLS` — a narrowed unit's
+    average doesn't apply), for tier 3 (one file at a time, its own relay) and for every rerun alone. The run's opening
+    lines say it once: `· stuck limits from this PC's averages (59 units; the other 2: the flat 600 s — fewer than 5
+    runs measured on their contents, or stopped at their limit last time)`.
+  - **Past its limit, a unit is the machine's trouble, not a test failure** (TCP: a timeout is congestion, not a lost
+    connection): it is **stopped with every process it started** — the unit runs in a Windows job of its own (above),
+    and the job is ended by its handle (never by a name, never `taskkill /T`; before, only the unit's own process was
+    killed and its children ran on); **said plainly** — `! test/x.py: ran past its usual time: 196 s, its average 98 s
+    — stopped, with every process it started: the machine's trouble, not a test failure — it will be rerun once,
+    alone, with the flat 600 s, when the others are done`; **the browsers-at-once level halved** as for other machine
+    trouble (a light tier-1 unit, which holds no place in the level, halves it where it stands; a run with no screen
+    test or heavy file has no level to halve); and **rerun once, alone, with the flat 600 s** (TCP doubles its timer
+    on a retransmit) — the same rerun as for any machine trouble (above: after the others, holding every slot; said at
+    the end; the record's `retried` holds the reason, `limit` and `average`; a rerun teaches no average). Its line
+    ends `; rerun alone after ran past its usual time: N s, its average M s`. **Past the flat 600 s too, it's a hang
+    — a failure**, reported as before (`✗ timed out after 600 s`, both outputs kept).
+  - **The backed-off limit is kept until a pass it can trust** (TCP keeps its backed-off timer until a sample that
+    wasn't a retransmit — Karn): a unit stopped at its limit is marked `backed_off` in `test-costs.json` (the run's
+    `· test costs:` line says so, the record's `costs` → `backed_off` names it), and **its next runs get the flat 600
+    s** until one passes the first time — that pass teaches its average, as any, and clears the mark. Why: a rerun alone
+    never teaches, so without it a test that truly got slower — the app it drives slower, its own file unchanged (so
+    its history doesn't start over) — would be stopped at the old limit every run, forever, halving the level each time.
+  - What the PC's averages gave on 2026-11-18 (61 units, 59 with 5+ runs): `test_backlog_report.py` first — average
+    141 s, limit 283 s; then `test_run_tests.py` 98 s → 196 s, `test_environment.py` 88 s → 176 s, `test_copies.py`
+    88 s → 175 s, `test_merge_branches.py` 58 s → 115 s, the three `test_cells.py` shards ~46–51 s → 104–110 s. For
+    those five files twice the average sets the limit (their spreads are small); for the screen tests whose times vary
+    more (`test_cells.py`'s shards, `test_delete_key.py` 37 s → 94 s) average + 4 spreads is the higher, and sets it.
+
+  Tests: `COST-017` (the limit at its floor, its middle and its ceiling; fewer than 5 runs → flat), `018` (the order:
+  average, then the record, then the defaults; a changed file's average unused — through the runner, one at a time),
+  `019` (a stand-in past its limit: its child gone too, said, the level halved 4 → 2, rerun alone with the flat limit —
+  longer than the stuck one — and passing), `020` (past both: a failure, as before), `021` (fewer than 5 runs, `--id`,
+  `--tag`, `RW_CELLS` → the flat limit), `022` (stopped once → marked; its next run gets the flat limit, passes, teaches,
+  and the mark is gone). The 60 s floor and the flat 600 s are made 1 s and 10 s (5 s) inside those rows.
 - **`--id` picks a file only where it names the ID as a test** (2026-11-16; it picked any file whose text held the ID —
   `--id CELL-005` also ran `test/test_run_tests.py`, ~25 s, where it is sample data, and `--id CELL-001`
   `test/gestureTable.test.js`, where a comment names it). Every file names a test by its ID as a whole quoted string,
@@ -324,7 +371,7 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   `RUN-063`, `064`.
 - **In parallel, under a machine-wide limit** (2026-11-16): tier 1 and tier 2 files run several at once — `--jobs N`
   (default: 4, or the browsers-at-once level above when higher; `--jobs 1` = one at a time, as before), the longest
-  first by each file's time in the last record. **Every screen-test file — and every heavy tier-1 file (above) — holds
+  first by each unit's average on this PC (step 4, above — else its time in the last record). **Every screen-test file — and every heavy tier-1 file (above) — holds
   one of the PC's test slots while it runs** (`tools/test_slots.py`): 6 in total for every run on this PC (4 until 2026-11-17, when the runner began choosing
   its own level, 1–6, above), whatever working copy it's in (`RW_TEST_SLOTS` overrides — every run should use the same
   number). A slot is a file in `%TEMP%\rw-test-slots` (or `RW_TEST_SLOTS_DIR`, above) held with an OS file lock, so a
@@ -517,6 +564,14 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   first outputs say what happened — or a file that truly needs to run alone: **2 runs in a row and the run says so,
   loudly**, with each run's kept outputs (§4). The run also slows down by itself: that trouble halves the browsers at once, at once,
   and the next runs start from the halved level, climbing back one at a time only after full runs without it (§4).
+- **"Ran past its usual time" is the machine's trouble, not a failure** (2026-11-18, TODO tooling item 12 step 4; §4):
+  a unit that runs past its stuck limit — from its average on this PC: average + 4 spreads, at least twice the average
+  or a minute, at most 10 minutes — is stopped with every process it started, said plainly (`ran past its usual time:
+  N s, its average M s`), the browsers at once halved, and rerun once, alone, with the flat 10 minutes. Read it as a
+  busy PC, as any rerun after the machine's trouble: passed on its rerun, it counts as passed (the summary and the stamp
+  say so). **Past the 10 minutes on its rerun too, it is a hang — a failure** (`✗ timed out after 600 s`), read as any
+  failure: both outputs are kept. Its next run gets the full 10 minutes, so a test that truly grew slower relearns its
+  average from that pass (§4) — a file that keeps being stopped at its limit is worth a look at what changed in it.
 - **A failed run is no measure of speed** (2026-11-17, §4): the browsers-at-once level learns only from runs where every
   file passed — a run with a failure is kept in its history, marked, but neither grows the level nor sets a time to
   beat, so a failure can't be mistaken for "faster" or "slower". A clean run more than twice as slow as usual at its

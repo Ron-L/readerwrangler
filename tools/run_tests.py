@@ -104,6 +104,16 @@ None, and the run says why once; the run itself is never affected.
     py tools/run_tests.py --costs             the table: each unit, average ± spread of each measure, slowest first, the
                                               totals, and how much the screen tests differ in RAM. Runs nothing
 
+The averages at work (2026-11-18, step 4 — Ron: "longest first by each file's average, and a 'stuck' limit of average +
+4 spreads (never above today's 10 minutes)"): units start longest first by their average on this PC (estimate — else
+their time in this copy's latest record, else 60 s / 5 s). Each unit of a full run with at least 5 runs measured gets a
+STUCK LIMIT — TCP's retransmission timer (RFC 6298): average + 4 spreads, never under twice the average or 60 s, never
+over the flat 600 s every other unit keeps (fewer runs; every unit of a run narrowed by --id, --tag, --changed or
+RW_CELLS; tier 3). Past it, the unit is the machine's trouble, not a test failure: its whole tree is stopped (its job),
+said ("ran past its usual time: N s, its average M s"), the browsers-at-once level halved, and it is rerun once, alone,
+with the flat 600 s — every rerun alone gets that. Past that too: a hang, a failure. The run's opening lines say "· stuck
+limits from this PC's averages (N units)".
+
 Double-clicked, the window stays open to show the results (pytools keepopen). Exit: 0 all passed · 1 a failure.
 """
 import argparse
@@ -317,11 +327,13 @@ def command(tf):
     return [node, tf.path], None
 
 
-def run_process(tf, relay_url=None, timeout=600, cells=None, measure=False):
+def run_process(tf, relay_url=None, timeout=None, cells=None, measure=False):
     """(exit code, its whole output — stdout, then stderr, what it cost) — runs one test file from the repo root. Exit
-    code None: it couldn't start, or ran past `timeout` (what it printed until then is kept). cells: run only these
+    code None: it couldn't start, or ran past `timeout` (None: the flat limit, test_costs.STUCK_FLAT_S — 10 minutes) and
+    was stopped — measured, its whole tree, by its job (what it printed until then is kept). cells: run only these
     (RW_CELLS). measure: what its whole process tree cost — memory, CPU, I/O (tools/test_costs.py; every measure None
     when not asked or not possible, and why)."""
+    timeout = test_costs.STUCK_FLAT_S if timeout is None else timeout
     cmd, why = command(tf)
     if cmd is None:
         return None, why, test_costs.nothing("it couldn't start")
@@ -333,11 +345,42 @@ def run_process(tf, relay_url=None, timeout=600, cells=None, measure=False):
     code, stdout, stderr, cost = test_costs.run(cmd, timeout=timeout, measure=measure, cwd=ROOT, env=env)
     out = (stdout + stderr).decode("utf-8", "replace")
     if code is None:
-        return None, out + f"\n✗ timed out after {timeout} s", cost
+        return None, out + f"\n✗ timed out after {timeout:g} s", cost
     return code, out, cost
 
 
-def run_file(tf, relay_url=None, timeout=600, cells=None):
+def latest_times(records):
+    """{file: (seconds, per shard?)} — each file's time in the latest of these records that has one (oldest first, as
+    read_records gives them): a sharded file's longest shard (per shard: True), else the file's whole time."""
+    last = {}
+    for r in records:
+        for x in r.get("files") or []:
+            if x.get("seconds") is not None:
+                each = [s["seconds"] for s in x.get("shards") or [] if s.get("seconds") is not None]
+                last[x.get("file")] = (max(each), True) if each else (x["seconds"], False)
+    return last
+
+
+def estimate(u, averages, last, hashes):
+    """A unit's expected seconds — what orders a run, longest first (the one place: TODO tooling item 12 step 4, Ron
+    2026-11-18). u: (file, shard number or None, of how many, its cells or None). Its average on this PC
+    (test_costs.time_stat — only while its file's contents are the ones measured: hashes {path: hash}); else its time in
+    this copy's latest record (latest_times: a shard → its file's longest shard then, or its file's time split n ways);
+    else 60 s for a screen test, 5 s for any other."""
+    f, k, n, _ = u
+    stat = test_costs.time_stat(averages, f.rel(), test_costs.unit_key(k, n), hashes.get(f.path))
+    if stat:
+        return float(stat["avg"])
+    t, per_shard = last.get(f.rel(), (60.0 if f.tier == 2 else 5.0, False))
+    return t if k is None or per_shard else t / n
+
+
+def secs(x):
+    """'1.0' / '282' — seconds in words: a tenth under 10 s, whole above."""
+    return f"{x:.1f}" if x < 10 else f"{x:.0f}"
+
+
+def run_file(tf, relay_url=None, timeout=None, cells=None):
     """(passed?, output) — run_process, as passed or not."""
     code, out, _ = run_process(tf, relay_url=relay_url, timeout=timeout, cells=cells)
     return code == 0, out
@@ -456,10 +499,10 @@ def combine_shards(parts):
     """One file's (passed?, output) from its shards' [(number, of, cells, passed?, output, seconds)]: each shard's output
     under a heading saying which cells it ran, then one summary line with the counts summed (what the runner reads)."""
     total, missing, lines = [0, 0, 0], [], []
-    for k, n, cells, ok, out, secs in sorted(parts, key=lambda p: p[0]):
+    for k, n, cells, ok, out, took in sorted(parts, key=lambda p: p[0]):
         lines.append(f"── shard {k} of {n}: {len(cells)} cells ({cells[0]} … {cells[-1]}) — "
-                     + (f"passed in {secs:.0f} s" if ok else
-                        f"FAILED in {secs:.0f} s — this shard alone: RW_CELLS={','.join(cells)}"))
+                     + (f"passed in {took:.0f} s" if ok else
+                        f"FAILED in {took:.0f} s — this shard alone: RW_CELLS={','.join(cells)}"))
         lines += out.rstrip("\n").splitlines()
         m = None
         for ln in reversed(out.splitlines()):
@@ -780,8 +823,9 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     None — the runner's own sample runs leave no record); slots: the machine-wide limit (None = test_slots.Slots()); todo:
     the TODO file a skip: line's task must be in (None = the repo's TODO.md); retry_wait: seconds before a file is rerun
     alone (None = RETRY_WAIT_S); free_memory: reads the free memory in bytes (None = test_slots.free_memory); costs: the
-    file of this PC's test costs (None = beside the slots — test_costs.costs_path — and only when `files` is None: the
-    runner's own sample runs teach nothing) — all for the runner's own tests (test/test_run_tests.py,
+    file of this PC's test costs — what orders the units, sets their stuck limits, and what the run teaches (None =
+    beside the slots — test_costs.costs_path — and only when `files` is None: the runner's own sample runs neither use
+    nor teach the PC's averages) — all for the runner's own tests (test/test_run_tests.py,
     test/test_test_costs.py). The saved browsers-at-once level lives in the slots' folder, so a test's own slots keep
     their own level."""
     retry_wait = RETRY_WAIT_S if retry_wait is None else retry_wait
@@ -944,9 +988,10 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
 
     measure = rec is not None       # what each unit costs — measured for every run that leaves a record (test_costs.py)
     costed = []     # every unit run: {tf, shard, of, seconds, measures, passed, rerun} — the averages learn from some
-    # Each file's contents as the run starts — a changed file starts its history over (an edit made during the run can't
-    # put this run's sample under the new contents).
-    hashes = {f.path: test_costs.file_hash(f.path) for f in chosen} if measure else {}
+    # What narrowed this run, in words ([] = a full run): such a run teaches the averages nothing, and its units keep the
+    # flat stuck limit — a narrowed unit's average doesn't apply (test_costs.py §4).
+    narrowing = ([f"--tag {', '.join(a.tag)}"] if a.tag else []) + ([f"--id {', '.join(a.id)}"] if a.id else []) \
+        + (["--changed"] if a.changed else []) + [f"{k}={v}" for k, v in run_env().items() if RUN_ENV[k][0]]
 
     def cost_sample(f, k, n, seconds, measures, passed, rerun=False):
         with say_lock:
@@ -963,10 +1008,16 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     # Tiers 1 and 2 in parallel (item 1): --jobs files at once; each screen-test (tier 2) file holds one of the PC's test
     # slots for as long as it runs, so every run on this PC together stays within the limit. Tier 3 runs after, one file
     # at a time (below). A file with `shards: N` is N units of work, each in its own process with its own slot (a narrow
-    # run — RW_CELLS already set, or --id naming some of its cells — stays one process). Longest first — by each file's
-    # time in this copy's latest record (a shard: its file's longest shard then, or its file's time split N ways) — so
-    # the long ones don't finish last on their own.
+    # run — RW_CELLS already set, or --id naming some of its cells — stays one process). Longest first — by each unit's
+    # average on this PC, else its time in this copy's latest record (estimate) — so the long ones don't finish last on
+    # their own.
     slots = slots or test_slots.Slots()      # every slot on the PC — a file rerun alone holds them all
+    # This PC's averages (test_costs.py): what orders the units and sets each one's stuck limit — and what this run teaches.
+    costs_file = costs if costs is not None else (test_costs.costs_path(slots.folder) if real else None)
+    averages = test_costs.read(costs_file)[0] if costs_file else test_costs.fresh()
+    # Each file's contents as the run starts — an average applies only to the contents it was measured on, and a changed
+    # file starts its history over (an edit made during the run can't put this run's sample under the new contents).
+    hashes = {f.path: test_costs.file_hash(f.path) for f in chosen} if measure or costs_file else {}
     pooled = [f for f in chosen if f.tier != 3]
     screen = [f for f in pooled if f.tier == 2]
     heavy = [f for f in pooled if f.tier == 1 and f.heavy]      # tier-1 files that hold a slot too (slotted)
@@ -1023,33 +1074,38 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             units += [(f, k, len(split), c) for k, c in enumerate(split, 1)]
         else:
             units.append((f, None, None, None))
+    limits = {}         # id(unit) -> (its stuck limit in seconds, the average it came from — None: the flat limit)
     if units:
-        last = {}
-        for r in read_records(record_to or (results_dir() if real else None)):
-            for x in r.get("files") or []:
-                if x.get("seconds") is not None:
-                    each = [s["seconds"] for s in x.get("shards") or [] if s.get("seconds") is not None]
-                    last[x.get("file")] = (max(each), True) if each else (x["seconds"], False)
-
-        def estimate(u):
+        last = latest_times(read_records(record_to or (results_dir() if real else None)))
+        units.sort(key=lambda u: -estimate(u, averages, last, hashes))
+        # Each unit's stuck limit (test_costs.stuck_limit — RFC 6298's timer): from its average in a full run, once it
+        # has enough runs measured; the flat limit otherwise, and for every unit of a narrowed run.
+        for u in units:
             f, k, n, _ = u
-            t, per_shard = last.get(f.rel(), (60.0 if f.tier == 2 else 5.0, False))
-            return t if k is None or per_shard else t / n
-        units.sort(key=lambda u: -estimate(u))
+            limits[id(u)] = (float(test_costs.STUCK_FLAT_S), None) if narrowing else test_costs.limit_for(
+                averages, f.rel(), test_costs.unit_key(k, n), hashes.get(f.path))
+        from_avg = sum(1 for _, avg in limits.values() if avg is not None)
+        if from_avg and not a.quiet:
+            rest = len(units) - from_avg
+            print(f"· stuck limits from this PC's averages ({from_avg} unit{'s' if from_avg != 1 else ''}"
+                  + (f"; the other {rest}: the flat {test_costs.STUCK_FLAT_S:g} s — fewer than "
+                     f"{test_costs.STUCK_MIN_RUNS} runs measured on their contents, or stopped at their limit last "
+                     "time" if rest else "") + ")")
     shards_done = {}    # file path -> the shards finished so far
     shard_lock = threading.Lock()
-    to_rerun = []       # (unit, reason, its first output's path, seconds) — the machine's or the browser's trouble
+    to_rerun = []       # (unit, reason, its first output's path, seconds, its first cost, stuck: {limit, average} or None)
+    stopped = []        # the units stopped at their stuck limit (from their average) — marked in the averages at the end
 
     def label_of(u):
         f, k, n, _ = u
         return f.rel() + (f" (shard {k} of {n})" if k else "")
 
-    def run_one(u):
-        """(exit code, output, what it cost) — one unit's process, a runner error reported as its failure, never a lost
-        thread."""
+    def run_one(u, limit=None):
+        """(exit code, output, what it cost) — one unit's process, stopped at `limit` (None: the flat one); a runner error
+        reported as its failure, never a lost thread."""
         f, _, _, cells = u
         try:
-            return run_process(f, relay_url=a.relay_url, cells=cells, measure=measure)
+            return run_process(f, relay_url=a.relay_url, timeout=limit, cells=cells, measure=measure)
         except Exception as e:      # noqa: BLE001
             return None, f"✗ the runner couldn't run it: {type(e).__name__}: {e}", test_costs.nothing("it didn't run")
 
@@ -1130,16 +1186,26 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
 
     def run_unit(u, gen, slot):
         f, k, n, cells = u
-        why = None
+        why, stuck = None, None
+        limit, avg = limits.get(id(u), (float(test_costs.STUCK_FLAT_S), None))
         try:
             t0 = time.monotonic()
-            code, out, cost = run_one(u)
+            code, out, cost = run_one(u, limit)
             t1 = time.monotonic()
             why = environment_reason(f, code, out)
+            # Past its stuck limit (from its average — step 4): stopped, and the machine's trouble, not a test failure
+            # (TCP: a timeout is congestion). Told from "couldn't start" (also no exit code) by the time it ran.
+            if not why and code is None and avg is not None and t1 - t0 >= limit:
+                stuck = {"limit": round(limit, 1), "average": round(avg, 1)}
+                why = f"ran past its usual time: {secs(limit)} s, its average {secs(avg)} s"
+                with say_lock:
+                    stopped.append(u)       # marked in the averages: its next run gets the flat limit (limit_for)
             if why:     # back off hard, at once — before this file's place is given up (a forced number stays)
                 with say_lock:
                     troubles.append(label_of(u))
-                moved = None if forced or gen is None else gate.trouble(gen)
+                # A light unit holds no place in the level: a stuck one halves it from where it stands now.
+                g = gen if gen is not None else (gate.gen if gate and stuck else None)
+                moved = None if forced or g is None else gate.trouble(g)
                 if moved:
                     say(f"! browsers at once: {moved[0]} → {moved[1]} for the rest of this run — {label_of(u)} met the "
                         f"machine's or the browser's trouble ({why}); the files already running go on")
@@ -1153,7 +1219,14 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             with say_lock:
                 take = len(to_rerun) < MAX_RETRIES
                 if take:
-                    to_rerun.append((u, why, keep_output(out_dir, f, out, k, "first"), t1 - t0, cost))
+                    to_rerun.append((u, why, keep_output(out_dir, f, out, k, "first"), t1 - t0, cost, stuck))
+            if take and stuck:
+                missing = (cost or {}).get("missing")      # no job: only its own process could be stopped
+                say(f"! {label_of(u)}: {why} — stopped, "
+                    + (f"its own process only ({missing})" if missing else "with every process it started")
+                    + ": the machine's trouble, not a test failure — it will be rerun once, alone, with the flat "
+                    f"{test_costs.STUCK_FLAT_S:g} s, when the others are done")
+                return
             if take:
                 say(f"! {label_of(u)}: the machine's or the browser's trouble — {why} — it will be rerun once, alone, "
                     "when the others are done")
@@ -1170,8 +1243,10 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                 fut.result()
     pool_seconds = time.monotonic() - t_pool     # the wall time a level is judged by (not the build, reruns or tier 3)
     # The reruns, ALONE (2026-11-17): every other file of this run is done; after a wait, each holds EVERY test slot on
-    # the PC (no other run's screen test beside it either). Rerun once: passed → passed (noted); failed → failed.
-    for u, why, first, secs, first_cost in to_rerun:
+    # the PC (no other run's screen test beside it either). Rerun once: passed → passed (noted); failed → failed. With
+    # the flat stuck limit (step 4 — TCP backs its timer off on a retransmit): a unit stopped at its average's limit gets
+    # the full 10 minutes; past that too, it's a hang — a failure.
+    for u, why, first, first_secs, first_cost, stuck in to_rerun:
         f, k, _, _ = u
         say(f"! rerunning {label_of(u)} alone — after {why}: waiting {retry_wait:g} s, then holding every test slot on "
             f"this PC ({slots.count})")
@@ -1179,13 +1254,13 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         group = slots.acquire_all(f"{ROOT} · {label_of(u)} (rerun alone)", on_wait=say)
         t0 = time.monotonic()
         try:
-            code, out, cost = run_one(u)
+            code, out, cost = run_one(u, test_costs.STUCK_FLAT_S)
         finally:
             group.release()
         t1 = time.monotonic()
         again = environment_reason(f, code, out)
-        tried = {"shard": k, "reason": why, "first_output": first, "first_seconds": round(secs, 1),
-                 **({"first_measures": first_cost} if measure else {}),
+        tried = {"shard": k, "reason": why, "first_output": first, "first_seconds": round(first_secs, 1),
+                 **(stuck or {}), **({"first_measures": first_cost} if measure else {}),
                  "rerun": "passed" if code == 0 else f"failed again — the machine's trouble again: {again}" if again
                  else "failed", "rerun_output": keep_output(out_dir, f, out, k, "rerun")}
         finish(u, code == 0, f"! rerun alone after {why} — its first output: {first or '(not kept: no record)'}\n" + out,
@@ -1251,7 +1326,6 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                 print(f"✓ local relay stopped — every process it started is gone, ports {', '.join(map(str, r.ports))} free")
     # What each unit cost, taught to this PC's averages (tools/test_costs.py, 2026-11-18): only a unit that ran in full
     # and passed, the first time (Karn's rule) — the others stay in the record, marked. Measuring never fails a run.
-    costs_file = costs if costs is not None else (test_costs.costs_path(slots.folder) if real else None)
     if measure and costed:
         lacking = {}
         for s in costed:
@@ -1262,8 +1336,6 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             said = [f"{len(v)} of {len(costed)} unit(s): {k}" for k, v in lacking.items()]
             print("· measures missing for " + "; ".join(said))
         if costs_file:
-            narrowing = ([f"--tag {', '.join(a.tag)}"] if a.tag else []) + ([f"--id {', '.join(a.id)}"] if a.id else []) \
-                + (["--changed"] if a.changed else []) + [f"{k}={v}" for k, v in run_env().items() if RUN_ENV[k][0]]
             taught, left = [], {}
             for s in costed:
                 f = s["tf"]
@@ -1275,15 +1347,20 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                     taught.append({"file": f.rel(), "tier": f.tier, "hash": hashes.get(f.path),
                                    "unit": test_costs.unit_key(s["shard"], s["of"]), "seconds": round(s["seconds"], 1),
                                    "measures": s["measures"]})
-            err = test_costs.teach(costs_file, taught)
+            marked = [{"file": u[0].rel(), "hash": hashes.get(u[0].path), "unit": test_costs.unit_key(u[1], u[2])}
+                      for u in stopped]     # stopped at their limit: the flat limit next run, until a pass teaches
+            err = test_costs.teach(costs_file, taught, stopped=marked)
             if rec:
                 rec["costs"] = {"file": costs_file, "taught": len(taught), "left_out": left,
+                                **({"backed_off": [label_of(u) for u in stopped]} if stopped else {}),
                                 **({"not_saved": err} if err else {})}
             if err:
                 print(f"· test costs not saved — {err}")
             elif not a.quiet:
                 print(f"· test costs: {len(taught)} unit(s) taught this PC's averages"
                       + (f", {len(left)} left out (" + "; ".join(sorted(set(left.values())))[:200] + ")" if left else "")
+                      + (f"; {len(stopped)} stopped at their limit — the flat {test_costs.STUCK_FLAT_S:g} s for them "
+                         "until they pass once" if stopped else "")
                       + " — py tools/run_tests.py --costs")
     print(f"Tests: {count['passed']} file(s) passed, {count['failed']} failed"
           + (f", {len(skipped)} skipped" if skipped else "") + (f", {len(aside)} set aside" if aside else ""))
