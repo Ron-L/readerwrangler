@@ -491,7 +491,11 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   a limit only matters when something's wrong, and a busy machine is no hang (2026-11-17, test_reset.py; §4). A test's
   own wait running out is a test failure, never the machine's trouble — it could hide a real hang. **Act on the tab in
   front**: with two tabs open, Chrome slows the one behind (§4) — bring a tab forward before acting on it, as a person
-  switches tabs;
+  switches tabs. The one exception is a wait the test can prove was the machine's: test_run_tests.py's stand-in relay
+  (`standin_late`, §4) and its pair of files that must run together (RUN-049, 2026-11-18 — it waited a fixed 20 s for
+  its partner; now each waits for the other's mark, up to 180 s): a partner the runner started with it that never
+  reached its mark in that time is the machine's (`partner_late` — the check is stopped, the file exits 3 and is rerun
+  alone); a pair the runner ran one after the other is a failure (RUN-094);
 - **a fresh browser profile** for each run; stop what a test started by its exact process id (Law 5) — **and check it
   stopped** (each process gone, its port free: Law 12, 7.28.0);
 - **a flaky test is fixed — or set aside, with a TODO — the same day.** Never tolerated, never "just re-run it". Set

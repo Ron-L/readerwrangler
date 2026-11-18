@@ -77,6 +77,20 @@ def standin_late(text, pids, limit):
     return None
 
 
+def partner_late(text, launched, limit):
+    """The machine's trouble, in words, when one of two files that must run together (RUN-049) gave up waiting for the
+    other — standin_late's rule, for a pair: only when it waited its WHOLE time ("waited <limit> s") AND the runner had
+    started both within that time of each other (launched: {file: when the runner started it}) — the partner was running
+    all along, the machine too slow to bring it to its mark. Started further apart, the runner ran them one after the
+    other (their overlap broken): None — what went wrong is the runner's, a failure. (2026-11-18, TODO tooling 11.4.)"""
+    if f"waited {limit:g} s" not in (text or "") or len(launched) < 2:
+        return None
+    if max(launched.values()) - min(launched.values()) < limit:
+        return (f"a file of the pair waited its whole {limit:g} s for the other, which the runner had started with it — "
+                "the machine was too slow to run it")
+    return None
+
+
 with tempfile.TemporaryDirectory() as d:
     def write(name, text):
         p = os.path.join(d, name)
@@ -759,32 +773,83 @@ done()
     row("RUN-048", "6 slots on the PC by default (the most browsers at once a run may choose); RW_TEST_SLOTS overrides",
         n7 == 7 and nbad == 6 and ts.DEFAULT_SLOTS == 6, f"{n7}, {nbad}")
 
-    # Two files that can only pass TOGETHER: each waits (up to 20 s) for the other's mark — run one after the other, the
-    # first gives up. The failing one prints several detail lines, which must come out together, never interleaved.
-    def pair_file(name, me, other, fail=False):
+    # Two files that can only pass TOGETHER: each waits for the other's mark — run one after the other, the first gives
+    # up. A CONDITION under a generous limit, never a moment (TESTING.md §3; TODO tooling 11.4, 2026-11-18 — the wait was
+    # a fixed 20 s, which a busy machine starting the partner late could fail): only a real failure waits PAIR_LIMIT_S.
+    # A file that gives up says how long it waited, and partner_late() tells a partner the runner started with it but the
+    # machine made too slow (the machine's: stopped) from a pair the runner ran one after the other (a failure). The
+    # failing one prints several detail lines, which must come out together, never interleaved.
+    PAIR_LIMIT_S = 180
+
+    def pair_file(name, me, other, fail=False, limit=PAIR_LIMIT_S, mark_after=None):
+        """mark_after: a file this one waits for (up to PAIR_LIMIT_S) before putting down its own mark — a partner slower
+        than the other's whole wait, on purpose (RUN-094)."""
         return write(name, f"""# sample
 # tags: parallel-sample, tier 1
 # covers: tools/run_tests.py
 import os, sys, time
+def appears(path, limit):
+    end = time.time() + limit
+    while not os.path.exists(path):
+        if time.time() > end:
+            return False
+        time.sleep(0.05)
+    return True
+{f'appears({mark_after!r}, {PAIR_LIMIT_S})' if mark_after else ''}
 open(os.path.join({d!r}, {me!r}), "w").close()
-end = time.time() + 20
-while not os.path.exists(os.path.join({d!r}, {other!r})):
-    if time.time() > end:
-        print("  ✗ PAIR-001 the other file never ran at the same time"); print("0 passed, 1 failed"); sys.exit(1)
-    time.sleep(0.05)
+if not appears(os.path.join({d!r}, {other!r}), {limit}):
+    open(os.path.join({d!r}, {me!r} + ".gave-up"), "w").close()
+    print("  ✗ PAIR-001 the other file never ran at the same time — waited {limit:g} s"); print("0 passed, 1 failed")
+    sys.exit(1)
 for i in range(5):
     print("  {'✗' if fail else '✓'} {me}-line", i, flush=True)
     time.sleep(0.05)
 print("{'0 passed, 1 failed' if fail else '1 passed, 0 failed'}")
 sys.exit({1 if fail else 0})
 """)
+
+    def pair_run(argv, pair):
+        """quiet_main() on a pair, noting when the runner started each file (its run_process — the original kept and put
+        back): (exit code, printed text, {file name: when})."""
+        launched, real_run_process = {}, rt.run_process
+
+        def noting(tf, *args, **kw):
+            launched[os.path.basename(tf.path)] = time.time()
+            return real_run_process(tf, *args, **kw)
+        rt.run_process = noting
+        try:
+            code, out = quiet_main(argv, files=[rt.TestFile(p) for p in pair])
+        finally:
+            rt.run_process = real_run_process
+        return code, out, launched
     pa, pb = pair_file("pa.test_pair.py", "PA", "PB"), pair_file("pb.test_pair.py", "PB", "PA", fail=True)
-    code, out = quiet_main(["--tier", "1", "--jobs", "2"], files=[rt.TestFile(pa), rt.TestFile(pb)])
+    code, out, launched = pair_run(["--tier", "1", "--jobs", "2"], [pa, pb])
     pb_lines = [i for i, ln in enumerate(out.splitlines()) if "PB-line" in ln]
-    row("RUN-049", "--jobs 2 runs two files at the same time; the failing one's lines come out together; the summary line "
-        "is the same as ever",
-        "Tests: 1 file(s) passed, 1 failed" in out and code == 1 and len(pb_lines) == 5
-        and pb_lines == list(range(pb_lines[0], pb_lines[0] + 5)) and "PAIR-001" not in out, f"exit {code}: {out[-700:]}")
+    judged_row("RUN-049", "--jobs 2 runs two files at the same time; the failing one's lines come out together; the summary "
+               "line is the same as ever",
+               "Tests: 1 file(s) passed, 1 failed" in out and code == 1 and len(pb_lines) == 5
+               and pb_lines == list(range(pb_lines[0], pb_lines[0] + 5)) and "PAIR-001" not in out,
+               f"exit {code}, started {launched}: {out[-700:]}", partner_late(out, launched, PAIR_LIMIT_S))
+    # partner_late both ways, for real, with a 1 s wait: a partner the runner started with its pair but that puts its mark
+    # down only once the other has given up (the machine's slowness, made on purpose) → the machine's; a pair run one after
+    # the other (--jobs 1: the overlap broken) → the runner's. And made-up cases (a wait cut short, one file).
+    qa = pair_file("qa.test_pair.py", "QA", "QB", limit=1)
+    qb = pair_file("qb.test_pair.py", "QB", "QA", limit=1, mark_after=os.path.join(d, "QA.gave-up"))
+    q_code, q_out, q_launched = pair_run(["--tier", "1", "--jobs", "2"], [qa, qb])
+    sa, sb = pair_file("sa.test_pair.py", "SA", "SB", limit=1), pair_file("sb.test_pair.py", "SB", "SA", limit=1)
+    s_code, s_out, s_launched = pair_run(["--tier", "1", "--jobs", "1"], [sa, sb])
+    gave = "  ✗ PAIR-001 the other file never ran at the same time — waited 180 s"
+    made_up = [partner_late(gave, {"a": 0.0, "b": 0.4}, 180), partner_late(gave, {"a": 0.0, "b": 181.0}, 180),
+               partner_late(gave.replace("180 s", "20 s"), {"a": 0.0, "b": 0.4}, 180),
+               partner_late(gave, {"a": 0.0}, 180)]
+    row("RUN-094", "RUN-049's judge (partner_late): a file that waited its whole time for a partner the runner started with "
+        "it is the machine's slowness; a pair the runner ran one after the other is the runner's failure; a wait cut short, "
+        "or one file, is no lateness",
+        q_code == 1 and "waited 1 s" in q_out and bool(partner_late(q_out, q_launched, 1))
+        and s_code == 1 and "waited 1 s" in s_out and len(s_launched) == 2 and partner_late(s_out, s_launched, 1) is None
+        and bool(made_up[0]) and made_up[1:] == [None, None, None],
+        f"late: exit {q_code}, started {q_launched}: {q_out[-300:]} | one after the other: exit {s_code}, started "
+        f"{s_launched}: {s_out[-300:]} | made up: {made_up}")
 
     # Screen tests (tier 2) each hold a slot: with 1 slot on the PC, two tier-2 files never overlap — even with --jobs 2.
     def timed_file(name):

@@ -470,7 +470,11 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       Done 2026-11-18 (sprint 8): the commit check `git-hooks/check-joined.py` (pre-commit step 11) refuses a staged
       test file whose comment ends in a complete line of code; `# not-joined: <why>` for one that does on purpose;
       `--all` checks every test file (JOIN-001–045).
-   4. RUN-049 still waits a fixed 20 s for its partner file to start; under heavy load that can fail.
+   4. ✅ RUN-049 still waits a fixed 20 s for its partner file to start; under heavy load that can fail. — Done
+      2026-11-18 (sprint 8): each file waits for the other's mark, up to 180 s (only a real failure gets there); a
+      partner the runner started with it but the machine made slower than that is the machine's (`partner_late` in
+      test_run_tests.py, beside `standin_late`; the check is stopped, the file rerun alone), a pair run one after the
+      other is a failure (RUN-094). Shown first: the old RUN-049 failed with its partner 25 s late; the new one passes.
    5. With `--tier all`, heavy tier-1 files and screen tests compete for the same slots — not yet timed under load.
    6. ✅ A working copy's test-run records are deleted with the copy (`tools/copies.py remove`), so how long an agent's
       own test runs took can't be counted afterwards — keep them (move them into the main folder's records), and have
