@@ -107,14 +107,24 @@ None, and the run says why once; the run itself is never affected.
 The averages at work (2026-11-18, step 4 — Ron: "longest first by each file's average, and a 'stuck' limit of average +
 4 spreads (never above today's 10 minutes)"): units start longest first by their average on this PC (estimate — else
 their time in this copy's latest record, else 60 s / 5 s). Each unit of a full run with at least 5 runs measured gets a
-STUCK LIMIT — TCP's retransmission timer (RFC 6298): average + 4 spreads, never under twice the average or 60 s, never
-over the flat 600 s every other unit keeps (fewer runs; every unit of a run narrowed by --id, --tag, --changed or
-RW_CELLS; tier 3). Past it, the unit is the machine's trouble, not a test failure: its whole tree is stopped (its job),
-said ("ran past its usual time: N s, its average M s"), the browsers-at-once level halved, and it is rerun once, alone,
-with the flat 600 s — every rerun alone gets that. Past that too: a hang, a failure. The run's opening lines say "· stuck
-limits from this PC's averages (N units)".
+STUCK LIMIT — TCP's retransmission timer (RFC 6298): average + 4 spreads, never under 4 times the average or 120 s
+(the 2026-11-18 lab: healthy tests ran 2–5× slower when other programs took the CPU — twice the average stopped five
+healthy files), never over the flat 600 s every other unit keeps (fewer runs; every unit of a run narrowed by --id,
+--tag, --changed or RW_CELLS; tier 3). Past it, the unit is the machine's trouble, not a test failure: its whole tree is
+stopped (its job), said ("ran past its usual time: N s, its average M s"), the browsers-at-once level halved, and it is
+rerun once, alone, with the flat 600 s — every rerun alone gets that. Past that too: a hang, a failure. The run's opening
+lines say "· stuck limits from this PC's averages (N units)".
 
-Double-clicked, the window stays open to show the results (pytools keepopen). Exit: 0 all passed · 1 a failure.
+NOT PROVEN — the machine's trouble beyond the reruns (2026-11-18 lab: the fifth file past its limit was reported
+"✗ … timed out", a slow-but-healthy test called broken): more files meeting the machine's trouble in one run than
+MAX_RETRIES are rerun only up to MAX_RETRIES; each of the others is NOT PROVEN — never a failure: its line starts "?",
+says "not proven — the machine was too busy (N files met its trouble this run; only M are rerun)", its whole output is
+kept, the summary counts it apart ("…, 3 not proven (the machine's trouble)") under a loud warning that that many points
+at something broken, and the record marks it (`not proven`, with `not_proven`: why). The stamp never calls such a run
+PROVEN.
+
+Double-clicked, the window stays open to show the results (pytools keepopen). Exit: 0 all passed · 1 a failure · 3 no
+failure, but some file NOT PROVEN — the machine's trouble (environment_trouble.EXIT_CODE; a failure wins: 1).
 """
 import argparse
 import concurrent.futures
@@ -497,11 +507,14 @@ def shares(cells, n):
 
 def combine_shards(parts):
     """One file's (passed?, output) from its shards' [(number, of, cells, passed?, output, seconds)]: each shard's output
-    under a heading saying which cells it ran, then one summary line with the counts summed (what the runner reads)."""
+    under a heading saying which cells it ran, then one summary line with the counts summed (what the runner reads).
+    passed? None: not proven — it met the machine's trouble with no rerun left (main) — never called FAILED."""
     total, missing, lines = [0, 0, 0], [], []
     for k, n, cells, ok, out, took in sorted(parts, key=lambda p: p[0]):
         lines.append(f"── shard {k} of {n}: {len(cells)} cells ({cells[0]} … {cells[-1]}) — "
                      + (f"passed in {took:.0f} s" if ok else
+                        f"NOT PROVEN in {took:.0f} s (the machine's trouble) — this shard alone: "
+                        f"RW_CELLS={','.join(cells)}" if ok is None else
                         f"FAILED in {took:.0f} s — this shard alone: RW_CELLS={','.join(cells)}"))
         lines += out.rstrip("\n").splitlines()
         m = None
@@ -674,6 +687,9 @@ def record_problems(r):
         if f.get("result") == "failed":
             why.append(f"{f.get('file')} failed ({f.get('counts') or 'no summary'})"
                        + (f" — full output: {f['output']}" if f.get("output") else ""))
+        elif f.get("result") == NOT_PROVEN:     # the machine's trouble beyond the reruns (main): never a pass
+            why.append(f"{f.get('file')} not proven — the machine was too busy: {f.get('not_proven') or 'no reason given'}"
+                       + (f" — full output: {f['output']}" if f.get("output") else ""))
         elif f.get("result") == "skipped":
             why.append(f"{f.get('file')} was skipped — {f.get('why') or 'no reason given'}")
     why += list(r.get("problems") or [])
@@ -813,7 +829,9 @@ def show_stamp(commit_arg, folder):
 
 
 RETRY_WAIT_S = 10       # before a file is rerun alone: the others are done by then — this lets the machine settle too
-MAX_RETRIES = 4         # more files than that meeting the machine's trouble in one run points at something broken
+MAX_RETRIES = 4         # files rerun alone at most per run; more meeting the machine's trouble points at something
+#                         broken — said loudly, and the ones past it are NOT PROVEN, never failures (2026-11-18 lab)
+NOT_PROVEN = "not proven"   # a file's result in the record: the machine's trouble, and no rerun left for it
 
 
 def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None, retry_wait=None, free_memory=None,
@@ -899,7 +917,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         print(f"{len(chosen)} file(s) would run" + (f", {len(aside)} set aside" if aside else ""))
         return 0
 
-    count = {"passed": 0, "failed": 0}
+    count = {"passed": 0, "failed": 0, NOT_PROVEN: 0}
     for f in broken:
         count["failed"] += 1
         print(f"✗ {f.rel()}: {f.problem}")
@@ -940,14 +958,17 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             print(text, flush=True)
 
     retried = []   # (file, {shard, reason, first_output, rerun_output, rerun…}) — said loudly at the end
-    kept = []      # (file, its whole output's path) — every failed file's, named again at the end
+    kept = []      # (file, its whole output's path, not proven?) — every failed or not-proven file's, named at the end
 
-    def report(f, ok, out, seconds=None, waited=0.0, shards=None, cells=None, tried=None, measures=None):
+    def report(f, ok, out, seconds=None, waited=0.0, shards=None, cells=None, tried=None, measures=None, unproven=None):
         """One file's result: its line (and a failure's details, together — ending with where its whole output was kept)
         and its entry in the record. shards: a file run as several processes — [{cells, seconds, waited, result,
         measures}] — reported as the one file it is. cells: a sharded file narrowed by --id to these cells (one process).
         tried: the reruns alone after the machine's or the browser's trouble ([{shard, reason, first_output,
-        rerun_output…}]). measures: what its process tree cost (tools/test_costs.py) — beside its seconds."""
+        rerun_output…}]). measures: what its process tree cost (tools/test_costs.py) — beside its seconds. unproven: it
+        met the machine's trouble with no rerun left for it (more files met it than MAX_RETRIES) — {why, met: how many
+        files of the run met it}: NOT PROVEN, never a failure — its line starts '?', its output is kept, counted apart,
+        and the record's `not_proven` says why."""
         ids = differs_today_ids(out)
         summary = next((ln for ln in reversed(out.splitlines()) if re.search(r"\bpassed\b", ln)), "")
         wait = f", waited {waited:.0f} s for a slot" if waited >= 1 else ""
@@ -955,11 +976,19 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         only = f"; only {', '.join(cells)} (--id)" if cells else ""
         again = f"; rerun alone after {tried[0]['reason']}" if tried else ""
         took = "" if seconds is None else f"  ({seconds:.0f} s{each}{only}{wait}{again})"
+        unproven = None if ok or not unproven else \
+            (unproven["why"], f"{unproven['met']} file{'s' if unproven['met'] != 1 else ''} met its trouble this run; "
+                              f"only {MAX_RETRIES} {'is' if MAX_RETRIES == 1 else 'are'} rerun")
         output = None if ok else keep_output(out_dir, f, out)
+        result = "passed" if ok else NOT_PROVEN if unproven else "failed"
         lines = []
         if ok:
             if not a.quiet:
                 lines.append(f"✓ {f.rel()}  {summary.strip()}{took}")
+        elif unproven:
+            lines.append(f"? {f.rel()}  not proven — the machine was too busy ({unproven[1]}) — {unproven[0]}{took}")
+            if output:
+                lines.append(f"    full output: {output}")
         else:
             lines.append(f"✗ {f.rel()}  {summary.strip()}{took}")
             for ln in out.splitlines():
@@ -970,12 +999,13 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         with say_lock:
             if ids:
                 differ.append((f, ids))
-            count["passed" if ok else "failed"] += 1
+            count[result] += 1
             retried.extend((f, t) for t in tried or [])
             if output:
-                kept.append((f, output))
+                kept.append((f, output, bool(unproven)))
             if rec:
-                rec["files"].append({"file": f.rel(), "tier": f.tier, "result": "passed" if ok else "failed",
+                rec["files"].append({"file": f.rel(), "tier": f.tier, "result": result,
+                                     **({"not_proven": f"{unproven[0]} — {unproven[1]}"} if unproven else {}),
                                      "counts": summary.strip(), "seconds": None if seconds is None else round(seconds, 1),
                                      **({"measures": measures} if measures is not None else {}),
                                      "waited": round(waited, 1), "differ": ids, **({"shards": shards} if shards else {}),
@@ -993,10 +1023,10 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     narrowing = ([f"--tag {', '.join(a.tag)}"] if a.tag else []) + ([f"--id {', '.join(a.id)}"] if a.id else []) \
         + (["--changed"] if a.changed else []) + [f"{k}={v}" for k, v in run_env().items() if RUN_ENV[k][0]]
 
-    def cost_sample(f, k, n, seconds, measures, passed, rerun=False):
+    def cost_sample(f, k, n, seconds, measures, passed, rerun=False, trouble=False):
         with say_lock:
             costed.append({"tf": f, "shard": k, "of": n, "seconds": seconds, "measures": measures, "passed": passed,
-                           "rerun": rerun})
+                           "rerun": rerun, "trouble": trouble})
 
     def run_and_report(f, relay_url):
         t0 = time.monotonic()
@@ -1094,6 +1124,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     shards_done = {}    # file path -> the shards finished so far
     shard_lock = threading.Lock()
     to_rerun = []       # (unit, reason, its first output's path, seconds, its first cost, stuck: {limit, average} or None)
+    over_cap = []       # (unit, output, t0, t1, waited, cost, reason) — the machine's trouble with no rerun left: NOT PROVEN
     stopped = []        # the units stopped at their stuck limit (from their average) — marked in the averages at the end
 
     def label_of(u):
@@ -1109,29 +1140,35 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         except Exception as e:      # noqa: BLE001
             return None, f"✗ the runner couldn't run it: {type(e).__name__}: {e}", test_costs.nothing("it didn't run")
 
-    def finish(u, ok, out, t0, t1, waited, tried=None, cost=None):
+    def finish(u, ok, out, t0, t1, waited, tried=None, cost=None, unproven=None):
         """A unit is done: a whole file is reported; a shard waits until its file's last shard is done. cost: what the
-        unit cost (its measures) — taken as a sample for the averages (a rerun's marked: it teaches nothing)."""
+        unit cost (its measures) — taken as a sample for the averages (a rerun's marked: it teaches nothing). unproven:
+        it met the machine's trouble with no rerun left ({why, met} — report()). A file of shards is failed if any shard
+        failed; else not proven if any shard was; else passed."""
         f, k, n, cells = u
-        cost_sample(f, k, n, t1 - t0, cost, ok, rerun=bool(tried))
+        cost_sample(f, k, n, t1 - t0, cost, ok, rerun=bool(tried), trouble=bool(unproven))
         cost = cost if measure else None
         if k is None:
-            report(f, ok, out, t1 - t0, waited, cells=cells, tried=[tried] if tried else None, measures=cost)
+            report(f, ok, out, t1 - t0, waited, cells=cells, tried=[tried] if tried else None, measures=cost,
+                   unproven=unproven)
             return
         with shard_lock:          # the file is reported once, when its last shard is done
             done = shards_done.setdefault(f.path, [])
-            done.append((k, n, cells, ok, out, t0, t1, waited, tried, cost))
+            done.append((k, n, cells, ok, out, t0, t1, waited, tried, cost, unproven))
             if len(done) < n:
                 return
         done = sorted(done, key=lambda p: p[0])
-        f_ok, f_out = combine_shards([(k, n, c, o, x, b - s) for k, n, c, o, x, s, b, _, _, _ in done])
+        f_ok, f_out = combine_shards([(k, n, c, o or (None if np else False), x, b - s)
+                                      for k, n, c, o, x, s, b, _, _, _, np in done])
+        failed_shard = any(not p[3] and not p[10] for p in done)
         report(f, f_ok, f_out, max(p[6] for p in done) - min(p[5] for p in done), sum(p[7] for p in done),
                shards=[{"cells": len(c), "first": c[0], "seconds": round(b - s, 1),
                         **({"measures": m} if m is not None else {}), "waited": round(w, 1),
-                        "result": "passed" if o else "failed", **({"retried": t} if t else {})}
-                       for k, n, c, o, x, s, b, w, t, m in done],
+                        "result": "passed" if o else NOT_PROVEN if np else "failed", **({"retried": t} if t else {})}
+                       for k, n, c, o, x, s, b, w, t, m, np in done],
                tried=[p[8] for p in done if p[8]] or None,
-               measures=test_costs.combine([p[9] for p in done]) if measure else None)
+               measures=test_costs.combine([p[9] for p in done]) if measure else None,
+               unproven=None if failed_shard else next((p[10] for p in done if p[10]), None))
 
     troubles = []       # each first run that met the machine's or the browser's trouble (reruns not counted)
     # Who runs next (2026-11-17): --jobs workers, each taking the FIRST unit in order (longest first) that may start now —
@@ -1231,8 +1268,18 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                 say(f"! {label_of(u)}: the machine's or the browser's trouble — {why} — it will be rerun once, alone, "
                     "when the others are done")
                 return
-            out += (f"\n! not rerun: {MAX_RETRIES} files of this run already met the machine's or the browser's trouble —"
-                    " that many points at something broken, not a passing hiccup")
+            # No rerun left (2026-11-18 lab: the fifth file past its limit was reported "✗ timed out" — a slow but
+            # healthy test called broken): NOT PROVEN, never a failure — reported when the others are done, once the
+            # run knows how many met the trouble.
+            say(f"! {label_of(u)}: {why} — " + ("stopped, with every process it started — " if stuck else "")
+                + f"the machine's trouble, but {MAX_RETRIES} file(s) of this run are already rerun — not rerun: it "
+                "will be reported NOT PROVEN, not failed")
+            out += (f"\n! not rerun: {MAX_RETRIES} file(s) of this run were already taken for a rerun after the machine's "
+                    "or the browser's trouble — that many points at something broken, not a passing hiccup — so this "
+                    "file is NOT PROVEN (not failed)")
+            with say_lock:
+                over_cap.append((u, out, t0, t1, waited, cost, why))
+            return
         finish(u, code == 0, out, t0, t1, waited, cost=cost)
 
     t_pool = time.monotonic()
@@ -1242,6 +1289,10 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             for fut in concurrent.futures.as_completed([pool.submit(worker) for _ in range(workers)]):
                 fut.result()
     pool_seconds = time.monotonic() - t_pool     # the wall time a level is judged by (not the build, reruns or tier 3)
+    # The machine's trouble with no rerun left: reported now that the run knows how many files met it — NOT PROVEN, never
+    # a failure (a shard's file waits for its other shards, rerun ones included).
+    for u, out, t0, t1, waited, cost, why in over_cap:
+        finish(u, False, out, t0, t1, waited, cost=cost, unproven={"why": why, "met": len(troubles)})
     # The reruns, ALONE (2026-11-17): every other file of this run is done; after a wait, each holds EVERY test slot on
     # the PC (no other run's screen test beside it either). Rerun once: passed → passed (noted); failed → failed. With
     # the flat stuck limit (step 4 — TCP backs its timer off on a retransmit): a unit stopped at its average's limit gets
@@ -1340,7 +1391,8 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             for s in costed:
                 f = s["tf"]
                 name = f.rel() + ("" if s["shard"] is None else f" ({test_costs.unit_key(s['shard'], s['of'])})")
-                why = test_costs.left_out(narrowing, s["passed"], s["rerun"], outside=test_costs.outside(f.rel()))
+                why = test_costs.left_out(narrowing, s["passed"], s["rerun"], outside=test_costs.outside(f.rel()),
+                                          trouble=s["trouble"])
                 if why:
                     left[name] = why
                 else:
@@ -1363,7 +1415,14 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                          "until they pass once" if stopped else "")
                       + " — py tools/run_tests.py --costs")
     print(f"Tests: {count['passed']} file(s) passed, {count['failed']} failed"
+          + (f", {count[NOT_PROVEN]} not proven (the machine's trouble)" if count[NOT_PROVEN] else "")
           + (f", {len(skipped)} skipped" if skipped else "") + (f", {len(aside)} set aside" if aside else ""))
+    if over_cap:                 # loudly: not a test failure — but that much trouble is worth a look at the machine
+        print(f"! {len(troubles)} file{'s' if len(troubles) != 1 else ''} met the machine's or the browser's trouble this "
+              f"run — only {MAX_RETRIES} "
+              f"{'is' if MAX_RETRIES == 1 else 'are'} rerun alone; that many points at something broken, not a passing "
+              f"hiccup — look at what else the PC is doing (TESTING.md §7). NOT PROVEN, not failed: "
+              + ", ".join(dict.fromkeys(label_of(u) for u, *_ in over_cap)))
     for f in aside:              # plainly, every run — the commit hook's too: a set-aside test is work owed
         print(aside_line(f))
     for f, t in retried:         # loudly, never silent: a rerun is read, not taken on trust (TESTING.md §7)
@@ -1376,8 +1435,9 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             streak = rerun_streak(history, name)
             if len(streak) >= STREAK_SAID and streak[0][0] is rec:   # this run is one of them (a whole run of it)
                 print("\n".join(streak_lines(name, streak)))
-    for f, path in kept:
-        print(f"✗ {f.rel()} — full output: {path}")
+    for f, path, unproven in kept:
+        print(f"{'? ' if unproven else '✗ '}{f.rel()} — " + ("not proven (the machine's trouble) — " if unproven else "")
+              + f"full output: {path}")
     refused = False
     if a.release and skipped:    # a release needs every file to have RUN — skipped is not passed (7.28.0)
         print(f"✗ release run: {len(skipped)} file(s) skipped — a release needs every file to run:\n    "
@@ -1396,10 +1456,12 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
               + "\n    ".join(f"{f.rel()}: {', '.join(ids)}" for f, ids in differ))
         refused = True
         problems.append(f"release run: {n} test(s) still marked 'differs today'")
-    code = 1 if refused or count["failed"] else 0
+    # 1 for a failure (it wins); 3 — the machine's trouble — when nothing failed but a file is NOT PROVEN; else 0.
+    code = 1 if refused or count["failed"] else environment_trouble.EXIT_CODE if count[NOT_PROVEN] else 0
     if rec:
         rec.update({"commit_after": head_commit(), "problems": problems, "ended": _now(),
-                    "seconds": round(time.monotonic() - t_start), "result": "passed" if code == 0 else "failed"})
+                    "seconds": round(time.monotonic() - t_start),
+                    "result": "passed" if code == 0 else NOT_PROVEN if code == environment_trouble.EXIT_CODE else "failed"})
         rec["uncommitted"]["after"] = uncommitted()
         try:
             write_record(rec, record_to)
