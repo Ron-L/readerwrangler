@@ -92,6 +92,15 @@ moves nothing (saved, marked, never compared); a clean run more than twice as sl
 → one fewer. Each run says its level and why, at its start and its end; the record notes it, with the free memory.
 --jobs N or RW_TEST_SLOTS forces a number and leaves the saved level alone.
 
+What each test costs this PC (2026-11-18, tools/test_costs.py — measuring only): every unit (a file, or one shard) of a
+run that leaves a record is measured for its whole process tree — memory committed (peak; NOT RAM in use), RAM (sampled
+peak), CPU seconds, I/O (files, pipes and network) — beside its seconds in the record; a unit that ran in full and
+passed, the first time, teaches this PC's running average and spread (RFC 6298), kept beside the slots. Not possible →
+None, and the run says why once; the run itself is never affected.
+
+    py tools/run_tests.py --costs             the table: each unit, average ± spread of each measure, slowest first, the
+                                              totals, and how much the screen tests differ in RAM. Runs nothing
+
 Double-clicked, the window stays open to show the results (pytools keepopen). Exit: 0 all passed · 1 a failure.
 """
 import argparse
@@ -1202,8 +1211,8 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             if why:
                 lacking.setdefault(why, []).append(s)
         if lacking and not a.quiet:     # said once, quietly — the run itself is unaffected
-            print("· measures missing for " + "; ".join(f"{len(v)} of {len(costed)} unit(s): {k}"
-                                                         for k, v in lacking.items()))
+            said = [f"{len(v)} of {len(costed)} unit(s): {k}" for k, v in lacking.items()]
+            print("· measures missing for " + "; ".join(said))
         if costs_file:
             narrowing = ([f"--tag {', '.join(a.tag)}"] if a.tag else []) + ([f"--id {', '.join(a.id)}"] if a.id else []) \
                 + (["--changed"] if a.changed else []) + [f"{k}={v}" for k, v in run_env().items() if RUN_ENV[k][0]]

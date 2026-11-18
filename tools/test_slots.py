@@ -26,8 +26,11 @@ files (tools/browser_level.py, 2026-11-17: it replaced the fixed low-memory rule
 takes only the first L slots, so every run on this PC together stays within the PC's level too. free_memory() reads
 what the PC has available — noted in each run's record, as evidence.
 
-The folder: %TEMP%\\rw-test-slots, or RW_TEST_SLOTS_DIR when set (slots_folder() — the slots and the saved level move
-together; TEMP itself stays where it is).
+The folder: %TEMP%\\rw-test-slots, or RW_TEST_SLOTS_DIR when set (slots_folder() — the slots, the saved level and the
+test costs move together; TEMP itself stays where it is).
+
+    with locked(path) as held:                       # the same OS file lock, on any file — waits (30 s at most)
+        ...                                          # tools/test_costs.py reads, merges and saves its averages here
 
 Tested by test/test_run_tests.py (RUN-035…, 074, 079, 083, 085).
 """
