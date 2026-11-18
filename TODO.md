@@ -508,6 +508,15 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       that passed; `py tools/run_tests.py --costs` shows them, and whether the biggest screen test uses at least twice
       the RAM of the smallest. First look, three screen tests one at a time: 0.39–0.59 GB of private RAM each (1.5×
       apart) — not twice. A full run's averages answer it.
+   2. ✅ **Step 4, longest first and a "stuck" limit from the averages, built 2026-11-18** (sprint 8; Ron's rule the same
+      day: "longest first by each file's average, and a 'stuck' limit of average + 4 spreads (never above today's 10
+      minutes): act once every file has at least 5 runs measured"; TESTING.md §4, §7): tests start longest first by
+      their average on this PC; a test with 5+ runs gets a limit of average + 4 spreads, at least twice its average or a
+      minute, at most 10 minutes (the 10 minutes stays for fewer runs and for narrowed runs). Past it, the test is
+      stopped with everything it started, said plainly ("ran past its usual time"), the browsers at once halved, and it
+      is rerun alone with the full 10 minutes — past that too, a failure. Its next runs keep the 10 minutes until one
+      passes the first time (TCP keeps its backed-off timer the same way), so a test that truly got slower relearns its
+      average instead of being stopped every run. Today's averages: test_backlog_report.py first (141 s → limit 283 s).
 13. **Found while building sprint 8** (filed 2026-11-18):
    1. A run of only the tests covering what changed (`--changed`, what the commit check runs) and a test file run
       directly write no record — so an agent's own test time lands in "everything else" in a copy's time report.

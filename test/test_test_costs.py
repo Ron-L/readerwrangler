@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # print ✓ even when piped (as harness.py)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -435,6 +436,227 @@ with tempfile.TemporaryDirectory() as d:
 
     row("COST-016", "the next save drops every saved entry named outside the repository (the six a self-test left in the "
         "real file clean themselves up) — and never adds one", r016)
+
+    # --- Step 4 (Ron, 2026-11-18): longest first by each unit's average, and a "stuck" limit from it — TCP's own
+    # retransmission timer (RFC 6298: average + 4 spreads; a timeout is congestion, and the timer backs off). The stand-ins
+    # use tiny numbers: the 60 s floor and the flat 600 s are made 1 s and 10 s for these rows (stuck_hooks), so a limit
+    # is a second and a hang ten.
+    def fake_costs(path, units):
+        """A costs file whose time averages are made up — units: {(sample path, unit key): (average, spread, runs)}, each
+        under the sample's name inside the repository and its real contents' hash (hash: 'other' — other contents)."""
+        files = {}
+        for (p, key), (avg, spread, runs, *other) in units.items():
+            tf = Inside(p)
+            e = files.setdefault(tf.rel(), {"hash": "other" if other else tc.file_hash(p), "tier": tf.tier, "units": {}})
+            e["units"][key] = {"count": runs, "when": "d", "measures": {
+                "seconds": {"avg": avg, "spread": spread, "count": runs, "last": avg}}}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"version": 1, "files": files}, f)
+        return path
+
+    @contextlib.contextmanager
+    def stuck_hooks(floor=1.0, flat=10.0):
+        """The limit's floor (60 s) and the flat limit (600 s) made small for a row — and put back."""
+        saved = tc.STUCK_FLOOR_S, tc.STUCK_FLAT_S
+        tc.STUCK_FLOOR_S, tc.STUCK_FLAT_S = floor, flat
+        try:
+            yield
+        finally:
+            tc.STUCK_FLOOR_S, tc.STUCK_FLAT_S = saved
+
+    def stat(avg, spread, runs):
+        return {"avg": avg, "spread": spread, "count": runs, "last": avg}
+
+    def r017():
+        got = [tc.stuck_limit(stat(10.0, 1.0, 5)),       # 14 s, under the floor of 60 s → 60
+               tc.stuck_limit(stat(100.0, 10.0, 7)),     # 140 s, under twice the average (200) → 200
+               tc.stuck_limit(stat(100.0, 30.0, 5)),     # 220 s, between the floor (200) and the ceiling → 220
+               tc.stuck_limit(stat(400.0, 100.0, 9)),    # 800 s → the ceiling, 600
+               tc.stuck_limit(stat(350.0, 10.0, 5)),     # twice the average (700) is over the ceiling too → 600
+               tc.stuck_limit(stat(100.0, 30.0, 4)),     # 4 runs: too few → the flat 600, no average
+               tc.stuck_limit(None)]
+        want = [(60.0, 10.0), (200.0, 100.0), (220.0, 100.0), (600.0, 400.0), (600.0, 350.0), (600.0, None), (600.0, None)]
+        consts = (tc.STUCK_FLAT_S, tc.STUCK_FLOOR_S, tc.STUCK_MIN_RUNS, tc.STUCK_SPREADS)
+        return got == want and consts == (600.0, 60.0, 5, 4), (got, consts)
+
+    row("COST-017", "the stuck limit — average + 4 spreads, never under twice the average or 60 s, never over the flat 600 "
+        "s: at its floor (60 s, and twice the average), in its middle, at its ceiling; fewer than 5 runs, or none → the "
+        "flat 600 s", r017)
+
+    def r018():
+        state = json.load(open(fake_costs(os.path.join(d, "c18-pure.json"), {
+            (ok_py, "whole"): (8.0, 1.0, 5), (bad_py, "whole"): (9.0, 1.0, 5, "other")})))
+        hashes = {Inside(p).path: tc.file_hash(p) for p in (ok_py, bad_py)}
+        same = tc.time_stat(state, Inside(ok_py).rel(), "whole", hashes[Inside(ok_py).path])
+        changed = tc.time_stat(state, Inside(bad_py).rel(), "whole", hashes[Inside(bad_py).path])
+        none = tc.time_stat(state, "test/samples/never.py", "whole", "h")
+        shard = Inside(shard_py)
+        last = {Inside(bad_py).rel(): (30.0, False), shard.rel(): (12.0, True)}
+        est = [rt.estimate((Inside(ok_py), None, None, None), state, last, hashes),         # its average
+               rt.estimate((Inside(bad_py), None, None, None), state, last, hashes),        # changed → the record
+               rt.estimate((shard, 2, 2, ["SHD-002"]), state, last, hashes),                # the record's longest shard
+               rt.estimate((shard, 2, 2, ["SHD-002"]), state, {shard.rel(): (12.0, False)}, hashes),  # split 2 ways
+               rt.estimate((Inside(heavy_py), None, None, None), state, last, hashes)]      # neither → 5 s (tier 1)
+        pure = same == stat(8.0, 1.0, 5) and changed is None and none is None and est == [8.0, 30.0, 12.0, 6.0, 5.0]
+
+        # Through the runner, one at a time: the order follows each file's AVERAGE — not this copy's latest record.
+        marks = os.path.join(d, "order-marks")
+        os.makedirs(marks, exist_ok=True)
+        names = ["test_order_a.py", "test_order_b.py", "test_order_c.py", "test_order_d.py"]
+        paths = [write(n, "# tags: costs, order, tier 1\n# covers: nothing.js\nimport os, time\n"
+                          f"open(os.path.join({marks!r}, {n!r}), 'w').write(repr(time.time()))\n"
+                          "print('1 passed, 0 failed')\n") for n in names]
+        a, b, c, dd = paths
+        costs18 = fake_costs(os.path.join(d, "c18.json"),
+                             {(a, "whole"): (50.0, 5.0, 5), (dd, "whole"): (40.0, 4.0, 5, "other")})
+        rdir = os.path.join(d, "rec18")
+        os.makedirs(rdir)
+        with open(os.path.join(rdir, "0000-earlier.json"), "w", encoding="utf-8") as f:     # this copy's latest record
+            json.dump({"ended": "2026-11-18T00:00:00", "files": [
+                {"file": Inside(a).rel(), "seconds": 1.0}, {"file": Inside(b).rel(), "seconds": 20.0},
+                {"file": Inside(dd).rel(), "seconds": 30.0}]}, f)
+        code, out = quiet_main(["--tier", "1", "--jobs", "1"], files=[Inside(p) for p in paths], results=rdir,
+                               costs=costs18, slots=test_slots.Slots(count=2, folder=slots_dir))
+        when = {n: float(open(os.path.join(marks, n)).read()) for n in names if os.path.exists(os.path.join(marks, n))}
+        order = sorted(when, key=when.get)
+        want = ["test_order_a.py", "test_order_d.py", "test_order_b.py", "test_order_c.py"]
+        return pure and code == 0 and order == want, (same, changed, none, est, code, order, out[-400:])
+
+    row("COST-018", "longest first by each unit's AVERAGE on this PC (its contents unchanged), else its time in this copy's "
+        "latest record (a shard: its file's longest shard, or its time split), else 60 s / 5 s — through the runner, one "
+        "at a time: the average's order, not the record's", r018)
+
+    stuck_flag, child_pid, stuck_runs = (os.path.join(d, n) for n in ("stuck-once", "stuck-child.pid", "stuck-runs"))
+    stuck_py = write("test_cost_stuck.py", "# tags: costs, stuck, tier 1\n# covers: nothing.js\n"
+                     "# heavy: yes — a stand-in that runs past its usual time once\n"
+                     f"import os, subprocess, sys, time\nopen({stuck_runs!r}, 'a').write('run\\n')\n"
+                     f"if not os.path.exists({stuck_flag!r}):\n"
+                     f"    open({stuck_flag!r}, 'w').close()\n"
+                     "    child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'],\n"
+                     "                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, "
+                     "stderr=subprocess.DEVNULL)\n"
+                     f"    open({child_pid!r}, 'w').write(str(child.pid))\n"
+                     "    print('started a child', flush=True)\n"
+                     "    time.sleep(20)\n"
+                     "time.sleep(2.0)     # its rerun: longer than its stuck limit (1 s), well within the flat one\n"
+                     "print('1 passed, 0 failed')\n")
+    lr = rt.local_relay      # its process list, read raw (local_relay.processes) — and stop_one, by exact id
+
+    def gone(pid, limit=10.0):
+        """Is the process gone? Waited for (up to `limit`) — a process the job ended may take a moment to leave."""
+        end = time.monotonic() + limit
+        while pid in lr.processes():
+            if time.monotonic() > end:
+                return False
+            time.sleep(0.1)
+        return True
+
+    def r019():
+        lvl_dir = os.path.join(d, "slots-stuck")
+        costs19 = fake_costs(os.path.join(d, "c19.json"), {(stuck_py, "whole"): (0.5, 0.05, 5)})
+        rdir = os.path.join(d, "rec19")
+        with stuck_hooks():
+            code, out = quiet_main(["--tier", "1"], files=[Inside(stuck_py)], results=rdir, costs=costs19, retry_wait=0,
+                                   slots=test_slots.Slots(count=2, folder=lvl_dir))
+        pid = int(open(child_pid).read()) if os.path.exists(child_pid) else None
+        ended = pid is not None and gone(pid)
+        if pid is not None and not ended:
+            lr.stop_one(pid)        # left running by the runner: stopped here, by its exact id
+        rec = (records_in(rdir) or [{}])[0]
+        f = (rec.get("files") or [{}])[0]
+        tried = (f.get("retried") or [{}])[0]
+        level, _ = rt.browser_level.load(os.path.join(lvl_dir, rt.browser_level.FILE_NAME))
+        runs = len(open(stuck_runs).read().split()) if os.path.exists(stuck_runs) else 0
+        said = "ran past its usual time: 1.0 s, its average 0.5 s"
+        first = open(tried["first_output"], encoding="utf-8").read() if tried.get("first_output") else ""
+        ok = code == 0 and ended and runs == 2 and f.get("result") == "passed" \
+            and "· stuck limits from this PC's averages (1 unit)" in out \
+            and f"test/samples/test_cost_stuck.py: {said} — stopped, with every process it started: the machine's " \
+                "trouble, not a test failure — it will be rerun once, alone, with the flat 10 s" in out \
+            and "! browsers at once: 4 → 2 for the rest of this run" in out and level["level"] == 2 \
+            and f"; rerun alone after {said})" in out and tried.get("reason") == said \
+            and tried.get("rerun") == "passed" and tried.get("limit") == 1.0 and tried.get("average") == 0.5 \
+            and "started a child" in first and f"1 file retried after {said}" in out
+        return ok, (code, pid, ended, runs, f, level, out[-900:])
+
+    row("COST-019", "a unit that runs past its stuck limit (its average's) is the machine's trouble, not a failure: stopped "
+        "with its whole process tree (its child gone too), said plainly with its limit and average, the browsers' level "
+        "halved, rerun alone with the flat limit — longer than the stuck one — and passes; the run's opening line says "
+        "how many units have limits from the averages", r019)
+
+    def r022():
+        """TCP keeps its backed-off timer until a sample it can trust (Karn): a unit stopped at its limit is marked, and
+        its next run gets the flat limit; passing then, the first time, teaches its average and clears the mark. (A rerun
+        alone never teaches — without the mark, a test that truly got slower would be stopped every run, forever.)"""
+        costs19 = os.path.join(d, "c19.json")       # COST-019's: the stand-in was stopped at its limit there
+        unit = lambda: units_in(costs19).get(("test_cost_stuck.py", "whole")) or {}      # noqa: E731
+        marked = unit().get("backed_off")
+        with stuck_hooks():
+            code, out = quiet_main(["--tier", "1"], files=[Inside(stuck_py)], results=os.path.join(d, "rec22"),
+                                   costs=costs19, retry_wait=0, slots=test_slots.Slots(count=2, folder=slots_dir))
+        after = unit()
+        ok = bool(marked) and code == 0 and "ran past its usual time" not in out and "stuck limits from" not in out \
+            and "backed_off" not in after and after.get("count") == 6 and after["measures"]["seconds"]["last"] >= 2.0
+        return ok, (marked, code, after, out[-500:])
+
+    row("COST-022", "a unit stopped at its limit is marked in this PC's averages: its next run gets the flat limit (its "
+        "2 s run passes) — and that pass, the first time, teaches its average and clears the mark", r022)
+
+    hang_runs = os.path.join(d, "hang-runs")
+    hang_py = write("test_cost_hang.py", "# tags: costs, hang, tier 1\n# covers: nothing.js\nimport time\n"
+                    f"open({hang_runs!r}, 'a').write('run\\n')\nprint('hanging', flush=True)\ntime.sleep(60)\n"
+                    "print('1 passed, 0 failed')\n")
+
+    def r020():
+        costs20 = fake_costs(os.path.join(d, "c20.json"), {(hang_py, "whole"): (0.5, 0.05, 6)})
+        rdir = os.path.join(d, "rec20")
+        with stuck_hooks(flat=5.0):         # a hang: past the stuck 1 s, and past the flat limit of its rerun too
+            code, out = quiet_main(["--tier", "1"], files=[Inside(hang_py)], results=rdir, costs=costs20, retry_wait=0,
+                                   slots=test_slots.Slots(count=2, folder=slots_dir))
+        rec = (records_in(rdir) or [{}])[0]
+        f = (rec.get("files") or [{}])[0]
+        tried = (f.get("retried") or [{}])[0]
+        rerun = open(tried["rerun_output"], encoding="utf-8").read() if tried.get("rerun_output") else ""
+        runs = len(open(hang_runs).read().split()) if os.path.exists(hang_runs) else 0
+        ok = code == 1 and runs == 2 and f.get("result") == "failed" and tried.get("rerun") == "failed" \
+            and "✗ timed out after 5 s" in rerun and "✗ timed out after 5 s" in out \
+            and "Tests: 0 file(s) passed, 1 failed" in out and "browsers at once" not in out
+        return ok, (code, runs, f, out[-700:])
+
+    row("COST-020", "a unit that hangs past its stuck limit AND the flat limit of its rerun alone is a real failure, "
+        "reported as today ('timed out after …'); a light tier-1 file in a run with no level in play halves nothing",
+        r020)
+
+    slow_py = write("test_cost_slow.py", "# tags: costs, slow, tier 1\n# covers: nothing.js\nimport time\n"
+                    "def check(tid, ok): print(('  ✓ ' if ok else '  ✗ ') + tid)\ntime.sleep(2.0)\n"
+                    "check(\"SLOW-001\", True)\nprint('1 passed, 0 failed')\n")
+    few_py = write("test_cost_few.py", "# tags: costs, few, tier 1\n# covers: nothing.js\nimport time\ntime.sleep(2.0)\n"
+                   "print('1 passed, 0 failed')\n")
+
+    def r021():
+        costs21 = os.path.join(d, "c21.json")
+        cases = {}
+        with stuck_hooks():
+            for name, argv, env in (("full, too few runs", ["--tier", "1"], {}),
+                                    ("--id", ["--tier", "1", "--id", "SLOW-001"], {}),
+                                    ("--tag", ["--tier", "1", "--tag", "slow"], {}),
+                                    ("RW_CELLS", ["--tier", "1"], {"RW_CELLS": "SLOW-001"})):
+                fake_costs(costs21, {(slow_py, "whole"): (0.5, 0.05, 5), (few_py, "whole"): (0.5, 0.05, 4)})
+                os.environ.update(env)
+                try:
+                    picked = [few_py] if name.startswith("full") else [slow_py, few_py]
+                    cases[name] = quiet_main(argv, files=[Inside(p) for p in picked], costs=costs21, retry_wait=0,
+                                             results=os.path.join(d, f"rec21-{len(cases)}"),
+                                             slots=test_slots.Slots(count=2, folder=slots_dir))
+                finally:
+                    for k in env:
+                        del os.environ[k]
+        ok = all(c == 0 and "ran past its usual time" not in o and "stuck limits from" not in o
+                 for c, o in cases.values())
+        return ok, {k: (c, o[-300:]) for k, (c, o) in cases.items()}
+
+    row("COST-021", "the flat limit where an average doesn't apply: a unit with fewer than 5 runs measured, and every unit "
+        "of a narrowed run (--id, --tag, RW_CELLS) — a 2 s unit whose stuck limit would be 1 s passes", r021)
 
 failed = [r for r in results if not r[1]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
