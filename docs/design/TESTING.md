@@ -99,17 +99,55 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   reasons** — short of network buffers or memory (`net::ERR_NO_BUFFER_SPACE`, `ERR_INSUFFICIENT_RESOURCES`,
   `ERR_OUT_OF_MEMORY`) on the way to our web server or local relay, or a refused / reset / empty connection to our web
   server (only to it: to the relay that may be the relay code under test). A request a test refuses on purpose
-  (`ERR_FAILED`), one a page change cut short (`ERR_ABORTED`) and one to anywhere else never count. **The console check
+  (`ERR_FAILED`), one a page change cut short (`ERR_ABORTED`) and one to anywhere else never count. **And a library the
+  page loads that failed to DOWNLOAD** (2026-11-17 — a lab run's start-up failed on "ReactDOM is not defined"): a script
+  or stylesheet from a library host (`LIBRARY_HOSTS` — unpkg.com, cdnjs.cloudflare.com, cdn.jsdelivr.net,
+  fonts.googleapis.com) whose request failed or timed out (any `net::` error but `ERR_ABORTED`, `ERR_FAILED`,
+  `ERR_BLOCKED_BY_CLIENT`), whose host answered 5xx, or that came back **empty** (the only loss that reproduced the lab's
+  case exactly: no failed request in the console at all) — and a start-up whose **only** errors are "`<Name>` is not
+  defined" for a library whose script didn't arrive (`LIBRARY_GLOBALS`: React, ReactDOM, QRCode). One that downloaded and
+  then threw is the app's (a test failure, its error named — and the start-up failure lists what each library download
+  did). A 4xx is never the network's (a wrong address is ours). **The console check
   (`app.unexpected_console()`) reports such a network error as the machine's trouble, never as a test failure** (RENAME-006,
   2026-11-15). The harness (`test/ui/harness.py`) then decides the file's exit code: **3 — with a line
   `ENVIRONMENT FAILURE: <reason>` — when the trouble came before any test failed** (a failure after it counts as the
   trouble's); **1 when a test failed first** (it failed while the machine was fine) or there was no trouble; 0 when
   nothing failed (trouble that failed nothing is only noted: `! machine or browser trouble: …`). An assertion can never
-  give 3. The code and the line live in one place, `tools/environment_trouble.py`, read by both sides. Tests: `ENV-001`–
-  `004` (a real browser: a page that never loads → 3; one that never loads because it failed → 1; our server stopped
-  mid-session → 3; a failure's screenshot), `RUN-080`–`082`.
-- **Rerun once, ALONE — never silently** (2026-11-17): a screen-test file that exits 3 with that line (both needed; tiers
-  1 and 3 never) is not reported yet; when every other file of the run is done, the runner waits 10 s, takes **every**
+  give 3. The code, the line and that rule (`exit_code`) live in one place, `tools/environment_trouble.py`, read by both
+  sides. Tests: `ENV-001`–`007` (a real browser: a page that never loads → 3; one that never loads because it failed → 1;
+  our server stopped mid-session → 3; a failure's screenshot; ReactDOM's script cut off → 3, answered empty → 3, loaded
+  and threw → 1), `RUN-080`–`082`, `090`, `091`.
+- **A test's own fixed wait running out is NOT the machine's trouble** (Ron, 2026-11-17 — it could hide a real hang).
+  Waits are conditions with generous limits instead (§7). test_reset.py's Tools click gave up after Playwright's 30 s
+  seven times in a day, always right after opening a second tab: **Chrome slows the tabs behind the one in front** —
+  measured under a lab load, the tab behind took 8-44 s to answer anything and the click 122-222 s; brought to the front
+  first, 0.1 s. So `rw.App`'s `menu()` and `reload()` bring the app's tab to the front first, as a person switches to
+  it, and a test acting on another tab brings that one forward (`page.bring_to_front()`). test_reset.py waits for
+  conditions only (the reset's own last line, the tab having drawn what it was given, the Welcome screen — shown only
+  once the load is done), each under one limit (`LIMIT_MS` = the driver's 180 s); proven both ways under the same lab
+  load (before: 2 of 2 failed at that click; after: passed), and RESET-003 still caught the bug's effect planted on
+  purpose.
+- **Heavy tier-1 files** (Ron, 2026-11-17: "Yes. Also back off"; the merge's full run failed a different timing test of
+  test_run_tests.py twice — RUN-079, then RUN-057 — under 4 tier-1 files at once). A tier-1 file whose header says
+  **`heavy: yes`** (optionally `— why`; `heavy: no` or no line = light; anything else is a header problem) starts many
+  processes of its own. It **holds one of the PC's test slots while it runs, within the same browsers-at-once level** —
+  so the level governs heavy work of both tiers — and `--list` marks it. Counted 2026-11-17 (each run alone, every process
+  it started): `test_backlog_report.py` ~1,200 git processes one after another for ~2 min; `test_copies.py` ~400, up to
+  9 at once; `test_merge_branches.py` ~350; `test_run_tests.py` ~300, up to 8 at once (sample runs in parallel, stand-in
+  relays); `test_sync_remotes.py` ~220, up to 5 at once — the five marked. The next, `test_gate_check.py`, ~75 (2 at
+  once); every other tier-1 file under 15. **Light tier-1 files run beside them, outside the slots, as before**: each of
+  the `--jobs` workers takes the first file in order that may start now — a light one always, a slotted one only with
+  room — so a light file never waits behind a slotted one. **Its machine trouble backs the level off as a browser's
+  does** (halved at once, saved) and it is **rerun once, alone**, said loudly — only when the file itself says so (exit 3
+  and the marked line), never guessed. What a heavy file can tell reliably: **test_run_tests.py's stand-in relay wasn't
+  ready within its time** — only when the stand-in's last try never reached its own ready line (each try leaves a note)
+  AND the runner waited its whole time; if the stand-in said "Ready", whatever followed is the runner's — a failure
+  (`standin_late`; RUN-016–020, 052, 057). The others have no time limits of their own: they only get slower. A run with
+  no screen tests is no measure of browsers — only its trouble moves the level, never up. A light tier-1 file's exit 3 is
+  a failure like any other. Tests: `RUN-077`, `087`–`090`, `LEVEL-022`.
+- **Rerun once, ALONE — never silently** (2026-11-17): a screen-test file — or a heavy tier-1 file (above) — that exits 3
+  with that line (both needed; a light tier-1 file and tier 3 never) is not reported yet; when every other file of the
+  run is done, the runner waits 10 s, takes **every**
   test slot on the PC (in order — two runs doing it can't deadlock; no other run's screen test beside it either) and
   reruns it once. A file split into shards reruns only the shard that met the trouble. The summary says so loudly,
   every time:
@@ -191,8 +229,8 @@ stamp is PROVEN — two changes can merge cleanly and break together (docs/desig
   `RUN-063`, `064`.
 - **In parallel, under a machine-wide limit** (2026-11-16): tier 1 and tier 2 files run several at once — `--jobs N`
   (default: 4, or the browsers-at-once level above when higher; `--jobs 1` = one at a time, as before), the longest
-  first by each file's time in the last record. **Every screen-test file holds one of the PC's test slots while it
-  runs** (`tools/test_slots.py`): 6 in total for every run on this PC (4 until 2026-11-17, when the runner began choosing
+  first by each file's time in the last record. **Every screen-test file — and every heavy tier-1 file (above) — holds
+  one of the PC's test slots while it runs** (`tools/test_slots.py`): 6 in total for every run on this PC (4 until 2026-11-17, when the runner began choosing
   its own level, 1–6, above), whatever working copy it's in (`RW_TEST_SLOTS` overrides — every run should use the same
   number). A slot is a file in `%TEMP%\rw-test-slots` (or `RW_TEST_SLOTS_DIR`, above) held with an OS file lock, so a
   run that crashes or is stopped frees its slot by itself. A run waiting for one prints `· <file> waits for a test slot — all 6 on this PC are in use`
@@ -358,7 +396,11 @@ fixture, never anything sensitive on screen.
 
 A test that fails sometimes teaches everyone to ignore failures (Law 12: an alarm on the normal path is noise). So:
 - **fixed data** (§5.1) and **a fixed clock** where dates matter (the "today / yesterday" labels);
-- **wait for conditions, never fixed sleeps** ("the toast appeared", not "wait 2 seconds");
+- **wait for conditions, never fixed sleeps** ("the toast appeared", not "wait 2 seconds") — **under generous limits**:
+  a limit only matters when something's wrong, and a busy machine is no hang (2026-11-17, test_reset.py; §4). A test's
+  own wait running out is a test failure, never the machine's trouble — it could hide a real hang. **Act on the tab in
+  front**: with two tabs open, Chrome slows the one behind (§4) — bring a tab forward before acting on it, as a person
+  switches tabs;
 - **a fresh browser profile** for each run; stop what a test started by its exact process id (Law 5) — **and check it
   stopped** (each process gone, its port free: Law 12, 7.28.0);
 - **a flaky test is fixed — or set aside, with a TODO — the same day.** Never tolerated, never "just re-run it". Set
@@ -368,7 +410,8 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
 - **A one-time failure — how it's handled now** (2026-11-17, TODO tooling item 9; §4): it is **kept** (the failed file's
   whole output beside the run's record, and its screenshot — `full output: <path>`), **read** before anything else, and
   **rerun only if it is the machine's or the browser's trouble** — which the screen-test driver itself recognizes and
-  says with exit 3, never a guess at the output afterwards: once, alone, after a wait, said loudly in the summary and
+  (or a heavy tier-1 file, for its own stand-ins — §4) says with exit 3, never a guess at the output afterwards: once,
+  alone, after a wait, said loudly in the summary and
   noted in the record and on the stamp (`1 file retried after <reason> — its first output: <path>`). That rerun is the
   machine's hiccup being waited out, not "just re-run it": a TEST failure is never rerun — it is read, and fixed or set
   aside the same day. A file rerun after the trouble that keeps coming back is a flaky environment to look into — the
@@ -438,4 +481,9 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   once by itself, 1 to 6, saved per PC — halved at once on the machine's trouble, one more after a clean full run, back
   down when one more gained nothing (§4); the fixed low-memory rule removed; the PC's slots 4 → 6.
   `tools/browser_level.py`; `test/test_browser_level.py` (LEVEL-001–016); RUN-079 (reworded), 083, 084.
+- **Built 2026-11-17 (branch `tooling/tier1-load`, sprint 7):** heavy tier-1 files hold a test slot within the browsers'
+  level and back it off on their machine trouble (`heavy: yes`; five files marked); a light tier-1 file never waits
+  behind a slotted one; test_run_tests.py tells a late stand-in relay (the machine's) from the runner's failure; a
+  library script that failed to download is the network's trouble; test_reset.py's waits are conditions, on the tab in
+  front — §4, §7. RUN-087–091, ENV-005–007, LEVEL-022.
 - From then on, every task follows §6.

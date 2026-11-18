@@ -1,6 +1,7 @@
 # Tests for tools/backlog_report.py — how a task's end is counted: done, merged or dropped.
 # tags: backlog, tooling, tier 1
 # covers: tools/backlog_report.py
+# heavy: yes — ~1,200 git processes a run, one after another for ~2 min: TODO.md's every version (counted 2026-11-17)
 # Run: python test/test_backlog_report.py
 #
 # 2026-11-10: every release is squashed onto main, and the ✅ a task gets while its branch is built never reaches main's

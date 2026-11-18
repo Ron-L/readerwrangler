@@ -26,6 +26,10 @@ browsers-at-once.json — FILE_NAME): the level, why, and a short history of run
     here: the runner leaves the saved level alone. The file lives in RW_TEST_SLOTS_DIR instead, when that's set
     (tools/test_slots.py — a folder of its own without moving TEMP).
 
+The level governs HEAVY tier-1 files too (Ron, 2026-11-17: "Yes. Also back off"): a tier-1 file whose header says
+`heavy: yes` holds a test slot within the same level while it runs, and its machine trouble halves the level like a
+browser's. A run with no screen tests is no measure of browsers: only its trouble moves the level (never up).
+
 decide() is the rule — a pure function (history + the run just done → the next level, why, and what kind of move);
 record() applies it to the saved state; load() / save() read and write the file (a missing or damaged file → START, 4,
 said so); describe() is the run's line; Gate is the level inside one run. Two runs at once each save their own result —
@@ -203,6 +207,16 @@ class Gate:
         with self._cond:
             while self.running >= self.level:
                 self._cond.wait()
+            self.running += 1
+            self.peak = max(self.peak, self.running)
+            return self.gen
+
+    def try_enter(self):
+        """Take room if there is some, without waiting: the generation it started in — or None, the run already has its
+        level running (tools/run_tests.py takes the next unit that may start, never sitting on one that can't)."""
+        with self._cond:
+            if self.running >= self.level:
+                return None
             self.running += 1
             self.peak = max(self.peak, self.running)
             return self.gen

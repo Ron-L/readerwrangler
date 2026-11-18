@@ -1,6 +1,7 @@
 # Tests for tools/copies.py — working copies of the folder (git worktrees with the tools linked in).
 # tags: copies, tooling, tier 1
 # covers: tools/copies.py, git-hooks/private_values.py, test/ui/rw.py
+# heavy: yes — ~400 processes a run, up to 9 at once: git worktrees, submodules, their hooks' shells (counted 2026-11-17)
 # Run: python test/test_copies.py
 #
 # TODO "Faster sprints", item 3 (2026-11-16). Each test builds a throwaway "main folder" in %TEMP% — a real git

@@ -1,6 +1,7 @@
 # Tests for tools/sync_remotes.py — dev and prod kept holding every branch and tag this folder has.
 # tags: remotes, tooling, tier 1
 # covers: tools/sync_remotes.py
+# heavy: yes — ~220 processes a run, up to 5 at once: real git pushing to two bare "remotes" (counted 2026-11-17)
 # Run: python test/test_sync_remotes.py
 #
 # Ron, 2026-11-16. Each test builds, in %TEMP%, a throwaway repository with two bare "remotes" named dev and prod, and

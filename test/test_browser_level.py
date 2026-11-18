@@ -361,6 +361,22 @@ def r021():
 
 row("LEVEL-021", "after a step down for slowness, growth follows the normal rules — no extra wait", r021)
 
+
+def r022():
+    g = bl.Gate(2)
+    a, b, c = g.try_enter(), g.try_enter(), g.try_enter()       # room for 2, not 3 — and no waiting for it
+    halved = g.trouble(a)                                       # 2 → 1: b still running, a new one has no room
+    g.leave()
+    d = g.try_enter()                                           # one running (b), level 1: still no room
+    g.leave()
+    e = g.try_enter()                                           # none running: room, in the new generation
+    return (a, b, c, halved, d, e, g.peak) == (0, 0, None, (2, 1), None, 1, 2), (a, b, c, halved, d, e, g.peak)
+
+
+row("LEVEL-022", "in a run, a unit may TRY for room without waiting (the runner takes the next file that may start): "
+    "room while fewer than the level run, none at it — and after a halving none until the running ones are under it",
+    r022)
+
 failed = [r for r in results if not r[1]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
 sys.exit(1 if failed else 0)

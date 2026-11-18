@@ -3,7 +3,8 @@ test_slots.py — the machine-wide limit on screen tests running at once (TODO "
 
 Screen tests run in parallel (tools/run_tests.py --jobs), and several working copies of the project may test at the same
 time — but sprint 4's one-time failures came from machine load. So every screen-test file, from ANY run on this PC,
-holds one of N slots for as long as it runs:
+holds one of N slots for as long as it runs — and so, since 2026-11-17, does every HEAVY tier-1 file (its header says
+`heavy: yes`: it starts many processes of its own):
 
     slots = Slots()                                  # N = RW_TEST_SLOTS, else 6; the slot files live in %TEMP%
                                                      # (or RW_TEST_SLOTS_DIR — slots_folder())
@@ -226,10 +227,14 @@ class Slots:
                 slot.waited = time.monotonic() - start
                 return slot
             if not said and on_wait:
-                n = self._upto(upto)
-                on_wait(f"· {label} waits for a test slot — "
-                        + (f"all {self.count} on this PC are in use" if n >= self.count else
-                           f"the first {n} of the {self.count} on this PC (browsers at once: {n}) are in use")
-                        + f" (RW_TEST_SLOTS; {self.folder}):\n    " + "\n    ".join(self.holders()))
+                on_wait(self.wait_message(label, upto))
                 said = True
             time.sleep(poll_s)
+
+    def wait_message(self, label, upto=None):
+        """What a run waiting for a slot says (once): what waits, which slots it may use, who holds each."""
+        n = self._upto(upto)
+        return (f"· {label} waits for a test slot — "
+                + (f"all {self.count} on this PC are in use" if n >= self.count else
+                   f"the first {n} of the {self.count} on this PC (browsers at once: {n}) are in use")
+                + f" (RW_TEST_SLOTS; {self.folder}):\n    " + "\n    ".join(self.holders()))

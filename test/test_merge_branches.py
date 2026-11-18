@@ -1,6 +1,7 @@
 # Tests for tools/merge_branches.py — task branches merged into main-prime by a script.
 # tags: merge-branches, tooling, tier 1
 # covers: tools/merge_branches.py, git-hooks/check-toc.js
+# heavy: yes — ~350 processes a run: real git merges in throwaway repositories, the stand-in tools (counted 2026-11-17)
 # Run: python test/test_merge_branches.py
 #
 # TODO "Faster sprints", item 4 (2026-11-16). Each test builds a throwaway repository with real git: the real

@@ -118,6 +118,7 @@ def differs_today(tid, name, fn, today):
       - it passes → a FAILURE: the app now does what was decided — drop the mark (call test() instead)."""
     if not re.fullmatch(r"[A-Z][A-Z0-9]*-\d{3}", tid) or tid in _seen:
         _failures.append(tid)
+        _events.append(("fail", tid))
         print(f"  ✗ {tid} {name}\n      bad or repeated test ID — use AREA-NNN", flush=True)
         return
     _seen.add(tid)
@@ -193,13 +194,10 @@ def remove_tree(top):
 
 def _exit_code():
     """0 nothing failed; EXIT_CODE (3) the machine's or the browser's trouble came first — no test had failed before it;
-    1 a test failure (one before any trouble, or no trouble at all)."""
-    kinds = [k for k, _ in _events]
-    if not _failures and not _troubled and "fail" not in kinds:
-        return 0
-    if "env" in kinds and ("fail" not in kinds or kinds.index("env") < kinds.index("fail")):
-        return environment_trouble.EXIT_CODE
-    return 1
+    1 a test failure (one before any trouble, or no trouble at all). The rule lives in tools/environment_trouble.py
+    (exit_code) — test/test_run_tests.py, a heavy tier-1 file with its own helper, uses it too. (Every failure adds a
+    "fail" event, so the events alone tell it.)"""
+    return environment_trouble.exit_code(_events, stopped=len(_troubled))
 
 
 def _finish():
@@ -208,8 +206,7 @@ def _finish():
     print(f"{_passed} passed, {len(_failures)} failed" + (f", {len(_differ)} differ today (as measured)" if _differ else "")
           + (f", {len(_troubled)} stopped by the machine's or the browser's trouble" if _troubled else ""), flush=True)
     if code == environment_trouble.EXIT_CODE:
-        first = next(r for k, r in _events if k == "env")
-        print(f"{environment_trouble.MARK} {first}", flush=True)
+        print(environment_trouble.mark_line(_events), flush=True)
         print(f"  (exit {code}: the machine or the browser failed, not a test — tools/run_tests.py reruns this file once, "
               "alone)", flush=True)
     return code

@@ -1,6 +1,7 @@
 # Tests for tools/run_tests.py — the one test runner (docs/design/TESTING.md §4).
 # tags: test-runner, tier 1
 # covers: tools/run_tests.py, tools/local_relay.py, tools/test_slots.py, tools/environment_trouble.py, tools/browser_level.py, test/harness.js, test/ui/rw.py, test/ui/harness.py
+# heavy: yes — ~300 processes a run, up to 8 at once: sample runs in parallel, stand-in relays (counted 2026-11-17)
 # Run: python test/test_run_tests.py
 #
 # Sample test files are written to a temporary folder; each row checks one thing the runner must do.
@@ -9,6 +10,7 @@ import glob
 import importlib.util
 import io
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -23,11 +25,47 @@ spec.loader.exec_module(rt)
 
 HARNESS = os.path.join(ROOT, "test", "harness.js").replace("\\", "/")
 results = []
+events = []     # ("fail", id) / ("env", reason), in order — the exit code (tools/environment_trouble.py exit_code)
 
 
 def row(tid, name, ok, detail=""):
     results.append((tid, name, ok, detail))
+    if not ok:
+        events.append(("fail", tid))
     print(f"  {'✓' if ok else '✗'} {tid} {name}" + ("" if ok else f" — {detail}"))
+
+
+def stopped(tid, name, reason):
+    """A check the MACHINE's trouble stopped — not a pass, not a failure (2026-11-17: under load a stand-in relay wasn't
+    ready within its 20 s, RUN-057, and the merge's run failed on it). If no check failed before the first such trouble,
+    the file exits 3 with the marked line, and the runner reruns it once, alone (this file is heavy: its header)."""
+    results.append((tid, name, None, reason))
+    events.append(("env", reason))
+    print(f"  ! {tid} {name}\n      stopped by the machine's trouble, not a test failure: {reason}")
+
+
+def judged_row(tid, name, ok, detail, late=None):
+    """row() — unless it failed only because a stand-in was late (late: the machine's trouble, in words): stopped()."""
+    if not ok and late:
+        stopped(tid, name, late)
+    else:
+        row(tid, name, ok, detail)
+
+
+def standin_late(text, pids, limit):
+    """The machine's trouble, in words, when a stand-in relay didn't come up in its time — never a verdict on the runner:
+    only when the stand-in's LAST try never got as far as its ready line (each try leaves a note when it does — a file
+    of its own, <pids>.ready-<its id>) AND the runner waited its whole time for it ("didn't say it was ready within
+    <limit>"), or the stand-in's own server never came up. Otherwise None: what went wrong is the runner's — a failure."""
+    tries = [ln.split()[1] for ln in (open(pids).read().splitlines() if os.path.exists(pids) else [])
+             if ln.startswith("relay ")]
+    if tries and os.path.exists(f"{pids}.ready-{tries[-1]}"):
+        return None             # it said "Ready" — whatever happened after is the runner's to answer for
+    if f"didn't say it was ready within {limit}" in (text or ""):
+        return f"a stand-in relay wasn't ready within {limit} — the machine was too slow to start it"
+    if "the stand-in's server never came up" in (text or ""):
+        return "a stand-in relay's own server never came up — the machine was too slow to start it"
+    return None
 
 
 with tempfile.TemporaryDirectory() as d:
@@ -173,6 +211,7 @@ elif mode == "strict":                # like wrangler on a taken port: its serve
         if srv.poll() is not None:
             sys.exit("the stand-in's server couldn't take the port — stopping, as wrangler does")
         time.sleep(0.05)
+    open(pids + ".ready-" + str(os.getpid()), "w").close()   # it got this far (standin_late: not the machine's then)
     print(f"[wrangler:info] Ready on http://127.0.0.1:{port}", flush=True)
     time.sleep(600)
 elif mode == "middle":
@@ -187,6 +226,7 @@ else:
         child("serve")
     wait_served()
     if mode != "never":
+        open(pids + ".ready-" + str(os.getpid()), "w").close()   # it got this far (standin_late)
         print(f"[wrangler:info] Ready on http://127.0.0.1:{port}", flush=True)
     time.sleep(600)
 ''')
@@ -207,7 +247,7 @@ else:
     def run_main(argv, mode=None, start_s=20):
         """main() on the sample tier-3 file, with the stand-in relay in `mode`. (exit code, printed text, {role: id})"""
         pids = os.path.join(d, f"pids-{mode}.txt")
-        for p in (pids, os.path.join(d, "seen-url.txt")):
+        for p in [pids, os.path.join(d, "seen-url.txt")] + glob.glob(pids + ".ready-*"):
             if os.path.exists(p):
                 os.remove(p)
         relay = (lambda: lr.LocalRelay(command=[sys.executable, standin, mode, "{port}", pids], cwd=d, start_s=start_s,
@@ -225,38 +265,42 @@ else:
         return code, buf.getvalue(), started, seen
 
     code, out, started, seen = run_main(["--tier", "3"], mode="ok")
-    row("RUN-016", "with no --relay-url, tier 3 runs against a local relay the runner started — the file gets its "
-        "address and the relay answers there",
-        code == 0 and seen is not None and seen.startswith("http://127.0.0.1:") and "relay" in started
-        and "server" in started,     # the sample file passes only when the address it was given answered
-        f"exit {code}, url seen {seen!r}, started {started}: {out[-400:]}")
+    late = standin_late(out, os.path.join(d, "pids-ok.txt"), "20 s")
+    judged_row("RUN-016", "with no --relay-url, tier 3 runs against a local relay the runner started — the file gets its "
+               "address and the relay answers there",
+               code == 0 and seen is not None and seen.startswith("http://127.0.0.1:") and "relay" in started
+               and "server" in started,     # the sample file passes only when the address it was given answered
+               f"exit {code}, url seen {seen!r}, started {started}: {out[-400:]}", late)
     port = int(seen.rsplit(":", 1)[1]) if seen and seen.startswith("http://127.0.0.1:") else None
     with socket.socket() as s:
         s.settimeout(0.5)
         port_free = port is not None and s.connect_ex(("127.0.0.1", port)) != 0
     now = running()
     left = [f"{role} {pid}" for role, pid in started.items() if pid in now]
-    row("RUN-017", "afterwards every process the relay started is gone — the relay AND its child — and the port is free",
-        set(started) == {"relay", "server"} and not left and port_free,
-        f"started {started}; still running {left}; port {port} free: {port_free}")
+    judged_row("RUN-017", "afterwards every process the relay started is gone — the relay AND its child — and the port is "
+               "free", set(started) == {"relay", "server"} and not left and port_free,
+               f"started {started}; still running {left}; port {port} free: {port_free}", late)   # (RUN-016's run)
 
     code, out, started, _ = run_main(["--tier", "3"], mode="never", start_s=1.5)
     now = running()
     left = [f"{role} {pid}" for role, pid in started.items() if pid in now]
-    row("RUN-018", "a relay that never says it's ready fails the run loud — and what it started is stopped",
-        code == 1 and "didn't say it was ready within 1.5 s" in out and set(started) == {"relay", "server"} and not left,
-        f"exit {code}, started {started}, still running {left}: {out[-400:]}")
+    # The check needs the stand-in's server started within the 1.5 s (a tree to stop): one that wasn't is the machine's.
+    late = ("the stand-in relay hadn't started its own server within 1.5 s — the machine was too slow; there was no "
+            "tree to check the stop against") if "server" not in started and "within 1.5 s" in out else None
+    judged_row("RUN-018", "a relay that never says it's ready fails the run loud — and what it started is stopped",
+               code == 1 and "didn't say it was ready within 1.5 s" in out and set(started) == {"relay", "server"}
+               and not left, f"exit {code}, started {started}, still running {left}: {out[-400:]}", late)
 
     code, out, started, _ = run_main(["--tier", "3"], mode="orphan")
     escaped = started.get("server")
     now = running()
-    row("RUN-019", "a child that escaped the tree and still serves the port fails the run, named by its id — and the "
-        "runner leaves it running (not provably its own)",
-        code == 1 and escaped is not None and f"process {escaped}" in out and "left running" in out
-        and escaped in now       # (since 2026-11-16 caught at the start — not alone on its port — rather than at the stop)
-        and open(os.path.join(d, "pids-orphan.txt")).read().count("relay ") == 1,   # …and never tried again
-
-        f"exit {code}, started {started}: {out[-600:]}")
+    judged_row("RUN-019", "a child that escaped the tree and still serves the port fails the run, named by its id — and "
+               "the runner leaves it running (not provably its own)",
+               code == 1 and escaped is not None and f"process {escaped}" in out and "left running" in out
+               and escaped in now   # (since 2026-11-16 caught at the start — not alone on its port — rather than at the stop)
+               and open(os.path.join(d, "pids-orphan.txt")).read().count("relay ") == 1,   # …and never tried again
+               f"exit {code}, started {started}: {out[-600:]}", standin_late(out, os.path.join(d, "pids-orphan.txt"),
+                                                                            "20 s"))
     for pid in started.values():      # the test's own cleanup — by exact id, processes this test started
         if pid in now:
             subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)   # one process each — never /T
@@ -270,9 +314,11 @@ else:
     srv = subprocess.Popen([sys.executable, standin, "serve", str(given_port), os.path.join(d, "pids-given.txt")],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
+        up = False
         for _ in range(100):
             try:
                 socket.create_connection(("127.0.0.1", given_port), 0.2).close()
+                up = True
                 break
             except OSError:
                 time.sleep(0.1)
@@ -283,8 +329,10 @@ else:
         except AssertionError as e:
             code = str(e)
         seen = open(os.path.join(d, "seen-url.txt")).read() if os.path.exists(os.path.join(d, "seen-url.txt")) else None
-        row("RUN-020", "--relay-url given → no relay is started, and the file gets that address (as before)",
-            code == 0 and seen == given, f"exit {code}, url seen {seen!r}, given {given}: {buf.getvalue()[-300:]}")
+        judged_row("RUN-020", "--relay-url given → no relay is started, and the file gets that address (as before)",
+                   code == 0 and seen == given, f"exit {code}, url seen {seen!r}, given {given}: {buf.getvalue()[-300:]}",
+                   None if up else "the stand-in relay this test started itself never answered on its port — the machine "
+                                   "was too slow to start it")
     finally:
         srv.kill()      # the one process this test started (no children here)
         srv.wait(10)
@@ -337,26 +385,30 @@ else:
     url, relay, served, answer, left, started, squatted, untouched = squatted_relay("ok", "squat")
     now = running()
     ours_left = [f"{role} {pid}" for role, pid in started if int(pid) in now]
-    row("RUN-052", "the local relay's ready line isn't taken on trust: it printed 'Ready' on its port while another "
-        "process (here: this test, older than the relay — so proven not one of its own) listened there → not accepted; "
-        "that process left alone; started again on new ports — the address it gives is served by processes it started "
-        "and nothing else; nothing it started is left running",
-        url.startswith("http://127.0.0.1:") and not url.endswith(f":{squatted}") and served and relay is not None
-        and served <= set(relay.ours) and answer == b"stand-in relay" and not left
-        and sum(1 for r, _ in started if r == "relay") == 2 and not ours_left and untouched,
-        f"url {url[:400]}, served by {served}, ours {sorted(relay.ours) if relay else None}, answer {answer!r}, left "
-        f"{left}, started {started}, still running {ours_left}, squatter untouched {untouched}")
+    judged_row("RUN-052", "the local relay's ready line isn't taken on trust: it printed 'Ready' on its port while "
+               "another process (here: this test, older than the relay — so proven not one of its own) listened there → "
+               "not accepted; that process left alone; started again on new ports — the address it gives is served by "
+               "processes it started and nothing else; nothing it started is left running",
+               url.startswith("http://127.0.0.1:") and not url.endswith(f":{squatted}") and served and relay is not None
+               and served <= set(relay.ours) and answer == b"stand-in relay" and not left
+               and sum(1 for r, _ in started if r == "relay") == 2 and not ours_left and untouched,
+               f"url {url[:400]}, served by {served}, ours {sorted(relay.ours) if relay else None}, answer {answer!r}, "
+               f"left {left}, started {started}, still running {ours_left}, squatter untouched {untouched}",
+               standin_late(url, os.path.join(d, "pids-squat.txt"), "20 s"))
     url, relay2, served, answer, left, started, squatted, _ = squatted_relay("strict", "strict")
     now = running()
     ours_left = [f"{role} {pid}" for role, pid in started if int(pid) in now]
-    row("RUN-057", "a relay that stops before it's ready (wrangler on a taken port: 'The Workers runtime failed to start') "
-        "is started again on new ports — the address it gives is served by processes it started and nothing else; "
-        "every try's processes are gone afterwards",
-        url.startswith("http://127.0.0.1:") and not url.endswith(f":{squatted}") and served and relay2 is not None
-        and served <= set(relay2.ours) and answer == b"stand-in relay" and not left
-        and sum(1 for r, _ in started if r == "relay") == 2 and not ours_left,
-        f"url {url[:300]}, served by {served}, ours {sorted(relay2.ours) if relay2 else None}, answer {answer!r}, "
-        f"left {left}, started {started}, still running {ours_left}")
+    # (2026-11-17: in the merge's run on the merged result this failed once — "the local relay didn't say it was ready
+    # within 20 s" — a busy machine, the stand-in not yet at its ready line: now told apart by standin_late)
+    judged_row("RUN-057", "a relay that stops before it's ready (wrangler on a taken port: 'The Workers runtime failed to "
+               "start') is started again on new ports — the address it gives is served by processes it started and "
+               "nothing else; every try's processes are gone afterwards",
+               url.startswith("http://127.0.0.1:") and not url.endswith(f":{squatted}") and served and relay2 is not None
+               and served <= set(relay2.ours) and answer == b"stand-in relay" and not left
+               and sum(1 for r, _ in started if r == "relay") == 2 and not ours_left,
+               f"url {url[:300]}, served by {served}, ours {sorted(relay2.ours) if relay2 else None}, answer {answer!r}, "
+               f"left {left}, started {started}, still running {ours_left}",
+               standin_late(url, os.path.join(d, "pids-strict.txt"), "20 s"))
     rw_src = open(os.path.join(ROOT, "test", "ui", "rw.py"), encoding="utf-8").read()
     row("RUN-053", "one relay launcher (Law 22): extra arguments reach the relay after its own (the screen tests' "
         "ALLOWED_ORIGINS), and the screen tests start theirs through tools/local_relay.py — rw.py has no copy of its own "
@@ -1201,8 +1253,9 @@ done()
     code, out = quiet_main(["--tier", "all", "--jobs", "1"], files=[rt.TestFile(p) for p in (asserts, tier1_env, unmarked)],
                            slots=ts.Slots(count=2, folder=env_slots), results=os.path.join(d, "never-results"),
                            retry_wait=0.1)
-    row("RUN-077", "a TEST failure is never rerun: an assertion that failed; a tier-1 file's exit 3 (only a screen test "
-        "can meet the browser's trouble); exit 3 without the harness's marked line — each ran once and failed",
+    row("RUN-077", "a TEST failure is never rerun: an assertion that failed; a LIGHT tier-1 file's exit 3 (only a screen "
+        "test or a heavy tier-1 file can meet the machine's trouble — RUN-088); exit 3 without the harness's marked "
+        "line — each ran once and failed",
         code == 1 and (runs_of("asserts"), runs_of("tier1env"), runs_of("unmarked")) == (1, 1, 1)
         and "retried" not in out and "Tests: 0 file(s) passed, 3 failed" in out,
         f"exit {code}, runs {(runs_of('asserts'), runs_of('tier1env'), runs_of('unmarked'))}: {out[-500:]}")
@@ -1424,6 +1477,165 @@ test("LVLS-002", "a sample test", lambda: None)
         and "· browsers at once next run: 4 — " in out and "failed" in out.split("· browsers at once next run: 4 — ")[-1],
         f"exit {code}, saved {fl_state}, moves {fl_moves}: {out[-500:]}")
 
+    # --- Heavy tier-1 files share the level (Ron, 2026-11-17: "Yes. Also back off" — the merge's full run failed a
+    # different timing test of THIS file twice, under 4 tier-1 files at once, three of which start many processes of their
+    # own). A tier-1 file whose header says `heavy: yes` holds one of the PC's test slots while it runs, within the same
+    # level as the screen tests' browsers; its machine trouble backs the level off; a light tier-1 file runs beside them,
+    # outside the slots, as before. Each case has its own slots folder (and so its own saved level).
+    hv_times = os.path.join(d, "heavy-times")
+    os.makedirs(hv_times)
+    hv_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-heavy"))
+    rt.browser_level.save(os.path.join(hv_slots.folder, rt.browser_level.FILE_NAME),
+                          {"level": 1, "why": "a sample level of 1", "history": []})
+
+    def heavy_sample(name, heavy=True):
+        """A tier-1 stand-in. Heavy: notes whether slot 1 of its slots folder was held while it ran (by its run — the level
+        is 1), and runs 1 s. Light: waits (up to 20 s) until a heavy one has started, then notes whether one is running."""
+        head = ("# heavy: yes — a stand-in for a file that starts many processes of its own\n" if heavy else "")
+        body = (f"""probe = test_slots.Slots(count=6, folder={hv_slots.folder!r}).try_acquire("probe", upto=1)
+held = "free" if probe else "held"
+if probe:
+    probe.release()
+open(os.path.join(T, {name!r} + ".start"), "w").write(f"{{time.time()}} {{held}}")
+time.sleep(1.0)
+open(os.path.join(T, {name!r} + ".end"), "w").write(f"{{time.time()}} {{held}}")
+""" if heavy else f"""end = time.time() + 20
+while time.time() < end and not glob.glob(os.path.join(T, "hv*.start")):
+    time.sleep(0.05)
+running = [p for p in glob.glob(os.path.join(T, "hv*.start")) if not os.path.exists(p[:-len(".start")] + ".end")]
+open(os.path.join(T, {name!r} + ".start"), "w").write(f"{{time.time()}} {{'beside' if running else 'alone'}}")
+""")
+        return write(f"test_{name}.py", f"# sample\n# tags: heavy-sample, tier 1\n# covers: tools/run_tests.py\n{head}"
+                     f"import glob, os, sys, time\nsys.path.insert(0, {tools_dir!r})\nimport test_slots\nT = {hv_times!r}\n"
+                     + body + "print('1 passed, 0 failed')\n")
+
+    hv_files = [heavy_sample("hva"), heavy_sample("hvb"), heavy_sample("lightc", heavy=False)]
+    code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(p) for p in hv_files], slots=hv_slots,
+                           results=os.path.join(d, "heavy-results"))
+
+    def mark(name, what):
+        p = os.path.join(hv_times, f"{name}.{what}")
+        t, word = open(p).read().split() if os.path.exists(p) else (0, None)
+        return float(t), word
+    (a0, ah), (a1, _), (b0, bh), (b1, _) = mark("hva", "start"), mark("hva", "end"), mark("hvb", "start"), mark("hvb", "end")
+    apart = (a1 and b0 >= a1) or (b1 and a0 >= b1)
+    row("RUN-087", "a heavy tier-1 file (its header: heavy: yes) holds one of the PC's test slots while it runs, within "
+        "the browsers' level — at a level of 1 two heavy files run one after the other, each holding slot 1 — while a "
+        "light tier-1 file runs beside them, outside the slots, as before; the run says the level",
+        code == 0 and ah == bh == "held" and apart and mark("lightc", "start")[1] == "beside"
+        and "· browsers at once: 1 (saved — a sample level of 1" in out,
+        f"exit {code}, hva {mark('hva', 'start')}→{a1}, hvb {mark('hvb', 'start')}→{b1}, light "
+        f"{mark('lightc', 'start')}: {out[-500:]}")
+
+    hv2_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-heavy2"))    # nothing saved: the level starts at 4
+    hvtrouble = harness_file("test_hvtrouble.py", count_runs("hvtrouble") + """def first_time():
+    if n == 0:
+        raise EnvironmentTrouble("a stand-in relay wasn't ready within 20 s (a sample)")
+test("HVS-001", "a sample heavy function test", first_time)
+done()
+""", tier=1, extra="# heavy: yes — a sample\n")
+    code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(hvtrouble), rt.TestFile(js_ok)], slots=hv2_slots,
+                           results=os.path.join(d, "heavy2-results"), retry_wait=0.1)
+    hv2_state, _ = rt.browser_level.load(os.path.join(hv2_slots.folder, rt.browser_level.FILE_NAME))
+    row("RUN-088", "machine trouble in a heavy tier-1 file (its exit 3 and the marked line) backs the level off as a "
+        "browser's does — 4 → 2 at once, said, and saved — and the file is rerun once, alone, and passes; the light file "
+        "beside it is untouched",
+        code == 0 and runs_of("hvtrouble") == 2 and "! browsers at once: 4 → 2 for the rest of this run" in out
+        and "1 file retried after a stand-in relay wasn't ready within 20 s (a sample)" in out
+        and hv2_state["level"] == 2 and (hv2_state["history"] or [{}])[-1].get("outcome") == "backed off"
+        and "Tests: 2 file(s) passed, 0 failed" in out,
+        f"exit {code}, runs {runs_of('hvtrouble')}, saved {hv2_state}: {out[-600:]}")
+
+    hp = {v: rt.read_header(write(f"test_hp_{i}.py", f"# sample\n# tags: hp-sample, tier 1\n# covers: a.js\n# heavy: {v}\n"))
+          for i, v in enumerate(["yes", "yes — it starts many processes", "no", "maybe"])}
+    plain = rt.read_header(py_ok)
+    lst_code, lst = quiet_main(["--tier", "1", "--list"], files=[rt.TestFile(hv_files[0]), rt.TestFile(py_ok)])
+    row("RUN-089", "the heavy: header line — 'yes' (or 'yes — why') marks a file heavy, 'no' or no line leaves it light, "
+        "anything else is a header problem naming the line; --list shows which files are heavy",
+        hp["yes"].get("heavy") is True and hp["yes — it starts many processes"].get("heavy") is True
+        and not hp["yes"]["problem"] and hp["no"].get("heavy") is False and plain.get("heavy") is False
+        and "heavy" in str(hp["maybe"].get("problem")) and "maybe" in str(hp["maybe"].get("problem"))
+        and any("test_hva.py" in ln and "heavy" in ln for ln in lst.splitlines())
+        and not any("test_c.py" in ln and "heavy" in ln for ln in lst.splitlines()),
+        f"{ {k: (v.get('heavy'), v['problem']) for k, v in hp.items()} }, plain {plain.get('heavy')}: {lst[-300:]}")
+
+    # This file's own judgment of a late stand-in (standin_late) and the exit rule it shares with the harness.
+    lp = os.path.join(d, "pids-late.txt")
+    with open(lp, "w") as f:
+        f.write("relay 111\nserver 112\nrelay 222\n")
+    open(lp + ".ready-111", "w").close()            # the first try said "Ready"; the last one (222) didn't
+    late_last = standin_late("the local relay couldn't start in 2 tries: 1) …; 2) didn't say it was ready within 20 s.",
+                             lp, "20 s")
+    late_runner = standin_late("the local relay said it was ready on port 1, not on its own port 2.", lp, "20 s")
+    open(lp + ".ready-222", "w").close()
+    late_ready = standin_late("the local relay didn't say it was ready within 20 s.", lp, "20 s")
+    try:
+        et = rt.environment_trouble
+        codes = [et.exit_code([]), et.exit_code([("env", "late")]), et.exit_code([("env", "late")], stopped=1),
+                 et.exit_code([("env", "late"), ("fail", "X-1")]), et.exit_code([("fail", "X-1"), ("env", "late")]),
+                 et.exit_code([("fail", "X-1")])]
+        line = et.mark_line([("fail", "X-1"), ("env", "late (a sample)"), ("env", "again")])
+    except Exception as e:      # noqa: BLE001 — not built yet
+        codes, line = f"{type(e).__name__}: {e}", None
+    row("RUN-090", "a stand-in relay's lateness is the machine's only when its LAST try never reached its ready line and "
+        "the runner waited its whole time; anything else is the runner's. The exit rule, one function shared with the "
+        "harness: nothing failed → 0 (trouble only noted), the trouble first and something stopped or failed → 3, a "
+        "failure first → 1; the marked line names the first trouble",
+        bool(late_last) and late_runner is None and late_ready is None and codes == [0, 0, 3, 3, 1, 1]
+        and line == "ENVIRONMENT FAILURE: late (a sample)",
+        f"last {late_last!r}, runner {late_runner!r}, ready {late_ready!r}, codes {codes}, line {line!r}")
+
+    # A script the page loads from a library host (React from unpkg.com…) that failed to DOWNLOAD is the network's (or
+    # the host's) trouble — the lab of 2026-11-17 failed a start-up on "ReactDOM is not defined" — never one that
+    # loaded and then threw. tools/environment_trouble.py decides; rw.py gathers what the browser said.
+    rd = "https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+    try:
+        fails = [et.library_download_failed(rd, "script", failure="net::ERR_CONNECTION_RESET"),
+                 et.library_download_failed(rd, "script", failure="net::ERR_TIMED_OUT"),
+                 et.library_download_failed(rd, "script", status=503),
+                 et.library_download_failed(rd, "script", status=200, body_size=0),
+                 et.library_download_failed("https://fonts.googleapis.com/css2?family=Lato", "stylesheet",
+                                            failure="net::ERR_NAME_NOT_RESOLVED")]
+        fine = [et.library_download_failed(rd, "script", status=200, body_size=130_000),
+                et.library_download_failed(rd, "script", failure="net::ERR_ABORTED"),       # a page change cut it short
+                et.library_download_failed(rd, "script", failure="net::ERR_FAILED"),        # a test refusing it
+                et.library_download_failed(rd, "script", status=404),                       # a wrong address: ours
+                et.library_download_failed(rd, "script", status=302, body_size=0),          # a redirect has no body
+                et.library_download_failed("http://localhost:8123/dist/readerwrangler.js", "script",
+                                           failure="net::ERR_CONNECTION_RESET"),            # ours: net_error's to judge
+                et.library_download_failed("https://unpkg.com/x/logo.png", "image", failure="net::ERR_TIMED_OUT")]
+        said = [et.library_failure_in_console("Failed to load resource: net::ERR_CONNECTION_RESET", rd),
+                et.library_failure_in_console("Failed to load resource: the server responded with a status of 503 "
+                                              "(Service Unavailable)", rd)]
+        unsaid = [et.library_failure_in_console("Failed to load resource: the server responded with a status of 404 "
+                                                "(Not Found)", rd),
+                  et.library_failure_in_console("Failed to load resource: net::ERR_CONNECTION_RESET",
+                                                "http://localhost:8123/x.js")]
+        own = ["error: error · UI-03 · Uncaught error: Uncaught ReferenceError: ReactDOM is not defined "
+               "(readerwrangler.js?v=1:20474)", "crash: ReactDOM is not defined"]
+        nd = [et.library_not_defined(own, [rd]), et.library_not_defined(own, ["https://unpkg.com/react@18/umd/x.js"]),
+              et.library_not_defined(own + ["crash: cdn script threw"], [rd]), et.library_not_defined([], [rd]),
+              et.library_not_defined(["crash: fooBar is not defined"], [rd])]
+        html = open(os.path.join(ROOT, "readerwrangler.html"), encoding="utf-8").read() \
+            + open(os.path.join(ROOT, "reset.html"), encoding="utf-8").read()
+        srcs = re.findall(r'<script[^>]*\ssrc="(https://[^"]+)"', html) \
+            + re.findall(r'<link[^>]*href="(https://[^"]+)"[^>]*rel="stylesheet"', html) \
+            + re.findall(r'<link[^>]*rel="stylesheet"[^>]*href="(https://[^"]+)"', html)
+        unknown_hosts = sorted({et.host_of(u) for u in srcs} - set(et.LIBRARY_HOSTS))
+        unused = [g for g, part in et.LIBRARY_GLOBALS.items() if not any(part in u for u in srcs)]
+    except Exception as e:      # noqa: BLE001 — not built yet
+        fails, fine, said, unsaid, nd, unknown_hosts, unused = f"{type(e).__name__}: {e}", [], [], [], [], ["?"], ["?"]
+    row("RUN-091", "a library script or stylesheet (unpkg.com, cdnjs, Google Fonts…) failed to download — refused, reset, "
+        "timed out, answered 5xx or with nothing — is the network's trouble; never a request cut short (ERR_ABORTED), "
+        "refused by a test (ERR_FAILED), a 404, an image, or our own server's; the console's words for it are read the "
+        "same; a start-up whose ONLY errors are 'X is not defined' for a library whose script failed is told apart from "
+        "one with an error of its own; every library host and global the pages use is in the table",
+        isinstance(fails, list) and all(fails) and "ERR_CONNECTION_RESET" in fails[0] and "503" in fails[2]
+        and fine == [None] * 7 and all(said) and unsaid == [None, None]
+        and nd == [["ReactDOM"], None, None, None, None] and not unknown_hosts and not unused,
+        f"fails {fails}, fine {fine}, said {said}, unsaid {unsaid}, not defined {nd}, hosts not in the table "
+        f"{unknown_hosts}, globals no page loads {unused}")
+
     # The harness's side (test/ui/harness.py) — its exit code is the mechanism: 3 only for the machine's or the
     # browser's trouble, and only when no test had failed before it. Run as their own processes, as the runner would.
     def harness_exit(body):
@@ -1480,6 +1692,12 @@ test("LVLS-002", "a sample test", lambda: None)
         and reasons == ["the page never loaded", None, None],
         f"{verdicts} | {reasons}")
 
-failed = [r for r in results if not r[2]]
-print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
-sys.exit(1 if failed else 0)
+failed = [r for r in results if r[2] is False]
+held_up = [r for r in results if r[2] is None]       # stopped by the machine's trouble (stopped())
+print(f"{len(results) - len(failed) - len(held_up)} passed, {len(failed)} failed"
+      + (f", {len(held_up)} stopped by the machine's trouble" if held_up else ""))
+# The harness's rule, in one place (tools/environment_trouble.py): 3 only when the machine's trouble came first
+code = rt.environment_trouble.exit_code(events, stopped=len(held_up))
+if code == rt.environment_trouble.EXIT_CODE:
+    print(rt.environment_trouble.mark_line(events))
+sys.exit(code)
