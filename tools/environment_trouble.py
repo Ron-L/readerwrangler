@@ -21,7 +21,7 @@ failed on "ReactDOM is not defined"): library_download_failed() and library_fail
 library_not_defined() a start-up whose only errors are a library's missing name. One that downloaded and then threw is
 never the network's.
 
-Tested by test/test_run_tests.py (RUN-080, 082, 090, 091) and test/ui/test_environment.py (ENV-001–007).
+Tested by test/test_run_tests.py (RUN-080, 082, 090, 091, 093) and test/ui/test_environment.py (ENV-001–007).
 """
 import re
 
@@ -85,6 +85,19 @@ def exit_code(events, stopped=0):
 def mark_line(events):
     """The line the runner reads: MARK and the FIRST trouble's reason."""
     return f"{MARK} {next((r for k, r in events if k == 'env'), 'no reason given')}"
+
+
+def tally(results, events, trouble="the machine's trouble"):
+    """(a test file's last lines, its exit code) from its rows — results: [(id, name, ok, detail)], ok None for a check the
+    machine's trouble stopped (neither passed nor failed); events: as exit_code's. The summary line ("N passed, M failed,
+    K stopped by <trouble>"), then the marked line when the exit is EXIT_CODE. How test/test_run_tests.py — a heavy
+    tier-1 file with its own row helper — ends; RUN-093 runs a stand-in that ends the same way through the runner, the
+    whole path (TODO tooling 11.2)."""
+    failed = sum(1 for r in results if r[2] is False)
+    held = sum(1 for r in results if r[2] is None)
+    lines = [f"{len(results) - failed - held} passed, {failed} failed" + (f", {held} stopped by {trouble}" if held else "")]
+    code = exit_code(events, stopped=held)
+    return lines + ([mark_line(events)] if code == EXIT_CODE else []), code
 
 
 # --- a library the page loads, lost on the way (2026-11-17) -----------------------------------------------------------

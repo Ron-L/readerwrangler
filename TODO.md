@@ -460,8 +460,12 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 11. **Left over from sprint 7** (filed 2026-11-17):
    1. 79 fixed waits ("sleep 2 s") in 15 screen-test files (test_cells 25, test_delete_key 14, test_rename_key 9 …) —
       each one is a guess that a slow PC breaks; wait for the condition instead, as test_reset.py now does.
-   2. No test runs a heavy tier-1 file end to end that exits with "the machine's trouble" and checks the number backs
-      off and the stopped count is right (the pieces are tested; the whole path only by hand).
+   2. ✅ No test runs a heavy tier-1 file end to end that exits with "the machine's trouble" and checks the number backs
+      off and the stopped count is right (the pieces are tested; the whole path only by hand). — Done 2026-11-18
+      (sprint 8): test_run_tests.py's ending is one shared routine (`environment_trouble.tally`), and RUN-093 runs a
+      stand-in that ends the same way through the real runner: "1 stopped by the machine's trouble" and exit 3 → the
+      level 4 → 2, saved in its own slots folder → rerun alone, passed → the summary's counts and the record checked.
+      Shown failing with the path broken on purpose, on each side.
    3. ✅ A test file can lose a line by joining it onto a comment by accident and still pass — no check catches that.
       Done 2026-11-18 (sprint 8): the commit check `git-hooks/check-joined.py` (pre-commit step 11) refuses a staged
       test file whose comment ends in a complete line of code; `# not-joined: <why>` for one that does on purpose;

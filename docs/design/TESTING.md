@@ -151,7 +151,11 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   AND the runner waited its whole time; if the stand-in said "Ready", whatever followed is the runner's — a failure
   (`standin_late`; RUN-016–020, 052, 057). The others have no time limits of their own: they only get slower. A run with
   no screen tests is no measure of browsers — only its trouble moves the level, never up. A light tier-1 file's exit 3 is
-  a failure like any other. Tests: `RUN-077`, `087`–`090`, `LEVEL-022`.
+  a failure like any other. test_run_tests.py ends through `environment_trouble.tally` (its summary — a check the
+  machine's trouble stopped counted apart, `N passed, M failed, K stopped by the machine's trouble` — the exit rule and
+  the marked line), and `RUN-093` runs a stand-in that ends the same way through the real runner, the whole path end to
+  end (2026-11-18, TODO tooling 11.2): exit 3 → 4 → 2 at once, saved → rerun alone, passed → the summary's counts and
+  the record. Tests: `RUN-077`, `087`–`090`, `093`, `LEVEL-022`.
 - **Rerun once, ALONE — never silently** (2026-11-17): a screen-test file — or a heavy tier-1 file (above) — that exits 3
   with that line (both needed; a light tier-1 file and tier 3 never) is not reported yet; when every other file of the
   run is done, the runner waits 10 s, takes **every**

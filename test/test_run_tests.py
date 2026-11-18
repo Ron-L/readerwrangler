@@ -1613,6 +1613,59 @@ done()
         and "Tests: 2 file(s) passed, 0 failed" in out,
         f"exit {code}, runs {runs_of('hvtrouble')}, saved {hv2_state}: {out[-600:]}")
 
+    # The whole path of a heavy tier-1 file's trouble, end to end (TODO tooling 11.2 — the pieces were tested: RUN-088's
+    # stand-in ends through the screen-test harness, RUN-090 the exit rule; THIS file's own way only by hand): a stand-in
+    # that ends as this file does (environment_trouble.tally: its rows, a check the machine's trouble stopped counted
+    # apart) — the first time a check is stopped by a late stand-in relay, then it passes — through the real main(), with
+    # slots (and so a saved level) of its own and a record.
+    e2e_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-heavy3"))    # nothing saved: the level starts at 4
+    e2e_rec = os.path.join(d, "heavy3-results")
+    late_why = "a stand-in relay wasn't ready within 20 s — the machine was too slow to start it (a sample)"
+    hv_e2e = write("test_hve2e.py", f"""# sample
+# tags: heavy-sample, tier 1
+# covers: tools/run_tests.py
+# heavy: yes — a stand-in for test/test_run_tests.py
+import os, sys
+sys.path.insert(0, {tools_dir!r})
+import environment_trouble
+{count_runs("hve2e")}results, events = [("HVE-001", "a check", True, "")], []
+if n == 0:
+    results.append(("HVE-002", "a check a late stand-in relay stopped", None, {late_why!r}))
+    events.append(("env", {late_why!r}))
+    print("  ! HVE-002 stopped by the machine's trouble, not a test failure: " + {late_why!r})
+else:
+    results.append(("HVE-002", "the same check", True, ""))
+lines, code = environment_trouble.tally(results, events)
+print(chr(10).join(lines))
+sys.exit(code)
+""")
+    code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(hv_e2e), rt.TestFile(js_ok)], slots=e2e_slots,
+                           results=e2e_rec, retry_wait=0.1)
+    e2e_state, e2e_note = rt.browser_level.load(os.path.join(e2e_slots.folder, rt.browser_level.FILE_NAME))
+    entry, e2e_last = entry_of(e2e_rec, "test_hve2e.py")
+    tries = entry.get("retried") or [{}]
+    moves = e2e_last.get("browsers") or {}
+    row("RUN-093", "a heavy tier-1 file that ends as this one does, end to end through the runner: its first run says '1 "
+        "passed, 0 failed, 1 stopped by the machine's trouble' and the marked line, exits 3 — the level backs off 4 → 2 at "
+        "once, said and saved (in its own slots folder); the file is rerun once, alone, and passes; the summary says 2 "
+        "passed, 0 failed, 1 retried; the record notes the retry (its reason, both outputs, 'passed'), the file passed "
+        "with its rerun's counts, the level's change and one trouble",
+        code == 0 and runs_of("hve2e") == 2
+        and f"test_hve2e.py met the machine's or the browser's trouble ({late_why})" in out
+        and "! browsers at once: 4 → 2 for the rest of this run" in out
+        and e2e_note is None and e2e_state["level"] == 2 and (e2e_state["history"] or [{}])[-1].get("outcome") == "backed off"
+        and "Tests: 2 file(s) passed, 0 failed" in out and out.count("file retried after") == 1
+        and f"1 file retried after {late_why} — its first output: {tries[0].get('first_output')}" in out
+        and [ln.strip() for ln in text_of(tries[0].get("first_output")).splitlines() if ln.strip()][-2:]
+        == ["1 passed, 0 failed, 1 stopped by the machine's trouble", f"ENVIRONMENT FAILURE: {late_why}"]
+        and "2 passed, 0 failed" in text_of(tries[0].get("rerun_output"))
+        and entry.get("result") == "passed" and entry.get("heavy") is True and entry.get("counts") == "2 passed, 0 failed"
+        and len(entry.get("retried") or []) == 1 and tries[0].get("reason") == late_why and tries[0].get("rerun") == "passed"
+        and moves.get("level") == 4 and moves.get("changes") == [{"from": 4, "to": 2}] and moves.get("troubles") == 1
+        and moves.get("next") == 2 and e2e_last.get("result") == "passed",
+        f"exit {code}, runs {runs_of('hve2e')}, saved {e2e_state} ({e2e_note}), entry {str(entry)[:500]}, browsers "
+        f"{moves}: {out[-700:]}")
+
     hp = {v: rt.read_header(write(f"test_hp_{i}.py", f"# sample\n# tags: hp-sample, tier 1\n# covers: a.js\n# heavy: {v}\n"))
           for i, v in enumerate(["yes", "yes — it starts many processes", "no", "maybe"])}
     plain = rt.read_header(py_ok)
@@ -1759,12 +1812,8 @@ done()
         and reasons == ["the page never loaded", None, None],
         f"{verdicts} | {reasons}")
 
-failed = [r for r in results if r[2] is False]
-held_up = [r for r in results if r[2] is None]       # stopped by the machine's trouble (stopped())
-print(f"{len(results) - len(failed) - len(held_up)} passed, {len(failed)} failed"
-      + (f", {len(held_up)} stopped by the machine's trouble" if held_up else ""))
-# The harness's rule, in one place (tools/environment_trouble.py): 3 only when the machine's trouble came first
-code = rt.environment_trouble.exit_code(events, stopped=len(held_up))
-if code == rt.environment_trouble.EXIT_CODE:
-    print(rt.environment_trouble.mark_line(events))
+# The summary (checks stopped by the machine's trouble counted apart) and the harness's exit rule, in one place
+# (tools/environment_trouble.py tally): 3, with the marked line, only when the machine's trouble came first (RUN-093).
+end_lines, code = rt.environment_trouble.tally(results, events)
+print("\n".join(end_lines))
 sys.exit(code)
