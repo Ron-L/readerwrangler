@@ -517,6 +517,8 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       is rerun alone with the full 10 minutes — past that too, a failure. Its next runs keep the 10 minutes until one
       passes the first time (TCP keeps its backed-off timer the same way), so a test that truly got slower relearns its
       average instead of being stopped every run. Today's averages: test_backlog_report.py first (141 s → limit 283 s).
+      (2026-11-18 lab: floor raised to 4× the average / 120 s; trouble beyond the rerun cap is 'not proven', never a
+      failure)
 13. **Found while building sprint 8** (filed 2026-11-18):
    1. A run of only the tests covering what changed (`--changed`, what the commit check runs) and a test file run
       directly write no record — so an agent's own test time lands in "everything else" in a copy's time report.
