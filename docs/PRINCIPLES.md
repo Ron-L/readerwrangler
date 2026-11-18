@@ -418,6 +418,9 @@ only state that survives.
 "What did we do before?" precedes "what should we do next?" — the archive's oldest law. `git show` is a
 design tool; the feature estimated at 4-6 hours took 15 minutes because 5 of its 8 capabilities already
 existed. Simplicity wins; don't over-engineer rare operations; "leave it as-is" is a valid design decision.
+**Count before answering "why is it slow"** (sprint 7, 2026-11-18): Ron asked whether sprints took hours because tests
+were rerun by mistake; the run records answered in minutes — 29 runs, 175 minutes, 130 of them the load labs, no
+mistaken reruns — where memory would have guessed. The records exist; read them first.
 **Enforcement**: habit + this file. (The unfixed cousin: optimistic scope framing — "minor" keeps becoming
 "major." Budget accordingly.)
 

@@ -51,20 +51,27 @@ underneath".
 
 Plus a short **manual list per release** (§8) for what can't be automated.
 
-**While building — narrow, then wide** (Ron, 2026-11-13: "that speedup makes perfect sense"): each fix → test round runs
-only the tests for what's being built — its own IDs (`--id`; in a file split into shards, `--id CELL-005 --id CELL-019`
-runs just those cells, as `RW_CELLS=CELL-005,CELL-019` does — §4), the function tests that cover the file
-(`--changed`). Once those pass: the **full tier 1 + tier 2, once, before the alpha is committed** — the regression check.
-The full run is never skipped; it just isn't repeated on every try.
+**While building — only the tests for the change** (Ron, 2026-11-13: "that speedup makes perfect sense"; narrowed
+2026-11-18: "a full regression only at the end makes sense … normal procedure with human test teams"): each fix → test
+round, and each alpha, runs only the tests for what's being built — its own IDs (`--id`; in a file split into shards,
+`--id CELL-005 --id CELL-019` runs just those cells, as `RW_CELLS=CELL-005,CELL-019` does — §4), the function tests that
+cover the files it changed (`--changed`). **An agent runs no full run. The full tier 1 + tier 2 runs once per task, at
+its merge into the sprint's branch** (Ron, 2026-11-18: "1 full regression after each task") — so a break points at one
+task. One more full run before the sprint's branch (`sprint-N`) goes to main, only if something was committed after the
+last merge.
 
-**At review, check the stamp instead of rerunning** (TODO "Faster sprints", 2026-11-16): every run leaves a record of the
-commit it ran on (§4), so an agent's "it passed" is a claim a machine can check — `py tools/run_tests.py --stamp <commit>`
-says PROVEN only for a full tier 1 + tier 2 pass on exactly that commit with nothing uncommitted (tier 3's latest run is
-shown beside them, for information — §4). NOT PROVEN means the
-run is read (a failure, §7) or done — not taken on trust. **One full run of Claude's own before the sprint's branch
-(`sprint-N`) goes to main for release.** `tools/merge_branches.py` makes that run part of the merge (2026-11-16): branches built in
-parallel are merged on a scratch branch, tier 1 + tier 2 run on the merged result, and the target moves only when its
-stamp is PROVEN — two changes can merge cleanly and break together (docs/design/SESSION-TOOLING.md).
+**A test waits for a condition, never a moment** (2026-11-18, sprint 7's post-mortem): a fixed sleep is a guess about how
+fast this PC is today — too short on a loaded PC (a fail), too long on a quiet one (wasted time). Wait for the thing
+itself: the element, the text, the color settled (`amber_look` in test_cells.py), the file written — with a generous
+upper limit that only a real failure reaches.
+
+**At review, the proof is the merge's stamp** (TODO "Faster sprints", 2026-11-16; 2026-11-18): every run leaves a record
+of the commit it ran on (§4) — `py tools/run_tests.py --stamp <commit>` says PROVEN only for a full tier 1 + tier 2 pass
+on exactly that commit with nothing uncommitted (tier 3's latest run is shown beside them, for information — §4). NOT
+PROVEN means the run is read (a failure, §7) or done — not taken on trust. `tools/merge_branches.py` makes the full run
+part of the merge (2026-11-16): branches built in parallel are merged on a scratch branch, tier 1 + tier 2 run on the
+merged result, and the target moves only when its stamp is PROVEN — two changes can merge cleanly and break together
+(docs/design/SESSION-TOOLING.md). An agent's own report is its narrow tests' output; review reads it with the diff.
 
 ## 4. The library — layout, IDs, tags, the runner
 

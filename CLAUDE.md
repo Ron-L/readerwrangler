@@ -52,10 +52,12 @@ Only Ron changes the mode or the scope.
    worktree in `..\ReaderWrangler-copies\`, the tools that aren't in git linked in; `remove` takes the links out
    first). Independent tasks build at the same time — `readerwrangler.js` included; tasks that build on each other go
    in order. Branches are combined with `py tools/merge_branches.py` (it restamps the version, regenerates `dist/`,
-   the codes table and TODO's contents, and runs the full tiers on the merged result before the target moves). I
-   review each agent's diff as a skeptic and **check its result stamp** (`py tools/run_tests.py --stamp`) instead of
-   rerunning; one full run of mine before the sprint's branch goes to main — an agent's "done" is a claim
-   (Law 12). **Every brief copies the task's own numbered list; review ticks each item off.** The pre-build gate and
+   the codes table and TODO's contents, and runs the full tiers on the merged result before the target moves).
+   **Agents run only the tests for what they changed. The full test run happens once per task, when the merge script
+   combines it into the sprint's branch** — it lands only if everything passes, so a break points at one task (Ron,
+   2026-11-18: "1 full regression after each task"). One more full run before the sprint goes to main, only if
+   something was committed after the last merge. I review each agent's changes as a skeptic — an agent's "done" is a
+   claim (Law 12). **Every brief copies the task's own numbered list; review ticks each item off.** The pre-build gate and
    the commit checks apply to agents too, in a copy as in the main folder.
 4. **A decision:** predict Ron's answer from **`.private/RON-PROFILE.md`** (how he decides — his rules, his patterns,
    what he always wants to see) and act on it. Only what the profile says reaches him goes in `.private/REVIEW-QUEUE.md`
