@@ -3,6 +3,8 @@ test/ui/rw.py — the shared setup every screen test uses (docs/design/TESTING.m
 
     with App() as app:                      # serve.py on a free port + a fresh, throwaway Chrome profile
         app.restore(FIXTURE)                # File → Restore Backup… through the real menu and file box
+        app.reload(); app.wait_loaded()     # F5, then the library's load finished (folders set, or the critical box)
+        app.wait_console(AFTER_CHECK, since=n0)   # the check after an Import / Restore has run (a condition, never a sleep)
         app.left_count("All Books")         # the count the left pane shows for an entry
         app.unexpected_console()            # console errors / warnings / crashes not on the known-noise list
         app.violations                      # requests to a relay or to Amazon — the tests must make none
@@ -104,6 +106,10 @@ _STATUS_BAR_JS = """() => {
 """
 FORBIDDEN_HOSTS = re.compile(r"workers\.dev|amazon\.|media-amazon|ssl-images-amazon")
 APP_TIMEOUT_MS = 180_000     # generous: the app opens in ~0.5 s since 7.27.0 (it took ~50 s while it compiled in the browser)
+# The check that runs after every Import or Restore that loaded books, once the screen has settled (readerwrangler.js,
+# integrityCheckPending) — its own debug line, so it needs extra detail on (the driver's default; log=None turns it off).
+# Its last step: a repair it makes is logged right after it. Wait for it with wait_console(AFTER_CHECK, since=…).
+AFTER_CHECK = r"^debug · INTEG · After-Import check sees "
 BROWSER = os.environ.get("RW_BROWSER", "chrome")
 
 # The local relay's test channel: made up, existing only in the run's throwaway store. Credentials are planted at run
@@ -504,14 +510,27 @@ class App:
 
     def wait_console(self, pattern, timeout_s=60, since=0):
         """Wait until a console line matching `pattern` has appeared (a condition, never a fixed sleep — §7). since: only
-        lines from that many on (len(app.console) taken before the action — so an earlier line can't answer)."""
+        lines from that many on (len(app.console) taken before the action — so an earlier line can't answer). Lines the
+        page logged in the same moment as it (a repair right after the check that found it) are in app.console too when
+        it returns: one round trip to the page first — the browser's messages arrive in order (2026-11-18)."""
         deadline = time.time() + timeout_s
         while time.time() < deadline:
             hit = next((x for _, x in self.console[since:] if re.search(pattern, x)), None)
             if hit:
+                self.page.evaluate("0")
                 return hit
             self.page.wait_for_timeout(100)
         raise AssertionError(f"no console line matching {pattern!r} within {timeout_s} s")
+
+    def wait_loaded(self, page=None, timeout_ms=APP_TIMEOUT_MS):
+        """Wait until the app's start-up LOAD has finished (2026-11-18 — a condition, never a fixed sleep: TESTING.md §3).
+        reload() and the first load return once the start screen is gone — the app is drawn, but the library loads after
+        it. Finished = its folders are set (every finished load has at least the Inbox; readerwrangler.js loadData sets
+        them last, in the same step that ends "loading" — window.folders mirrors them), or the critical box is up (a load
+        that failed — BOOT-01 — or a critical message on its way). By then whatever the load did before — its warnings,
+        its save of the books — has happened."""
+        (page or self.page).wait_for_function(
+            "() => (window.folders || []).length > 0 || !!document.getElementById('rw-log-critical')", timeout=timeout_ms)
 
     def console_matching(self, pattern, since=0):
         return [x for _, x in self.console[since:] if re.search(pattern, x)]
