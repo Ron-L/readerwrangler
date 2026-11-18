@@ -1303,6 +1303,62 @@ done()
         and "1 file retried after a request to our own server failed" in out,
         f"exit {code}, ran {ran}, entry {str(entry)[:400]}: {out[-600:]}")
 
+    # The same file rerun alone run after run is said loudly (TODO tooling 11.7; Ron, 2026-11-18: "it may truly need to
+    # run alone") — told, never acted on; read from the records, where only WHOLE runs of the file count. A stand-in that
+    # meets the trouble once in each run its control file says so ("trouble" — it writes "fine" as it meets it), and one
+    # beside it.
+    ctl = os.path.join(d, "streak.ctl")
+    streaky = harness_file("test_streaky.py", f"""def maybe():
+    if open({ctl!r}).read() == "trouble":
+        open({ctl!r}, "w").write("fine")
+        raise EnvironmentTrouble("the page never loaded (a streak sample)")
+test("STRK-001", "a sample test", maybe)
+done()
+""")
+    beside = harness_file("test_streakbeside.py", 'test("STRK-002", "a sample test beside it", lambda: None)\ndone()\n')
+    strk_rec, strk_slots, strk_started = os.path.join(d, "streak-results"), os.path.join(d, "slots-streak"), [""]
+
+    def streak_run(trouble, argv=("--tier", "2"), env=None):
+        open(ctl, "w").write("trouble" if trouble else "fine")
+        while rt._now()[:19] == strk_started[0]:    # a record is named by the second its run started: one run a second
+            time.sleep(0.05)
+        strk_started[0] = rt._now()[:19]
+        saved_env = {k: os.environ.get(k) for k in (env or {})}
+        os.environ.update(env or {})
+        try:
+            return quiet_main(list(argv), files=[rt.TestFile(streaky), rt.TestFile(beside)],
+                              slots=ts.Slots(count=2, folder=strk_slots), results=strk_rec, retry_wait=0.1)
+        finally:
+            for k, v in saved_env.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+    said = "test_streaky.py was rerun alone after the machine's or the browser's trouble {} runs in a row"
+    runs = [streak_run(True), streak_run(True),                         # 1, 2 → said: 2 in a row
+            streak_run(False, argv=("--tier", "2", "--id", "STRK-002")),  # didn't run it: passed over
+            streak_run(True, env={"RW_CELLS": "STRK-001"}),             # only some of it (RW_CELLS): passed over, not said
+            streak_run(True),                                           # 3 in a row (runs 1, 2, 5)
+            streak_run(False),                                          # a whole run without a rerun ends it
+            streak_run(True)]                                           # 1 again: not said
+    firsts, got = [], records_in(strk_rec)
+    for r in got if isinstance(got, list) else []:
+        e = next((f for f in r.get("files", []) if f.get("file", "").endswith("test_streaky.py")), {})
+        firsts.append(((e.get("retried") or [{}])[0]).get("first_output"))
+    out5 = runs[4][1]
+    row("RUN-092", "a file rerun alone after the machine's trouble in 2 whole runs of it in a row is said loudly at the end "
+        "— the file, how many runs, each run's kept outputs — counted from the records: a run that didn't run it, or ran "
+        "only some of it (RW_CELLS), is passed over; a whole run without a rerun ends the streak; what runs is unchanged",
+        all(c == 0 and "Tests: 2 file(s) passed, 0 failed" in o for c, o in runs[:2] + runs[3:])
+        and runs[2][0] == 0 and "Tests: 1 file(s) passed, 0 failed" in runs[2][1]
+        and len(firsts) == 7 and all(firsts[i] for i in (0, 1, 3, 4, 6)) and firsts[2] is None and firsts[5] is None
+        and "runs in a row" not in runs[0][1] and said.format(2) in runs[1][1]
+        and all(firsts[i] in runs[1][1] for i in (0, 1))
+        and "runs in a row" not in runs[2][1] + runs[3][1] and "1 file retried after" in runs[3][1]
+        and said.format(3) in out5 and all(firsts[i] in out5 for i in (0, 1, 4)) and firsts[3] not in out5
+        and "runs in a row" not in runs[5][1] + runs[6][1] and "1 file retried after" in runs[6][1],
+        f"firsts {firsts} | " + " || ".join(f"exit {c}: {o[-400:]}" for c, o in runs))
+
     # Free memory: recorded with every screen-test run, as evidence — no longer a fixed threshold (2026-11-17: the level
     # the runner finds for itself replaced "under 4 GB free → 2 browsers"). The free memory injectable; the real reading
     # checked to give a number.

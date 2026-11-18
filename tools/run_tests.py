@@ -82,6 +82,8 @@ exits 3 with a line "ENVIRONMENT FAILURE: <reason>" (tools/environment_trouble.p
 ALONE: after the others are done and a short wait, holding every test slot on the PC. The summary says so, loudly —
 "1 file retried after <reason> — its first output: <path>" — and the record notes it with both outputs; passed on its
 rerun, it counts as passed (the stamp shows the note); failed again, it's a failure. A TEST failure is never rerun.
+The same file rerun alone in 2 whole runs of it in a row (or more — read from this copy's records) is said loudly at the
+end, with each run's kept outputs: it may truly need to run alone (TODO tooling 11.7). Said only — what runs is unchanged.
 
 How many browsers at once (same day — Ron: "similar to how TCP works"): the run's LEVEL, 1 to 6, chosen by the runner
 itself and saved per PC beside the test slots (tools/browser_level.py; %TEMP%\\rw-test-slots\\browsers-at-once.json, or
@@ -685,6 +687,47 @@ def retried_lines(files):
     return out
 
 
+STREAK_SAID = 2     # rerun alone this many full runs of it in a row → said loudly (TODO tooling 11.7)
+
+
+def ran_whole(r, entry):
+    """Did this record's run run the whole of this file? It ran (it has a time), and not only some of its cells — by --id
+    (its entry's `cells`) or a narrowing variable (RW_CELLS in the record's variables)."""
+    return entry.get("seconds") is not None and not entry.get("cells") \
+        and not any(RUN_ENV.get(k, (False,))[0] for k in (r.get("env") or {}))
+
+
+def rerun_streak(records, name):
+    """The runs in a row, newest first, in which the file `name` was rerun alone after the machine's or the browser's
+    trouble — [(record, its retried notes)] (TODO tooling 11.7; Ron, 2026-11-18: a file that needs it run after run may
+    truly need to run alone). Read from the records, oldest first (read_records). Only whole runs of the file count: a run
+    that didn't run it, or ran only some of its cells, is passed over — it breaks nothing; a whole run of it without a
+    rerun ends the streak."""
+    out = []
+    for r in reversed(records):
+        e = next((f for f in r.get("files") or [] if f.get("file") == name), None)
+        if e is None or not ran_whole(r, e):
+            continue
+        if not e.get("retried"):
+            break
+        out.append((r, e["retried"]))
+    return out
+
+
+def streak_lines(name, streak):
+    """The loud lines for a file rerun alone `len(streak)` runs in a row — each run's when, why and kept outputs. It only
+    tells: what runs is never changed by it (Ron asked to be told)."""
+    lines = [f"! {name} was rerun alone after the machine's or the browser's trouble {len(streak)} runs in a row — it may "
+             "truly need to run alone (TESTING.md §7); its kept outputs, newest first:"]
+    for r, tries in streak:
+        for t in tries:
+            lines.append(f"    {str(r.get('started', '?'))[:16].replace('T', ' ')}"
+                         + (f" (shard {t['shard']})" if t.get("shard") else "") + f" — {t.get('reason')} — rerun alone: "
+                         f"{t.get('rerun') or '?'} — first output: {t.get('first_output') or '(not kept)'}"
+                         + (f" — the rerun's: {t['rerun_output']}" if t.get("rerun_output") else ""))
+    return lines
+
+
 def tier3_lines(records, commit):
     """Tier 3's latest run on this commit, as a line — passed / failed / not run (2026-11-16: after a --tier all --release
     run the stamp showed only tiers 1 and 2). Information only: tier 3 needs a relay and isn't part of every review, so
@@ -1250,6 +1293,12 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         print(f"! 1 file retried after {t['reason']} — its first output: {t['first_output'] or '(not kept: no record)'}"
               f"\n    {f.rel()}" + (f" (shard {t['shard']})" if t.get("shard") else "") + f" — rerun alone: {t['rerun']}"
               + (f" — the rerun's output: {t['rerun_output']}" if t.get("rerun_output") else ""))
+    if rec and retried:          # the same file rerun alone run after run (11.7): said loudly, never acted on
+        history = [r for r in read_records(record_to) if r.get("id") != rec["id"]] + [rec]
+        for name in dict.fromkeys(f.rel() for f, _ in retried):     # once a file, however many of its shards
+            streak = rerun_streak(history, name)
+            if len(streak) >= STREAK_SAID and streak[0][0] is rec:   # this run is one of them (a whole run of it)
+                print("\n".join(streak_lines(name, streak)))
     for f, path in kept:
         print(f"✗ {f.rel()} — full output: {path}")
     refused = False

@@ -476,9 +476,12 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       2026-11-18 (sprint 8): `copies.py remove` keeps them in `.git\rw-test-results\copies\<name>-<when>\` with
       `time.txt` (also printed), and `copies.py report [--since]` lists the removed copies (SESSION-TOOLING.md;
       COPY-007–009).
-   7. A file that needs a rerun alone (the machine's trouble) two or three runs in a row is said loudly — it may truly
+   7. ✅ A file that needs a rerun alone (the machine's trouble) two or three runs in a row is said loudly — it may truly
       need to run alone (Ron, 2026-11-18). So far it has never been the same file: five files, once each, all under
-      the load lab, each passed alone.
+      the load lab, each passed alone. — Done 2026-11-18 (sprint 8): 2 whole runs of the file in a row (from the working
+      copy's run records; a run that didn't run it, or only some of its cells, is passed over) → a loud line at the end
+      of the run naming the file, how many runs, and each run's kept outputs; nothing about what runs changes
+      (TESTING.md §4; RUN-092).
 12. **Measure each test; schedule by what it uses, not by how many** (Ron, 2026-11-17 — being talked through; TCP
    counts its window in bytes, not packets): per file and per PC, keep a smoothed average and spread (TCP's own method
    for round-trip times) of its time, peak memory, CPU and disk; the browsers-at-once number becomes a budget (e.g. GB
