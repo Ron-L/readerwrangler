@@ -44,6 +44,20 @@ FAILS_ON_PURPOSE = PRE + """with rw.App() as app:
     test("ENVX-002", "fails on purpose", lambda: check(False, "failed on purpose (ENV-004)"))
 done()
 """
+# A library the page loads from its host (ReactDOM, from unpkg.com) as the network can lose it — the connection cut, or
+# an answer with nothing in it (what the 2026-11-17 lab's "ReactDOM is not defined" looked like: no failed request in the
+# console at all) — and, against those, a library that DID download and then threw (the app's — or the library's — own).
+LIBRARY_LOST = PRE + """rw.APP_TIMEOUT_MS = 8000
+def react_dom(answer):
+    return lambda ctx: ctx.route(lambda u: "/react-dom@" in u, answer)
+ANSWERS = {"reset": lambda r: r.abort("connectionreset"),
+           "empty": lambda r: r.fulfill(status=200, content_type="application/javascript", body=""),
+           "throws": lambda r: r.fulfill(status=200, content_type="application/javascript",
+                                         body="throw new Error('the library threw on purpose (ENV-007)')")}
+with rw.App(before_load=react_dom(ANSWERS[HOW])) as app:
+    pass
+done()
+"""
 
 folder = tempfile.mkdtemp(prefix="rw-env-test-")
 
@@ -87,6 +101,25 @@ def server_gone():
           f"exit {code} (3 wanted), marked lines {marks}:\n{tail(out)}")
 
 
+def library_lost(how):
+    def run():
+        code, out, marks = run_case(f"env_library_{how}", LIBRARY_LOST.replace("HOW", repr(how)))
+        # (the marked line names the FIRST trouble: a cut connection is noted as it happens; an empty answer is found
+        # when the start-up fails — "… so ReactDOM was not defined")
+        check(code == 3 and len(marks) == 1 and "react-dom" in marks[0] and "didn't download" in marks[0]
+              and (how != "empty" or "ReactDOM was not defined" in marks[0]),
+              f"exit {code} (3 wanted — the network lost a library the page needs), marked lines {marks}:\n{tail(out)}")
+    return run
+
+
+def library_threw():
+    code, out, marks = run_case("env_library_throws", LIBRARY_LOST.replace("HOW", repr("throws")))
+    check(code == 1 and not marks and "the page reported errors of its own" in out
+          and "the library threw on purpose (ENV-007)" in out,
+          f"exit {code} (1 wanted — it downloaded; what it did then is no network's trouble), marked lines {marks}:\n"
+          f"{tail(out)}")
+
+
 def failure_shot():
     code, out, marks = run_case("env_failure_shot", FAILS_ON_PURPOSE)
     shots = [ln.split("screenshot:", 1)[1].strip() for ln in out.splitlines() if "screenshot:" in ln]
@@ -102,6 +135,13 @@ try:
     test("ENV-003", "our own web server stops answering → the browser's requests to it fail (refused, or cut off) and the "
          "console check reports it as the machine's trouble: exit 3, the error named", server_gone)
     test("ENV-004", "a failing test's screenshot is saved and its path printed under the failure (exit 1)", failure_shot)
+    test("ENV-005", "a library script the page needs (ReactDOM, from unpkg.com) fails to download — the connection cut — "
+         "so the app never opens on 'ReactDOM is not defined' → the machine's or the network's trouble: exit 3, the "
+         "marked line naming the library", library_lost("reset"))
+    test("ENV-006", "the same library answered with NOTHING (the lab's case: no failed request in the console at all) → "
+         "exit 3, the library named", library_lost("empty"))
+    test("ENV-007", "a library that downloaded and then THREW → a test failure: exit 1, no environment line, its error "
+         "named", library_threw)
 finally:
     remove_tree(folder)
 done()
