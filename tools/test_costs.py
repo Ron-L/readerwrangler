@@ -383,9 +383,20 @@ def file_hash(path):
         return None
 
 
-def left_out(narrowed, passed, rerun):
+def outside(name):
+    """Is this unit's file — its name relative to the repository being tested — outside that repository? (A self-test's
+    throwaway sample: '../../AppData/Local/Temp/tmp…/a.test.js'; a path on another drive.) 2026-11-18: the runner's own
+    self-tests taught the PC's real averages under such names."""
+    n = str(name).replace("\\", "/")
+    return n == ".." or n.startswith("../") or n.startswith("/") or (len(n) > 1 and n[1] == ":")
+
+
+def left_out(narrowed, passed, rerun, outside=False):
     """Why this unit's sample may NOT teach the average (Karn's rule — an ambiguous sample is dropped, not risked), or
-    None when it may: it ran in full (narrowed: what narrowed the run, in words — [] for none) and passed, the first time."""
+    None when it may: its file is inside the repository being tested (outside: it isn't — outside(), above), it ran in
+    full (narrowed: what narrowed the run, in words — [] for none) and passed, the first time."""
+    if outside:
+        return "outside the repository"
     if narrowed:
         return "a narrowed run (" + "; ".join(narrowed) + ")"
     if not passed:
@@ -416,9 +427,12 @@ def load(path):
 def learn(state, samples, when):
     """The state after these samples — [{file, tier, hash, unit, seconds, measures}], each one that may teach (left_out
     None). A file whose hash differs from the one kept starts over. The RAM average holds one kind (ram_kind: private,
-    or shared included): a sample of another kind starts that measure over. Pure: a new state."""
-    files = json.loads(json.dumps(state.get("files") or {}))
+    or shared included): a sample of another kind starts that measure over. An entry — or a sample — named outside the
+    repository (outside()) is dropped: the averages hold only the repository's own test files. Pure: a new state."""
+    files = {k: v for k, v in json.loads(json.dumps(state.get("files") or {})).items() if not outside(k)}
     for s in samples:
+        if outside(s["file"]):
+            continue
         entry = files.get(s["file"])
         if not entry or entry.get("hash") != s.get("hash"):
             entry = files[s["file"]] = {"hash": s.get("hash"), "tier": s.get("tier"), "units": {}}

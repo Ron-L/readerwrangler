@@ -5,12 +5,14 @@
 # Run: python test/test_run_tests.py
 #
 # Sample test files are written to a temporary folder; each row checks one thing the runner must do.
+import atexit
 import contextlib
 import glob
 import importlib.util
 import io
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -19,6 +21,13 @@ import tempfile
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Every run of the runner started here — main() called in this process, or any process started from it — uses slot files,
+# a saved browsers-at-once level and test costs of its OWN, never the PC's real ones (2026-11-18: RUN-051's run, which
+# takes the real path, taught the PC's real test costs under its throwaway file's name). test_slots.slots_folder() reads
+# it at each call; a row that needs another folder sets its own and puts this one back (RUN-085).
+SELF_SLOTS = tempfile.mkdtemp(prefix="rw-selftest-slots-")
+os.environ["RW_TEST_SLOTS_DIR"] = SELF_SLOTS
+atexit.register(shutil.rmtree, SELF_SLOTS, True)       # gone when this file ends (ignore_errors)
 spec = importlib.util.spec_from_file_location("run_tests", os.path.join(ROOT, "tools", "run_tests.py"))
 rt = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rt)
@@ -656,7 +665,9 @@ done()
     env3 = got3[0].get("env") if isinstance(got3, list) and len(got3) == 1 else None
     row("RUN-059", "a run's record notes the variables that change a run, with their values (RW_CELLS=CELL-005, "
         "RW_BROWSER=msedge), and the run says it was narrowed",
-        env3 == {"RW_CELLS": "CELL-005", "RW_BROWSER": "msedge"} and "RW_CELLS=CELL-005" in out,
+        # (and this file's own slots folder, set at its top — every run here has it)
+        env3 == {"RW_CELLS": "CELL-005", "RW_BROWSER": "msedge", "RW_TEST_SLOTS_DIR": SELF_SLOTS}
+        and "RW_CELLS=CELL-005" in out,
         f"exit {code}; env {env3}; {out[-300:]}")
 
     sdir = os.path.join(d, "stamp-results")

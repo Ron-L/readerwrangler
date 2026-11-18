@@ -268,6 +268,14 @@ merged result, and the target moves only when its stamp is PROVEN — two change
       level): never a unit of a run narrowed by `--id`, `--tag`, `--changed` or `RW_CELLS`, never a failed one, never a
       rerun alone after the machine's trouble. Those stay in the run's record, marked: `costs` → `taught` (how many),
       `left_out` (each unit and why).
+    - **Only the repository's own test files teach it** (2026-11-18 — the runner's self-tests run it on throwaway sample
+      files, and one of them, RUN-051, takes a real run's path: it taught the PC's real averages under names like
+      `../../AppData/Local/Temp/tmp…/a.test.js`): a unit whose file is outside the repository being tested is left out
+      (`outside the repository`), and every save drops any saved entry named outside it — so such entries clean
+      themselves up. And **the runner's self-tests use slot files, a level and test costs of their own**: a test file
+      that runs the runner (test/test_run_tests.py, test/test_test_costs.py) sets its own temporary `RW_TEST_SLOTS_DIR`
+      at its top (removed when it ends) — never the PC's real `browsers-at-once.json`, `test-costs.json` or slots.
+      (test_merge_branches.py and test_copies.py drive stand-in runners, which touch none of them.)
     - **A test file whose contents changed starts its history over** (its hash, taken as the run starts, is kept).
     - **Runs finishing together lose nothing**: each save reads, merges and writes under an OS file lock (the slots' own
       lock, `test_slots.locked`) and is written whole (`browser_level.save` — a temporary file put in place, a refused
@@ -279,7 +287,8 @@ merged result, and the target moves only when its stamp is PROVEN — two change
     in RAM by 1.5× — the biggest average private RAM peak (sampled) is …, the smallest … — less than twice` (the next
     step's question: is the biggest at least twice the smallest?).
 
-  Tests: `COST-001`–`014` (test/test_test_costs.py — `006` a real child holding 200 MB whose grandchild burns 1 s of CPU
+  Tests: `COST-001`–`016` (test/test_test_costs.py — `015`–`016` a file outside the repository: never taught, cleaned
+  up on the next save — `006` a real child holding 200 MB whose grandchild burns 1 s of CPU
   and exits first: the job counts it, and its private RAM is ≥ the 200 MB; `014` private vs whole working set, the API
   stubbed).
 - **`--id` picks a file only where it names the ID as a test** (2026-11-16; it picked any file whose text held the ID —
