@@ -79,3 +79,14 @@ fi
 if git diff --cached --name-only --diff-filter=ACM | grep -qE '\.js$|^readerwrangler\.html$'; then
     python git-hooks/check-saved-reads.py || exit 1
 fi
+
+# 11. No test line joined onto a comment (2026-11-18, sprint 8; TODO 20260922-0000c item 11.3): refuses a staged test
+#     file — test/**/*.py, *.js, *.mjs and relay/test-*.mjs — where a comment's words end in a complete line of code: an
+#     edit that swallowed a line break joined the next line onto the comment, so that check / row / test / assert stopped
+#     running while the file still passes (the parse check can't see it; the name check covers only app code — earned by
+#     7.18.0-alpha.55's joined declaration). A comment that truly ends in code says why: # not-joined: <why> (// in
+#     JavaScript). Checks the STAGED copies; fails loud if it can't read a file or node is missing.
+#     (git-hooks/check-joined.py → joined-js.js; tests: test/test_check_joined.py; --all checks every test file)
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '^test/.+\.(py|js|mjs)$|^relay/test-[^/]+\.mjs$'; then
+    python git-hooks/check-joined.py || exit 1
+fi

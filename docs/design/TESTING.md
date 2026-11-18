@@ -497,6 +497,12 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   file passed — a run with a failure is kept in its history, marked, but neither grows the level nor sets a time to
   beat, so a failure can't be mistaken for "faster" or "slower". A clean run more than twice as slow as usual at its
   level steps down by one — the PC busy with something else, answered gently, not halved.
+- **A test can't vanish into a comment** (2026-11-18, sprint 8; TODO tooling item 11.3): an edit that swallows a line
+  break joins the next line onto the comment above it — a `check(…)`, a table row, a `test(…)` stops running and the file
+  still passes. The commit check `git-hooks/check-joined.py` (pre-commit step 11) refuses a staged test file whose
+  comment ends in a complete line of code, read by each language's own parser. A comment that truly ends in code says
+  why: `# not-joined: <why>` (`//` in JavaScript). `py git-hooks/check-joined.py --all` checks every test file; what it
+  catches and what it doesn't is in its header. Tests: `JOIN-001`–`045`.
 
 ## 8. What stays manual (a short list per release)
 
