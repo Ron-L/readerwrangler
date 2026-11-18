@@ -496,6 +496,10 @@ def prebuild():
 # --- results stamped with their commit (TODO "Faster sprints", item 2; 2026-11-16) --------------------------------------
 RESULTS_NAME = "rw-test-results"
 KEEP_RECORDS = 300          # the newest; older records are deleted as new ones are written
+# Removed working copies' records, kept by tools/copies.py remove (its ARCHIVE — TODO tooling 11.6, 2026-11-18): a folder
+# inside the records folder that read_records never reads (it reads only the folder's own .json files) and write_record's
+# pruning never deletes.
+COPIES_ARCHIVE = "copies"
 
 # The environment variables that change what a run does — each one set is noted in the record, with its value
 # (2026-11-16: a run with RW_CELLS set ran a few cells and --stamp counted it as a full tier 2). A NARROWING one runs only
@@ -576,10 +580,10 @@ def write_record(rec, folder):
         except OSError:
             pass
     # A run's kept outputs (a folder named as its record) go with its record — and so does any folder older than every
-    # record kept (its run never wrote one). A newer folder may be a run still going: left alone.
+    # record kept (its run never wrote one). A newer folder may be a run still going: left alone. Never the archive.
     oldest = names[-KEEP_RECORDS:][0][:-len(".json")] if names[-KEEP_RECORDS:] else None
     for n in os.listdir(folder):
-        if oldest and n < oldest and os.path.isdir(os.path.join(folder, n)):
+        if oldest and n < oldest and n != COPIES_ARCHIVE and os.path.isdir(os.path.join(folder, n)):
             shutil.rmtree(os.path.join(folder, n), ignore_errors=True)
     return path
 
