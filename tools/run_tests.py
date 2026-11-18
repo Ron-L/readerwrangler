@@ -114,6 +114,7 @@ import local_relay  # noqa: E402 — tools/local_relay.py, next to this file
 import test_slots   # noqa: E402 — tools/test_slots.py: the machine-wide limit on screen tests at once
 import environment_trouble   # noqa: E402 — tools/environment_trouble.py: a screen test's "the machine failed, not me"
 import browser_level   # noqa: E402 — tools/browser_level.py: how many browsers at once, found by the runner itself
+import test_costs      # noqa: E402 — tools/test_costs.py: what each test costs this PC (memory, CPU, I/O), averaged
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Screen tests (tier 2) need Playwright, which lives in the project's venv (requirements-dev.txt) — never the system
@@ -304,28 +305,29 @@ def command(tf):
     return [node, tf.path], None
 
 
-def run_process(tf, relay_url=None, timeout=600, cells=None):
-    """(exit code, its whole output — stdout, then stderr) — runs one test file from the repo root. Exit code None: it
-    couldn't start, or ran past `timeout` (what it printed until then is kept). cells: run only these (RW_CELLS)."""
+def run_process(tf, relay_url=None, timeout=600, cells=None, measure=False):
+    """(exit code, its whole output — stdout, then stderr, what it cost) — runs one test file from the repo root. Exit
+    code None: it couldn't start, or ran past `timeout` (what it printed until then is kept). cells: run only these
+    (RW_CELLS). measure: what its whole process tree cost — memory, CPU, I/O (tools/test_costs.py; every measure None
+    when not asked or not possible, and why)."""
     cmd, why = command(tf)
     if cmd is None:
-        return None, why
+        return None, why, test_costs.nothing("it couldn't start")
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
     if relay_url:
         env["RELAY_URL"] = relay_url
     if cells is not None:
         env["RW_CELLS"] = ",".join(cells)
-    try:
-        r = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, timeout=timeout)
-    except subprocess.TimeoutExpired as e:
-        partial = ((e.stdout or b"") + (e.stderr or b"")).decode("utf-8", "replace")
-        return None, partial + f"\n✗ timed out after {timeout} s"
-    return r.returncode, (r.stdout + r.stderr).decode("utf-8", "replace")
+    code, stdout, stderr, cost = test_costs.run(cmd, timeout=timeout, measure=measure, cwd=ROOT, env=env)
+    out = (stdout + stderr).decode("utf-8", "replace")
+    if code is None:
+        return None, out + f"\n✗ timed out after {timeout} s", cost
+    return code, out, cost
 
 
 def run_file(tf, relay_url=None, timeout=600, cells=None):
     """(passed?, output) — run_process, as passed or not."""
-    code, out = run_process(tf, relay_url=relay_url, timeout=timeout, cells=cells)
+    code, out, _ = run_process(tf, relay_url=relay_url, timeout=timeout, cells=cells)
     return code == 0, out
 
 
@@ -714,14 +716,17 @@ RETRY_WAIT_S = 10       # before a file is rerun alone: the others are done by t
 MAX_RETRIES = 4         # more files than that meeting the machine's trouble in one run points at something broken
 
 
-def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None, retry_wait=None, free_memory=None):
+def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None, retry_wait=None, free_memory=None,
+         costs=None):
     """files: the test files to choose from (None = every one in the repo); relay: makes the local relay for tier 3
     (None = the real one); results: the folder for the run's record (None = this working copy's, and only when `files` is
     None — the runner's own sample runs leave no record); slots: the machine-wide limit (None = test_slots.Slots()); todo:
     the TODO file a skip: line's task must be in (None = the repo's TODO.md); retry_wait: seconds before a file is rerun
-    alone (None = RETRY_WAIT_S); free_memory: reads the free memory in bytes (None = test_slots.free_memory) — all for the
-    runner's own tests (test/test_run_tests.py). The saved browsers-at-once level lives in the slots' folder, so a test's
-    own slots keep their own level."""
+    alone (None = RETRY_WAIT_S); free_memory: reads the free memory in bytes (None = test_slots.free_memory); costs: the
+    file of this PC's test costs (None = beside the slots — test_costs.costs_path — and only when `files` is None: the
+    runner's own sample runs teach nothing) — all for the runner's own tests (test/test_run_tests.py,
+    test/test_test_costs.py). The saved browsers-at-once level lives in the slots' folder, so a test's own slots keep
+    their own level."""
     retry_wait = RETRY_WAIT_S if retry_wait is None else retry_wait
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -750,10 +755,18 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                     help="say whether the recorded runs PROVE this commit (default HEAD): tiers 1 and 2 in full, every file "
                          "passed, nothing skipped or set aside, nothing uncommitted; tier 3's latest run shown, for "
                          "information. Runs nothing. Exit 0 proven, 1 not")
+    ap.add_argument("--costs", action="store_true",
+                    help="show what each test costs this PC — time, memory committed, RAM (sampled), CPU, I/O: the average "
+                         "± spread of the full runs that passed (tools/test_costs.py). Runs nothing")
     a = ap.parse_args(argv)
 
     if a.stamp is not None:
         return show_stamp(a.stamp, results if results is not None else results_dir())
+    if a.costs:
+        where = costs or test_costs.costs_path((slots or test_slots.Slots()).folder)
+        state, note = test_costs.read(where)
+        print("\n".join(test_costs.table(state, None if note and note.startswith("no costs") else note, where)))
+        return 0
 
     started, t_start = _now(), time.monotonic()
     tier = default_tier(a) if a.tier is None else ("all" if a.tier == "all" else int(a.tier))
@@ -828,11 +841,12 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     retried = []   # (file, {shard, reason, first_output, rerun_output, rerun…}) — said loudly at the end
     kept = []      # (file, its whole output's path) — every failed file's, named again at the end
 
-    def report(f, ok, out, seconds=None, waited=0.0, shards=None, cells=None, tried=None):
+    def report(f, ok, out, seconds=None, waited=0.0, shards=None, cells=None, tried=None, measures=None):
         """One file's result: its line (and a failure's details, together — ending with where its whole output was kept)
-        and its entry in the record. shards: a file run as several processes — [{cells, seconds, waited, result}] —
-        reported as the one file it is. cells: a sharded file narrowed by --id to these cells (one process). tried: the
-        reruns alone after the machine's or the browser's trouble ([{shard, reason, first_output, rerun_output…}])."""
+        and its entry in the record. shards: a file run as several processes — [{cells, seconds, waited, result,
+        measures}] — reported as the one file it is. cells: a sharded file narrowed by --id to these cells (one process).
+        tried: the reruns alone after the machine's or the browser's trouble ([{shard, reason, first_output,
+        rerun_output…}]). measures: what its process tree cost (tools/test_costs.py) — beside its seconds."""
         ids = differs_today_ids(out)
         summary = next((ln for ln in reversed(out.splitlines()) if re.search(r"\bpassed\b", ln)), "")
         wait = f", waited {waited:.0f} s for a slot" if waited >= 1 else ""
@@ -862,6 +876,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             if rec:
                 rec["files"].append({"file": f.rel(), "tier": f.tier, "result": "passed" if ok else "failed",
                                      "counts": summary.strip(), "seconds": None if seconds is None else round(seconds, 1),
+                                     **({"measures": measures} if measures is not None else {}),
                                      "waited": round(waited, 1), "differ": ids, **({"shards": shards} if shards else {}),
                                      **({"heavy": True} if f.tier == 1 and f.heavy else {}),
                                      **({"cells": cells} if cells else {}),
@@ -870,10 +885,23 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             if lines:
                 print("\n".join(lines), flush=True)
 
+    measure = rec is not None       # what each unit costs — measured for every run that leaves a record (test_costs.py)
+    costed = []     # every unit run: {tf, shard, of, seconds, measures, passed, rerun} — the averages learn from some
+    # Each file's contents as the run starts — a changed file starts its history over (an edit made during the run can't
+    # put this run's sample under the new contents).
+    hashes = {f.path: test_costs.file_hash(f.path) for f in chosen} if measure else {}
+
+    def cost_sample(f, k, n, seconds, measures, passed, rerun=False):
+        with say_lock:
+            costed.append({"tf": f, "shard": k, "of": n, "seconds": seconds, "measures": measures, "passed": passed,
+                           "rerun": rerun})
+
     def run_and_report(f, relay_url):
         t0 = time.monotonic()
-        ok, out = run_file(f, relay_url=relay_url)
-        report(f, ok, out, time.monotonic() - t0)
+        code, out, m = run_process(f, relay_url=relay_url, measure=measure)
+        seconds = time.monotonic() - t0
+        cost_sample(f, None, None, seconds, m, code == 0)
+        report(f, code == 0, out, seconds, measures=m if measure else None)
 
     # Tiers 1 and 2 in parallel (item 1): --jobs files at once; each screen-test (tier 2) file holds one of the PC's test
     # slots for as long as it runs, so every run on this PC together stays within the limit. Tier 3 runs after, one file
@@ -960,31 +988,37 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         return f.rel() + (f" (shard {k} of {n})" if k else "")
 
     def run_one(u):
-        """(exit code, output) — one unit's process, a runner error reported as its failure, never a lost thread."""
+        """(exit code, output, what it cost) — one unit's process, a runner error reported as its failure, never a lost
+        thread."""
         f, _, _, cells = u
         try:
-            return run_process(f, relay_url=a.relay_url, cells=cells)
+            return run_process(f, relay_url=a.relay_url, cells=cells, measure=measure)
         except Exception as e:      # noqa: BLE001
-            return None, f"✗ the runner couldn't run it: {type(e).__name__}: {e}"
+            return None, f"✗ the runner couldn't run it: {type(e).__name__}: {e}", test_costs.nothing("it didn't run")
 
-    def finish(u, ok, out, t0, t1, waited, tried=None):
-        """A unit is done: a whole file is reported; a shard waits until its file's last shard is done."""
+    def finish(u, ok, out, t0, t1, waited, tried=None, cost=None):
+        """A unit is done: a whole file is reported; a shard waits until its file's last shard is done. cost: what the
+        unit cost (its measures) — taken as a sample for the averages (a rerun's marked: it teaches nothing)."""
         f, k, n, cells = u
+        cost_sample(f, k, n, t1 - t0, cost, ok, rerun=bool(tried))
+        cost = cost if measure else None
         if k is None:
-            report(f, ok, out, t1 - t0, waited, cells=cells, tried=[tried] if tried else None)
+            report(f, ok, out, t1 - t0, waited, cells=cells, tried=[tried] if tried else None, measures=cost)
             return
         with shard_lock:          # the file is reported once, when its last shard is done
             done = shards_done.setdefault(f.path, [])
-            done.append((k, n, cells, ok, out, t0, t1, waited, tried))
+            done.append((k, n, cells, ok, out, t0, t1, waited, tried, cost))
             if len(done) < n:
                 return
         done = sorted(done, key=lambda p: p[0])
-        f_ok, f_out = combine_shards([(k, n, c, o, x, b - s) for k, n, c, o, x, s, b, _, _ in done])
+        f_ok, f_out = combine_shards([(k, n, c, o, x, b - s) for k, n, c, o, x, s, b, _, _, _ in done])
         report(f, f_ok, f_out, max(p[6] for p in done) - min(p[5] for p in done), sum(p[7] for p in done),
-               shards=[{"cells": len(c), "first": c[0], "seconds": round(b - s, 1), "waited": round(w, 1),
+               shards=[{"cells": len(c), "first": c[0], "seconds": round(b - s, 1),
+                        **({"measures": m} if m is not None else {}), "waited": round(w, 1),
                         "result": "passed" if o else "failed", **({"retried": t} if t else {})}
-                       for k, n, c, o, x, s, b, w, t in done],
-               tried=[p[8] for p in done if p[8]] or None)
+                       for k, n, c, o, x, s, b, w, t, m in done],
+               tried=[p[8] for p in done if p[8]] or None,
+               measures=test_costs.combine([p[9] for p in done]) if measure else None)
 
     troubles = []       # each first run that met the machine's or the browser's trouble (reruns not counted)
     # Who runs next (2026-11-17): --jobs workers, each taking the FIRST unit in order (longest first) that may start now —
@@ -1042,7 +1076,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         why = None
         try:
             t0 = time.monotonic()
-            code, out = run_one(u)
+            code, out, cost = run_one(u)
             t1 = time.monotonic()
             why = environment_reason(f, code, out)
             if why:     # back off hard, at once — before this file's place is given up (a forced number stays)
@@ -1062,14 +1096,14 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             with say_lock:
                 take = len(to_rerun) < MAX_RETRIES
                 if take:
-                    to_rerun.append((u, why, keep_output(out_dir, f, out, k, "first"), t1 - t0))
+                    to_rerun.append((u, why, keep_output(out_dir, f, out, k, "first"), t1 - t0, cost))
             if take:
                 say(f"! {label_of(u)}: the machine's or the browser's trouble — {why} — it will be rerun once, alone, "
                     "when the others are done")
                 return
             out += (f"\n! not rerun: {MAX_RETRIES} files of this run already met the machine's or the browser's trouble —"
                     " that many points at something broken, not a passing hiccup")
-        finish(u, code == 0, out, t0, t1, waited)
+        finish(u, code == 0, out, t0, t1, waited, cost=cost)
 
     t_pool = time.monotonic()
     if units:
@@ -1080,7 +1114,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     pool_seconds = time.monotonic() - t_pool     # the wall time a level is judged by (not the build, reruns or tier 3)
     # The reruns, ALONE (2026-11-17): every other file of this run is done; after a wait, each holds EVERY test slot on
     # the PC (no other run's screen test beside it either). Rerun once: passed → passed (noted); failed → failed.
-    for u, why, first, secs in to_rerun:
+    for u, why, first, secs, first_cost in to_rerun:
         f, k, _, _ = u
         say(f"! rerunning {label_of(u)} alone — after {why}: waiting {retry_wait:g} s, then holding every test slot on "
             f"this PC ({slots.count})")
@@ -1088,16 +1122,17 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         group = slots.acquire_all(f"{ROOT} · {label_of(u)} (rerun alone)", on_wait=say)
         t0 = time.monotonic()
         try:
-            code, out = run_one(u)
+            code, out, cost = run_one(u)
         finally:
             group.release()
         t1 = time.monotonic()
         again = environment_reason(f, code, out)
         tried = {"shard": k, "reason": why, "first_output": first, "first_seconds": round(secs, 1),
+                 **({"first_measures": first_cost} if measure else {}),
                  "rerun": "passed" if code == 0 else f"failed again — the machine's trouble again: {again}" if again
                  else "failed", "rerun_output": keep_output(out_dir, f, out, k, "rerun")}
         finish(u, code == 0, f"! rerun alone after {why} — its first output: {first or '(not kept: no record)'}\n" + out,
-               t0, t1, group.waited, tried)
+               t0, t1, group.waited, tried, cost=cost)
     # The level for the next run (browser_level.decide): a forced number leaves it alone; a narrowed run moves it only on
     # trouble; a run where a file failed (or couldn't run, or the build failed) moves it only on trouble too — it is saved,
     # marked, never a yardstick (2026-11-17). Counted here, after tiers 1 and 2 and their reruns: tier 3 runs after, on
@@ -1157,6 +1192,42 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                 print("✗ local relay: not everything it started was stopped —\n    " + "\n    ".join(left))
             elif not a.quiet:
                 print(f"✓ local relay stopped — every process it started is gone, ports {', '.join(map(str, r.ports))} free")
+    # What each unit cost, taught to this PC's averages (tools/test_costs.py, 2026-11-18): only a unit that ran in full
+    # and passed, the first time (Karn's rule) — the others stay in the record, marked. Measuring never fails a run.
+    costs_file = costs if costs is not None else (test_costs.costs_path(slots.folder) if real else None)
+    if measure and costed:
+        lacking = {}
+        for s in costed:
+            why = (s["measures"] or {}).get("missing")
+            if why:
+                lacking.setdefault(why, []).append(s)
+        if lacking and not a.quiet:     # said once, quietly — the run itself is unaffected
+            print("· measures missing for " + "; ".join(f"{len(v)} of {len(costed)} unit(s): {k}"
+                                                         for k, v in lacking.items()))
+        if costs_file:
+            narrowing = ([f"--tag {', '.join(a.tag)}"] if a.tag else []) + ([f"--id {', '.join(a.id)}"] if a.id else []) \
+                + (["--changed"] if a.changed else []) + [f"{k}={v}" for k, v in run_env().items() if RUN_ENV[k][0]]
+            taught, left = [], {}
+            for s in costed:
+                f = s["tf"]
+                name = f.rel() + ("" if s["shard"] is None else f" ({test_costs.unit_key(s['shard'], s['of'])})")
+                why = test_costs.left_out(narrowing, s["passed"], s["rerun"])
+                if why:
+                    left[name] = why
+                else:
+                    taught.append({"file": f.rel(), "tier": f.tier, "hash": hashes.get(f.path),
+                                   "unit": test_costs.unit_key(s["shard"], s["of"]), "seconds": round(s["seconds"], 1),
+                                   "measures": s["measures"]})
+            err = test_costs.teach(costs_file, taught)
+            if rec:
+                rec["costs"] = {"file": costs_file, "taught": len(taught), "left_out": left,
+                                **({"not_saved": err} if err else {})}
+            if err:
+                print(f"· test costs not saved — {err}")
+            elif not a.quiet:
+                print(f"· test costs: {len(taught)} unit(s) taught this PC's averages"
+                      + (f", {len(left)} left out (" + "; ".join(sorted(set(left.values())))[:200] + ")" if left else "")
+                      + " — py tools/run_tests.py --costs")
     print(f"Tests: {count['passed']} file(s) passed, {count['failed']} failed"
           + (f", {len(skipped)} skipped" if skipped else "") + (f", {len(aside)} set aside" if aside else ""))
     for f in aside:              # plainly, every run — the commit hook's too: a set-aside test is work owed

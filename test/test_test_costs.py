@@ -1,0 +1,346 @@
+# Tests for tools/test_costs.py — what each test unit costs this PC, measured for its whole process tree (a Windows job
+# object), and a running average per PC (TCP's RFC 6298 method); and the runner's part: measures beside each file's and
+# shard's seconds in the run's record, only full passing units teaching the average, `--costs` (TODO 20260922-0000c,
+# item 12 step 1 — Ron, 2026-11-18: "Measure 1st").
+# tags: test-runner, tier 1
+# covers: tools/test_costs.py, tools/run_tests.py, tools/test_slots.py, tools/browser_level.py
+# Run: python test/test_test_costs.py
+import contextlib
+import glob
+import importlib.util
+import io
+import json
+import os
+import subprocess
+import sys
+import tempfile
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # print ✓ even when piped (as harness.py)
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOOLS = os.path.join(ROOT, "tools")
+sys.path.insert(0, TOOLS)
+try:
+    import test_costs as tc
+    missing = None
+except Exception as e:      # noqa: BLE001 — not built yet: every row fails, naming why
+    tc, missing = None, f"{type(e).__name__}: {e}"
+spec = importlib.util.spec_from_file_location("run_tests", os.path.join(TOOLS, "run_tests.py"))
+rt = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(rt)
+import test_slots   # noqa: E402 — the same module the runner uses (tools/ is on the path)
+
+MB = 2 ** 20
+results = []
+
+
+def row(tid, name, fn):
+    """One check: fn() returns (passed?, detail). An error inside it is a failure, named."""
+    try:
+        if tc is None:
+            raise RuntimeError(missing)
+        ok, detail = fn()
+    except Exception as e:      # noqa: BLE001
+        ok, detail = False, f"{type(e).__name__}: {e}"
+    results.append((tid, ok))
+    print(f"  {'✓' if ok else '✗'} {tid} {name}" + ("" if ok else f" — {detail}"))
+
+
+def quiet_main(argv, **kw):
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            code = rt.main(argv, **kw)
+    except SystemExit as e:
+        code = f"SystemExit {e.code}"
+    except TypeError as e:      # main() without the new parameters yet
+        code = f"TypeError {e}"
+    return code, buf.getvalue()
+
+
+def records_in(folder):
+    out = []
+    for p in sorted(glob.glob(os.path.join(folder, "*.json"))):
+        with open(p, encoding="utf-8") as f:
+            out.append(json.load(f))
+    return out
+
+
+def units_in(path):
+    """{(file name, unit): its saved entry} from a costs file ({} if none)."""
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        s = json.load(f)
+    return {(os.path.basename(name), key): u for name, e in s.get("files", {}).items() for key, u in e["units"].items()}
+
+
+def r001():
+    a = tc.smooth(None, 8.0)
+    b = tc.smooth(a, 16.0)          # spread: 4 + (|16 − 8| − 4)/4 = 5 (the OLD average); average: 8 + (16 − 8)/8 = 9
+    c = tc.smooth(b, 9.0)           # spread: 5 + (0 − 5)/4 = 3.75; average stays 9
+    got = [(s["avg"], s["spread"], s["count"], s["last"]) for s in (a, b, c)]
+    return got == [(8.0, 4.0, 1, 8.0), (9.0, 5.0, 2, 16.0), (9.0, 3.75, 3, 9.0)], got
+
+
+row("COST-001", "the running average and spread are TCP's (RFC 6298): the first sample → average = it, spread = half; "
+    "then the spread moves ¼ of the way to |sample − the old average|, the average ⅛ of the way to the sample", r001)
+
+
+def r002():
+    got = [tc.left_out([], True, False), tc.left_out(["--id SAMP-001"], True, False), tc.left_out([], False, False),
+           tc.left_out([], True, True), tc.left_out(["RW_CELLS=CELL-005"], False, True)]
+    ok = got[0] is None and "--id SAMP-001" in got[1] and "failed" in got[2] and "rerun" in got[3] \
+        and "RW_CELLS" in got[4]
+    return ok, got
+
+
+row("COST-002", "only a unit that ran in full and passed, the first time, may teach the average — a narrowed run, a "
+    "failed unit and a rerun alone are left out, each saying why", r002)
+
+
+def r003():
+    s1 = {"file": "t/x.py", "tier": 1, "hash": "aaa", "unit": "whole", "seconds": 10.0,
+          "measures": {"cpu_seconds": 2.0, "committed_peak_bytes": None}}
+    st = tc.learn(tc.learn(tc.fresh(), [s1], "d1"), [dict(s1, seconds=18.0)], "d2")
+    kept = st["files"]["t/x.py"]["units"]["whole"]
+    st2 = tc.learn(st, [dict(s1, hash="bbb", seconds=4.0)], "d3")      # the file changed: its history starts over
+    again = st2["files"]["t/x.py"]["units"]["whole"]
+    ok = kept["count"] == 2 and kept["measures"]["seconds"]["avg"] == 11.0 and kept["when"] == "d2" \
+        and "committed_peak_bytes" not in kept["measures"] and kept["measures"]["cpu_seconds"]["count"] == 2 \
+        and again["count"] == 1 and again["measures"]["seconds"] == {"avg": 4.0, "spread": 2.0, "count": 1, "last": 4.0} \
+        and st2["files"]["t/x.py"]["hash"] == "bbb"
+    return ok, (kept, again)
+
+
+row("COST-003", "a unit's saved history: each sample moves the average (a measure that is None is skipped), with the "
+    "count and the date; a test file whose contents changed (another hash) starts its history over", r003)
+
+
+def r004():
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "test-costs.json")
+        code = ("import sys; sys.path.insert(0, sys.argv[1]); import test_costs as tc\n"
+                "for i in range(10):\n"
+                "    err = tc.teach(sys.argv[2], [{'file': 'shared.py', 'tier': 1, 'hash': 'h', 'unit': 'whole',\n"
+                "        'seconds': 1.0, 'measures': {}}, {'file': 'p' + sys.argv[3] + '.py', 'tier': 1, 'hash': 'h',\n"
+                "        'unit': 'whole', 'seconds': 2.0, 'measures': {}}])\n"
+                "    assert err is None, err\n")
+        procs = [subprocess.Popen([sys.executable, "-c", code, TOOLS, path, str(n)], stderr=subprocess.PIPE)
+                 for n in range(6)]
+        errs = [p.communicate(timeout=120)[1].decode("utf-8", "replace") for p in procs]
+        got = units_in(path)
+        counts = {k[0]: u["count"] for k, u in got.items()}
+        want = dict({"shared.py": 60}, **{f"p{n}.py": 10 for n in range(6)})
+        return counts == want and not any(p.returncode for p in procs), (counts, [e[-300:] for e in errs if e])
+
+
+row("COST-004", "six runs saving at the same time (10 saves each, one shared unit) lose nothing: every save is read, "
+    "merged and written under the slots' file lock", r004)
+
+
+def r005():
+    real = tc.available
+    try:
+        tc.available = lambda: (False, "a stand-in reason")
+        code, out, err, m = tc.run([sys.executable, "-c", "print('hello')"])
+    finally:
+        tc.available = real
+    real_job = getattr(tc, "_Job", None)
+    try:
+        def broken():
+            raise OSError("making a job object failed (a stand-in)")
+        tc._Job = broken
+        code2, out2, _, m2 = tc.run([sys.executable, "-c", "print('again')"])
+    finally:
+        tc._Job = real_job
+    values = [m[k] for k in tc.MEASURES[1:]] + [m2[k] for k in tc.MEASURES[1:]]
+    ok = (code, out.strip(), code2, out2.strip()) == (0, b"hello", 0, b"again") and all(v is None for v in values) \
+        and m["missing"] == "a stand-in reason" and "stand-in" in m2["missing"]
+    return ok, (code, out, m, code2, out2, m2)
+
+
+row("COST-005", "can't measure (not Windows, or making the job fails): the test runs exactly as before, every measure "
+    "is None, and why is given", r005)
+
+CHILD = r'''
+import os, subprocess, sys, time
+held = b"x" * (200 * 2 ** 20)           # 200 MB — committed AND touched (in RAM)
+burn = "import time\nt = time.process_time()\nwhile time.process_time() - t < 1.0:\n    pass\n"
+g = subprocess.Popen([sys.executable, "-c", burn])      # a grandchild: ~1 s of CPU, then it exits —
+g.wait()                                                  # — before the child does
+with open(sys.argv[1], "wb") as f:
+    f.write(held[:20 * 2 ** 20])                          # 20 MB written
+time.sleep(1.5)
+print("child done", g.pid)
+'''
+
+
+def r006():
+    with tempfile.TemporaryDirectory() as d:
+        script, target = os.path.join(d, "child.py"), os.path.join(d, "written.bin")
+        with open(script, "w", encoding="utf-8") as f:
+            f.write(CHILD)
+        code, out, err, m = tc.run([sys.executable, script, target], timeout=120)
+    if os.name != "nt":
+        return m["cpu_seconds"] is None and m["missing"], m
+    ok = code == 0 and m["cpu_seconds"] >= 1.0 and m["committed_peak_bytes"] >= 200 * MB \
+        and (m["ram_peak_sampled_bytes"] or 0) >= 150 * MB and m["io_written_bytes"] >= 20 * MB and m["processes"] >= 2
+    return ok, dict(m, code=code, err=err.decode("utf-8", "replace")[-300:])
+
+
+row("COST-006", "measured for the WHOLE tree: a child holding 200 MB whose grandchild burns 1 s of CPU and exits first — "
+    "the CPU counts the grandchild (≥ 1 s), committed peak ≥ 200 MB, RAM (sampled) ≥ 150 MB, 20 MB written, ≥ 2 "
+    "processes", r006)
+
+
+def r007():
+    code, out, err, m = tc.run([sys.executable, "-c", "import time, sys\nprint('started', flush=True)\ntime.sleep(30)"],
+                               timeout=2)
+    return code is None and b"started" in out, (code, out, err, m)
+
+
+row("COST-007", "a unit that runs past its time is stopped as before (exit None, what it printed kept), measured or not",
+    r007)
+
+# --- the runner's part --------------------------------------------------------------------------------------------------
+with tempfile.TemporaryDirectory() as d:
+    def write(name, text):
+        p = os.path.join(d, name)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(text)
+        return p
+
+    ok_py = write("test_cost_ok.py", "# tags: costs, tier 1\n# covers: nothing.js\n"
+                  "def check(tid, ok): print(('  ✓ ' if ok else '  ✗ ') + tid)\n"
+                  "check(\"SAMP-001\", True)\nprint('1 passed, 0 failed')\n")
+    bad_py = write("test_cost_bad.py", "# tags: costs, tier 1\n# covers: nothing.js\n"
+                   "print('  ✗ SAMP-002 broken')\nprint('0 passed, 1 failed')\nimport sys; sys.exit(1)\n")
+    shard_py = write("test_cost_shards.py", "# tags: costs, tier 1\n# covers: nothing.js\n# shards: 2\n"
+                     "import os, sys\nif '--list-cells' in sys.argv:\n    print('SHD-001\\nSHD-002')\n    sys.exit(0)\n"
+                     "cells = os.environ.get('RW_CELLS', '').split(',')\nprint(f'{len(cells)} passed, 0 failed')\n")
+    flag = os.path.join(d, "trouble-once")
+    heavy_py = write("test_cost_heavy.py", "# tags: costs, tier 1\n# covers: nothing.js\n# heavy: yes — a stand-in\n"
+                     f"import os, sys\nflag = {flag!r}\n"
+                     "if not os.path.exists(flag):\n    open(flag, 'w').close()\n"
+                     "    print('ENVIRONMENT FAILURE: a stand-in trouble')\n    sys.exit(3)\n"
+                     "print('1 passed, 0 failed')\n")
+    slots_dir = os.path.join(d, "slots")
+    costs = os.path.join(slots_dir, "test-costs.json")
+
+    def files():
+        return [rt.TestFile(p) for p in (ok_py, bad_py, shard_py)]
+
+    def r008():
+        rdir = os.path.join(d, "rec8")
+        code, out = quiet_main(["--tier", "1"], files=files(), results=rdir, costs=costs,
+                               slots=test_slots.Slots(count=2, folder=slots_dir))
+        rec = (records_in(rdir) or [{}])[0]
+        by = {os.path.basename(f["file"]): f for f in rec.get("files", [])}
+        keys = set(tc.MEASURES[1:]) | {"processes"}
+        ok_m = (by.get("test_cost_ok.py") or {}).get("measures") or {}
+        sh = by.get("test_cost_shards.py") or {}
+        shard_m = [s.get("measures") or {} for s in sh.get("shards") or []]
+        good = code == 1 and keys <= set(ok_m) and len(shard_m) == 2 and all(keys <= set(m) for m in shard_m) \
+            and keys <= set(sh.get("measures") or {}) and keys <= set((by.get("test_cost_bad.py") or {}).get("measures") or {})
+        if os.name == "nt":
+            good = good and ok_m["cpu_seconds"] > 0 and ok_m["processes"] >= 1 and ok_m["committed_peak_bytes"] > MB \
+                and all(m["processes"] >= 1 for m in shard_m) \
+                and sh["measures"]["cpu_seconds"] == round(sum(m["cpu_seconds"] for m in shard_m), 2)
+        return good, (code, ok_m, sh, out[-600:])
+
+    row("COST-008", "a run's record holds the measures beside each file's seconds — and each shard's (a sharded file: CPU "
+        "and I/O added up over its shards, the peaks its largest shard's)", r008)
+
+    def r009():
+        got = units_in(costs)       # from COST-008's run: a full --tier 1 run
+        names = sorted(got)
+        want = [("test_cost_ok.py", "whole"), ("test_cost_shards.py", "shard 1 of 2"),
+                ("test_cost_shards.py", "shard 2 of 2")]
+        return names == want and all(u["count"] == 1 for u in got.values()), names
+
+    row("COST-009", "a full run teaches this PC's averages: each passing unit (a whole file, each shard by itself) — a "
+        "failed file doesn't", r009)
+
+    def r010():
+        before = units_in(costs)
+        code, out = quiet_main(["--tier", "1", "--id", "SAMP-001"], files=files(), results=os.path.join(d, "rec10"),
+                               costs=costs, slots=test_slots.Slots(count=2, folder=slots_dir))
+        os.environ["RW_CELLS"] = "SHD-001"
+        try:
+            code2, out2 = quiet_main(["--tier", "1"], files=files(), results=os.path.join(d, "rec10b"), costs=costs,
+                                     slots=test_slots.Slots(count=2, folder=slots_dir))
+        finally:
+            del os.environ["RW_CELLS"]
+        rec = (records_in(os.path.join(d, "rec10")) or [{}])[0]
+        after = units_in(costs)
+        return after == before and code == 0 and "--id" in json.dumps(rec.get("costs")), \
+            (code, code2, rec.get("costs"), out[-400:])
+
+    row("COST-010", "a run narrowed by --id, or by RW_CELLS, teaches nothing — its record says why", r010)
+
+    def r011():
+        rdir = os.path.join(d, "rec11")
+        code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(heavy_py)], results=rdir, costs=costs, retry_wait=0,
+                               slots=test_slots.Slots(count=2, folder=slots_dir))
+        rec = (records_in(rdir) or [{}])[0]
+        f = (rec.get("files") or [{}])[0]
+        tried = (f.get("retried") or [{}])[0]
+        taught = ("test_cost_heavy.py", "whole") in units_in(costs)
+        return code == 0 and f.get("result") == "passed" and not taught and "first_measures" in tried \
+            and "rerun" in json.dumps(rec.get("costs")), (code, f, rec.get("costs"), out[-500:])
+
+    row("COST-011", "a file rerun alone after the machine's trouble passes — but teaches nothing; its record keeps both "
+        "runs' measures", r011)
+
+    def r012():
+        real = tc.available
+        tc.available = lambda: (False, "a stand-in reason")
+        try:
+            rdir = os.path.join(d, "rec12")
+            code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(ok_py)], results=rdir,
+                                   costs=os.path.join(d, "c12.json"), slots=test_slots.Slots(count=2, folder=slots_dir))
+        finally:
+            tc.available = real
+        rec = (records_in(rdir) or [{}])[0]
+        m = (rec.get("files") or [{}])[0].get("measures") or {}
+        said = [ln for ln in out.splitlines() if "a stand-in reason" in ln]
+        return code == 0 and m.get("cpu_seconds", 0) is None and len(said) == 1 and said[0].startswith("·"), \
+            (code, m, said, out[-400:])
+
+    row("COST-012", "a run that can't measure passes as before: its measures are None, and it says why once, quietly",
+        r012)
+
+    def r013():
+        state = {"version": 1, "files": {
+            "test/ui/test_big.py": {"hash": "a", "tier": 2, "units": {"whole": {"count": 3, "when": "d", "measures": {
+                "seconds": {"avg": 40.0, "spread": 4.0, "count": 3, "last": 41.0},
+                "ram_peak_sampled_bytes": {"avg": 600 * MB, "spread": 50 * MB, "count": 3, "last": 600 * MB},
+                "committed_peak_bytes": {"avg": 900 * MB, "spread": 60 * MB, "count": 3, "last": 900 * MB},
+                "cpu_seconds": {"avg": 30.0, "spread": 2.0, "count": 3, "last": 30.0}}}}},
+            "test/ui/test_small.py": {"hash": "b", "tier": 2, "units": {"whole": {"count": 2, "when": "d", "measures": {
+                "seconds": {"avg": 60.0, "spread": 5.0, "count": 2, "last": 60.0},
+                "ram_peak_sampled_bytes": {"avg": 200 * MB, "spread": 10 * MB, "count": 2, "last": 200 * MB}}}}},
+            "test/fast.test.js": {"hash": "c", "tier": 1, "units": {"whole": {"count": 5, "when": "d", "measures": {
+                "seconds": {"avg": 1.0, "spread": 0.2, "count": 5, "last": 1.0},
+                "ram_peak_sampled_bytes": {"avg": 50 * MB, "spread": 1 * MB, "count": 5, "last": 50 * MB}}}}}}}
+        path = os.path.join(d, "c13.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(state, f)
+        code, out = quiet_main(["--costs"], costs=path)
+        lines = out.splitlines()
+        order = [i for n in ("test_small.py", "test_big.py", "fast.test.js") for i, ln in enumerate(lines) if n in ln
+                 and "differ" not in ln]
+        heads = all(h in out for h in ("Test", "Runs", "Time", "Memory committed (peak)", "RAM (sampled peak)", "CPU",
+                                       "I/O read", "I/O written"))
+        ratio = [ln for ln in lines if "differ in RAM by 3.0×" in ln]
+        return code == 0 and heads and order == sorted(order) and len(order) == 3 and "60.0 ± 5.0 s" in out \
+            and "600 ± 50 MB" in out and "1.0 ± 0.2 s" in out and any(ln.strip().startswith("Total") and "101.0 s" in ln for ln in lines) \
+            and len(ratio) == 1 and "test_big.py" in ratio[0] and "test_small.py" in ratio[0] \
+            and "at least twice" in ratio[0], out
+
+    row("COST-013", "--costs prints each unit — runs, average ± spread of time, committed, RAM (sampled), CPU, I/O — "
+        "slowest first, the totals, and how many times the biggest screen test's RAM is the smallest's", r013)
+
+failed = [r for r in results if not r[1]]
+print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
+sys.exit(1 if failed else 0)
