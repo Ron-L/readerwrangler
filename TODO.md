@@ -460,13 +460,21 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
 11. **Left over from sprint 7** (filed 2026-11-17):
    1. 79 fixed waits ("sleep 2 s") in 15 screen-test files (test_cells 25, test_delete_key 14, test_rename_key 9 …) —
       each one is a guess that a slow PC breaks; wait for the condition instead, as test_reset.py now does.
-   2. No test runs a heavy tier-1 file end to end that exits with "the machine's trouble" and checks the number backs
-      off and the stopped count is right (the pieces are tested; the whole path only by hand).
+   2. ✅ No test runs a heavy tier-1 file end to end that exits with "the machine's trouble" and checks the number backs
+      off and the stopped count is right (the pieces are tested; the whole path only by hand). — Done 2026-11-18
+      (sprint 8): test_run_tests.py's ending is one shared routine (`environment_trouble.tally`), and RUN-093 runs a
+      stand-in that ends the same way through the real runner: "1 stopped by the machine's trouble" and exit 3 → the
+      level 4 → 2, saved in its own slots folder → rerun alone, passed → the summary's counts and the record checked.
+      Shown failing with the path broken on purpose, on each side.
    3. ✅ A test file can lose a line by joining it onto a comment by accident and still pass — no check catches that.
       Done 2026-11-18 (sprint 8): the commit check `git-hooks/check-joined.py` (pre-commit step 11) refuses a staged
       test file whose comment ends in a complete line of code; `# not-joined: <why>` for one that does on purpose;
       `--all` checks every test file (JOIN-001–045).
-   4. RUN-049 still waits a fixed 20 s for its partner file to start; under heavy load that can fail.
+   4. ✅ RUN-049 still waits a fixed 20 s for its partner file to start; under heavy load that can fail. — Done
+      2026-11-18 (sprint 8): each file waits for the other's mark, up to 180 s (only a real failure gets there); a
+      partner the runner started with it but the machine made slower than that is the machine's (`partner_late` in
+      test_run_tests.py, beside `standin_late`; the check is stopped, the file rerun alone), a pair run one after the
+      other is a failure (RUN-094). Shown first: the old RUN-049 failed with its partner 25 s late; the new one passes.
    5. With `--tier all`, heavy tier-1 files and screen tests compete for the same slots — not yet timed under load.
    6. ✅ A working copy's test-run records are deleted with the copy (`tools/copies.py remove`), so how long an agent's
       own test runs took can't be counted afterwards — keep them (move them into the main folder's records), and have
@@ -476,9 +484,12 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       2026-11-18 (sprint 8): `copies.py remove` keeps them in `.git\rw-test-results\copies\<name>-<when>\` with
       `time.txt` (also printed), and `copies.py report [--since]` lists the removed copies (SESSION-TOOLING.md;
       COPY-007–009).
-   7. A file that needs a rerun alone (the machine's trouble) two or three runs in a row is said loudly — it may truly
+   7. ✅ A file that needs a rerun alone (the machine's trouble) two or three runs in a row is said loudly — it may truly
       need to run alone (Ron, 2026-11-18). So far it has never been the same file: five files, once each, all under
-      the load lab, each passed alone.
+      the load lab, each passed alone. — Done 2026-11-18 (sprint 8): 2 whole runs of the file in a row (from the working
+      copy's run records; a run that didn't run it, or only some of its cells, is passed over) → a loud line at the end
+      of the run naming the file, how many runs, and each run's kept outputs; nothing about what runs changes
+      (TESTING.md §4; RUN-092).
 12. **Measure each test; schedule by what it uses, not by how many** (Ron, 2026-11-17 — being talked through; TCP
    counts its window in bytes, not packets): per file and per PC, keep a smoothed average and spread (TCP's own method
    for round-trip times) of its time, peak memory, CPU and disk; the browsers-at-once number becomes a budget (e.g. GB

@@ -151,7 +151,11 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   AND the runner waited its whole time; if the stand-in said "Ready", whatever followed is the runner's — a failure
   (`standin_late`; RUN-016–020, 052, 057). The others have no time limits of their own: they only get slower. A run with
   no screen tests is no measure of browsers — only its trouble moves the level, never up. A light tier-1 file's exit 3 is
-  a failure like any other. Tests: `RUN-077`, `087`–`090`, `LEVEL-022`.
+  a failure like any other. test_run_tests.py ends through `environment_trouble.tally` (its summary — a check the
+  machine's trouble stopped counted apart, `N passed, M failed, K stopped by the machine's trouble` — the exit rule and
+  the marked line), and `RUN-093` runs a stand-in that ends the same way through the real runner, the whole path end to
+  end (2026-11-18, TODO tooling 11.2): exit 3 → 4 → 2 at once, saved → rerun alone, passed → the summary's counts and
+  the record. Tests: `RUN-077`, `087`–`090`, `093`, `LEVEL-022`.
 - **Rerun once, ALONE — never silently** (2026-11-17): a screen-test file — or a heavy tier-1 file (above) — that exits 3
   with that line (both needed; a light tier-1 file and tier 3 never) is not reported yet; when every other file of the
   run is done, the runner waits 10 s, takes **every**
@@ -166,7 +170,18 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   how the rerun went). **Passed on its rerun, it counts as passed** — and the stamp says so under its tier, on a `·` line
   (`· test/ui/test_x.py was rerun alone after … — passed — its first output: <path>`), still PROVEN. **Failed again, it's
   a failure**, both outputs kept. **A test failure is never rerun.** More than 4 files meeting the trouble in one run
-  aren't rerun (that many points at something broken). Tests: `RUN-074`–`078`.
+  aren't rerun (that many points at something broken). **The same file rerun alone 2 runs in a row is said loudly**
+  (2026-11-18, TODO tooling 11.7; Ron: "it may truly need to run alone") — counted from this working copy's records
+  (`rerun_streak`): only **whole** runs of the file count — a run that didn't run it, or ran only some of its cells
+  (`--id` on a sharded file, `RW_CELLS`), is passed over; a whole run of it without a rerun ends the streak. At the end of
+  the run, after the `retried` lines:
+
+      ! test/ui/test_x.py was rerun alone after the machine's or the browser's trouble 2 runs in a row — it may truly
+      need to run alone (TESTING.md §7); its kept outputs, newest first:
+          2026-11-18 11:00 — the page never loaded — rerun alone: passed — first output: <path> — the rerun's: <path>
+          2026-11-18 10:59 — the page never loaded — rerun alone: passed — first output: <path> — the rerun's: <path>
+
+  Said only — what runs is never changed by it. Tests: `RUN-074`–`078`, `092`.
 - **How many browsers at once — the runner finds it itself** (2026-11-17; Ron: "similar to how TCP works" — use more
   until failures, back off, occasionally try more; measure diminishing returns; conditions change). It replaced, the
   same day, a fixed rule (under 4 GB free → 2 browsers, under 2 GB → 1). `tools/browser_level.py`:
@@ -476,7 +491,11 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   a limit only matters when something's wrong, and a busy machine is no hang (2026-11-17, test_reset.py; §4). A test's
   own wait running out is a test failure, never the machine's trouble — it could hide a real hang. **Act on the tab in
   front**: with two tabs open, Chrome slows the one behind (§4) — bring a tab forward before acting on it, as a person
-  switches tabs;
+  switches tabs. The one exception is a wait the test can prove was the machine's: test_run_tests.py's stand-in relay
+  (`standin_late`, §4) and its pair of files that must run together (RUN-049, 2026-11-18 — it waited a fixed 20 s for
+  its partner; now each waits for the other's mark, up to 180 s): a partner the runner started with it that never
+  reached its mark in that time is the machine's (`partner_late` — the check is stopped, the file exits 3 and is rerun
+  alone); a pair the runner ran one after the other is a failure (RUN-094);
 - **a fresh browser profile** for each run; stop what a test started by its exact process id (Law 5) — **and check it
   stopped** (each process gone, its port free: Law 12, 7.28.0);
 - **a flaky test is fixed — or set aside, with a TODO — the same day.** Never tolerated, never "just re-run it". Set
@@ -491,7 +510,8 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   noted in the record and on the stamp (`1 file retried after <reason> — its first output: <path>`). That rerun is the
   machine's hiccup being waited out, not "just re-run it": a TEST failure is never rerun — it is read, and fixed or set
   aside the same day. A file rerun after the trouble that keeps coming back is a flaky environment to look into — the
-  first outputs say what happened. The run also slows down by itself: that trouble halves the browsers at once, at once,
+  first outputs say what happened — or a file that truly needs to run alone: **2 runs in a row and the run says so,
+  loudly**, with each run's kept outputs (§4). The run also slows down by itself: that trouble halves the browsers at once, at once,
   and the next runs start from the halved level, climbing back one at a time only after full runs without it (§4).
 - **A failed run is no measure of speed** (2026-11-17, §4): the browsers-at-once level learns only from runs where every
   file passed — a run with a failure is kept in its history, marked, but neither grows the level nor sets a time to
