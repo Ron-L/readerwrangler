@@ -1225,7 +1225,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             for s in costed:
                 f = s["tf"]
                 name = f.rel() + ("" if s["shard"] is None else f" ({test_costs.unit_key(s['shard'], s['of'])})")
-                why = test_costs.left_out(narrowing, s["passed"], s["rerun"])
+                why = test_costs.left_out(narrowing, s["passed"], s["rerun"], outside=test_costs.outside(f.rel()))
                 if why:
                     left[name] = why
                 else:

@@ -5,12 +5,14 @@
 # tags: test-runner, tier 1
 # covers: tools/test_costs.py, tools/run_tests.py, tools/test_slots.py, tools/browser_level.py
 # Run: python test/test_test_costs.py
+import atexit
 import contextlib
 import glob
 import importlib.util
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,6 +21,11 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # print ✓ even wh
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOLS = os.path.join(ROOT, "tools")
 sys.path.insert(0, TOOLS)
+# Every run of the runner started here uses slot files, a saved level and test costs of its OWN — never the PC's real
+# ones (2026-11-18: a self-test's sample files taught the real averages). Read by test_slots.slots_folder() at each
+# call, and inherited by any process started from here.
+os.environ["RW_TEST_SLOTS_DIR"] = tempfile.mkdtemp(prefix="rw-selftest-slots-")
+atexit.register(shutil.rmtree, os.environ["RW_TEST_SLOTS_DIR"], True)     # gone when this file ends (ignore_errors)
 try:
     import test_costs as tc
     missing = None
@@ -261,8 +268,15 @@ with tempfile.TemporaryDirectory() as d:
     slots_dir = os.path.join(d, "slots")
     costs = os.path.join(slots_dir, "test-costs.json")
 
+    class Inside(rt.TestFile):
+        """A sample file that stands for one INSIDE the repository (test/samples/<name>) — only those teach the averages
+        (COST-015); the sample itself lives in a throwaway folder."""
+
+        def rel(self, base=None):
+            return "test/samples/" + os.path.basename(self.path)
+
     def files():
-        return [rt.TestFile(p) for p in (ok_py, bad_py, shard_py)]
+        return [Inside(p) for p in (ok_py, bad_py, shard_py)]
 
     def r008():
         rdir = os.path.join(d, "rec8")
@@ -314,7 +328,7 @@ with tempfile.TemporaryDirectory() as d:
 
     def r011():
         rdir = os.path.join(d, "rec11")
-        code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(heavy_py)], results=rdir, costs=costs, retry_wait=0,
+        code, out = quiet_main(["--tier", "1"], files=[Inside(heavy_py)], results=rdir, costs=costs, retry_wait=0,
                                slots=test_slots.Slots(count=2, folder=slots_dir))
         rec = (records_in(rdir) or [{}])[0]
         f = (rec.get("files") or [{}])[0]
@@ -384,6 +398,43 @@ with tempfile.TemporaryDirectory() as d:
     row("COST-013", "--costs prints each unit — runs, average ± spread of time, committed, RAM, private (sampled), CPU, "
         "I/O — slowest first, the totals, and how many times the biggest screen test's private RAM is the smallest's (a "
         "unit measured with shared pages included is starred and left out of that comparison)", r013)
+
+    def r015():
+        """2026-11-18: the runner's own self-tests (nested runs on throwaway files) taught the PC's REAL averages, under
+        names like ../../AppData/Local/Temp/tmp…/a.test.js. A file outside the repository never teaches."""
+        c15 = os.path.join(d, "c15.json")
+        rdir = os.path.join(d, "rec15")
+        code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(ok_py)], results=rdir, costs=c15,
+                               slots=test_slots.Slots(count=2, folder=slots_dir))
+        rec = (records_in(rdir) or [{}])[0]
+        left = (rec.get("costs") or {}).get("left_out") or {}
+        pure = [tc.left_out([], True, False, outside=True), tc.left_out([], True, False, outside=False),
+                tc.outside("../../AppData/Local/Temp/tmpx/a.test.js"), tc.outside("C:/Temp/a.test.js"),
+                tc.outside("test/ui/test_reset.py"), tc.outside("..hidden/x.py")]
+        return code == 0 and units_in(c15) == {} and list(left.values()) == ["outside the repository"] \
+            and pure == ["outside the repository", None, True, True, False, False], (code, left, pure, out[-300:])
+
+    row("COST-015", "a unit whose file is outside the repository being tested (a self-test's throwaway sample) never "
+        "teaches the averages — its record says 'outside the repository'", r015)
+
+    def r016():
+        path = os.path.join(d, "c16.json")
+        stale = {"hash": "x", "tier": 1, "units": {"whole": {"count": 1, "when": "d", "measures": {
+            "seconds": {"avg": 1.0, "spread": 0.5, "count": 1, "last": 1.0}}}}}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"version": 1, "files": {"../../AppData/Local/Temp/tmph6gy9l87/a.test.js": stale,
+                                               "../../../AppData/Local/Temp/tmpo0ukmz_f/a.test.js": stale,
+                                               "test/kept.test.js": stale}}, f)
+        err = tc.teach(path, [{"file": "test/new.test.js", "tier": 1, "hash": "n", "unit": "whole", "seconds": 2.0,
+                               "measures": {}},
+                              {"file": "../outside/a.test.js", "tier": 1, "hash": "o", "unit": "whole", "seconds": 2.0,
+                               "measures": {}}])
+        with open(path, encoding="utf-8") as f:
+            names = sorted(json.load(f)["files"])
+        return err is None and names == ["test/kept.test.js", "test/new.test.js"], (err, names)
+
+    row("COST-016", "the next save drops every saved entry named outside the repository (the six a self-test left in the "
+        "real file clean themselves up) — and never adds one", r016)
 
 failed = [r for r in results if not r[1]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
