@@ -492,6 +492,18 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       that passed; `py tools/run_tests.py --costs` shows them, and whether the biggest screen test uses at least twice
       the RAM of the smallest. First look, three screen tests one at a time: 0.39–0.59 GB of private RAM each (1.5×
       apart) — not twice. A full run's averages answer it.
+13. **Found while building sprint 8** (filed 2026-11-18):
+   1. A run of only the tests covering what changed (`--changed`, what the commit check runs) and a test file run
+      directly write no record — so an agent's own test time lands in "everything else" in a copy's time report.
+      Recording them would mean a record on every commit (more pruning, more kept output) — Ron's call.
+   2. Two "write a file whole, retry if Windows refuses the swap" routines — `tools/build.py`'s and
+      `browser_level.save` — should be one (Law 22).
+   3. Tier 3's local relay runs outside each relay test's measurement, so tier-3 costs leave it out.
+   4. A process still running after its test ends isn't reported; the test's measurement already knows how many are
+      still running — a cheap leftover check (belongs with "One starter for every process our tools start").
+   5. The copies' archive (`rw-test-results\copies\`) is never trimmed — small, but it grows forever.
+   6. The joined-line check (commit check step 11) doesn't catch a comment line of dashes followed by one space and
+      code, nor `'use strict'`; its glued-inside-a-word scan is slow on very long comments (fine today).
 
 #### One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->
