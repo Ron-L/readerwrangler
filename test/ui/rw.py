@@ -13,6 +13,7 @@ test/ui/rw.py — the shared setup every screen test uses (docs/design/TESTING.m
         app.open_broken_app()               # a tab whose app code is broken on purpose → the "Something went wrong" screen
 
     App(zoom=1.25, size=(1000, 900))        # a window of 1000 x 900 screen pixels at 125% browser zoom
+    App(before_load=fn)                     # fn(context) before the first page loads — route or stub a request
 
     with App(relay=True) as app:            # the same, plus a LOCAL relay and a throwaway test channel (Cloud Sync on)
         app.upload_fetch(items)             # send books as the library fetcher does (one "books" run)
@@ -32,6 +33,22 @@ still catches. Since 2026-11-16 it is the ONE relay launcher, tools/local_relay.
 "ready" only when its own ready line names its port and only its own processes listen there (another run's relay can't
 answer for it); every process it started stopped by exact id and CHECKED gone, its ports free — anything left fails the
 file (Law 5).
+
+The machine's or the browser's trouble is told from a test failure HERE, where it's known (2026-11-17, TODO tooling item
+9; tools/environment_trouble.py): our web server or local relay didn't start, the browser didn't start, the page never
+loaded (the start screen still up — with no error of the page's own; with one, it's a test failure naming it), the
+browser disconnected or a tab crashed, a request to our own server failed for the machine's reasons
+(net::ERR_NO_BUFFER_SPACE, a refused connection…), and — the same day — a script or stylesheet the page loads from a
+LIBRARY host (React from unpkg.com, the QR-code maker from cdnjs, the fonts from Google Fonts) that failed to download:
+refused, cut, timed out, answered 5xx or with nothing; a start-up whose only errors are "<library> is not defined"
+because its script never arrived is that trouble too — one whose library downloaded and then threw is not
+(tools/environment_trouble.py). Each raises harness.EnvironmentTrouble or is noted with harness.environment(); the file
+then exits 3 and the runner reruns it once, alone. The console check reports such a network error as that trouble,
+never as a test failure. A failing test's screenshot is saved and named (on_failure).
+
+Tabs (2026-11-17): open_tab() opens a second tab IN FRONT, and Chrome slows the tabs behind it — under load a click on
+the tab behind took 122-222 s (0.1 s in front). menu() and reload() bring the app's tab to the front first, as a person
+switches to it; a test acting on another tab itself brings that one to the front (page.bring_to_front(); test_reset.py).
 """
 import base64
 import gzip
@@ -43,12 +60,15 @@ import subprocess
 import sys
 import time
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import Error as PlaywrightError, TimeoutError as PlaywrightTimeout, sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import local_relay   # noqa: E402 — the local relay (LocalRelay), free ports, and who listens on a port, by process id
 import copies        # noqa: E402 — tools/copies.py: a working copy keeps its screenshots apart
+import environment_trouble   # noqa: E402 — tools/: which network errors are the machine's
+import harness       # noqa: E402 — test/ui/harness.py: EnvironmentTrouble, environment(), on_failure()
 FIXTURE = os.path.join(ROOT, "test", "fixtures", "small-fixture.json")
 DEMO = os.path.join(ROOT, "readerwrangler-demo-library-ORGANIZED.json")
 LARGE = os.path.join(ROOT, ".private", "test", "large-sample-private.json.gz")
@@ -93,10 +113,15 @@ TEST_PASSPHRASE = "screen-test-passphrase"
 
 
 class App:
-    def __init__(self, headed=None, relay=False, zoom=1.0, size=(1400, 900), log=True):
+    def __init__(self, headed=None, relay=False, zoom=1.0, size=(1400, 900), log=True, before_load=None):
         self.headed = os.environ.get("RW_HEADED") == "1" if headed is None else headed
         self.want_relay = relay
         self.relay = None
+        self.before_load = before_load      # fn(context), before the first page loads (test_environment.py)
+        self._closing = False               # our own close of the browser isn't the browser's trouble
+        self._own_errors = {}               # page -> the errors that page reported of its own (pageerror, console)
+        self._library_requests = []         # (page, request): every script / stylesheet asked of a library host
+        self._off_failure = None
         # Browser zoom Z on a window of W x H screen pixels = a page of W/Z x H/Z CSS pixels, each drawn Z screen pixels
         # wide. (An emulation: the browser's own scrollbars scale with it, which real zoom doesn't do.)
         self.zoom, self.size = zoom, size
@@ -127,7 +152,7 @@ class App:
                 break
             self._stop_server()
         else:
-            raise RuntimeError("serve.py didn't start (3 ports tried)")
+            raise harness.EnvironmentTrouble("our web server (serve.py) didn't start — 3 ports tried")
         try:
             return self._start_browser()
         except BaseException:
@@ -139,11 +164,18 @@ class App:
             # The worker answers only listed pages: --var lists this test's page for this run, wrangler.toml untouched.
             # Kept before start(), so __exit__ stops whatever it started even if starting fails.
             self.relay = local_relay.LocalRelay(extra_args=["--var", f"ALLOWED_ORIGINS:http://localhost:{self.port}"])
-            self.relay.start()
+            try:
+                self.relay.start()
+            except local_relay.RelayError as e:
+                raise harness.EnvironmentTrouble(f"our local relay didn't start: {str(e).splitlines()[0]}") from e
         self.pw = sync_playwright().start()
-        self.browser = self.pw.chromium.launch(channel=BROWSER, headless=not self.headed,
-                                               slow_mo=250 if self.headed else 0,
-                                               ignore_default_args=["--hide-scrollbars"])
+        try:
+            self.browser = self.pw.chromium.launch(channel=BROWSER, headless=not self.headed,
+                                                   slow_mo=250 if self.headed else 0,
+                                                   ignore_default_args=["--hide-scrollbars"])
+        except PlaywrightError as e:
+            raise harness.EnvironmentTrouble(f"the browser didn't start: {str(e).splitlines()[0]}") from e
+        self.browser.on("disconnected", self._disconnected)
         w, h = self.size
         self.ctx = self.browser.new_context(viewport={"width": round(w / self.zoom), "height": round(h / self.zoom)},
                                             device_scale_factor=self.zoom)
@@ -165,13 +197,169 @@ class App:
             self.ctx.add_init_script(f"""window._RW_RELAY_WORKER_URL = {json.dumps(self.relay.url)};
                 try {{ if (!localStorage.getItem('readerwrangler-relay'))
                            localStorage.setItem('readerwrangler-relay', {json.dumps(creds)}); }} catch (e) {{}}""")
+        self.ctx.on("requestfailed", self._request_failed)
+        self.ctx.on("request", self._note_library_request)
+        self.ctx.on("response", self._library_response)
+        if self.before_load:
+            self.before_load(self.ctx)
         self.page = self.ctx.new_page()
+        self._watch_page(self.page)
         self.page.on("console", self._record_console)
         self.page.on("pageerror", lambda e: self.crashes.append(str(e)))
         self.page.on("request", self._watch_request)
-        self.page.goto(f"http://localhost:{self.port}/readerwrangler.html")
-        self.page.wait_for_selector("#splash", state="detached", timeout=APP_TIMEOUT_MS)
+        self._off_failure = harness.on_failure(self._failure_shot)
+        self._open(self.page, f"http://localhost:{self.port}/readerwrangler.html")
         return self
+
+    # --- the machine's or the browser's trouble, told from the app's (2026-11-17, TODO tooling item 9) ---------------
+    def _open(self, page, url=None, reload=False):
+        """Load the app in `page` (or reload it) and wait until it's up. A page that never loads — its start screen still
+        up after APP_TIMEOUT_MS — is the machine's trouble when the page reported no error of its own (EnvironmentTrouble);
+        with one, it's a test failure naming it (AssertionError). A screenshot of the screen either way. A load our own
+        server didn't answer (a refused connection…) is the machine's trouble too. Only errors from THIS load count (a
+        reload late in a session isn't judged by what the page reported earlier)."""
+        before = len(self._own_errors.get(page, []))
+        try:
+            if reload:
+                page.reload(timeout=APP_TIMEOUT_MS)
+            else:
+                page.goto(url, timeout=APP_TIMEOUT_MS)
+            page.wait_for_selector("#splash", state="detached", timeout=APP_TIMEOUT_MS)
+        except PlaywrightTimeout:
+            shot = self._shot_quietly(page, "start")
+            if shot:
+                print(f"      screenshot: {shot}", flush=True)
+            own = self._own_errors.get(page, [])[before:]
+            lost = self._libraries_lost(page)
+            names = environment_trouble.library_not_defined(own, list(lost))
+            if names:       # its only errors: a library's name missing, because its script never arrived (2026-11-17)
+                raise harness.EnvironmentTrouble(
+                    f"a library the page needs didn't download — {'; '.join(lost.values())} — so "
+                    f"{' and '.join(names)} {'was' if len(names) == 1 else 'were'} not defined and the app never "
+                    "opened") from None
+            if own:
+                raise AssertionError(f"the app didn't open within {APP_TIMEOUT_MS // 1000} s — and the page reported "
+                                     "errors of its own:\n" + "\n".join(x[:200] for x in own[:6])
+                                     + "\n" + self._libraries_said(page)) from None
+            raise harness.EnvironmentTrouble(f"the page never loaded — the app's start screen was still up after "
+                                             f"{APP_TIMEOUT_MS // 1000} s, and the page reported no error of its own") \
+                from None
+        except PlaywrightError as e:
+            m = re.search(r"net::(ERR_[A-Z_]+)", str(e))
+            name = m and environment_trouble.net_error(m.group(0), page.url if reload else url, self._app_hosts())
+            if name:
+                raise harness.EnvironmentTrouble(f"the page couldn't load from our own web server: {name}") from None
+            raise
+
+    def _app_hosts(self):
+        return [f"localhost:{self.port}", f"127.0.0.1:{self.port}"]
+
+    def _relay_hosts(self):
+        return [environment_trouble.host_of(self.relay.url)] if self.relay and getattr(self.relay, "url", None) else []
+
+    def _watch_page(self, page):
+        """Note what a page reports of its own (its errors — what makes a start-up timeout the app's, not the machine's),
+        and a tab that crashes (the browser's trouble)."""
+        own = self._own_errors.setdefault(page, [])
+        page.on("pageerror", lambda e: own.append(f"crash: {e}"))
+        page.on("console", lambda m: own.append(f"error: {m.text}") if m.type == "error" and not self._is_noise(m)
+                else None)
+        page.on("crash", lambda *_: harness.environment("a tab of the browser crashed"))
+
+    def _is_noise(self, m):
+        """A console message that is no error of the page's own: known noise, a request to our own server that failed
+        for the machine's reasons, or a library the page loads that failed to download (the network's or its host's)."""
+        url = (m.location or {}).get("url", "") if m.text.startswith("Failed to load resource") else ""
+        return any(re.search(p, m.text) for p, _ in KNOWN_NOISE) or bool(self._machine_net_error(m.text, url)) \
+            or bool(environment_trouble.library_failure_in_console(m.text, url))
+
+    # --- a library the page loads, lost on the way (2026-11-17; tools/environment_trouble.py) ------------------------
+    def _note_library_request(self, req):
+        if req.resource_type in ("script", "stylesheet") and environment_trouble.is_library(req.url):
+            try:
+                page = req.frame.page
+            except Exception:   # noqa: BLE001 — a request with no page of its own
+                page = None
+            self._library_requests.append((page, req))
+
+    def _library_response(self, resp):
+        """A library host answering 5xx for a script or stylesheet: the host's trouble, noted as it happens."""
+        req = resp.request
+        why = environment_trouble.library_download_failed(req.url, req.resource_type, status=resp.status)
+        if why:
+            harness.environment(f"a library the page loads didn't download: {why}")
+
+    def _libraries_lost(self, page):
+        """{address: why} — the library scripts and stylesheets `page` asked for that didn't download: failed, answered
+        5xx, or answered with nothing (the body is read only here, after the fact)."""
+        lost = {}
+        for p, req in self._library_requests:
+            if p is not None and p is not page:
+                continue
+            try:
+                failure, resp = req.failure, req.response()
+                status = resp.status if resp else None
+                size = len(resp.body()) if resp and 200 <= status <= 299 else None
+            except Exception:   # noqa: BLE001 — what the browser can't say counts as nothing lost
+                continue
+            why = environment_trouble.library_download_failed(req.url, req.resource_type, failure, status, size)
+            if why:
+                lost[req.url] = why
+        return lost
+
+    def _libraries_said(self, page):
+        """What happened to each library download of `page`, in words — under a start-up failure, for the next reader."""
+        out = []
+        for p, req in self._library_requests:
+            if p is not None and p is not page:
+                continue
+            try:
+                resp = req.response() if not req.failure else None
+                said = req.failure or (f"{resp.status}, {len(resp.body())} bytes" if resp else "no answer")
+            except Exception as e:      # noqa: BLE001
+                said = f"(couldn't be read: {type(e).__name__})"
+            out.append(f"  library {req.url.split('?')[0]}: {said}")
+        return "the libraries it asked for:\n" + "\n".join(out) if out else "it asked for no library"
+
+    def _machine_net_error(self, text, url):
+        """The network error's name if `text` (the browser's words) says a request to our own server failed for the
+        machine's reasons — else None."""
+        m = re.search(r"net::ERR_[A-Z_]+", text)
+        return m and environment_trouble.net_error(m.group(0), url, self._app_hosts(), self._relay_hosts())
+
+    @staticmethod
+    def _console_url(line):
+        """The address _record_console adds to a "Failed to load resource" line ("… [http://…]") — '' if none."""
+        m = re.search(r" \[(\S+)\]$", line)
+        return m.group(1) if m else ""
+
+    def _request_failed(self, req):
+        name = environment_trouble.net_error(req.failure or "", req.url, self._app_hosts(), self._relay_hosts())
+        if name:
+            harness.environment(f"a request to our own server failed: {name} ({req.url.split('?')[0]})")
+        why = environment_trouble.library_download_failed(req.url, req.resource_type, failure=req.failure)
+        if why:
+            harness.environment(f"a library the page loads didn't download: {why}")
+
+    def _disconnected(self, *_):
+        if not self._closing:
+            harness.environment("the browser closed or crashed (it disconnected)")
+
+    def _shot_quietly(self, page, name):
+        """A screenshot of `page` in the artifacts folder, named after this test file — its path, or None if the browser
+        can't give one (a screenshot is a help, never a second failure)."""
+        stem = os.path.splitext(os.path.basename(sys.argv[0] or "screen-test"))[0]
+        try:
+            os.makedirs(ARTIFACTS, exist_ok=True)
+            p = os.path.join(ARTIFACTS, re.sub(r"[^\w.-]+", "_", f"{stem}-{name}") + ".png")
+            page.screenshot(path=p, timeout=10_000)
+            return p
+        except Exception:   # noqa: BLE001
+            return None
+
+    def _failure_shot(self, label):
+        """harness.on_failure: what the page showed when a test failed."""
+        return self._shot_quietly(self.page, label) if getattr(self, "page", None) else None
 
     def logged_failures(self):
         """Every error / critical message in this session's console (the logging module's "level · CODE · text" lines)
@@ -189,6 +377,9 @@ class App:
             if found:
                 from harness import fail_after   # (test/ui is on the path — every screen test imports harness first)
                 fail_after("the session's log", "error / critical messages the tests didn't expect:\n" + "\n".join(found))
+        if self._off_failure:
+            self._off_failure()
+        self._closing = True
         try:
             if getattr(self, "browser", None):
                 self.browser.close()
@@ -256,7 +447,10 @@ class App:
 
     # --- actions ------------------------------------------------------------------------------------------------
     def menu(self, top, item):
-        """Click a menu-bar menu, then one of its items (by the start of its words)."""
+        """Click a menu-bar menu, then one of its items (by the start of its words). The app's tab is brought to the front
+        first, as a person switches to it: with a second tab open (open_tab), Chrome slows the tabs behind — under load
+        the Tools click on the tab behind took 122-222 s, 0.1 s in front (2026-11-17, test_reset.py)."""
+        self.page.bring_to_front()
         self.page.get_by_role("button", name=re.compile(r"^\s*" + re.escape(top))).first.click()
         return self.page.get_by_role("button", name=re.compile(re.escape(item))).first
 
@@ -288,9 +482,10 @@ class App:
         return text
 
     def reload(self):
-        """Reload the page the way a person would (F5) and wait until the app is up again."""
-        self.page.reload()
-        self.page.wait_for_selector("#splash", state="detached", timeout=APP_TIMEOUT_MS)
+        """Reload the page the way a person would (F5 — in the tab in front: brought there first, as menu() does) and wait
+        until the app is up again (a page that never loads: _open)."""
+        self.page.bring_to_front()
+        self._open(self.page, reload=True)
 
     def empty_book_store(self):
         """Empty the browser's book store (storage.js: ReaderWranglerDB → books) and leave the folders alone — the two live
@@ -307,18 +502,19 @@ class App:
             };
         })""")
 
-    def wait_console(self, pattern, timeout_s=60):
-        """Wait until a console line matching `pattern` has appeared (a condition, never a fixed sleep — §7)."""
+    def wait_console(self, pattern, timeout_s=60, since=0):
+        """Wait until a console line matching `pattern` has appeared (a condition, never a fixed sleep — §7). since: only
+        lines from that many on (len(app.console) taken before the action — so an earlier line can't answer)."""
         deadline = time.time() + timeout_s
         while time.time() < deadline:
-            hit = next((x for _, x in self.console if re.search(pattern, x)), None)
+            hit = next((x for _, x in self.console[since:] if re.search(pattern, x)), None)
             if hit:
                 return hit
             self.page.wait_for_timeout(100)
         raise AssertionError(f"no console line matching {pattern!r} within {timeout_s} s")
 
-    def console_matching(self, pattern):
-        return [x for _, x in self.console if re.search(pattern, x)]
+    def console_matching(self, pattern, since=0):
+        return [x for _, x in self.console[since:] if re.search(pattern, x)]
 
     # --- Cloud Sync, against the local relay (App(relay=True)) --------------------------------------------------------
     def upload_fetch(self, items):
@@ -456,7 +652,18 @@ class App:
 
     def unexpected_console(self):
         """Console errors and warnings not on KNOWN_NOISE, plus page crashes. Lines a test planted on purpose — marked
-        with the logging module's test marker, read from the page (defined once, in logger.js) — don't count."""
+        with the logging module's test marker, read from the page (defined once, in logger.js) — don't count. A request
+        to our own server that failed for the machine's reasons (net::ERR_NO_BUFFER_SPACE…, 2026-11-15) is the machine's
+        trouble, not the app's: it raises harness.EnvironmentTrouble, naming it — never a test failure."""
+        machine = [x for t, x in self.console if t == "error" and self._machine_net_error(x, self._console_url(x))]
+        if machine:
+            raise harness.EnvironmentTrouble("the browser couldn't load from our own server — " + "; ".join(
+                x[:160] for x in machine[:3]) + (f" (+{len(machine) - 3} more)" if len(machine) > 3 else ""))
+        lost = [x for t, x in self.console
+                if t == "error" and environment_trouble.library_failure_in_console(x, self._console_url(x))]
+        if lost:        # (2026-11-17) the network's or the library host's — not the app's
+            raise harness.EnvironmentTrouble("a library the page loads didn't download — " + "; ".join(
+                x[:160] for x in lost[:3]) + (f" (+{len(lost) - 3} more)" if len(lost) > 3 else ""))
         try:
             mark = self.page.evaluate("() => (window.rwLog && window.rwLog.TEST_MARK) || null")
         except Exception:
@@ -470,12 +677,14 @@ class App:
         """A second tab in the same browser — it shares the book store and the saved settings with the first, exactly as
         two of Ron's tabs do (2026-11-06, the Reset tests). Returns (page, its console lines)."""
         page = self.ctx.new_page()
+        self._watch_page(page)
         log = []
         page.on("console", lambda m: log.append((m.type, m.text)))
         page.on("pageerror", lambda e: log.append(("crash", str(e))))
-        page.goto(f"http://localhost:{self.port}/{path}")
         if wait_for_app:
-            page.wait_for_selector("#splash", state="detached", timeout=APP_TIMEOUT_MS)
+            self._open(page, f"http://localhost:{self.port}/{path}")
+        else:
+            page.goto(f"http://localhost:{self.port}/{path}")
         return page, log
 
     # --- layout (2026-11-06: the status bar covered the right pane's scrollbar when the Cloud Sync icon made it taller) ---
