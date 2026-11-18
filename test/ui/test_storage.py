@@ -14,12 +14,17 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import AFTER_CHECK, APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
+
+LIMIT_S = APP_TIMEOUT_MS // 1000   # every wait here is for a condition, under the driver's own generous limit (TESTING.md §3)
 
 with App() as app:      # (the driver turns extra detail on, so the store's own "Saving… / Saved…" lines are on)
     page = app.page
+    n0 = len(app.console)
     app.restore(FIXTURE)
-    page.wait_for_timeout(1500)
+    # the Restore has finished — its saves done, its after-check (its last step) run — so no save of its own can land
+    # among STORE-001's (before: a 1.5 s sleep)
+    app.wait_console(AFTER_CHECK, LIMIT_S, since=n0)
 
     def saves_take_turns():
         n0 = len(app.console)
@@ -57,8 +62,10 @@ with App() as app:      # (the driver turns extra detail on, so the store's own 
     def load_and_watch():
         n0 = len(app.console)
         app.reload()
-        app.wait_console(r"^debug · STORE · Loaded \d+ books")
-        page.wait_for_timeout(2500)
+        # the load has finished: a save of its own comes before its folders are set (readerwrangler.js loadData awaits
+        # saveBooksIfChanged first), so its "Saving" line is in by then (before: the "Loaded" line, then a 2.5 s sleep)
+        app.wait_loaded()
+        app.wait_console(r"^debug · STORE · Loaded \d+ books", LIMIT_S, since=n0)
         return [x for _, x in app.console[n0:] if SAVING.match(x)]
 
     def unchanged_load_doesnt_save():

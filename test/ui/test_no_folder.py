@@ -15,7 +15,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
 
 BANNER = "#rw-log-banner"
 ONE = "'Good Omens' was in no folder — it's in the Inbox now. (That shouldn't happen; it's in the log.)"
@@ -80,7 +80,8 @@ def rename_space_opera(app):
     page.keyboard.press("Enter")
     page.wait_for_function("() => window.folders.find(f => f.id === 'f-space').name === 'Space Westerns'", timeout=3000)
     page.keyboard.press("Escape")
-    page.wait_for_timeout(150)
+    # Esc clears the selection (readerwrangler.js, the main view's Esc): no row selected (before: a 0.15 s sleep)
+    page.wait_for_function("() => document.querySelectorAll('tbody tr.bg-blue-50').length === 0", timeout=APP_TIMEOUT_MS)
 
 
 # ---- An ordinary user: no contributor mode, both logging switches off (the page's defaults) ----
@@ -94,6 +95,8 @@ with App(log=None) as app:
     def one_book():
         check(page.evaluate(SWITCHES) == {"errorBanner": False, "logDetail": False}, "setup: the switches should be off")
         rename_space_opera(app)
+        # timed on purpose: proves the rename reports nothing — a window from the rename having landed (the check at
+        # every save runs a moment after the change; rename_space_opera waited for the new name)
         page.wait_for_timeout(300)
         check(no_folder_errors(app) == [], "a rename that leaves every book in a folder was reported")
         [gid] = leave_in_no_folder(app, ["Good Omens"])
@@ -180,6 +183,7 @@ with App(log=None) as app:
         check(all(i in saved_inbox for i in ids), f"the saved organization's Inbox doesn't hold them: {saved_inbox}")
         before = len(no_folder_errors(app))
         app.reload()
+        app.wait_loaded()   # the library loaded — window.folders read below (found 2026-11-18: read right after the reload)
         for t, i in zip(titles, ids):
             check(folders_holding(app, i) == ["__inbox__"], f"after a reload {t!r} should still be in the Inbox: "
                                                             f"{folders_holding(app, i)}")
@@ -231,9 +235,10 @@ with App(log=None) as app:
         app.click_reachable(page.locator(BANNER).get_by_text("Turn off this banner", exact=True))
         page.locator(BANNER).wait_for(state="detached", timeout=5000)
         app.reload()
+        app.wait_loaded()   # the books are there for leave_in_no_folder below (found 2026-11-18: used right after the reload)
         check(page.evaluate(SWITCHES)["errorBanner"] is False, f"a contributor's off should stay off: {page.evaluate(SWITCHES)}")
         plant_error(app, "an error after turning off")
-        page.wait_for_timeout(800)
+        page.wait_for_timeout(800)   # timed on purpose: proves no bar appears — a window from the error being logged
         check(page.locator(BANNER).count() == 0, "a bar appeared with the switch turned off")
         leave_in_no_folder(app, ["Good Omens"])
         wait_bar(app, ONE)

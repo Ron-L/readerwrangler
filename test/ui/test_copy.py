@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
 
 BOOK = "Good Omens"          # test/fixtures/make-small-fixture.js — ASIN TST0000005
 SECOND = "A Book With No Description"
@@ -60,8 +60,10 @@ with App(relay=True) as app:
     page = app.page
     app.restore(FIXTURE)
     app.menu("View", "List View").click()
-    app.click_reachable(page.get_by_text("All Books", exact=True).first)
-    page.wait_for_timeout(500)
+    all_books = page.get_by_text("All Books", exact=True).first
+    app.click_reachable(all_books)
+    # All Books is open: its left-pane row the selected one — the list shows it from the same update (before: a 0.5 s sleep)
+    page.wait_for_function("el => !!el.closest('.bg-blue-100')", arg=all_books.element_handle(), timeout=APP_TIMEOUT_MS)
 
     def open_book():
         page.locator("tbody tr", has_text=BOOK).first.dblclick()
@@ -149,7 +151,11 @@ with App(relay=True) as app:
         app.click_reachable(page.get_by_text("Mobile Pairing (Optional)", exact=True).first)
         btn = page.locator("#relay-copy-creds-btn")
         btn.wait_for(timeout=5000)
-        page.wait_for_timeout(500)          # the section's opening slide
+        # the section's opening slide has ended — no transition left running in the window (the sections open and close
+        # with a 0.35 s max-height slide), so the button stays where the pointer goes (before: a 0.5 s sleep)
+        page.wait_for_function("""el => !el.closest('[role="dialog"]').getAnimations({ subtree: true })
+                                         .some(a => a instanceof CSSTransition)""", arg=btn.element_handle(),
+                               timeout=APP_TIMEOUT_MS)
         try:
             app.stub_outside(refuse_clipboard=True)
             n0, c0 = len(app.console), len(app.copied())

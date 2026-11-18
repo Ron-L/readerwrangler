@@ -14,7 +14,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import AFTER_CHECK, APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
+
+LIMIT_S = APP_TIMEOUT_MS // 1000   # every wait here is for a condition, under the driver's own generous limit (TESTING.md §3)
 
 # Three books a fetch has just found — the library fetcher's own fields (amazon-library-fetcher.js, the book it builds),
 # newer than everything in the fixture. A real fetch sends the whole library; Import composes the fetch with the copy the
@@ -45,12 +47,14 @@ with App(relay=True) as app:
          empty_channel_says_what_to_do)
 
     def restore_reaches_relay():
+        n0 = len(app.console)
         check("23 books restored" in app.restore(FIXTURE), "the fixture didn't restore")
-        line = app.wait_console(r"Restore pushed to relay|relay push failed")
+        line = app.wait_console(r"Restore pushed to relay|relay push failed", LIMIT_S, since=n0)
         check("Restore pushed to relay" in line, line)
         # 2026-11-08: IMPORT-006's empty Import left the after-check armed; it went off mid-Restore against the folders
-        # from before it and reported a false "Library repair: 22 issues fixed" (proved with the INTEG debug lines)
-        app.page.wait_for_timeout(2500)
+        # from before it and reported a false "Library repair: 22 issues fixed" (proved with the INTEG debug lines).
+        # Wait for the Restore's own after-check — it runs once the screen has settled (before: a 2.5 s sleep)
+        app.wait_console(AFTER_CHECK, LIMIT_S, since=n0)
         check(not app.console_matching(REPAIR), "a repair was reported after a Restore: " + str(app.console_matching(REPAIR)))
     test("IMPORT-001", "with Cloud Sync on, Restore sends its copy to the relay — and reports no false repair after an "
          "empty Import", restore_reaches_relay)
@@ -62,6 +66,7 @@ with App(relay=True) as app:
     def import_brings_new_books():
         app.upload_fetch(NEW_BOOKS)
         imported["checks_before"] = app.page.evaluate("() => window.rwLog.entries().filter(e => e.text.startsWith('After-Import check sees')).length")
+        imported["n0"] = len(app.console)
         imported["text"] = app.import_from_relay()
         check("3 new" in imported["text"], "the Import's report: " + imported["text"])
     test("IMPORT-002", "a fetch sends 3 new books; File → Import from Relay reports them (\"3 new\")",
@@ -76,7 +81,8 @@ with App(relay=True) as app:
     def no_repair_after_settling():
         # 2026-11-08: wait for the check that runs AFTER an Import (once the screen has settled) — checking right away let
         # a false "Library repair: 22 issues fixed" through on 11-05 (the alpha.3 fix covered only the check inside the load)
-        app.page.wait_for_timeout(2500)
+        # — its own line, since this Import began (before: a 2.5 s sleep)
+        app.wait_console(AFTER_CHECK, LIMIT_S, since=imported.get("n0", len(app.console)))
         check(len(app.console_matching(REPAIR)) == repairs_before,
               "a repair was reported for the normal path: " + str(app.console_matching(REPAIR)[repairs_before:]))
         # …and the after-Import check still RUNS after a successful Import (alpha.10 arms it only then — not switched
@@ -97,8 +103,10 @@ with App(relay=True) as app:
         app.page.get_by_text("Your folders and lists are intact", exact=False).wait_for(timeout=60_000)
         backstop_before = len(app.console_matching(r"Inbox backstop"))
         repairs_before_007 = len(app.console_matching(REPAIR))
+        n0 = len(app.console)
         app.import_from_relay()
-        app.page.wait_for_timeout(1500)   # the check after an Import runs once the screen has settled
+        # the check after an Import runs once the screen has settled — its own line (before: a 1.5 s sleep)
+        app.wait_console(AFTER_CHECK, LIMIT_S, since=n0)
         # 2026-11-08: the hole that let a false "Library repair: 22 issues fixed" through — this row never asserted "no
         # repair", as IMPORT-004 / 008 / 009 / 010 do (the second, after-the-Import check read stale folders here)
         check(len(app.console_matching(REPAIR)) == repairs_before_007,

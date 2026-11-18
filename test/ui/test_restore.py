@@ -15,7 +15,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import AFTER_CHECK, APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
 
 with App() as app:
     app.page.evaluate("() => rwLog.setSwitch('logDetail', true)")
@@ -88,7 +88,9 @@ with App() as app:
         n0 = len(app.console)
         text = app.restore(fixture_without(strip))
         check("23 books restored" in text, "it didn't restore: " + text)
-        app.page.wait_for_timeout(2500)   # the after-restore integrity check runs once the screen settles
+        # the after-restore integrity check runs once the screen settles — the Restore's last step, after its saves; its
+        # own line, since this Restore began (before: a 2.5 s sleep)
+        app.wait_console(AFTER_CHECK, APP_TIMEOUT_MS // 1000, since=n0)
         check(app.page.evaluate(held) == [0, 0], f"the library kept its Book Lists / Searches: {app.page.evaluate(held)}")
         check(app.left_count("Inbox") == app.left_count("All Books"), "not every book is in the Inbox")
         lines = [x for _, x in app.console[n0:]]

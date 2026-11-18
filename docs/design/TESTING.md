@@ -133,7 +133,11 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   conditions only (the reset's own last line, the tab having drawn what it was given, the Welcome screen — shown only
   once the load is done), each under one limit (`LIMIT_MS` = the driver's 180 s); proven both ways under the same lab
   load (before: 2 of 2 failed at that click; after: passed), and RESET-003 still caught the bug's effect planted on
-  purpose.
+  purpose. **Two shared waits in `rw.App`** (2026-11-18, sprint 8 — the screen tests' fixed sleeps replaced):
+  `app.wait_loaded()` — the library's load has finished after a reload (its folders set, or the critical box up; the
+  start screen leaving means only that the app is drawn) — and `app.wait_console(AFTER_CHECK, since=n0)` — the check
+  after an Import or Restore has run, that operation's last step. A sleep that stays proves something does NOT happen
+  (a window, measured from the right moment) and says so: `# timed on purpose: …`.
 - **Heavy tier-1 files** (Ron, 2026-11-17: "Yes. Also back off"; the merge's full run failed a different timing test of
   test_run_tests.py twice — RUN-079, then RUN-057 — under 4 tier-1 files at once). A tier-1 file whose header says
   **`heavy: yes`** (optionally `— why`; `heavy: no` or no line = light; anything else is a header problem) starts many

@@ -18,9 +18,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
 
+LIMIT_S = APP_TIMEOUT_MS // 1000   # every wait here is for a condition, under the driver's own generous limit (TESTING.md §3)
 TIP = "Before you reset, save a backup"
+CLEARED = r"info · STORE · Reset App: the library was cleared"    # readerwrangler.js confirmReset's last line
 PICKER = """(mode) => {
     window._savedBackups = window._savedBackups || [];
     window.showSaveFilePicker = async (opts) => {
@@ -75,8 +77,9 @@ with App() as app:
         page.evaluate(PICKER, "save")
         n0 = len(app.console)
         app.click_reachable(save_button())
-        app.wait_console(r"^info · BACKUP · Backup saved — ", timeout_s=30)
-        page.wait_for_timeout(300)
+        # the receipt is the save's last step — logged after the file is closed and the progress box removed
+        # (readerwrangler.js, the backup save), so both are final when it arrives (before: then a 0.3 s sleep)
+        app.wait_console(r"^info · BACKUP · Backup saved — ", timeout_s=LIMIT_S)
         saved = page.evaluate("() => window._savedBackups")
         check(len(saved) == 1, f"{len(saved)} backup file(s) written, should be 1")
         backup = json.loads(saved[0])
@@ -104,8 +107,8 @@ with App() as app:
         before = page.evaluate("() => window._savedBackups.length")
         n0 = len(app.console)
         app.click_reachable(save_button())
-        app.wait_console(r"^info · BACKUP · Backup cancelled — nothing saved", timeout_s=10)
-        page.wait_for_timeout(300)
+        # the save stops right there: the cancel's line is its last step (before: then a 0.3 s sleep)
+        app.wait_console(r"^info · BACKUP · Backup cancelled — nothing saved", timeout_s=LIMIT_S)
         check(page.evaluate("() => window._savedBackups.length") == before, "a file was written though the save was cancelled")
         check(not since(app, n0, r"Backup saved"), "a receipt says saved")
         check(reset_box().is_visible(), "the Reset App box closed when the save was cancelled")
@@ -132,7 +135,7 @@ with App() as app:
     def cancel_closes():
         reset_box().get_by_role("button", name="Cancel", exact=True).click()
         reset_box().wait_for(state="detached", timeout=5_000)
-        page.wait_for_timeout(300)
+        page.wait_for_timeout(300)   # timed on purpose: proves Cancel resets nothing — a window from the box's closing
         nothing_reset("Cancel")
     test("RSAVE-006", "Cancel still closes the Reset App box without resetting", cancel_closes)
 
@@ -143,12 +146,14 @@ with App() as app:
         app.click_reachable(save_button())
         page.wait_for_function(f"() => window._savedBackups.length > {before}", timeout=30_000)
         page.locator(".rw-imperative-overlay").wait_for(state="detached", timeout=10_000)
+        n0 = len(app.console)
         app.click_reachable(reset_box().get_by_role("button", name="Reset App", exact=True))
-        page.get_by_text("Welcome to ReaderWrangler").wait_for(timeout=30_000)
+        page.get_by_text("Welcome to ReaderWrangler").wait_for(timeout=LIMIT_S * 1000)
+        app.wait_console(CLEARED, LIMIT_S, since=n0)     # the reset ran to its end (RSAVE-008 starts from it)
     test("RSAVE-007", "after saving, Reset App in the same box resets the app", save_then_reset)
 
     def empty_library():
-        page.wait_for_timeout(500)
+        # (before: a 0.5 s sleep — RSAVE-007 now waits for the reset's own last line)
         open_reset_box()
         check(save_button().count() == 1, "the button is gone with an empty library (it should stay, greyed out)")
         check(save_button().is_disabled(), "Save Backup… isn't greyed out with nothing to save (File → Save Backup is)")

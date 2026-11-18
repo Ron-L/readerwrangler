@@ -64,7 +64,7 @@ with App(log=None) as app:     # the switches' own tests: the page's defaults (b
         check(page.evaluate(SWITCHES) == {"errorBanner": False, "logDetail": True},
               f"turning off the banner should leave extra detail alone: {page.evaluate(SWITCHES)}")
         plant(app, "error", "UI-03", "an error after turning off")
-        page.wait_for_timeout(800)
+        page.wait_for_timeout(800)   # timed on purpose: proves no banner appears — a window from the error being logged
         check(page.locator(BANNER).count() == 0, "a banner appeared with the banner switch off")
     test("LOGUI-004", "Turn off this banner: no banner for later errors — and the other switch is untouched", turn_off)
 
