@@ -448,7 +448,32 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    screen-test driver says ENVIRONMENT with exit 3 when the page never loaded, the browser closed or crashed, our server
    or relay didn't start, or a request to our own server failed for the machine's reasons (e.g. `ERR_NO_BUFFER_SPACE`);
    such a file is rerun once, alone (every slot held), said loudly and noted on the stamp; a test failure is never
-   rerun; under 4 GB of free memory → 2 browsers, under 2 GB → 1, said why (RUN-072–082, ENV-001–004).
+   rerun (RUN-072–082, ENV-001–004). (Its first fixed rule — under 4 GB of free memory 2 browsers, under 2 GB 1 — was
+   replaced by item 10.)
+10. ✅ **The runner chooses how many browsers to run at once by itself** — done 2026-11-17 (sprint 7; Ron's design,
+   "similar to how TCP works"): 1 to 6, saved per PC; halved at once on the machine's trouble; one more after a clean
+   full run; back down when one more gained nothing (then held for 5 runs); only fully passing runs count. Heavy tier-1
+   files (`heavy: yes — why` in their header) take a test slot inside that number and back it off too; a library that
+   failed to download from its site counts as the network's trouble, not a test failure. Checked with a load lab that
+   squeezed the PC on purpose (Ron's idea): the number came down under load (5 → 2 → 1) and, once the load was gone,
+   climbed back one step per clean run (2 → 3 → 4 → 5).
+11. **Left over from sprint 7** (filed 2026-11-17):
+   1. 79 fixed waits ("sleep 2 s") in 15 screen-test files (test_cells 25, test_delete_key 14, test_rename_key 9 …) —
+      each one is a guess that a slow PC breaks; wait for the condition instead, as test_reset.py now does.
+   2. No test runs a heavy tier-1 file end to end that exits with "the machine's trouble" and checks the number backs
+      off and the stopped count is right (the pieces are tested; the whole path only by hand).
+   3. A test file can lose a line by joining it onto a comment by accident and still pass — no check catches that.
+   4. RUN-049 still waits a fixed 20 s for its partner file to start; under heavy load that can fail.
+   5. With `--tier all`, heavy tier-1 files and screen tests compete for the same slots — not yet timed under load.
+   6. A working copy's test-run records are deleted with the copy (`tools/copies.py remove`), so how long an agent's
+      own test runs took can't be counted afterwards — keep them (move them into the main folder's records).
+12. **Measure each test; schedule by what it uses, not by how many** (Ron, 2026-11-17 — being talked through; TCP
+   counts its window in bytes, not packets): per file and per PC, keep a smoothed average and spread (TCP's own method
+   for round-trip times) of its time, peak memory, CPU and disk; the browsers-at-once number becomes a budget (e.g. GB
+   of memory) that each test is charged against, checked also against what's free on the PC right now; same halving and
+   raising rules. Steps: (1) measure only, and see whether tests differ enough to matter; (2) the load lab squeezes one
+   resource at a time, to learn which one breaks runs; (3) the budget; (4) longest-first and a "stuck" limit from the
+   averages instead of a flat 10 minutes.
 
 #### One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->

@@ -1253,6 +1253,18 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         return { cls: el.className, bg: getComputedStyle(el).backgroundColor, amber };
     }"""
 
+    def amber_look(t):
+        """The look of a toast that should be a warning, once it has reached amber (or ~2 s on): a toast fades to its
+        colors (.clipboard-toast's 1 s transition) — read too soon, it's still part-way (2026-11-17, a loaded PC:
+        rgba(254, 243, 199, 0.557))."""
+        look = t.evaluate(TOAST_JS)
+        for _ in range(40):
+            if look["bg"] == look["amber"]:
+                break
+            page.wait_for_timeout(50)
+            look = t.evaluate(TOAST_JS)
+        return look
+
     def toast_look(place, title, k, warning):
         def run():
             try:
@@ -1261,7 +1273,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
                 page.keyboard.press(f"Control+{k}")
                 t = page.locator(".clipboard-toast").first
                 t.wait_for(state="visible", timeout=3000)
-                look = t.evaluate(TOAST_JS)
+                look = amber_look(t) if warning else t.evaluate(TOAST_JS)
                 if warning:
                     check("warning" in look["cls"] and look["bg"] == look["amber"],
                           f"a warning toast should be amber — its class {look['cls']!r}, background {look['bg']} "
@@ -1420,13 +1432,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
                 t = page.locator(".clipboard-toast", has_text=words_part).first
                 t.wait_for(state="visible", timeout=4000)
                 shown = page.evaluate("() => performance.now()")
-                # a toast that replaces another (the cut's, then the paste's) fades to its colors (.clipboard-toast's 1 s
-                # transition) — read the look once it has settled
-                for _ in range(30):
-                    look = t.evaluate(TOAST_JS)
-                    if look["bg"] == look["amber"]:
-                        break
-                    page.wait_for_timeout(50)
+                look = amber_look(t)      # a toast that replaces another (the cut's, then the paste's) fades too
                 check("warning" in look["cls"] and look["bg"] == look["amber"],
                       f"the toast {words_part!r} should be amber — its class {look['cls']!r}, background {look['bg']}")
                 page.wait_for_timeout(max(0, 2800 - (page.evaluate("() => performance.now()") - shown)))
