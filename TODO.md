@@ -90,6 +90,7 @@
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [The "open" shortcut: start serve.py if needed and open the app](#the-open-shortcut-start-servepy-if-needed-and-open-the-app)
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
+      - [A refused Restore shows a false "Restore Warning" box a minute later](#a-refused-restore-shows-a-false-restore-warning-box-a-minute-later)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [An anti-glossary: the words we don't show people, kept in a list and enforced at every commit](#an-anti-glossary-the-words-we-dont-show-people-kept-in-a-list-and-enforced-at-every-commit)
@@ -2573,6 +2574,20 @@ _Why it matters:_ Closes the last gaps left after "Save our working process in g
 - Item 3: what it copies today by hand — `~/.claude/projects/c--Users-Ron-Projects-ReaderWrangler/memory/*.md` into
   `claude-backup/memory/`, plus `.claude/settings.local.json` (see that folder's README; update its "whether to
   automate" line when built). A Python script (pytools `keepopen`), like the other tools.
+
+#### A refused Restore shows a false "Restore Warning" box a minute later
+<!-- id 20261118-1136 -->
+
+_Why it matters:_ After a backup the app refuses part-way through Restore (e.g. an old Collections file), a minute
+later a box says "Restore Warning — Library loaded but status check timed out. Please refresh the page." — untrue,
+and it covers whatever the person is doing (found 2026-11-18 by sprint 8's test-waits work: during a long wait the box
+covered the File menu and failed BACKUP-005).
+
+**How (technical):** in `readerwrangler.js` Restore (~line 6308) starts a 60-second timer before `loadLibrary`; the
+`catch` (~6334) closes the progress box but never clears the timer, so it fires and shows the box (and logs BACKUP-03).
+Fix: clear it in the `catch` (or a `finally`) — a failing test first: Restore a file that's refused after loading
+starts, wait past 60 s (or shorten the timer in the test), and check no box appears. Filed at the end of Polish —
+Ron sets its place.
 
 ## 🚦 Before public launch
 
