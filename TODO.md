@@ -543,6 +543,16 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       and then in the merge doesn't add up (the copies' archive isn't read).
    11. Found by the test_cells agent: after an Escape, Chrome gave the page no idle time for 3–5 s — so any future
       "wait until the page is idle" helper must not rely on idle callbacks (caught_up uses a task-queue flush).
+   12. `tools/copies.py new` calls a tier-1 run that ended "not proven — the machine was too busy" (exit 3) "tier 1
+      failed" — right to refuse, wrong words (the merge script already says "not proven").
+   13. A file rerun alone that meets the machine's trouble AGAIN still counts as a failure (TESTING.md: "failed again,
+      it's a failure") — by sprint 8's rule "the machine's trouble is never a test failure" it may better be "not
+      proven". Ron's call (it changes what a busy day's run reports).
+   14. The commit check refuses a commit when its covering tests end "not proven" (a busy PC, no test failed) — right
+      (not proof), but a busy PC can then block a commit; worth knowing, maybe saying so in the refusal.
+   15. From the sprint 8 labs: when OTHER programs take the CPU, fewer browsers is slower (2 at once 1,687 s vs 3 at
+      once 924 s) — halving on trouble costs time there; and memory squeezed to 0.7 GB free broke nothing. Whether
+      that leads to a CPU budget or a gentler back-off is Ron's call (review queue Q-045).
 
 #### One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->
