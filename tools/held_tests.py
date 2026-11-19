@@ -161,8 +161,8 @@ def run_line(r):
     """One run of a streak, on a line: when, where (which folder's run), why, how its rerun went, its kept outputs."""
     return (f"    {_when(r.get('when'))}" + (f" in {r['where']}" if r.get("where") else "")
             + (f" (shard {r['shard']})" if r.get("shard") else "") + f" — {r.get('why') or '?'} — "
-            + (r.get("outcome") if r.get("outcome") == "not proven" else "rerun alone: passed")
-            + (f" ({r['rerun']})" if r.get("outcome") == "not proven" and r.get("rerun") else "")
+            + (("not proven — " + ("its rerun alone met it again" if r.get("rerun") else "no rerun was left for it"))
+               if r.get("outcome") == "not proven" else "rerun alone: passed")
             + f" — first output: {r.get('first_output') or '(not kept)'}"
             + (f" — the rerun's: {r['rerun_output']}" if r.get("rerun_output") else ""))
 
