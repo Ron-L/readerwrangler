@@ -96,7 +96,8 @@ checks at all and nothing said so. Now **`serve.py`** (every contributor runs it
 Ron at logon) prints a warning framed in `!` lines, in red where the console can, as the FIRST thing it prints — and
 Claude's session start does the same (`setup-check.py`, above). Both say the one command that fixes it. One rule
 (`hooks_path_problem`: set, and exactly `git-hooks`) and one wording, in **`tools/setup_check.py`**. A working copy
-(`tools/copies.py`) shares the main folder's setting. Tests: `SETUP-001`–`004`, `SERVE-002`.
+(`tools/copies.py`) is its own clone since 2026-11-19: `copies.py new` sets the copy's own `core.hooksPath git-hooks`
+(an older worktree copy shares the main folder's). Tests: `SETUP-001`–`004`, `SERVE-002`, `COPY-001`.
 
 - **`version-guard.py`** — refuses a commit that stages
   shipped code without moving its version stamp: `readerwrangler.js`→`ORGANIZER_VERSION`,
@@ -124,25 +125,54 @@ Claude's session start does the same (`setup-check.py`, above). Both say the one
 TODO "Faster sprints", items 3–4 (working copies: Ron's idea). One agent builds in one copy while Claude reviews and tests
 in another; independent tasks build at once, each on its own branch, and a script merges them.
 
-- **`py tools/copies.py new <name> [--branch <b>] [--from <ref>]`** — a git worktree at
+- **What a copy is — its own clone** (since 2026-11-19; TODO "Working copies that can't break each other", item 1 — Ron:
+  "Yes to belt and suspenders"). Until then a copy was a git worktree: another folder on ONE shared repository, so git's
+  settings and history were shared — and on 2026-11-18 a test that set that repository to "bare" stopped git in every
+  copy and the main folder for 13 minutes. Now each copy is a **local clone** of the main folder's repository: its own
+  git settings, its own history, so a mistake damages only that copy. On the same drive git shares the stored history
+  through **file links** (`git clone --local`), so a copy costs almost no disk (the repository is ~113 MB). The clone
+  calls the main folder's repository **`main-folder`** (its remote) — that's how a copy finds the main folder
+  (`copies.main_folder`, used by `backup_claude.py` and `shortcuts.py`; the private-values check reads the same remote).
+  A clone brings no settings, so `new` gives it the main folder's own: `core.hooksPath git-hooks` (the commit checks
+  on), `user.name` / `user.email`, and the main folder's ignore list (`.git\info\exclude` — `.private/` among it).
+  **Stays shared, on purpose:** the test-slot folder (all copies together stay under the PC's browser limit) and the
+  records' archive (below) — our own files, which our tools guard directly. Copies made before 2026-11-19 are
+  worktrees: `list` and `remove` handle both kinds (`COPY-014`). Tests: `COPY-001`, `COPY-005`, `COPY-013` (a copy set
+  to bare leaves the main folder's repository as it was).
+- **Getting the work back:** an agent's commits live in its copy until **`merge_branches.py`** (run in the main folder)
+  fetches each branch it merges from the copy that has it — fast-forward only; a branch that moved on both sides stops
+  the merge, nothing touched (`copies.fetch_from_copies`, `MERGE-006`). One place, at the one moment the work is
+  needed — nothing pushes into the main folder's repository behind its back. Until then the branch isn't in the main
+  folder (so `sync_remotes.py` can't back it up yet); to look at an agent's work, run git in the copy
+  (`git -C ..\ReaderWrangler-copies\<name> log` / `diff main-folder/sprint-N...`), or fetch it by hand: `git fetch
+  ..\ReaderWrangler-copies\<name> <branch>:<branch>`.
+- **`py tools/copies.py new <name> [--branch <b>] [--from <ref>]`** — a clone at
   `C:\Users\Ron\Projects\ReaderWrangler-copies\<name>` (beside the main folder) on branch `<b>` (default: the name; a new
-  branch starts at `<ref>`, default HEAD; an existing one is checked out). It **links** what git doesn't hold — `.venv`,
+  branch starts at `<ref>`, default HEAD, and lives in the copy; an existing one is checked out) — its only branch. **One
+  copy per branch:** a branch the main folder or another copy is on is refused (a worktree had that from git). It
+  **links** what git doesn't hold — `.venv`,
   `node_modules` (the commit checks' Babel), `tools/build/node_modules`, `relay/node_modules` — each a Windows directory
   junction to the main folder's (nothing copied), checks the **pytools submodule** out from the main folder's copy (no
   network; a link can't work there — its `.git` file points at `../.git/modules` by a relative path, and git then fails
   on every command), then runs **tier 1 in the copy**: READY only if it passes. Without the links, tier 1 fails in a
   copy (proven 2026-11-16: the build tests, the parse and saved-reads checks, the runner's screen-test rows) and tier 2
   can't start at all; serve.py won't start without pytools.
-- **`py tools/copies.py remove <name> [--force]`** — refuses while the copy has anything uncommitted, or while its branch
-  has commits no other branch, tag or remote has; `--force` removes it anyway. **The branch is always kept.** Every link
-  in the copy is removed FIRST, by itself: `git worktree remove` deletes THROUGH a junction (tried on a throwaway: the
-  linked folder's files were gone). Afterwards it checks each of the main folder's linked folders still holds what it
-  held, and says so loudly if not. **Every folder in the copy must be looked into first** (2026-11-16): one it can't
-  read might hold a link it would miss, so it refuses — even with `--force` — naming each such folder, before anything is
-  removed. Tests: `COPY-001`–`006`.
+- **`py tools/copies.py remove <name> [--force]`** — refuses while the copy has anything uncommitted, or while it holds
+  commits the main folder's repository doesn't have — on any of its branches or a detached HEAD (it fetches the main
+  folder's branches and tags into the copy to compare; nothing in the main folder changes). The refusal names the merge
+  that fetches them. `--force` removes it anyway — and says how many commits it threw away with it. (An older worktree
+  copy: commits no other branch, tag or remote has; its branch is kept, as before.) Every link in the copy is removed
+  FIRST, by itself: `git worktree remove` deletes THROUGH a junction (tried on a throwaway: the linked folder's files
+  were gone). A clone is first renamed aside (`.removing-<name>-<when>`): Windows refuses that while a program has a
+  file open there, so a busy copy is left whole — "nothing was touched" — never half-deleted; then its links come out
+  and the folder is deleted. Afterwards it checks each of the main folder's linked folders still holds what it held,
+  and says so loudly if not. **Every folder in the copy must be looked into first** (2026-11-16): one it can't read
+  might hold a link it would miss, so it refuses — even with `--force` — naming each such folder, before anything is
+  removed. Tests: `COPY-001`–`006`, `COPY-014`.
 - **A removed copy keeps its test-run records and says where its time went** (2026-11-18, TODO tooling item 11.6; Ron:
   "Should the agents record where their time goes … so we can analyze that?"). A copy's records live in its own git
-  folder (`.git\worktrees\<name>\rw-test-results`), which `git worktree remove` deletes — so before anything is taken
+  folder (a clone's `.git\rw-test-results`; an older worktree's `.git\worktrees\<name>\rw-test-results`), which goes with
+  the copy — so before anything is taken
   out, `remove` copies them (the `.json` records AND the failed files' kept outputs) into the main folder's records, in
   their own archive folder: **`.git\rw-test-results\copies\<name>-<YYYYMMDD-HHMM removed>\`**. The runner never reads
   it (`read_records` reads only its folder's own `.json` files — the stamp and the longest-first estimates never see a
@@ -167,14 +197,16 @@ in another; independent tasks build at once, each on its own branch, and a scrip
 - **`py tools/copies.py report [--since YYYY-MM-DD]`** — for a sprint's post-mortem: one row per archived copy (name,
   branch, made, removed, wall, test minutes and their share, runs full / narrow, passed / failed) and the totals.
   Tests: `COPY-007`–`012`.
-- **`py tools/copies.py list`** (also a double-click) — each copy, its branch and commit, anything uncommitted, and its
-  test stamp (`run_tests.py --stamp` run there: each copy keeps its own run records).
-- **What works inside a copy** (checked 2026-11-16): the pre-build gate (above); the commit checks — `core.hooksPath
-  git-hooks` is shared config and relative, so git runs the COPY's `git-hooks/` from the copy's root (seen: the version
-  guard refused, the name check and the build check ran, all on the copy's files); serve.py and the test runner use the
-  copy's own `dist/`; screenshots go to `%TEMP%\rw-test-artifacts-<name>` (the main folder's stay in
-  `rw-test-artifacts`); the private-values check reads the main folder's `.private/` notes (a copy has none, and it
-  silently checked credential shapes only). **Every copy's runs share one list of the processes our tools started**
+- **`py tools/copies.py list`** (also a double-click) — each copy (its own clone, or an older worktree — said), its
+  branch and commit, anything uncommitted, and its test stamp (`run_tests.py --stamp` run there: each copy keeps its own
+  run records).
+- **What works inside a copy** (checked 2026-11-16; for clones 2026-11-19, `COPY-005`): the pre-build gate (above — a
+  file is judged by the nearest folder with a `.git`, folder or file); the commit checks — `core.hooksPath git-hooks`
+  (the clone's own setting, set by `new`) is relative, so git runs the COPY's `git-hooks/` from the copy's root (seen:
+  the version guard refused, the name check and the build check ran, all on the copy's files); serve.py and the test
+  runner use the copy's own `dist/`; screenshots go to `%TEMP%\rw-test-artifacts-<name>` (the main folder's stay in
+  `rw-test-artifacts`); the private-values check reads the main folder's `.private/` notes, found through the clone's
+  `main-folder` remote (a copy has none, and it silently checked credential shapes only). **Every copy's runs share one list of the processes our tools started**
   (`tools/starter.py`, 2026-11-18: `started-processes.json` beside the test slots, changed under the slots' lock): a
   process whose run is still going in another copy is never called a leftover; one whose run has ended is named in a
   banner at the start of the next run anywhere on the PC, with a `NEEDS YOUR ATTENTION:` line (TESTING.md §4).
@@ -184,7 +216,8 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   logs `REBUILD NOT SWAPPED IN` (the next request tries again) — before, the request died. Tests: `BUILD-010`,
   `SERVE-001`.
 - **`py tools/merge_branches.py <branch> … [--into <target>] [--no-squash] [--no-test]`** — run in a folder ON the
-  target branch, clean; the target defaults to the folder's branch — the sprint's, `sprint-N` (made from main when a
+  target branch (the main folder), clean; first each branch being built in a copy is fetched from it (above); the target
+  defaults to the folder's branch — the sprint's, `sprint-N` (made from main when a
   sprint starts; Ron, 2026-11-16 — it replaced the long-lived `main-prime`) — and is never `main`. On a scratch branch
   `merging/<target>`, each branch in turn is squash-merged as one commit (a task's way into the sprint's branch;
   `--no-squash`: a merge commit). Never hand-merged — settled by the script, after every
@@ -199,7 +232,7 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   checks. Then **tier 1 and tier 2 in full on the merged result**, committed on the scratch branch, so `run_tests.py
   --stamp` must say PROVEN for exactly the commit that lands; only then is the target fast-forwarded and the scratch
   branch deleted. A failure leaves the target untouched (fix and commit on the scratch branch, then `--continue`).
-  `--no-test` lands and prints `NOTHING WAS PROVEN`. Tests: `MERGE-001`–`004` (real git in throwaway repositories).
+  `--no-test` lands and prints `NOTHING WAS PROVEN`. Tests: `MERGE-001`–`006` (real git in throwaway repositories).
 
 ## Backing up Claude's memory and settings (`tools/backup_claude.py`; sprint 9, 2026-11-18)
 

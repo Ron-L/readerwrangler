@@ -7,7 +7,8 @@ brings (the hooks travel with the repo; turning them on doesn't). A copy without
 nothing says so. So two places everyone passes through check it and warn LOUDLY, with the one command that fixes it:
   1. serve.py's start-up — every contributor runs it to test locally (Ron at logon), Claude Code or not;
   2. Claude's session start (.claude/hooks/setup-check.py).
-A working copy (tools/copies.py — a git worktree) shares the main folder's setting, so it's covered when the main is.
+A working copy (tools/copies.py) is its own clone since 2026-11-19: `copies.py new` turns the setting on in it (an older
+worktree copy shares the main folder's).
 
 hooks_path_problem(root) is the one rule; warning_lines(problem) the one wording. Tested by test/test_setup_check.py
 (SETUP-001–004) and test/test_serve.py (SERVE-002).

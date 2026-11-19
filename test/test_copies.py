@@ -1,12 +1,15 @@
-# Tests for tools/copies.py — working copies of the folder (git worktrees with the tools linked in).
+# Tests for tools/copies.py — working copies of the folder (each its own local clone, with the tools linked in).
 # tags: copies, tooling, tier 1
-# covers: tools/copies.py, tools/run_tests.py, git-hooks/private_values.py, test/ui/rw.py
-# heavy: yes — ~400 processes a run, up to 9 at once: git worktrees, submodules, their hooks' shells (counted 2026-11-17)
+# covers: tools/copies.py, tools/run_tests.py, git-hooks/private_values.py, test/ui/rw.py, .claude/hooks/gate-check.py
+# heavy: yes — ~400 processes a run, up to 9 at once: git clones, submodules, their hooks' shells (counted 2026-11-17)
 # Run: python test/test_copies.py
 #
 # TODO "Faster sprints", item 3 (2026-11-16). Each test builds a throwaway "main folder" in %TEMP% — a real git
 # repository with the real tools/copies.py in it, a stand-in test runner, a submodule, and the four untracked tool folders
 # (each holding a file that must survive) — and drives copies.py there as Claude would, from the command line.
+# Since 2026-11-19 (TODO "Working copies that can't break each other", item 1) a copy is its own clone, not a worktree:
+# a mistake in one (2026-11-18: a test set the shared repository to "bare") can't break the others. Copies made before
+# are worktrees — still listed and removed (COPY-014).
 import importlib.util
 import os
 import subprocess
@@ -76,15 +79,22 @@ class World:
         write(os.path.join(m, "tools", "build", "compile.js"), "// x\n")
         write(os.path.join(m, "relay", "relay-worker.js"), "// x\n")
         write(os.path.join(m, "git-hooks", "pre-commit"), '#!/bin/sh\necho "pre-commit ran in $(pwd)"\nexit 1\n')
+        write(os.path.join(m, "git-hooks", "shipped_paths.py"),          # the gate's rule (COPY-005)
+              open(os.path.join(ROOT, "git-hooks", "shipped_paths.py"), encoding="utf-8").read())
         write(os.path.join(m, "app.js"), "// app\n")
         git(m, "init", "-q", "-b", "main")
         git(m, "submodule", "add", "-q", sub, "pytools")
         git(m, "config", "-f", ".gitmodules", "submodule.pytools.url", FAKE_URL)
         git(m, "config", "submodule.pytools.url", FAKE_URL)        # as on Ron's PC: the real address, here unreachable
         git(m, "add", ".gitignore", ".gitmodules", "tools/copies.py", "tools/run_tests.py", "tools/build/compile.js",
-            "relay/relay-worker.js", "git-hooks/pre-commit", "app.js")
+            "relay/relay-worker.js", "git-hooks/pre-commit", "git-hooks/shipped_paths.py", "app.js")
         git(m, "commit", "-q", "-m", "start")
         git(m, "config", "core.hooksPath", "git-hooks")
+        # the main folder's own settings a copy must get too (as on Ron's PC: his name in this repository, an ignore list)
+        git(m, "config", "user.name", "Main Folder")
+        git(m, "config", "user.email", "main@example.invalid")
+        with open(os.path.join(m, ".git", "info", "exclude"), "a", encoding="utf-8") as f:
+            f.write("secret-notes/\n")
         for rel in LINKS:                               # the untracked tool folders, each with a file that must survive
             write(os.path.join(m, rel, "sentinel.txt"), f"the main folder's {rel}\n")
         self.precious = os.path.join(self.tmp, "precious")
@@ -115,11 +125,30 @@ def load_copies():
 
 
 def new_links_and_tests():
+    import glob
     with World() as w:
         code, out = w.copies("new", "one", "--from", "main")
         c = w.copy("one")
         check(code == 0 and "READY" in out, f"new says READY (exit {code}):\n{out}")
+        check(os.path.isdir(os.path.join(c, ".git")), "a clone: its own git folder (a worktree's .git is a FILE)")
+        check(os.path.normcase(os.path.normpath(c)) not in os.path.normcase(git(w.main, "worktree", "list").stdout
+                                                                           .replace("/", os.sep)),
+              "not one of the main folder's worktrees")
         check(git(c, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "one", "on its own branch, named for it")
+        check(git(c, "for-each-ref", "--format=%(refname:short)", "refs/heads").stdout.split() == ["one"],
+              "…its only branch (the clone's starting branch removed — one branch per copy)")
+        check(git(w.main, "rev-parse", "--verify", "--quiet", "refs/heads/one", ok=False).returncode != 0,
+              "the new branch lives in the copy until it's fetched (the merge does that)")
+        for key, want in (("core.hooksPath", "git-hooks"), ("user.name", "Main Folder"),
+                          ("user.email", "main@example.invalid")):
+            got = git(c, "config", "--local", "--get", key).stdout.strip()
+            check(got == want, f"the copy's own {key} is the main folder's: {got!r}")
+        check("secret-notes/" in open(os.path.join(c, ".git", "info", "exclude"), encoding="utf-8").read(),
+              "the main folder's own ignore list (.git/info/exclude) copied")
+        packs = glob.glob(os.path.join(c, ".git", "objects", "**", "*"), recursive=True)
+        linked = [p for p in packs if os.path.isfile(p) and os.stat(p).st_nlink > 1]
+        check(linked, f"the stored history shares the main folder's files (file links — almost no disk): "
+              f"{len(linked)} of {len(packs)} linked")
         for rel in LINKS:
             p = os.path.join(c, rel)
             check(os.path.isjunction(p) or os.path.islink(p), f"{rel} is a link")
@@ -131,11 +160,44 @@ def new_links_and_tests():
         code, out = w.copies("new", "one")
         check(code != 0 and "already exists" in out, f"a second copy of the same name is refused: {out}")
         code, out = w.copies("new", "two", "--branch", "one")
-        check(code != 0, f"a branch already checked out in another copy is refused (git's rule): {out}")
+        check(code != 0 and "copy one" in out and not os.path.exists(w.copy("two")),
+              f"a branch another copy is building is refused (one copy per branch): {out}")
+        code, out = w.copies("new", "three", "--branch", "main")
+        check(code != 0 and "main folder" in out and not os.path.exists(w.copy("three")),
+              f"…and the branch the main folder is on: {out}")
         code, out = w.copies("new", "../x")
         check(code != 0 and "a copy's name" in out, f"a name that isn't a plain folder name is refused: {out}")
-test("COPY-001", "new: a worktree beside the main folder, its own branch, the four tool folders linked, the submodule "
-     "checked out, tier 1 run there", new_links_and_tests)
+test("COPY-001", "new: a local clone beside the main folder (its history shared through file links), its own branch, "
+     "the main folder's settings, the four tool folders linked, the submodule checked out, tier 1 run there",
+     new_links_and_tests)
+
+
+def a_copy_has_its_own_git_settings():
+    with World() as w:
+        w.copies("new", "one")
+        c = w.copy("one")
+        # 2026-11-18: a test set the ONE shared repository to "bare" and git stopped working in every copy and the main
+        # folder for 13 minutes. A clone's settings are its own.
+        git(c, "config", "core.bare", "true")
+        check(git(c, "config", "--get", "core.bare").stdout.strip() == "true", "(setup: the copy is set to bare)")
+        check(git(w.main, "config", "--get", "core.bare").stdout.strip() == "false",
+              "the main folder's repository is untouched — not bare")
+        check(git(w.main, "status", "--porcelain").returncode == 0, "and git still works in the main folder")
+        git(c, "--git-dir", os.path.join(c, ".git"), "config", "core.bare", "false")
+        git(c, "config", "core.hooksPath", "elsewhere")
+        check(git(w.main, "config", "--get", "core.hooksPath").stdout.strip() == "git-hooks",
+              "turning the commit checks off in a copy leaves the main folder's on")
+        git(c, "config", "core.hooksPath", "git-hooks")
+        write(os.path.join(c, "only-here.txt"), "x\n")
+        git(c, "add", "only-here.txt")
+        git(c, "commit", "-q", "--no-verify", "-m", "a commit in the copy")
+        sha = git(c, "rev-parse", "HEAD").stdout.strip()
+        check(git(w.main, "cat-file", "-e", f"{sha}^{{commit}}", ok=False).returncode != 0,
+              "a commit in the copy isn't in the main folder's repository (its history is its own)")
+        code, out = w.copies("remove", "one", "--force")
+        check(code == 0 and not os.path.exists(c), f"(cleanup: removed:\n{out})")
+test("COPY-013", "a copy's git settings and history are its own: set to bare (the 2026-11-18 accident), the main "
+     "folder's repository stays as it was", a_copy_has_its_own_git_settings)
 
 
 def remove_refuses_and_keeps_the_branch():
@@ -149,21 +211,38 @@ def remove_refuses_and_keeps_the_branch():
         git(c, "add", "draft.txt")
         git(c, "commit", "-q", "--no-verify", "-m", "work")      # (the throwaway's own hook refuses every commit)
         code, out = w.copies("remove", "one")
-        check(code != 0 and "1 commit(s) that exist nowhere else" in out and os.path.isdir(c),
-              f"a commit on no other branch: refused:\n{out}")
-        git(w.main, "branch", "keep-it", "one")
+        check(code != 0 and "1 commit(s) the main folder's repository doesn't have" in out and os.path.isdir(c),
+              f"a commit the main folder's repository doesn't have: refused:\n{out}")
+        check("merge_branches.py" in out, f"…saying how to get it back (the merge fetches it):\n{out}")
+        git(c, "switch", "-q", "--detach")
+        write(os.path.join(c, "loose.txt"), "on no branch\n")
+        git(c, "add", "loose.txt")
+        git(c, "commit", "-q", "--no-verify", "-m", "on a detached HEAD")
+        git(w.main, "fetch", "-q", c, "one:one")                    # what the merge does: the branch fetched
         code, out = w.copies("remove", "one")
-        check(code == 0 and "REMOVED" in out and not os.path.exists(c), f"once another branch has it: removed:\n{out}")
-        check(git(w.main, "rev-parse", "--verify", "--quiet", "refs/heads/one").returncode == 0, "its branch is kept")
+        check(code != 0 and "1 commit(s)" in out and os.path.isdir(c),
+              f"a commit on the copy's detached HEAD is counted too — still refused:\n{out}")
+        git(c, "switch", "-q", "one")
+        code, out = w.copies("remove", "one")
+        check(code == 0 and "REMOVED" in out and not os.path.exists(c),
+              f"once the main folder's repository has the branch: removed:\n{out}")
+        check(git(w.main, "rev-parse", "--verify", "--quiet", "refs/heads/one").returncode == 0,
+              "its branch is in the main folder's repository")
         w.copies("new", "two")
         c2 = w.copy("two")
         write(os.path.join(c2, "x.txt"), "x\n")
         code, out = w.copies("remove", "two", "--force")
         check(code == 0 and not os.path.exists(c2), f"--force removes a copy with uncommitted work:\n{out}")
-        check(git(w.main, "rev-parse", "--verify", "--quiet", "refs/heads/two").returncode == 0,
-              "and still keeps the branch")
-test("COPY-002", "remove: refuses uncommitted work and commits found nowhere else; --force removes anyway; the branch "
-     "is always kept", remove_refuses_and_keeps_the_branch)
+        w.copies("new", "three")
+        c3 = w.copy("three")
+        write(os.path.join(c3, "y.txt"), "y\n")
+        git(c3, "add", "y.txt")
+        git(c3, "commit", "-q", "--no-verify", "-m", "never fetched")
+        code, out = w.copies("remove", "three", "--force")
+        check(code == 0 and not os.path.exists(c3) and "thrown away" in out and "1 commit(s)" in out,
+              f"--force removes a copy holding commits the main folder doesn't have — and says they're thrown away:\n{out}")
+test("COPY-002", "remove: refuses uncommitted work and commits the main folder's repository doesn't have (any branch, "
+     "a detached HEAD); --force removes anyway and says what it threw away", remove_refuses_and_keeps_the_branch)
 
 
 def removing_never_deletes_through_a_link():
@@ -211,10 +290,18 @@ def a_copy_knows_itself():
     pv_spec = importlib.util.spec_from_file_location("pv", os.path.join(ROOT, "git-hooks", "private_values.py"))
     pv = importlib.util.module_from_spec(pv_spec)
     pv_spec.loader.exec_module(pv)
+    gate_spec = importlib.util.spec_from_file_location("gate", os.path.join(ROOT, ".claude", "hooks", "gate-check.py"))
+    gate = importlib.util.module_from_spec(gate_spec)
+    gate_spec.loader.exec_module(gate)
     with World() as w:
         w.copies("new", "one")
         c = w.copy("one")
         check(copies.copy_name(w.main) is None and copies.copy_name(c) == "one", "the copy's name; none for the main")
+        check(os.path.normcase(copies.main_folder(c)) == os.path.normcase(w.main)
+              and os.path.normcase(copies.main_folder(w.main)) == os.path.normcase(w.main),
+              f"the main folder is found from the copy (backup_claude.py, shortcuts.py): {copies.main_folder(c)}")
+        check(gate.working_copy_of(os.path.join(c, "app.js")) == c and gate.is_app_source(os.path.join(c, "app.js")),
+              "the pre-build gate judges a file in the copy by the copy's own rule — and stops app code there")
         base = os.path.join(tempfile.gettempdir(), "rw-test-artifacts")
         check(copies.screenshots_folder(w.main, {}) == base, "the main folder's screenshots stay where they were")
         check(copies.screenshots_folder(c, {}) == base + "-one", "a copy's go to a folder named for it")
@@ -223,12 +310,14 @@ def a_copy_knows_itself():
         note = os.path.join(w.main, ".private", "Secrets.txt")
         write(note, "made-up value abc123def456ghi789\n")
         check(os.path.samefile(pv.note_path(c), note), "the private-values check in a copy reads the main folder's note")
+        check(f"remote.{copies.MAIN_REMOTE}.url" in open(pv.__file__, encoding="utf-8").read(),
+              "private_values.py and copies.py name the main folder's remote the same")
         r = git(c, "commit", "--allow-empty", "-m", "x", ok=False)
         check(r.returncode != 0 and "pre-commit ran in" in r.stdout + r.stderr and "one" in r.stdout + r.stderr,
               f"the commit checks (core.hooksPath git-hooks) run in the copy, from the copy: {r.stdout}{r.stderr}")
         w.copies("remove", "one", "--force")
-test("COPY-005", "in a copy: its name, its own screenshots folder, the main folder's private note, the commit checks",
-     a_copy_knows_itself)
+test("COPY-005", "in a copy: its name, the main folder found, the gate, its own screenshots folder, the main folder's "
+     "private note, the commit checks", a_copy_knows_itself)
 
 
 def lock_listing(folder, locked):
@@ -375,7 +464,7 @@ def removal_keeps_records_and_says_where_the_time_went():
         write(os.path.join(c, "work.txt"), "built\n")
         git(c, "add", "work.txt")
         git(c, "commit", "-q", "--no-verify", "-m", "the work")
-        git(w.main, "branch", "keep-one", "one")
+        git(w.main, "fetch", "-q", c, "one:one")              # its branch fetched into the main folder (as the merge does)
         code, out = w.copies("remove", "one")
         check(code == 0 and "REMOVED" in out and not os.path.exists(c), f"removed:\n{out}")
         print("      (the removal said:\n        " + "\n        ".join(out.strip().splitlines()[-12:]) + ")")
@@ -540,5 +629,42 @@ def the_archive_is_trimmed():
 test("COPY-012", "the copies' archive is kept bounded (TODO tooling 13.5): the newest ARCHIVE_KEEP copies' folders kept, "
      "and never one removed less than 30 days ago; the older rest deleted at each removal, said",
      the_archive_is_trimmed)
+
+
+def older_worktree_copies_still_work():
+    copies = load_copies()
+    with World() as w:
+        # a copy as `new` made them before 2026-11-19: a git worktree, the tool folders linked in, a test-run record
+        old = w.copy("old")
+        git(w.main, "worktree", "add", "-q", "-b", "old", old)
+        for rel in LINKS:
+            copies.make_link(os.path.join(old, rel), os.path.join(w.main, rel))
+        recs = git(old, "rev-parse", "--path-format=absolute", "--git-path", "rw-test-results").stdout.strip()
+        plant(recs, {"id": "r0", "started": "2026-11-18T10:00:00+00:00", "ended": "2026-11-18T10:01:00+00:00",
+                     "result": "passed", "ran": {"tier": "1"}})
+        w.copies("new", "one")
+        code, out = w.copies("list")
+        check(code == 0 and "branch old" in out and "branch one" in out, f"list shows both kinds:\n{out}")
+        code, out = w.copies("new", "two", "--branch", "old")
+        check(code != 0 and "copy old" in out, f"a branch an older copy is building is refused too:\n{out}")
+        write(os.path.join(old, "w.txt"), "w\n")
+        git(old, "add", "w.txt")
+        git(old, "commit", "-q", "--no-verify", "-m", "old work")
+        code, out = w.copies("remove", "old")
+        check(code != 0 and "1 commit(s) that exist nowhere else" in out and os.path.isdir(old),
+              f"its commits on no other branch: refused, as before:\n{out}")
+        git(w.main, "branch", "keep-old", "old")
+        code, out = w.copies("remove", "old")
+        check(code == 0 and "REMOVED" in out and not os.path.exists(old), f"then removed:\n{out}")
+        check(w.sentinels(), "the main folder's linked folders kept their files (the links were taken out first)")
+        check(git(w.main, "rev-parse", "--verify", "--quiet", "refs/heads/old").returncode == 0, "its branch is kept")
+        check(os.path.normcase(old) not in os.path.normcase(git(w.main, "worktree", "list").stdout.replace("/", os.sep)),
+              "git no longer lists it as a worktree")
+        home = os.path.join(w.main, ".git", "rw-test-results", copies.ARCHIVE)
+        kept = [d for d in os.listdir(home) if d.startswith("old-")] if os.path.isdir(home) else []
+        check(len(kept) == 1 and os.path.exists(os.path.join(home, kept[0], "r0.json")),
+              f"its test-run records kept in the archive: {kept}")
+test("COPY-014", "copies made before the clones (git worktrees) are still listed, guarded and removed — links first, "
+     "records kept, the branch kept", older_worktree_copies_still_work)
 
 done()

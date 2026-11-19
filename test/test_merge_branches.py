@@ -1,6 +1,6 @@
 # Tests for tools/merge_branches.py — task branches merged into main-prime by a script.
 # tags: merge-branches, tooling, tier 1
-# covers: tools/merge_branches.py, git-hooks/check-toc.js
+# covers: tools/merge_branches.py, tools/copies.py, git-hooks/check-toc.js
 # heavy: yes — ~350 processes a run: real git merges in throwaway repositories, the stand-in tools (counted 2026-11-17)
 # Run: python test/test_merge_branches.py
 #
@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(ROOT, "test", "ui"))
 from harness import check, done, remove_tree, test   # noqa: E402
 
 MERGE = os.path.join(ROOT, "tools", "merge_branches.py")
+COPIES = os.path.join(ROOT, "tools", "copies.py")      # the merge fetches a branch from a working copy (MERGE-006)
 # git's own variables (GIT_DIR, GIT_INDEX_FILE…) point every git command at THIS repository while the commit hook runs
 # (RUN-044) — everything here runs without them.
 CLEAN_ENV = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
@@ -94,7 +95,8 @@ class Repo:
     def __enter__(self):
         self.tmp = tempfile.mkdtemp(prefix="rw-merge-test-")
         self.dir = d = os.path.join(self.tmp, "RW")
-        files = {"tools/merge_branches.py": open(MERGE, encoding="utf-8").read(), "tools/build.py": BUILD,
+        files = {"tools/merge_branches.py": open(MERGE, encoding="utf-8").read(),
+                 "tools/copies.py": open(COPIES, encoding="utf-8").read(), "tools/build.py": BUILD,
                  "tools/message_codes.py": CODES, "tools/run_tests.py": RUNNER, "readerwrangler.js": APP,
                  "mobile.js": MOBILE, "readerwrangler.html": PAGE, "storage.js": "// storage\n",
                  "readerwrangler.css": "/* css */\n", ".gitignore": "__pycache__/\n",
@@ -303,5 +305,46 @@ def not_proven_doesnt_land():
           f"merge_branches.py's NOT_PROVEN_EXIT is environment_trouble.EXIT_CODE: {m and m.group(1)}")
 test("MERGE-005", "a tier run NOT PROVEN (the runner's exit 3: the machine's trouble past its reruns, no test failed) "
      "doesn't land — said as not proven, never as failed; tier 2 not run", not_proven_doesnt_land)
+
+
+def branch_fetched_from_a_copy():
+    """2026-11-19 (TODO "Working copies that can't break each other", item 1): a working copy is its own clone, so an
+    agent's commits live in the copy — the merge gets the branch from there first."""
+    with Repo() as r:
+        def copies(*args):
+            p = subprocess.run([sys.executable, os.path.join(r.dir, "tools", "copies.py"), *args], cwd=r.dir,
+                               env=CLEAN_ENV, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            return p.returncode, p.stdout + p.stderr
+
+        def work(name, old, new):
+            c = os.path.join(r.tmp, "RW-copies", name)
+            text = open(os.path.join(c, "storage.js"), encoding="utf-8").read()
+            with open(os.path.join(c, "storage.js"), "w", encoding="utf-8", newline="\n") as f:
+                f.write(text.replace(old, new))
+            git(c, "commit", "-q", "-am", f"7.31.0-alpha.9: {name}'s work")
+            return c
+        code, out = copies("new", "task-k", "--from", "main-prime")
+        check(code == 0 and "READY" in out, f"(setup: a copy made — exit {code}:\n{out})")
+        work("task-k", "// storage", "// storage, changed in the copy")
+        check(git(r.dir, "branch", "--list", "task-k") == "", "(setup: the branch is only in the copy)")
+        start = r.head("main-prime")
+        code, out = r.merge("task-k")
+        check(code == 0 and "LANDED" in out and "task-k: fetched from the copy task-k" in out,
+              f"the branch is fetched from the copy, then merged:\n{out}")
+        check("changed in the copy" in r.read("storage.js") and r.head("main-prime") != start, "its work is in")
+        code, out = copies("remove", "task-k")
+        check(code == 0 and "REMOVED" in out, f"…and the copy can be removed: nothing in it is only there now:\n{out}")
+
+        # the same branch moved on both in a copy and here: not merged — named, nothing touched
+        copies("new", "task-n", "--from", "main-prime")
+        work("task-n", "// storage", "// storage, the copy's way")
+        r.branch("task-n", [("storage.js", "// storage", "// storage, this folder's way")])
+        start = r.head("main-prime")
+        code, out = r.merge("task-n")
+        check(code != 0 and "task-n" in out and "copy task-n" in out and r.head("main-prime") == start
+              and git(r.dir, "rev-parse", "--abbrev-ref", "HEAD") == "main-prime",
+              f"a branch that moved on both sides stops the merge before anything is touched:\n{out}")
+test("MERGE-006", "a branch built in a working copy (its own clone) is fetched from the copy before merging; the copy "
+     "can then be removed; a branch that moved on both sides stops the merge", branch_fetched_from_a_copy)
 
 done()
