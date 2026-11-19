@@ -28,8 +28,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def main_folder(root=ROOT):
-    """The main working folder of this repository — `root` itself, or, in a working copy (tools/copies.py: a git
-    worktree), the folder whose .git the copy shares. None if git can't say."""
+    """The main working folder of this repository — `root` itself, or, in a working copy (tools/copies.py): a clone names
+    it as its remote "main-folder" (copies.MAIN_REMOTE, 2026-11-19); an older copy (a git worktree) shares its .git.
+    None if git can't say."""
+    r = subprocess.run(["git", "config", "--get", "remote.main-folder.url"], cwd=root, capture_output=True, text=True)
+    if r.returncode == 0 and r.stdout.strip():
+        return os.path.normpath(r.stdout.strip())
     r = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=root,
                        capture_output=True, text=True)
     common = r.stdout.strip() if r.returncode == 0 else ""

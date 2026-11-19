@@ -480,7 +480,7 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   `GIT_DIR`, `GIT_INDEX_FILE`… to the REAL repository; that day a test run there set `core.bare = true` in the shared
   `.git/config`, and every working copy failed "must be run in a work tree" for 13 minutes. RUN-044 had left it to each
   test file; the runner is the chokepoint now. Test: `RUN-103`.
-- **Working copies** (`tools/copies.py`, 2026-11-16): a git worktree beside the main folder, with `.venv` and the
+- **Working copies** (`tools/copies.py`, 2026-11-16; its own clone since 2026-11-19): a folder beside the main folder, with `.venv` and the
   `node_modules` folders linked in from the main folder — every tier runs there as here, with the copy's own `dist/`, its
   own run records (so its own stamp), and its own screenshots folder: `%TEMP%\rw-test-artifacts-<copy name>` (or
   `RW_TEST_ARTIFACTS-<copy name>`), so two copies running the same file don't overwrite each other's. The machine-wide
@@ -491,8 +491,8 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   `--tag`, `--release`, jobs), **the environment variables that change a run, each with its value** (`RUN_ENV` in the
   runner — found by searching the tests, their helpers and the runner for `os.environ` / `process.env`; a new one is
   added there), each file's result, counts and time, start and end, the overall result. Kept OUTSIDE the
-  working tree, per working copy: `git rev-parse --git-path rw-test-results` (`.git/rw-test-results` here; a git
-  worktree gets its own, under `.git/worktrees/<name>/`). The newest 300 are kept.
+  working tree, per working copy: `git rev-parse --git-path rw-test-results` (`.git/rw-test-results` here and in a clone
+  copy; an older worktree copy has its own, under `.git/worktrees/<name>/`). The newest 300 are kept.
   **Every run is recorded — a narrowed one on the quick shelf** (2026-11-18; Ron: "Absolutely record them. Why would you
   not???" — the commit hook's `--changed` runs left none, so an agent's own test time landed in "everything else" in a
   copy's time report, TODO tooling 13.1): a run narrowed by `--changed`, `--id`, `--tag` or a narrowing variable writes its

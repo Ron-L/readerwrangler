@@ -2,17 +2,29 @@
 """
 copies.py — working copies of the project folder (TODO "Faster sprints", item 3; Ron's idea, 2026-11-15).
 
-A working copy is a git worktree of this repository: its own folder, on its own branch, sharing one history with the main
-folder. One agent builds in one copy while Claude reviews and tests in another, and independent tasks build at once.
+A working copy is a local clone of the main folder's repository (since 2026-11-19 — TODO "Working copies that can't break
+each other", item 1): its own folder, on its own branch, with its OWN git settings and history — so a mistake in one
+(2026-11-18: a test set the one shared repository to "bare", and git stopped working in every copy and the main folder for
+13 minutes) damages only that copy. On the same drive git shares the stored history through file links (`git clone
+--local`), so a copy costs almost no disk. The clone calls the main folder's repository `main-folder` (its remote — also
+how a copy finds the main folder). One agent builds in one copy while Claude reviews and tests in another, and
+independent tasks build at once. Copies made before are git worktrees (one shared repository): still listed and removed.
+
+Getting the work back: the agent's commits live in the copy. tools/merge_branches.py (run in the main folder) fetches
+each branch it merges from the copy that holds it (fetch_from_copies) — one place, at the one moment the work is needed;
+nothing pushes into the main folder's repository behind its back.
 
     py tools/copies.py new <name> [--branch <b>] [--from <ref>]
-        make  ..\\ReaderWrangler-copies\\<name>  on branch <b> (default: <name>; made from <ref>, default HEAD, when it
-        doesn't exist yet), link in what git doesn't hold, check out the submodule, then run tier 1 there — it's READY
-        only if tier 1 passes (NOT READY says "not proven — the machine was too busy" when no test failed: exit 3)
+        clone the main folder's repository into  ..\\ReaderWrangler-copies\\<name>, on branch <b> (default: <name>; made
+        from <ref>, default HEAD, when the main folder hasn't got it), with the main folder's own settings (the commit
+        checks on, its name and e-mail, its ignore list); link in what git doesn't hold, check out the submodule, then
+        run tier 1 there — it's READY only if tier 1 passes (NOT READY says "not proven — the machine was too busy" when
+        no test failed: exit 3). One copy per branch: a branch the main folder or another copy is on is refused.
     py tools/copies.py remove <name> [--force]
-        refuse if the copy has anything uncommitted, or its branch has commits that exist nowhere else (no other branch,
-        tag or remote) — --force removes it anyway; the BRANCH IS ALWAYS KEPT. Removes the links FIRST, then the copy —
-        and refuses, even with --force, while any folder in the copy can't be looked into (a link there would be missed)
+        refuse if the copy has anything uncommitted, or holds commits the main folder's repository doesn't have (its
+        branches, its HEAD — a worktree copy: commits no other branch, tag or remote has) — --force removes it anyway, and
+        says what it threw away. Removes the links FIRST, then the copy — and refuses, even with --force, while any
+        folder in the copy can't be looked into (a link there would be missed)
     py tools/copies.py list            (also what a double-click shows)
         each copy: its branch, its commit, anything uncommitted, and its test stamp (run_tests.py --stamp there)
     py tools/copies.py report [--since YYYY-MM-DD]
@@ -44,7 +56,8 @@ commit check that needs them finds the main folder's (git-hooks/private_values.p
 
 Removing: `git worktree remove` deletes THROUGH a junction — tried 2026-11-16 on a throwaway: the files of the folder a
 link pointed at were gone. So every link in the copy is removed first, by itself (never what it points at), and the
-main folder's linked folders are checked afterwards.
+main folder's linked folders are checked afterwards. A clone is then renamed aside (that fails, touching nothing, while a
+program still has a file open there) and deleted.
 
 Nothing here stops a process. Tested by test/test_copies.py.
 """
@@ -54,6 +67,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -68,6 +82,11 @@ ARCHIVE_KEEP = 100
 ARCHIVE_MIN_DAYS = 30
 EXIT_NOT_PROVEN = 3              # run_tests.py's exit when no test failed but a file is NOT PROVEN (the machine too busy)
 NOTE = "rw-copy.json"            # when `new` made the copy — in the copy's own git folder, gone with it
+# A clone's name for the main folder's repository — how a copy finds the main folder (git-hooks/private_values.py reads
+# it too, for the private note). (2026-11-19)
+MAIN_REMOTE = "main-folder"
+COPIED_SETTINGS = ("user.name", "user.email")    # the main folder's own settings a clone gets (it brings none)
+MAIN_REFS = "refs/rw-main/"      # where `remove` fetches the main folder's branches and tags into a clone, to compare
 NARROWING_ENV = ("RW_CELLS",)    # run_tests.py RUN_ENV's narrowing variables — COPY-007 checks they're the same
 EVERYTHING_ELSE = "building, reading, thinking, waiting — the records can't tell these apart"
 # git's location variables, set when git runs a hook: they'd point every command here at the folder that ran the hook
@@ -87,8 +106,16 @@ def git(cwd, *args, check=False):
     return r
 
 
+def main_url(folder):
+    """The main folder a clone copy was made from (its MAIN_REMOTE), or '' — the main folder, a worktree, not a copy."""
+    return git(folder, "config", "--get", f"remote.{MAIN_REMOTE}.url").stdout.strip()
+
+
 def main_folder(repo=ROOT):
-    """The main working folder — the one whose .git every copy shares."""
+    """The main working folder: a clone copy's MAIN_REMOTE; else the one whose .git a worktree copy shares."""
+    url = main_url(repo)
+    if url:
+        return os.path.normpath(url)
     common = git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir", check=True).stdout.strip()
     common = os.path.normpath(common)
     if os.path.basename(common) != ".git":
@@ -102,9 +129,12 @@ def copies_dir(main):
 
 
 def copy_name(root=ROOT):
-    """The name of the working copy `root` is — its folder name when it's a git worktree (its .git is a FILE) — or None
-    for the main folder. The screen tests use it to keep each copy's screenshots apart (test/ui/rw.py)."""
-    return os.path.basename(os.path.normpath(root)) if os.path.isfile(os.path.join(root, ".git")) else None
+    """The name of the working copy `root` is — its folder name when it's a clone copy (it names the main folder) or a
+    worktree (its .git is a FILE) — or None for the main folder. The screen tests use it to keep each copy's screenshots
+    apart (test/ui/rw.py)."""
+    dot_git = os.path.join(root, ".git")
+    is_copy = os.path.isfile(dot_git) or (os.path.isdir(dot_git) and main_url(root))
+    return os.path.basename(os.path.normpath(root)) if is_copy else None
 
 
 def screenshots_folder(root=ROOT, environ=None):
@@ -168,6 +198,26 @@ def worktrees(main):
         elif ln.startswith("branch ") and cur:
             cur["branch"] = ln[7:].removeprefix("refs/heads/")
     return out
+
+
+def find_copies(main):
+    """Every working copy beside the main folder: [{name, path, kind, head, branch}], by name — kind "clone" (made since
+    2026-11-19: its own repository, naming this main folder) or "worktree" (made before: git lists it)."""
+    home = copies_dir(main)
+    found = {}
+    for w in worktrees(main):
+        if _same(os.path.dirname(w["path"]), home):
+            found[os.path.normcase(w["path"])] = dict(w, name=os.path.basename(w["path"]), kind="worktree")
+    for e in sorted(os.scandir(home), key=lambda e: e.name) if os.path.isdir(home) else []:
+        # (a name starting with "." is a removal's leftover — remove renames a clone aside before deleting it)
+        if (e.name.startswith(".") or os.path.normcase(e.path) in found or is_link(e.path)
+                or not os.path.isdir(os.path.join(e.path, ".git")) or not _same(main_url(e.path) or "-", main)):
+            continue
+        found[os.path.normcase(e.path)] = {
+            "name": e.name, "path": os.path.normpath(e.path), "kind": "clone",
+            "head": git(e.path, "rev-parse", "--verify", "--quiet", "HEAD").stdout.strip() or None,
+            "branch": git(e.path, "symbolic-ref", "--short", "-q", "HEAD").stdout.strip() or None}
+    return sorted(found.values(), key=lambda c: c["name"])
 
 
 # --- links: a directory junction on Windows (no rights needed, unlike a symbolic link), a symbolic link elsewhere -----
@@ -245,23 +295,45 @@ def cmd_new(a, repo):
     if os.path.lexists(dest):
         raise SystemExit(f"{dest} already exists — pick another name, or remove that copy first")
     branch = a.branch or a.name
+    # One copy per branch (a worktree had it from git; two clones on one branch would each move it their own way)
+    if git(main, "symbolic-ref", "--short", "-q", "HEAD").stdout.strip() == branch:
+        raise SystemExit(f"the main folder is on {branch} — a copy builds on a branch of its own (--branch)")
+    taken = [c["name"] for c in find_copies(main) if c["branch"] == branch]
+    if taken:
+        raise SystemExit(f"branch {branch} is being built in the copy {taken[0]} — one copy per branch")
     exists = git(main, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}").returncode == 0
     if exists and a.from_ref:
         raise SystemExit(f"branch {branch} already exists — --from is only for a new branch (or name another --branch)")
     if exists:
-        args = ["worktree", "add", dest, branch]
+        switch = ["switch", "-q", branch]
         made = f"on the existing branch {branch}"
     else:
         start = git(repo, "rev-parse", "--verify", "--quiet", f"{a.from_ref or 'HEAD'}^{{commit}}").stdout.strip()
         if not start:
             raise SystemExit(f"{a.from_ref!r} isn't a commit here")
-        args = ["worktree", "add", "-b", branch, dest, start]
+        switch = ["switch", "-q", "-c", branch, start]
         made = f"on a new branch {branch}, from {a.from_ref or 'HEAD'} ({start[:12]})"
     os.makedirs(copies_dir(main), exist_ok=True)
-    r = git(main, *args)
+    # Its own repository: the history shared through file links (same drive), every setting its own (2026-11-19)
+    r = git(main, "clone", "--quiet", "--local", "--no-checkout", "--origin", MAIN_REMOTE, main, dest)
+    if r.returncode == 0:
+        r = git(dest, *switch)
     if r.returncode:
-        raise SystemExit(f"git couldn't make the copy:\n{(r.stderr or r.stdout).strip()}")
-    print(f"· made {dest} {made}")
+        raise SystemExit(f"git couldn't make the copy:\n{(r.stderr or r.stdout).strip()}"
+                         + (f"\n(what it made is in {dest} — look, then delete it)" if os.path.exists(dest) else ""))
+    for other in git(dest, "for-each-ref", "--format=%(refname:short)", "refs/heads").stdout.split():
+        if other != branch:                  # the clone's starting branch: one branch per copy
+            git(dest, "branch", "-q", "-D", other)
+    for key in COPIED_SETTINGS:
+        value = git(main, "config", "--local", "--get", key).stdout.strip()
+        if value:
+            git(dest, "config", key, value, check=True)
+    git(dest, "config", "core.hooksPath", "git-hooks", check=True)      # the commit checks on
+    exclude = git_path(main, "info/exclude")                            # the main folder's own ignore list
+    if os.path.isfile(exclude):
+        os.makedirs(os.path.dirname(git_path(dest, "info/exclude")), exist_ok=True)
+        shutil.copyfile(exclude, git_path(dest, "info/exclude"))
+    print(f"· made {dest} — its own clone of the main folder's repository, {made}")
     note_path = git_path(dest, NOTE)
     note = {"name": a.name, "branch": branch, "made": _now().isoformat(timespec="seconds"),
             "start": git(dest, "rev-parse", "HEAD").stdout.strip() or None}
@@ -294,11 +366,6 @@ def cmd_new(a, repo):
         else:
             print(f"· submodule {path} checked out (from the main folder's)")
 
-    hooks = git(dest, "config", "core.hooksPath").stdout.strip()
-    if hooks != "git-hooks":
-        print(f"! the commit checks are OFF here: core.hooksPath is {hooks or 'not set'} — once, in the main folder: "
-              "git config core.hooksPath git-hooks")
-
     print("· tier 1 in the copy (py tools/run_tests.py --tier 1) …", flush=True)
     code = subprocess.run([sys.executable, os.path.join(dest, "tools", "run_tests.py"), "--tier", "1"], cwd=dest,
                           env=_env()).returncode
@@ -307,13 +374,14 @@ def cmd_new(a, repo):
     if code == EXIT_NOT_PROVEN:     # no test failed — the machine was too busy to prove it (TODO tooling 13.12)
         print(f"NOT READY — tier 1 not proven in {dest} — the machine was too busy (no test failed; above). Run it again "
               f"there when the PC is quieter (py tools/run_tests.py --tier 1), or  py tools/copies.py remove {a.name} "
-              "--force  removes it (the branch stays).")
+              "--force  removes it.")
         return 1
     if code:
         print(f"NOT READY — tier 1 failed in {dest} (above). It's left as it is for a look; "
-              f"py tools/copies.py remove {a.name} --force  removes it (the branch stays).")
+              f"py tools/copies.py remove {a.name} --force  removes it.")
         return 1
-    print(f"READY — {dest}, branch {branch}. When done:  py tools/copies.py remove {a.name}")
+    print(f"READY — {dest}, branch {branch}. Its commits stay in the copy until the merge fetches them (py "
+          f"tools/merge_branches.py {branch}, in the main folder); then:  py tools/copies.py remove {a.name}")
     return 0
 
 
@@ -349,13 +417,14 @@ def made_estimate(dest):
         return None
 
 
-def commits_since(main, head, note, made):
-    """[{hash, when, subject}] — the commits on the copy's own line since it was made (oldest first)."""
+def commits_since(copy, head, note, made):
+    """[{hash, when, subject}] — the commits on the copy's own line since it was made (oldest first). Asked of the copy
+    itself: a clone's commits may be nowhere else."""
     fmt = "--format=%h%x09%cI%x09%s"
     if note.get("start") and head:
-        r = git(main, "log", "--first-parent", "--reverse", fmt, f"{note['start']}..{head}")
+        r = git(copy, "log", "--first-parent", "--reverse", fmt, f"{note['start']}..{head}")
     elif made and head:
-        r = git(main, "log", "--first-parent", "--reverse", fmt, f"--since={made.isoformat()}", head)
+        r = git(copy, "log", "--first-parent", "--reverse", fmt, f"--since={made.isoformat()}", head)
     else:
         return []
     return [dict(zip(("hash", "when", "subject"), ln.split("\t", 2))) for ln in r.stdout.splitlines() if ln.strip()]
@@ -468,7 +537,7 @@ def keep_records(main, dest, name, branch, head):
         records += [dict(r, _quick=True) for r in (_read_json(os.path.join(shelf, f)) for f in
                     (os.listdir(shelf) if os.path.isdir(shelf) else []) if f.endswith(".json")) if r is not None]
         summary = where_time_went(name, branch, note, made, estimated, records,
-                                  commits_since(main, head, note, made), removed)
+                                  commits_since(dest, head, note, made), removed)
         text = time_text(summary, target)
         _write_json(os.path.join(target, "time.json"), {**summary, "note": note})
         with open(os.path.join(target, "time.txt"), "w", encoding="utf-8") as f:
@@ -513,6 +582,37 @@ def trim_archive(home, keep=None, min_days=None, now=None):
     return gone
 
 
+# --- getting the work back (tools/merge_branches.py, before it merges) --------------------------------------------------
+def fetch_from_copies(folder, branches):
+    """Bring each branch being built in a clone copy into `folder`'s repository (the main folder, where the merge runs):
+    fetched from the copy that has it, fast-forward only. Already here (the copy's tip is in this folder's branch):
+    nothing. Returns (lines said, problems) — a problem: the branch moved on BOTH sides, or it is this folder's own
+    branch; nothing is changed for that branch. Worktree copies share this repository already: nothing to fetch."""
+    main = main_folder(folder)
+    here = git(folder, "symbolic-ref", "--short", "-q", "HEAD").stdout.strip()
+    clones = [c for c in find_copies(main) if c["kind"] == "clone" and not _same(c["path"], folder)]
+    said, problems = [], []
+    for b in branches:
+        for c in clones:
+            tip = git(c["path"], "rev-parse", "--verify", "--quiet", f"refs/heads/{b}^{{commit}}").stdout.strip()
+            if not tip:
+                continue
+            ours = git(folder, "rev-parse", "--verify", "--quiet", f"refs/heads/{b}^{{commit}}").stdout.strip()
+            if ours and git(folder, "merge-base", "--is-ancestor", tip, ours).returncode == 0:
+                continue                                 # already here
+            if b == here:
+                problems.append(f"{b} is this folder's own branch, and the copy {c['name']} has commits on it this "
+                                "folder hasn't got — a copy builds on a branch of its own")
+                continue
+            r = git(folder, "fetch", "--quiet", "--no-tags", c["path"], f"refs/heads/{b}:refs/heads/{b}")
+            if r.returncode:
+                problems.append(f"{b} has moved on both in the copy {c['name']} and here — look at both before "
+                                f"merging:\n    {(r.stderr or r.stdout).strip()}")
+            else:
+                said.append(f"· {b}: fetched from the copy {c['name']} ({tip[:12]})")
+    return said, problems
+
+
 # --- remove -------------------------------------------------------------------------------------------------------------
 def unique_commits(main, wt):
     """How many commits this copy's branch (or detached HEAD) has that no other branch, tag or remote has."""
@@ -525,15 +625,52 @@ def unique_commits(main, wt):
     return int(r.stdout.strip() or 0)
 
 
+def missing_from_main(main, dest):
+    """How many commits a clone copy holds — on any of its branches or its HEAD — that the main folder's repository
+    doesn't (on a branch or tag there). The main folder's branches and tags are fetched fresh into the clone to compare
+    (its own refs, under MAIN_REFS — the clone is about to go); nothing in the main folder changes."""
+    git(dest, "fetch", "--quiet", "--no-tags", "--prune", main, f"+refs/heads/*:{MAIN_REFS}heads/*",
+        f"+refs/tags/*:{MAIN_REFS}tags/*", check=True)
+    r = git(dest, "rev-list", "--count", "HEAD", "--branches", "--not", f"--glob={MAIN_REFS}*", check=True)
+    return int(r.stdout.strip() or 0)
+
+
+def move_aside(dest):
+    """Rename a clone copy out of the way before taking it apart — Windows refuses that while a program has a file open
+    in it, so a busy copy is left whole, never half-deleted. The new name starts with "." (find_copies skips it). Returns
+    it, or None when the rename was refused."""
+    aside = os.path.join(os.path.dirname(dest), f".removing-{os.path.basename(dest)}-{_now():%Y%m%d-%H%M%S}")
+    try:
+        os.rename(dest, aside)
+    except OSError:
+        return None
+    return aside
+
+
+def delete_folder(top):
+    """Delete a folder that holds no link any more (find_links, then each removed). git's stored files are read-only on
+    Windows: made writable, then deleted. Returns True when it's gone."""
+    def writable_then_retry(func, path, _exc):
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    try:
+        shutil.rmtree(top, onexc=writable_then_retry)
+    except OSError:
+        pass
+    return not os.path.exists(top)
+
+
 def cmd_remove(a, repo):
     main = main_folder(repo)
     dest = os.path.join(copies_dir(main), a.name)
-    wt = next((w for w in worktrees(main) if _same(w["path"], dest)), None)
+    wt = next((c for c in find_copies(main) if _same(c["path"], dest)), None)
     if wt is None:
         raise SystemExit(f"{dest} isn't a working copy of this repository (py tools/copies.py list)")
     if _same(repo, dest) or _same(os.getcwd(), dest):
         raise SystemExit("run this from another folder — not from inside the copy being removed")
+    clone = wt["kind"] == "clone"
     where = f"branch {wt['branch']}" if wt["branch"] else f"a detached HEAD ({(wt['head'] or '')[:12]})"
+    thrown = 0                                       # a clone's commits the main folder hasn't got (--force throws them)
     if not a.force:
         dirty = [ln for ln in git(dest, "status", "--porcelain", "--untracked-files=normal", check=True).stdout
                  .splitlines() if ln.strip()]
@@ -541,10 +678,20 @@ def cmd_remove(a, repo):
             raise SystemExit(f"NOT REMOVED — {dest} has uncommitted changes:\n  " + "\n  ".join(dirty[:10])
                              + (f"\n  (+{len(dirty) - 10} more)" if len(dirty) > 10 else "")
                              + "\nCommit them, or --force to throw them away.")
-        n = unique_commits(main, wt)
+        n = missing_from_main(main, dest) if clone else unique_commits(main, wt)
+        if n and clone:
+            raise SystemExit(f"NOT REMOVED — the copy holds {n} commit(s) the main folder's repository doesn't have "
+                             f"(on {where} or another of its branches). Merge them first — py tools/merge_branches.py "
+                             f"{wt['branch'] or '<branch>'}, in the main folder, fetches the branch from the copy — or "
+                             "--force throws them away with the copy.")
         if n:
             raise SystemExit(f"NOT REMOVED — {where} has {n} commit(s) that exist nowhere else (no other branch, tag "
                              "or remote). Merge them first — or --force: the copy goes, the branch stays.")
+    elif clone:
+        try:
+            thrown = missing_from_main(main, dest)
+        except SystemExit:
+            thrown = "an unknown number of"
     held = {rel: sorted(os.listdir(os.path.join(main, rel))) for rel in LINKS if os.path.isdir(os.path.join(main, rel))}
     # The links FIRST — `git worktree remove` would delete the main folder's files through them (see the top). Every
     # folder must be looked into before anything is removed: one that can't be might hold a link (even --force stops).
@@ -557,26 +704,45 @@ def cmd_remove(a, repo):
                          + "\nMake them readable again (or remove each link in them by hand), then run this again.")
     # Its test-run records kept, with where its time went — before anything is taken out (a failure stops here).
     kept, time_said = keep_records(main, dest, a.name, wt["branch"], wt["head"])
+    top = dest
+    if clone:
+        top = move_aside(dest)
+        if top is None:
+            shutil.rmtree(kept, ignore_errors=True)    # the records are still in the copy — kept again next time
+            raise SystemExit(f"NOT REMOVED — nothing was touched: a program still has a file open in {dest} (an editor, "
+                             "a server, a terminal in it?). Close it and run this again. (Its test-run records stay in "
+                             "the copy; the archive made for them was taken back.)")
     for link in sorted(links, key=len, reverse=True):
+        link = os.path.join(top, os.path.relpath(link, dest))
         remove_link(link)
         if os.path.lexists(link):
+            if clone:
+                os.rename(top, dest)                   # back where it was, so `remove` can be run again
             raise SystemExit(f"couldn't remove the link {link} — stopped before removing the copy")
-        print(f"· unlinked {os.path.relpath(link, dest)}")
-    r = git(main, "worktree", "remove", "--force", dest)
-    if r.returncode or os.path.exists(dest):
-        shutil.rmtree(kept, ignore_errors=True)        # the records are still in the copy — kept again next time
-        raise SystemExit(f"git couldn't remove {dest} (a program still using a file there?):\n"
-                         f"{(r.stderr or r.stdout).strip()}\n(Its test-run records stay in the copy; the archive made "
-                         "for them was taken back.)")
+        print(f"· unlinked {os.path.relpath(link, top)}")
+    if clone:
+        if not delete_folder(top):
+            print(f"!! the copy is out of the way, but some of its files couldn't be deleted — what's left is in {top} "
+                  "(no links in it any more: safe to delete by hand)")
+        said = (f"!! thrown away with it: {thrown} commit(s) the main folder's repository didn't have" if thrown
+                else "every commit in it is in the main folder's repository")
+    else:
+        r = git(main, "worktree", "remove", "--force", dest)
+        if r.returncode or os.path.exists(dest):
+            shutil.rmtree(kept, ignore_errors=True)    # the records are still in the copy — kept again next time
+            raise SystemExit(f"git couldn't remove {dest} (a program still using a file there?):\n"
+                             f"{(r.stderr or r.stdout).strip()}\n(Its test-run records stay in the copy; the archive "
+                             "made for them was taken back.)")
+        said = f"{where} kept"
     # Checked, not assumed: each linked folder of the main folder still holds what it held before.
     lost = [rel for rel, names in held.items() if not os.path.isdir(os.path.join(main, rel))
             or not set(names) <= set(os.listdir(os.path.join(main, rel)))]
     if lost:
-        print(f"REMOVED {dest} — {where} kept.\n!! THE MAIN FOLDER LOST FILES in {', '.join(lost)} — set them up again "
+        print(f"REMOVED {dest} — {said}.\n!! THE MAIN FOLDER LOST FILES in {', '.join(lost)} — set them up again "
               "(docs/design/TESTING.md §4) and report this: the links were supposed to be removed first.")
         print(time_said)
         return 1
-    print(f"REMOVED {dest} — {where} kept. The main folder's {', '.join(held)} still hold everything they held.")
+    print(f"REMOVED {dest} — {said}. The main folder's {', '.join(held)} still hold everything they held.")
     print(time_said)
     gone = trim_archive(os.path.dirname(kept))
     if gone:
@@ -654,16 +820,14 @@ def stamp_line(folder):
 def cmd_list(_a, repo):
     main = main_folder(repo)
     home = copies_dir(main)
-    found = 0
-    for w in worktrees(main):
-        is_main = _same(w["path"], main)
-        if not is_main and not _same(os.path.dirname(w["path"]), home):
-            continue
-        found += not is_main
-        name = "(main folder)" if is_main else os.path.basename(w["path"])
+    found = find_copies(main)
+    here = {"name": "(main folder)", "path": main, "kind": None,
+            "branch": git(main, "symbolic-ref", "--short", "-q", "HEAD").stdout.strip() or None}
+    for w in [here] + found:
         dirty = git(w["path"], "status", "--porcelain", "--untracked-files=normal").stdout.splitlines()
         subject = git(w["path"], "log", "-1", "--format=%h %s").stdout.strip()
-        print(f"{name}  —  {w['path']}\n    branch {w['branch'] or '(detached)'}: {subject[:100]}"
+        kind = {"clone": "  (its own clone)", "worktree": "  (a worktree — made before 2026-11-19)"}.get(w["kind"], "")
+        print(f"{w['name']}  —  {w['path']}{kind}\n    branch {w['branch'] or '(detached)'}: {subject[:100]}"
               + (f"\n    {len(dirty)} uncommitted change(s)" if dirty else "")
               + f"\n    test stamp: {stamp_line(w['path'])}")
     if not found:
@@ -677,16 +841,17 @@ def main(argv=None, repo=ROOT):
             stream.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
-    ap = argparse.ArgumentParser(description="Working copies of the project folder (git worktrees with the tools "
+    ap = argparse.ArgumentParser(description="Working copies of the project folder (local clones with the tools "
                                              "linked in). Docs: docs/design/SESSION-TOOLING.md.")
     sub = ap.add_subparsers(dest="cmd")
     n = sub.add_parser("new", help="make a copy, link the tools, run tier 1 there")
     n.add_argument("name")
     n.add_argument("--branch", help="its branch (default: the name); an existing branch is checked out")
     n.add_argument("--from", dest="from_ref", help="where a NEW branch starts (default: HEAD)")
-    r = sub.add_parser("remove", help="remove a copy (links first); its branch is kept")
+    r = sub.add_parser("remove", help="remove a copy (links first) — refused while it holds work found nowhere else")
     r.add_argument("name")
-    r.add_argument("--force", action="store_true", help="even with uncommitted changes or commits found nowhere else")
+    r.add_argument("--force", action="store_true", help="even with uncommitted changes or commits the main folder "
+                                                        "hasn't got (thrown away, said)")
     sub.add_parser("list", help="each copy, its branch and its test stamp")
     p = sub.add_parser("report", help="where each removed copy's time went: wall, test minutes, runs — and totals")
     p.add_argument("--since", help="only copies removed on or after this day (YYYY-MM-DD)")
