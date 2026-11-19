@@ -45,7 +45,7 @@ underneath".
 | Tier | What | When | Budget |
 |---|---|---|---|
 | **1** | Function tests + the commit checks (names, parse, versions, private values, TOC…) | **Every commit, automatically** — only the tests covering the staged files | seconds (≤ ~10 s) |
-| **2** | Screen tests | **Before every alpha Claude hands Ron** — Ron is never the first to find a regression | a few minutes (≤ ~5 min) |
+| **2** | Screen tests | **Before anything reaches Ron to test** — Ron is never the first to find a regression. While building: only the tests for the change; the full run once per task, at its merge (below) | a few minutes (≤ ~5 min) |
 | **3** | Relay tests — against a local relay **the runner starts and stops itself** (dev only as a final check, by `--relay-url`) | When relay code changes; before any worker deploy | ~1½ min |
 | **all** | Every tier — `py tools/run_tests.py --tier all --release`: **a skipped or set-aside file fails a release run**, named with why | **Before every release** (release checklist step) | |
 

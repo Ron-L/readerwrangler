@@ -15,7 +15,7 @@ blocks; DRV-004).
 
 **The newest and most literal mechanism (2026-09-17): the pre-build gate.** A `PreToolUse` hook
 (`.claude/hooks/gate-check.py`) denies the *first* edit of shipped code (any root `.js` + the relay worker) each turn and
-presents an 11-point checklist; a `Stop`/`SessionStart` hook re-arms it per turn. It exists because of a
+presents a 13-point checklist; a `Stop`/`SessionStart` hook re-arms it per turn. It exists because of a
 sharper form of the meta-principle, paid for the same week it was written: **invoking a rule's name is not
 running it.** A "new dialog checklist" added to CLAUDE.md was skipped the same session it was authored, and a
 class-of-sites "comb" was performed *by eye* (missing a 5th broken overlay) while its name was invoked — the
@@ -27,7 +27,7 @@ loose flags [Law 17]; (3) reinventing a React/DOM wheel?; (4) can the relationsh
 (6) less code, not cleverer?; (7) class of sites → run `/sitemap` (two pivots, publish the table before
 claiming coverage) [Law 5]; (8) grounded in the code, not a hazy memory? [Law 2]; (9) delivering less than
 asked → name + FILE the gap; (10) build-grade or explore-quality?; (11) did Ron approve *this* change? [Law
-1]. It is a trial (`.claude/settings.local.json`). The *structural* version for overlays — a self-registering
+1]. It is wired in `.claude/settings.json` (saved in the repo). The *structural* version for overlays — a self-registering
 `<Dialog>`/`<Popover>` layer registry (**DIALOG-DISMISSAL-AUDIT.md**) — **SHIPPED in 7.18.0** and retired the
 hand-run dialog checklist outright: nothing is left for a human to remember. (Gate gap found in the 7.18.0 PM:
 it watched only `readerwrangler.js`/`mobile.js`, so an edit to another shipped module skipped it — WIDENED the
@@ -77,7 +77,8 @@ HONESTY -- are you being straight about it?
  9. Quietly delivering less than the words asked? Name the gap and FILE the remainder in the
     same breath -- never silent scope narrowing.
 10. Build-grade, or explore-quality you shouldn't ship? Say which phase you're in.
-11. Did Ron approve THIS specific change? Discussion is not approval. [Law 1]
+11. Did Ron approve THIS specific change — or is it inside the scope of the autonomy switch (`.private/AUTONOMY.md`
+    says `trial` or `on` and names this task)? Discussion is not approval. [Law 1]
 
 DEBUGGING -- are you chasing it in the right place?
 12. Fixing a reported bug and this is the 3rd+ change chasing the SAME symptom -- or the 2nd RELATED thing you've
@@ -548,6 +549,19 @@ hand-kept tiebreaks (desktop, phone) became one shared reading (`uiHelpers.js`).
 **Enforcement**: the gate checklist's item 5 ("is there already a function for this?"); the comb's chokepoint step;
 every agent brief; the review of each agent's diff looks for a second copy of anything.
 
+### 23. A mechanism has a cost — weigh it before building it (the brake on the meta-principle)
+"Only a mechanism prevents recurrence" is true, and it was being read as "every incident gets a new hook". Before
+building a check, a hook or a controller, say three numbers: **how often the failure really happened, what it cost, and
+what the mechanism will cost to keep** (its lines, its tests, its own failures, the time it adds to every run). A
+failure seen once gets a test, not a new mechanism; a mechanism whose upkeep exceeds what it saves is deleted, not
+tuned. (Ron agreed, 2026-11-19, after an outside review: sprints 7–9 built an adaptive browser count, cost averages,
+stuck limits and a process ledger — some 3,000 lines with tests — for about five reruns a week; the lab data showed the
+controller's main move made its own target case slower; the tooling's own tests caused the only outages; and a
+563-line check guarded against a failure never seen in its target. "If nothing else we learned from it… don't
+over-engineer it.")
+**Enforcement**: every new mechanism's TODO entry or brief states the three numbers; the cold review of the TODO checks
+for tooling items without them.
+
 ---
 
 ## SECOND TIER — by theme (the best of the rest)
@@ -612,8 +626,8 @@ every agent brief; the review of each agent's diff looks for a second copy of an
   line break swallowed by an edit joined the declaration into a comment; it parsed fine). Enforcement:
   `git-hooks/check-names.js` in the pre-commit hook — Babel scope analysis refuses any name nothing defines.
 - **A pre-build-gate bounce hidden in a parallel batch ships a half-fix** (7.18.0-alpha.62: the CSS rule landed,
-  the class it targets didn't). Discipline for now (`feedback_gate_bounce_batches`: first app edit ALONE; grep
-  every intended change before committing) — a mechanism is still owed (Principle-to-hook audit TODO).
+  the class it targets didn't). Mechanism built 2026-10-19: the gate refuses the WHOLE batch (`gate-check.py` +
+  `gate-batch-end.py`, `feedback_gate_bounce_batches`) — re-send all of it.
 - Big-bang refactors leak features for weeks (v5.0.0: 175 alphas, then 8 hotfixes in 48 hours) — the
   **feature-parity checklist** it needed was recommended four times and never built; build one next time.
 
@@ -661,7 +675,7 @@ every agent brief; the review of each agent's diff looks for a second copy of an
 | Domain-boundary checklist (cross-component comms) | v3.8.0 (2025-12-20) | Superseded: Law 2 + the platform-facts section + MULTI-INSTANCE.md's universe model |
 | Release-criteria checkpoint before dropping the suffix | v3.8.0 (2025-12-20) | Superseded: the CLAUDE.md release checklist + the CHANGELOG-past-Ron ("word") ritual |
 | Trigger-based rule system | v3.x era | Abandoned — early models couldn't evaluate triggers reliably; replaced by CLAUDE.md behaviors + memory rules, which current models follow |
-| Pre-build structural checklist / gate | implicit across many PMs | **Built 2026-09-17** — a `PreToolUse` hook fires an 11-point checklist on the first app edit each turn (the meta-principle made literal); `/sitemap` command mechanizes the class-of-sites comb |
+| Pre-build structural checklist / gate | implicit across many PMs | **Built 2026-09-17** — a `PreToolUse` hook fires a 13-point checklist on the first app edit each turn (the meta-principle made literal); `/sitemap` command mechanizes the class-of-sites comb |
 | Overlay dismissal redesign (`<Dialog>`/`<Popover>` layer registry) | 2026-09-16 | **Designed** (DIALOG-DISMISSAL-AUDIT.md), deferred to its own branch; the audit found the defect is a *class* (~40 overlays, 3 Esc regimes); stopgap shipped 7.14.2, the class-fix awaits the primitive |
 
 The pattern in the graveyard is the meta-principle again: proposals became real only when they became

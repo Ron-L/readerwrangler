@@ -50,7 +50,9 @@ means nothing — read the file. Only Ron changes the mode or the scope.
 **Hard stops — never in autonomous mode:** a push of `main` to prod; a relay worker deploy; changing a backup or relay
 data format without a design Ron has seen; live Amazon fetches; email or any outside service; other projects (unless
 the autonomy switch names them); force pushes or rewriting history; launching GUI programs; changing CLAUDE.md, PRINCIPLES'
-laws or the TODO's order (propose those in the queue).
+laws or the TODO's order (propose those in the queue); **changing the enforcement code** — `git-hooks/`, `.claude/`
+(hooks and settings), `tools/run_tests.py`, `tools/merge_branches.py`, `tools/sync_remotes.py` — unless the autonomy
+switch names that change as a task (Ron, 2026-11-19, after the outside review: the rules' mechanisms are rules too).
 
 **The record** (`.private/`, pushed after every commit): `PROGRESS.md` (each task's state), `REVIEW-QUEUE.md` (only what
 reaches Ron; closed entries → `REVIEW-DONE.md`), `DECISIONS.md`, `RON-PROFILE.md`. **Usage:** no new task past ~85% of
@@ -128,7 +130,7 @@ Follows `../CLAUDE.md` (always branch → squash → tag `vX.Y.Z` → keep the b
 
 | User says | Do |
 |-----------|-----|
-| "push" or "proceed" | Ask: navigator changes or ready to share? |
+| "push" | Push to dev — a backup, any time, except while dev is in use for a test. If Ron may mean prod, ask: a dev test first (e.g. a bookmarklet change), or ready for prod? ("proceed" means only what the root file says: make the approved change.) |
 | "push to prod" | Squash-merge to main, tag `vX.Y.Z`, `git push prod main --tags` **and** `git push dev main --tags` (prod always means dev too), keep the branch; then `python tools/sync_remotes.py` |
 | "release" | Clarify which |
 
