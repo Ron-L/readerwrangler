@@ -19,24 +19,40 @@ It listens on the whole home network ON PURPOSE (a phone tests your local copy o
 must not hand out private files to every device on that network. Same address and port as before
 (http://localhost:8000), so everything the browser stores for ReaderWrangler stays put.
 
-Usage:  py serve.py [port]        (default 8000; Windows: double-click it if .py files open with Python, and a
-                                   shortcut to it in the Startup folder — Win+R -> shell:startup — starts it at logon)
-        python serve.py [port]    (elsewhere)
+It warns first thing, LOUDLY, when this copy of the project isn't set up for the commit checks (git's core.hooksPath
+isn't "git-hooks" — a clone never brings it), with the one command that fixes it (tools/setup_check.py; sprint 9,
+TODO "Working-process safety net" item 1).
+
+--open (sprint 9, TODO "The 'open' shortcut" — what tools/shortcuts.py's shortcut runs): open the app's page in the
+default browser, starting the server first only if it isn't running. Already running → just the page (the running
+server is left as it is). Another program on the port → says so, opens nothing. No restart or shutdown: serve.py only
+serves files and rarely changes, and it listens on the home network on purpose — an off switch any device there could
+press gains nothing (the utilities project's decision, 2026-10-31).
+
+Usage:  py serve.py [port] [--open]   (default 8000; Windows: double-click it if .py files open with Python, and a
+                                       shortcut to it in the Startup folder — Win+R -> shell:startup — starts it at logon)
+        python serve.py [port] [--open]   (elsewhere)
 Needs git on the PATH (it asks git what's ignored); exits with a clear message if git isn't there.
+Tested by test/test_serve.py (SERVE-001–007).
 """
 import functools
+import http.client
 import http.server
 import importlib.util
 import io
 import json
 import os
 import posixpath
+import socket
 import subprocess
 import sys
 import urllib.parse
+import webbrowser
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+DEFAULT_PORT = 8000
+PAGE = "readerwrangler.html"
+webbrowser_open = webbrowser.open     # how --open opens the page (the tests put a stand-in here — never a browser)
 
 # 2026-11-10 (TODO "Faster loading"): the page loads the app BUILT ahead of time (dist/). A request for a built copy
 # whose source is newer gets a fresh build first (~2 s), so the loop stays edit → refresh. tools/build.py is the one
@@ -46,6 +62,10 @@ build = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(build)
 BUILT = {f"{build.OUT_DIR}/{name}": name for name in build.SOURCES}
 STYLES = f"{build.OUT_DIR}/{build.STYLES}"
+# Sprint 9: are the commit checks on in this copy? (the one rule and wording — also Claude's session-start hook)
+_spec = importlib.util.spec_from_file_location("rw_setup_check", os.path.join(ROOT, "tools", "setup_check.py"))
+setup_check = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(setup_check)
 
 
 def git_available():
@@ -151,19 +171,70 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return None
 
 
-def main():
+def parse_args(argv):
+    """[port] [--open] → (port, open_page)."""
+    rest = [a for a in argv if a != "--open"]
+    return (int(rest[0]) if rest else DEFAULT_PORT), "--open" in argv
+
+
+def page_url(port):
+    return f"http://localhost:{port}/{PAGE}"
+
+
+def whats_on_port(port, timeout=3):
+    """What answers on the port: "app" (a server that serves the app's page — ours, already running), "other" (another
+    program), or None (nothing — the server can start)."""
+    try:
+        socket.create_connection(("127.0.0.1", port), timeout).close()
+    except OSError:
+        return None
+    c = http.client.HTTPConnection("127.0.0.1", port, timeout=timeout)
+    try:
+        c.request("HEAD", "/" + PAGE)
+        r = c.getresponse()
+        return "app" if r.status == 200 and "text/html" in (r.getheader("Content-Type") or "") else "other"
+    except (OSError, http.client.HTTPException):
+        return "other"
+    finally:
+        c.close()
+
+
+def start(port, open_page=False):
+    """The server, listening on the port (all of the home network — on purpose, see the top); then the page opened in
+    the browser when asked (the browser's request waits in line until serve_forever starts answering)."""
+    try:
+        server = Server(("", port), Handler)
+    except OSError as e:
+        sys.exit(f"serve.py: can't start on port {port} - {e}\n"
+                 f"Usually another server (an older one?) is already using port {port}: close it, then start this again.")
+    print(f"ReaderWrangler local server: {page_url(port)}")
+    print("Serving only what the real site serves (no dot-folders, nothing git ignores, no folder listings).")
+    print("Close this window (or press Ctrl+C) to stop.")
+    if open_page:
+        webbrowser_open(page_url(port))
+    return server
+
+
+def main(argv=None):
+    port, open_page = parse_args(sys.argv[1:] if argv is None else argv)
     if not git_available():
         sys.exit("serve.py: git isn't available here, so it can't tell which files are private.\n"
                  "Install git (or run this from inside the cloned repo) and start it again.")
-    try:
-        server = Server(("", PORT), Handler)
-    except OSError as e:
-        sys.exit(f"serve.py: can't start on port {PORT} - {e}\n"
-                 f"Usually another server (an older one?) is already using port {PORT}: close it, then start this again.")
-    print(f"ReaderWrangler local server: http://localhost:{PORT}/readerwrangler.html")
-    print("Serving only what the real site serves (no dot-folders, nothing git ignores, no folder listings).")
-    print("Close this window (or press Ctrl+C) to stop.")
-    server.serve_forever()
+    problem = setup_check.hooks_path_problem(ROOT)
+    if problem:                    # first thing, so it can't scroll away
+        for line in setup_check.warning_lines(problem):
+            print(setup_check.red(line))
+    if open_page:
+        there = whats_on_port(port)
+        if there == "app":
+            print(f"ReaderWrangler's local server is already running - opening {page_url(port)}")
+            webbrowser_open(page_url(port))
+            return 0
+        if there == "other":
+            sys.exit(f"serve.py: another program is using port {port}, so ReaderWrangler can't start there.\n"
+                     f"Close that program, then try again.")
+    start(port, open_page).serve_forever()
+    return 0
 
 
 if __name__ == "__main__":
