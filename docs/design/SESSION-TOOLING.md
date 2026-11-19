@@ -139,13 +139,21 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   with the copy, its content kept in the archive's `time.json`; a copy made before that note existed gets git's own
   folder time, marked "estimated". Beside the records, `time.json` + `time.txt` (also printed at removal): made →
   removed (wall time); its test runs — how many, the minutes they covered (overlapping runs counted once), full or
-  narrow (`--id`, `--tag`, `RW_CELLS`; a `--changed` run leaves no record, so it isn't seen), passed / failed, files
+  narrow (`--changed`, `--id`, `--tag`, `RW_CELLS` — since 2026-11-18 every narrowed run, the commit hook's `--changed`
+  included, leaves its record on the copy's quick shelf, `rw-test-results\quick\`, archived with the rest and labelled
+  `quick: <what narrowed it>`, COPY-010), passed / failed, files
   rerun alone after the machine's trouble, which full tier 1 was `new`'s own readiness run — each run on a line; its
   commits since it was made; and **everything else** = wall − test minutes: building, reading, thinking, waiting (the
   records can't tell these apart, and it doesn't pretend to).
+  **The archive is kept bounded** (2026-11-18, TODO tooling 13.5 — it grew forever): after each removal, the newest
+  `ARCHIVE_KEEP` (100) copies' folders are kept, and every one removed less than `ARCHIVE_MIN_DAYS` (30) days ago however
+  many; the older rest is deleted, said (`· the archive trimmed: N older copies' records deleted …`). A folder's age is
+  its `time.json`'s "removed", else the folder's own time (COPY-012).
+- **`copies.py new`'s words** (2026-11-18, TODO tooling 13.12): a tier 1 that ended NOT PROVEN (exit 3 — no test failed,
+  the machine too busy) is `NOT READY — tier 1 not proven … — the machine was too busy`, never "tier 1 failed" (COPY-011).
 - **`py tools/copies.py report [--since YYYY-MM-DD]`** — for a sprint's post-mortem: one row per archived copy (name,
   branch, made, removed, wall, test minutes and their share, runs full / narrow, passed / failed) and the totals.
-  Tests: `COPY-007`–`009`.
+  Tests: `COPY-007`–`012`.
 - **`py tools/copies.py list`** (also a double-click) — each copy, its branch and commit, anything uncommitted, and its
   test stamp (`run_tests.py --stamp` run there: each copy keeps its own run records).
 - **What works inside a copy** (checked 2026-11-16): the pre-build gate (above); the commit checks — `core.hooksPath

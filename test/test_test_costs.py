@@ -320,7 +320,8 @@ with tempfile.TemporaryDirectory() as d:
                                      slots=test_slots.Slots(count=2, folder=slots_dir))
         finally:
             del os.environ["RW_CELLS"]
-        rec = (records_in(os.path.join(d, "rec10")) or [{}])[0]
+        # (a narrowed run's record is on the quick shelf since 2026-11-18 — tools/run_tests.py QUICK_SHELF)
+        rec = (records_in(os.path.join(d, "rec10", "quick")) or [{}])[0]
         after = units_in(costs)
         return after == before and code == 0 and "--id" in json.dumps(rec.get("costs")), \
             (code, code2, rec.get("costs"), out[-400:])
@@ -704,6 +705,28 @@ with tempfile.TemporaryDirectory() as d:
 
     row("COST-021", "the flat limit where an average doesn't apply: a unit with fewer than 5 runs measured, and every unit "
         "of a narrowed run (--id, --tag, RW_CELLS) — a 2 s unit whose stuck limit would be 1 s passes", r021)
+
+    screen_py = write("test_cost_screen.py", "# tags: costs, screen, tier 2\n# covers: nothing.js\n"
+                      "def check(tid, ok): print(('  ✓ ' if ok else '  ✗ ') + tid)\n"
+                      "check(\"SCRN-001\", True)\nprint('1 passed, 0 failed')\n")
+
+    def r024():
+        """A narrowed run with a SCREEN test in it taught the averages until 2026-11-18: the browsers-at-once part of the
+        runner reassigned the run's `narrowing` to its narrowing variables only, so an --id run read as full below it."""
+        costs24 = os.path.join(d, "c24.json")
+        own = test_slots.Slots(count=2, folder=os.path.join(d, "slots-24"))
+        code, out = quiet_main(["--tier", "2", "--id", "SCRN-001"], files=[Inside(screen_py)], costs=costs24,
+                               results=os.path.join(d, "rec24"), retry_wait=0, slots=own)
+        narrowed_taught = units_in(costs24)
+        code2, out2 = quiet_main(["--tier", "2"], files=[Inside(screen_py)], costs=costs24,
+                                 results=os.path.join(d, "rec24"), retry_wait=0, slots=own)
+        full_taught = units_in(costs24)
+        return code == 0 and code2 == 0 and narrowed_taught == {} \
+            and list(full_taught) == [("test_cost_screen.py", "whole")], \
+            (code, narrowed_taught, code2, list(full_taught), out[-400:], out2[-300:])
+
+    row("COST-024", "a narrowed run (--id) of a SCREEN test teaches nothing — a full one does (the browsers-at-once part "
+        "once reassigned what narrowed the run)", r024)
 
 failed = [r for r in results if not r[1]]
 print(f"{len(results) - len(failed)} passed, {len(failed)} failed")
