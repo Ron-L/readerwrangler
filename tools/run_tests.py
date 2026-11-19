@@ -58,7 +58,7 @@ already set (a narrow run) it runs as one process, as asked. --id naming some of
 RW_CELLS = exactly those cells (`--id TOAST-006`: that one cell); an --id naming a test of it that is no cell (CELL-058,
 the console check every process runs) leaves it out, saying so.
 
-Results stamped with their commit (item 2): every run except --changed (the commit hook) and --list leaves a record —
+Results stamped with their commit (item 2): every run except --list leaves a record (a narrowed one on the quick shelf) —
 the commit it ran on, anything uncommitted, what ran, the environment variables that change a run (RUN_ENV: RW_CELLS…),
 each file's result, start and end — in git's own folder for this working copy (`git rev-parse --git-path
 rw-test-results`: never in the working tree; a worktree has its own).
@@ -81,9 +81,25 @@ page loads (React from unpkg.com…) failed to download — and by a heavy tier-
 exits 3 with a line "ENVIRONMENT FAILURE: <reason>" (tools/environment_trouble.py) — both needed. It is rerun ONCE,
 ALONE: after the others are done and a short wait, holding every test slot on the PC. The summary says so, loudly —
 "1 file retried after <reason> — its first output: <path>" — and the record notes it with both outputs; passed on its
-rerun, it counts as passed (the stamp shows the note); failed again, it's a failure. A TEST failure is never rerun.
-The same file rerun alone in 2 whole runs of it in a row (or more — read from this copy's records) is said loudly at the
-end, with each run's kept outputs: it may truly need to run alone (TODO tooling 11.7). Said only — what runs is unchanged.
+rerun, it counts as passed (the stamp shows the note); a rerun that meets the machine's trouble AGAIN is NOT PROVEN (below
+— 2026-11-18, TODO tooling 13.13; it was a failure until then): one run never retries more than once. Any other failed
+rerun is a failure. A TEST failure is never rerun.
+
+A file that can't be proven is HELD (TODO tooling 13.13, Ron approved 2026-11-18; tools/held_tests.py): counted PER PC,
+in the slots folder — so the runs of every working copy and every merge on this PC add up — over FULL runs only (a run
+narrowed by --changed, --id, --tag or RW_CELLS is passed over). Met by the machine's trouble 2 full runs in a row → said
+loudly: it may truly need to run alone (TODO tooling 11.7). NOT PROVEN 3 full runs in a row → "couldn't be proven in 3
+runs in a row on this PC — held for Ron's decision": later runs don't run it — "held — not run", counted as not proven,
+so no stamp is PROVEN and nothing merges past it. Ron's ways out:
+
+    py tools/run_tests.py --release-held <file>   try again: the hold and its streak cleared. Runs nothing
+    alone: yes — <why>    (a header line) the file runs only while it holds EVERY test slot on the PC, after the others
+                          — Ron's "run it alone every time"; a hold taken while it ran beside others is lifted by it
+    skip: <TODO id> — <why>   set aside (above)
+
+Every run is recorded (Ron, 2026-11-18: "Absolutely record them. Why would you not???"): a run narrowed by --changed (the
+commit hook), --id, --tag or a narrowing variable leaves its record on the QUICK shelf (rw-test-results/quick/, KEEP_QUICK
+kept) — never read for the stamp or the longest-first estimates, and never pushing the full runs' records out.
 
 How many browsers at once (same day — Ron: "similar to how TCP works"): the run's LEVEL, 1 to 6, chosen by the runner
 itself and saved per PC beside the test slots (tools/browser_level.py; %TEMP%\\rw-test-slots\\browsers-at-once.json, or
@@ -148,6 +164,7 @@ import test_slots   # noqa: E402 — tools/test_slots.py: the machine-wide limit
 import environment_trouble   # noqa: E402 — tools/environment_trouble.py: a screen test's "the machine failed, not me"
 import browser_level   # noqa: E402 — tools/browser_level.py: how many browsers at once, found by the runner itself
 import test_costs      # noqa: E402 — tools/test_costs.py: what each test costs this PC (memory, CPU, I/O), averaged
+import held_tests      # noqa: E402 — tools/held_tests.py: a file that can't be proven 3 full runs in a row is held
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Screen tests (tier 2) need Playwright, which lives in the project's venv (requirements-dev.txt) — never the system
@@ -165,15 +182,18 @@ def read_header(path):
     not run, said so, and a release run refuses (TESTING.md §7: a flaky test is fixed — or set aside, with a TODO — the
     same day). That the TODO id is a task in TODO.md is checked by check_set_aside (this reads one file).
     `heavy: yes` (optional, 2026-11-17; `heavy: yes — why`, or `heavy: no`) — a tier-1 file that starts many processes
-    of its own: it holds one of the PC's test slots while it runs, within the browsers' level (slotted())."""
+    of its own: it holds one of the PC's test slots while it runs, within the browsers' level (slotted()).
+    `alone: yes — why` (optional, 2026-11-18; or `alone: no`) — Ron's "run it alone every time" for a file that couldn't
+    be proven beside others (tools/held_tests.py): it runs only while it holds EVERY test slot on the PC, after the
+    others. Its why is required — it's a decision, read later."""
     tags, tier, covers, shards, bad_shards, skip, bad_skip = None, None, None, 1, None, None, None
-    heavy, bad_heavy = False, None
+    heavy, bad_heavy, alone, alone_why, bad_alone = False, None, False, None, None
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             head = [next(f, "") for _ in range(HEADER_LINES)]
     except OSError as e:
-        return {"tags": [], "tier": None, "covers": [], "shards": 1, "skip": None, "heavy": False,
-                "problem": f"can't read it: {e}"}
+        return {"tags": [], "tier": None, "covers": [], "shards": 1, "skip": None, "heavy": False, "alone": False,
+                "alone_why": None, "problem": f"can't read it: {e}"}
     for line in head:
         text = re.sub(r"^\s*(//+|#+|\*|/\*\*?)\s?", "", line).strip()
         m = re.match(r"tags:\s*(.*)$", text)
@@ -205,6 +225,13 @@ def read_header(path):
                 heavy = h.group(1) == "yes"
             else:
                 bad_heavy = m.group(1)
+        m = re.match(r"alone:\s*(.*?)\s*$", text)
+        if m:
+            h = re.fullmatch(r"yes\s+(?:—|–|--?)\s+(\S.*)|no(?:\s+(?:—|–|--?)\s+\S.*)?", m.group(1))
+            if h:
+                alone, alone_why = bool(h.group(1)), h.group(1)
+            else:
+                bad_alone = m.group(1)
     problem = None
     if tags is None or covers is None:
         problem = "no header — every test file needs 'tags: <areas>, tier N' and 'covers: <files>' in its first lines"
@@ -218,8 +245,11 @@ def read_header(path):
     elif bad_heavy is not None:
         problem = (f"its heavy: line says {bad_heavy!r} — 'heavy: yes' (or 'heavy: yes — why') for a file that starts "
                    "many processes of its own, 'heavy: no' or no line for one that doesn't")
+    elif bad_alone is not None:
+        problem = (f"its alone: line says {bad_alone!r} — 'alone: yes — <why>' for a file that must run alone (it runs "
+                   "only while it holds every test slot on the PC — the why is required), 'alone: no' or no line else")
     return {"tags": tags or [], "tier": tier, "covers": covers or [], "shards": shards, "skip": skip, "heavy": heavy,
-            "problem": problem}
+            "alone": alone, "alone_why": alone_why, "problem": problem}
 
 
 # --- A test file set aside on purpose (2026-11-16, TODO tooling item 5) -------------------------------------------------
@@ -338,6 +368,16 @@ def command(tf):
     return [node, tf.path], None
 
 
+def test_env(**extra):
+    """The environment every process the runner starts for a test file gets (the file itself, its --list-cells) — the
+    runner's own, WITHOUT any GIT_* variable (2026-11-18: a test run under the commit hook, where GIT_DIR, GIT_INDEX_FILE…
+    name the REAL repository, set core.bare = true in the shared .git/config, and every working copy failed "must be run
+    in a work tree" for 13 minutes; RUN-044 had left it to each test file — the runner is the chokepoint now, RUN-103)."""
+    env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
+    env.update(PYTHONIOENCODING="utf-8", **extra)
+    return env
+
+
 def run_process(tf, relay_url=None, timeout=None, cells=None, measure=False, run=None):
     """(exit code, its whole output — stdout, then stderr, what it cost) — runs one test file from the repo root. Exit
     code None: it couldn't start, or ran past `timeout` (None: the flat limit, test_costs.STUCK_FLAT_S — 10 minutes) and
@@ -350,7 +390,7 @@ def run_process(tf, relay_url=None, timeout=None, cells=None, measure=False, run
     cmd, why = command(tf)
     if cmd is None:
         return None, why, test_costs.nothing("it couldn't start")
-    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    env = test_env()            # never git's own variables (above)
     if relay_url:
         env["RELAY_URL"] = relay_url
     if cells is not None:
@@ -459,7 +499,7 @@ def list_cells(tf, timeout=120):
     if cmd is None:
         return None, why
     try:
-        r = subprocess.run(cmd + ["--list-cells"], cwd=ROOT, env=dict(os.environ, PYTHONIOENCODING="utf-8"),
+        r = subprocess.run(cmd + ["--list-cells"], cwd=ROOT, env=test_env(),
                            capture_output=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return None, f"listing its cells (--list-cells) timed out after {timeout} s"
@@ -579,6 +619,13 @@ KEEP_RECORDS = 300          # the newest; older records are deleted as new ones 
 # inside the records folder that read_records never reads (it reads only the folder's own .json files) and write_record's
 # pruning never deletes.
 COPIES_ARCHIVE = "copies"
+# Every run recorded (Ron, 2026-11-18: "Absolutely record them. Why would you not???" — the commit hook's --changed runs
+# left none, so an agent's own test time landed in "everything else"): a NARROWED run (--changed, --id, --tag, a narrowing
+# variable — narrowed_by) leaves its record on the quick shelf, a folder inside the records folder that read_records —
+# the stamp, the longest-first estimates — never reads, with its own keep-limit, so quick runs never push the full runs'
+# records out. (The held streak isn't read from records at all: tools/held_tests.py, per PC, full runs only.)
+QUICK_SHELF = "quick"
+KEEP_QUICK = 300
 
 # The environment variables that change what a run does — each one set is noted in the record, with its value
 # (2026-11-16: a run with RW_CELLS set ran a few cells and --stamp counted it as a full tier 2). A NARROWING one runs only
@@ -607,7 +654,8 @@ def narrowed_by(r, tier=None):
     """What narrowed this run to part of its tier, in words ([] = a full run): --tag, --id, a narrowing variable — and a
     file set aside (its skip: line), for that file's tier only (tier None: any tier)."""
     ran = r.get("ran") or {}
-    return ([f"--tag {', '.join(ran['tags'])}"] if ran.get("tags") else []) \
+    return (["--changed"] if ran.get("changed") else []) \
+        + ([f"--tag {', '.join(ran['tags'])}"] if ran.get("tags") else []) \
         + ([f"--id {', '.join(ran['ids'])}"] if ran.get("ids") else []) \
         + [f"{k}={v}" for k, v in (r.get("env") or {}).items() if RUN_ENV.get(k, (False,))[0]] \
         + [f"set aside: {f.get('file')} (TODO {f.get('todo')} — {f.get('why')})" for f in r.get("files") or []
@@ -646,23 +694,27 @@ def record_id(rec):
     return rec.get("id") or f"{rec['started'][:19].replace(':', '')}-{(rec.get('commit') or 'nocommit')[:12]}-{os.getpid()}"
 
 
-def write_record(rec, folder):
+def write_record(rec, folder, keep=None):
+    """Write the record in `folder` and keep the newest `keep` there (None: KEEP_RECORDS) — the full runs' folder, or
+    the quick shelf (KEEP_QUICK): each shelf is pruned on its own."""
+    keep = KEEP_RECORDS if keep is None else keep
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, record_id(rec) + ".json")
     with open(path + ".tmp", "w", encoding="utf-8") as f:
         json.dump(rec, f, indent=1)
     os.replace(path + ".tmp", path)
     names = sorted(n for n in os.listdir(folder) if n.endswith(".json"))
-    for n in names[:-KEEP_RECORDS]:
+    for n in names[:-keep]:
         try:
             os.remove(os.path.join(folder, n))
         except OSError:
             pass
     # A run's kept outputs (a folder named as its record) go with its record — and so does any folder older than every
-    # record kept (its run never wrote one). A newer folder may be a run still going: left alone. Never the archive.
-    oldest = names[-KEEP_RECORDS:][0][:-len(".json")] if names[-KEEP_RECORDS:] else None
+    # record kept (its run never wrote one). A newer folder may be a run still going: left alone. Never the archive, never
+    # the quick shelf.
+    oldest = names[-keep:][0][:-len(".json")] if names[-keep:] else None
     for n in os.listdir(folder):
-        if oldest and n < oldest and n != COPIES_ARCHIVE and os.path.isdir(os.path.join(folder, n)):
+        if oldest and n < oldest and n not in (COPIES_ARCHIVE, QUICK_SHELF) and os.path.isdir(os.path.join(folder, n)):
             shutil.rmtree(os.path.join(folder, n), ignore_errors=True)
     return path
 
@@ -696,8 +748,9 @@ def record_problems(r):
         if f.get("result") == "failed":
             why.append(f"{f.get('file')} failed ({f.get('counts') or 'no summary'})"
                        + (f" — full output: {f['output']}" if f.get("output") else ""))
-        elif f.get("result") == NOT_PROVEN:     # the machine's trouble beyond the reruns (main): never a pass
-            why.append(f"{f.get('file')} not proven — the machine was too busy: {f.get('not_proven') or 'no reason given'}"
+        elif f.get("result") == NOT_PROVEN:     # the machine's trouble beyond the reruns (main), or held: never a pass
+            why.append(f"{f.get('file')} not proven — " + (str(f.get("not_proven")) if f.get("held") else
+                                                            f"the machine was too busy: {f.get('not_proven') or 'no reason given'}")
                        + (f" — full output: {f['output']}" if f.get("output") else ""))
         elif f.get("result") == "skipped":
             why.append(f"{f.get('file')} was skipped — {f.get('why') or 'no reason given'}")
@@ -755,45 +808,16 @@ def retried_lines(files):
     return out
 
 
-STREAK_SAID = 2     # rerun alone this many full runs of it in a row → said loudly (TODO tooling 11.7)
-
-
-def ran_whole(r, entry):
-    """Did this record's run run the whole of this file? It ran (it has a time), and not only some of its cells — by --id
-    (its entry's `cells`) or a narrowing variable (RW_CELLS in the record's variables)."""
-    return entry.get("seconds") is not None and not entry.get("cells") \
-        and not any(RUN_ENV.get(k, (False,))[0] for k in (r.get("env") or {}))
-
-
-def rerun_streak(records, name):
-    """The runs in a row, newest first, in which the file `name` was rerun alone after the machine's or the browser's
-    trouble — [(record, its retried notes)] (TODO tooling 11.7; Ron, 2026-11-18: a file that needs it run after run may
-    truly need to run alone). Read from the records, oldest first (read_records). Only whole runs of the file count: a run
-    that didn't run it, or ran only some of its cells, is passed over — it breaks nothing; a whole run of it without a
-    rerun ends the streak."""
-    out = []
-    for r in reversed(records):
-        e = next((f for f in r.get("files") or [] if f.get("file") == name), None)
-        if e is None or not ran_whole(r, e):
-            continue
-        if not e.get("retried"):
-            break
-        out.append((r, e["retried"]))
-    return out
-
-
-def streak_lines(name, streak):
-    """The loud lines for a file rerun alone `len(streak)` runs in a row — each run's when, why and kept outputs. It only
-    tells: what runs is never changed by it (Ron asked to be told)."""
-    lines = [f"! {name} was rerun alone after the machine's or the browser's trouble {len(streak)} runs in a row — it may "
-             "truly need to run alone (TESTING.md §7); its kept outputs, newest first:"]
-    for r, tries in streak:
-        for t in tries:
-            lines.append(f"    {str(r.get('started', '?'))[:16].replace('T', ' ')}"
-                         + (f" (shard {t['shard']})" if t.get("shard") else "") + f" — {t.get('reason')} — rerun alone: "
-                         f"{t.get('rerun') or '?'} — first output: {t.get('first_output') or '(not kept)'}"
-                         + (f" — the rerun's: {t['rerun_output']}" if t.get("rerun_output") else ""))
-    return lines
+def held_outcome(entry, tried):
+    """A file's result in one run, in held_tests' words — 'passed' (the first time), 'rerun alone' (passed on its rerun
+    after the machine's trouble), 'not proven', 'failed' — with why and its kept outputs (the first rerun note's)."""
+    t = (tried or [{}])[0]
+    result = entry.get("result")
+    outcome = NOT_PROVEN if result == NOT_PROVEN else "failed" if result != "passed" else \
+        "rerun alone" if tried else "passed"
+    return {"outcome": outcome, "why": t.get("reason") or entry.get("not_proven"), "shard": t.get("shard"),
+            "rerun": t.get("rerun"), "first_output": t.get("first_output") or entry.get("output"),
+            "rerun_output": t.get("rerun_output")}
 
 
 def tier3_lines(records, commit):
@@ -835,6 +859,35 @@ def show_stamp(commit_arg, folder):
     print("NOT PROVEN — see above. (Only a full run on a clean tree proves a commit: py tools/run_tests.py --tier 1, "
           "then --tier 2 — or --tier all.)")
     return 1
+
+
+def held_name(given, root=ROOT):
+    """A file named on the command line as the records name it — its path in the repository, with forward slashes
+    (as given, if it's already that; else taken from where it is)."""
+    g = given.replace("\\", "/")
+    if os.path.isabs(given) or os.path.exists(given):
+        g = os.path.relpath(os.path.abspath(given), root).replace("\\", "/")
+    return g
+
+
+def release_held(names, path):
+    """--release-held: Ron's "try again" — each file's hold and streak on this PC cleared (held_tests.release). Exit 0
+    when every one was held and is released; 1 when any wasn't held (said, with what is) or couldn't be saved."""
+    code = 0
+    for given in names:
+        name = held_name(given)
+        hold, held, err = held_tests.release(path, name)
+        if err:
+            print(f"✗ {name}: not released — {err}")
+            code = 1
+        elif hold:
+            print(f"released: {name} — held since {str(hold.get('since', '?'))[:16].replace('T', ' ')}; its streak "
+                  f"starts over and the next run runs it ({path})")
+        else:
+            print(f"{name} isn't held on this PC ({path}) — "
+                  + (f"held: {', '.join(sorted(held))}" if held else "no file is held"))
+            code = 1
+    return code
 
 
 RETRY_WAIT_S = 10       # before a file is rerun alone: the others are done by then — this lets the machine settle too
@@ -887,10 +940,15 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     ap.add_argument("--costs", action="store_true",
                     help="show what each test costs this PC — time, memory committed, RAM private (sampled), CPU, I/O: the average "
                          "± spread of the full runs that passed (tools/test_costs.py). Runs nothing")
+    ap.add_argument("--release-held", action="append", default=[], metavar="FILE",
+                    help="Ron's 'try again' for a test file HELD on this PC (it couldn't be proven in 3 full runs in a row "
+                         "— tools/held_tests.py): its hold and its streak cleared, so the next run runs it. Runs nothing")
     a = ap.parse_args(argv)
 
     if a.stamp is not None:
         return show_stamp(a.stamp, results if results is not None else results_dir())
+    if a.release_held:
+        return release_held(a.release_held, held_tests.path_in((slots or test_slots.Slots()).folder))
     if a.costs:
         where = costs or test_costs.costs_path((slots or test_slots.Slots()).folder)
         state, note = test_costs.read(where)
@@ -908,9 +966,26 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     aside = [f for f in chosen if f.skip]          # set aside on purpose (skip: <TODO id> — why): not run, said so
     chosen = [f for f in chosen if not f.skip]
     chosen, id_cells, id_unlisted, id_notes = narrow_by_id(chosen, a.id)
+    # A file that can't be proven is HELD on this PC (tools/held_tests.py — beside the slots): not run, "held — not
+    # run", counted as not proven — until Ron releases it (--release-held), says it runs alone (its header: alone: yes
+    # — a hold taken while it ran beside others is lifted by it, said), or sets it aside (skip:, above).
+    slots = slots or test_slots.Slots()      # every slot on the PC — a file rerun alone holds them all
+    held_path = held_tests.path_in(slots.folder)
+    on_hold = held_tests.holds(held_tests.read(held_path)[0])
+    lifted, held = [], []       # (file, its hold)
+    for f in chosen:
+        hold = on_hold.get(f.rel())
+        if hold and f.alone and not hold.get("alone"):
+            lifted.append((f, hold))
+        elif hold:
+            held.append((f, hold))
+    chosen = [f for f in chosen if not any(f is h for h, _ in held)]
 
     def aside_line(f):
         return f"set aside: {f.rel()} — {f.skip['todo']} — {f.skip['why']}"
+
+    def held_line(f, hold):
+        return f"? {f.rel()}  {held_tests.not_run_reason(hold)}"
 
     if a.list:
         for n in id_notes:
@@ -919,13 +994,23 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             print(f"  tier {f.tier}  {f.rel():40}  tags: {', '.join(f.tags)}"
                   + (f"  · only {', '.join(id_cells[f.path])} (--id), one process" if f.path in id_cells else
                      f"  · {f.shards} shards" if sharded(f) else "")
-                  + ("  · heavy (a test slot, within the browsers' level)" if f.tier == 1 and f.heavy else ""))
+                  + ("  · heavy (a test slot, within the browsers' level)" if f.tier == 1 and f.heavy else "")
+                  + (f"  · alone (every test slot, after the others — {f.alone_why})" if f.alone else ""))
         for f in aside:
             print(f"  - tier {f.tier}  {aside_line(f)}")
+        for f, hold in held:
+            print(f"  {held_line(f, hold)}")
         for f in broken:
             print(f"  ✗ {f.rel()}: {f.problem}")
-        print(f"{len(chosen)} file(s) would run" + (f", {len(aside)} set aside" if aside else ""))
+        print(f"{len(chosen)} file(s) would run" + (f", {len(aside)} set aside" if aside else "")
+              + (f", {len(held)} held — not run" if held else ""))
         return 0
+    for f, hold in lifted:          # Ron's "run it alone every time": the hold taken beside others no longer applies
+        _, _, err = held_tests.release(held_path, f.rel())
+        print(f"! {f.rel()} was held (it couldn't be proven in {held_tests.HOLD_AFTER} runs in a row beside others, since "
+              f"{str(hold.get('since', '?'))[:16].replace('T', ' ')}) — its header now says 'alone: yes — "
+              f"{f.alone_why}': the hold is lifted and its streak starts over; it runs alone"
+              + (f" — ✗ but the hold couldn't be cleared: {err}" if err else ""))
 
     count = {"passed": 0, "failed": 0, NOT_PROVEN: 0}
     for f in broken:
@@ -934,7 +1019,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     if not a.quiet:
         for n in id_notes:
             print(n)
-    if not chosen and not broken and not aside:
+    if not chosen and not broken and not aside and not held:
         if not a.quiet:   # the commit hook stays silent when no test covers the change (Law 12: no noise on the normal path)
             print("No tests cover these changes." if a.changed else "No tests match.")
         return 0
@@ -945,13 +1030,21 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     shown = starter.banner(starter.Ledger().review())
     if shown:
         print("\n".join(shown), flush=True)
-    # The record (item 2): every run but the commit hook's --changed (and --list, above). Taken BEFORE anything runs —
-    # the commit and what's uncommitted — and again at the end, so a change made during the run is caught too.
-    record_to = None if a.changed else (results if results is not None else (results_dir() if real else None))
+    # What narrowed this run, in words ([] = a full run): such a run leaves its record on the quick shelf, teaches the
+    # averages nothing, its units keep the flat stuck limit — a narrowed unit's average doesn't apply (test_costs.py §4)
+    # — and it's passed over by the held streak (held_tests.py: full runs only).
+    narrowing = (["--changed"] if a.changed else []) + ([f"--tag {', '.join(a.tag)}"] if a.tag else []) \
+        + ([f"--id {', '.join(a.id)}"] if a.id else []) + [f"{k}={v}" for k, v in run_env().items() if RUN_ENV[k][0]]
+    # The record (item 2): every run but --list (above) — a narrowed one on the quick shelf (QUICK_SHELF, 2026-11-18;
+    # the commit hook's --changed left none until then). Taken BEFORE anything runs — the commit and what's uncommitted —
+    # and again at the end, so a change made during the run is caught too.
+    shelf = results if results is not None else (results_dir() if real else None)   # the full runs' records
+    record_to = os.path.join(shelf, QUICK_SHELF) if shelf and narrowing else shelf
     rec = None
     if record_to:
         rec = {"commit": head_commit(), "uncommitted": {"before": uncommitted()},
-               "ran": {"tier": str(tier), "tags": a.tag, "ids": a.id, "release": a.release, "jobs": None},
+               "ran": {"tier": str(tier), "tags": a.tag, "ids": a.id, "changed": bool(a.changed), "release": a.release,
+                       "jobs": None},
                "env": run_env(),
                "files": [{"file": f.rel(), "tier": f.tier, "result": "failed", "counts": f.problem} for f in broken],
                "problems": [], "started": started}
@@ -984,8 +1077,9 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         tried: the reruns alone after the machine's or the browser's trouble ([{shard, reason, first_output,
         rerun_output…}]). measures: what its process tree cost (tools/test_costs.py) — beside its seconds. unproven: it
         met the machine's trouble with no rerun left for it (more files met it than MAX_RETRIES) — {why, met: how many
-        files of the run met it}: NOT PROVEN, never a failure — its line starts '?', its output is kept, counted apart,
-        and the record's `not_proven` says why."""
+        files of the run met it} — or met it AGAIN on its rerun alone — {why, detail} (2026-11-18, TODO tooling 13.13):
+        NOT PROVEN, never a failure — its line starts '?', its output is kept, counted apart, and the record's
+        `not_proven` says why."""
         ids = differs_today_ids(out)
         summary = next((ln for ln in reversed(out.splitlines()) if re.search(r"\bpassed\b", ln)), "")
         wait = f", waited {waited:.0f} s for a slot" if waited >= 1 else ""
@@ -994,8 +1088,9 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         again = f"; rerun alone after {tried[0]['reason']}" if tried else ""
         took = "" if seconds is None else f"  ({seconds:.0f} s{each}{only}{wait}{again})"
         unproven = None if ok or not unproven else \
-            (unproven["why"], f"{unproven['met']} file{'s' if unproven['met'] != 1 else ''} met its trouble this run; "
-                              f"only {MAX_RETRIES} {'is' if MAX_RETRIES == 1 else 'are'} rerun")
+            (unproven["why"], unproven.get("detail") or
+             f"{unproven['met']} file{'s' if unproven['met'] != 1 else ''} met its trouble this run; "
+             f"only {MAX_RETRIES} {'is' if MAX_RETRIES == 1 else 'are'} rerun")
         output = None if ok else keep_output(out_dir, f, out)
         result = "passed" if ok else NOT_PROVEN if unproven else "failed"
         lines = []
@@ -1013,6 +1108,16 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                     lines.append("    " + ln)
             if output:
                 lines.append(f"    full output: {output}")
+        entry = {"file": f.rel(), "tier": f.tier, "result": result,
+                 **({"not_proven": f"{unproven[0]} — {unproven[1]}"} if unproven else {}),
+                 "counts": summary.strip(), "seconds": None if seconds is None else round(seconds, 1),
+                 **({"measures": measures} if measures is not None else {}),
+                 "waited": round(waited, 1), "differ": ids, **({"shards": shards} if shards else {}),
+                 **({"heavy": True} if f.tier == 1 and f.heavy else {}),
+                 **({"alone": True} if f.alone else {}),
+                 **({"cells": cells} if cells else {}),
+                 **({"output": output, "screenshots": screenshots_in(out)} if output else {}),
+                 **({"retried": tried} if tried else {})}
         with say_lock:
             if ids:
                 differ.append((f, ids))
@@ -1020,25 +1125,24 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             retried.extend((f, t) for t in tried or [])
             if output:
                 kept.append((f, output, bool(unproven)))
+            outcomes[f.rel()] = dict(held_outcome(entry, tried), where=os.path.basename(ROOT),
+                                     record=rec["id"] if rec else None, alone=f.alone)
             if rec:
-                rec["files"].append({"file": f.rel(), "tier": f.tier, "result": result,
-                                     **({"not_proven": f"{unproven[0]} — {unproven[1]}"} if unproven else {}),
-                                     "counts": summary.strip(), "seconds": None if seconds is None else round(seconds, 1),
-                                     **({"measures": measures} if measures is not None else {}),
-                                     "waited": round(waited, 1), "differ": ids, **({"shards": shards} if shards else {}),
-                                     **({"heavy": True} if f.tier == 1 and f.heavy else {}),
-                                     **({"cells": cells} if cells else {}),
-                                     **({"output": output, "screenshots": screenshots_in(out)} if output else {}),
-                                     **({"retried": tried} if tried else {})})
+                rec["files"].append(entry)
             if lines:
                 print("\n".join(lines), flush=True)
 
+    outcomes = {}   # {file: its outcome in held_tests' words} — a full run adds them to this PC's held streaks
+    # Held on this PC (above): not run — "held — not run", NOT PROVEN, its line starts '?'; the record notes the hold.
+    for f, hold in held:
+        count[NOT_PROVEN] += 1
+        print(held_line(f, hold), flush=True)
+        if rec:
+            rec["files"].append({"file": f.rel(), "tier": f.tier, "result": NOT_PROVEN,
+                                 "not_proven": held_tests.not_run_reason(hold), "held": hold})
+
     measure = rec is not None       # what each unit costs — measured for every run that leaves a record (test_costs.py)
     costed = []     # every unit run: {tf, shard, of, seconds, measures, passed, rerun} — the averages learn from some
-    # What narrowed this run, in words ([] = a full run): such a run teaches the averages nothing, and its units keep the
-    # flat stuck limit — a narrowed unit's average doesn't apply (test_costs.py §4).
-    narrowing = ([f"--tag {', '.join(a.tag)}"] if a.tag else []) + ([f"--id {', '.join(a.id)}"] if a.id else []) \
-        + (["--changed"] if a.changed else []) + [f"{k}={v}" for k, v in run_env().items() if RUN_ENV[k][0]]
 
     def cost_sample(f, k, n, seconds, measures, passed, rerun=False, trouble=False):
         with say_lock:
@@ -1066,7 +1170,6 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     # run — RW_CELLS already set, or --id naming some of its cells — stays one process). Longest first — by each unit's
     # average on this PC, else its time in this copy's latest record (estimate) — so the long ones don't finish last on
     # their own.
-    slots = slots or test_slots.Slots()      # every slot on the PC — a file rerun alone holds them all
     # This PC's averages (test_costs.py): what orders the units and sets each one's stuck limit — and what this run teaches.
     costs_file = costs if costs is not None else (test_costs.costs_path(slots.folder) if real else None)
     averages = test_costs.read(costs_file)[0] if costs_file else test_costs.fresh()
@@ -1131,7 +1234,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             units.append((f, None, None, None))
     limits = {}         # id(unit) -> (its stuck limit in seconds, the average it came from — None: the flat limit)
     if units:
-        last = latest_times(read_records(record_to or (results_dir() if real else None)))
+        last = latest_times(read_records(shelf))        # the full runs' records — never the quick shelf
         units.sort(key=lambda u: -estimate(u, averages, last, hashes))
         # Each unit's stuck limit (test_costs.stuck_limit — RFC 6298's timer): from its average in a full run, once it
         # has enough runs measured; the flat limit otherwise, and for every unit of a narrowed run.
@@ -1202,8 +1305,11 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     # a light one always; a slotted one (a screen test, or a heavy tier-1 file) only while the run is under its level and
     # one of the PC's slots is free. A worker never sits waiting on a slotted unit while a light one could run (with
     # heavy tier-1 files in a slot, a level of 1 would otherwise have held the light ones behind them).
-    pending = list(units)
-    turn = threading.Condition()        # a worker waits here for room; a unit ending wakes it
+    # A file whose header says `alone: yes — why` (Ron's "run it alone every time", tools/held_tests.py) isn't among them:
+    # it runs after the others, holding EVERY test slot on the PC — as a rerun alone does.
+    pending = [u for u in units if not u[0].alone]
+    alone_units = [u for u in units if u[0].alone]
+    turn = threading.Condition()       # a worker waits here for room; a unit ending wakes it
     waiting_since = {}                  # id(unit) -> when it first found every slot it may use taken by another run
 
     def take():
@@ -1310,18 +1416,26 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         finish(u, code == 0, out, t0, t1, waited, cost=cost)
 
     t_pool = time.monotonic()
-    if units:
-        workers = min(jobs, len(units))
+    if pending:
+        workers = min(jobs, len(pending))
         with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
             for fut in concurrent.futures.as_completed([pool.submit(worker) for _ in range(workers)]):
                 fut.result()
     pool_seconds = time.monotonic() - t_pool     # the wall time a level is judged by (not the build, reruns or tier 3)
+    # The files that run alone (alone: yes): one at a time, each holding every test slot on the PC; the machine's trouble
+    # in one is handled as anywhere (rerun once, alone; again → not proven).
+    for u in alone_units:
+        say(f"· {label_of(u)} runs alone (its header: alone: yes — {u[0].alone_why}): holding every test slot on this PC "
+            f"({slots.count})")
+        run_unit(u, None, slots.acquire_all(f"{ROOT} · {label_of(u)} (alone: yes)", on_wait=say))
     # The machine's trouble with no rerun left: reported now that the run knows how many files met it — NOT PROVEN, never
     # a failure (a shard's file waits for its other shards, rerun ones included).
     for u, out, t0, t1, waited, cost, why in over_cap:
         finish(u, False, out, t0, t1, waited, cost=cost, unproven={"why": why, "met": len(troubles)})
     # The reruns, ALONE (2026-11-17): every other file of this run is done; after a wait, each holds EVERY test slot on
-    # the PC (no other run's screen test beside it either). Rerun once: passed → passed (noted); failed → failed. With
+    # the PC (no other run's screen test beside it either). Rerun once: passed → passed (noted); met the machine's trouble
+    # AGAIN → NOT PROVEN, never a failure, and no second rerun (2026-11-18, TODO tooling 13.13 — Ron: "I think not
+    # proven"; a file not proven 3 full runs in a row is held: tools/held_tests.py); any other failure → failed. With
     # the flat stuck limit (step 4 — TCP backs its timer off on a retransmit): a unit stopped at its average's limit gets
     # the full 10 minutes; past that too, it's a hang — a failure.
     for u, why, first, first_secs, first_cost, stuck in to_rerun:
@@ -1339,10 +1453,12 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         again = environment_reason(f, code, out)
         tried = {"shard": k, "reason": why, "first_output": first, "first_seconds": round(first_secs, 1),
                  **(stuck or {}), **({"first_measures": first_cost} if measure else {}),
-                 "rerun": "passed" if code == 0 else f"failed again — the machine's trouble again: {again}" if again
+                 "rerun": "passed" if code == 0 else f"not proven — the machine's trouble again: {again}" if again
                  else "failed", "rerun_output": keep_output(out_dir, f, out, k, "rerun")}
         finish(u, code == 0, f"! rerun alone after {why} — its first output: {first or '(not kept: no record)'}\n" + out,
-               t0, t1, group.waited, tried, cost=cost)
+               t0, t1, group.waited, tried, cost=cost,
+               unproven={"why": again, "detail": "it met its trouble again on its rerun alone — one rerun a run"}
+               if again and code != 0 else None)
     # The level for the next run (browser_level.decide): a forced number leaves it alone; a narrowed run moves it only on
     # trouble; a run where a file failed (or couldn't run, or the build failed) moves it only on trouble too — it is saved,
     # marked, never a yardstick (2026-11-17). Counted here, after tiers 1 and 2 and their reruns: tier 3 runs after, on
@@ -1358,10 +1474,9 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         elif not screen and not troubles:
             moves.update(next=None, why="no screen tests ran — only machine trouble moves the level")
         else:
-            # (its own name: reusing `narrowing` here dropped --id / --tag from what the averages read below — a narrowed
-            # run with a screen test taught them; COST-024, 2026-11-18)
-            env_narrowing = [k for k in run_env() if RUN_ENV[k][0]]
-            full = bool(screen) and not (a.tag or a.id or a.changed or env_narrowing or any(f.tier == 2 for f in aside))
+            # (it reassigned `narrowing` itself until 2026-11-18 — a run's --id / --tag / --changed then read as [] below
+            # it: a narrowed run with a screen test taught the cost averages; COST-024. `narrowing` holds them all.)
+            full = bool(screen) and not (narrowing or any(f.tier == 2 for f in aside))
             done_run = {"level": start_level, "end": gate.level, "seconds": round(pool_seconds, 1), "files": len(screen),
                         "heavy": len(heavy), "suite": "tier all" if tier == "all" else f"tier {tier}", "full": full,
                         "trouble": len(troubles), "failed": count["failed"] + sum(1 for f, _ in skipped if f.tier != 3),
@@ -1466,7 +1581,8 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                          "until they pass once" if stopped else "")
                       + " — py tools/run_tests.py --costs")
     print(f"Tests: {count['passed']} file(s) passed, {count['failed']} failed"
-          + (f", {count[NOT_PROVEN]} not proven (the machine's trouble)" if count[NOT_PROVEN] else "")
+          + (f", {count[NOT_PROVEN]} not proven (the machine's trouble"
+             + (f" — {len(held)} held, not run" if held else "") + ")" if count[NOT_PROVEN] else "")
           + (f", {len(skipped)} skipped" if skipped else "") + (f", {len(aside)} set aside" if aside else ""))
     if over_cap:                 # loudly: not a test failure — but that much trouble is worth a look at the machine
         print(f"! {len(troubles)} file{'s' if len(troubles) != 1 else ''} met the machine's or the browser's trouble this "
@@ -1480,12 +1596,20 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         print(f"! 1 file retried after {t['reason']} — its first output: {t['first_output'] or '(not kept: no record)'}"
               f"\n    {f.rel()}" + (f" (shard {t['shard']})" if t.get("shard") else "") + f" — rerun alone: {t['rerun']}"
               + (f" — the rerun's output: {t['rerun_output']}" if t.get("rerun_output") else ""))
-    if rec and retried:          # the same file rerun alone run after run (11.7): said loudly, never acted on
-        history = [r for r in read_records(record_to) if r.get("id") != rec["id"]] + [rec]
-        for name in dict.fromkeys(f.rel() for f, _ in retried):     # once a file, however many of its shards
-            streak = rerun_streak(history, name)
-            if len(streak) >= STREAK_SAID and streak[0][0] is rec:   # this run is one of them (a whole run of it)
-                print("\n".join(streak_lines(name, streak)))
+    # This PC's held streaks (tools/held_tests.py — TODO tooling 11.7, 13.10, 13.13): a FULL run's outcomes are added; a
+    # file met by the machine's trouble 2 full runs in a row is said loudly, one NOT PROVEN 3 in a row is HELD — said.
+    if not narrowing and outcomes:
+        troubled, newly, err = held_tests.note_run(held_path, outcomes)
+        if err:
+            print(f"· the held tests' streaks not saved — {err}")
+        for name, streak in troubled.items():
+            if name in newly:
+                print("\n".join(held_tests.held_lines(name, {"runs": streak[-held_tests.HOLD_AFTER:]})))
+            elif len(streak) >= held_tests.SAID_AFTER:
+                print("\n".join(held_tests.streak_lines(name, streak)))
+    for f, hold in held:         # loudly, every run: a held file is waiting for Ron
+        print(f"! held — not run: {f.rel()} — it couldn't be proven in {held_tests.HOLD_AFTER} runs in a row on this PC "
+              f"(since {str(hold.get('since', '?'))[:16].replace('T', ' ')}). {held_tests.ways_out(f.rel())}")
     for f, path, unproven in kept:
         print(f"{'? ' if unproven else '✗ '}{f.rel()} — " + ("not proven (the machine's trouble) — " if unproven else "")
               + f"full output: {path}")
@@ -1523,7 +1647,7 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                     "result": "passed" if code == 0 else NOT_PROVEN if code == environment_trouble.EXIT_CODE else "failed"})
         rec["uncommitted"]["after"] = uncommitted()
         try:
-            write_record(rec, record_to)
+            write_record(rec, record_to, keep=KEEP_QUICK if narrowing else KEEP_RECORDS)
             if not a.quiet:
                 dirty = rec["uncommitted"]["before"] or rec["uncommitted"]["after"]
                 narrow = narrowed_by(rec)

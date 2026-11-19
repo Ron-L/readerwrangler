@@ -34,6 +34,9 @@ here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if "--stamp" in sys.argv:
     print("Test results for HEAD\\n  ✗ tier 1: no full tier 1 run recorded on this commit\\nNOT PROVEN — see above.")
     sys.exit(1)
+if os.environ.get("RW_STANDIN_BUSY"):       # the real runner's exit when no test failed but the machine was too busy
+    print("Tests: 0 file(s) passed, 0 failed, 1 not proven (the machine's trouble)")
+    sys.exit(3)
 ok = os.path.exists(os.path.join(here, ".venv", "sentinel.txt"))
 print(f"stand-in tier 1 in {here}: venv {'seen' if ok else 'MISSING'}")
 print("Tests: 1 file(s) passed, 0 failed" if ok else "Tests: 0 file(s) passed, 1 failed")
@@ -88,9 +91,10 @@ class World:
         write(os.path.join(self.precious, "deep", "keep.txt"), "never deleted through a link\n")
         return self
 
-    def copies(self, *args):
+    def copies(self, *args, env=None):
         r = subprocess.run([sys.executable, os.path.join(self.main, "tools", "copies.py"), *args], cwd=self.main,
-                           env=CLEAN_ENV, capture_output=True, text=True, encoding="utf-8", errors="replace")
+                           env=dict(CLEAN_ENV, **(env or {})), capture_output=True, text=True, encoding="utf-8",
+                           errors="replace")
         return r.returncode, r.stdout + r.stderr
 
     def copy(self, name):
@@ -439,5 +443,102 @@ def removal_stops_when_records_cant_be_kept():
               "…its links too (nothing was taken out)")
 test("COPY-009", "remove stops — even with --force — when the copy's records can't be kept, and says so (never lost "
      "silently); nothing touched", removal_stops_when_records_cant_be_kept)
+
+
+# --- every run recorded (Ron, 2026-11-18: "Absolutely record them. Why would you not???"): the commit hook's --changed
+# runs and the narrowed ones go on the quick shelf (rw-test-results/quick/) — the time report counts them, labelled ---
+def the_time_report_counts_the_quick_shelf():
+    import datetime
+    import json
+    copies = load_copies()
+    with World() as w:
+        w.copies("new", "one")
+        c = w.copy("one")
+        recs = git(c, "rev-parse", "--path-format=absolute", "--git-path", "rw-test-results").stdout.strip()
+        t = datetime.datetime.now().astimezone() - datetime.timedelta(minutes=30)
+
+        def at(minutes):
+            return (t + datetime.timedelta(minutes=minutes)).isoformat(timespec="seconds")
+        note_path = git(c, "rev-parse", "--path-format=absolute", "--git-path", copies.NOTE).stdout.strip()
+        note = json.load(open(note_path, encoding="utf-8"))
+        note.update(made=at(-1), ready=at(-1))          # made before the planted runs (they're counted from then on)
+        with open(note_path, "w", encoding="utf-8") as f:
+            json.dump(note, f)
+        plant(recs, {"id": "r0", "started": at(0), "ended": at(4), "result": "passed", "ran": {"tier": "1"}})
+        quick = os.path.join(recs, "quick")
+        plant(quick, {"id": "q1", "started": at(10), "ended": at(11), "result": "passed",
+                      "ran": {"tier": "1", "changed": True}})
+        plant(quick, {"id": "q2", "started": at(20), "ended": at(22), "result": "failed",
+                      "ran": {"tier": "all", "ids": ["COPY-010"]}}, output="a quick run's failed output\n")
+        code, out = w.copies("remove", "one", "--force")
+        check(code == 0 and "REMOVED" in out, f"removed:\n{out}")
+        home = os.path.join(w.main, ".git", "rw-test-results", copies.ARCHIVE)
+        k = os.path.join(home, os.listdir(home)[0]) if os.path.isdir(home) and os.listdir(home) else ""
+        check(os.path.exists(os.path.join(k, "quick", "q1.json")) and os.path.exists(os.path.join(k, "quick", "q2",
+              "test_x.py.txt")), f"the quick shelf is archived with the rest: {os.listdir(k) if k else '(none)'}")
+        s = json.load(open(os.path.join(k, "time.json"), encoding="utf-8")) if k else {}
+        n = s.get("counts") or {}
+        check((n.get("runs"), n.get("full"), n.get("narrow"), n.get("quick"), n.get("passed"), n.get("failed"))
+              == (3, 1, 2, 2, 2, 1), f"runs 3: full 1, narrow 2 — both from the quick shelf — passed 2, failed 1: {n}")
+        check(s.get("test_seconds") == 7 * 60, f"their minutes count: 4 + 1 + 2 = 7 min: {s.get('test_seconds')}")
+        for want in ("quick: --changed", "quick: --id COPY-010", "2 quick"):
+            check(want in out, f"the printout labels the quick shelf's runs ({want!r}):\n{out}")
+test("COPY-010", "the time report reads the copy's quick shelf too (the commit hook's --changed runs and narrowed runs), "
+     "archived with the rest, its runs counted and labelled 'quick'", the_time_report_counts_the_quick_shelf)
+
+
+def new_says_not_proven_when_the_machine_was_busy():
+    with World() as w:
+        code, out = w.copies("new", "busy", env={"RW_STANDIN_BUSY": "1"})
+        check(code != 0 and "NOT READY" in out, f"refused (exit {code}):\n{out}")
+        check("not proven" in out and "the machine was too busy" in out and "tier 1 failed" not in out,
+              f"…in the right words: tier 1 NOT PROVEN — the machine was too busy, never 'failed':\n{out}")
+test("COPY-011", "new: a tier 1 that ended NOT PROVEN (exit 3 — the machine too busy, no test failed) is NOT READY, said "
+     "as 'not proven', never 'tier 1 failed' (TODO tooling 13.12)", new_says_not_proven_when_the_machine_was_busy)
+
+
+def the_archive_is_trimmed():
+    import datetime
+    import json
+    copies = load_copies()
+    now = datetime.datetime.now().astimezone()
+
+    def archived(home, name, days_ago, note=True):
+        folder = os.path.join(home, name)
+        os.makedirs(folder)
+        if note:
+            write(os.path.join(folder, "time.json"), json.dumps(
+                {"name": name, "removed": (now - datetime.timedelta(days=days_ago)).isoformat(timespec="seconds")}))
+        return folder
+    home = tempfile.mkdtemp(prefix="rw-copies-trim-")
+    try:
+        for name, days in (("a", 100), ("b", 60), ("c", 40), ("d", 10), ("e", 1), ("f", 20)):
+            archived(home, name, days)
+        archived(home, "g", 0, note=False)          # no time.json: its folder's own time — today — stands in
+        write(os.path.join(home, "stray.txt"), "a file, not a copy's folder\n")
+        gone = copies.trim_archive(home, keep=2, min_days=30, now=now)
+        left = sorted(os.listdir(home))
+        check(sorted(gone) == ["a", "b", "c"] and left == ["d", "e", "f", "g", "stray.txt"],
+              f"the newest 2 kept (e, d), and every one younger than 30 days (f, g); the older rest deleted: gone "
+              f"{gone}, left {left}")
+        check(copies.trim_archive(home, keep=0, min_days=30, now=now) == [] and sorted(os.listdir(home)) == left,
+              "never one younger than 30 days — even with nothing else to keep")
+    finally:
+        remove_tree(home)
+    with World() as w:                              # through `remove`, with the real limits
+        home = os.path.join(w.main, ".git", "rw-test-results", copies.ARCHIVE)
+        for i in range(copies.ARCHIVE_KEEP + 1):
+            archived(home, f"old-{i:03d}", 40 + i / 1000)
+        w.copies("new", "one")
+        code, out = w.copies("remove", "one", "--force")
+        left = sorted(os.listdir(home))
+        check(code == 0 and len(left) == copies.ARCHIVE_KEEP and "old-100" not in left and "old-099" not in left
+              and any(n.startswith("one-") for n in left),
+              f"after the removal the archive holds the newest {copies.ARCHIVE_KEEP} (the 2 oldest gone): "
+              f"{len(left)}, {left[-3:]}:\n{out}")
+        check("trimmed" in out and "2" in out, f"…and the removal says so:\n{out}")
+test("COPY-012", "the copies' archive is kept bounded (TODO tooling 13.5): the newest ARCHIVE_KEEP copies' folders kept, "
+     "and never one removed less than 30 days ago; the older rest deleted at each removal, said",
+     the_archive_is_trimmed)
 
 done()

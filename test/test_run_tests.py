@@ -1,6 +1,6 @@
 # Tests for tools/run_tests.py — the one test runner (docs/design/TESTING.md §4).
 # tags: test-runner, tier 1
-# covers: tools/run_tests.py, tools/local_relay.py, tools/test_slots.py, tools/environment_trouble.py, tools/browser_level.py, test/harness.js, test/ui/rw.py, test/ui/harness.py
+# covers: tools/run_tests.py, tools/held_tests.py, tools/local_relay.py, tools/test_slots.py, tools/environment_trouble.py, tools/browser_level.py, test/harness.js, test/ui/rw.py, test/ui/harness.py
 # heavy: yes — ~300 processes a run, up to 8 at once: sample runs in parallel, stand-in relays (counted 2026-11-17)
 # Run: python test/test_run_tests.py
 #
@@ -660,8 +660,13 @@ done()
     finally:
         rt.changed_files = saved_changed
     got2 = records_in(rdir)
-    row("RUN-042", "the commit hook's --changed runs, and --list, leave no record",
-        isinstance(got2, list) and len(got2) == 1, str(got2)[:300])
+    quick2 = records_in(os.path.join(rdir, rt.QUICK_SHELF)) if hasattr(rt, "QUICK_SHELF") else "no QUICK_SHELF yet"
+    # (2026-11-18, Ron: "Absolutely record them. Why would you not???" — a --changed run left no record until then; it
+    # goes on its own shelf, which the full-run logic never reads: RUN-102.)
+    row("RUN-042", "--list leaves no record; the commit hook's --changed run leaves one — on the quick shelf "
+        "(rw-test-results/quick/), never among the full runs' records",
+        isinstance(got2, list) and len(got2) == 1 and isinstance(quick2, list) and len(quick2) == 1
+        and (quick2[0].get("ran") or {}).get("changed") is True, f"{str(got2)[:300]} | quick: {str(quick2)[:300]}")
     # The record notes every variable that changes a run, with its value (RUN-058 judges them) — and says at once that a
     # narrowed run proves nothing. One set (RW_CELLS) and one that doesn't narrow (RW_BROWSER); both put back after.
     edir = os.path.join(d, "env-results")
@@ -675,7 +680,7 @@ done()
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    got3 = records_in(edir)
+    got3 = records_in(os.path.join(edir, getattr(rt, "QUICK_SHELF", "quick")))    # narrowed: on the quick shelf (RUN-102)
     env3 = got3[0].get("env") if isinstance(got3, list) and len(got3) == 1 else None
     row("RUN-059", "a run's record notes the variables that change a run, with their values (RW_CELLS=CELL-005, "
         "RW_BROWSER=msedge), and the run says it was narrowed",
@@ -1015,7 +1020,7 @@ sys.exit(1 if bad else 0)
     code, out = quiet_main(["--id", "SHARD-005"], files=[rt.TestFile(sh_id1), rt.TestFile(js_ok)], slots=four,
                            results=id_rec)
     id1_runs = shard_runs("test_shards_id1.py")
-    got = records_in(id_rec)
+    got = records_in(os.path.join(id_rec, getattr(rt, "QUICK_SHELF", "quick")))   # narrowed: on the quick shelf (RUN-102)
     r1 = got[-1] if isinstance(got, list) and got else {}
     row("RUN-060", "--id naming one cell of a sharded file: ONE process, RW_CELLS = that cell, only it ran; the record "
         "says narrowed by --id (no RW_CELLS of its own in the environment noted) — so it proves nothing for its tier",
@@ -1309,13 +1314,23 @@ done()
                            results=always_rec, retry_wait=0.1)
     entry, _ = entry_of(always_rec, "test_envalways.py")
     tries = entry.get("retried") or [{}]
-    row("RUN-076", "machine or browser trouble TWICE: the file fails (run twice, no more), both outputs kept and named "
-        "in the record, the summary says it was retried and failed again",
-        code == 1 and runs_of("envalways") == 2 and entry.get("result") == "failed"
+    # (2026-11-18, TODO tooling 13.13 — Ron: "I think not proven": the machine's trouble is never a test failure, and one
+    # run never retries more than once. It was a failure until then.)
+    row("RUN-076", "machine or browser trouble TWICE — its rerun alone met it again: the file is NOT PROVEN, never failed "
+        "(run twice, no more — one run never retries more than once): its line starts '?', both outputs kept and named in "
+        "the record, the summary counts it apart and says it was retried and met the trouble again, the run's exit 3",
+        code == 3 and runs_of("envalways") == 2 and entry.get("result") == "not proven"
+        and "again on its rerun alone" in str(entry.get("not_proven"))
+        and "the browser closed (a sample)" in str(entry.get("not_proven"))
         and "ENVIRONMENT FAILURE" in text_of(tries[0].get("first_output"))
         and "ENVIRONMENT FAILURE" in text_of(tries[0].get("rerun_output")) and text_of(entry.get("output"))
-        and "1 file retried after the browser closed (a sample)" in out and "Tests: 0 file(s) passed, 1 failed" in out,
-        f"exit {code}, runs {runs_of('envalways')}, entry {str(entry)[:400]}: {out[-500:]}")
+        and str(tries[0].get("rerun")).startswith("not proven — the machine's trouble again")
+        and "1 file retried after the browser closed (a sample)" in out
+        and "Tests: 0 file(s) passed, 0 failed, 1 not proven (the machine's trouble)" in out
+        and any(ln.startswith("? ") and "test_envalways.py" in ln and "again on its rerun alone" in ln
+                for ln in out.splitlines())
+        and not any(ln.lstrip().startswith("✗") for ln in out.splitlines()),
+        f"exit {code}, runs {runs_of('envalways')}, entry {str(entry)[:400]}: {out[-700:]}")
 
     asserts = harness_file("test_asserts.py", count_runs("asserts")
                            + 'test("ENVS-004", "a real failure", lambda: check(False, "an assertion"))\ndone()\n')
@@ -1443,9 +1458,12 @@ test("STRK-001", "a sample test", maybe)
 done()
 """)
     beside = harness_file("test_streakbeside.py", 'test("STRK-002", "a sample test beside it", lambda: None)\ndone()\n')
-    strk_rec, strk_slots, strk_started = os.path.join(d, "streak-results"), os.path.join(d, "slots-streak"), [""]
+    strk_slots, strk_started = os.path.join(d, "slots-streak"), [""]
+    # Two records folders — a working copy's and the merge's — and one PC (one slots folder): the count lives per PC, so
+    # runs in both add up (2026-11-18, TODO tooling 13.10 — it read only the folder's own records until then).
+    strk_recs = [os.path.join(d, "streak-results-copy"), os.path.join(d, "streak-results-merge")]
 
-    def streak_run(trouble, argv=("--tier", "2"), env=None):
+    def streak_run(trouble, argv=("--tier", "2"), env=None, folder=0):
         open(ctl, "w").write("trouble" if trouble else "fine")
         while rt._now()[:19] == strk_started[0]:    # a record is named by the second its run started: one run a second
             time.sleep(0.05)
@@ -1454,37 +1472,274 @@ done()
         os.environ.update(env or {})
         try:
             return quiet_main(list(argv), files=[rt.TestFile(streaky), rt.TestFile(beside)],
-                              slots=ts.Slots(count=2, folder=strk_slots), results=strk_rec, retry_wait=0.1)
+                              slots=ts.Slots(count=2, folder=strk_slots), results=strk_recs[folder], retry_wait=0.1)
         finally:
             for k, v in saved_env.items():
                 if v is None:
                     os.environ.pop(k, None)
                 else:
                     os.environ[k] = v
-    said = "test_streaky.py was rerun alone after the machine's or the browser's trouble {} runs in a row"
-    runs = [streak_run(True), streak_run(True),                         # 1, 2 → said: 2 in a row
-            streak_run(False, argv=("--tier", "2", "--id", "STRK-002")),  # didn't run it: passed over
-            streak_run(True, env={"RW_CELLS": "STRK-001"}),             # only some of it (RW_CELLS): passed over, not said
-            streak_run(True),                                           # 3 in a row (runs 1, 2, 5)
-            streak_run(False),                                          # a whole run without a rerun ends it
+    said = "test_streaky.py met the machine's or the browser's trouble {} full runs in a row on this PC"
+    runs = [streak_run(True, folder=0), streak_run(True, folder=1),     # 1 (a copy), 2 (the merge) → said: 2 in a row
+            streak_run(False, argv=("--tier", "2", "--id", "STRK-002")),  # narrowed, didn't run it: passed over
+            streak_run(True, env={"RW_CELLS": "STRK-001"}),             # narrowed (RW_CELLS): passed over, not said
+            streak_run(True, folder=1),                                 # 3 in a row (runs 1, 2, 5)
+            streak_run(False),                                          # a full run without trouble ends it
             streak_run(True)]                                           # 1 again: not said
-    firsts, got = [], records_in(strk_rec)
-    for r in got if isinstance(got, list) else []:
-        e = next((f for f in r.get("files", []) if f.get("file", "").endswith("test_streaky.py")), {})
-        firsts.append(((e.get("retried") or [{}])[0]).get("first_output"))
+
+    def first_of(o):
+        m = re.search(r"1 file retried after [^\n]*? — its first output: (\S+)", o)
+        return m.group(1) if m else None
+    firsts = [first_of(o) for _, o in runs]
     out5 = runs[4][1]
-    row("RUN-092", "a file rerun alone after the machine's trouble in 2 whole runs of it in a row is said loudly at the end "
-        "— the file, how many runs, each run's kept outputs — counted from the records: a run that didn't run it, or ran "
-        "only some of it (RW_CELLS), is passed over; a whole run without a rerun ends the streak; what runs is unchanged",
+    row("RUN-092", "a file met by the machine's trouble in 2 full runs in a row ON THIS PC — counted per PC (in the slots "
+        "folder), so a working copy's run and the merge's add up — is said loudly at the end: the file, how many runs, "
+        "each run's kept outputs; a narrowed run (--id, RW_CELLS) is passed over; a full run without trouble ends the "
+        "streak; a rerun alone that passes never holds the file; what runs is unchanged",
         all(c == 0 and "Tests: 2 file(s) passed, 0 failed" in o for c, o in runs[:2] + runs[3:])
         and runs[2][0] == 0 and "Tests: 1 file(s) passed, 0 failed" in runs[2][1]
-        and len(firsts) == 7 and all(firsts[i] for i in (0, 1, 3, 4, 6)) and firsts[2] is None and firsts[5] is None
+        and all(firsts[i] for i in (0, 1, 3, 4, 6)) and firsts[2] is None and firsts[5] is None
         and "runs in a row" not in runs[0][1] and said.format(2) in runs[1][1]
         and all(firsts[i] in runs[1][1] for i in (0, 1))
         and "runs in a row" not in runs[2][1] + runs[3][1] and "1 file retried after" in runs[3][1]
         and said.format(3) in out5 and all(firsts[i] in out5 for i in (0, 1, 4)) and firsts[3] not in out5
-        and "runs in a row" not in runs[5][1] + runs[6][1] and "1 file retried after" in runs[6][1],
+        and "runs in a row" not in runs[5][1] + runs[6][1] and "1 file retried after" in runs[6][1]
+        and not any("held" in o for _, o in runs),
         f"firsts {firsts} | " + " || ".join(f"exit {c}: {o[-400:]}" for c, o in runs))
+
+    # --- A file that can't be proven is HELD (2026-11-18, TODO tooling 13.13 — Ron: "I think not proven. But we don't want
+    # to go into an infinite try loop … Give up after say 3 failures of same file and report it and await instruction from
+    # me"; the proposal approved the same day). Within a run: rerun alone once; its rerun meeting the trouble again → not
+    # proven (RUN-076). Across runs: 3 FULL runs in a row not proven on this PC → held; later runs don't run it ("held —
+    # not run", not proven); Ron's ways out: --release-held, 'alone: yes — why', a skip: line.
+    never = harness_file("test_neverproven.py", count_runs("neverproven") + """def trouble():
+    raise EnvironmentTrouble("the page never loaded (never proven)")
+test("NEVR-001", "a sample test", trouble)
+done()
+""")
+    calm = harness_file("test_calm.py", 'test("NEVR-002", "a sample test beside it", lambda: None)\ndone()\n')
+    held_slots, held_other = os.path.join(d, "slots-held"), os.path.join(d, "slots-held-other-pc")
+    held_recs = [os.path.join(d, "held-results-copy"), os.path.join(d, "held-results-merge")]
+    held_started = [""]
+
+    def held_run(argv=("--tier", "2"), folder=0, slots_dir=None, files=None):
+        while rt._now()[:19] == held_started[0]:    # one run a second (a record is named by the second it started)
+            time.sleep(0.05)
+        held_started[0] = rt._now()[:19]
+        return quiet_main(list(argv), files=files or [rt.TestFile(never), rt.TestFile(calm)],
+                          slots=ts.Slots(count=2, folder=slots_dir or held_slots), results=held_recs[folder],
+                          retry_wait=0.1)
+
+    def held_state(folder=None):
+        p = os.path.join(folder or held_slots, getattr(rt, "held_tests", None) and rt.held_tests.FILE_NAME
+                         or "held-tests.json")
+        try:
+            return __import__("json").load(open(p, encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def held_entry(folder=None):
+        return next((v for k, v in (held_state(folder).get("files") or {}).items() if k.endswith("test_neverproven.py")),
+                    {})
+
+    held_said = "test_neverproven.py couldn't be proven in 3 runs in a row on this PC — held for Ron's decision"
+    rel_never = os.path.relpath(never, ROOT).replace("\\", "/")
+    h1 = held_run(folder=0)                                             # not proven 1 (in a copy)
+    h2 = held_run(folder=1)                                             # not proven 2 (in the merge)
+    hq = held_run(argv=("--tier", "2", "--id", "NEVR-001"), folder=0)   # narrowed: passed over
+    after_two = runs_of("neverproven")
+    h3 = held_run(folder=0)                                             # not proven 3 → held
+    hold = held_entry().get("held") or {}
+    row("RUN-098", "3 FULL runs in a row NOT PROVEN for the same file on this PC (a working copy's runs and the merge's add "
+        "up; a narrowed run is passed over) → the file is HELD: said loudly — 'couldn't be proven in 3 runs in a row on "
+        "this PC — held for Ron's decision' — with Ron's ways out, kept per PC in the slots folder with the 3 runs; "
+        "before the third, nothing is held",
+        all(c == 3 for c, _ in (h1, h2, hq, h3)) and after_two == 6 and runs_of("neverproven") == 8
+        and not any(held_said in o for _, o in (h1, h2, hq)) and held_said in h3[1]
+        and f"--release-held {rel_never}" in h3[1] and "alone: yes" in h3[1] and "skip:" in h3[1]
+        and len(hold.get("runs") or []) == 3 and all(r.get("outcome") == "not proven" for r in hold.get("runs") or [])
+        and not held_entry(held_other).get("held"),
+        f"exits {[c for c, _ in (h1, h2, hq, h3)]}, runs {after_two}/{runs_of('neverproven')}, held {str(hold)[:300]}: "
+        f"{h3[1][-1200:]}")
+
+    h4 = held_run(folder=1)
+    e4, r4 = entry_of(held_recs[1], "test_neverproven.py")
+    p4, why4 = judged([dict(rec(commit=A, files=t1 + [dict(e4, file="test/ui/test_neverproven.py", tier=2)]),
+                            result="not proven")])
+    hl = held_run(argv=("--tier", "2", "--list"), folder=1)
+    hid = held_run(argv=("--id", "NEVR-001"), folder=1)
+    not_run = runs_of("neverproven")                       # still 8: none of these ran it
+    hother = held_run(folder=1, slots_dir=held_other)      # another PC (another slots folder): not held there — it runs
+    row("RUN-099", "a held file isn't run — 'held — not run', counted as NOT PROVEN (exit 3; the record's result 'not "
+        "proven', so the stamp is NOT PROVEN and nothing merges past it), its line starts '?'; --list and an --id run "
+        "say it's held too; on another PC (its own slots folder) it isn't held",
+        h4[0] == 3 and not_run == 8 and runs_of("neverproven") == 10
+        and "Tests: 1 file(s) passed, 0 failed, 1 not proven (the machine's trouble — 1 held, not run)" in h4[1]
+        and any(ln.startswith("? ") and "test_neverproven.py" in ln and "held — not run" in ln
+                for ln in h4[1].splitlines())
+        and e4.get("result") == "not proven" and "held — not run" in str(e4.get("not_proven"))
+        and r4.get("result") == "not proven" and p4 is False and "held — not run" in why4
+        and "held — not run" in hl[1] and hid[0] == 3 and "held — not run" in hid[1]
+        and hother[0] == 3 and "held — not run" not in hother[1],
+        f"exit {h4[0]}, runs {runs_of('neverproven')}, entry {str(e4)[:300]}, stamp {why4[-300:]}: {h4[1][-900:]} || "
+        f"list: {hl[1][-300:]} || id: {hid[1][-300:]} || other PC: {hother[1][-300:]}")
+
+    rel_code, rel_out = quiet_main(["--release-held", rel_never], slots=ts.Slots(count=2, folder=held_slots))
+    after_release = held_entry()
+    again = held_run(folder=0)
+    nope_code, nope_out = quiet_main(["--release-held", "test/ui/test_not_held.py"],
+                                     slots=ts.Slots(count=2, folder=held_slots))
+    row("RUN-100", "py tools/run_tests.py --release-held <file> — Ron's 'try again': the hold AND its streak cleared, said, "
+        "nothing run (exit 0); the next run runs it again (not proven 1 — not held); a file that isn't held: said, with "
+        "what is held, exit 1",
+        rel_code == 0 and "released" in rel_out and rel_never in rel_out and not after_release.get("held")
+        and not after_release.get("streak") and again[0] == 3 and runs_of("neverproven") == 12
+        and "held — not run" not in again[1] and held_said not in again[1]
+        and len(held_entry().get("streak") or []) == 1
+        and nope_code == 1 and "isn't held" in nope_out,
+        f"release: exit {rel_code}: {rel_out[-300:]} | after {after_release} | again: exit {again[0]}, runs "
+        f"{runs_of('neverproven')}: {again[1][-400:]} | nope: exit {nope_code}: {nope_out[-300:]}")
+
+    # 'alone: yes — why' — Ron's "run it alone every time": the file runs only while it holds EVERY test slot on the PC,
+    # after the others. And a hold taken while it ran beside others is lifted once its header says so.
+    alone_probe = os.path.join(d, "alone-probe.txt")
+    alone_slots = os.path.join(d, "slots-alone")
+    alone_times = os.path.join(d, "alone-times.txt")
+    alone_file = harness_file("test_alonefile.py", f"""sys.path.insert(0, {tools_dir!r})
+import test_slots
+probe = test_slots.Slots(count=2, folder={alone_slots!r}).try_acquire("probe")    # None: every slot is held
+if probe:
+    probe.release()
+open({alone_probe!r}, "w").write("free-slot" if probe else "all-held")
+open({alone_times!r} + ".alone", "w").write(str(time.time()))
+test("ALON-001", "a sample test", lambda: None)
+done()
+""", extra="# alone: yes — a sample that must run alone\n")
+    partner = harness_file("test_alonepartner.py", f"""time.sleep(1.0)
+open({alone_times!r} + ".partner", "w").write(str(time.time()))
+test("ALON-002", "a sample test beside it", lambda: None)
+done()
+""")
+    hdr = {v: rt.read_header(write(f"alone_{i}.test.js", f"// tags: x, tier 1\n// covers: y.js\n// alone: {v}\n"))
+           for i, v in enumerate(("yes — it can't share the PC", "no", "yes", "maybe"))}
+    al_code, al_out = quiet_main(["--tier", "2", "--jobs", "2"], files=[rt.TestFile(alone_file), rt.TestFile(partner)],
+                                 slots=ts.Slots(count=2, folder=alone_slots), results=os.path.join(d, "alone-results"),
+                                 retry_wait=0.1)
+    al_list = quiet_main(["--tier", "2", "--list"], files=[rt.TestFile(alone_file)],
+                         slots=ts.Slots(count=2, folder=alone_slots))[1]
+    t_alone = float(open(alone_times + ".alone").read()) if os.path.exists(alone_times + ".alone") else 0
+    t_partner = float(open(alone_times + ".partner").read()) if os.path.exists(alone_times + ".partner") else 1e12
+    probed = open(alone_probe).read() if os.path.exists(alone_probe) else None    # (the lift run below writes it again)
+    # A hold taken while it ran beside others (planted): its header now says alone: yes → lifted, said, and it runs.
+    lift_slots = os.path.join(d, "slots-lift")
+    os.makedirs(lift_slots, exist_ok=True)
+    rel_alone = os.path.relpath(alone_file, ROOT).replace("\\", "/")
+    with open(os.path.join(lift_slots, getattr(getattr(rt, "held_tests", None), "FILE_NAME", "held-tests.json")), "w",
+              encoding="utf-8") as fh:
+        fh.write(__import__("json").dumps({"version": 1, "files": {rel_alone: {
+            "streak": [], "held": {"since": "2026-11-18T10:00:00+00:00", "alone": False, "runs": []}}}}))
+    lift_code, lift_out = quiet_main(["--tier", "2"], files=[rt.TestFile(alone_file)],
+                                     slots=ts.Slots(count=2, folder=lift_slots), results=os.path.join(d, "lift-results"),
+                                     retry_wait=0.1)
+    row("RUN-101", "'alone: yes — why' in a file's header (Ron's 'run it alone every time'): read ('yes' needs its why; "
+        "anything else but 'no' is a header problem); --list marks it; the file runs only while it holds EVERY test slot "
+        "on the PC, after the others; a hold taken while it ran beside others is lifted once its header says so — said, "
+        "and it runs",
+        hdr["yes — it can't share the PC"].get("alone") is True and not hdr["yes — it can't share the PC"]["problem"]
+        and hdr["no"].get("alone") is False and not hdr["no"]["problem"]
+        and hdr["yes"]["problem"] and hdr["maybe"]["problem"]
+        and "· alone (" in al_list and al_code == 0 and "Tests: 2 file(s) passed, 0 failed" in al_out
+        and probed == "all-held" and t_alone > t_partner
+        and lift_code == 0 and "the hold is lifted" in lift_out and "held — not run" not in lift_out,
+        f"headers {hdr} | exit {al_code}: {al_out[-600:]} | list {al_list[-300:]} | probe {probed} | times {t_alone} "
+        f"{t_partner} | lift: "
+        f"exit {lift_code}: {lift_out[-900:]}")
+
+    # Every run leaves a record (Ron, 2026-11-18: "Absolutely record them. Why would you not???") — a narrowed one (the
+    # commit hook's --changed, --id, --tag, RW_CELLS) on the QUICK shelf, rw-test-results/quick/: its own keep-limit, so
+    # it never pushes out the full runs, and never read for the stamp, the longest-first estimates or the held streak.
+    qdir = os.path.join(d, "quick-results")
+    saved_changed, saved_kq = rt.changed_files, getattr(rt, "KEEP_QUICK", None)
+    rt.changed_files = lambda: ["bookMerge.js"]
+    rt.KEEP_QUICK = 2
+    qruns = []
+    try:
+        qruns.append(quiet_main(["--tier", "1"], files=[rt.TestFile(js_ok)], results=qdir))           # a full run
+        for argv in (["--changed"], ["--id", "SAMPLE-001"], ["--changed"]):
+            time.sleep(1.05)            # a record is named by the second its run started
+            qruns.append(quiet_main(argv, files=[rt.TestFile(js_ok)], results=qdir))
+    finally:
+        rt.changed_files = saved_changed
+        if saved_kq is None:
+            del rt.KEEP_QUICK
+        else:
+            rt.KEEP_QUICK = saved_kq
+    shelf = os.path.join(qdir, getattr(rt, "QUICK_SHELF", "quick"))
+    main_recs, quick_recs = records_in(qdir), records_in(shelf)
+    qr = quick_recs if isinstance(quick_recs, list) else []
+    narrowed_q = [rt.narrowed_by(r) for r in qr]
+    p_changed, _ = judged([dict(rec(commit=A), ran={"tier": "1", "tags": [], "ids": [], "changed": True})])
+    # A made-up record on the quick shelf that WOULD prove the commit if it were read (tiers 1 and 2, all passed, not
+    # narrowed): the stamp must not see it.
+    fake = os.path.join(d, "quick-stamp")
+    os.makedirs(os.path.join(fake, getattr(rt, "QUICK_SHELF", "quick")))
+    with open(os.path.join(fake, getattr(rt, "QUICK_SHELF", "quick"), "would-prove.json"), "w", encoding="utf-8") as fh:
+        fh.write(__import__("json").dumps(rec(commit=head)))
+    st_code, st_out = quiet_main(["--stamp"], results=fake)
+    row("RUN-102", "a --changed run (the commit hook) and an --id run leave their records on the quick shelf "
+        "(rw-test-results/quick/) with its own keep-limit (made 2 here: the newest 2 of 3 kept) — the full run's record "
+        "is never pushed out; the full-run logic never reads the shelf (read_records — the stamp, the longest-first "
+        "estimates: a record there that would prove the commit doesn't); a --changed record is narrowed ('--changed') "
+        "wherever it's read",
+        all(c == 0 for c, _ in qruns) and isinstance(main_recs, list) and len(main_recs) == 1
+        and rt.narrowed_by(main_recs[0]) == [] and len(qr) == 2
+        and [(r.get("ran") or {}).get("changed") for r in qr] == [False, True]
+        and narrowed_q == [["--id SAMPLE-001"], ["--changed"]] and p_changed is False
+        and st_code == 1 and "NOT PROVEN" in st_out and rt.read_records(fake) == [],
+        f"exits {[c for c, _ in qruns]}, main {str(main_recs)[:200]}, quick {str(quick_recs)[:400]}, narrowed "
+        f"{narrowed_q}, a --changed record proves: {p_changed}, stamp: exit {st_code}: {st_out[-300:]}")
+
+    # No test process ever sees git's own variables (2026-11-18: a test run under the commit hook, with GIT_DIR / GIT_INDEX_
+    # FILE… pointing at the REAL repository, set core.bare = true in the shared .git/config — every working copy then
+    # failed "must be run in a work tree" for 13 minutes). RUN-044 left it to each test file; the runner is the chokepoint
+    # now: every process it starts for a test file — the file itself and its --list-cells — gets an environment without
+    # any GIT_* variable. Here the runner runs under a GIT_DIR that points at a throwaway repository.
+    gitvars_seen = os.path.join(d, "gitvars-seen")
+    gitvars = write("test_gitvars.py", f"""# sample
+# tags: git-vars, tier 1
+# covers: tools/run_tests.py
+# shards: 2
+import os, sys
+seen = sorted(k for k in os.environ if k.startswith("GIT_"))
+open({gitvars_seen!r} + (".list" if "--list-cells" in sys.argv else ".%d" % os.getpid()), "w").write(",".join(seen))
+if "--list-cells" in sys.argv:
+    print("GITV-001" + chr(10) + "GITV-002")
+    sys.exit(0)
+print(("  ✓ " if not seen else "  ✗ ") + "GITV-001 no git variables: " + ",".join(seen))
+print(f"{{0 if seen else 1}} passed, {{1 if seen else 0}} failed")
+sys.exit(1 if seen else 0)
+""")
+    throwaway = os.path.join(d, "throwaway-repo")
+    os.makedirs(throwaway)
+    subprocess.run(["git", "init", "-q", throwaway], capture_output=True)
+    planted = {"GIT_DIR": os.path.join(throwaway, ".git"), "GIT_WORK_TREE": throwaway,
+               "GIT_INDEX_FILE": os.path.join(throwaway, ".git", "index")}
+    before = {k: os.environ.get(k) for k in planted}
+    os.environ.update(planted)
+    try:
+        gv_code, gv_out = quiet_main(["--tier", "1"], files=[rt.TestFile(gitvars)])
+    finally:
+        for k, v in before.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    seen_by = {os.path.basename(p): open(p).read() for p in glob.glob(gitvars_seen + ".*")}
+    row("RUN-103", "no test process sees git's own variables: run under a GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE "
+        "pointing at a throwaway repository, a test file's shards and its --list-cells see no GIT_* variable at all "
+        "(the runner is the chokepoint — a test can't reach the real repository through the commit hook's variables)",
+        gv_code == 0 and len(seen_by) == 3 and all(v == "" for v in seen_by.values()),
+        f"exit {gv_code}, seen {seen_by}: {gv_out[-400:]}")
 
     # Free memory: recorded with every screen-test run, as evidence — no longer a fixed threshold (2026-11-17: the level
     # the runner finds for itself replaced "under 4 GB free → 2 browsers"). The free memory injectable; the real reading

@@ -96,7 +96,8 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   (`<git-path rw-test-results>\<record name>\<file>.txt`); its failure lines end with `full output: <path>`, the end of
   the run lists each again, and the record holds the path (`output`) and the screenshots the output named
   (`screenshots`). A failed file on the stamp's NOT PROVEN line names it too. Old outputs go with their old records (the
-  newest 300 kept). A run without a record (the commit hook's `--changed`) keeps none. Tests: `RUN-072`, `073`.
+  newest 300 kept). Every run leaves a record since 2026-11-18 — a narrowed one on the quick shelf, its kept outputs beside it
+  there (below). Tests: `RUN-072`, `073`.
 - **The machine's or the browser's trouble (ENVIRONMENT) is told from a TEST failure — by the screen-test driver, where
   it's known** (2026-11-17; Ron: "Detect that is what it is, back off and slow down and repeat"). `test/ui/rw.py` raises
   `harness.EnvironmentTrouble` — or notes it with `harness.environment()` — when: our web server (serve.py) or our local
@@ -172,8 +173,12 @@ merged result, and the target moves only when its stamp is PROVEN — two change
 
   and the file's own line ends `; rerun alone after <reason>`. The record notes it (`retried`: the reason, both outputs,
   how the rerun went). **Passed on its rerun, it counts as passed** — and the stamp says so under its tier, on a `·` line
-  (`· test/ui/test_x.py was rerun alone after … — passed — its first output: <path>`), still PROVEN. **Failed again, it's
-  a failure**, both outputs kept. **A test failure is never rerun.** More than 4 files meeting the trouble in one run
+  (`· test/ui/test_x.py was rerun alone after … — passed — its first output: <path>`), still PROVEN. **Its rerun meeting
+  the machine's trouble AGAIN is NOT PROVEN — never a failure** (2026-11-18, TODO tooling 13.13 — Ron: "I think not
+  proven"; it was a failure until then): `? test/ui/test_x.py  not proven — the machine was too busy (it met its trouble
+  again on its rerun alone — one rerun a run) — <why>`, both outputs kept, the rerun's note `not proven — the machine's
+  trouble again: <why>`. **One run never retries more than once**; across runs, a file that keeps being not proven is held
+  (below). Any other failure of the rerun is a failure. **A test failure is never rerun.** More than 4 files meeting the trouble in one run
   aren't rerun (`MAX_RETRIES`: that many points at something broken) — **and each one past the 4 is NOT PROVEN, never a
   failure** (2026-11-18 lab, 12 of 16 CPUs kept busy by other programs: the fifth file past its limit,
   test_backlog_report.py, was reported `✗ … timed out after 281.747 s` — a slow-but-healthy test called broken). Its
@@ -193,18 +198,45 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   doesn't land on it (and says `tier 1 not proven — the machine was too busy`, never "failed"); the commit hook's
   `--changed` refuses the commit (any exit but 0); the browsers-at-once level backs off for the trouble and learns
   nothing from the run. A sharded file is failed if a shard failed, else not proven if a shard was. Tests: `RUN-095`–`097`,
-  `COST-023`, `MERGE-005`. **The same file rerun alone 2 runs in a row is said loudly**
-  (2026-11-18, TODO tooling 11.7; Ron: "it may truly need to run alone") — counted from this working copy's records
-  (`rerun_streak`): only **whole** runs of the file count — a run that didn't run it, or ran only some of its cells
-  (`--id` on a sharded file, `RW_CELLS`), is passed over; a whole run of it without a rerun ends the streak. At the end of
-  the run, after the `retried` lines:
+  `COST-023`, `MERGE-005`.
+- **A file that can't be proven is HELD** (2026-11-18, TODO tooling 13.13 — Ron: "we don't want to go into an infinite
+  try loop if a file is never going to run under current resources and loading … Give up after say 3 failures of same file
+  and report it and await instruction from me"; the proposal approved the same day; `tools/held_tests.py`). Counted **per
+  PC**, in the slots folder (`%TEMP%\rw-test-slots\held-tests.json`, or `RW_TEST_SLOTS_DIR`'s) — so the runs of every
+  working copy and of every merge on this PC add up (it read one folder's records until then, TODO tooling 13.10) — over
+  **full runs only**: a run narrowed by `--changed`, `--id`, `--tag` or `RW_CELLS` is passed over. For each file, the full
+  runs in a row in which it met the machine's or the browser's trouble — `rerun alone` (passed on its rerun) or `not
+  proven`; a full run that passed it the first time, or failed it (a test failure — a definite answer), ends its streak.
+  - **2 in a row → said loudly** (TODO tooling 11.7; Ron: "it may truly need to run alone"), at the end of the run:
 
-      ! test/ui/test_x.py was rerun alone after the machine's or the browser's trouble 2 runs in a row — it may truly
-      need to run alone (TESTING.md §7); its kept outputs, newest first:
-          2026-11-18 11:00 — the page never loaded — rerun alone: passed — first output: <path> — the rerun's: <path>
-          2026-11-18 10:59 — the page never loaded — rerun alone: passed — first output: <path> — the rerun's: <path>
+        ! test/ui/test_x.py met the machine's or the browser's trouble 2 full runs in a row on this PC — it may truly need
+        to run alone (TESTING.md §7); not proven 3 runs in a row would hold it; its runs, newest first:
+            2026-11-18 11:00 in s9-runner — the page never loaded — rerun alone: passed — first output: <path> — the rerun's: <path>
+            2026-11-18 10:59 in ReaderWrangler — the page never loaded — rerun alone: passed — first output: <path> — …
 
-  Said only — what runs is never changed by it. Tests: `RUN-074`–`078`, `092`.
+  - **3 in a row NOT PROVEN → held** (a rerun alone that passed proved the file: it never counts toward a hold —
+    `HOLD_ON`), said loudly with Ron's ways out and the 3 runs:
+
+        ! test/ui/test_x.py couldn't be proven in 3 runs in a row on this PC — held for Ron's decision: later runs won't
+        run it (each says 'held — not run', so none can be proven and nothing merges past it). Ron's ways out: py
+        tools/run_tests.py --release-held test/ui/test_x.py  (try again — the hold and its streak cleared) · an 'alone:
+        yes — <why>' line in its header (…; that lifts the hold too) · a 'skip: <TODO id> — <why>' line (set aside). Its
+        runs, newest first: …
+
+  - **Later runs don't run a held file** — every run, narrowed ones and the commit hook's too: `? test/ui/test_x.py  held —
+    not run: it couldn't be proven in 3 runs in a row on this PC (held since …) — held for Ron's decision`, counted as not
+    proven (`Tests: 25 file(s) passed, 0 failed, 1 not proven (the machine's trouble — 1 held, not run)`, exit 3), a loud
+    `! held — not run: …` line with the ways out at the end, and in the record `result: "not proven"` with the hold — so
+    the stamp is NOT PROVEN and the merge script lands nothing past it. That block IS the "await instruction"; in a
+    sprint it goes to the review queue and its task parks. (A held file covering staged files also refuses the commit,
+    as any not-proven file does.) `--list` shows it held.
+  - **Ron's ways out:** `py tools/run_tests.py --release-held <file>` — try again: the hold and its streak cleared, runs
+    nothing (a file that isn't held: said, with what is, exit 1); **`alone: yes — <why>`** in its header — run it alone
+    every time: the file runs only while it holds EVERY test slot on the PC, after the others (its machine trouble then
+    handled as anywhere: rerun once, alone; again → not proven); the why is required (`alone: no` or no line = beside the
+    others; anything else is a header problem); a hold taken while it ran beside others is lifted by it, said (`the hold
+    is lifted and its streak starts over`); or **`skip: <TODO id> — <why>`** (set aside, below).
+  Tests: `RUN-074`–`078`, `092`, `098`–`101`.
 - **How many browsers at once — the runner finds it itself** (2026-11-17; Ron: "similar to how TCP works" — use more
   until failures, back off, occasionally try more; measure diminishing returns; conditions change). It replaced, the
   same day, a fixed rule (under 4 GB free → 2 browsers, under 2 GB → 1). `tools/browser_level.py`:
@@ -295,8 +327,9 @@ merged result, and the target moves only when its stamp is PROVEN — two change
     (test_app_loads, test_reset, test_delete_key): 41–51 processes, 0.66–0.82 GB committed, 0.39–0.59 GB RAM private
     (0.83–1.09 GB with shared pages counted in each), 10–20 s of CPU, 27–40 MB read, 8–19 MB written.
     **Not on Windows, or anything about measuring fails: every measure is `None`, the test runs exactly as before, and
-    the run says why once** (`· measures missing for …`). Only a run that leaves a record measures (not the commit
-    hook's `--changed`).
+    the run says why once** (`· measures missing for …`). Only a run that leaves a record measures — every run of the
+    repository's files since 2026-11-18, the commit hook's `--changed` included (on the quick shelf; a narrowed run's
+    measures stay in its record and teach nothing).
   - **Where the averages live** — per PC, beside the browsers-at-once level: `%TEMP%\rw-test-slots\test-costs.json`
     (or `RW_TEST_SLOTS_DIR`'s folder). For each unit and each measure (time included), **a running average and
     spread — TCP's own method for round-trip times (RFC 6298)**: the spread moves ¼ of the way to |sample − the old
@@ -429,20 +462,37 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   `tools/starter.py` since 2026-11-18, below) — and checks the port
   is served by ITS server (by process id), trying another if a parallel file's server took it in between — its own
   throwaway browser profile, its own local relay (free ports, a throwaway store) when it uses one, and files only in
-  folders of its own (`tempfile.mkdtemp`); screenshot names are distinct per file.
+  folders of its own (`tempfile.mkdtemp`); screenshot names are distinct per file. **No test process sees git's own
+  variables** (2026-11-18): every process the runner starts for a test file — the file and its `--list-cells` — gets the
+  runner's environment WITHOUT any `GIT_*` variable (`test_env` in the runner). Under the commit hook git sets
+  `GIT_DIR`, `GIT_INDEX_FILE`… to the REAL repository; that day a test run there set `core.bare = true` in the shared
+  `.git/config`, and every working copy failed "must be run in a work tree" for 13 minutes. RUN-044 had left it to each
+  test file; the runner is the chokepoint now. Test: `RUN-103`.
 - **Working copies** (`tools/copies.py`, 2026-11-16): a git worktree beside the main folder, with `.venv` and the
   `node_modules` folders linked in from the main folder — every tier runs there as here, with the copy's own `dist/`, its
   own run records (so its own stamp), and its own screenshots folder: `%TEMP%\rw-test-artifacts-<copy name>` (or
   `RW_TEST_ARTIFACTS-<copy name>`), so two copies running the same file don't overwrite each other's. The machine-wide
   test slots are shared by every copy. Details: docs/design/SESSION-TOOLING.md.
-- **Results stamped with their commit** (2026-11-16): every run except the commit hook's `--changed` (and `--list`)
-  leaves a record — the commit it ran on (and again at the end: a commit made during the run is caught), what was
+- **Results stamped with their commit** (2026-11-16): every run except `--list` leaves a record (the commit hook's
+  `--changed` too, since 2026-11-18 — below) — the commit it ran on (and again at the end: a commit made during the run is caught), what was
   uncommitted before and after (changed tracked files, and untracked files git doesn't ignore), what ran (tier, `--id`,
   `--tag`, `--release`, jobs), **the environment variables that change a run, each with its value** (`RUN_ENV` in the
   runner — found by searching the tests, their helpers and the runner for `os.environ` / `process.env`; a new one is
   added there), each file's result, counts and time, start and end, the overall result. Kept OUTSIDE the
   working tree, per working copy: `git rev-parse --git-path rw-test-results` (`.git/rw-test-results` here; a git
   worktree gets its own, under `.git/worktrees/<name>/`). The newest 300 are kept.
+  **Every run is recorded — a narrowed one on the quick shelf** (2026-11-18; Ron: "Absolutely record them. Why would you
+  not???" — the commit hook's `--changed` runs left none, so an agent's own test time landed in "everything else" in a
+  copy's time report, TODO tooling 13.1): a run narrowed by `--changed`, `--id`, `--tag` or a narrowing variable writes its
+  record (and its failed files' outputs) in **`rw-test-results\quick\`** (`QUICK_SHELF`), which keeps its own newest 300
+  (`KEEP_QUICK`) — so quick runs never push the full runs' records out. **The full-run logic never reads it**:
+  `read_records` reads only its folder's own `.json` files — the stamp and the longest-first estimates (`latest_times`)
+  see the full runs alone, and the held streak isn't read from records at all (per PC, full runs only — above). A
+  `--changed` record also says `ran.changed: true`, and `narrowed_by` names it (`--changed`), so it could never count as a
+  full run wherever it's read. A narrowed run's NOT PROVEN line on the stamp ("its latest tier 2 run … was narrowed by
+  --id …") is gone with it: the stamp now says only `no full tier 2 run recorded on this commit`. It costs the commit hook
+  about 0.3 s (the commit and git status, before and after). `tools/copies.py` counts the shelf in a copy's time report,
+  labelled `quick` (COPY-010). Tests: `RUN-042`, `059`, `060`, `102`, `COST-010`.
   `py tools/run_tests.py --stamp [<commit>]` (default HEAD) runs nothing; it prints **PROVEN** (exit 0) only if tier 1
   AND tier 2 each ran in full on exactly that commit (`--tier 1` and `--tier 2`, or `--tier all`; a run narrowed by
   `--id` / `--tag` doesn't count, nor one with a file of that tier set aside — below), every file passed (a file NOT
@@ -643,9 +693,12 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   alone, after a wait, said loudly in the summary and
   noted in the record and on the stamp (`1 file retried after <reason> — its first output: <path>`). That rerun is the
   machine's hiccup being waited out, not "just re-run it": a TEST failure is never rerun — it is read, and fixed or set
-  aside the same day. A file rerun after the trouble that keeps coming back is a flaky environment to look into — the
-  first outputs say what happened — or a file that truly needs to run alone: **2 runs in a row and the run says so,
-  loudly**, with each run's kept outputs (§4). The run also slows down by itself: that trouble halves the browsers at once, at once,
+  aside the same day. **Its rerun meeting the trouble again is NOT PROVEN, not a failure** — one run never retries more
+  than once (2026-11-18). A file rerun after the trouble that keeps coming back is a flaky environment to look into — the
+  first outputs say what happened — or a file that truly needs to run alone: **2 full runs in a row on this PC and the
+  run says so, loudly**, with each run's kept outputs; **not proven 3 full runs in a row on this PC and it is HELD** —
+  later runs don't run it ("held — not run", not proven) until Ron decides: `--release-held` (try again), `alone: yes —
+  <why>` (run it alone every time) or `skip:` (§4). The run also slows down by itself: that trouble halves the browsers at once, at once,
   and the next runs start from the halved level, climbing back one at a time only after full runs without it (§4).
 - **"Ran past its usual time" is the machine's trouble, not a failure** (2026-11-18, TODO tooling item 12 step 4; §4):
   a unit that runs past its stuck limit — from its average on this PC: average + 4 spreads, at least 4 times the average
@@ -662,7 +715,10 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   the summary (`…, 0 failed, 2 not proven (the machine's trouble)`), its whole output kept; the run exits 3 (1 if a test
   also failed). Read it as the PC, not the test: look at what else the PC was doing (the loud `! N files met …` line
   says that many points at something broken), then run again when it's quieter — a not-proven file is never fixed as
-  a failing test, and never counted as passed: the stamp stays NOT PROVEN and the merge script won't land on it.
+  a failing test, and never counted as passed: the stamp stays NOT PROVEN and the merge script won't land on it. The
+  same holds for a file whose rerun alone met the trouble again (`… (it met its trouble again on its rerun alone — one
+  rerun a run) …`) — and for a HELD file (`held — not run`): not proven 3 full runs in a row on this PC, it waits for
+  Ron's decision (§4).
 - **A failed run is no measure of speed** (2026-11-17, §4): the browsers-at-once level learns only from runs where every
   file passed — a run with a failure is kept in its history, marked, but neither grows the level nor sets a time to
   beat, so a failure can't be mistaken for "faster" or "slower". A clean run more than twice as slow as usual at its

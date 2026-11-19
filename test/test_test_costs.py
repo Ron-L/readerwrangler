@@ -320,7 +320,8 @@ with tempfile.TemporaryDirectory() as d:
                                      slots=test_slots.Slots(count=2, folder=slots_dir))
         finally:
             del os.environ["RW_CELLS"]
-        rec = (records_in(os.path.join(d, "rec10")) or [{}])[0]
+        # (a narrowed run's record is on the quick shelf since 2026-11-18 — tools/run_tests.py QUICK_SHELF)
+        rec = (records_in(os.path.join(d, "rec10", "quick")) or [{}])[0]
         after = units_in(costs)
         return after == before and code == 0 and "--id" in json.dumps(rec.get("costs")), \
             (code, code2, rec.get("costs"), out[-400:])
@@ -338,7 +339,7 @@ with tempfile.TemporaryDirectory() as d:
         rdir = os.path.join(d, "rec24")
         code, out = quiet_main(["--id", "SAMP-024"], files=[Inside(ui_py)], results=rdir, costs=costs,
                                slots=test_slots.Slots(count=2, folder=slots_dir))
-        rec = (records_in(rdir) or [{}])[0]
+        rec = (records_in(os.path.join(rdir, "quick")) or [{}])[0]     # (narrowed: on the quick shelf)
         after = units_in(costs)
         return after == before and code == 0 and "--id" in json.dumps(rec.get("costs")), \
             (code, sorted(set(after) - set(before)), rec.get("costs"), out[-400:])

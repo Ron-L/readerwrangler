@@ -8,7 +8,7 @@ folder. One agent builds in one copy while Claude reviews and tests in another, 
     py tools/copies.py new <name> [--branch <b>] [--from <ref>]
         make  ..\\ReaderWrangler-copies\\<name>  on branch <b> (default: <name>; made from <ref>, default HEAD, when it
         doesn't exist yet), link in what git doesn't hold, check out the submodule, then run tier 1 there — it's READY
-        only if tier 1 passes
+        only if tier 1 passes (NOT READY says "not proven — the machine was too busy" when no test failed: exit 3)
     py tools/copies.py remove <name> [--force]
         refuse if the copy has anything uncommitted, or its branch has commits that exist nowhere else (no other branch,
         tag or remote) — --force removes it anyway; the BRANCH IS ALWAYS KEPT. Removes the links FIRST, then the copy —
@@ -26,6 +26,10 @@ into the main folder's records, in their own archive folder (rw-test-results/cop
 runner never reads nor prunes), with time.json and time.txt: made → removed, its test runs (how many, their minutes —
 overlapping runs counted once — full or narrow, passed or failed, reruns alone), its commits, and everything else. If
 they can't be kept, nothing is removed (even with --force). The copy's own folder of them goes when git removes the copy.
+The narrowed runs — the commit hook's --changed, --id, --tag, RW_CELLS — keep their records on the quick shelf
+(rw-test-results/quick/, run_tests.py QUICK_SHELF, 2026-11-18): archived with the rest, counted, and labelled "quick".
+The archive is kept bounded (2026-11-18): after each removal, the newest ARCHIVE_KEEP (100) copies' folders are kept, and
+every one removed less than ARCHIVE_MIN_DAYS (30) days ago; the older rest is deleted, said (trim_archive).
 
 What a copy needs that git doesn't hold (proven 2026-11-16 — a copy without them fails tier 1: the build tests, the
 parse and saved-reads checks, the screen-test runner tests — and tier 2 can't start at all):
@@ -57,6 +61,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LINKS = (".venv", "node_modules", "tools/build/node_modules", "relay/node_modules")
 RESULTS = "rw-test-results"      # run_tests.py RESULTS_NAME: a folder's records, in its own git folder
 ARCHIVE = "copies"               # run_tests.py COPIES_ARCHIVE: removed copies' records, inside the main folder's (COPY-007)
+QUICK = "quick"                  # run_tests.py QUICK_SHELF: the narrowed runs' records (--changed, --id…) — COPY-010
+# The archive is kept bounded (TODO tooling 13.5, 2026-11-18): at each removal, the newest ARCHIVE_KEEP copies' folders
+# are kept — and every one removed less than ARCHIVE_MIN_DAYS ago, however many; the older rest is deleted (trim_archive).
+ARCHIVE_KEEP = 100
+ARCHIVE_MIN_DAYS = 30
+EXIT_NOT_PROVEN = 3              # run_tests.py's exit when no test failed but a file is NOT PROVEN (the machine too busy)
 NOTE = "rw-copy.json"            # when `new` made the copy — in the copy's own git folder, gone with it
 NARROWING_ENV = ("RW_CELLS",)    # run_tests.py RUN_ENV's narrowing variables — COPY-007 checks they're the same
 EVERYTHING_ELSE = "building, reading, thinking, waiting — the records can't tell these apart"
@@ -294,6 +304,11 @@ def cmd_new(a, repo):
                           env=_env()).returncode
     # Runs that began before this are the copy's making, not its work (where its time went, at removal).
     _write_json(note_path, {**note, "ready": _now().isoformat(timespec="seconds"), "ready_passed": code == 0})
+    if code == EXIT_NOT_PROVEN:     # no test failed — the machine was too busy to prove it (TODO tooling 13.12)
+        print(f"NOT READY — tier 1 not proven in {dest} — the machine was too busy (no test failed; above). Run it again "
+              f"there when the PC is quieter (py tools/run_tests.py --tier 1), or  py tools/copies.py remove {a.name} "
+              "--force  removes it (the branch stays).")
+        return 1
     if code:
         print(f"NOT READY — tier 1 failed in {dest} (above). It's left as it is for a look; "
               f"py tools/copies.py remove {a.name} --force  removes it (the branch stays).")
@@ -305,9 +320,10 @@ def cmd_new(a, repo):
 # --- where a copy's time went (TODO tooling item 11.6, 2026-11-18) ------------------------------------------------------
 def narrowed(rec):
     """What narrowed a run to part of its tier, in words ([] = a full run) — as run_tests.py narrowed_by judges what was
-    ASKED: --tag, --id, a narrowing variable. (A record never shows --changed: such a run writes none.)"""
+    ASKED: --changed (the commit hook), --tag, --id, a narrowing variable."""
     ran = rec.get("ran") or {}
-    return ([f"--tag {', '.join(ran['tags'])}"] if ran.get("tags") else []) \
+    return (["--changed"] if ran.get("changed") else []) \
+        + ([f"--tag {', '.join(ran['tags'])}"] if ran.get("tags") else []) \
         + ([f"--id {', '.join(ran['ids'])}"] if ran.get("ids") else []) \
         + [f"{k}={v}" for k, v in (rec.get("env") or {}).items() if k in NARROWING_ENV and v]
 
@@ -359,6 +375,7 @@ def where_time_went(name, branch, note, made, estimated, records, commits, remov
         runs.append({"id": r.get("id"), "started": r.get("started"), "ended": r.get("ended"),
                      "seconds": round((e - s).total_seconds()) if s and e else None,
                      "tier": str((r.get("ran") or {}).get("tier") or "?"), "full": not why, "narrowed_by": why,
+                     "quick": bool(r.get("_quick")),
                      "result": r.get("result") or "unknown",
                      "reruns_alone": sum(len(f.get("retried") or []) for f in r.get("files") or []),
                      "readiness": bool(ready and s and s < ready and not why)})
@@ -370,7 +387,7 @@ def where_time_went(name, branch, note, made, estimated, records, commits, remov
             "everything_else_seconds": None if wall is None else round(max(0.0, wall - tests)),
             "everything_else_is": EVERYTHING_ELSE,
             "counts": {"runs": len(runs), "full": sum(r["full"] for r in runs),
-                       "narrow": sum(not r["full"] for r in runs),
+                       "narrow": sum(not r["full"] for r in runs), "quick": sum(r["quick"] for r in runs),
                        "passed": sum(r["result"] == "passed" for r in runs),
                        "failed": sum(r["result"] != "passed" for r in runs),
                        "reruns_alone": sum(r["reruns_alone"] for r in runs),
@@ -400,12 +417,16 @@ def time_text(s, kept):
              f"  test runs: {n['runs']} — {minutes(tests)} ({share(tests, wall)} of it; runs that overlapped counted once)",
              f"      {n['full']} full" + (f" ({n['readiness']} of them the tier 1 that `new` ran to make it ready)"
                                          if n["readiness"] else "")
-             + f", {n['narrow']} narrow · {n['passed']} passed, {n['failed']} failed"
+             + f", {n['narrow']} narrow"
+             + (f" ({n.get('quick', 0)} quick — on the quick shelf: the commit hook's --changed and other narrowed runs)"
+                if n.get("quick") else "")
+             + f" · {n['passed']} passed, {n['failed']} failed"
              + f" · {n['reruns_alone']} file(s) rerun alone after the machine's or the browser's trouble"]
     for r in s["runs"]:
         lines.append(f"      {str(r['started'] or '?')[11:19]}  {minutes(r['seconds']):>9}  tier {r['tier']:<3}  "
                      f"{r['result']:<7} " + ("full" + (" (making it ready)" if r["readiness"] else "")
-                                             if r["full"] else "narrow: " + "; ".join(r["narrowed_by"]))
+                                             if r["full"] else ("quick: " if r.get("quick") else "narrow: ")
+                                             + "; ".join(r["narrowed_by"]))
                      + (f" · {r['reruns_alone']} rerun alone" if r["reruns_alone"] else ""))
     lines.append(f"  everything else: {minutes(s['everything_else_seconds'])} ({share(s['everything_else_seconds'] or 0, wall)}"
                  f") — {s['everything_else_is']}")
@@ -443,6 +464,9 @@ def keep_records(main, dest, name, branch, head):
             raise OSError(f"not copied: {', '.join(missing[:5])}")
         records = [r for r in (_read_json(os.path.join(target, f)) for f in os.listdir(target) if f.endswith(".json"))
                    if r is not None]
+        shelf = os.path.join(target, QUICK)         # the narrowed runs' records (--changed, --id…): counted, labelled
+        records += [dict(r, _quick=True) for r in (_read_json(os.path.join(shelf, f)) for f in
+                    (os.listdir(shelf) if os.path.isdir(shelf) else []) if f.endswith(".json")) if r is not None]
         summary = where_time_went(name, branch, note, made, estimated, records,
                                   commits_since(main, head, note, made), removed)
         text = time_text(summary, target)
@@ -456,6 +480,37 @@ def keep_records(main, dest, name, branch, head):
                          f"{target}:\n  {e}\nThey're still in {src}. Fix that (or move them by hand), then run this "
                          "again.")
     return target, text
+
+
+def trim_archive(home, keep=None, min_days=None, now=None):
+    """Keep the archive bounded (TODO tooling 13.5 — it grew forever): the newest `keep` copies' folders (ARCHIVE_KEEP)
+    are kept, and EVERY one removed less than `min_days` (ARCHIVE_MIN_DAYS) ago, however many; the older rest is deleted.
+    A folder's age is its time.json's "removed" — else the folder's own time. Files there are left alone. Returns the
+    names deleted."""
+    keep = ARCHIVE_KEEP if keep is None else keep
+    min_days = ARCHIVE_MIN_DAYS if min_days is None else min_days
+    now = now or _now()
+    dated = []
+    for name in os.listdir(home) if os.path.isdir(home) else []:
+        folder = os.path.join(home, name)
+        if not os.path.isdir(folder) or is_link(folder):
+            continue
+        when = _when((_read_json(os.path.join(folder, "time.json")) or {}).get("removed"))
+        if when is None:
+            try:
+                when = datetime.datetime.fromtimestamp(os.stat(folder).st_mtime).astimezone()
+            except OSError:
+                continue            # can't be dated: kept
+        dated.append((when, name))
+    dated.sort(reverse=True)
+    gone = []
+    for when, name in dated[keep:]:
+        if (now - when).total_seconds() < min_days * 86400:
+            continue
+        shutil.rmtree(os.path.join(home, name), ignore_errors=True)
+        if not os.path.exists(os.path.join(home, name)):
+            gone.append(name)
+    return gone
 
 
 # --- remove -------------------------------------------------------------------------------------------------------------
@@ -523,6 +578,11 @@ def cmd_remove(a, repo):
         return 1
     print(f"REMOVED {dest} — {where} kept. The main folder's {', '.join(held)} still hold everything they held.")
     print(time_said)
+    gone = trim_archive(os.path.dirname(kept))
+    if gone:
+        print(f"· the archive trimmed: {len(gone)} older copies' records deleted ({', '.join(sorted(gone)[:5])}"
+              + (" …" if len(gone) > 5 else "") + f") — kept: the newest {ARCHIVE_KEEP}, and every one removed less "
+              f"than {ARCHIVE_MIN_DAYS} days ago")
     return 0
 
 
