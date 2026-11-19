@@ -187,6 +187,10 @@ behavior, marked "differs today" with the measured words) found 45 differences �
 listed: a Ctrl+Z after a move or copy took books out of a folder they were already in, and a copy pasted back then
 undone left a book in no folder (the first real causes of a months-old "books in no folder" mystery). Measure the whole
 matrix before building any of it; a cell that starts passing must lose its mark, and a release refuses any mark left.
+**A safety margin is a theory too** (sprint 8, 2026-11-18; Ron agreed): the agreed stuck limit had no floor; I added
+"never under twice the average" to be safe, merged it, and the load lab then showed healthy tests running 2–5× slower
+under other programs' CPU — the floor stopped five of them and counted one as failed. Prove the margin in the lab
+before merging it, like any other theory.
 **Enforcement**: `feedback_debugging` Rule 1b; two-rounds-of-theory stop rule; pre-build gate item 12; the browser
 driver (`test/ui/rw.py` — real input through Edge) and the regression library's routine (TESTING.md).
 
@@ -397,6 +401,8 @@ TODO "Turn more of our working rules into automatic checks", items 3–4.)
 **A header that describes something is a claim too** (7.28.1): GLOSSARY.md said "the User Guide's glossary is built from
 this list" — no page had a glossary. **And an agent's "done" is a claim:** in the autonomous trial every agent's diff
 was read and its tests re-run before anything entered `main-prime` — the reviews found what the agents missed.
+**"Logged" is a claim too** (sprint 8, 2026-11-18; Ron agreed): I told Ron two decisions were in DECISIONS.md fifteen
+minutes before I wrote them. Write the line, then say it.
 **Enforcement**: `feedback_mechanical_honesty` memory; the heredoc ban (three-for-three earned a ban, not a
 caution); receipts-and-honesty as a feature genre; the logging kit (`logkit/logger.js` — every message has a level, an
 area and a code; the commit check `tools/message_codes.py` on the kit's `logkit/check_messages.py`) and the driver's

@@ -547,12 +547,17 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       failed" — right to refuse, wrong words (the merge script already says "not proven").
    13. A file rerun alone that meets the machine's trouble AGAIN still counts as a failure (TESTING.md: "failed again,
       it's a failure") — by sprint 8's rule "the machine's trouble is never a test failure" it may better be "not
-      proven". Ron's call (it changes what a busy day's run reports).
+      proven". **Ron, 2026-11-18: "I think not proven. But we don't want to go into an infinite try loop if a file is
+      never going to run under current resources and loading … Give up after say 3 failures of same file and report
+      it and await instruction from me?"** — design being talked through (Claude's proposal in the chat, 2026-11-18).
    14. The commit check refuses a commit when its covering tests end "not proven" (a busy PC, no test failed) — right
       (not proof), but a busy PC can then block a commit; worth knowing, maybe saying so in the refusal.
    15. From the sprint 8 labs: when OTHER programs take the CPU, fewer browsers is slower (2 at once 1,687 s vs 3 at
-      once 924 s) — halving on trouble costs time there; and memory squeezed to 0.7 GB free broke nothing. Whether
-      that leads to a CPU budget or a gentler back-off is Ron's call (review queue Q-045).
+      once 924 s) — halving on trouble costs time there; and memory squeezed to 0.7 GB free broke nothing. **Ron,
+      2026-11-18 (Q-045): item 12 closes here; "File the CPU budgeting as a potential TODO if there are any
+      indications that the current back off based on failures is not sufficient."** — so: watch for that sign (runs
+      not proven, or backed off for long, on an ordinary working day); only then a CPU budget (each test's CPU seconds
+      are already measured) and/or a gentler back-off when other programs hold the CPU.
 
 #### One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->
