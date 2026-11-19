@@ -1,6 +1,6 @@
 # Tests for tools/run_tests.py — the one test runner (docs/design/TESTING.md §4).
 # tags: test-runner, tier 1
-# covers: tools/run_tests.py, tools/held_tests.py, tools/local_relay.py, tools/test_slots.py, tools/environment_trouble.py, tools/browser_level.py, test/harness.js, test/ui/rw.py, test/ui/harness.py
+# covers: tools/run_tests.py, tools/held_tests.py, tools/local_relay.py, tools/test_slots.py, tools/environment_trouble.py, tools/job.py, test/harness.js, test/ui/rw.py, test/ui/harness.py
 # heavy: yes — ~300 processes a run, up to 8 at once: sample runs in parallel, stand-in relays (counted 2026-11-17)
 # Run: python test/test_run_tests.py
 #
@@ -21,10 +21,9 @@ import tempfile
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Every run of the runner started here — main() called in this process, or any process started from it — uses slot files,
-# a saved browsers-at-once level and test costs of its OWN, never the PC's real ones (2026-11-18: RUN-051's run, which
-# takes the real path, taught the PC's real test costs under its throwaway file's name). test_slots.slots_folder() reads
-# it at each call; a row that needs another folder sets its own and puts this one back (RUN-085).
+# Every run of the runner started here — main() called in this process, or any process started from it — uses a
+# test-state folder of its OWN (the slots, the held files), never the PC's real one. test_slots.slots_folder() reads it at
+# each call; a row that needs another folder sets its own and puts this one back (RUN-085).
 SELF_SLOTS = tempfile.mkdtemp(prefix="rw-selftest-slots-")
 os.environ["RW_TEST_SLOTS_DIR"] = SELF_SLOTS
 atexit.register(shutil.rmtree, SELF_SLOTS, True)       # gone when this file ends (ignore_errors)
@@ -193,11 +192,11 @@ done();
     row("RUN-015", "no venv → the screen test fails loud with the setup command (never skipped quietly)",
         not ok and "py -m venv .venv" in out, out[-200:])
 
-    # --- Tier 3: the runner starts and stops its own local relay (TODO "Turn more of our working rules into automatic
-    # checks", item 3; 7.28.0 post-mortem: stopping a relay by hand left four processes serving its port). No real
-    # wrangler here (tier 1): a stand-in "relay" — a Python script that starts a CHILD which serves the port (as wrangler's
-    # workerd does), then prints wrangler's ready line. Every process it starts writes "<role> <id>" to a list, so the
-    # test can check each one is gone afterwards — by its own look (tasklist), not the runner's.
+    # --- Tier 3: the runner starts and stops its own local relay (7.28.0 post-mortem: stopping a relay by hand left four
+    # processes serving its port). No real wrangler here (tier 1): a stand-in "relay" — a Python script that starts a
+    # CHILD which serves the port (as wrangler's workerd does), then prints wrangler's ready line. Every process it starts
+    # writes "<role> <id>" to a list, so the test can check each one is gone afterwards — by its own look, not the
+    # runner's.
     standin = write("standin_relay.py", r'''import http.server, os, socket, subprocess, sys, time
 mode, port, pids = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 def note(role):
@@ -259,13 +258,32 @@ else:
                        "print('answer:', urllib.request.urlopen(url, timeout=5).read().decode())\n")
     lr = rt.local_relay      # the runner's own copy (tools/local_relay.py), so its errors are the ones it catches
 
-    def running():
-        """The ids running now — the whole process list, read raw (not the runner's stop-and-check code). It must hold
-        this test's own id, or the list is broken and "nothing left running" would prove nothing (setup check)."""
-        now = set(lr.processes())
-        if os.getpid() not in now:
-            raise AssertionError(f"the process list doesn't show this test's own id {os.getpid()} — can't check")
-        return now
+    def alive(pid):
+        """Is a process with this id running? Asked of Windows directly (not the runner's stop-and-check code)."""
+        import ctypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.restype = ctypes.c_void_p
+        h = k32.OpenProcess(0x1000, False, int(pid))          # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            return bool(k32.GetExitCodeProcess(ctypes.c_void_p(h), ctypes.byref(code))) and code.value == 259
+        finally:
+            k32.CloseHandle(ctypes.c_void_p(h))
+
+    def running(pids=None):
+        """Of these ids (default: every one a stand-in wrote), the ones still running — waited for up to 5 s, as a process
+        its job ended may take a moment to leave. It must see this test's own id, or "nothing left running" would prove
+        nothing (setup check)."""
+        if not alive(os.getpid()):
+            raise AssertionError(f"this test's own id {os.getpid()} reads as not running — can't check")
+        end = time.monotonic() + 5
+        while True:
+            now = {int(p) for p in (pids or []) if alive(p)}
+            if not now or time.monotonic() > end:
+                return now
+            time.sleep(0.1)
 
     def run_main(argv, mode=None, start_s=20):
         """main() on the sample tier-3 file, with the stand-in relay in `mode`. (exit code, printed text, {role: id})"""
@@ -298,14 +316,14 @@ else:
     with socket.socket() as s:
         s.settimeout(0.5)
         port_free = port is not None and s.connect_ex(("127.0.0.1", port)) != 0
-    now = running()
+    now = running(started.values())
     left = [f"{role} {pid}" for role, pid in started.items() if pid in now]
     judged_row("RUN-017", "afterwards every process the relay started is gone — the relay AND its child — and the port is "
                "free", set(started) == {"relay", "server"} and not left and port_free,
                f"started {started}; still running {left}; port {port} free: {port_free}", late)   # (RUN-016's run)
 
     code, out, started, _ = run_main(["--tier", "3"], mode="never", start_s=1.5)
-    now = running()
+    now = running(started.values())
     left = [f"{role} {pid}" for role, pid in started.items() if pid in now]
     # The check needs the stand-in's server started within the 1.5 s (a tree to stop): one that wasn't is the machine's.
     late = ("the stand-in relay hadn't started its own server within 1.5 s — the machine was too slow; there was no "
@@ -316,17 +334,15 @@ else:
 
     code, out, started, _ = run_main(["--tier", "3"], mode="orphan")
     escaped = started.get("server")
-    now = running()
-    judged_row("RUN-019", "a child that escaped the tree and still serves the port fails the run, named by its id — and "
-               "the runner leaves it running (not provably its own)",
-               code == 1 and escaped is not None and f"process {escaped}" in out and "left running" in out
-               and escaped in now   # (since 2026-11-16 caught at the start — not alone on its port — rather than at the stop)
-               and open(os.path.join(d, "pids-orphan.txt")).read().count("relay ") == 1,   # …and never tried again
-               f"exit {code}, started {started}: {out[-600:]}", standin_late(out, os.path.join(d, "pids-orphan.txt"),
-                                                                            "20 s"))
-    for pid in started.values():      # the test's own cleanup — by exact id, processes this test started
-        if pid in now:
-            subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)   # one process each — never /T
+    now = running(started.values())
+    judged_row("RUN-019", "a child that escaped its parent (its parent exited) is still in the relay's job: it counts as "
+               "the relay's own, the relay tests run against it — and the stop ends it with the rest",
+               code == 0 and escaped is not None and escaped not in now and "middle" in started
+               and open(os.path.join(d, "pids-orphan.txt")).read().count("relay ") == 1,   # one try
+               f"exit {code}, started {started}, still running {now}: {out[-600:]}",
+               standin_late(out, os.path.join(d, "pids-orphan.txt"), "20 s"))
+    for pid in now:      # the test's own cleanup when that failed — by exact id, processes this test started
+        subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)   # one process each — never /T
 
     def no_relay():
         raise AssertionError("a relay was started although --relay-url named one")
@@ -406,12 +422,12 @@ else:
         return url, relay, served, answer, left, all_started(pids), squatted, still_squatting
 
     url, relay, served, answer, left, started, squatted, untouched = squatted_relay("ok", "squat")
-    now = running()
+    now = running([pid for _, pid in started])
     ours_left = [f"{role} {pid}" for role, pid in started if int(pid) in now]
     judged_row("RUN-052", "the local relay's ready line isn't taken on trust: it printed 'Ready' on its port while "
-               "another process (here: this test, older than the relay — so proven not one of its own) listened there → "
+               "another process (here: this test — not in the relay's job, so not one of its own) listened there → "
                "not accepted; that process left alone; started again on new ports — the address it gives is served by "
-               "processes it started and nothing else; nothing it started is left running",
+               "processes in its job and nothing else; nothing it started is left running",
                url.startswith("http://127.0.0.1:") and not url.endswith(f":{squatted}") and served and relay is not None
                and served <= set(relay.ours) and answer == b"stand-in relay" and not left
                and sum(1 for r, _ in started if r == "relay") == 2 and not ours_left and untouched,
@@ -419,7 +435,7 @@ else:
                f"left {left}, started {started}, still running {ours_left}, squatter untouched {untouched}",
                standin_late(url, os.path.join(d, "pids-squat.txt"), "20 s"))
     url, relay2, served, answer, left, started, squatted, _ = squatted_relay("strict", "strict")
-    now = running()
+    now = running([pid for _, pid in started])
     ours_left = [f"{role} {pid}" for role, pid in started if int(pid) in now]
     # (2026-11-17: in the merge's run on the merged result this failed once — "the local relay didn't say it was ready
     # within 20 s" — a busy machine, the stand-in not yet at its ready line: now told apart by standin_late)
@@ -1741,9 +1757,91 @@ sys.exit(1 if seen else 0)
         gv_code == 0 and len(seen_by) == 3 and all(v == "" for v in seen_by.values()),
         f"exit {gv_code}, seen {seen_by}: {gv_out[-400:]}")
 
-    # Free memory: recorded with every screen-test run, as evidence — no longer a fixed threshold (2026-11-17: the level
-    # the runner finds for itself replaced "under 4 GB free → 2 browsers"). The free memory injectable; the real reading
-    # checked to give a number.
+    # The repository's shared git settings, checked before and after each run: a run that changed one (here a stand-in
+    # test sets a TEMPORARY repository bare and moves its commit checks) is said loudly, quiet or not, naming each setting
+    # and the command that puts it back. The runner is pointed at that repository (main's repo=).
+    no_git_env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
+    shared_repo = os.path.join(d, "shared-settings-repo")
+    subprocess.run(["git", "init", "-q", shared_repo], capture_output=True, env=no_git_env)
+    shared_cfg = os.path.join(shared_repo, ".git", "config")
+    subprocess.run(["git", "config", "--file", shared_cfg, "core.hooksPath", "git-hooks"], capture_output=True,
+                   env=no_git_env)
+
+    def cfg(key):
+        r = subprocess.run(["git", "config", "--file", shared_cfg, "--get", key], capture_output=True, text=True,
+                           env=no_git_env)
+        return r.stdout.strip()
+    breaker = write("test_breaks_settings.py", "# sample\n# tags: settings-sample, tier 1\n# covers: tools/run_tests.py\n"
+                    "import subprocess\n"
+                    f"subprocess.run(['git', 'config', '--file', {shared_cfg!r}, 'core.bare', 'true'])\n"
+                    f"subprocess.run(['git', 'config', '--file', {shared_cfg!r}, 'core.hooksPath', 'elsewhere'])\n"
+                    "print('1 passed, 0 failed')\n")
+    before_cfg = (cfg("core.bare"), cfg("core.hooksPath"))
+    calm_code, calm_out = quiet_main(["--tier", "1", "--quiet"], files=[rt.TestFile(py_ok)], repo=shared_repo)
+    br_code, br_out = quiet_main(["--tier", "1", "--quiet"], files=[rt.TestFile(breaker)], repo=shared_repo)
+    after_cfg = (cfg("core.bare"), cfg("core.hooksPath"))
+    fixes = re.findall(r"Put it back:  (git config .*)$", br_out, re.M)
+    for fix in fixes:           # the commands it gave, run as given (shell words: the quoted path)
+        subprocess.run(fix, shell=True, capture_output=True, env=no_git_env)
+    repaired = (cfg("core.bare"), cfg("core.hooksPath"))
+    row("RUN-104", "the repository's shared git settings are checked before and after each run: a test that set the "
+        "repository bare and moved its commit checks is said loudly (even with --quiet) — each setting, before → after, "
+        "and the command that puts it back, which does; a run that changed nothing says nothing",
+        before_cfg == ("false", "git-hooks") and after_cfg == ("true", "elsewhere") and br_code == 0
+        and "!! THIS RUN CHANGED THE REPOSITORY'S GIT SETTING core.bare: false → true" in br_out
+        and "!! THIS RUN CHANGED THE REPOSITORY'S GIT SETTING core.hooksPath: git-hooks → elsewhere" in br_out
+        and len(fixes) == 2 and repaired == before_cfg and calm_code == 0 and "!!" not in calm_out,
+        f"before {before_cfg}, after {after_cfg}, repaired {repaired}, fixes {fixes}: {br_out[-600:]} | calm: {calm_out}")
+
+    # Longest first, by each file's time in this copy's latest record (else 60 s for a screen test, 5 s for any other).
+    marks = os.path.join(d, "order-marks")
+    os.makedirs(marks)
+    order_names = ["test_order_a.py", "test_order_b.py", "test_order_c.py", "test_order_d.py"]
+    order_paths = [write(n, "# sample\n# tags: order-sample, tier 1\n# covers: tools/run_tests.py\nimport os, time\n"
+                            f"open(os.path.join({marks!r}, {n!r}), 'w').write(repr(time.time()))\n"
+                            "print('1 passed, 0 failed')\n") for n in order_names]
+    order_rec = os.path.join(d, "order-results")
+    os.makedirs(order_rec)
+    with open(os.path.join(order_rec, "0000-earlier.json"), "w", encoding="utf-8") as fh:
+        fh.write(__import__("json").dumps({"ended": "2026-11-18T00:00:00", "files": [
+            {"file": rt.TestFile(order_paths[0]).rel(), "seconds": 1.0},
+            {"file": rt.TestFile(order_paths[1]).rel(), "seconds": 20.0},
+            {"file": rt.TestFile(order_paths[3]).rel(), "seconds": 30.0}]}))
+    o_code, o_out = quiet_main(["--tier", "1", "--jobs", "1"], files=[rt.TestFile(p) for p in order_paths],
+                               results=order_rec)
+    when = {n: float(open(os.path.join(marks, n)).read()) for n in order_names if os.path.exists(os.path.join(marks, n))}
+    order = sorted(when, key=when.get)
+    row("RUN-105", "longest first, by each file's time in this copy's latest record — a file with none counts as 5 s (60 s "
+        "for a screen test)",
+        o_code == 0 and order == ["test_order_d.py", "test_order_b.py", "test_order_c.py", "test_order_a.py"],
+        f"exit {o_code}, order {order}: {o_out[-300:]}")
+
+    # A file still running after the time limit (10 minutes; made 2 s here) is stopped with everything it started — a
+    # failure, never rerun.
+    hang_child = os.path.join(d, "hang-child.pid")
+    hang = write("test_hangs.py", "# sample\n# tags: hang-sample, tier 1\n# covers: tools/run_tests.py\n"
+                 "import os, subprocess, sys, time\n" + count_runs("hangs")
+                 + "c = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'], stdin=subprocess.DEVNULL, "
+                   "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+                 f"open({hang_child!r}, 'w').write(str(c.pid))\nprint('hanging', flush=True)\ntime.sleep(60)\n")
+    saved_limit = rt.TIME_LIMIT_S
+    rt.TIME_LIMIT_S = 2
+    try:
+        h_code, h_out = quiet_main(["--tier", "1"], files=[rt.TestFile(hang)], retry_wait=0)
+    finally:
+        rt.TIME_LIMIT_S = saved_limit
+    h_pid = int(open(hang_child).read()) if os.path.exists(hang_child) else None
+    h_left = running([h_pid] if h_pid else [])
+    for pid in h_left:
+        subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)   # this test's own cleanup, exact id
+    row("RUN-106", "a file still running at the time limit is stopped WITH what it started, reported 'timed out' — a "
+        "failure, run once (never rerun)",
+        h_code == 1 and "✗ timed out after 2 s" in h_out and "Tests: 0 file(s) passed, 1 failed" in h_out
+        and runs_of("hangs") == 1 and h_pid is not None and not h_left,
+        f"exit {h_code}, runs {runs_of('hangs')}, child {h_pid} still running {h_left}: {h_out[-400:]}")
+
+    # Free memory: recorded with every screen-test run, as evidence — never a threshold. The free memory injectable; the
+    # real reading checked to give a number.
     GB = 2 ** 30
     ma, mb = timed_file("test_ma.py"), timed_file("test_mb.py")
 
@@ -1765,117 +1863,73 @@ sys.exit(1 if seen else 0)
         real = ts.free_memory()
     except Exception as e:      # noqa: BLE001 — not built yet
         real = f"{type(e).__name__}: {e}"
-    row("RUN-079", "free memory is recorded with every screen-test run (as evidence) and shown on its level line — but no "
-        "fixed threshold any more: 1.5 GB free still runs the two files together; memory unknown → recorded as unknown; "
+    row("RUN-079", "free memory is recorded with every screen-test run (as evidence) and shown on its browsers line — "
+        "never a threshold: 1.5 GB free still runs the two files together; memory unknown → recorded as unknown; "
         "RW_TEST_LOW_MEMORY_GB is gone; the PC's own reading is a number",
         c1 == c2 == 0 and together1 and (m1 or {}).get("free_gb") == 1.5 and m2 == {"free_gb": None}
         and "1.5 GB of memory free" in o1 and "running 1 browser" not in o1 and "RW_TEST_LOW_MEMORY_GB" not in rt.RUN_ENV
         and not hasattr(ts, "memory_slots") and isinstance(real, (int, float)) and real > 0,
         f"1.5: exit {c1}, together {together1}, {m1}: {o1[-300:]} | unknown: {m2} | real: {real}")
 
-    # --- How many browsers at once, found by the runner itself (Ron, 2026-11-17: "similar to how TCP works";
-    # tools/browser_level.py — its rule is tested in test/test_browser_level.py). Here, the runner's side: a mid-run trouble
-    # lowers the number running at once AT ONCE; the saved level moves after a full run and says so; a forced number and a
-    # narrowed run leave it alone; a damaged saved file starts at 4, said so. Each case has its own slots folder (the
-    # level is saved beside the slots), so nothing here touches the PC's real level.
-    # Each process writes its times to files of its own — appends from several processes to one file can lose lines on
-    # Windows (seen here once: a start line missing).
-    lvl_times = os.path.join(d, "lvl-times")
-    os.makedirs(lvl_times)
+    # --- How many browsers at once: a fixed number, 4 — --jobs N or RW_TEST_SLOTS=N choose another for one run; nothing
+    # is learned or saved. Six screen-test stand-ins: each, once started, waits (up to 20 s) until `want` of them have
+    # started — so the ones that may run together surely overlap — then holds on a moment. The most ever running at once
+    # must be exactly the number asked for. Each process writes its times to files of its own (appends from several
+    # processes to one file can lose lines on Windows).
+    fx_times = os.path.join(d, "fixed-times")
 
-    def lvl_file(name, trouble_first=False, secs=2.0):
-        def mark(what):
-            return f"open(os.path.join({lvl_times!r}, f'{name}.{{n}}.{what}'), 'w').write(str(time.time()))\n"
-        body = count_runs(name) + mark("start")
-        body += (f"""def first_time():
-    if n == 0:      # the trouble comes once the 3 files beside it have started (4 at once), so 'before' is certain
-        end = time.time() + 20
-        while time.time() < end and sum(1 for x in os.listdir({lvl_times!r})
-                                        if x.startswith("lvlsteady") and x.endswith(".0.start")) < 3:
-            time.sleep(0.05)
-        raise EnvironmentTrouble("the browser closed (a sample)")
-test("LVLS-001", "a sample test", first_time)
-""" if trouble_first else f"""time.sleep({secs})
-test("LVLS-002", "a sample test", lambda: None)
+    def fixed_file(name):
+        mark = f"open(os.path.join({fx_times!r}, {name!r} + '.' + what), 'w').write(str(time.time()))\n"
+        return harness_file(f"test_{name}.py", f"""want = int(open(os.path.join({fx_times!r}, "want")).read())
+what = "start"
+{mark}end = time.time() + 20
+while time.time() < end and sum(1 for x in os.listdir({fx_times!r}) if x.endswith(".start")) < want:
+    time.sleep(0.05)
+time.sleep(0.3)
+what = "end"
+{mark}test("FIXD-001", "a sample test", lambda: None)
+done()
 """)
-        return harness_file(f"test_{name}.py", body + mark("end") + "done()\n")
 
-    lvl_files = [lvl_file("lvltrouble", trouble_first=True)] + [lvl_file(f"lvlsteady{i}") for i in range(6)]
-    lvl_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-lvl"))
-    lvl_rec = os.path.join(d, "lvl-results")
-    code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(p) for p in lvl_files], slots=lvl_slots, results=lvl_rec,
-                           retry_wait=0.1)
-    spans = {}
-    for x in os.listdir(lvl_times):
-        who, n_, what = x.split(".")
-        spans.setdefault((who, n_), {})[what] = float(open(os.path.join(lvl_times, x)).read())
-    trouble_end = spans.get(("lvltrouble", "0"), {}).get("end")
-    firsts = [v for k, v in spans.items() if k[1] == "0" and "start" in v and "end" in v]
+    fx_files = [fixed_file(f"fixed{i}") for i in range(6)]
 
-    def at_once(s):
-        return sum(1 for v in firsts if v["start"] <= s < v["end"])
-    before = max((at_once(v["start"]) for v in firsts if trouble_end and v["start"] < trouble_end), default=0)
-    after = max((at_once(v["start"]) for v in firsts if trouble_end and v["start"] >= trouble_end), default=0)
-    started_after = sum(1 for v in firsts if trouble_end and v["start"] >= trouble_end)
-    saved, _ = rt.browser_level.load(os.path.join(lvl_slots.folder, rt.browser_level.FILE_NAME))
-    got = records_in(lvl_rec)
-    moves = (got[-1].get("browsers") if isinstance(got, list) and got else None) or {}
-    row("RUN-083", "machine trouble mid-run lowers the number of browsers running at once AT ONCE: 4 at once until a file "
-        "met the trouble, then the level halves to 2 — the files already running go on, new ones start only while fewer "
-        "than 2 are running — said when it happens; the file is rerun alone as before; the halved level is saved and the "
-        "record notes the change",
-        code == 0 and before == 4 and after <= 2 and started_after >= 3 and runs_of("lvltrouble") == 2
-        and "! browsers at once: 4 → 2 for the rest of this run" in out and saved["level"] == 2
-        and saved["history"][-1].get("outcome") == "backed off" and moves.get("level") == 4
-        and moves.get("changes") == [{"from": 4, "to": 2}] and moves.get("end") == 2 and moves.get("next") == 2,
-        f"exit {code}, before {before}, after {after} ({started_after} started after), saved {saved.get('level')}, "
-        f"moves {moves}, times from the trouble's end "
-        f"{sorted((round(v.get('start', 0) - (trouble_end or 0), 2), round(v.get('end', 0) - (trouble_end or 0), 2), k) for k, v in spans.items())}"  # noqa: E501
-        f": {out[-700:]}")
-
-    la, lb = timed_file("test_la.py"), timed_file("test_lb.py")
-    lv_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-lv"))
-    lv_path = os.path.join(lv_slots.folder, rt.browser_level.FILE_NAME)
-
-    def lv_run(argv, env=None):
+    def fixed_run(want, argv=(), env=None):
+        """(exit code, printed text, the most running at once, the slots folder's files) — a fresh slots folder each."""
+        shutil.rmtree(fx_times, ignore_errors=True)
+        os.makedirs(fx_times)
+        open(os.path.join(fx_times, "want"), "w").write(str(want))
+        folder = os.path.join(d, f"slots-fixed-{want}-{len(env or {})}")
         saved_env = {k: os.environ.get(k) for k in (env or {})}
         os.environ.update(env or {})
         try:
-            folder = os.path.join(d, f"lv-results-{len(os.listdir(d))}")
-            code, out = quiet_main(argv, files=[rt.TestFile(la), rt.TestFile(lb)], slots=lv_slots, results=folder)
+            code, out = quiet_main(["--tier", "2"] + list(argv), files=[rt.TestFile(p) for p in fx_files],
+                                   slots=ts.Slots(folder=folder))
         finally:
             for k, v in saved_env.items():
                 if v is None:
                     os.environ.pop(k, None)
                 else:
                     os.environ[k] = v
-        got = records_in(folder)
-        return code, out, rt.browser_level.load(lv_path)[0]["level"], \
-            (got[-1].get("browsers") if isinstance(got, list) and got else None) or {}
+        spans = {}
+        for x in os.listdir(fx_times):
+            if x != "want":
+                who, what = x.rsplit(".", 1)
+                spans.setdefault(who, {})[what] = float(open(os.path.join(fx_times, x)).read())
+        done_ = [v for v in spans.values() if "start" in v and "end" in v]
+        most = max((sum(1 for w in done_ if w["start"] <= v["start"] < w["end"]) for v in done_), default=0)
+        return code, out, most, sorted(os.listdir(folder)) if os.path.isdir(folder) else []
 
-    r1 = lv_run(["--tier", "2"])
-    r2 = lv_run(["--tier", "2", "--jobs", "2"])
-    r3 = lv_run(["--tier", "2"], env={"RW_TEST_SLOTS": "3"})
-    r4 = lv_run(["--tier", "2", "--tag", "slot-sample"])
-    with open(lv_path, "w", encoding="utf-8") as f:
-        f.write("{damaged")
-    r5 = lv_run(["--tier", "2"])
-    row("RUN-084", "the saved level, through the runner: none saved → 'starting at 4', said; a full run with no trouble → "
-        "the next run gets 5, said at its end and recorded; --jobs 2 and RW_TEST_SLOTS=3 force their number and leave it "
-        "at 5; a narrowed run (--tag) leaves it at 5; a damaged file → 'couldn't be read … starting at 4', said",
-        all(r[0] == 0 for r in (r1, r2, r3, r4, r5))
-        and "· browsers at once: 4 (no saved level yet — starting at 4" in r1[1]
-        and "· browsers at once next run: 5 — a full run with no machine trouble" in r1[1] and r1[2] == 5
-        and r1[3].get("level") == 4 and r1[3].get("next") == 5 and r1[3].get("outcome") == "grew"
-        and "· browsers at once: 2 (forced by --jobs 2 — the saved level is left as it is)" in r2[1] and r2[2] == 5
-        and r2[3].get("next") is None and "· browsers at once: 3 (forced by RW_TEST_SLOTS=3" in r3[1] and r3[2] == 5
-        and r3[3].get("level") == 3
-        and "· browsers at once: 5 (saved — a full run" in r4[1] and "unchanged: a narrowed run" in r4[1] and r4[2] == 5
-        and "couldn't be read" in r5[1] and "starting at 4" in r5[1] and r5[3].get("level") == 4,
-        " || ".join(f"exit {r[0]}, saved {r[2]}, {r[3]}: {r[1][-300:]}" for r in (r1, r2, r3, r4, r5)))
+    f4, f2, f3 = fixed_run(4), fixed_run(2, ["--jobs", "2"]), fixed_run(3, env={"RW_TEST_SLOTS": "3"})
+    row("RUN-083", "4 browsers at once, fixed: six screen tests run at most 4 at a time (and do reach 4); --jobs 2 → 2; "
+        "RW_TEST_SLOTS=3 → 3; the run says its number; no number is saved (only the slot files and the held files)",
+        all(r[0] == 0 for r in (f4, f2, f3)) and (f4[2], f2[2], f3[2]) == (4, 2, 3)
+        and "· browsers at once: 4" in f4[1] and "· browsers at once: 2" in f2[1] and "· browsers at once: 3" in f3[1]
+        and all(n.startswith(("slot-", "held-tests.json")) for r in (f4, f2, f3) for n in r[3]),
+        " || ".join(f"exit {r[0]}, most at once {r[2]}, slots folder {r[3]}: {r[1][-300:]}" for r in (f4, f2, f3)))
 
-    # A folder of its own for the slots and the saved level, without moving TEMP (Ron, 2026-11-17: a lab that moved TEMP
-    # itself broke the local relay emulator — wrangler keeps its storage in TEMP). The runner given no slots, as on the PC.
+    la, lb = timed_file("test_la.py"), timed_file("test_lb.py")
+
+    # A folder of its own for this PC's test state (RW_TEST_SLOTS_DIR). The runner given no slots, as on the PC.
     own_dir = os.path.join(d, "own-slots-dir")
     saved_dir = os.environ.pop("RW_TEST_SLOTS_DIR", None)
     try:
@@ -1883,8 +1937,7 @@ test("LVLS-002", "a sample test", lambda: None)
         os.environ["RW_TEST_SLOTS_DIR"] = own_dir
         moved_folder = ts.Slots().folder
         own_rec = os.path.join(d, "own-dir-results")
-        # Run only if the folder really moved: otherwise this run would save into the PC's real level (it did once, the
-        # first time, before the variable was built — 2026-11-17).
+        # Run only if the folder really moved: otherwise this run would use the PC's real state.
         code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(la), rt.TestFile(lb)], results=own_rec) \
             if os.path.normcase(moved_folder) == os.path.normcase(own_dir) else ("not run — the folder didn't move", "")
     finally:
@@ -1895,51 +1948,26 @@ test("LVLS-002", "a sample test", lambda: None)
     in_own = sorted(os.listdir(own_dir)) if os.path.isdir(own_dir) else []
     got = records_in(own_rec)
     own_env = (got[-1].get("env") if isinstance(got, list) and got else None) or {}
-    own_state, own_note = rt.browser_level.load(os.path.join(own_dir, rt.browser_level.FILE_NAME))
-    row("RUN-085", "RW_TEST_SLOTS_DIR holds the slot files AND the saved level (browsers-at-once.json) instead of "
-        "%TEMP%\\rw-test-slots — TEMP itself unmoved; unset → %TEMP%\\rw-test-slots, as before; recorded with the run "
-        "and not narrowing it",
-        code == 0 and os.path.normcase(default_folder) == os.path.normcase(
-            os.path.join(tempfile.gettempdir(), "rw-test-slots"))
+    row("RUN-085", "RW_TEST_SLOTS_DIR holds this PC's test state (the slot files) instead of "
+        "%LOCALAPPDATA%\\ReaderWrangler-tests; unset → that folder; recorded with the run and not narrowing it",
+        code == 0 and os.path.normcase(default_folder) == os.path.normcase(ts.FOLDER)
         and os.path.normcase(moved_folder) == os.path.normcase(own_dir)
-        and rt.browser_level.FILE_NAME in in_own and "slot-1.lock" in in_own and own_note is None
-        and own_state["level"] == 5 and own_env.get("RW_TEST_SLOTS_DIR") == own_dir
+        and "slot-1.lock" in in_own and own_env.get("RW_TEST_SLOTS_DIR") == own_dir
         and rt.RUN_ENV.get("RW_TEST_SLOTS_DIR", (True,))[0] is False
         and rt.narrowed_by({"env": {"RW_TEST_SLOTS_DIR": own_dir}}) == [],
-        f"exit {code}, default {default_folder}, moved {moved_folder}, in it {in_own}, level {own_state} ({own_note}), "
-        f"env {own_env}: {out[-400:]}")
+        f"exit {code}, default {default_folder}, moved {moved_folder}, in it {in_own}, env {own_env}: {out[-400:]}")
 
-    # Only fully passing runs count (Ron, 2026-11-17): a full run with a failed file is saved, marked, and moves nothing.
-    lfail = write("test_lfail.py", "# sample\n# tags: lvl-sample, tier 2\n# covers: tools/run_tests.py\nimport sys\n"
-                  "print('  ✗ LFAIL-001 a sample failure')\nprint('0 passed, 1 failed')\nsys.exit(1)\n")
-    fl_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-fl"))
-    fl_rec = os.path.join(d, "fl-results")
-    code, out = quiet_main(["--tier", "2"], files=[rt.TestFile(la), rt.TestFile(lfail)], slots=fl_slots, results=fl_rec)
-    fl_state, _ = rt.browser_level.load(os.path.join(fl_slots.folder, rt.browser_level.FILE_NAME))
-    fl_last = (fl_state.get("history") or [{}])[-1]
-    got = records_in(fl_rec)
-    fl_moves = (got[-1].get("browsers") if isinstance(got, list) and got else None) or {}
-    row("RUN-086", "through the runner, a full screen-test run with a failed file: saved in the level's history marked "
-        "failed (how many), the level unchanged (4 → 4, not 5), and the run says why",
-        code == 1 and fl_state["level"] == 4 and fl_last.get("failed") == 1 and fl_last.get("outcome") == "failed"
-        and fl_moves.get("next") == 4 and fl_moves.get("outcome") == "failed"
-        and "· browsers at once next run: 4 — " in out and "failed" in out.split("· browsers at once next run: 4 — ")[-1],
-        f"exit {code}, saved {fl_state}, moves {fl_moves}: {out[-500:]}")
-
-    # --- Heavy tier-1 files share the level (Ron, 2026-11-17: "Yes. Also back off" — the merge's full run failed a
-    # different timing test of THIS file twice, under 4 tier-1 files at once, three of which start many processes of their
-    # own). A tier-1 file whose header says `heavy: yes` holds one of the PC's test slots while it runs, within the same
-    # level as the screen tests' browsers; its machine trouble backs the level off; a light tier-1 file runs beside them,
-    # outside the slots, as before. Each case has its own slots folder (and so its own saved level).
+    # --- Heavy tier-1 files hold a test slot: a tier-1 file whose header says `heavy: yes` (it starts many processes of
+    # its own) holds one of the PC's test slots while it runs, as a screen test does; its machine trouble is rerun once,
+    # alone; a light tier-1 file runs beside them, outside the slots. Each case has its own slots folder.
     hv_times = os.path.join(d, "heavy-times")
     os.makedirs(hv_times)
-    hv_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-heavy"))
-    rt.browser_level.save(os.path.join(hv_slots.folder, rt.browser_level.FILE_NAME),
-                          {"level": 1, "why": "a sample level of 1", "history": []})
+    hv_slots = ts.Slots(count=1, folder=os.path.join(d, "slots-heavy"))     # one slot on this "PC"
 
     def heavy_sample(name, heavy=True):
-        """A tier-1 stand-in. Heavy: notes whether slot 1 of its slots folder was held while it ran (by its run — the level
-        is 1), and runs 1 s. Light: waits (up to 20 s) until a heavy one has started, then notes whether one is running."""
+        """A tier-1 stand-in. Heavy: notes whether slot 1 of its slots folder was held while it ran (by its run — the PC
+        has one slot), and runs 1 s. Light: waits (up to 20 s) until a heavy one has started, then notes whether one is
+        running."""
         head = ("# heavy: yes — a stand-in for a file that starts many processes of its own\n" if heavy else "")
         body = (f"""probe = test_slots.Slots(count=6, folder={hv_slots.folder!r}).try_acquire("probe", upto=1)
 held = "free" if probe else "held"
@@ -1968,15 +1996,15 @@ open(os.path.join(T, {name!r} + ".start"), "w").write(f"{{time.time()}} {{'besid
         return float(t), word
     (a0, ah), (a1, _), (b0, bh), (b1, _) = mark("hva", "start"), mark("hva", "end"), mark("hvb", "start"), mark("hvb", "end")
     apart = (a1 and b0 >= a1) or (b1 and a0 >= b1)
-    row("RUN-087", "a heavy tier-1 file (its header: heavy: yes) holds one of the PC's test slots while it runs, within "
-        "the browsers' level — at a level of 1 two heavy files run one after the other, each holding slot 1 — while a "
-        "light tier-1 file runs beside them, outside the slots, as before; the run says the level",
+    row("RUN-087", "a heavy tier-1 file (its header: heavy: yes) holds one of the PC's test slots while it runs — with one "
+        "slot on the PC two heavy files run one after the other, each holding slot 1 — while a light tier-1 file runs "
+        "beside them, outside the slots; the run names the heavy files",
         code == 0 and ah == bh == "held" and apart and mark("lightc", "start")[1] == "beside"
-        and "· browsers at once: 1 (saved — a sample level of 1" in out,
+        and "heavy tier-1 files hold a test slot too" in out,
         f"exit {code}, hva {mark('hva', 'start')}→{a1}, hvb {mark('hvb', 'start')}→{b1}, light "
         f"{mark('lightc', 'start')}: {out[-500:]}")
 
-    hv2_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-heavy2"))    # nothing saved: the level starts at 4
+    hv2_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-heavy2"))
     hvtrouble = harness_file("test_hvtrouble.py", count_runs("hvtrouble") + """def first_time():
     if n == 0:
         raise EnvironmentTrouble("a stand-in relay wasn't ready within 20 s (a sample)")
@@ -1985,22 +2013,18 @@ done()
 """, tier=1, extra="# heavy: yes — a sample\n")
     code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(hvtrouble), rt.TestFile(js_ok)], slots=hv2_slots,
                            results=os.path.join(d, "heavy2-results"), retry_wait=0.1)
-    hv2_state, _ = rt.browser_level.load(os.path.join(hv2_slots.folder, rt.browser_level.FILE_NAME))
-    row("RUN-088", "machine trouble in a heavy tier-1 file (its exit 3 and the marked line) backs the level off as a "
-        "browser's does — 4 → 2 at once, said, and saved — and the file is rerun once, alone, and passes; the light file "
-        "beside it is untouched",
-        code == 0 and runs_of("hvtrouble") == 2 and "! browsers at once: 4 → 2 for the rest of this run" in out
+    row("RUN-088", "machine trouble in a heavy tier-1 file (its exit 3 and the marked line) is said, and the file is rerun "
+        "once, alone, and passes, as a screen test's is; the light file beside it is untouched",
+        code == 0 and runs_of("hvtrouble") == 2
+        and "test_hvtrouble.py: the machine's or the browser's trouble — a stand-in relay wasn't ready" in out
         and "1 file retried after a stand-in relay wasn't ready within 20 s (a sample)" in out
-        and hv2_state["level"] == 2 and (hv2_state["history"] or [{}])[-1].get("outcome") == "backed off"
         and "Tests: 2 file(s) passed, 0 failed" in out,
-        f"exit {code}, runs {runs_of('hvtrouble')}, saved {hv2_state}: {out[-600:]}")
+        f"exit {code}, runs {runs_of('hvtrouble')}: {out[-600:]}")
 
-    # The whole path of a heavy tier-1 file's trouble, end to end (TODO tooling 11.2 — the pieces were tested: RUN-088's
-    # stand-in ends through the screen-test harness, RUN-090 the exit rule; THIS file's own way only by hand): a stand-in
-    # that ends as this file does (environment_trouble.tally: its rows, a check the machine's trouble stopped counted
-    # apart) — the first time a check is stopped by a late stand-in relay, then it passes — through the real main(), with
-    # slots (and so a saved level) of its own and a record.
-    e2e_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-heavy3"))    # nothing saved: the level starts at 4
+    # The whole path of a heavy tier-1 file's trouble, end to end: a stand-in that ends as this file does
+    # (environment_trouble.tally: its rows, a check the machine's trouble stopped counted apart) — the first time a check
+    # is stopped by a late stand-in relay, then it passes — through the real main(), with slots of its own and a record.
+    e2e_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-heavy3"))
     e2e_rec = os.path.join(d, "heavy3-results")
     late_why = "a stand-in relay wasn't ready within 20 s — the machine was too slow to start it (a sample)"
     hv_e2e = write("test_hve2e.py", f"""# sample
@@ -2023,19 +2047,14 @@ sys.exit(code)
 """)
     code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(hv_e2e), rt.TestFile(js_ok)], slots=e2e_slots,
                            results=e2e_rec, retry_wait=0.1)
-    e2e_state, e2e_note = rt.browser_level.load(os.path.join(e2e_slots.folder, rt.browser_level.FILE_NAME))
     entry, e2e_last = entry_of(e2e_rec, "test_hve2e.py")
     tries = entry.get("retried") or [{}]
-    moves = e2e_last.get("browsers") or {}
     row("RUN-093", "a heavy tier-1 file that ends as this one does, end to end through the runner: its first run says '1 "
-        "passed, 0 failed, 1 stopped by the machine's trouble' and the marked line, exits 3 — the level backs off 4 → 2 at "
-        "once, said and saved (in its own slots folder); the file is rerun once, alone, and passes; the summary says 2 "
-        "passed, 0 failed, 1 retried; the record notes the retry (its reason, both outputs, 'passed'), the file passed "
-        "with its rerun's counts, the level's change and one trouble",
+        "passed, 0 failed, 1 stopped by the machine's trouble' and the marked line, exits 3 — said; the file is rerun "
+        "once, alone, and passes; the summary says 2 passed, 0 failed, 1 retried; the record notes the retry (its reason, "
+        "both outputs, 'passed') and the file passed with its rerun's counts",
         code == 0 and runs_of("hve2e") == 2
-        and f"test_hve2e.py met the machine's or the browser's trouble ({late_why})" in out
-        and "! browsers at once: 4 → 2 for the rest of this run" in out
-        and e2e_note is None and e2e_state["level"] == 2 and (e2e_state["history"] or [{}])[-1].get("outcome") == "backed off"
+        and f"test_hve2e.py: the machine's or the browser's trouble — {late_why}" in out
         and "Tests: 2 file(s) passed, 0 failed" in out and out.count("file retried after") == 1
         and f"1 file retried after {late_why} — its first output: {tries[0].get('first_output')}" in out
         and [ln.strip() for ln in text_of(tries[0].get("first_output")).splitlines() if ln.strip()][-2:]
@@ -2043,10 +2062,8 @@ sys.exit(code)
         and "2 passed, 0 failed" in text_of(tries[0].get("rerun_output"))
         and entry.get("result") == "passed" and entry.get("heavy") is True and entry.get("counts") == "2 passed, 0 failed"
         and len(entry.get("retried") or []) == 1 and tries[0].get("reason") == late_why and tries[0].get("rerun") == "passed"
-        and moves.get("level") == 4 and moves.get("changes") == [{"from": 4, "to": 2}] and moves.get("troubles") == 1
-        and moves.get("next") == 2 and e2e_last.get("result") == "passed",
-        f"exit {code}, runs {runs_of('hve2e')}, saved {e2e_state} ({e2e_note}), entry {str(entry)[:500]}, browsers "
-        f"{moves}: {out[-700:]}")
+        and e2e_last.get("result") == "passed",
+        f"exit {code}, runs {runs_of('hve2e')}, entry {str(entry)[:500]}: {out[-700:]}")
 
     hp = {v: rt.read_header(write(f"test_hp_{i}.py", f"# sample\n# tags: hp-sample, tier 1\n# covers: a.js\n# heavy: {v}\n"))
           for i, v in enumerate(["yes", "yes — it starts many processes", "no", "maybe"])}

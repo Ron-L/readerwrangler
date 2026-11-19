@@ -1,58 +1,43 @@
 """
-test_slots.py — the machine-wide limit on screen tests running at once (TODO "Faster sprints", item 1; 2026-11-16).
+test_slots.py — the PC-wide limit on screen tests running at once, and the folder where this PC's test state lives.
 
-Screen tests run in parallel (tools/run_tests.py --jobs), and several working copies of the project may test at the same
-time — but sprint 4's one-time failures came from machine load. So every screen-test file, from ANY run on this PC,
-holds one of N slots for as long as it runs — and so, since 2026-11-17, does every HEAVY tier-1 file (its header says
-`heavy: yes`: it starts many processes of its own):
+Several runs may test at once (tools/run_tests.py runs files in parallel, and each working copy may run its own). Every
+screen-test file — and every tier-1 file whose header says `heavy: yes` — holds one of the PC's slots while it runs:
 
-    slots = Slots()                                  # N = RW_TEST_SLOTS, else 6; the slot files live in %TEMP%
-                                                     # (or RW_TEST_SLOTS_DIR — slots_folder())
-    slot = slots.acquire("test/ui/test_cells.py", on_wait=print)    # waits while all N are taken (says so, once)
-    slot = slots.acquire("…", upto=lambda: 3)        # only among the first 3 (the run's level — browser_level.py)
+    slots = Slots()                                  # N = RW_TEST_SLOTS, else 6 (the most any run may use)
+    slot = slots.try_acquire("test/ui/test_x.py", upto=4)   # a free slot among the first 4, or None
+    slot = slots.acquire("…", on_wait=print, upto=4)        # the same, waiting while they're taken (said once)
     ...                                              # run the file
     slot.release()
-
-A slot is a file (%TEMP%\\rw-test-slots\\slot-<n>.lock) held with an OS file lock — not a flag written in it — so a run
-that crashes or is stopped frees its slot the moment its process ends: nothing to clean up, nothing stale. The file's
-text says who holds it (process id, working copy, test file, since when), so a waiting run can name what it waits for.
-Every run must use the same N — a run with fewer slots just uses the first ones.
-
     group = slots.acquire_all("… (rerun alone)")     # EVERY slot: no other screen test on this PC runs meanwhile
     group.release()
 
-How many browsers a run uses at once — its LEVEL, 1 to 6 — is chosen by the runner itself and saved beside these slot
-files (tools/browser_level.py, 2026-11-17: it replaced the fixed low-memory rule of the same morning). A run at level L
-takes only the first L slots, so every run on this PC together stays within the PC's level too. free_memory() reads
-what the PC has available — noted in each run's record, as evidence.
-
-The folder: %TEMP%\\rw-test-slots, or RW_TEST_SLOTS_DIR when set (slots_folder() — the slots, the saved level and the
-test costs move together; TEMP itself stays where it is).
+A run uses the first 4 slots (its --jobs N: the first N), so every run on the PC together stays at 4 browsers at once.
+A slot is a file (slot-<n>.lock) held with an OS file lock — not a flag written in it — so a run that crashes frees its
+slot the moment its process ends: nothing stale. The file's text names who holds it, so a waiting run can say so.
 
     with locked(path) as held:                       # the same OS file lock, on any file — waits (30 s at most)
-        ...                                          # tools/test_costs.py reads, merges and saves its averages here
+        ...                                          # tools/held_tests.py reads, changes and saves its file here
 
-Tested by test/test_run_tests.py (RUN-035…, 074, 079, 083, 085).
+The folder (FOLDER, slots_folder()): %LOCALAPPDATA%\\ReaderWrangler-tests — not the temp folder, which Windows may clear
+(a held file's record would vanish with it). RW_TEST_SLOTS_DIR chooses another folder. free_memory() reads what the PC
+has available (noted in each run's record).
+
+Tested by test/test_run_tests.py and test/test_job.py.
 """
 import contextlib
 import datetime
 import os
-import tempfile
 import time
 
-DEFAULT_SLOTS = 6       # = browser_level.TOP, the most browsers at once a run may choose (4 until 2026-11-17)
-# Measured 2026-11-17 on Ron's PC (a full tier 2, sampled every 3 s; RAM in use — working set — the same column as the
-# "available" free_memory reads): one screen-test file's Chrome, all its processes, 0.15 GB typically, 0.48 GB at the
-# 90th percentile, 0.57 GB at most; our web servers and local relays together up to 0.27 GB. (That day the PC had 3.8 GB
-# of 31.4 free before the run, 1.4 GB at its low.) A fixed threshold drawn from that was replaced the same day by the
-# level the runner finds for itself (browser_level.py); free memory is still recorded with every run.
-FOLDER = os.path.join(tempfile.gettempdir(), "rw-test-slots")     # the default — slots_folder() is where they are
+DEFAULT_SLOTS = 6       # the most browsers at once any run may use (--jobs 6); a run uses the first 4 by default
+FOLDER = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), ".cache"),
+                      "ReaderWrangler-tests")
 
 
 def slots_folder():
-    """Where the slot files and the saved level (browser_level.FILE_NAME) live: RW_TEST_SLOTS_DIR when set — a folder of
-    its own without moving TEMP (Ron, 2026-11-17: a lab that moved TEMP itself broke the local relay emulator, which
-    keeps its storage there) — else %TEMP%\\rw-test-slots. Read at each call, not at import."""
+    """Where this PC's test state lives — the slot files, the held files: RW_TEST_SLOTS_DIR when set, else FOLDER. Read at
+    each call, not at import."""
     own = os.environ.get("RW_TEST_SLOTS_DIR")
     return os.path.abspath(own) if own else FOLDER
 
@@ -94,8 +79,7 @@ else:   # Ron's PC is Windows; this keeps the runner usable elsewhere
 def locked(path, limit_s=30.0, poll_s=0.05):
     """Hold the OS file lock on `path` (made if missing) for the with-block — the slots' own lock (_try_lock), the one
     way a file is locked on this PC (Law 22). Waits while another process (or another handle here) holds it, `limit_s`
-    at most; yields True when held, False when it gave up waiting. Freed by the OS if the process ends. Used by
-    tools/test_costs.py to read, merge and save its averages while other runs may be saving theirs."""
+    at most; yields True when held, False when it gave up waiting. Freed by the OS if the process ends."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     fd = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOINHERIT", 0))
     try:
@@ -197,14 +181,12 @@ class Slots:
         return None
 
     def _upto(self, upto):
-        """How many of the slots to look in: all, or the first `upto` (a number, or a function giving one — a run's
-        level, which can drop while it waits)."""
-        n = upto() if callable(upto) else upto
-        return self.count if n is None else max(1, min(self.count, n))
+        """How many of the slots to look in: all, or the first `upto`."""
+        return self.count if upto is None else max(1, min(self.count, upto))
 
     def try_acquire(self, label, upto=None):
         """A free slot (holding it), or None if all are taken. label: what will run in it, and from which working copy
-        (shown to waiting runs). upto: look only in the first that-many slots (_upto)."""
+        (shown to waiting runs). upto: look only in the first that-many slots (the run's browsers at once)."""
         for n in range(1, self._upto(upto) + 1):
             slot = self._try_one(n, label)
             if slot:
@@ -261,5 +243,5 @@ class Slots:
         n = self._upto(upto)
         return (f"· {label} waits for a test slot — "
                 + (f"all {self.count} on this PC are in use" if n >= self.count else
-                   f"the first {n} of the {self.count} on this PC (browsers at once: {n}) are in use")
+                   f"the first {n} of the {self.count} on this PC (its browsers at once: {n}) are in use")
                 + f" (RW_TEST_SLOTS; {self.folder}):\n    " + "\n    ".join(self.holders()))

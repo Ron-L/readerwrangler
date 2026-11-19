@@ -1,32 +1,27 @@
 #!/usr/bin/env python3
 """
-held_tests.py — a test file that can't be proven is HELD (TODO tooling 13.13; Ron, 2026-11-18: "I think not proven. But
-we don't want to go into an infinite try loop if a file is never going to run under current resources and loading … Give
-up after say 3 failures of same file and report it and await instruction from me?" — the proposal approved the same day).
+held_tests.py — a test file that can't be proven is HELD, for Ron's decision.
 
-Per PC, beside the test slots (test_slots.slots_folder(): RW_TEST_SLOTS_DIR, else %TEMP%\\rw-test-slots), in
-`held-tests.json` — so the runs of every working copy and of every merge on this PC add up (TODO tooling 13.10: the
-count read only one folder's records until then). For each test file (its name in the repository, the same in every
-copy), the FULL runs in a row in which it met the machine's or the browser's trouble (docs/design/TESTING.md §4):
+Kept per PC, in `held-tests.json` in the test-state folder (test_slots.slots_folder()), so the runs of every working copy
+and every merge on this PC add up. For each test file, the FULL runs in a row in which it met the machine's or the
+browser's trouble (docs/design/TESTING.md §4):
 
     rerun alone   it met the trouble, was rerun alone, and passed — proven, but worth knowing
     not proven    its rerun alone met the trouble again, or no rerun was left for it (more files met it than are rerun)
 
-A full run that passed it the first time — or failed it (a test failure: a definite answer) — ends its streak. Only full
-runs count (run_tests.py: a run narrowed by --changed, --id, --tag or RW_CELLS is passed over — it leaves its record on
-the quick shelf, never read here). Then:
+A full run that passed it the first time — or failed it (a definite answer) — ends its streak. A run narrowed by
+--changed, --id, --tag or RW_CELLS doesn't count. Then:
 
-    SAID_AFTER (2) in a row        said loudly: it may truly need to run alone (TODO tooling 11.7)
-    HOLD_AFTER (3) in a row NOT PROVEN   HELD: "couldn't be proven in 3 runs in a row on this PC — held for Ron's
-                                   decision". Later runs don't run it: "held — not run", counted as not proven — so no
-                                   stamp is PROVEN and nothing merges past it. That block IS the "await instruction".
+    SAID_AFTER (2) in a row              said loudly: it may truly need to run alone
+    HOLD_AFTER (3) in a row NOT PROVEN   HELD: later runs don't run it — "held — not run", counted as not proven, so no
+                                         stamp is PROVEN and nothing merges past it, until Ron decides
 
 Ron's ways out: `py tools/run_tests.py --release-held <file>` (try again — the hold and the streak cleared); an
-`alone: yes — <why>` line in its header (it then runs only while it holds every test slot on the PC — a hold taken while
-it ran beside others is lifted by it); or `skip: <TODO id> — <why>` (set aside, the existing way).
+`alone: yes — <why>` line in its header (it then runs only while it holds every test slot on the PC — that lifts a hold
+taken while it ran beside others); or `skip: <TODO id> — <why>` (set aside).
 
-Saved as tools/test_costs.py saves its averages: read, merged and written under the slots' own OS file lock
-(test_slots.locked), written whole (browser_level.save). Tested by test/test_run_tests.py (RUN-076, 092, 098–101).
+The file is read, changed and written whole under the slots' OS file lock (test_slots.locked), so runs finishing together
+each add theirs. Tested by test/test_run_tests.py.
 """
 import contextlib
 import datetime
@@ -36,12 +31,12 @@ import sys
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import browser_level   # noqa: E402 — the one way a file is written whole (save)
 import test_slots      # noqa: E402 — the one way a file is locked on this PC (locked)
+import whole_file      # noqa: E402 — the one way a file is written whole
 
 FILE_NAME = "held-tests.json"
-SAID_AFTER = 2          # full runs in a row met by the machine's trouble → said loudly (TODO tooling 11.7)
-HOLD_AFTER = 3          # full runs in a row NOT PROVEN → held (Ron, 2026-11-18: "say 3")
+SAID_AFTER = 2          # full runs in a row met by the machine's trouble → said loudly
+HOLD_AFTER = 3          # full runs in a row NOT PROVEN → held
 HOLD_ON = ("not proven",)   # the outcomes that count toward a hold — a rerun alone that passed proved the file
 KEEP = 10               # runs kept in a file's streak
 LOCK_LIMIT_S = 30.0
@@ -54,6 +49,15 @@ def path_in(folder):
 
 def fresh():
     return {"version": 1, "files": {}}
+
+
+def save(path, state):
+    """Write the state whole (a reader never sees half a file). None, or why it couldn't be saved, in words."""
+    try:
+        whole_file.write(path, json.dumps(state, indent=1))
+        return None
+    except OSError as e:
+        return f"couldn't save {path}: {e}"
 
 
 def load(path):
@@ -127,7 +131,7 @@ def note_run(path, outcomes, when=None):
                 return {}, [], f"another run held {path}'s lock for {LOCK_LIMIT_S:g} s — this run wasn't counted there"
             state, _ = load(path)
             state, troubled, newly = apply(state, outcomes, when)
-            err = browser_level.save(path, state)
+            err = save(path, state)
             return ({}, [], err) if err else (troubled, newly, None)
     except OSError as e:
         return {}, [], f"the held tests couldn't be saved to {path}: {e}"
@@ -146,7 +150,7 @@ def release(path, name):
                 return None, holds(state), None
             hold = entry["held"]
             state["files"].pop(name)
-            err = browser_level.save(path, state)
+            err = save(path, state)
             return (None, {}, err) if err else (hold, holds(state), None)
     except OSError as e:
         return None, {}, f"the held tests couldn't be saved to {path}: {e}"
