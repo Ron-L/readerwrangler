@@ -4,6 +4,7 @@
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
       - [Working copies that can't break each other: separate clones, plus a check on what they still share](#working-copies-that-cant-break-each-other-separate-clones-plus-a-check-on-what-they-still-share)
+      - [Remove the test-runner parts that didn't pay for themselves, then stop building tooling](#remove-the-test-runner-parts-that-didnt-pay-for-themselves-then-stop-building-tooling)
       - [Carry the discussion across a compaction: a hook before it and one after](#carry-the-discussion-across-a-compaction-a-hook-before-it-and-one-after)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
@@ -208,6 +209,32 @@ moved to the top: "We'll finish up this tooling if it kills us".)
    changed. Cheap, and it catches whatever path nobody thought of.
 3. Already done (sprint 9): the runner strips git's hook variables from every test it starts — the path that caused
    the incident.
+
+#### Remove the test-runner parts that didn't pay for themselves, then stop building tooling
+<!-- id 20261119-1309 -->
+
+_Why it matters:_ An outside review (2026-11-19, `.private/OUTSIDE-REVIEW-2026-11-19-REPORT.md`) found that much of
+the tooling built in sprints 7–9 costs more than it saves: about 3,000 lines with their tests, for about five test
+reruns a week — and the tooling's own tests caused both real outages. Ron agreed: "If nothing else we learned from it
+and everything else, don't over-engineer it." Law 23 ("A mechanism has a cost") came from this.
+
+**Decided** (Ron + Claude, 2026-11-19) — **built in the same sprint as the separate clones** (the task above):
+1. **Fixed number of browsers at once** instead of the one that adapts (Ron: "Yes, my baby, but I'm willing to give it
+   up"). The lab showed fewer browsers is slower when other programs take the CPU, so backing off didn't help.
+2. **A flat time limit for a stuck test** instead of limits learned from each test's averages; stop keeping the
+   averages.
+3. **Leftover processes cleaned up by Windows itself** — each test runs in a Windows "job" that closes all its
+   processes when the test ends or the runner crashes — instead of our own list of started processes
+   (`tools/starter.py` goes).
+4. **Retire the joined-line commit check** (`git-hooks/check-joined.py`) — the failure it guards against has never
+   happened in a test file. Its line in CLAUDE.md's commit checks goes too.
+5. **Keep:** "the machine's trouble → rerun once, alone", held files, the kept output of failures, the proof stamp,
+   parallel test runs, the merge script.
+6. **Move the per-PC test state out of the temp folder** (Windows can clear it; a held file's record would vanish).
+7. **While the autonomy switch is on, a push of main to prod is refused** — a small hook that reads the switch file
+   (settings alone can't say "only while the switch is on").
+8. **Then stop:** move every remaining tooling idea in "Turn more of our working rules into automatic checks" to
+   "Watching". **Before app work resumes, a cold review of the whole TODO** by a fresh reviewer (Ron, 2026-11-19).
 
 #### Carry the discussion across a compaction: a hook before it and one after
 <!-- id 20261119-1159a -->
