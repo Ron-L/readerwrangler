@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
+from rw import APP_TIMEOUT_MS, FIXTURE, LIMIT_MS, App   # noqa: E402
 
 BOOK = "Good Omens"          # test/fixtures/make-small-fixture.js — ASIN TST0000005
 SECOND = "A Book With No Description"
@@ -28,7 +28,7 @@ REFUSED = " couldn't be copied — the browser refused the clipboard"
 def toast_says(app, words):
     """Wait for the toast to show `words` (a new toast replaces the last one's text) and return its full text."""
     toast = app.page.locator(".clipboard-toast", has_text=words).first
-    toast.wait_for(timeout=5000)
+    toast.wait_for(timeout=LIMIT_MS)
     return toast.inner_text().strip()
 
 
@@ -67,11 +67,11 @@ with App(relay=True) as app:
 
     def open_book():
         page.locator("tbody tr", has_text=BOOK).first.dblclick()
-        page.get_by_role("button", name="Copy title").wait_for(timeout=5000)
+        page.get_by_role("button", name="Copy title").wait_for(timeout=LIMIT_MS)
 
     def close_book():
         page.keyboard.press("Escape")
-        page.get_by_role("button", name="Copy title").wait_for(state="detached", timeout=5000)
+        page.get_by_role("button", name="Copy title").wait_for(state="detached", timeout=LIMIT_MS)
 
     def title_chip():
         open_book()
@@ -106,7 +106,7 @@ with App(relay=True) as app:
         def open_share_email():
             app.click_reachable(page.get_by_title("Share this book"))
             app.click_reachable(page.get_by_role("menuitem").filter(has_text="Email to a Friend").first)
-            window.wait_for(timeout=5000)
+            window.wait_for(timeout=LIMIT_MS)
         try:
             app.stub_outside(refuse_clipboard=True)
             n0, c0 = len(app.console), len(app.copied())
@@ -122,7 +122,7 @@ with App(relay=True) as app:
             said = toast_says(app, "Email content copied")
             check(said == "Email content copied — paste into your email app", f"the receipt says {said!r}")
             check(len(app.copied()) == c0 + 1 and app.copied()[-1].startswith("Subject: "), f"copied {app.copied()[c0:]}")
-            window.wait_for(state="detached", timeout=5000)
+            window.wait_for(state="detached", timeout=LIMIT_MS)
         finally:
             if window.count():
                 page.keyboard.press("Escape")
@@ -150,7 +150,7 @@ with App(relay=True) as app:
         app.menu("File", "Relay Setup").click()
         app.click_reachable(page.get_by_text("Mobile Pairing (Optional)", exact=True).first)
         btn = page.locator("#relay-copy-creds-btn")
-        btn.wait_for(timeout=5000)
+        btn.wait_for(timeout=LIMIT_MS)
         # the section's opening slide has ended — no transition left running in the window (the sections open and close
         # with a 0.35 s max-height slide), so the button stays where the pointer goes (before: a 0.5 s sleep)
         page.wait_for_function("""el => !el.closest('[role="dialog"]').getAnimations({ subtree: true })
@@ -161,15 +161,15 @@ with App(relay=True) as app:
             n0, c0 = len(app.console), len(app.copied())
             app.click_reachable(btn)
             page.wait_for_function("() => document.getElementById('relay-copy-creds-btn').textContent === \"Couldn't copy\"",
-                                   timeout=5000)
+                                   timeout=LIMIT_MS)
             check(len(app.copied()) == c0, "something reached the clipboard while it refused")
             refusal_logged(app, n0, "Credentials", "Relay Setup")
             page.wait_for_function("() => document.getElementById('relay-copy-creds-btn').textContent === 'Copy'",
-                                   timeout=5000)
+                                   timeout=LIMIT_MS)
             app.stub_outside(refuse_clipboard=False)
             app.click_reachable(btn)
             page.wait_for_function("() => document.getElementById('relay-copy-creds-btn').textContent === 'Copied'",
-                                   timeout=5000)
+                                   timeout=LIMIT_MS)
             check(len(app.copied()) == c0 + 1 and app.copied()[-1].startswith("Channel ID: "), "the credentials weren't copied")
         finally:
             page.keyboard.press("Escape")

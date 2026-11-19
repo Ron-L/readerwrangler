@@ -64,15 +64,15 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, differs_today, done, test   # noqa: E402
-from rw import FIXTURE, App                            # noqa: E402
+from rw import FIXTURE, LIMIT_MS, App                  # noqa: E402
 
 # --list-cells (tools/run_tests.py's shards): print every cell's ID, in order, one a line — no browser, nothing run
 LIST_CELLS = "--list-cells" in sys.argv
 
 # Every wait here is for a condition, never a moment (TESTING.md §3; sprint 8 — this file had 25 fixed waits): the line
-# said, the box gone, the page caught up, the color reached. One limit for each, generous — only a real failure reaches it.
-LIMIT_MS = 30_000
-LIMIT_S = LIMIT_MS // 1000
+# said, the box gone, the page caught up, the color reached — through the shared waits (app.caught_up, settled, heard,
+# amber_look, held: rw.py, since sprint 9 — they were born here), each under the library's one limit, rw.LIMIT_MS (this
+# file's own was 30 s, and ~50 waits had 3–10 s) — generous: only a real failure reaches it.
 MOVE_LINE = r" · MOVE(?:-\d+)? · "        # a cut or copy says what it took
 WORDS_LINE = r"^(?:info|warning|error) · (?!UNDO · )"   # a message shown to a person (a box logs what it shows too)
 
@@ -155,42 +155,10 @@ def not_exactly(a, b):
 with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS else App()) as app:
     page = app.page
 
-    # The page has run every task queued before now: a timer task, a message task (React's scheduler runs a render's
-    # effects in message tasks — the left pane's scroll to the open folder, the saves, window.folders), a timer task. (Not
-    # requestIdleCallback: after an Escape, Chrome gave the page no idle time for 3 s and more with nothing to do —
-    # measured 2026-11-18; after a click, ~0.3 s.)
-    CAUGHT_UP_JS = """() => new Promise(r => setTimeout(() => { const c = new MessageChannel();
-        c.port1.onmessage = () => setTimeout(r, 0); c.port2.postMessage(null); }, 0))"""
-
-    def caught_up():
-        """Wait until the page has done what the last step started: every task it queued has run — React's effects after
-        its render, and any message they say. A condition the page answers (CAUGHT_UP_JS), not a moment."""
-        page.evaluate(CAUGHT_UP_JS)
-
-    def settled(read_js):
-        """read_js's reading once the page has settled: two readings with the page caught up between them are the same
-        (was: two readings 150 ms apart, up to 3 s, then whatever the last one said). Still changing at the limit: a
-        failure."""
-        got = page.evaluate(f"""async (limit) => {{
-            const read = {read_js};
-            const caughtUp = {CAUGHT_UP_JS};
-            const end = performance.now() + limit;
-            let last = JSON.stringify(read());
-            for (;;) {{
-                await caughtUp();
-                const now = JSON.stringify(read());
-                if (now === last) return {{ ok: true, value: JSON.parse(now) }};
-                if (performance.now() > end) return {{ ok: false, value: JSON.parse(now) }};
-                last = now;
-            }}
-        }}""", LIMIT_MS)
-        if not got["ok"]:
-            raise AssertionError(f"the page's reading never settled within {LIMIT_S} s (it was still changing)")
-        return got["value"]
-
     def state():
-        """The library, read once the page has settled (settled())."""
-        return settled(STATE_JS)
+        """The library, read once the page has settled (app.settled — was: two readings 150 ms apart, up to 3 s, then
+        whatever the last one said)."""
+        return app.settled(STATE_JS)
 
     def restore_fixture():
         app.restore(FIXTURE)
@@ -218,8 +186,8 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         # Open when its left-pane entry shows it (bg-blue-100) — the same render that fills the right pane (nothing there is
         # deferred), so its rows are the new place's. A condition, not the fixed 400 ms it was (7.30.0-alpha.3: ~30 s a run).
         target.first.wait_for(state="attached")
-        page.wait_for_function("el => !!el.closest('.bg-blue-100')", arg=target.first.element_handle(), timeout=3000)
-        caught_up()     # the open's effects too: the left pane scrolls the open folder into view after the render (was 50 ms)
+        page.wait_for_function("el => !!el.closest('.bg-blue-100')", arg=target.first.element_handle(), timeout=LIMIT_MS)
+        app.caught_up()     # the open's effects too: the left pane scrolls the open folder into view after the render (was 50 ms)
 
     def select(*titles):
         """Click the first row, Ctrl+click the rest; wait until the screen shows them selected. (Until 7.30.0 also 250 ms
@@ -229,26 +197,17 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         for i, t in enumerate(titles):
             page.locator("tbody tr", has_text=t).first.click(modifiers=["Control"] if i else None)
         page.wait_for_function(f"() => document.querySelectorAll('tbody tr.bg-blue-50').length === {len(titles)}",
-                               timeout=3000)
-        caught_up()
+                               timeout=LIMIT_MS)
+        app.caught_up()
 
     def pick(place, *titles):
         go(place)
         select(*titles)
 
-    def heard(pattern, since):
-        """Wait for a console line matching `pattern` from line `since` on — True; False when none came within the limit
-        (never raises: the checks after it say what went wrong, as they did when the wait was a fixed moment)."""
-        try:
-            app.wait_console(pattern, LIMIT_S, since=since)
-            return True
-        except AssertionError:
-            return False
-
     def clipped(n0):
         """A cut or copy (a key or a menu item) said what it took — a MOVE line since n0 — and the page is done with it."""
-        heard(MOVE_LINE, n0)
-        caught_up()
+        app.heard(MOVE_LINE, n0)
+        app.caught_up()
 
     def key(k, says=True):
         """Ctrl+<k>. A cut or copy says what it took (a MOVE line): wait for that (clipped). says=False: nothing is
@@ -257,7 +216,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         n0 = len(app.console)
         page.keyboard.press(f"Control+{k}")
         if k in ("x", "c"):
-            clipped(n0) if says else caught_up()
+            clipped(n0) if says else app.caught_up()
 
     def paste_key(place):
         go(place)
@@ -268,7 +227,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         go(place)
         page.locator("tbody tr", has_text=row_title).first.click(button="right")
         item = page.get_by_role("menu", name="Book options").get_by_text(re.compile(r"^Paste \(\d+\)$"))
-        item.first.wait_for(timeout=3000)
+        item.first.wait_for(timeout=LIMIT_MS)
         mark()
         app.click_reachable(item.first)
 
@@ -276,10 +235,10 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         """Right-click a (selected) row → hover a submenu → click a target in it."""
         page.locator("tbody tr", has_text=title).first.click(button="right")
         menu = page.get_by_role("menu", name="Book options")
-        menu.wait_for(timeout=3000)
+        menu.wait_for(timeout=LIMIT_MS)
         app.hover(menu.locator(".submenu-trigger", has_text=trigger).first)
         sub = page.locator(f'[aria-label="{submenu}"]')
-        sub.wait_for(timeout=3000)
+        sub.wait_for(timeout=LIMIT_MS)
         mark()
         app.click_reachable(sub.get_by_text(target, exact=True).first)
 
@@ -292,7 +251,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         if ctrl:
             page.keyboard.down("Control")
         try:
-            src.drag_to(dst, timeout=10_000)
+            src.drag_to(dst, timeout=LIMIT_MS)
         finally:
             if ctrl:
                 page.keyboard.up("Control")
@@ -301,14 +260,14 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         """Right-click a folder in the left pane → an item (Cut / Copy / Paste), or Move to › a target."""
         page.locator(f'[data-folder-id="{FOLDER_IDS[folder]}"]').first.click(button="right")
         menu = page.get_by_role("menu", name="Folder options")
-        menu.wait_for(timeout=3000)
+        menu.wait_for(timeout=LIMIT_MS)
         if target is None:
             mark()
             app.click_reachable(menu.get_by_text(item, exact=True).first)
         else:
             app.hover(menu.locator(".submenu-trigger", has_text=item).first)
             sub = page.locator('[aria-label="Move to folder"]')
-            sub.wait_for(timeout=3000)
+            sub.wait_for(timeout=LIMIT_MS)
             mark()
             app.click_reachable(sub.get_by_text(target, exact=True).first)
 
@@ -322,8 +281,8 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             return [re.sub(r"^\w+ · [A-Z]+(?:-\d+)? · ", "", x) for _, x in app.console[_mark[0]:]
                     if re.match(r"^(info|warning|error) · ", x) and " · UNDO · " not in x]
         if expect:
-            heard(WORDS_LINE, _mark[0])
-        caught_up()
+            app.heard(WORDS_LINE, _mark[0])
+        app.caught_up()
         box = page.locator(".rw-imperative-overlay")
         boxed = [f"[box: {box.first.inner_text().strip()}]"] if box.count() else []
         return " | ".join(lines() + boxed)
@@ -334,7 +293,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         for the page to settle."""
         n0 = len(app.console)
         page.keyboard.press("Control+z")
-        heard(r" · UNDO · ", n0)
+        app.heard(r" · UNDO · ", n0)
         return " | ".join(x for _, x in app.console[n0:] if " · UNDO · Undone:" in x)
 
     def clean_up():
@@ -343,7 +302,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             if btn.count():
                 btn.first.click()
         page.keyboard.press("Escape")
-        caught_up()     # the Escape handled — menus closed, the selection and clipboards cleared (was 200 ms)
+        app.caught_up()     # the Escape handled — menus closed, the selection and clipboards cleared (was 200 ms)
         # (Until 7.31.0 a warning toast was waited out here: it took clicks, and CELL-066 run right after CELL-064 found
         # "Add to Book List" under CELL-064's "Copied … from the Trash". A message lets clicks through now — TOAST-006.)
         filters = page.get_by_title("Clear all active filters")
@@ -365,7 +324,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
                     page.locator(".rw-imperative-overlay").get_by_role("button", name=answer, exact=True).click()
                     # the box gone, and the page done with the answer (was a fixed 400 ms; state() then settles)
                     page.locator(".rw-imperative-overlay").first.wait_for(state="detached", timeout=LIMIT_MS)
-                    caught_up()
+                    app.caught_up()
                 after = state()
                 got = delta(before, after)
                 if got != decided:
@@ -513,13 +472,13 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
                 pick(place, title)
                 page.locator("tbody tr", has_text=title).first.click(button="right")
                 menu = page.get_by_role("menu", name="Book options")
-                menu.wait_for(timeout=3000)
+                menu.wait_for(timeout=LIMIT_MS)
                 trig = menu.get_by_role("menuitem").filter(has_text=re.compile(r"Move to")).first
                 disabled = trig.get_attribute("aria-disabled") == "true"
                 check(not disabled, f"Move to is greyed here (tooltip {trig.get_attribute('title')!r})")
                 app.hover(trig)
                 sub = page.locator('[aria-label="Move to folder"]')
-                sub.wait_for(timeout=3000)
+                sub.wait_for(timeout=LIMIT_MS)
                 found = sub.get_by_text(wanted, exact=True).count()
                 if offered:
                     check(found, f"Move to › doesn't offer {wanted!r} (it lists: {sub.inner_text()[:200]!r})")
@@ -680,7 +639,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             before = page.evaluate(ORDER_JS)
             folder_menu("Space Opera", "Copy")
             folder_menu("Fantasy", "Paste")
-            after = {f["name"]: f for f in settled(ORDER_JS)}     # the paste landed: the folders settled (was 400 ms)
+            after = {f["name"]: f for f in app.settled(ORDER_JS)}     # the paste landed: the folders settled (was 400 ms)
             top, sub = after.get("Space Opera (Copy)"), after.get("Old Favorites (Copy)")
             check(top and sub, f"no copy made: {sorted(after)}")
             check(top["kids"] == [sub["id"]], f"the copy's subfolders are {top['kids']} — should be its own copy {sub['id']} "
@@ -689,13 +648,13 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             check(top["id"] in (after["Fantasy"]["kids"] or []),
                   f"Fantasy's subfolders don't list the copy: {after['Fantasy']['kids']}")
             undo_once()
-            check(settled(ORDER_JS) == before, "one Ctrl+Z didn't put every folder (and its order fields) back exactly")
+            check(app.settled(ORDER_JS) == before, "one Ctrl+Z didn't put every folder (and its order fields) back exactly")
             page.keyboard.press("Control+y")
-            again = {f["name"]: f for f in settled(ORDER_JS)}     # the redo landed: the folders settled (was 500 ms)
+            again = {f["name"]: f for f in app.settled(ORDER_JS)}     # the redo landed: the folders settled (was 500 ms)
             check(again.get("Space Opera (Copy)") == top and again.get("Old Favorites (Copy)") == sub,
                   "Ctrl+Y didn't make the same copy again (it used to say 'Cannot redo copy operation')")
             undo_once()
-            check(settled(ORDER_JS) == before, "Ctrl+Z after Ctrl+Y didn't put it back")
+            check(app.settled(ORDER_JS) == before, "Ctrl+Z after Ctrl+Y didn't put it back")
         finally:
             clean_up()
     add("CELL-062", "a copied folder's subfolders belong to the COPY (its own subfolder list names the copies); Ctrl+Z puts "
@@ -734,7 +693,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             pick("Trash", TR)
             key("c")                                        # a copy out of the Trash on the clipboard: Paste is then refused
             page.locator("tbody tr", has_text=TR).first.click(button="right")
-            page.get_by_role("menu", name="Book options").wait_for(timeout=3000)
+            page.get_by_role("menu", name="Book options").wait_for(timeout=LIMIT_MS)
             for label in ("Move to", "Copy to", "Add to Book List", "Cut", "Copy"):
                 row = menu_item(label)
                 check(row.count(), f"the Trash's book menu doesn't offer {label!r} (it was hidden there before 7.30.0)")
@@ -758,7 +717,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         pick("All Books", S1)
         page.locator("tbody tr", has_text=S1).first.click(button="right")
         row = menu_item("Cut")
-        row.wait_for(timeout=3000)
+        row.wait_for(timeout=LIMIT_MS)
         check(row.get_attribute("aria-disabled") != "true", f"Cut is greyed in All Books (title {row.get_attribute('title')!r})")
         n0 = len(app.console)
         app.click_reachable(row)
@@ -773,13 +732,13 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         def gesture(title):
             page.locator("tbody tr", has_text=title).first.click(button="right")
             menu = page.get_by_role("menu", name="Book options")
-            menu.wait_for(timeout=3000)
+            menu.wait_for(timeout=LIMIT_MS)
             app.hover(menu.locator(".submenu-trigger", has_text=trigger).first)
             sub = page.locator(f'[aria-label="{submenu}"]')
-            sub.wait_for(timeout=3000)
+            sub.wait_for(timeout=LIMIT_MS)
             app.click_reachable(sub.get_by_text(entry, exact=True).first)
             box = page.locator(".rw-imperative-overlay input").first
-            box.wait_for(timeout=3000)
+            box.wait_for(timeout=LIMIT_MS)
             box.fill(name)
             mark()
             box.press("Enter")
@@ -826,7 +785,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             pick(*MIXED)
             page.locator("tbody tr", has_text=ND).first.click(button="right")
             menu = page.get_by_role("menu", name="Book options")
-            menu.wait_for(timeout=3000)
+            menu.wait_for(timeout=LIMIT_MS)
             head = menu.locator("div").first.inner_text().strip()
             check(head == "1 book and 1 folder selected", f"the book menu's header says {head!r}")
         finally:
@@ -845,7 +804,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
     def book_menu_item(title, label):
         page.locator("tbody tr", has_text=title).first.click(button="right")
         menu = page.get_by_role("menu", name="Book options")
-        menu.wait_for(timeout=3000)
+        menu.wait_for(timeout=LIMIT_MS)
         n0 = len(app.console)
         app.click_reachable(menu.get_by_text(label, exact=True).first)
         clipped(n0)                                    # (Cut / Copy) it said what it took (was a fixed 200 ms)
@@ -858,7 +817,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         """Right-click a folder ROW in the right pane (the selection stays) → an item, or Move to › a target."""
         page.locator("tbody tr", has_text=folder).first.click(button="right")
         menu = page.get_by_role("menu", name="Folder options")
-        menu.wait_for(timeout=3000)
+        menu.wait_for(timeout=LIMIT_MS)
         if target is None:
             n0 = len(app.console)
             app.click_reachable(menu.get_by_text(item, exact=True).first)
@@ -866,7 +825,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             return
         app.hover(menu.locator(".submenu-trigger", has_text=item).first)
         sub = page.locator('[aria-label="Move to folder"]')
-        sub.wait_for(timeout=3000)
+        sub.wait_for(timeout=LIMIT_MS)
         mark()
         app.click_reachable(sub.get_by_text(target, exact=True).first)
 
@@ -874,8 +833,8 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         """Open the Folders header (the right pane lists the Inbox and the top-level folders)."""
         page.mouse.move(900, 600)
         app.click_reachable(page.locator("[data-left-pane] span.cursor-pointer", has_text=re.compile(r"^Folders$")).first)
-        page.locator("tbody tr", has_text="An Empty Folder").first.wait_for(timeout=3000)
-        caught_up()                                    # the open's effects done (was a fixed 100 ms)
+        page.locator("tbody tr", has_text="An Empty Folder").first.wait_for(timeout=LIMIT_MS)
+        app.caught_up()                                    # the open's effects done (was a fixed 100 ms)
     add("CELL-076", "a book and a folder selected, the FOLDER's menu (right pane) Move to ›: both move — one answer with "
         "the book menu",
         cell(lambda: (pick(*MIXED), right_folder_menu("Space Opera", "Move to", "Fantasy")), BOTH_MOVED, BOTH_WORDS))
@@ -896,27 +855,27 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             pick(*MIXED)
             page.locator("tbody tr", has_text=ND).first.click(button="right")
             menu = page.get_by_role("menu", name="Book options")
-            menu.wait_for(timeout=3000)
+            menu.wait_for(timeout=LIMIT_MS)
             app.hover(menu.locator(".submenu-trigger", has_text="Move to").first)
             sub = page.locator('[aria-label="Move to folder"]')
-            sub.wait_for(timeout=3000)
+            sub.wait_for(timeout=LIMIT_MS)
             # a folder can't go into itself: the selected Space Opera (a subfolder — found with the filter box) is greyed
             sub.locator("input").first.fill("Space")
             space = sub.get_by_role("menuitem").filter(has_text="Space Opera").first
-            space.wait_for(timeout=3000)
+            space.wait_for(timeout=LIMIT_MS)
             check(space.get_attribute("aria-disabled") == "true" and "into itself" in (space.get_attribute("title") or ""),
                   f"the selected folder should be greyed in Move to › with the reason — aria-disabled "
                   f"{space.get_attribute('aria-disabled')!r}, title {space.get_attribute('title')!r}")
             page.keyboard.press("Escape")
-            caught_up()                                # the Escape handled (was a fixed 200 ms)
+            app.caught_up()                                # the Escape handled (was a fixed 200 ms)
             clean_up()
             pick(*MIXED)
             page.locator("tbody tr", has_text="Space Opera").first.click(button="right")
             fmenu = page.get_by_role("menu", name="Folder options")
-            fmenu.wait_for(timeout=3000)
+            fmenu.wait_for(timeout=LIMIT_MS)
             app.hover(fmenu.locator(".submenu-trigger", has_text="Move to").first)
             fsub = page.locator('[aria-label="Move to folder"]')
-            fsub.wait_for(timeout=3000)
+            fsub.wait_for(timeout=LIMIT_MS)
             root = fsub.get_by_text("Root", exact=True).first.locator("xpath=..")
             check(root.get_attribute("aria-disabled") == "true"
                   and "top level" in (root.get_attribute("title") or ""),
@@ -932,7 +891,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         pick(*MIXED)
         crumb = page.locator("button", has_text=re.compile(r"^Folders$")).first
         mark()
-        page.locator("tbody tr", has_text=ND).first.drag_to(crumb, timeout=10_000)
+        page.locator("tbody tr", has_text=ND).first.drag_to(crumb, timeout=LIMIT_MS)
     add("CELL-081", "a book and a folder dragged onto \"Folders\" in the folder path above the right pane: nothing moves, "
         "in a drag's words — not the paste's (\"Open a folder or Book List to paste into it\")",
         cell(mixed_drop_on_folders_crumb, {}, ["Nothing moved", "books can't go to the top level"]))
@@ -943,13 +902,13 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
                 pick("Trash", TR)
                 page.locator("tbody tr", has_text=TR).first.click(button="right")
                 menu = page.get_by_role("menu", name="Book options")
-                menu.wait_for(timeout=3000)
+                menu.wait_for(timeout=LIMIT_MS)
                 app.hover(menu.locator(".submenu-trigger", has_text=trigger).first)
                 sub = page.locator(f'[aria-label="{submenu}"]')
-                sub.wait_for(timeout=3000)
+                sub.wait_for(timeout=LIMIT_MS)
                 app.click_reachable(sub.get_by_text(entry, exact=True).first)
                 ov = page.locator(".rw-imperative-overlay")
-                ov.first.wait_for(timeout=3000)
+                ov.first.wait_for(timeout=LIMIT_MS)
                 said = ov.first.inner_text()
                 check(wanted in said and not re.search(r"\b(copy|move)\b", said, re.I),
                       f"in the Trash the box should say {wanted!r} (it restores) — it says {said!r}")
@@ -992,7 +951,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         folder_menu("An Empty Folder", "Move to", "Science Fiction")
         words()
         go("Science Fiction")
-        page.locator("tbody tr", has_text="An Empty Folder").first.wait_for(timeout=3000)
+        page.locator("tbody tr", has_text="An Empty Folder").first.wait_for(timeout=LIMIT_MS)
 
     def row_edge_drop(titles, edge, decided, says=(), reorders=False):
         """Select `titles` in Science Fiction, drag the last one onto An Empty Folder's row, `edge` = its top or bottom
@@ -1007,7 +966,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
                 h = dst.bounding_box()["height"]
                 mark()
                 page.locator("tbody tr", has_text=titles[-1]).first.drag_to(
-                    dst, target_position={"x": 120, "y": 2 if edge == "top" else h - 2}, timeout=10_000)
+                    dst, target_position={"x": 120, "y": 2 if edge == "top" else h - 2}, timeout=LIMIT_MS)
                 said = words(expect=bool(says))        # a reorder says nothing (only a debug line)
                 got = delta(before, state())
                 check(got == decided, f"changed {got}; decided {decided} — said {said!r}")
@@ -1040,10 +999,10 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             before, order = state(), page.evaluate(ORDER_JS)
             app.menu("View", "Cover View").click()
             tile = lambda name: page.locator('div[class*="hover:opacity-80"]', has_text=name).first   # noqa: E731
-            tile("An Empty Folder").wait_for(timeout=3000)
+            tile("An Empty Folder").wait_for(timeout=LIMIT_MS)
             check(page.locator('div[class*="ring-blue-400"]').count() >= 1, "the selection didn't survive the switch")
             mark()
-            tile("Space Opera").drag_to(tile("An Empty Folder"), target_position={"x": 20, "y": 3}, timeout=10_000)
+            tile("Space Opera").drag_to(tile("An Empty Folder"), target_position={"x": 20, "y": 3}, timeout=LIMIT_MS)
             said = words()
             got = delta(before, state())
             check(got == INTO_EMPTY, f"changed {got}; decided {INTO_EMPTY} — said {said!r}")
@@ -1075,7 +1034,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         src = page.locator(f'[data-folder-id="{FOLDER_IDS["An Empty Folder"]}"]').first
         dst = page.locator("tbody tr", has_text="Space Opera").first
         mark()
-        src.drag_to(dst, target_position={"x": 120, "y": dst.bounding_box()["height"] / 2}, timeout=10_000)
+        src.drag_to(dst, target_position={"x": 120, "y": dst.bounding_box()["height"] / 2}, timeout=LIMIT_MS)
     add("CELL-098", "a left-pane folder dropped on the MIDDLE of a right-pane folder row: moved into it — the table's "
         "answer (was reparentFolder on its own)",
         cell(left_folder_onto_row, {"An Empty Folder ⇒": "Space Opera"}, ["Moved 'An Empty Folder' to 'Space Opera'"]))
@@ -1090,13 +1049,13 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         if place == "Old Favorites":                   # not shown in the left pane (Space Opera is closed there): open it
             go("Space Opera")                          # from the right pane — the path: Folders › Science Fiction ›
             page.locator("tbody tr", has_text="Old Favorites").first.dblclick()   # Space Opera › Old Favorites
-            crumb("Space Opera").wait_for(timeout=3000)
+            crumb("Space Opera").wait_for(timeout=LIMIT_MS)
         else:
             go(place)
         src = page.locator(f'[data-folder-id="{FOLDER_IDS[folder]}"]').first
-        crumb(to).wait_for(timeout=3000)
+        crumb(to).wait_for(timeout=LIMIT_MS)
         mark()
-        src.drag_to(crumb(to), timeout=10_000)
+        src.drag_to(crumb(to), timeout=LIMIT_MS)
     add("CELL-092", "a left-pane folder dragged onto \"Book Lists\" in the folder path (a Book List open): refused, in a "
         "drag's words — nothing changes (was: the folder's parent became Book Lists and it dropped out of the tree)",
         cell(lambda: left_folder_onto_crumb("Read Next", "Space Opera", "Book Lists"), {},
@@ -1140,7 +1099,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             h = dst.bounding_box()["height"]
             pos = {"x": 60, "y": 2 if edge == "top" else h - 2 if edge == "bottom" else h / 2}
         mark()
-        src.drag_to(dst, target_position=pos, timeout=10_000) if pos else src.drag_to(dst, timeout=10_000)
+        src.drag_to(dst, target_position=pos, timeout=LIMIT_MS) if pos else src.drag_to(dst, timeout=LIMIT_MS)
     add("CELL-099", "a top-level folder dragged onto the left pane's \"Folders\" header: already there — nothing changes, "
         "and the words say so (§6 item 7; was: re-placed at the top, saying \"Moved\")",
         cell(lambda: left_folder_onto("An Empty Folder", "Folders"), {},
@@ -1193,7 +1152,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
     def right_onto_folders_header(*titles):
         pick("Science Fiction", *titles)
         mark()
-        page.locator("tbody tr", has_text=titles[-1]).first.drag_to(folders_header(), timeout=10_000)
+        page.locator("tbody tr", has_text=titles[-1]).first.drag_to(folders_header(), timeout=LIMIT_MS)
     add("CELL-105", "a book and a folder dragged from the right pane onto the left pane's \"Folders\" header: nothing moves, "
         "in a drag's words (was: the folder went to the top level and the book was dropped silently)",
         cell(lambda: right_onto_folders_header("Space Opera", ND), {}, ["Nothing moved", "books can't go to the top level"]))
@@ -1203,9 +1162,9 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
 
     def books_onto_book_lists_crumb():
         pick("Read Next", S3)
-        crumb("Book Lists").wait_for(timeout=3000)
+        crumb("Book Lists").wait_for(timeout=LIMIT_MS)
         mark()
-        page.locator("tbody tr", has_text=S3).first.drag_to(crumb("Book Lists"), timeout=10_000)
+        page.locator("tbody tr", has_text=S3).first.drag_to(crumb("Book Lists"), timeout=LIMIT_MS)
     add("CELL-107", "a book dragged onto \"Book Lists\" in the folder path (a Book List open): nothing moves, in a drag's "
         "words (was the paste's: \"Open a folder or Book List to paste into it\")",
         cell(books_onto_book_lists_crumb, {}, ["Nothing moved", "Book Lists heading", "Drop them on one in the left pane"]))
@@ -1235,13 +1194,13 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
                 if cover:
                     app.menu("View", "Cover View").click()
                 dst = tile(row) if cover else page.locator("tbody tr", has_text=row).first
-                dst.wait_for(timeout=3000)
+                dst.wait_for(timeout=LIMIT_MS)
                 before, fields = state(), page.evaluate(ORDER_JS)
                 h = dst.bounding_box()["height"]
                 source = src() if callable(src) else left_row(src)
                 mark()
                 source.drag_to(dst, target_position={"x": 20 if cover else 120, "y": 3 if edge == "top" else h - 3},
-                               timeout=10_000)
+                               timeout=LIMIT_MS)
                 said = words(expect=bool(says))        # a reorder says nothing (only a debug line)
                 got = delta(before, state())
                 check(got == decided, f"changed {got}; decided {decided} — said {said!r}")
@@ -1305,52 +1264,17 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
         return { cls: el.className, bg: getComputedStyle(el).backgroundColor, amber };
     }"""
 
-    # The toast holding `words` ('' = the toast on screen): its look once it has reached amber — or once it's leaving (its
-    # .animating flight to the status bar) or gone, never amber: then the check after says so with what it was.
-    AMBER_JS = """words => {
-        const el = [...document.querySelectorAll('.clipboard-toast')].find(t => t.innerText.includes(words));
-        const probe = document.createElement('div');
-        probe.style.backgroundColor = 'var(--toast-warning-bg)';
-        document.body.appendChild(probe);
-        const amber = getComputedStyle(probe).backgroundColor;
-        probe.remove();
-        if (!el) return { cls: '(no toast)', bg: '(no toast)', amber };
-        const look = { cls: el.className, bg: getComputedStyle(el).backgroundColor, amber };
-        return look.bg === amber || el.classList.contains('animating') ? look : null;
-    }"""
-
-    def amber_look(words=""):
-        """The look of a toast that should be a warning, once it has reached amber: a toast fades to its colors
-        (.clipboard-toast's 1 s transition) — read too soon, it's still part-way (2026-11-17, a loaded PC:
-        rgba(254, 243, 199, 0.557)). Waited for each frame (AMBER_JS), not a fixed ~2 s of 50 ms polls."""
-        return page.wait_for_function(AMBER_JS, arg=words, timeout=LIMIT_MS).json_value()
-
-    # Timed on purpose — a DURATION is what's tested ("a warning stays ~4 s where it appeared, others 1.5 s"): `ms` after
-    # the app was told to show the toast whose words are `text` (its log entry's time — the toast's own hold timers start
-    # in that same moment), is a toast holding `words` ('' = any) still where it appeared (not .animating)? Waited IN the
-    # page, on the page's clock: the app's hold timers and this one share one queue, so under any load this one (due
-    # first) runs before a later-due hold ends — no lag between our clock and the browser's can move the answer.
-    HELD_JS = """async ([text, words, ms]) => {
-        const e = window.rwLog.entries().reverse().find(x => x.text && text.includes(x.text));
-        if (!e) return 'no log entry for the toast';
-        await new Promise(r => setTimeout(r, Math.max(0, e.time + ms - Date.now())));   // timed on purpose (above)
-        return [...document.querySelectorAll('.clipboard-toast:not(.animating)')].some(t => t.innerText.includes(words));
-    }"""
-
-    def held(text, words, ms):
-        still = page.evaluate(HELD_JS, [text, words, ms])
-        check(isinstance(still, bool), f"can't time the toast {text!r}: {still}")
-        return still
-
+    # A warning toast's look, once it has reached amber: app.amber_look (each frame; was a fixed ~2 s of 50 ms polls). How
+    # long it stays where it appeared — a DURATION, timed on purpose, in the page on its own clock: app.held (rw.py).
     def toast_look(place, title, k, warning):
         def run():
             try:
                 pick(place, title)
                 page.keyboard.press(f"Control+{k}")
                 t = page.locator(".clipboard-toast").first
-                t.wait_for(state="visible", timeout=3000)
+                t.wait_for(state="visible", timeout=LIMIT_MS)
                 text = t.inner_text().strip()
-                look = amber_look() if warning else t.evaluate(TOAST_JS)
+                look = app.amber_look() if warning else t.evaluate(TOAST_JS)
                 if warning:
                     check("warning" in look["cls"] and look["bg"] == look["amber"],
                           f"a warning toast should be amber — its class {look['cls']!r}, background {look['bg']} "
@@ -1362,7 +1286,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
                           f"an ordinary toast looks like a warning: {look}")
                 # timed on purpose: 3 s after it appeared, a warning is still where it appeared; an ordinary one left at
                 # 1.5 s (held(): measured from its own moment, in the page — was 3 s from the key, on our clock)
-                still = held(text, "", 3000)
+                still = app.held(text, "", 3000)
                 check(still == warning, f"~3 s after it appeared, the toast is {'still' if still else 'no longer'} there "
                                         f"(a warning stays ~4 s, others 1.5 s)")
             finally:
@@ -1507,14 +1431,14 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             try:
                 gesture()
                 t = page.locator(".clipboard-toast", has_text=words_part).first
-                t.wait_for(state="visible", timeout=4000)
+                t.wait_for(state="visible", timeout=LIMIT_MS)
                 text = t.inner_text().strip()
-                look = amber_look(words_part)   # a toast that replaces another (the cut's, then the paste's) fades too
+                look = app.amber_look(words_part)   # a toast that replaces another (the cut's, then the paste's) fades too
                 check("warning" in look["cls"] and look["bg"] == look["amber"],
                       f"the toast {words_part!r} should be amber — its class {look['cls']!r}, background {look['bg']}")
                 # timed on purpose: ~3 s after it appeared, still where it appeared (held(): from its own moment, in the
                 # page — was 2.8 s from when this test saw it, on our clock)
-                check(held(text, words_part, 3000),
+                check(app.held(text, words_part, 3000),
                       f"~3 s on, the warning {words_part!r} is no longer where it appeared (a warning stays ~4 s)")
             finally:
                 clean_up()
@@ -1535,7 +1459,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             pick("Science Fiction", ND)
             page.locator("tbody tr", has_text=ND).first.click(button="right")
             row = menu_item("Cut")
-            row.wait_for(timeout=3000)
+            row.wait_for(timeout=LIMIT_MS)
             box = row.bounding_box()
             cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
             # A message laid right over the item, through the app's one toast routine (a planted test message — a warning,
@@ -1543,7 +1467,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             page.evaluate("""p => window.rwLog.log('warning', 'UI-07', 'A test message laid over a menu item', null,
                                                    { test: true, toast: { x: p.x, y: p.y } })""", {"x": cx, "y": cy + 20})
             toast = page.locator(".clipboard-toast", has_text="A test message laid over a menu item").first
-            toast.wait_for(state="visible", timeout=3000)
+            toast.wait_for(state="visible", timeout=LIMIT_MS)
             # A toast still on screen from before (flying to the status bar) slides to the new spot over 1 s (.clipboard-
             # toast's transition) — wait for it to arrive, each frame (was up to 1.5 s of 50 ms polls); or for it to leave
             # (.animating) without arriving — then the check below says so
@@ -1565,7 +1489,7 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             except App.Unreachable as e:
                 check(False, f"the message took the click meant for Cut: {e}")
                 return
-            check(heard(MOVE_LINE, _mark[0]),   # the cut says what it took (was up to 1 s of 50 ms polls)
+            check(app.heard(MOVE_LINE, _mark[0]),   # the cut says what it took (was up to 1 s of 50 ms polls)
                   "the click at Cut, under the message, didn't cut the book (no MOVE line)")
         finally:
             clean_up()
@@ -1615,13 +1539,13 @@ with (contextlib.nullcontext(types.SimpleNamespace(page=None)) if LIST_CELLS els
             said = words()
             check("Move folder with 21 subfolders?" in said, f"the large move should ask first — said {said!r}")
             box.get_by_role("button", name="Cancel", exact=True).click()
-            box.first.wait_for(state="detached", timeout=3000)
+            box.first.wait_for(state="detached", timeout=LIMIT_MS)
             check(not delta(before, state()), f"Cancel moved something: {delta(before, state())}")
             folder_menu("An Empty Folder", "Move to", "Fantasy")
-            box.first.wait_for(timeout=3000)
+            box.first.wait_for(timeout=LIMIT_MS)
             mark()
             box.get_by_role("button", name="OK", exact=True).click()
-            box.first.wait_for(state="detached", timeout=3000)
+            box.first.wait_for(state="detached", timeout=LIMIT_MS)
             said = words()
             got = delta(before, state())
             check(got == {"An Empty Folder ⇒": "Fantasy"}, f"changed {got} — said {said!r}")

@@ -98,7 +98,7 @@ with App() as app:
         app.click_reachable(page.locator(CRITICAL).get_by_text("OK", exact=True))
         # books on screen, so Save Backup isn't greyed out — it must refuse rather than save a library with no folders
         app.menu("File", "Save Backup").click()
-        page.get_by_text("Your library isn't loaded", exact=False).wait_for(timeout=10_000)
+        page.get_by_text("Your library isn't loaded", exact=False).wait_for(timeout=LIMIT_MS)
         check(since(app, n0, r"^warning · BACKUP-08 · "), "no BACKUP-08 warning for the refused Save Backup")
     test("BOOT-003", "a start that fails after the books appear: the box says don't save a backup, and Save Backup "
          "refuses (BOOT-01, BACKUP-08); the saved organization is untouched", failed_after_the_books)

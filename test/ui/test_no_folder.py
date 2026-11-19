@@ -15,7 +15,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
+from rw import APP_TIMEOUT_MS, FIXTURE, LIMIT_MS, App   # noqa: E402
 
 BANNER = "#rw-log-banner"
 ONE = "'Good Omens' was in no folder — it's in the Inbox now. (That shouldn't happen; it's in the log.)"
@@ -53,15 +53,15 @@ def bar_message(app):
 
 
 def wait_bar(app, words):
-    app.page.locator(BANNER).wait_for(timeout=5000)
-    app.page.locator(BANNER).get_by_text(words, exact=False).wait_for(timeout=5000)
+    app.page.locator(BANNER).wait_for(timeout=LIMIT_MS)
+    app.page.locator(BANNER).get_by_text(words, exact=False).wait_for(timeout=LIMIT_MS)
     return app.page.locator(BANNER).inner_text()
 
 
 def dismiss(app):
     if app.page.locator(BANNER).count():
         app.click_reachable(app.page.locator(BANNER).get_by_text("Dismiss", exact=True))
-        app.page.locator(BANNER).wait_for(state="detached", timeout=5000)
+        app.page.locator(BANNER).wait_for(state="detached", timeout=LIMIT_MS)
 
 
 def rename_space_opera(app):
@@ -70,15 +70,15 @@ def rename_space_opera(app):
     page.mouse.move(900, 600)
     target = page.locator('[data-folder-id="f-scifi"]').first
     app.click_reachable(target)
-    page.wait_for_function("el => !!el.closest('.bg-blue-100')", arg=target.element_handle(), timeout=3000)
+    page.wait_for_function("el => !!el.closest('.bg-blue-100')", arg=target.element_handle(), timeout=LIMIT_MS)
     page.locator("tbody tr", has_text="Space Opera").first.click()
-    page.wait_for_function("() => document.querySelectorAll('tbody tr.bg-blue-50').length === 1", timeout=3000)
+    page.wait_for_function("() => document.querySelectorAll('tbody tr.bg-blue-50').length === 1", timeout=LIMIT_MS)
     page.keyboard.press("F2")
-    page.locator("tbody tr input[type=text]").first.wait_for(timeout=3000)
+    page.locator("tbody tr input[type=text]").first.wait_for(timeout=LIMIT_MS)
     page.keyboard.press("Control+a")
     page.keyboard.type("Space Westerns")
     page.keyboard.press("Enter")
-    page.wait_for_function("() => window.folders.find(f => f.id === 'f-space').name === 'Space Westerns'", timeout=3000)
+    page.wait_for_function("() => window.folders.find(f => f.id === 'f-space').name === 'Space Westerns'", timeout=LIMIT_MS)
     page.keyboard.press("Escape")
     # Esc clears the selection (readerwrangler.js, the main view's Esc): no row selected (before: a 0.15 s sleep)
     page.wait_for_function("() => document.querySelectorAll('tbody tr.bg-blue-50').length === 0", timeout=APP_TIMEOUT_MS)
@@ -125,7 +125,7 @@ with App(log=None) as app:
                                            const i = es.findIndex(e => e.code === 'INTEG-08');
                                            return es.slice(0, i).map(e => window.rwLog.format(e)); }""")
         app.click_reachable(page.locator(BANNER).locator("button").first)
-        page.locator(BANNER).get_by_text("Copied", exact=True).wait_for(timeout=3000)
+        page.locator(BANNER).get_by_text("Copied", exact=True).wait_for(timeout=LIMIT_MS)
         copied = app.copied()[n0:]
         check(len(copied) == 1, f"the bar's Copy should copy once: {copied}")
         lines = copied[0].split("\n") if copied else [""]
@@ -144,8 +144,8 @@ with App(log=None) as app:
         n0 = len(app.copied())
         app.click_reachable(page.locator(BANNER).get_by_text("Report this problem", exact=True))
         box = page.locator('[role="dialog"]', has=page.get_by_text("Report a problem", exact=True))
-        box.wait_for(timeout=5000)
-        page.get_by_text("Diagnostics copied — paste them into your message to us.").wait_for(timeout=5000)
+        box.wait_for(timeout=LIMIT_MS)
+        page.get_by_text("Diagnostics copied — paste them into your message to us.").wait_for(timeout=LIMIT_MS)
         for name in ("Email us", "Report on GitHub"):
             check(box.get_by_role("button", name=name, exact=True).count() == 1, f"the dialog has no {name} button")
         copied = app.copied()[n0:]
@@ -153,14 +153,14 @@ with App(log=None) as app:
               f"Report this problem should copy the diagnostics, the error and its details in them: {[c[:200] for c in copied]}")
         check(app.console_matching(r"^info · UI · Diagnostics copied \(the error banner\)"), "the copy isn't in the log")
         page.keyboard.press("Escape")
-        box.wait_for(state="detached", timeout=5000)
+        box.wait_for(state="detached", timeout=LIMIT_MS)
         dismiss(app)
     test("NOFOLDER-003", "the bar's Report this problem opens the Report a problem window (as Help → Report a problem… "
          "does), the diagnostics copied", report_opens_the_dialog)
 
     def several_books():
         page.keyboard.press("Control+z")   # undo the rename — the last action is now that undo
-        page.wait_for_function("() => window.folders.find(f => f.id === 'f-space').name === 'Space Opera'", timeout=3000)
+        page.wait_for_function("() => window.folders.find(f => f.id === 'f-space').name === 'Space Opera'", timeout=LIMIT_MS)
         titles = ["The Test Saga, Book One", "The Test Saga, Book Two", "Owned as sample"]
         ids = leave_in_no_folder(app, titles)
         text = wait_bar(app, SEVERAL)
@@ -233,7 +233,7 @@ with App(log=None) as app:
         plant_error(app, "an error to turn off")
         wait_bar(app, "an error to turn off")
         app.click_reachable(page.locator(BANNER).get_by_text("Turn off this banner", exact=True))
-        page.locator(BANNER).wait_for(state="detached", timeout=5000)
+        page.locator(BANNER).wait_for(state="detached", timeout=LIMIT_MS)
         app.reload()
         app.wait_loaded()   # the books are there for leave_in_no_folder below (found 2026-11-18: used right after the reload)
         check(page.evaluate(SWITCHES)["errorBanner"] is False, f"a contributor's off should stay off: {page.evaluate(SWITCHES)}")

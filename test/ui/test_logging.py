@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import APP_TIMEOUT_MS, App       # noqa: E402
+from rw import APP_TIMEOUT_MS, LIMIT_MS, App   # noqa: E402
 
 BANNER, CRITICAL = "#rw-log-banner", "#rw-log-critical"
 SWITCHES = "() => window.rwLog.switches()"
@@ -42,7 +42,7 @@ with App(log=None) as app:     # the switches' own tests: the page's defaults (b
 
     def banner_shows():
         plant(app, "error", "UI-03", "a planted error")
-        page.locator(BANNER).wait_for(timeout=5000)
+        page.locator(BANNER).wait_for(timeout=LIMIT_MS)
         text = page.locator(BANNER).inner_text()
         check("UI-03-!TEST!" in text and "a planted error" in text, f"the banner says: {text!r}")
         for label in ("Copy", "Dismiss", "Turn off this banner"):
@@ -52,15 +52,15 @@ with App(log=None) as app:     # the switches' own tests: the page's defaults (b
 
     def dismiss_and_return():
         app.click_reachable(page.locator(BANNER).get_by_text("Dismiss", exact=True))
-        page.locator(BANNER).wait_for(state="detached", timeout=5000)
+        page.locator(BANNER).wait_for(state="detached", timeout=LIMIT_MS)
         plant(app, "error", "UI-04", "a second planted error")
-        page.locator(BANNER).wait_for(timeout=5000)
+        page.locator(BANNER).wait_for(timeout=LIMIT_MS)
         check("UI-04" in page.locator(BANNER).inner_text(), "the banner didn't show the new error")
     test("LOGUI-003", "Dismiss hides the banner; the next error brings it back", dismiss_and_return)
 
     def turn_off():
         app.click_reachable(page.locator(BANNER).get_by_text("Turn off this banner", exact=True))
-        page.locator(BANNER).wait_for(state="detached", timeout=5000)
+        page.locator(BANNER).wait_for(state="detached", timeout=LIMIT_MS)
         check(page.evaluate(SWITCHES) == {"errorBanner": False, "logDetail": True},
               f"turning off the banner should leave extra detail alone: {page.evaluate(SWITCHES)}")
         plant(app, "error", "UI-03", "an error after turning off")
@@ -70,12 +70,12 @@ with App(log=None) as app:     # the switches' own tests: the page's defaults (b
 
     def critical_for_everyone():
         plant(app, "critical", "STORE-02", "your library could not be saved")
-        page.locator(CRITICAL).wait_for(timeout=5000)
+        page.locator(CRITICAL).wait_for(timeout=LIMIT_MS)
         text = page.locator(CRITICAL).inner_text()
         check("STORE-02-!TEST!" in text and "your library could not be saved" in text, f"the message says: {text!r}")
         check(page.locator(CRITICAL).get_by_text("Copy details", exact=True).count() == 1, f"no Copy details: {text!r}")
         app.click_reachable(page.locator(CRITICAL).get_by_text("OK", exact=True))
-        page.locator(CRITICAL).wait_for(state="detached", timeout=5000)
+        page.locator(CRITICAL).wait_for(state="detached", timeout=LIMIT_MS)
     test("LOGUI-005", "a critical message is shown to every user (the banner switch off), with Copy details; OK closes it",
          critical_for_everyone)
 
@@ -90,20 +90,20 @@ with App(log=None) as app:     # the switches' own tests: the page's defaults (b
         page.evaluate("() => window.rwLog.setSwitch('errorBanner', true)")
         app.stub_outside(refuse_clipboard=False)
         plant(app, "error", "UI-03", "an error to copy")
-        page.locator(BANNER).wait_for(timeout=5000)
+        page.locator(BANNER).wait_for(timeout=LIMIT_MS)
         copy = page.locator(BANNER).locator("button").first
         check(copy.inner_text() == "Copy", f"the banner's first button is {copy.inner_text()!r}, not Copy")
         app.click_reachable(copy)
-        page.locator(BANNER).get_by_text("Copied", exact=True).wait_for(timeout=3000)
+        page.locator(BANNER).get_by_text("Copied", exact=True).wait_for(timeout=LIMIT_MS)
         check(any("an error to copy" in t for t in app.copied()), "the banner's Copy didn't copy the error")
-        page.locator(BANNER).get_by_text("Copy", exact=True).wait_for(timeout=5000)    # back to its label
+        page.locator(BANNER).get_by_text("Copy", exact=True).wait_for(timeout=LIMIT_MS)    # back to its label
         n0 = len(app.console)
         app.stub_outside(refuse_clipboard=True)
         app.click_reachable(copy)
-        page.locator(BANNER).get_by_text("Couldn't copy", exact=True).wait_for(timeout=3000)
+        page.locator(BANNER).get_by_text("Couldn't copy", exact=True).wait_for(timeout=LIMIT_MS)
         check([x for _, x in app.console[n0:] if x.startswith("warning · UI-06 · Diagnostics couldn't be copied (the error banner)")],
               "the refusal isn't logged (UI-06)")
-        page.locator(BANNER).get_by_text("Copy", exact=True).wait_for(timeout=5000)
+        page.locator(BANNER).get_by_text("Copy", exact=True).wait_for(timeout=LIMIT_MS)
         app.click_reachable(page.locator(BANNER).get_by_text("Dismiss", exact=True))
     test("LOGUI-007", "the banner's Copy says Copied when it copied, and Couldn't copy when the browser refused — then Copy again",
          banner_copy)
@@ -114,9 +114,9 @@ with App(log=None) as app:     # the switches' own tests: the page's defaults (b
         app.stub_outside(refuse_clipboard=False)
         n0 = len(app.copied())
         plant(app, "critical", "STORE-02", "a critical to copy whole")
-        page.locator(CRITICAL).wait_for(timeout=5000)
+        page.locator(CRITICAL).wait_for(timeout=LIMIT_MS)
         app.click_reachable(page.locator(CRITICAL).get_by_text("Copy details", exact=True))
-        page.locator(CRITICAL).get_by_text("Copied", exact=True).wait_for(timeout=3000)
+        page.locator(CRITICAL).get_by_text("Copied", exact=True).wait_for(timeout=LIMIT_MS)
         copied = app.copied()[n0:]
         lines = copied[0].split("\n") if len(copied) == 1 else [""]
         check("critical · STORE-02-!TEST! · a critical to copy whole" in lines[0], f"the message should be at the top: {lines[:3]}")
@@ -124,9 +124,9 @@ with App(log=None) as app:     # the switches' own tests: the page's defaults (b
         check(title > 0 and lines[title + 1].startswith("Desktop app "),
               f"then the diagnostics, the app's build line under the title: {lines[:8]}")
         check("a planted error" in copied[0], "the copy should hold the log's earlier lines (LOGUI-002's error)")
-        page.locator(CRITICAL).get_by_text("Copy details", exact=True).wait_for(timeout=5000)
+        page.locator(CRITICAL).get_by_text("Copy details", exact=True).wait_for(timeout=LIMIT_MS)
         app.click_reachable(page.locator(CRITICAL).get_by_text("OK", exact=True))
-        page.locator(CRITICAL).wait_for(state="detached", timeout=5000)
+        page.locator(CRITICAL).wait_for(state="detached", timeout=LIMIT_MS)
     test("LOGUI-010", "the critical box's Copy details copies the full diagnostics, its message at the top (as the banner's Copy)",
          critical_copy_is_the_diagnostics)
 
@@ -135,14 +135,14 @@ with App(log=None) as app:     # the switches' own tests: the page's defaults (b
         page.evaluate("() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })")
         n0 = len(app.console)
         plant(app, "critical", "STORE-02", "a critical to copy")
-        page.locator(CRITICAL).wait_for(timeout=5000)
+        page.locator(CRITICAL).wait_for(timeout=LIMIT_MS)
         copy = page.locator(CRITICAL).locator("button").first
         check(copy.inner_text() == "Copy details", f"the box's first button is {copy.inner_text()!r}, not Copy details")
         app.click_reachable(copy)
-        page.locator(CRITICAL).get_by_text("Couldn't copy", exact=True).wait_for(timeout=3000)
+        page.locator(CRITICAL).get_by_text("Couldn't copy", exact=True).wait_for(timeout=LIMIT_MS)
         check([x for _, x in app.console[n0:] if x.startswith("warning · UI-06 · Diagnostics couldn't be copied (the critical box)")],
               "the refusal isn't logged (UI-06)")
-        page.locator(CRITICAL).get_by_text("Copy details", exact=True).wait_for(timeout=5000)
+        page.locator(CRITICAL).get_by_text("Copy details", exact=True).wait_for(timeout=LIMIT_MS)
         app.click_reachable(page.locator(CRITICAL).get_by_text("OK", exact=True))
     test("LOGUI-008", "the critical box's Copy details on a page with no clipboard says Couldn't copy — never silence",
          critical_copy_without_clipboard)

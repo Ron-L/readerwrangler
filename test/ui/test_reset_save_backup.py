@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
+from rw import APP_TIMEOUT_MS, FIXTURE, LIMIT_MS, App   # noqa: E402
 
 LIMIT_S = APP_TIMEOUT_MS // 1000   # every wait here is for a condition, under the driver's own generous limit (TESTING.md §3)
 TIP = "Before you reset, save a backup"
@@ -52,7 +52,7 @@ with App() as app:
 
     def open_reset_box():
         app.menu("Tools", "Reset App").click()
-        reset_box().wait_for(timeout=10_000)
+        reset_box().wait_for(timeout=LIMIT_MS)
 
     def save_button():
         return reset_box().get_by_role("button", name="Save Backup…", exact=True)
@@ -97,7 +97,7 @@ with App() as app:
     def esc_still_closes():
         check(reset_box().is_visible(), "the Reset App box isn't open to close")   # the setup, before the outcome
         page.keyboard.press("Escape")
-        reset_box().wait_for(state="detached", timeout=5_000)
+        reset_box().wait_for(state="detached", timeout=LIMIT_MS)
         nothing_reset("Esc after the save")
     test("RSAVE-003", "after the save, Esc still closes the Reset App box — and resets nothing", esc_still_closes)
 
@@ -120,13 +120,13 @@ with App() as app:
         page.evaluate(PICKER, "fail")
         app.click_reachable(save_button())
         # 7.29.0-alpha.2: the box said "Export Error — Failed to export library." (the retired word for backups)
-        page.get_by_text("Backup Error", exact=True).wait_for(timeout=10_000)
+        page.get_by_text("Backup Error", exact=True).wait_for(timeout=LIMIT_MS)
         error_text = page.locator(".rw-imperative-overlay").inner_text()
         check("Failed to save the backup." in error_text and "xport" not in error_text,
               f"the failure box doesn't say the backup wasn't saved, or still says Export: {error_text!r}")
         error_box = page.locator(".rw-imperative-overlay")
         error_box.get_by_role("button", name="OK", exact=True).click()
-        error_box.wait_for(state="detached", timeout=5_000)
+        error_box.wait_for(state="detached", timeout=LIMIT_MS)
         check(reset_box().is_visible(), "the Reset App box closed when the save failed")
         nothing_reset("a failed save")
     test("RSAVE-005", "a failed save says so above the box; closing that leaves the Reset App box open, nothing reset",
@@ -134,7 +134,7 @@ with App() as app:
 
     def cancel_closes():
         reset_box().get_by_role("button", name="Cancel", exact=True).click()
-        reset_box().wait_for(state="detached", timeout=5_000)
+        reset_box().wait_for(state="detached", timeout=LIMIT_MS)
         page.wait_for_timeout(300)   # timed on purpose: proves Cancel resets nothing — a window from the box's closing
         nothing_reset("Cancel")
     test("RSAVE-006", "Cancel still closes the Reset App box without resetting", cancel_closes)
@@ -144,8 +144,8 @@ with App() as app:
         page.evaluate(PICKER, "save")
         before = page.evaluate("() => window._savedBackups.length")
         app.click_reachable(save_button())
-        page.wait_for_function(f"() => window._savedBackups.length > {before}", timeout=30_000)
-        page.locator(".rw-imperative-overlay").wait_for(state="detached", timeout=10_000)
+        page.wait_for_function(f"() => window._savedBackups.length > {before}", timeout=LIMIT_MS)
+        page.locator(".rw-imperative-overlay").wait_for(state="detached", timeout=LIMIT_MS)
         n0 = len(app.console)
         app.click_reachable(reset_box().get_by_role("button", name="Reset App", exact=True))
         page.get_by_text("Welcome to ReaderWrangler").wait_for(timeout=LIMIT_S * 1000)
@@ -159,7 +159,7 @@ with App() as app:
         check(save_button().is_disabled(), "Save Backup… isn't greyed out with nothing to save (File → Save Backup is)")
         check(save_button().get_attribute("title"), "the greyed-out button doesn't say why")
         reset_box().get_by_role("button", name="Cancel", exact=True).click()
-        reset_box().wait_for(state="detached", timeout=5_000)
+        reset_box().wait_for(state="detached", timeout=LIMIT_MS)
     test("RSAVE-008", "with an empty library the button stays in place, greyed out, saying why (as File → Save Backup)",
          empty_library)
 

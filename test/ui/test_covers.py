@@ -12,7 +12,6 @@
 # library). The phone keeps its copies (its own load path).
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
@@ -33,11 +32,10 @@ with App() as app:
         app.reload()
         app.wait_loaded()       # the load starts the clearing, and remembers it once the copies are gone
         # polled (evaluate awaits the answer; wait_for_function wouldn't await a promise) until both are done, under the
-        # driver's generous limit — a condition, not a count of tries (before: at most 50 x 0.2 s)
-        deadline = time.time() + APP_TIMEOUT_MS / 1000
-        while (page.evaluate(HAS) or page.evaluate(f"localStorage.getItem('{CLEARED}')") is None) \
-                and time.time() < deadline:
-            page.wait_for_timeout(200)
+        # driver's limit for a load — a condition, not a count of tries (before: at most 50 x 0.2 s) — app.until, the
+        # shared poll (rw.py; this file had its own loop until sprint 9)
+        app.until(lambda: not page.evaluate(HAS) and page.evaluate(f"localStorage.getItem('{CLEARED}')") is not None,
+                  limit_ms=APP_TIMEOUT_MS)
         check(not page.evaluate(HAS), "the old cover copies are gone after the load")
         check(page.evaluate(f"localStorage.getItem('{CLEARED}')") is not None,
               "the clearing is remembered, so it happens once")

@@ -62,8 +62,8 @@ last merge.
 
 **A test waits for a condition, never a moment** (2026-11-18, sprint 7's post-mortem): a fixed sleep is a guess about how
 fast this PC is today — too short on a loaded PC (a fail), too long on a quiet one (wasted time). Wait for the thing
-itself: the element, the text, the color settled (`amber_look` in test_cells.py), the file written — with a generous
-upper limit that only a real failure reaches.
+itself: the element, the text, the color settled (`app.amber_look`), the file written — with a generous upper limit
+that only a real failure reaches (the waits, one set in `rw.App`, and their one limit `rw.LIMIT_MS`: §4).
 
 **At review, the proof is the merge's stamp** (TODO "Faster sprints", 2026-11-16; 2026-11-18): every run leaves a record
 of the commit it ran on (§4) — `py tools/run_tests.py --stamp <commit>` says PROVEN only for a full tier 1 + tier 2 pass
@@ -133,11 +133,23 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   conditions only (the reset's own last line, the tab having drawn what it was given, the Welcome screen — shown only
   once the load is done), each under one limit (`LIMIT_MS` = the driver's 180 s); proven both ways under the same lab
   load (before: 2 of 2 failed at that click; after: passed), and RESET-003 still caught the bug's effect planted on
-  purpose. **Two shared waits in `rw.App`** (2026-11-18, sprint 8 — the screen tests' fixed sleeps replaced):
-  `app.wait_loaded()` — the library's load has finished after a reload (its folders set, or the critical box up; the
-  start screen leaving means only that the app is drawn) — and `app.wait_console(AFTER_CHECK, since=n0)` — the check
-  after an Import or Restore has run, that operation's last step. A sleep that stays proves something does NOT happen
-  (a window, measured from the right moment) and says so: `# timed on purpose: …`.
+  purpose. **The waits — one set, in `rw.App`, under one limit** (sprint 8 replaced the screen tests' fixed sleeps;
+  sprint 9, 2026-11-18, gathered the helpers it grew in three files into one place — Law 22): `app.wait_loaded()` — the
+  library's load has finished after a reload (its folders set, or the critical box up; the start screen leaving means
+  only that the app is drawn); `app.wait_console(pattern, since=n0)` — a console line came (`AFTER_CHECK`: the check
+  after an Import or Restore has run, that operation's last step); `app.heard(pattern, n0)` — the same, but False
+  instead of raising, so the checks after it still say what went wrong; `app.until(cond)` — any condition Python can
+  ask, polled; `app.caught_up()` — the page has run every task it queued (a task-queue flush, NOT idle callbacks: after
+  an Escape Chrome gave no idle time for 3–5 s); `app.settled(read_js)` — a reading that stays the same with the page
+  caught up between; `app.toast(*words)` — a toast holding those words; `app.amber_look(words)` — a warning toast's
+  look once it has reached amber; `app.held(text, words, ms)` — a toast still where it appeared `ms` after it was shown
+  (a duration, timed on purpose, on the page's clock). **One limit for a step: `rw.LIMIT_MS`, 60 s** — every screen
+  test's (it was 30 s in test_cells.py, 60 s in the two key files, 3–10 s at ~120 waits elsewhere). Generous: a step
+  answers in well under a second, 2–5× slower on a loaded PC. And under the runner's 120 s floor for "ran past its usual
+  time" (below), so a wait that runs out is reported as the test failure it is, not stopped as the machine's trouble.
+  The app opening or a load (a reload, a reset) has its own: `rw.APP_TIMEOUT_MS`, 180 s (test_reset.py, test_boot.py
+  and three files' relay / restore / reset waits use it). A sleep that stays proves something does NOT happen (a
+  window, measured from the right moment) and says so: `# timed on purpose: …`.
 - **Heavy tier-1 files** (Ron, 2026-11-17: "Yes. Also back off"; the merge's full run failed a different timing test of
   test_run_tests.py twice — RUN-079, then RUN-057 — under 4 tier-1 files at once). A tier-1 file whose header says
   **`heavy: yes`** (optionally `— why`; `heavy: no` or no line = light; anything else is a header problem) starts many

@@ -14,31 +14,18 @@
 # Old Favorites; Fantasy ⊃ The Test Saga; Every Ownership Kind; An Empty Folder; the Inbox (2 books).
 # Waits (2026-11-18, sprint 8 — TESTING.md §3 "A test waits for a condition, never a moment"): every step waits for what
 # it should have done — the place opened, the row selected, the rename box open or closed, the new name in, the toast's
-# words — under LIMIT_MS, which only a real failure reaches. The few that prove NOTHING happens wait a fixed time on
-# purpose, marked "timed on purpose". (Was: 9 fixed sleeps, and 3 s limits on the conditions.)
+# words — under the library's one limit (rw.LIMIT_MS), which only a real failure reaches; through the shared waits
+# (app.until, app.toast — rw.py, since sprint 9: they were this file's own). The few that prove NOTHING happens wait a
+# fixed time on purpose, marked "timed on purpose". (Was: 9 fixed sleeps, and 3 s limits on the conditions.)
 import os
 import re
 import sys
-import time
-
-from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from harness import check, done, test      # noqa: E402
+from rw import FIXTURE, LIMIT_MS, App       # noqa: E402
 
 IDS = {"Science Fiction": "f-scifi", "Space Opera": "f-space", "An Empty Folder": "f-empty", "Inbox": "__inbox__"}
-# The one limit for every wait here: generous — the app answers a key or a click in well under a second, a loaded PC in
-# a few — so only a real failure reaches it. (A wait that runs out is a test failure, never the machine's trouble: §4.)
-LIMIT_MS = 60_000
-
-
-def until(app, cond):
-    """Wait until cond() is true, or LIMIT_MS has passed — a condition, never a moment. Raises nothing: the check after it
-    says what's wrong, in its own words. (Python's Playwright has no expect.poll; this is it, on the page's own clock.)"""
-    deadline = time.monotonic() + LIMIT_MS / 1000
-    while not cond() and time.monotonic() < deadline:
-        app.page.wait_for_timeout(50)   # a poll's step (as amber_look's in test_cells.py), not a wait for a moment
 
 
 def name_of(app, fid):
@@ -86,7 +73,7 @@ def press_f2(app):
 
 def a_box_opened(app):
     """Wait (LIMIT_MS) until a rename box is open — in either pane: which one, the checks after it say."""
-    until(app, lambda: right_box(app) is not None or left_box(app) is not None)
+    app.until(lambda: right_box(app) is not None or left_box(app) is not None)
 
 
 def no_box(app):
@@ -109,31 +96,19 @@ def left_box(app):
     return box.first if box.count() else None
 
 
-def toast(app, words):
-    """The toast's words — waiting (LIMIT_MS) for a toast holding `words` (an earlier toast may still be up); if none
-    comes, whatever toast is up ("" for none). A condition, not a fixed sleep (TESTING.md §7)."""
-    t = app.page.locator(".clipboard-toast").filter(has_text=words)
-    try:
-        t.first.wait_for(state="visible", timeout=LIMIT_MS)
-        return t.first.inner_text()
-    except PlaywrightTimeout:   # no such toast is an answer too: say what IS there
-        up = app.page.locator(".clipboard-toast")
-        return up.first.inner_text() if up.count() else ""
-
-
 def undo(app, back):
     """Ctrl+Z, then wait until back() — what the undo should have put back (the check after it says if it didn't)."""
     app.page.keyboard.press("Control+z")
-    until(app, back)
+    app.until(back)
 
 
 def calm(app):
     """Between rows: close any rename box (Esc leaves the name as it was), clear the selection (Esc) — each Esc waited
     out: the second goes to the page only once the box (and its focus) is gone."""
     app.page.keyboard.press("Escape")
-    until(app, lambda: no_box(app))
+    app.until(lambda: no_box(app))
     app.page.keyboard.press("Escape")
-    until(app, lambda: nothing_selected_now(app))
+    app.until(lambda: nothing_selected_now(app))
 
 
 with App() as app:
@@ -154,13 +129,13 @@ with App() as app:
             check(box is not None, f"F2 on {folder!r} selected in the right pane opened no rename box")
             check(box.input_value() == folder, f"the rename box should hold {folder!r}: {box.input_value()!r}")
             check(left_box(app) is None, "F2 opened a rename box in the left pane too")
-            until(app, lambda: box.evaluate("el => el === document.activeElement"))   # typing goes where the focus is
+            app.until(lambda: box.evaluate("el => el === document.activeElement"))   # typing goes where the focus is
             app.page.keyboard.press("Control+a")
             app.page.keyboard.type(new_name)
             app.page.keyboard.press("Enter")
-            until(app, lambda: name_of(app, fid) == new_name)
+            app.until(lambda: name_of(app, fid) == new_name)
             check(name_of(app, fid) == new_name, f"Enter didn't rename it: {name_of(app, fid)!r}")
-            said = toast(app, f"Renamed folder '{folder}' to '{new_name}'")
+            said = app.toast(f"Renamed folder '{folder}' to '{new_name}'")
             check(f"Renamed folder '{folder}' to '{new_name}'" in said, f"the receipt: {said!r}")
             undo(app, lambda: name_of(app, fid) == folder)
             check(name_of(app, fid) == folder, f"one Ctrl+Z should give it back its name: {name_of(app, fid)!r}")
@@ -199,7 +174,7 @@ with App() as app:
         try:
             open_left(app, "Science Fiction")
             app.page.mouse.click(900, 600)        # the right pane's empty area: nothing selected, your focus there
-            until(app, lambda: nothing_selected_now(app))
+            app.until(lambda: nothing_selected_now(app))
             press_f2(app)
             a_box_opened(app)
             box = left_box(app)

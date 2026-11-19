@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import APP_TIMEOUT_MS, FIXTURE, LIMIT_MS, App   # noqa: E402
 
 ONE, TWO, THREE = "The Test Saga, Book One", "The Test Saga, Book Two", "The Test Saga, Book Three"
 ZERO = "The Test Saga: Between the Books"     # 2.5 in the fixture; Book 0 after SERIES-010
@@ -49,7 +49,7 @@ def show_saga(app, sort, group=False):
         localStorage.setItem(key, JSON.stringify(d));
     }""", [sort, group])
     app.reload()
-    app.page.locator("tbody tr", has_text=ONE).first.wait_for(timeout=30_000)
+    app.page.locator("tbody tr", has_text=ONE).first.wait_for(timeout=APP_TIMEOUT_MS)   # a load: the app opening's limit
 
 
 def saga_rows(app):
@@ -82,11 +82,11 @@ with App() as app:
 
     def open_book(title):
         page.locator("tbody tr", has_text=title).first.dblclick()
-        page.get_by_role("button", name="Edit book fields").wait_for(timeout=5000)
+        page.get_by_role("button", name="Edit book fields").wait_for(timeout=LIMIT_MS)
 
     def close_book():
         page.keyboard.press("Escape")
-        page.get_by_role("button", name="Edit book fields").wait_for(state="detached", timeout=5000)
+        page.get_by_role("button", name="Edit book fields").wait_for(state="detached", timeout=LIMIT_MS)
 
     def dialog_round_trip():
         check(position(ZERO) == "2.5", f"setup: Between the Books isn't at 2.5: {position(ZERO)!r}")
@@ -96,8 +96,8 @@ with App() as app:
             field = page.get_by_placeholder("e.g., 1, 1.5")
             field.fill("0")
             page.get_by_role("button", name="✓ Save").click()
-            field.wait_for(state="detached", timeout=5000)
-            page.wait_for_function("(t) => window.books.find(x => x.title === t).seriesPosition === 0", arg=ZERO, timeout=5000)
+            field.wait_for(state="detached", timeout=LIMIT_MS)
+            page.wait_for_function("(t) => window.books.find(x => x.title === t).seriesPosition === 0", arg=ZERO, timeout=LIMIT_MS)
             check(position(ZERO) == 0, f"typing 0 didn't save 0: {position(ZERO)!r}")
             shown = page.get_by_text("Book 0: The Test Saga", exact=True)
             check(shown.count() == 1, "after saving 0, the dialog doesn't say 'Book 0: The Test Saga'")
@@ -156,7 +156,7 @@ with App() as app:
             page.get_by_role("button", name="Edit book fields").click()
             check(page.get_by_placeholder("e.g., 1, 1.5").input_value() == "1", "setup: the field doesn't hold 1")
             page.get_by_role("button", name="✓ Save").click()
-            page.get_by_role("button", name="Edit book fields").wait_for(timeout=5000)   # out of edit mode: the save ran
+            page.get_by_role("button", name="Edit book fields").wait_for(timeout=LIMIT_MS)   # out of edit mode: the save ran
             # the save's book change and the dialog's exit render together; window.books follows in the effect after —
             # wait one frame and a task so a wrong write has landed before it's read
             page.evaluate("() => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)))")
