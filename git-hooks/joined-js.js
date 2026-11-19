@@ -7,8 +7,9 @@
 //   2. for each given piece of text (a comment's tail), is it a complete line of CODE? — the shapes a test line takes:
 //      a declaration (`const a = f(x);`), a call (`check(ok, 'msg');`, `await page.click(s);` — the name right against
 //      its `(`), an assignment (`a.b = 1;`, `n++`), `return x`, `throw e`, an import, a one-line `if`/`for`/`while`
-//      whose body is one of these, or a table row (`['ID-001', 'what', true],` — a list or object element holding a
-//      piece of text, ending in its comma). A lone word, a label, a bare value or anything that doesn't parse is not.
+//      whose body is one of these, a table row (`['ID-001', 'what', true],` — a list or object element holding a
+//      piece of text, ending in its comma), or `'use strict';` with its semicolon. A lone word, a label, a bare value or
+//      anything that doesn't parse is not.
 //
 // Reads JSON from stdin: { "files": [{ "path", "src" }, …], "snippets": ["…", …] }; prints JSON:
 //   { "comments": [{ path, line, column, block, text }], "names": { path: [name, …] }, "unparsed": [{ path, error }],
@@ -86,11 +87,25 @@ function holdsText(node) {   // a table row names its case in text: somewhere in
     return found;
 }
 
+function parsed(src) {
+    try { return parseLine(src).program; } catch (e) { return null; }
+}
+
 function program(src) {
-    try { return parseLine(src).program.body; } catch (e) { return null; }
+    const p = parsed(src);
+    return p ? p.body : null;
+}
+
+// `'use strict';` — a file's first line, joined onto its header comment (2026-11-18, sprint 9). The parser files it as a
+// directive, not a statement; with its semicolon only — prose names it without one ("runs in 'use strict' mode").
+function useStrict(snippet) {
+    const p = parsed(snippet);
+    return !!p && p.directives.some(d => d.value.value === 'use strict' && snippet.slice(d.start, d.end).trim().endsWith(';'))
+        && p.body.every(s => codeStatement(s, snippet));
 }
 
 function isCode(snippet) {
+    if (useStrict(snippet)) return true;
     let body = program(snippet);
     if (body && body.length && body.every(s => codeStatement(s, snippet))) return true;
     // The first line of a block whose body follows below: `for (const k of KINDS)`, `while (more())`.

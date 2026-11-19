@@ -15,8 +15,9 @@ JavaScript, through git-hooks/joined-js.js), so a `#` or `//` inside a string is
 refused when its words END in a complete line of code that starts at one of the places a lost line break leaves:
   1. after a run of two or more spaces (or a tab) that follows the comment's words — the joined line's own indent (the
      alpha.55 shape: "…for its <Popover>            const shareBtnRef = useRef(null);");
-  2. after ONE space that follows a word or a sentence's end — an editor's "join lines" — unless the tail is a call
-     with no arguments, which is how prose names a function ("its failure counted. done() prints the summary");
+  2. after ONE space that follows a word, a sentence's end or a line of dashes (a separator: "# ------- check(…)",
+     "# ── 4.1 Move ──── row(…)" — 2026-11-18, sprint 9) — an editor's "join lines" — unless the tail is a call with no
+     arguments, which is how prose names a function ("its failure counted. done() prints the summary");
   3. right against the comment's last character, with no space — a line that had no indent: after its closing dot or
      bracket ("# the table." + "ROWS = []"; not after a dot that ends a real name of the file: "harness.done()"), or
      after an empty `#` / `//` ("#import os"), or INSIDE the last word ("# the rows" + "row(…)" = "# the rowsrow(…)")
@@ -26,15 +27,17 @@ refused when its words END in a complete line of code that starts at one of the 
 as code (its name right against its `(`, no space at its dots — prose writes "the Inbox (2 books)"), `assert`,
 `return x`, `raise`/`throw`, `del`/`delete`, `await`, an import, a function or class, a one-line if/for/while/with
 whose body is one of those, the first line of a block (`for r in ROWS:`, `with App() as app:`, `def f():`,
-`for (const k of KINDS)`), or a table row ending in its comma (a tuple / list / object / call holding a piece of text,
-or a dictionary entry). A lone word, a bare value, a label ("Note: …") or anything that doesn't parse is prose.
+`for (const k of KINDS)`), a table row ending in its comma (a tuple / list / object / call holding a piece of text,
+or a dictionary entry), or JavaScript's `'use strict';` with its semicolon (2026-11-18, sprint 9 — also glued after
+anything but a space). A lone word, a bare value, a label ("Note: …") or anything that doesn't parse is prose.
 
 Not caught, on purpose (each one would refuse ordinary prose): a no-argument call joined with one space or after a
 sentence's dot ("…the end. done()" — but `done();` with its semicolon is caught); a comment that is code from its first
 word after a space (commented-out code, a usage example — "#   const x = f();" — written as a comment on purpose, or
 joined onto an empty `#` line with its indent: the two look the same); a line glued after a word that happens to be a
 real name of the file ("…be refused.import os" when `refused` is a variable there); a table row whose line starts with
-a bracket, glued with no space ("…phone)(\"PARSE-003\", …)"); 'use strict'; a joined line that is only the start of a
+a bracket, glued with no space ("…phone)(\"PARSE-003\", …)"); 'use strict' without its semicolon (prose names it so);
+a joined line that is only the start of a
 statement spread over several lines (the rest is then stray code, and the parse check refuses the file); block
 comments (/* … */ — a line joined into one is still a comment line, and one joined after its `*/` still runs).
 Measured on the 2026-11-18 library (63 files, 1,712 line comments; no false refusal): every line comment joined with
@@ -68,12 +71,18 @@ GAP = re.compile(r"\S([ \t]{2,}|\t)(?=\S)")              # a run of spaces after
 HEAD = re.compile(r"^\s*([A-Za-z_$][\w$]*)")              # the name a line of code starts with
 NAME = re.compile(r"[A-Za-z_$][\w$]*")
 # An editor's "join lines" leaves ONE space: after a word or a sentence's end (not after `=`, `(` or `,` — inside code
-# written in a comment); a call with no arguments is how prose names a function ("and done() prints the summary").
-ONE_SPACE = re.compile(r"[\w.:;!?)\]'\"`]( )(?=[^\s(])")
-NO_ARGS = re.compile(r"^[\w$.]+\(\)\s*$")
+# written in a comment), or after a line of dashes — a separator ("# ---------", "# ── 4.1 Move ─────"; 2026-11-18, sprint
+# 9: missed until then); a call with no arguments is how prose names a function ("and done() prints the summary").
+ONE_SPACE = re.compile(r"(?:[\w.:;!?)\]'\"`]|[-─━~*#]{3})( )(?=[^\s(])")
+NO_ARGS = re.compile(r"[\w$.]+\(\)\s*$")          # (used with .match: from where it's asked, to the end)
+# JavaScript's first line, joined onto the header comment above it (2026-11-18, sprint 9) — caught with its semicolon only:
+# prose names it without one ("runs in 'use strict' mode").
+USE_STRICT = re.compile(r"""['"]use strict['"]""")
 # Every shape counted as code below holds one of these — a quick sieve, so only a few tails are parsed.
-COULD_BE_CODE = re.compile(r"[(=]|\+\+|--|,\s*(#.*|//.*)?$|^(import|from|return|throw|raise|assert|del|delete|await|"
-                           r"def|class|function|async|const|let|var|export|for|while|if|with|global|nonlocal)\b")
+COULD_BE_CODE = re.compile(r"[(=]|\+\+|--|,\s*(#.*|//.*)?$|^['\"]use strict['\"]|^(import|from|return|throw|raise|"
+                           r"assert|del|delete|await|def|class|function|async|const|let|var|export|for|while|if|with|"
+                           r"global|nonlocal)\b")
+WORD_CHAR = re.compile(r"[\w$]")
 KEYWORDS = {"import", "from", "const", "let", "var", "def", "class", "for", "while", "if", "with", "return", "await",
             "assert", "del", "delete", "raise", "throw", "async", "function", "export"}
 
@@ -234,27 +243,43 @@ def tails(text, heads, names):
         if not NO_ARGS.match(tail):
             out.append(("after one space", tail))
     known = heads | KEYWORDS | {n for n in names if len(n) >= 3}   # a 1-2 letter name hides inside any word
-    for i in range(len(text)):
+    # One pass for what each position needs to know of the text before it — where its run of non-spaces began, whether
+    # that run holds "://", where its word began — so the scan below is linear (it searched text[:i] at every i: a long
+    # comment cost its length squared; 2026-11-18, sprint 9).
+    n = len(text)
+    run_from, word_from, in_url = [0] * (n + 1), [0] * (n + 1), [False] * (n + 1)
+    for i in range(1, n + 1):
+        c = text[i - 1]
+        run_from[i] = i if c.isspace() else run_from[i - 1]
+        word_from[i] = word_from[i - 1] if WORD_CHAR.match(c) else i
+        in_url[i] = not c.isspace() and (in_url[i - 1] or (i - 3 >= run_from[i] and text[i - 3:i] == "://"))
+    for i in range(n):
         # A name glued to what's before it — to a comment's closing dot or bracket ("# …the rows." + "row(…)"), or to
         # the comment marker itself (an empty `#` / `//` line; commented-out code is written with a space after the
         # marker). Never after a space (prose: "and done() prints"), `_` or `$` (one longer name: "on_failure()").
         # After a word and a dot only when that word is no name of the file's code ("harness.done()" is a mention).
         # INSIDE a word — "# the rows" + "row(…)" = "rowsrow(…)" — only at a name or keyword of the file's code, and
         # only when the whole word is none: a word that names real code is a mention ("environment()").
+        # And JavaScript's 'use strict'; glued after anything but a space ("// the header." + "'use strict';").
         before = text[i - 1] if i else ""
-        if before.isspace() or before in ("_", "$") or not NAME.match(text, i):
+        if before.isspace() or before in ("_", "$"):
             continue
-        if "://" in re.search(r"\S*$", text[:i]).group(0):
+        if USE_STRICT.match(text, i):
+            out.append(("right against the comment's last word", text[i:]))
+            continue
+        if not NAME.match(text, i):
+            continue
+        if in_url[i]:
             continue   # inside an address: "https://example.com/a?b=c(d)"
         name = NAME.match(text, i).group(0)
         if before.isalnum():
-            if name not in known or re.search(r"[\w$]+$", text[:i]).group(0) + name in names:
+            if name not in known or text[word_from[i]:i] + name in names:
                 continue
         elif before == ".":
             # "harness.done()" names real code; "page.reload()" — a dotted call with no arguments — is how prose names
             # one too, so a sentence's end glued to `done()` is let through (with its `;`, JavaScript's isn't).
-            word = re.search(r"[\w$]+$", text[:i - 1])
-            if word and word.group(0) in names or NO_ARGS.match(text[i:]):
+            word = text[word_from[i - 1]:i - 1]
+            if word and word in names or NO_ARGS.match(text, i):
                 continue
         out.append(("right against the comment's last word", text[i:]))
     return out

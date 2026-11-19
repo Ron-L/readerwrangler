@@ -618,7 +618,8 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   still passes. The commit check `git-hooks/check-joined.py` (pre-commit step 11) refuses a staged test file whose
   comment ends in a complete line of code, read by each language's own parser. A comment that truly ends in code says
   why: `# not-joined: <why>` (`//` in JavaScript). `py git-hooks/check-joined.py --all` checks every test file; what it
-  catches and what it doesn't is in its header. Tests: `JOIN-001`–`045`.
+  catches and what it doesn't is in its header. Since sprint 9 also a line joined with one space after a line of dashes
+  (a separator comment) and JavaScript's `'use strict';`. Tests: `JOIN-001`–`054`.
 
 ## 8. What stays manual (a short list per release)
 
