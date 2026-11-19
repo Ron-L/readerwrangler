@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import App                       # noqa: E402
+from rw import LIMIT_MS, App             # noqa: E402
 
 COPIED = "Diagnostics copied — paste them into your message to us."
 REFUSED = "Diagnostics couldn't be copied — the browser refused the clipboard."
@@ -46,7 +46,7 @@ with App() as app:
 
     def copy_has_build_and_error():
         app.click_reachable(button("Copy diagnostics"))
-        screen.get_by_text(COPIED).wait_for(timeout=5_000)
+        screen.get_by_text(COPIED).wait_for(timeout=LIMIT_MS)
         copied = app.copied(page)
         check(len(copied) == 1, f"{len(copied)} copies, should be 1")
         text = copied[0]
@@ -60,8 +60,8 @@ with App() as app:
     def report_flow():
         n0 = len(app.copied(page))
         app.click_reachable(button("Report this problem"))
-        report_box().wait_for(timeout=5_000)
-        report_box().get_by_text(COPIED).wait_for(timeout=5_000)
+        report_box().wait_for(timeout=LIMIT_MS)
+        report_box().get_by_text(COPIED).wait_for(timeout=LIMIT_MS)
         check(len(app.copied(page)) == n0 + 1, "Report this problem didn't copy the diagnostics first")
         o0 = len(app.opened(page))
         app.click_reachable(button("Email us", report_box()))
@@ -76,24 +76,24 @@ with App() as app:
               f"not a new GitHub issue in a new tab: {opened}")
         check(report_box().is_visible(), "the box closed after a choice — its address and reminder are gone")
         page.keyboard.press("Escape")
-        report_box().wait_for(state="detached", timeout=5_000)
+        report_box().wait_for(state="detached", timeout=LIMIT_MS)
         app.click_reachable(button("Report this problem"))
-        report_box().wait_for(timeout=5_000)
+        report_box().wait_for(timeout=LIMIT_MS)
         app.click_reachable(button("Close", report_box()))
-        report_box().wait_for(state="detached", timeout=5_000)
+        report_box().wait_for(state="detached", timeout=LIMIT_MS)
     test("EMERG-003", "Report this problem copies, then offers Email us / Report on GitHub; Esc and Close close the box",
          report_flow)
 
     def refused():
         app.stub_outside(page, refuse_clipboard=True)
         app.click_reachable(button("Copy diagnostics"))
-        screen.get_by_text(REFUSED).wait_for(timeout=5_000)
+        screen.get_by_text(REFUSED).wait_for(timeout=LIMIT_MS)
         app.click_reachable(button("Report this problem"))
-        report_box().get_by_text(REFUSED).wait_for(timeout=5_000)
+        report_box().get_by_text(REFUSED).wait_for(timeout=LIMIT_MS)
         for name in ("Email us", "Report on GitHub"):
             check(button(name, report_box()).is_enabled(), f"{name} isn't offered when the copy was refused")
         app.click_reachable(button("Close", report_box()))
-        report_box().wait_for(state="detached", timeout=5_000)
+        report_box().wait_for(state="detached", timeout=LIMIT_MS)
         app.stub_outside(page, refuse_clipboard=False)
     test("EMERG-004", "a refused clipboard is said plainly — on the screen and in the box — and the choice is still offered",
          refused)
@@ -101,12 +101,12 @@ with App() as app:
     def not_on_the_confirmation():
         app.click_reachable(button("Reset App"))
         confirm = page.locator("#emergencyConfirm")
-        confirm.wait_for(timeout=5_000)
+        confirm.wait_for(timeout=LIMIT_MS)
         check(confirm.get_by_role("button", name="Erase and Reset", exact=True).count() == 1, "not the reset's confirmation")
         for name in ("Copy diagnostics", "Report this problem"):
             check(confirm.get_by_role("button", name=name, exact=True).count() == 0, f"{name} is on the Erase and Reset box")
         button("Cancel", confirm).click()
-        confirm.wait_for(state="detached", timeout=5_000)
+        confirm.wait_for(state="detached", timeout=LIMIT_MS)
     test("EMERG-005", "the 'Erase and Reset' confirmation offers neither (one place, before the reset)", not_on_the_confirmation)
 
     def nothing_else_wrong():

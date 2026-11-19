@@ -16,35 +16,22 @@
 # (2 books); Fantasy ⊃ The Test Saga; Every Ownership Kind; An Empty Folder; the Inbox (2 books).
 # Waits (2026-11-18, sprint 8 — TESTING.md §3 "A test waits for a condition, never a moment"): every step waits for what
 # it should have done — the folder opened, the rows selected, the box up or closed, the folder gone or back, the toast's
-# words — under LIMIT_MS, which only a real failure reaches. The few that prove NOTHING happens wait a fixed time on
-# purpose, marked "timed on purpose". (Was: 14 fixed sleeps, ~6 s of them a run.)
+# words — under the library's one limit (rw.LIMIT_MS), which only a real failure reaches; through the shared waits
+# (app.until, app.toast — rw.py, since sprint 9: they were this file's own). The few that prove NOTHING happens wait a
+# fixed time on purpose, marked "timed on purpose". (Was: 14 fixed sleeps, ~6 s of them a run.)
 import json
 import os
 import re
 import shutil
 import sys
 import tempfile
-import time
-
-from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from harness import check, done, test      # noqa: E402
+from rw import FIXTURE, LIMIT_MS, App       # noqa: E402
 
 IDS = {"Science Fiction": "f-scifi", "Space Opera": "f-space", "Every Ownership Kind": "f-kinds",
        "An Empty Folder": "f-empty", "Fantasy": "f-fantasy"}
-# The one limit for every wait here: generous — the app answers a key or a click in well under a second, a loaded PC in
-# a few — so only a real failure reaches it. (A wait that runs out is a test failure, never the machine's trouble: §4.)
-LIMIT_MS = 60_000
-
-
-def until(app, cond):
-    """Wait until cond() is true, or LIMIT_MS has passed — a condition, never a moment. Raises nothing: the check after it
-    says what's wrong, in its own words. (Python's Playwright has no expect.poll; this is it, on the page's own clock.)"""
-    deadline = time.monotonic() + LIMIT_MS / 1000
-    while not cond() and time.monotonic() < deadline:
-        app.page.wait_for_timeout(50)   # a poll's step (as amber_look's in test_cells.py), not a wait for a moment
 
 
 def exists(app, name):
@@ -102,7 +89,7 @@ def box(app):
 
 def ask(app):
     """The confirmation's words once it's up — waiting for it (LIMIT_MS) — or None if none came."""
-    until(app, lambda: box(app) is not None)
+    app.until(lambda: box(app) is not None)
     return box(app)
 
 
@@ -114,30 +101,16 @@ def answer(app, label):
     handle.wait_for_element_state("hidden", timeout=LIMIT_MS)
 
 
-def toast(app, *words):
-    """The toast's words — waiting (LIMIT_MS) for a toast holding every one of `words` (an earlier toast may still be up);
-    if none comes, whatever toast is up ("" for none). A condition, not a fixed sleep (TESTING.md §7)."""
-    t = app.page.locator(".clipboard-toast")
-    for w in words:
-        t = t.filter(has_text=w)
-    try:
-        t.first.wait_for(state="visible", timeout=LIMIT_MS)
-        return t.first.inner_text()
-    except PlaywrightTimeout:   # no such toast is an answer too: say what IS there
-        up = app.page.locator(".clipboard-toast")
-        return up.first.inner_text() if up.count() else ""
-
-
 def undo(app, back):
     """Ctrl+Z, then wait until back() — what the undo should have put back (the check after it says if it didn't)."""
     app.page.keyboard.press("Control+z")
-    until(app, back)
+    app.until(back)
 
 
 def redo(app, done_again):
     """Ctrl+Y, then wait until done_again() — what the redo should have done again."""
     app.page.keyboard.press("Control+y")
-    until(app, done_again)
+    app.until(done_again)
 
 
 def right_rows(app):
@@ -193,7 +166,7 @@ def calm(app):
     if box(app):
         answer(app, "Cancel")
     app.page.keyboard.press("Escape")
-    until(app, lambda: nothing_selected_now(app))
+    app.until(lambda: nothing_selected_now(app))
     # (No waiting for the last toast to run its course, on purpose: until 7.28.1 an older toast's timers hid a NEWER toast
     # early — an Undo, then a Delete a second later, and the Delete's receipt vanished. DELKEY-011 caught it.)
 
@@ -206,7 +179,7 @@ with App() as app:
     app.menu("View", "List View").click()
 
     def baseline():
-        until(app, lambda: all(exists(app, n) for n in ALL))
+        app.until(lambda: all(exists(app, n) for n in ALL))
         check(all(exists(app, n) for n in ALL), f"setup: a folder is missing before the row: "
                                                 f"{[n for n in ALL if not exists(app, n)]}")
 
@@ -221,10 +194,10 @@ with App() as app:
             check('Delete "Space Opera"' in words and 'Delete "Science Fiction"' not in words,
                   f"the confirmation should name the SELECTED folder, Space Opera — it said: {words!r}")
             answer(app, "Delete")
-            until(app, lambda: not exists(app, "Space Opera"))
+            app.until(lambda: not exists(app, "Space Opera"))
             check(not exists(app, "Space Opera"), "Space Opera is still there after Delete")
             check(exists(app, "Science Fiction"), "Science Fiction — the folder you were in — was deleted")
-            until(app, lambda: any("Deep in the Folders" in r for r in right_rows(app)))
+            app.until(lambda: any("Deep in the Folders" in r for r in right_rows(app)))
             rows = right_rows(app)
             check(any("Deep in the Folders" in r for r in rows),
                   "Old Favorites' books should have returned to Science Fiction (the folder you're in)")
@@ -240,7 +213,7 @@ with App() as app:
             baseline()
             open_left(app, "An Empty Folder")
             app.page.mouse.click(900, 600)        # a click in the right pane's empty area: your focus is there now
-            until(app, lambda: nothing_selected_now(app))
+            app.until(lambda: nothing_selected_now(app))
             press_delete(app)
             app.page.wait_for_timeout(500)        # timed on purpose: proves NOTHING happens after the key (no box, no delete)
             check(box(app) is None, f"a box came up with nothing selected: {box(app)!r}")
@@ -258,10 +231,10 @@ with App() as app:
             baseline()
             open_left(app, "An Empty Folder")      # the left pane has your focus; the folder is highlighted there
             press_delete(app)
-            until(app, lambda: not exists(app, "An Empty Folder") or box(app) is not None)   # gone — or a box asks
+            app.until(lambda: not exists(app, "An Empty Folder") or box(app) is not None)   # gone — or a box asks
             check(box(app) is None, f"an empty folder asks nothing (nothing to lose; Ctrl+Z): {box(app)!r}")
             check(not exists(app, "An Empty Folder"), "Delete with the left pane's focus didn't delete its folder")
-            said = toast(app, 'Deleted "An Empty Folder"')
+            said = app.toast('Deleted "An Empty Folder"')
             check('Deleted "An Empty Folder"' in said, f"the receipt: {said!r}")
             undo(app, lambda: exists(app, "An Empty Folder"))
             check(exists(app, "An Empty Folder"), "Ctrl+Z didn't bring it back")
@@ -287,7 +260,7 @@ with App() as app:
             check("Every Ownership Kind" in words and "An Empty Folder" in words,
                   f"the confirmation should list both folders: {words!r}")
             answer(app, "Delete")
-            until(app, lambda: not exists(app, "Every Ownership Kind") and not exists(app, "An Empty Folder"))
+            app.until(lambda: not exists(app, "Every Ownership Kind") and not exists(app, "An Empty Folder"))
             check(not exists(app, "Every Ownership Kind") and not exists(app, "An Empty Folder"),
                   "both folders should be gone")
             check(exists(app, "Fantasy") and exists(app, "Science Fiction"), "an unselected folder went too")
@@ -322,16 +295,16 @@ with App() as app:
             open_folders_view(app)
             select(app, "Inbox")
             press_delete(app)
-            said = toast(app, "The Inbox can't be deleted")    # (the key's answer: the toast — or, wrongly, a box)
+            said = app.toast("The Inbox can't be deleted")    # (the key's answer: the toast — or, wrongly, a box)
             check(box(app) is None, f"a box came up for the Inbox: {box(app)!r}")
             check("The Inbox can't be deleted" in said, f"the Inbox alone: the toast should say why — {said!r}")
             calm(app)
             select(app, "Inbox", "An Empty Folder")
             press_delete(app)
-            until(app, lambda: not exists(app, "An Empty Folder") or box(app) is not None)
+            app.until(lambda: not exists(app, "An Empty Folder") or box(app) is not None)
             check(not exists(app, "An Empty Folder"), "the folder selected with the Inbox wasn't deleted")
             check(any("Inbox" in r for r in right_rows(app)), "the Inbox is gone from the Folders view")
-            said = toast(app, "The Inbox stays")
+            said = app.toast("The Inbox stays")
             check("The Inbox stays" in said, f"the receipt should say the Inbox stays: {said!r}")
             undo(app, lambda: exists(app, "An Empty Folder"))
             check(exists(app, "An Empty Folder"), "Ctrl+Z didn't bring it back")
@@ -357,7 +330,7 @@ with App() as app:
             check(words and "Every Ownership Kind" in words and "An Empty Folder" in words,
                   f"the menu's Delete should ask about BOTH selected folders, as the key does: {words!r}")
             answer(app, "Delete")
-            until(app, lambda: not exists(app, "Every Ownership Kind") and not exists(app, "An Empty Folder"))
+            app.until(lambda: not exists(app, "Every Ownership Kind") and not exists(app, "An Empty Folder"))
             check(not exists(app, "Every Ownership Kind") and not exists(app, "An Empty Folder"), "not both deleted")
             undo(app, both_back)
             check(exists(app, "Every Ownership Kind") and exists(app, "An Empty Folder"), "one Ctrl+Z, both back")
@@ -391,20 +364,20 @@ with App() as app:
             restore_variant()
             baseline()
             open_left(app, "Space Opera")
-            until(app, lambda: any("A Book With No Description" in r for r in right_rows(app)))
+            app.until(lambda: any("A Book With No Description" in r for r in right_rows(app)))
             check(any("A Book With No Description" in r for r in right_rows(app)), "setup: the book in Space Opera")
             open_left(app, "Science Fiction")
-            until(app, lambda: any("A Book With No Description" in r for r in right_rows(app)))
+            app.until(lambda: any("A Book With No Description" in r for r in right_rows(app)))
             check(any("A Book With No Description" in r for r in right_rows(app)), "setup: the book in Science Fiction")
             select(app, "Space Opera")
             press_delete(app)
             ask(app)
             answer(app, "Delete")
-            until(app, lambda: not exists(app, "Space Opera"))    # deleted — before the Ctrl+Z that takes it back
+            app.until(lambda: not exists(app, "Space Opera"))    # deleted — before the Ctrl+Z that takes it back
             undo(app, lambda: exists(app, "Space Opera"))
             check(exists(app, "Space Opera"), "Ctrl+Z didn't bring Space Opera back")
             open_left(app, "Science Fiction")
-            until(app, lambda: any("A Book With No Description" in r for r in right_rows(app)))
+            app.until(lambda: any("A Book With No Description" in r for r in right_rows(app)))
             check(any("A Book With No Description" in r for r in right_rows(app)),
                   "after Ctrl+Z the book left Science Fiction — it was there BEFORE the delete (the undo took out every "
                   "book the deleted folder held, not just the ones the delete had added)")
@@ -437,14 +410,14 @@ with App() as app:
             check("Space Opera" in words and "Good Omens" in words,
                   f"the confirmation should name the folder and the book: {words!r}")
             answer(app, "Delete")
-            until(app, lambda: not exists(app, "Space Opera"))
+            app.until(lambda: not exists(app, "Space Opera"))
             check(not exists(app, "Space Opera"), "the selected folder is still there after Delete")
-            until(app, lambda: omens_out_favorites_in(right_rows(app)))
+            app.until(lambda: omens_out_favorites_in(right_rows(app)))
             rows = right_rows(app)
             check(not any("Good Omens" in r for r in rows), "the selected book didn't leave the folder")
             check(any("Deep in the Folders" in r for r in rows),
                   "Old Favorites' books should have returned to Science Fiction (the folder you're in)")
-            said = toast(app, "Space Opera", "Good Omens")
+            said = app.toast("Space Opera", "Good Omens")
             check("Space Opera" in said and "Good Omens" in said, f"the receipt should say both went: {said!r}")
         finally:
             back_to_fixture(before)
@@ -477,7 +450,7 @@ with App() as app:
             press_delete(app)
             check(ask(app) is not None, "no confirmation came up for books and folders selected together")
             answer(app, "Delete")
-            until(app, lambda: both_gone(state(app)))
+            app.until(lambda: both_gone(state(app)))
             after = state(app)
             check("f-space" not in after["folders"] and "f-old" not in after["folders"],
                   "Space Opera and its subfolder should be gone")
@@ -520,7 +493,7 @@ with App() as app:
             check(words and "Space Opera" in words and "Good Omens" in words,
                   f"the item should ask the key's ONE confirmation, naming both: {words!r}")
             answer(app, "Delete")
-            until(app, lambda: both_gone(state(app)))
+            app.until(lambda: both_gone(state(app)))
             after = state(app)
             check("f-space" not in after["folders"], "the selected folder is still there")
             check("TST0000005" not in after["folders"]["f-scifi"]["books"], "the selected book didn't leave Science Fiction")
@@ -549,7 +522,7 @@ with App() as app:
                   f"the book goes to the Trash and is owned: the one confirmation should say it comes back from Amazon "
                   f"and offer to hide it instead: {words!r}")
             answer(app, choice)
-            until(app, lambda: answer_landed(state(app)))   # which way, and where the book is: checked below
+            app.until(lambda: answer_landed(state(app)))   # which way, and where the book is: checked below
             after = state(app)
             check("f-space" not in after["folders"], "Space Opera is still there")
             in_folders = [fid for fid, f in after["folders"].items() if "TST0000018" in f["books"]]
@@ -583,7 +556,7 @@ with App() as app:
             open_left(app, "Science Fiction")
             select(app, "Good Omens")       # in Fantasy too: Delete takes it out of Science Fiction only
             press_delete(app)
-            until(app, lambda: "TST0000005" not in state(app)["folders"]["f-scifi"]["books"])
+            app.until(lambda: "TST0000005" not in state(app)["folders"]["f-scifi"]["books"])
             after = state(app)
             check("TST0000005" not in after["folders"]["f-scifi"]["books"]
                   and "TST0000005" in after["folders"]["f-fantasy"]["books"],
@@ -603,16 +576,16 @@ with App() as app:
             read_next = app.page.get_by_text("Read Next", exact=True).first
             app.click_reachable(read_next)
             opened(app, read_next)
-            until(app, lambda: app.page.locator("tbody tr").count() > 0)
+            app.until(lambda: app.page.locator("tbody tr").count() > 0)
             before = right_rows(app)
             check(len(before) > 0, "setup: Read Next has books")
             title = before[0].split("\n")[1] if "\n" in before[0] else before[0]
             app.page.locator("tbody tr").first.click()
             app.page.wait_for_function("() => document.querySelectorAll('tbody tr.bg-blue-50').length === 1")
             press_delete(app)
-            until(app, lambda: app.page.locator("tbody tr").count() == len(before) - 1)
+            app.until(lambda: app.page.locator("tbody tr").count() == len(before) - 1)
             check(len(right_rows(app)) == len(before) - 1, "the book didn't leave the Book List")
-            said = toast(app, "Removed", "Read Next")
+            said = app.toast("Removed", "Read Next")
             check("Removed" in said and "Read Next" in said,
                   f"Delete in a Book List should say what it did, as the menu's Remove does: {said!r} "
                   f"(log: {app.console_matching(r' · (MOVE|ORG) · ')[-2:]})")

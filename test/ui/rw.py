@@ -5,6 +5,8 @@ test/ui/rw.py — the shared setup every screen test uses (docs/design/TESTING.m
         app.restore(FIXTURE)                # File → Restore Backup… through the real menu and file box
         app.reload(); app.wait_loaded()     # F5, then the library's load finished (folders set, or the critical box)
         app.wait_console(AFTER_CHECK, since=n0)   # the check after an Import / Restore has run (a condition, never a sleep)
+        app.until(cond); app.heard(pattern, n0)   # the waits — one set, each under LIMIT_MS (also: caught_up, settled,
+        app.toast(*words); app.amber_look(words)  #   held — the section "the waits" below; TESTING.md §4)
         app.left_count("All Books")         # the count the left pane shows for an entry
         app.unexpected_console()            # console errors / warnings / crashes not on the known-noise list
         app.violations                      # requests to a relay or to Amazon — the tests must make none
@@ -113,6 +115,13 @@ APP_TIMEOUT_MS = 180_000     # generous: the app opens in ~0.5 s since 7.27.0 (i
 # integrityCheckPending) — its own debug line, so it needs extra detail on (the driver's default; log=None turns it off).
 # Its last step: a repair it makes is logged right after it. Wait for it with wait_console(AFTER_CHECK, since=…).
 AFTER_CHECK = r"^debug · INTEG · After-Import check sees "
+# THE one limit for a step's wait — every screen test's (2026-11-18, sprint 9; Law 22 — it was 30 s in test_cells.py, 60 s
+# in the two key files and 3–10 s in most others). Generous: a step answers in well under a second, 2–5× slower on a
+# loaded PC, so only a real failure reaches it. And well under the runner's 2-minute floor for "ran past its usual time"
+# (TESTING.md §4), so a wait that runs out is reported as the test failure it is — not stopped as the machine's trouble.
+# The app OPENING has its own, APP_TIMEOUT_MS. The waits that use it: the section "the waits" in App, below.
+LIMIT_MS = 60_000
+LIMIT_S = LIMIT_MS // 1000
 BROWSER = os.environ.get("RW_BROWSER", "chrome")
 
 # The local relay's test channel: made up, existing only in the run's throwaway store. Credentials are planted at run
@@ -520,7 +529,12 @@ class App:
             };
         })""")
 
-    def wait_console(self, pattern, timeout_s=60, since=0):
+    # --- the waits: ONE set for every screen test (2026-11-18, sprint 9 — TESTING.md §3, §4; Law 22) ----------------------
+    # A test waits for a condition, never a moment, each under LIMIT_MS (the app opening: APP_TIMEOUT_MS). Until sprint 9
+    # they lived in the files that first needed them: until / toast in test_delete_key.py and test_rename_key.py (each with
+    # its own LIMIT_MS), caught_up / settled / heard / held / amber_look in test_cells.py. A wait that proves something
+    # does NOT happen is the exception — a fixed window, said in its line: "# timed on purpose: …".
+    def wait_console(self, pattern, timeout_s=LIMIT_S, since=0):
         """Wait until a console line matching `pattern` has appeared (a condition, never a fixed sleep — §7). since: only
         lines from that many on (len(app.console) taken before the action — so an earlier line can't answer). Lines the
         page logged in the same moment as it (a repair right after the check that found it) are in app.console too when
@@ -546,6 +560,110 @@ class App:
 
     def console_matching(self, pattern, since=0):
         return [x for _, x in self.console[since:] if re.search(pattern, x)]
+
+    def heard(self, pattern, since=0):
+        """wait_console that never raises: True once a line matching `pattern` (from line `since` on) has come, False when
+        none came within LIMIT_S — so the checks after it still run and say what went wrong, in their own words (as they
+        did when the wait was a fixed moment; test_cells.py's words() and undo)."""
+        try:
+            self.wait_console(pattern, LIMIT_S, since=since)
+            return True
+        except AssertionError:
+            return False
+
+    def until(self, cond, limit_ms=LIMIT_MS):
+        """Wait until cond() is true, or limit_ms has passed — a condition, never a moment. Raises nothing: the check after
+        it says what's wrong, in its own words. (Python's Playwright has no expect.poll; this is it, on the page's own
+        clock.) For a condition the page answers in one expression, page.wait_for_function is the same, and raises."""
+        deadline = time.monotonic() + limit_ms / 1000
+        while not cond() and time.monotonic() < deadline:
+            self.page.wait_for_timeout(50)   # a poll's step, not a wait for a moment
+
+    # The page has run every task queued before now: a timer task, a message task (React's scheduler runs a render's
+    # effects in message tasks — the left pane's scroll to the open folder, the saves, window.folders), a timer task. NOT
+    # requestIdleCallback, on purpose: after an Escape, Chrome gave the page no idle time for 3–5 s with nothing to do
+    # (measured 2026-11-18; after a click, ~0.3 s) — a wait for "idle" would wait that long for nothing.
+    CAUGHT_UP_JS = """() => new Promise(r => setTimeout(() => { const c = new MessageChannel();
+        c.port1.onmessage = () => setTimeout(r, 0); c.port2.postMessage(null); }, 0))"""
+
+    def caught_up(self, page=None):
+        """Wait until the page has done what the last step started: every task it queued has run — React's effects after
+        its render, and any message they say. A condition the page answers (CAUGHT_UP_JS), not a moment."""
+        (page or self.page).evaluate(self.CAUGHT_UP_JS)
+
+    def settled(self, read_js, page=None):
+        """read_js's reading (a JS function's source, returning anything JSON can hold) once the page has settled: two
+        readings with the page caught up between them are the same. Still changing at LIMIT_MS: a failure."""
+        got = (page or self.page).evaluate(f"""async (limit) => {{
+            const read = {read_js};
+            const caughtUp = {self.CAUGHT_UP_JS};
+            const end = performance.now() + limit;
+            let last = JSON.stringify(read());
+            for (;;) {{
+                await caughtUp();
+                const now = JSON.stringify(read());
+                if (now === last) return {{ ok: true, value: JSON.parse(now) }};
+                if (performance.now() > end) return {{ ok: false, value: JSON.parse(now) }};
+                last = now;
+            }}
+        }}""", LIMIT_MS)
+        if not got["ok"]:
+            raise AssertionError(f"the page's reading never settled within {LIMIT_S} s (it was still changing)")
+        return got["value"]
+
+    def toast(self, *words):
+        """The toast's words — waiting (LIMIT_MS) for a toast holding every one of `words` (an earlier toast may still be
+        up); if none comes, whatever toast is up ("" for none): no such toast is an answer too, said by the check after."""
+        t = self.page.locator(".clipboard-toast")
+        for w in words:
+            t = t.filter(has_text=w)
+        try:
+            t.first.wait_for(state="visible", timeout=LIMIT_MS)
+            return t.first.inner_text()
+        except PlaywrightTimeout:
+            up = self.page.locator(".clipboard-toast")
+            return up.first.inner_text() if up.count() else ""
+
+    # The toast holding `words` ('' = the toast on screen): its look once it has reached amber — or once it's leaving (its
+    # .animating flight to the status bar) or gone, never amber: then the check after says so with what it was.
+    AMBER_JS = """words => {
+        const el = [...document.querySelectorAll('.clipboard-toast')].find(t => t.innerText.includes(words));
+        const probe = document.createElement('div');
+        probe.style.backgroundColor = 'var(--toast-warning-bg)';
+        document.body.appendChild(probe);
+        const amber = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        if (!el) return { cls: '(no toast)', bg: '(no toast)', amber };
+        const look = { cls: el.className, bg: getComputedStyle(el).backgroundColor, amber };
+        return look.bg === amber || el.classList.contains('animating') ? look : null;
+    }"""
+
+    def amber_look(self, words=""):
+        """The look of a toast that should be a warning — {cls, bg, amber} — once it has reached amber: a toast fades to its
+        colors (.clipboard-toast's 1 s transition) — read too soon, it's still part-way (2026-11-17, a loaded PC:
+        rgba(254, 243, 199, 0.557)). Waited for each frame (AMBER_JS)."""
+        return self.page.wait_for_function(self.AMBER_JS, arg=words, timeout=LIMIT_MS).json_value()
+
+    # Timed on purpose — a DURATION is what's tested ("a warning stays ~4 s where it appeared, others 1.5 s"): `ms` after
+    # the app was told to show the toast whose words are `text` (its log entry's time — the toast's own hold timers start
+    # in that same moment), is a toast holding `words` ('' = any) still where it appeared (not .animating)? Waited IN the
+    # page, on the page's clock: the app's hold timers and this one share one queue, so under any load this one (due
+    # first) runs before a later-due hold ends — no lag between our clock and the browser's can move the answer.
+    HELD_JS = """async ([text, words, ms]) => {
+        const e = window.rwLog.entries().reverse().find(x => x.text && text.includes(x.text));
+        if (!e) return 'no log entry for the toast';
+        await new Promise(r => setTimeout(r, Math.max(0, e.time + ms - Date.now())));   // timed on purpose (above)
+        return [...document.querySelectorAll('.clipboard-toast:not(.animating)')].some(t => t.innerText.includes(words));
+    }"""
+
+    def held(self, text, words, ms):
+        """True if, `ms` after the toast saying `text` was shown, a toast holding `words` is still where it appeared
+        (HELD_JS — timed on purpose: a duration is what's tested)."""
+        still = self.page.evaluate(self.HELD_JS, [text, words, ms])
+        if not isinstance(still, bool):
+            raise AssertionError(f"can't time the toast {text!r}: {still}")
+        return still
+    # --- (end of the waits) --------------------------------------------------------------------------------------------
 
     # --- Cloud Sync, against the local relay (App(relay=True)) --------------------------------------------------------
     def upload_fetch(self, items):
@@ -579,7 +697,7 @@ class App:
         {'under': description, 'title': its tooltip, 'width', 'height'}. Refuses (App.Unreachable) a target with no
         size, or one covered by something else — naming what covers it. Reading an attribute proves a thing exists,
         not that anyone can get to it."""
-        target.scroll_into_view_if_needed(timeout=10_000)
+        target.scroll_into_view_if_needed(timeout=LIMIT_MS)
         box = target.bounding_box()
         if not box or box["width"] < 1 or box["height"] < 1:
             raise App.Unreachable(f"the target has no size ({box}) — nobody can point at it")
@@ -613,7 +731,7 @@ class App:
         naming what covers it. hover() can't judge it: the browser's "what's under the pointer" skips a thing that lets
         clicks through, so it would name what's underneath. Here the target counts for that one question (its own
         pointer-events put back at once); the pointer isn't moved."""
-        target.scroll_into_view_if_needed(timeout=10_000)
+        target.scroll_into_view_if_needed(timeout=LIMIT_MS)
         box = target.bounding_box()
         if not box or box["width"] < 1 or box["height"] < 1:
             raise App.Unreachable(f"the target has no size ({box}) — nobody can see it")
@@ -671,7 +789,7 @@ class App:
         page.clock.install()
         page.goto(f"http://localhost:{self.port}/readerwrangler.html")
         page.clock.fast_forward(16_000)
-        page.get_by_text("Something went wrong", exact=True).wait_for(timeout=10_000)
+        page.get_by_text("Something went wrong", exact=True).wait_for(timeout=LIMIT_MS)
         return page, log
 
     # --- reading the screen -------------------------------------------------------------------------------------

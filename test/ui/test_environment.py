@@ -36,7 +36,7 @@ SERVER_GONE = PRE + """with rw.App() as app:
     app._stop_server()       # our web server stops answering (as if the machine had dropped it)
     app.page.evaluate("() => { const i = new Image(); i.src = '/icons/logo-transparent.png?gone=' + Date.now(); "
                       "document.body.appendChild(i); }")
-    app.wait_console(r"Failed to load resource: net::ERR_CONNECTION_REFUSED", 20)
+    app.wait_console(r"Failed to load resource: net::ERR_CONNECTION_REFUSED")
     test("ENVX-001", "no unexpected console messages", lambda: check(not app.unexpected_console(), app.unexpected_console()))
 done()
 """

@@ -15,7 +15,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import AFTER_CHECK, APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
+from rw import AFTER_CHECK, APP_TIMEOUT_MS, FIXTURE, LIMIT_MS, App   # noqa: E402
 
 with App() as app:
     app.page.evaluate("() => rwLog.setSwitch('logDetail', true)")
@@ -113,11 +113,11 @@ with App() as app:
             item.click()
         fc.value.set_files(path)
         box = app.page.get_by_text("Restore backup?", exact=True).locator("xpath=ancestor::*[.//button][1]")
-        box.wait_for(timeout=30_000)
+        box.wait_for(timeout=LIMIT_MS)
         text = box.inner_text()
         check(re.search(r"This backup is from .+ — yesterday\.", text), "the box doesn't say yesterday: " + text[:200])
         box.get_by_role("button", name="Cancel", exact=True).click()
-        box.wait_for(state="detached", timeout=5000)
+        box.wait_for(state="detached", timeout=LIMIT_MS)
     test("BACKUP-005", "the Restore box calls a backup from 11:59 PM yesterday \"yesterday\" — calendar days, not 24-hour blocks",
          yesterday_reads_yesterday)
 

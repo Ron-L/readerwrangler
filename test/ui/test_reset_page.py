@@ -14,14 +14,14 @@ from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import App                       # noqa: E402
+from rw import LIMIT_MS, App             # noqa: E402
 
 COPIED = "Diagnostics copied — paste them into your message to us."
 REFUSED = "Diagnostics couldn't be copied — the browser refused the clipboard."
 
 with App() as app:
     page, log = app.open_tab("reset.html", wait_for_app=False)
-    page.get_by_text("Emergency Reset", exact=True).wait_for(timeout=10_000)
+    page.get_by_text("Emergency Reset", exact=True).wait_for(timeout=LIMIT_MS)
     app.stub_outside(page)
 
     def button(name, where=None):
@@ -41,7 +41,7 @@ with App() as app:
 
     def copies():
         app.click_reachable(button("Copy diagnostics"))
-        page.get_by_text(COPIED).wait_for(timeout=5_000)
+        page.get_by_text(COPIED).wait_for(timeout=LIMIT_MS)
         copied = app.copied(page)
         check(len(copied) == 1, f"{len(copied)} copies, should be 1")
         text = copied[0]
@@ -52,7 +52,7 @@ with App() as app:
 
     def report_flow():
         app.click_reachable(button("Report this problem"))
-        report_box().get_by_text(COPIED).wait_for(timeout=5_000)
+        report_box().get_by_text(COPIED).wait_for(timeout=LIMIT_MS)
         o0 = len(app.opened(page))
         app.click_reachable(button("Email us", report_box()))
         url = app.opened(page)[o0][0]
@@ -63,20 +63,20 @@ with App() as app:
         opened = app.opened(page)[o0 + 1:]
         check(opened and opened[0][0] == "https://github.com/Ron-L/ReaderWrangler/issues/new", f"not a new GitHub issue: {opened}")
         app.click_reachable(button("Close", report_box()))
-        report_box().wait_for(state="detached", timeout=5_000)
+        report_box().wait_for(state="detached", timeout=LIMIT_MS)
     test("RESETPG-003", "Report this problem copies, then Email us / Report on GitHub open what they say; Close closes",
          report_flow)
 
     def refused():
         app.stub_outside(page, refuse_clipboard=True)
         app.click_reachable(button("Copy diagnostics"))
-        page.get_by_text(REFUSED).first.wait_for(timeout=5_000)
+        page.get_by_text(REFUSED).first.wait_for(timeout=LIMIT_MS)
         app.click_reachable(button("Report this problem"))
-        report_box().get_by_text(REFUSED).wait_for(timeout=5_000)
+        report_box().get_by_text(REFUSED).wait_for(timeout=LIMIT_MS)
         check(button("Email us", report_box()).is_enabled() and button("Report on GitHub", report_box()).is_enabled(),
               "the choice isn't offered when the copy was refused")
         page.keyboard.press("Escape")
-        report_box().wait_for(state="detached", timeout=5_000)
+        report_box().wait_for(state="detached", timeout=LIMIT_MS)
     test("RESETPG-004", "a refused clipboard is said plainly and the choice is still offered; Esc closes the box", refused)
 
     def clean():

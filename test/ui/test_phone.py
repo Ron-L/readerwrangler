@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import App                       # noqa: E402
+from rw import APP_TIMEOUT_MS, LIMIT_MS, App   # noqa: E402
 
 CRITICAL = "#rw-log-critical"
 
@@ -33,26 +33,26 @@ with App(relay=True, size=(390, 844)) as app:
         app.stub_outside()      # the driver's one clipboard recorder (7.29.1: was a hand-written stub of its own)
         page.get_by_role("button", name="Menu").first.click()
         page.locator("[data-copy-diagnostics]").click()
-        page.wait_for_function("() => window._copied.length > 0", timeout=5000)
+        page.wait_for_function("() => window._copied.length > 0", timeout=LIMIT_MS)
         text = app.copied()[-1]
         check(text.startswith("ReaderWrangler diagnostics — "), text[:80])
         check(re.search(r"Phone app \d+\.\d+\.\d+(-alpha\.\d+)? \(page ", text), "no phone build line in the header")
         check("Phone app" in text and "running" in text, "the phone's own log lines aren't in the copy")
-        page.locator("[data-copy-diagnostics]").get_by_text("Copied").wait_for(timeout=3000)
+        page.locator("[data-copy-diagnostics]").get_by_text("Copied").wait_for(timeout=LIMIT_MS)
     test("PHONE-003", "the phone's menu has Copy diagnostics: the phone's log, under a header with its build", copy_diagnostics)
 
     # 7.29.1 (TODO 20261112-1755 "Copy buttons tell the truth"): a phone on the home network reaching a self-hosted copy
     # is on an insecure address — the page has NO clipboard — and Copy diagnostics said "Copied". Now: "Couldn't copy".
     def copy_without_clipboard():
         diag = page.locator("[data-copy-diagnostics]")
-        diag.get_by_text("Copy diagnostics").wait_for(timeout=5000)   # PHONE-003's "Copied" has gone back
+        diag.get_by_text("Copy diagnostics").wait_for(timeout=LIMIT_MS)   # PHONE-003's "Copied" has gone back
         page.evaluate("() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })")
         n0 = len(app.console)
         diag.click()
-        diag.get_by_text("Couldn't copy").wait_for(timeout=3000)
+        diag.get_by_text("Couldn't copy").wait_for(timeout=LIMIT_MS)
         check([x for _, x in app.console[n0:] if x.startswith("warning · UI-06 · Diagnostics couldn't be copied (the phone)")],
               "the refusal isn't logged (UI-06)")
-        diag.get_by_text("Copy diagnostics").wait_for(timeout=5000)
+        diag.get_by_text("Copy diagnostics").wait_for(timeout=LIMIT_MS)
     test("PHONE-004", "Copy diagnostics on a phone page with no clipboard says Couldn't copy — never Copied", copy_without_clipboard)
 
     # Its neighbour in the same menu, the credentials' Copy (Law 22 — the same one copy routine): it said nothing at all,
@@ -62,13 +62,13 @@ with App(relay=True, size=(390, 844)) as app:
         page.get_by_text("Show credentials").click()
         copy = page.get_by_role("button", name="Copy", exact=True)
         copy.click()
-        page.get_by_role("button", name="Copied", exact=True).wait_for(timeout=3000)
+        page.get_by_role("button", name="Copied", exact=True).wait_for(timeout=LIMIT_MS)
         check(app.copied() and app.copied()[-1].startswith("Channel ID: "), f"the credentials weren't copied: {app.copied()[-1:]}")
-        copy.wait_for(timeout=5000)                                  # back to its label
+        copy.wait_for(timeout=LIMIT_MS)                                  # back to its label
         app.stub_outside(refuse_clipboard=True)
         copy.click()
-        page.get_by_role("button", name="Couldn't copy", exact=True).wait_for(timeout=3000)
-        copy.wait_for(timeout=5000)
+        page.get_by_role("button", name="Couldn't copy", exact=True).wait_for(timeout=LIMIT_MS)
+        copy.wait_for(timeout=LIMIT_MS)
         page.get_by_text("Hide credentials").click()
         app.stub_outside(refuse_clipboard=False)
     test("PHONE-005", "the credentials' Copy says Copied when it copied, and Couldn't copy when the browser refused",
@@ -81,13 +81,13 @@ with App(relay=True, size=(390, 844)) as app:
     # nothing on screen). The damage is a note cut off mid-write.
     def damaged_settings_note():
         menu = page.get_by_role("button", name="Menu").first
-        menu.wait_for(timeout=30_000)                                   # setup: the phone app is up before the damage
+        menu.wait_for(timeout=APP_TIMEOUT_MS)                             # setup: the phone app is up before the damage
         page.evaluate("""() => localStorage.setItem('readerwrangler-mobile-prefs', '{"sortOption": "titleAZ", "viewMo')""")
         n0, crashes0 = len(app.console), len(app.crashes)
         try:
             app.reload()
             try:
-                menu.wait_for(timeout=30_000)
+                menu.wait_for(timeout=APP_TIMEOUT_MS)     # a load: the app opening's own limit
             except Exception:
                 check(False, f"the phone app didn't open (blank) — crashes: {app.crashes[crashes0:][:2]}")
             check(not app.crashes[crashes0:], f"the page crashed: {app.crashes[crashes0:][:2]}")
@@ -104,7 +104,7 @@ with App(relay=True, size=(390, 844)) as app:
         app.ctx.add_init_script("""indexedDB.open = function () {
             throw new Error('the book store refused to open (screen test)'); };""")
         app.reload()
-        page.locator(CRITICAL).wait_for(timeout=60_000)
+        page.locator(CRITICAL).wait_for(timeout=APP_TIMEOUT_MS)     # a load: the app opening's own limit
         text = page.locator(CRITICAL).inner_text()
         check("PHONE-03" in text, f"the box doesn't carry PHONE-03: {text!r}")
         check("couldn't be loaded on this phone" in text, f"the box doesn't say the phone couldn't load: {text!r}")

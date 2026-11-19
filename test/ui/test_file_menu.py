@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import FIXTURE, LIMIT_MS, App    # noqa: E402
 
 EMPTY = re.compile(r"^Your library is empty — there are no books to ")
 
@@ -38,11 +38,11 @@ with App() as app:
         page.keyboard.press("Escape")
         app.menu("Tools", "Reset App").click()
         box = page.locator('[role="dialog"]', has=page.locator("#modal-reset-confirm"))
-        box.wait_for(timeout=10_000)
+        box.wait_for(timeout=LIMIT_MS)
         check(box.get_by_role("button", name="Save Backup…", exact=True).get_attribute("title") == backup_title,
               "the Reset App box's Save Backup… and File → Save Backup… say different things")
         box.get_by_role("button", name="Cancel", exact=True).click()
-        box.wait_for(state="detached", timeout=5_000)
+        box.wait_for(state="detached", timeout=LIMIT_MS)
     test("FILEMENU-002", "File → Save Backup… says the same as the Reset App box's Save Backup… (one sentence)",
          same_words_as_reset_box)
 

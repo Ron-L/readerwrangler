@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import FIXTURE, LIMIT_MS, App    # noqa: E402
 
 ISSUES = "https://github.com/Ron-L/ReaderWrangler/issues"
 COPIED = "Diagnostics copied — paste them into your message to us."
@@ -32,7 +32,7 @@ with App() as app:
     def help_menu():
         page.get_by_role("button", name=re.compile(r"^\s*Help")).first.click()
         menu = page.get_by_role("menu", name="Help")
-        menu.wait_for(timeout=5_000)
+        menu.wait_for(timeout=LIMIT_MS)
         return menu
 
     def report_box():
@@ -40,7 +40,7 @@ with App() as app:
 
     def open_report():
         help_menu().get_by_role("button", name="Report a problem…", exact=True).click()
-        report_box().wait_for(timeout=5_000)
+        report_box().wait_for(timeout=LIMIT_MS)
 
     def items_in_place():
         menu = help_menu()
@@ -53,14 +53,14 @@ with App() as app:
             info = app.hover(menu.get_by_role("button", name=n, exact=True))   # refuses a covered or zero-size item
             check(info["title"], f"Help → {n} has no tooltip saying what it does")
         page.keyboard.press("Escape")
-        menu.wait_for(state="detached", timeout=5_000)
+        menu.wait_for(state="detached", timeout=LIMIT_MS)
     test("RPT-001", "the Help menu has Report a problem… and Known problems, after Diagnostics…, each with a tooltip",
          items_in_place)
 
     def copies_then_offers():
         n0 = len(app.copied())
         open_report()
-        page.get_by_text(COPIED).wait_for(timeout=5_000)
+        page.get_by_text(COPIED).wait_for(timeout=LIMIT_MS)
         copied = app.copied()[n0:]
         check(len(copied) == 1, f"{len(copied)} copies made, should be 1")
         text = copied[0]
@@ -102,17 +102,17 @@ with App() as app:
 
     def close_and_esc():
         report_box().get_by_role("button", name="Close", exact=True).click()
-        report_box().wait_for(state="detached", timeout=5_000)
+        report_box().wait_for(state="detached", timeout=LIMIT_MS)
         open_report()
         page.keyboard.press("Escape")
-        report_box().wait_for(state="detached", timeout=5_000)
+        report_box().wait_for(state="detached", timeout=LIMIT_MS)
     test("RPT-005", "Close closes the box; Esc does too (it's a window of the overlay system)", close_and_esc)
 
     def refused():
         app.stub_outside(refuse_clipboard=True)
         n0 = len(app.console)
         open_report()
-        page.get_by_text(REFUSED).wait_for(timeout=5_000)
+        page.get_by_text(REFUSED).wait_for(timeout=LIMIT_MS)
         box = report_box()
         check(box.get_by_role("button", name="Email us", exact=True).is_enabled(), "Email us isn't offered")
         check(box.get_by_role("button", name="Report on GitHub", exact=True).is_enabled(), "Report on GitHub isn't offered")
@@ -121,10 +121,10 @@ with App() as app:
         app.stub_outside(refuse_clipboard=False)
         n1 = len(app.copied())
         app.click_reachable(box.get_by_role("button", name="Try again", exact=True))
-        page.get_by_text(COPIED).wait_for(timeout=5_000)
+        page.get_by_text(COPIED).wait_for(timeout=LIMIT_MS)
         check(len(app.copied()) == n1 + 1, "Try again didn't copy")
         page.keyboard.press("Escape")
-        report_box().wait_for(state="detached", timeout=5_000)
+        report_box().wait_for(state="detached", timeout=LIMIT_MS)
     test("RPT-006", "a refused clipboard is said plainly, both choices are still offered, and Try again copies", refused)
 
     def known_problems():

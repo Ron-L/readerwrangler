@@ -17,14 +17,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
+from rw import FIXTURE, LIMIT_MS, App   # noqa: E402 — LIMIT_MS: the library's one limit for a step (180 s until sprint 9)
 
 PLACES = ["All Books", "Inbox", "Fantasy", "Science Fiction", "Read Next", "Trash"]
 ONLY_SCIFI = "A Book With No Description"
 TWO_FOLDERS = "Good Omens"
-
-
-LIMIT_MS = APP_TIMEOUT_MS   # every wait here is for a condition, under the driver's own generous limit (TESTING.md §3)
 
 
 def open_(app, label):
@@ -53,23 +50,21 @@ def take(app, title, folder, key):
     app.page.wait_for_function("el => el.matches('.bg-blue-50')", arg=row.element_handle(), timeout=LIMIT_MS)
     n0 = len(app.console)
     app.page.keyboard.press(f"Control+{key}")
-    app.wait_console(r"^(info · MOVE|warning · MOVE-10) · ", LIMIT_MS // 1000, since=n0)
+    app.wait_console(r"^(info · MOVE|warning · MOVE-10) · ", since=n0)
 
 
 def paste_in(app, place):
-    """Open a place, press Ctrl+V, return the toast's words."""
+    """Open a place, press Ctrl+V, return the toast's words (app.toast: the shared wait — "" when none came)."""
     open_(app, place)
     app.page.keyboard.press("Control+v")
-    toast = app.page.locator(".clipboard-toast").first
-    toast.wait_for(timeout=5000)
-    return toast.inner_text()
+    return app.toast()
 
 
 def undo(app):
     """Ctrl+Z, then wait for its answer — "Undone: …" (or "Nothing to undo") is its last step (before: a 0.6 s sleep)."""
     n0 = len(app.console)
     app.page.keyboard.press("Control+z")
-    app.wait_console(r"^info · UNDO · ", LIMIT_MS // 1000, since=n0)
+    app.wait_console(r"^info · UNDO · ", since=n0)
 
 
 with App() as app:
@@ -127,7 +122,7 @@ with App() as app:
         open_(app, "All Books")
         app.page.locator("tbody tr", has_text=ONLY_SCIFI).first.click(button="right")
         item = app.page.get_by_text("Paste", exact=True).first
-        item.wait_for(timeout=5000)
+        item.wait_for(timeout=LIMIT_MS)
         tip = item.locator("xpath=..").get_attribute("title") or ""
         check("Every book is already in All Books" in tip, f"the greyed Paste's tooltip: {tip!r}")
         app.page.keyboard.press("Escape")

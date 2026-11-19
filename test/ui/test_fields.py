@@ -40,7 +40,7 @@ with App() as app:
     page.on("dialog", lambda d: (dialogs.append(d.message), d.accept()))
     n0 = len(app.console)
     app.reload()
-    app.wait_console(r"FIELD · .*round-trip", timeout_s=60)
+    app.wait_console(r"FIELD · .*round-trip")     # (under the library's one limit, LIMIT_S — the 60 s it named)
 
     def unknown_field():
         hit = [x for _, x in app.console[n0:] if re.search(r"^error · FIELD-04 · .*" + PHANTOM, x)]
