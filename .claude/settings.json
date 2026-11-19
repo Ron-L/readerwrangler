@@ -108,6 +108,15 @@
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/gate-check.py\""
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/prod-guard.py\""
+          }
+        ]
       }
     ],
     "Stop": [
