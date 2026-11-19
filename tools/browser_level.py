@@ -39,8 +39,12 @@ Tested by test/test_browser_level.py (LEVEL-001–021) and test/test_run_tests.p
 """
 import json
 import os
+import sys
 import threading
-import time
+
+if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import whole_file  # noqa: E402  (the one way to write a file whole — Law 22)
 
 START = 4           # a PC with no saved level (or a damaged file) starts here — the old fixed number
 TOP = 6             # the most browsers at once — the PC's slot count (tools/test_slots.py) matches it
@@ -51,7 +55,6 @@ KEEP = 30           # saved runs kept
 SAME_SIZE = 0.10    # suites within this share of each other's file count compare; further apart they don't
 SLOW = 2.0          # a clean run at L taking more than this many times the best recent one at L → one fewer next run
 FILE_NAME = "browsers-at-once.json"
-SWAP_TRIES, SWAP_PAUSE_S = 20, 0.1      # save(): a refused swap is retried for ~2 s in all
 
 
 def minsec(seconds):
@@ -171,25 +174,11 @@ def save(path, state):
     couldn't be saved, in words. Also how tools/test_costs.py writes its averages (Law 22: one way to write a file whole).
     Windows refuses the swap now and then right after the file was rewritten (seen 2026-11-18: six runs saving test costs
     at once, one at a time under a lock — one swap refused, "Access is denied"), so it's retried for ~2 s, as
-    tools/build.py's _write does."""
-    tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
+    tools/build.py's copies do — both through tools/whole_file.py, the one routine (2026-11-18)."""
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(state, f, indent=1)
-        for attempt in range(SWAP_TRIES):
-            try:
-                os.replace(tmp, path)
-                return None
-            except PermissionError:
-                if attempt == SWAP_TRIES - 1:
-                    raise
-                time.sleep(SWAP_PAUSE_S)
+        whole_file.write(path, json.dumps(state, indent=1))
+        return None
     except OSError as e:
-        try:
-            os.remove(tmp)
-        except OSError:
-            pass
         return f"couldn't save {path}: {e}"
 
 
