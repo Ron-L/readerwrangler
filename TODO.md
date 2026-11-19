@@ -2,25 +2,11 @@
 
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
-    - [High priority](#high-priority)
-      - [✅ Working copies that can't break each other: separate clones, plus a check on what they still share](#working-copies-that-cant-break-each-other-separate-clones-plus-a-check-on-what-they-still-share)
-      - [✅ Remove the test-runner parts that didn't pay for themselves, then stop building tooling](#remove-the-test-runner-parts-that-didnt-pay-for-themselves-then-stop-building-tooling)
-      - [✅ Carry the discussion across a compaction: a hook before it and one after](#carry-the-discussion-across-a-compaction-a-hook-before-it-and-one-after)
-      - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
+    - [🚦 The launch gate — target: January 2027](#the-launch-gate--target-january-2027)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
-      - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
-      - [Receipts reach the screen: one screen test per area, not only the log](#receipts-reach-the-screen-one-screen-test-per-area-not-only-the-log)
-      - [✅ One starter for every process our tools start: a list of their ids, leftovers shown loudly](#one-starter-for-every-process-our-tools-start-a-list-of-their-ids-leftovers-shown-loudly)
-      - [✅ Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
-      - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
-      - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
-      - [Search improvements](#search-improvements)
-        - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
-        - [Search everywhere without leaving the current folder](#search-everywhere-without-leaving-the-current-folder)
-      - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
-      - [Series positions: one Position dialog, and one book at several positions (omnibus)](#series-positions-one-position-dialog-and-one-book-at-several-positions-omnibus)
-      - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
-      - [Drag a box to select covers](#drag-a-box-to-select-covers)
+      - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
+      - [Book details window: one Save — nothing changes until you click it, and nothing is lost without asking](#book-details-window-one-save--nothing-changes-until-you-click-it-and-nothing-is-lost-without-asking)
+      - [A one-day truth-and-safety release: small things that are false or unsafe today](#a-one-day-truth-and-safety-release-small-things-that-are-false-or-unsafe-today)
       - [Fetcher work, in build order](#fetcher-work-in-build-order)
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
         - [The fetchers' own logging: levels and codes, a log on Amazon's site, problems shown in Diagnostics](#the-fetchers-own-logging-levels-and-codes-a-log-on-amazons-site-problems-shown-in-diagnostics)
@@ -33,11 +19,46 @@
         - [A long fetch resumes after an interruption (a first fetch, or a full refresh)](#a-long-fetch-resumes-after-an-interruption-a-first-fetch-or-a-full-refresh)
         - [Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select](#refresh-all-books-from-amazon--a-choice-in-the-fetcher-which-the-app-can-pre-select)
         - [A fetch from someone else's Amazon account stops before mixing two libraries](#a-fetch-from-someone-elses-amazon-account-stops-before-mixing-two-libraries)
+      - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
+      - [Restore checks every book, folder and list inside a backup — skip a bad one and say so](#restore-checks-every-book-folder-and-list-inside-a-backup--skip-a-bad-one-and-say-so)
+      - [One backup writer: Save Backup and the copy sent to the relay are built twice and already differ](#one-backup-writer-save-backup-and-the-copy-sent-to-the-relay-are-built-twice-and-already-differ)
+      - [Restore from Cloud Sync: your books and organization back from the cloud copy, no backup file needed](#restore-from-cloud-sync-your-books-and-organization-back-from-the-cloud-copy-no-backup-file-needed)
+      - [Lock the Cloud Sync Key in backups with an optional key password](#lock-the-cloud-sync-key-in-backups-with-an-optional-key-password)
+      - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
+      - [Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one](#cloud-sync-rename-relay-show-one-cloud-sync-key-and-make-a-new-key-retires-the-old-one)
+        - [An anti-glossary: the words we don't show people, kept in a list and enforced at every commit](#an-anti-glossary-the-words-we-dont-show-people-kept-in-a-list-and-enforced-at-every-commit)
+        - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
+        - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
+      - [Reset App: one honest message in all four places (what's cleared, what's kept, how to come back)](#reset-app-one-honest-message-in-all-four-places-whats-cleared-whats-kept-how-to-come-back)
+        - [What a reset clears: four resets, four different lists](#what-a-reset-clears-four-resets-four-different-lists)
+      - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
+      - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
+      - [Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button](#landing-page-open-my-library-for-returning-users-and-always-free--no-ads--no-account-needed-under-the-start-button)
+      - [A privacy page: what ReaderWrangler sends where, in plain words](#a-privacy-page-what-readerwrangler-sends-where-in-plain-words)
+      - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
+      - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
+      - [User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help](#user-guide-rewrite-it-around-searches-book-lists-and-folders-as-a-page-you-can-reach-from-help)
+        - [A glossary page on the site, built from GLOSSARY.md](#a-glossary-page-on-the-site-built-from-glossarymd)
+      - [Remind me when my last backup is getting old](#remind-me-when-my-last-backup-is-getting-old)
+      - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
+        - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
+      - [A public demo library from Amazon's best-seller lists (nothing personal)](#a-public-demo-library-from-amazons-best-seller-lists-nothing-personal)
+      - [Screen capture pass: the sizzle reel, the landing page's before / after, README's old video](#screen-capture-pass-the-sizzle-reel-the-landing-pages-before--after-readmes-old-video)
+      - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
+    - [High priority](#high-priority)
       - [Honest ownership changes: buying, samples, loans](#honest-ownership-changes-buying-samples-loans)
-        - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
         - [Buying a book that's in the Trash should bring it back](#buying-a-book-thats-in-the-trash-should-bring-it-back)
         - [Fetch summary should report books you bought](#fetch-summary-should-report-books-you-bought)
         - [Import summary: every ownership change by kind, kept in the message history](#import-summary-every-ownership-change-by-kind-kept-in-the-message-history)
+      - [Series positions: one Position dialog, and one book at several positions (omnibus)](#series-positions-one-position-dialog-and-one-book-at-several-positions-omnibus)
+      - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
+      - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
+      - [Drag a box to select covers](#drag-a-box-to-select-covers)
+      - [Every edit rewrites the whole library in storage](#every-edit-rewrites-the-whole-library-in-storage)
+      - [Search improvements](#search-improvements)
+        - [Find a book by its ASIN in the search box](#find-a-book-by-its-asin-in-the-search-box)
+        - [Search everywhere without leaving the current folder](#search-everywhere-without-leaving-the-current-folder)
+      - [Phone: show which test build is running](#phone-show-which-test-build-is-running)
       - [The left pane, one release](#the-left-pane-one-release)
         - [Book Lists and Searches: pin and sort them like Folders](#book-lists-and-searches-pin-and-sort-them-like-folders)
         - [A type-to-filter box for the left pane](#a-type-to-filter-box-for-the-left-pane)
@@ -59,7 +80,6 @@
         - [Open one book's details without losing a multi-selection](#open-one-books-details-without-losing-a-multi-selection)
         - [Restore the previous selection after a stray click or Select All](#restore-the-previous-selection-after-a-stray-click-or-select-all)
       - [A folder or Book List you just created stays visible under filters](#a-folder-or-book-list-you-just-created-stays-visible-under-filters)
-      - [Book details window: one Save — nothing changes until you click it, and nothing is lost without asking](#book-details-window-one-save--nothing-changes-until-you-click-it-and-nothing-is-lost-without-asking)
       - [Tag lists and long lists, one release](#tag-lists-and-long-lists-one-release)
         - [Long lists keep their actions in view (Manage…, Select All) while you scroll](#long-lists-keep-their-actions-in-view-manage-select-all-while-you-scroll)
         - [One shared tag picker: show all tags in your order (the right-click one silently stops at 10)](#one-shared-tag-picker-show-all-tags-in-your-order-the-right-click-one-silently-stops-at-10)
@@ -70,7 +90,6 @@
       - ["Bake this order into Manual" for a folder's books and a Book List, from the Sort menu](#bake-this-order-into-manual-for-a-folders-books-and-a-book-list-from-the-sort-menu)
       - [Small fixes](#small-fixes)
         - [A new message glides in from the old one's spot instead of appearing where you clicked](#a-new-message-glides-in-from-the-old-ones-spot-instead-of-appearing-where-you-clicked)
-        - [What a reset clears: four resets, four different lists](#what-a-reset-clears-four-resets-four-different-lists)
         - [Tidy up the notes](#tidy-up-the-notes)
         - [Leave the affiliate tag off Amazon links on the test rig](#leave-the-affiliate-tag-off-amazon-links-on-the-test-rig)
         - [Switch the affiliate tag to "readerwrangler-20"](#switch-the-affiliate-tag-to-readerwrangler-20)
@@ -84,43 +103,12 @@
         - [With a filter on, the right pane still shows subfolders with no matching books](#with-a-filter-on-the-right-pane-still-shows-subfolders-with-no-matching-books)
         - [A missing book description: one quiet line, on the computer and the phone](#a-missing-book-description-one-quiet-line-on-the-computer-and-the-phone)
         - [Remove the old version 4 app from the site — it shares your library's storage](#remove-the-old-version-4-app-from-the-site--it-shares-your-librarys-storage)
-        - [Every edit rewrites the whole library in storage](#every-edit-rewrites-the-whole-library-in-storage)
         - [The phone's cover copies: still worth it? And why wasn't the browser's own cache enough?](#the-phones-cover-copies-still-worth-it-and-why-wasnt-the-browsers-own-cache-enough)
         - [Relay Setup's Test connection always checks the production relay](#relay-setups-test-connection-always-checks-the-production-relay)
         - [F2 follows the Delete key's rule: what's selected, where you're working, and words when it can't](#f2-follows-the-delete-keys-rule-whats-selected-where-youre-working-and-words-when-it-cant)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
-      - [✅ The "open" shortcut: start serve.py if needed and open the app](#the-open-shortcut-start-servepy-if-needed-and-open-the-app)
-      - [✅ Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
       - [A refused Restore shows a false "Restore Warning" box a minute later](#a-refused-restore-shows-a-false-restore-warning-box-a-minute-later)
-  - [🚦 Before public launch](#before-public-launch)
-    - [Help, docs and onboarding](#help-docs-and-onboarding)
-      - [An anti-glossary: the words we don't show people, kept in a list and enforced at every commit](#an-anti-glossary-the-words-we-dont-show-people-kept-in-a-list-and-enforced-at-every-commit)
-      - [A glossary page on the site, built from GLOSSARY.md](#a-glossary-page-on-the-site-built-from-glossarymd)
-      - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
-      - [Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button](#landing-page-open-my-library-for-returning-users-and-always-free--no-ads--no-account-needed-under-the-start-button)
-      - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
-      - [User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help](#user-guide-rewrite-it-around-searches-book-lists-and-folders-as-a-page-you-can-reach-from-help)
-      - [A public demo library from Amazon's best-seller lists (nothing personal)](#a-public-demo-library-from-amazons-best-seller-lists-nothing-personal)
-      - [Screen capture pass: the sizzle reel, the landing page's before / after, README's old video](#screen-capture-pass-the-sizzle-reel-the-landing-pages-before--after-readmes-old-video)
-      - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
-    - [Cloud Sync](#cloud-sync)
-      - [Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one](#cloud-sync-rename-relay-show-one-cloud-sync-key-and-make-a-new-key-retires-the-old-one)
-      - [Relay Setup: smoother sections and clearer Esc / Help behavior](#relay-setup-smoother-sections-and-clearer-esc--help-behavior)
-      - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
-      - [Relay Setup: disconnect, or reset credentials](#relay-setup-disconnect-or-reset-credentials)
-      - [Reset App: one honest message in all four places (what's cleared, what's kept, how to come back)](#reset-app-one-honest-message-in-all-four-places-whats-cleared-whats-kept-how-to-come-back)
-    - [Safety and data protection](#safety-and-data-protection)
-      - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
-      - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
-      - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
-      - [Lock the Cloud Sync Key in backups with an optional key password](#lock-the-cloud-sync-key-in-backups-with-an-optional-key-password)
-      - [Remind me when my last backup is getting old](#remind-me-when-my-last-backup-is-getting-old)
-      - [Restore from Cloud Sync: your books and organization back from the cloud copy, no backup file needed](#restore-from-cloud-sync-your-books-and-organization-back-from-the-cloud-copy-no-backup-file-needed)
-      - [Restore checks every book, folder and list inside a backup — skip a bad one and say so](#restore-checks-every-book-folder-and-list-inside-a-backup--skip-a-bad-one-and-say-so)
-      - [One backup writer: Save Backup and the copy sent to the relay are built twice and already differ](#one-backup-writer-save-backup-and-the-copy-sent-to-the-relay-are-built-twice-and-already-differ)
-    - [Costs](#costs)
-      - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
   - [🗄️ After launch](#after-launch)
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
@@ -129,6 +117,7 @@
       - [Smaller organization syncs (send only what changed in your folders, tags and lists)](#smaller-organization-syncs-send-only-what-changed-in-your-folders-tags-and-lists)
       - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
     - [Features](#features)
+      - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
       - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
       - [Amazon's official catalog API: prices, titles and covers without a bookmarklet, once eligible](#amazons-official-catalog-api-prices-titles-and-covers-without-a-bookmarklet-once-eligible)
       - [Book recommendations: similar books you own, and ones you don't have yet](#book-recommendations-similar-books-you-own-and-ones-you-dont-have-yet)
@@ -143,6 +132,8 @@
       - [Test on Safari and iPhone](#test-on-safari-and-iphone)
   - [👀 Watching](#watching)
     - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
+    - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
+    - [Receipts reach the screen: one screen test per area, not only the log](#receipts-reach-the-screen-one-screen-test-per-area-not-only-the-log)
     - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
     - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
     - [A screen test that failed once: the File menu not found after the start-up test](#a-screen-test-that-failed-once-the-file-menu-not-found-after-the-start-up-test)
@@ -180,204 +171,33 @@
 
 _Formerly: 🔝 TOP OF STACK (Ron 2026-09-09/10; stack state updated 2026-09-16)_
 
-**The order is the order below — the top task in High priority is next**, then down the list; **High priority**, then
-**Polish**. The table of contents shows it (Ron, 2026-11-10: the table of contents is how the order is read, so the
-tasks themselves sit in that order; the numbered "order of work" list that used to sit here was a second copy, and it
-drifted). To change the order, move the task.
+**The order is the order below — the top task in the launch gate is next**, then down the list: **the launch gate**,
+then **High priority**, then **Polish**. The table of contents shows it (Ron, 2026-11-10: the table of contents is how
+the order is read, so the tasks themselves sit in that order; a separate "order of work" list drifted). To change the
+order, move the task.
 
-### High priority
+### 🚦 The launch gate — target: January 2027
 
-#### ✅ Working copies that can't break each other: separate clones, plus a check on what they still share
-<!-- id 20261119-1159 -->
+**Why a gate:** launching means strangers trust ReaderWrangler with their library. This gate is what must be true
+first; everything else (the sections after it) is the project continuing after launch, as a retirement project should.
+(Ron, 2026-11-19, after a cold review of this TODO — `.private/TODO-REVIEW-2026-11-19-REPORT.md`. Target January 2027:
+Ron's call, for the timing of his own income that year.)
 
-**Done 2026-11-19 (sprint 10):** a new working copy is its own clone (its own git settings and history; the stored
-history shared through file links, so almost no disk); the merge script fetches an agent's branch from its copy;
-removing a copy is refused while it holds unmerged commits; older worktree copies still list and remove; a test proves
-marking a copy "bare" leaves the main folder untouched. The runner checks the main repository's shared settings before
-and after each run and says loudly how to repair them if a run changed them. Found on the way: inside a clone the
-private-values commit check would have gone blind — fixed, with a test.
+**Ready to launch means all four** (the review's definition, Ron agreed 2026-11-19):
+1. **A stranger can't lose data by ordinary use** — a second tab, someone else's Amazon account, the browser clearing
+   its storage, a fetch cut off part-way.
+2. **Nothing public is false** — the site, the README, the guide, the landing page.
+3. **The service survives a day of sign-ups** — the relay's plan and limits.
+4. **The legal and disclosure basics exist** — a privacy page; what the app sends where; the affiliate notice.
 
-_Why it matters:_ Today each agent's working copy is another folder on ONE shared repository — so git's settings and
-history are shared, and a mistake in one copy breaks every copy and the main folder at once. On 2026-11-18 an agent's
-test set that shared repository to "bare" (no working files) and git stopped working everywhere for 13 minutes (sprint
-9 post-mortem). (Ron, 2026-11-19: "Yes to belt and suspenders"; "No way to copy rather than share the settings?";
-moved to the top: "We'll finish up this tooling if it kills us".)
+**Law 23 applies inside these tasks:** several of them still plan a permanent commit check as part of the work (a
+color check, a build-stamp check, an unpinned-script check, a guide-name check…). None is built unless its task first
+states Law 23's three numbers — how often the failure happened, what it cost, what the check will cost to keep. (The
+one with an earned case — a name used before it is defined — uses ESLint's ready-made rule, not a hand-written one.)
 
-**Decided** (Ron + Claude, 2026-11-19)
-1. **Belt — each working copy its own clone.** `tools/copies.py new` makes a local clone (on the same drive git shares
-   the stored history through file links, so it costs almost no disk — the repository is ~113 MB) instead of a
-   worktree. A copy then has its own git settings and history: a mistake damages only that copy.
-   - The merge script fetches the agent's branch from the copy before merging; `copies.py remove` refuses while the
-     copy holds commits not yet fetched (today's "commits nowhere else" check, adapted).
-   - Stays shared, on purpose: the test-slot folder (how all copies together stay under the PC's browser limit) and
-     the records' archive — our own files, which our tools guard directly.
-2. **Suspenders — a check on what's still shared.** The runner checks the main repository's git settings (not bare;
-   the commit checks on) before and after each run, and says loudly — with the one command that repairs it — if they
-   changed. Cheap, and it catches whatever path nobody thought of.
-3. Already done (sprint 9): the runner strips git's hook variables from every test it starts — the path that caused
-   the incident.
-
-#### ✅ Remove the test-runner parts that didn't pay for themselves, then stop building tooling
-<!-- id 20261119-1309 -->
-
-**Done 2026-11-19 (sprint 10):** 4 browsers at once, fixed; a flat 10-minute limit; the running averages gone (each
-run's own measurements kept in its record); Windows ends everything a test started (`tools/starter.py` deleted); the
-joined-line check retired; the per-PC test state in `%LOCALAPPDATA%\ReaderWrangler-tests`; while the autonomy switch
-is on, a push of main to prod is refused unless Ron's newest message says "push to prod". About 3,500 lines of tooling
-and tests removed; the runner's header 144 → 43 lines. The rest of the tooling list moved to "Watching" (parked); the
-cold review of the TODO comes before app work.
-
-_Why it matters:_ An outside review (2026-11-19, `.private/OUTSIDE-REVIEW-2026-11-19-REPORT.md`) found that much of
-the tooling built in sprints 7–9 costs more than it saves: about 3,000 lines with their tests, for about five test
-reruns a week — and the tooling's own tests caused both real outages. Ron agreed: "If nothing else we learned from it
-and everything else, don't over-engineer it." Law 23 ("A mechanism has a cost") came from this.
-
-**Decided** (Ron + Claude, 2026-11-19) — **built in the same sprint as the separate clones** (the task above):
-1. **Fixed number of browsers at once** instead of the one that adapts (Ron: "Yes, my baby, but I'm willing to give it
-   up"). The lab showed fewer browsers is slower when other programs take the CPU, so backing off didn't help.
-2. **A flat time limit for a stuck test** instead of limits learned from each test's averages; stop keeping the
-   averages.
-3. **Leftover processes cleaned up by Windows itself** — each test runs in a Windows "job" that closes all its
-   processes when the test ends or the runner crashes — instead of our own list of started processes
-   (`tools/starter.py` goes).
-4. **Retire the joined-line commit check** (`git-hooks/check-joined.py`) — the failure it guards against has never
-   happened in a test file. Its line in CLAUDE.md's commit checks goes too.
-5. **Keep:** "the machine's trouble → rerun once, alone", held files, the kept output of failures, the proof stamp,
-   parallel test runs, the merge script.
-6. **Move the per-PC test state out of the temp folder** (Windows can clear it; a held file's record would vanish).
-7. **While the autonomy switch is on, a push of main to prod is refused** — a small hook that reads the switch file
-   (settings alone can't say "only while the switch is on").
-8. **Then stop:** move every remaining tooling idea in "Turn more of our working rules into automatic checks" to
-   "Watching". **Before app work resumes, a cold review of the whole TODO** by a fresh reviewer (Ron, 2026-11-19).
-
-#### ✅ Carry the discussion across a compaction: a hook before it and one after
-<!-- id 20261119-1159a -->
-
-**Done 2026-11-19 (sprint 10):** `C:\Users\Ron\Projects\compaction_carry.py`, wired in the global Claude settings.
-Before a compaction the summary gets a general rule (carry every open topic: Ron's words, Claude's position, his
-pushback — not just decisions); after it, Ron's latest messages come back word for word (at least 3, more while they
-fit ~8,000 characters — Ron: "a smart decision instead of a fixed count") plus the reply his newest one answered.
-Tested on the real three-week transcript; a fault in it can never block a compaction (CLAUDE-TOOLING.md).
-
-_Why it matters:_ When a long conversation is compacted, the summary keeps the decisions but loses the argument — and
-weeks ago a compaction left Claude acting from default habits until Ron reined it back in. Today that's a paragraph of
-instructions in the Projects-root CLAUDE.md ("Compaction") — a promise, not a mechanism. (Ron, 2026-11-19: "Is there a
-way to make this a mechanism? A post compaction hook to use to go back and read the last discussion and capture it
-rather than just the decisions?")
-
-**Proposed** (Claude, 2026-11-19 — checked against Claude Code's hook documentation: a PreCompact hook's printed output
-becomes instructions for the summary; a SessionStart hook with the "compact" matcher runs after it and can add text to
-Claude's context; every hook receives the conversation's transcript path)
-1. **Before compaction** — a hook that tells the summarizer exactly what to carry: the collaboration mode, each open
-   topic with Ron's words, Claude's position and verdict, and where Ron pushed back (today's "Compaction" paragraph,
-   made automatic).
-2. **After compaction** — a hook that reads the saved transcript and puts Ron's last few messages back in front of
-   Claude word for word (and Claude's last reply), with "re-read CLAUDE.md and the autonomy switch before acting".
-3. Global (all projects): the scripts beside `stamp.py` in the Projects folder repo, wired in `~/.claude/settings.json`;
-   documented in `CLAUDE-TOOLING.md`. To decide with Ron: how many messages to bring back.
-
-#### Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)
-<!-- id 20261024-1045 -->
-
-_Why it matters:_ Every relay change is a separate deploy, each needing Ron's yes; gathering them makes one worker
-release. And two of them close real gaps today: the relay accepts IDs in a form that silently opens an empty
-mailbox, and the Danger zone's wipe may not reach the full copies, which never expire (Ron, 2026-10-24: "I want to
-close this out").
-
-**Order of work:** where it sits in High priority — the order of the tasks is the one home for the order.
-
-**What's in it**
-1. **C — a shared notepad** for both relays (no user data) — the last step of the relay storage work (7.21.1–7.23.0):
-   - dev becomes a **backup alerter** — it sends "[Dev] backup alert" if a limit crossing it has seen for over an
-     hour has no production alert recorded;
-   - a **"production is alive" check** — alert if production's daily summary is more than 26 hours old.
-2. **The daily email counts copies, not just keys.** Today "library generations 4, device-state generations 12" are
-   *key* counts — each copy's parts plus its manifest (`groupKeys`, relay-worker.js ~1236) — and device-state has no
-   expected count. Say e.g. "library copies 2 (4 parts), device-state copies 4 (12 parts) — at most 2 per channel is
-   expected". (Found 2026-10-24; the health judgment was right all along — the cleanup applies keep-2 to real copies.)
-   **And no 🚨 on the routine summary** (Ron, 2026-10-30): today every email's subject gets it (`sendAlert`, relay-worker.js
-   ~887, "🚨 Daily usage summary - …"), so a normal morning looks like an alarm — red in Gmail's web page. Keep 🚨 for
-   real alerts only (threshold, auto-block, cron error); the summary becomes e.g. "Daily usage summary - 2026-10-29".
-   **And every "Deleted" line gives the copy's time and age** (e.g. "…dc38, saved 14:27 UTC, 11 min old") — so the
-   10-minute rule for unfinished copies can be checked from the email. Today it shows the date only (2026-10-30: Ron
-   closed the tab ~5 s after an import; the push that closing triggers was torn after its first part, and the on-demand
-   summary ~10 minutes later deleted it — correct, but unprovable from the email).
-   **And how recently the cloud copies were used** (Ron, 2026-11-04 — from item 9's last-used date): one line, e.g.
-   *"Cloud copies: 2 — used in the last day 1 · week 1 · month 2 · year 2 · idle over a month 0 · idle over a year 0
-   (deleted tonight: 0)"* ("idle for a day" is just "not used in the last day" — not shown twice). Dev's test channels
-   skew its counts; the dev email already marks test data.
-3. **Strict ID check** — moved from the Cloud Sync task (item 4) because it's safe now and closes a gap today: the
-   relay's one ID check ignores case while storage doesn't, so an ID in the wrong form opens a separate, empty mailbox.
-   Drop the case-insensitive flag (`UUID_REGEX`, relay-worker.js ~45). Every real ID passes, and so does the test
-   rig's `22222222-…`.
-4. **The nightly email names mailboxes by 6 characters, not 4** (`shortId`, relay-worker.js ~1211) — moved from the
-   Cloud Sync task (item 3); it becomes the support code that task shows beside the key. **One way everywhere:** today
-   the email names a channel two ways — the last 4 characters (`…21fc`, `shortId`) and the FIRST 8 in the "Kept / not
-   judged" and budget lines (`41e0e16f…`, `ch.slice(0, 8)`, ~1287 / ~1304). Use the 6-character support code in every
-   line (found 2026-10-30).
-5. **The test scripts clean up after themselves:** `relay/test-phase1.mjs` leaves one unimported run on the
-   `22222222…` test channel each run (19 now; they expire after 90 days). And since 7.25.0 every run of
-   `relay/test-signed-writes.mjs` / the harness leaves small PERMANENT keys for its throwaway channels — a write key, a
-   block record, a proof, a first-used record (dev 2026-10-31: 8 write keys, 10 blocked channels, mostly tests). Let
-   revoke also delete the channel's write key (the block record is enough), and keep the rest out of the way.
-   **Run the tests locally by default** (`cd relay && npx wrangler dev --env dev --local`; `RELAY_URL=…`) and on dev only
-   as a final check — the 10-31 release day's dev runs used 23.6% of the account's daily writes.
-6. **Once:** compare dev's storage figure in the daily email with the Cloudflare dashboard (open since 2026-10-15).
-7. **The daily summaries also go to a dedicated inbox Claude can read** (Resend Inboxes, through MCP), so Ron stops
-   pasting them — and Claude reaches only that mail, not Ron's whole mailbox. Until then Claude reads them from Ron's
-   Gmail, filtered to `from:alerts@readerwrangler.com subject:"Daily usage summary"` only (Ron, 2026-10-30 — "ReaderWrangler
-   Relay - Daily Summary" is the body's first line, not the subject; if item 2 drops the 🚨, the filter still matches).
-   Check Inboxes' pricing
-   and whether it's still beta when building.
-8. **A small "request" note per channel** for "Refresh all books from Amazon…" (High → "Fetcher work, in build order"): a route to write, read and
-   delete one encrypted note (the app requests a full refresh; the fetcher reads it at start and deletes it after a
-   successful refresh). Idle until the app + fetcher part ships; the signed-writes gate covers its writes. Name the new
-   key kind in the daily email.
-9. **Delete a cloud copy nobody has used for a year** (Ron + Claude, 2026-11-04). Today a cloud copy whose key was
-   lost (so it can't be revoked) keeps its books forever — encrypted, harmless, but storage. The nightly cleanup deletes
-   a channel's copies after a year with no activity. **Say so** in the app, on the security page and in the help notes:
-   *"A cloud copy nobody uses for a year is deleted. Your library stays safe in your browser and in your backups, and
-   the next time you use ReaderWrangler it fills a cloud copy again."* **The app must refill, never mistake "gone" for
-   "your library is empty"** (the naming review's "silent empty mailbox" trap) — a returning user's next fetch and next
-   change repopulate it. (Considered and rejected: emailing owners of idle copies — it would collect personal data,
-   the "encrypted" address would be readable by the server anyway, and deletion-warning emails train users for
-   phishing; "Remind me when my last backup is getting old" guards the real disaster instead.)
-   **How "used" is known — a last-used date per channel** (Ron + Claude, 2026-11-04), unencrypted, beside the existing
-   first-used record (`lifecycle:{id}:used`, relay-worker.js ~473/706): `lifecycle:{id}:last`, a date.
-   - **Reading counts as use**, not just writing — someone who only browses on the phone for months must not lose the
-     copy they're using.
-   - **Written at most once a day per channel** (only when the stored date isn't today) — writes are the free plan's
-     tight limit; a read costs only the cheap check.
-   - **The year-old cleanup reads it, and also deletes the channel's other permanent leftovers** (its first-used and
-     last-used records and its write key), or those pile up forever.
-   - **Disclosed with GoatCounter, in the same places** (Ron): the security page's analytics bullet (security.html
-     ~113) and the planned privacy policy (outside review 1) — e.g. *"The sync server records the date your cloud copy
-     was last used — never what's in it."*
-
-**Watch out**
-- One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**; alphas deploy from the branch,
-  and both relays are redeployed from main at the release.
-- **Never test with a temporary schedule** — Cloudflare's schedule incidents (2026-10-12/13/14) delayed changes by
-  hours and a replaced test schedule kept mailing. Test with the on-demand summary instead (PowerShell; one email each;
-  Resend allows 100 a day):
-  `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))`
-- Leave production channel `58c1bfd7…` alone — another user's data; it expires Dec 7.
-- Relay tests: `node relay/test-signed-writes.mjs` and `RELAY_URL=… node relay/test-phase1.mjs` — both run against a
-  local relay first (`cd relay && npx wrangler dev --env dev --local`), then dev; both refuse production.
-- Inventory tool: `analyze-relay-keys.js` in the TODO notes' folder (key dumps hold channel IDs — credentials — delete
-  them after use).
-- The shared-numbers commit check must still pass (items 2 and 9 touch the cleanup's rules only if they change keep-2
-  or the grace — they shouldn't). (The old item "the wipe reaches everything" was already true — checked 2026-10-31 in
-  `handleRevoke`; removed 2026-11-04.)
-- Relay tasks that are **app-side, not worker** stay where they are: "Relay Setup's connection test checks the wrong
-  relay on dev" and "Relay Setup: disconnect, or reset credentials" (Before launch → Cloud Sync), "Bookmarklet: when
-  your key no longer works, say so plainly…" (After launch), "Keep your tabs and browsers in step…" (Before launch), the
-  Cloudflare $5 plan (Costs, around launch). The Cloud Sync task keeps its app-side work and the "make a new key" order.
-- Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): Cloudflare's official skills (`cloudflare/skills`) — the skills only, not the remote
-  server with access to the Cloudflare account; the local Workers Vitest plugin for tests; `wrangler telemetry disable`.
-- **Channel IDs in the emails in the app's short form** (2026-11-09): the daily summary says "channel 22222222…" (first
-  8 only — relay-worker.js ~1383, ~1400); the app's log and Relay Setup now show `41e0e16f...726c` (first 8 … last 4,
-  logger.js `shortChannelId`, Ron) so old and new keys read differently. The emails should match.
+**Ron's hands are the scarce resource:** the fetcher work needs his Amazon account for testing, every relay deploy
+needs his yes, the sizzle reel needs his taste, the outside reviews need his judgment — plan those into one or two
+sprints rather than scatter them.
 
 #### Outside reviews before building: launch risks, security, data safety, a newcomer's first look
 <!-- id 20261023-1239 -->
@@ -434,368 +254,170 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
    anti-bounce rule (only evidence — a real user's misreading, a failing test — reopens them).
 5. Claude.ai stays an option for a second opinion from outside our tools, when a verdict looks too comfortable.
 
-#### Generated test libraries: made-up books at any size, with their own covers
-<!-- id 20261104-1613a -->
+#### Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes
+<!-- id 20260830-0000; merged 20260922-0000d -->
 
-_Why it matters:_ Test data with nothing personal can be committed and backed up anywhere, is identical every run (a
-failure always reproduces), plants the awkward cases on purpose, and comes in any size — so the tests stop leaning on
-Ron's real library (Ron, 2026-11-04: "it would be nice to migrate away").
-
-**Decided** (Ron + Claude, 2026-11-04 — Claude's call, Ron's ideas)
-1. **Generated, not real**, for tests: one generator (today's `test/fixtures/make-small-fixture.js`, grown) with a
-   **size setting** — 23 books for exact checks, ~3,000 for scale, 10,000 for stress — and **seeded**, so the same
-   "random" library every run.
-2. **Titles from a little title machine** (Ron's rules): *The [X] of [Y]*, *Adjective + Noun*, *A [Court] of
-   [Starlight] and [Shadow]* (fantasy), *-ing* openers, *Hook: subtitle* (nonfiction) — word lists per category,
-   picked by the seeded random ("A Kingdom of Teacups and Regret"). **Lorem-ipsum descriptions.** Cases a test depends on
-   keep fixed names (the series a Search looks for, the folder names).
-3. **Organization generated too:** folders by author with series subfolders, Book Lists by Amazon tags, some books in
-   the Trash, hidden, wishlisted with goals, every ownership kind — the planted cases, at scale.
-4. **Covers generated, served by the repo itself** — no website: a small **SVG** per cover (a solid background by genre,
-   the title on top — a tiny text file, no image library needed) in `test/fixtures/covers/`, which serve.py already
-   serves to the tests on Ron's PC: no internet, nothing test-related on readerwrangler.com or the home server, identical
-   every run. The scale library reuses a pool of ~50 rather than committing thousands. (The one path that built an
-   Amazon image link from the ASIN — the old CSV loader — was dead code, deleted in 7.26.0-alpha.1; nothing in the
-   app's code builds one now, checked 2026-11-05. The screen tests' request detector would catch a new one.)
-5. **Ron's library snapshot stays, used rarely** (`.private/test/`): only for "does real data have a quirk we never
-   thought to generate" checks — real data catches what nobody imagined.
-
-**How (technical)**
-- Packed with the app's own book packer (bookFields.js `packBook`), as the small fixture is. TESTING.md §5 gains the
-  sizes and the covers when built.
-- **First user — a load-time test at scale** (the 7.27.0 post-mortem's "bug no test would have caught"): Ron's books
-  took ~7 s to show on 7.27.0-alpha.1 while every screen test (23 books, no cover copies) said under a second. With a
-  generated ~3,000-book library committed, a LOAD test can time "folders on screen" at that scale with a full cover
-  cache (as tools/time_load.py does with the private copy) and fail on a regression — with a bound loose enough that a
-  slow moment can't fail it.
-
-#### Receipts reach the screen: one screen test per area, not only the log
-<!-- id 20261110-1021 -->
-
-_Why it matters:_ Since 7.26.0 every toast goes through the log (`rwLog.log(…, { toast: true })`). If an edit drops the
-`{ toast: true }`, the log still records the line, and no check notices that the person no longer sees it. That
-happened once in 7.26.0, to the tag-delete receipt: it was found and fixed during the build, but not by any test (the
-post-mortem's "bug no test would have caught").
-
-**Done already (2026-11-10, Ron's yes):** `test/ui/test_tags.py` — TAGS-001 (delete one tag) and TAGS-002 (delete
-two ticked tags) check that the receipt is on screen, on top and readable. Both were seen to fail with the receipts'
-`{ toast: true }` removed.
-
-**The rest — the class:** one such check for each area's main confirmation (ORG: create, rename, delete a folder, Book
-List or Search; EDIT: a book's details saved, Bulk Edit; MOVE: a move's receipt; UNDO: Undo / Redo; BACKUP: Save Backup;
-SYNC: Import from Relay's summary; AUTO; SHARE…), through the same helper (a toast holding the words, reached by the
-pointer). **When:** after "Faster loading" (each screen test then starts in about a second instead of ~35).
-
-#### ✅ One starter for every process our tools start: a list of their ids, leftovers shown loudly
-<!-- id 20261112-1240 -->
-
-**Done 2026-11-18 (sprint 9):** `tools/starter.py` starts the relays and the screen tests' web server; a list of every
-process started (`started-processes.json` beside the slots), each leaving it only when confirmed gone; leftovers said
-loudly at a run's end and at the next run's start (with the exact stop command, and a `NEEDS YOUR ATTENTION:` line);
-a test that leaves processes behind has them named and stopped through its own measurement; the relay tests' relay is
-measured too (TESTING.md §4).
-
-_Why it matters:_ The tools start processes — a local relay, the screen tests' web server and their own relay — and a
-crashed or interrupted run can leave them running, unnoticed (2026-11-11: a hand-stopped relay left four processes on
-its port). Stopping by name or pattern risks stopping something that isn't ours (Law 5). (Ron, 2026-11-12 — review
-queue Q-020, Q-022, Q-024.)
-
-**Decided** (Ron + Claude, 2026-11-12)
-1. **One starter** (grown from `tools/local_relay.py`) for everything our tools launch: the relay tests' relay (done in
-   7.28.1's tooling), the screen tests' own relay (`test/ui/rw.py` `LocalRelay` — ✅ done 2026-11-16, sprint 5: it
-   uses `tools/local_relay.py` now) and their web server (still started separately by `rw.App`; since sprint 5 it
-   checks by process id that the server answering is its own).
-2. **A list in a file** of every process it started — its id, its start time, what it is, which run started it; an
-   entry leaves the list only when the process is confirmed gone (Ron: "keep a list of IDs as you create them, delete
-   from list when confirmed dead"). The file outlives a crashed run; the start time means a reused id is never taken
-   for ours (Windows has no real process label). Stopping: by exact id, never `/T`, never by name.
-3. **Leftovers are shown loudly** — not a line lost in a slew of output (Ron: "draw my attention to it"): at the end of
-   the run that left them, at the START of the next run (a banner, with the exact command to stop each), and in
-   Claude's "needs your attention" list when reporting to Ron. Something on our port that the list doesn't name is
-   reported, never stopped (it isn't provably ours).
-
-#### ✅ Trim the always-loaded rules: one home per rule, history out, a lean memory index
-<!-- id 20261021-1332 -->
-
-**Done 2026-11-19 (sprint 9's proposal, reviewed line by line and approved by Ron):** the three always-loaded files
-57.8 K → 28.3 K characters (ReaderWrangler CLAUDE.md 26.5 → 12.2 K; Projects-root CLAUDE.md 12.8 → 8.8 K; the memory
-index 18.5 → 7.3 K). Every rule kept; history and detail moved to one home each (docs/design/AUTONOMOUS-SPRINTS.md,
-COMMIT-CHECKS.md, SESSION-TOOLING.md; the root's CLAUDE-TOOLING.md; memory's older_releases.md); retired with Ron's yes:
-five memory index lines whose rule lives in a CLAUDE.md, the overlay system's old line, "don't push to dev for routine
-testing", the terminology example list, the dialog rule's history.
-
-_Why it matters:_ The more always-on text there is, the less each rule stands out — and a rule kept in two or three
-files drifts (the single-source lesson behind the gate's design).
-
-**Baseline** (measured 2026-10-21) — loaded into EVERY turn: the Projects-root CLAUDE.md 11.5 K chars + ReaderWrangler's
-CLAUDE.md 10.8 K + the memory index (MEMORY.md) 12.4 K = **~35 K chars ≈ 9 K tokens**. On demand only: the gate
-checklist 3.5 K (first app edit of a turn), 68 memory files (388 KB, read when relevant), PRINCIPLES 43 K, TODO 154 K.
-Tokens aren't the problem (well under what crowds out work); **weight and duplication are.**
-
-**Targets** (Ron + UX, 2026-10-21)
-1. **The memory index** (a third of the always-loaded text): its 26-line "Releases" list is history (6.12 → 7.24),
-   not how to work — keep the last ~3, move the rest to an "older releases" index file; make every index line the
-   one short hook the format calls for (several are paragraphs).
-2. **Both CLAUDE.md files:** move history and rationale ("earned when…", "retired in alpha.43…") to PRINCIPLES / the
-   docs; CLAUDE.md states the rule and points.
-3. **One home per rule:** find rules that live in two or three of root CLAUDE.md, RW CLAUDE.md, PRINCIPLES and memory;
-   keep each in one place and point from the others.
-
-**Safety rule:** every removed line is either **moved to its one home** or **listed as deliberately retired, with Ron's
-yes** — never silently dropped. Publish the before / after list of moved and retired lines before committing; re-measure
-after.
-
-#### Rebuild the old-style message boxes as standard dialogs
-<!-- id 20261014-1030ak -->
-
-_Why it matters:_ "Drag any dialog out of the way" (next) must work for these boxes too — done after it, dragging gets
-built and maintained twice (Law 5); done first, once, for everything. And every dialog gets one look.
-
-**What's there** (counted 2026-11-02)
-- The message boxes — OK/Cancel, type-a-name, progress, choice, "Owned Book" — are hand-built page elements, used in
-  about 47 places (info 19, confirm 16, type-a-name 8, progress 5, choice 3, delete-warning 2).
-- Since 7.18.0 they behave like every other dialog (Esc, ✕, key blocking), but keep their own hand-built look.
-
-**Decided** (Ron + Claude, 2026-11-02, in the TODO review — moved up from After launch / Dialog look)
-1. **Option A:** one shared piece shows each request as a standard dialog; the ~47 call sites stay unchanged; removes
-   about 300 lines of hand-built code. Costs a visual check of all 47 — the browser driver can open each and screenshot it.
-2. **Before "Drag any dialog out of the way"**, and before the new boxes being designed (the Cloud Sync task's "Make a
-   new Cloud Sync Key?", the Disconnect window, the Reset App message) — so they're standard dialogs from day one.
-3. When it ships, update CLAUDE.md's dialog rule (it calls this "a low-priority TODO").
-
-**How (technical)**
-- `showInfoDialog`, `showConfirmDialog`, `showInputDialog`, `showProgressDialog`, `showChoiceDialog`, `showDeleteWarningDialog`, rendered as `<Dialog>`s by a React "dialog service"; callers keep `await showConfirmDialog(…)`.
-
-#### Drag any dialog out of the way
-<!-- id 20260928-0000 -->
-
-_Why it matters:_ Dialogs sometimes cover what you need to see; dragging them aside is a habit from Quicken.
-
-**Order:** after "Rebuild the old-style message boxes as standard dialogs" (above) — so dragging is built once, for
-every dialog (2026-11-02).
+_Why it matters:_ A copy of ReaderWrangler working from an old state overwrites newer work — today, in two ways. Two
+**tabs** share one browser's storage, and one innocent edit in an out-of-date tab writes its whole old organization
+over everything done since it loaded (a real data-loss risk). Two **browsers or computers** on one Cloud Sync each
+keep their own folders, which drift apart while nobody is told — and whichever sends last overwrites the cloud copy
+the phone shows. At launch the second case is ordinary, not a clever-user trick: plenty of people have a laptop and
+a desktop.
 
 **What you'd get**
-- Drag any dialog by grabbing it anywhere except its controls (buttons, fields, links, lists). The pointer turns into a move cursor to show it.
-- Folder Properties used to be draggable on its own; it lost that in 7.18.0 and gets it back here.
+- Every tab and every browser stays editable and keeps up with your latest changes on its own. Come back to one that
+  is behind and it catches up: *"Caught up with changes from your other tab / browser"*, with **Undo**.
+- Nothing ever overwrites a newer change. In the rare case both copies changed since they last matched, a banner (not
+  a window — you keep working) offers **Use the other one's** / **Keep this one's**.
 
-**Decided** (Ron, 2026-09-28 and 2026-10-14)
-1. **Stays on screen.** By default you can't drag a dialog so far that you lose it; a strip you can grab always stays visible. A dialog can opt in to dragging fully off the window (as Quicken's Search Results and Reconciliation do); prove that with one dialog.
-2. **Where dialogs open:**
-   - A first dialog opens centered in the window.
-   - A dialog opened from another dialog opens centered over the one that opened it, wherever you dragged it. If you moved a dialog aside to read the app, what it opens appears beside it too.
-   - Never "wherever it was last time".
-3. **Dialogs underneath are frozen for use.** Their buttons and fields do nothing until the top dialog closes, because the top one may be mid-change.
-4. **But every dialog can be dragged, including the ones underneath.** Moving a window changes nothing, so it's always safe. Windows doesn't allow this: you have to close back down, move the first window, and rebuild the stack.
-5. **Clicking a frozen dialog does nothing.** Above all, it must not close the top dialog. Only a click on empty background closes it. A brief flash of the top dialog is an optional hint.
-6. **Where you can grab it: anywhere that isn't a control or text you might select** (Ron left this to me, 2026-10-16). Pressing on text and moving the mouse must keep selecting text — you copy from descriptions, reviews and notes. So you drag by the title bar, headings, labels, margins and empty space; the move cursor shows only there.
-7. **Points 4 and 5 are built together:** a click on the background layer first checks whether a dialog lies under the pointer — if so it's a drag (on its grab areas) or nothing, never a close. Dialogs underneath show the move cursor on the same grab areas as the top one.
-8. **Stays on screen when the window shrinks too:** a dialog left off screen is pulled back so its grab strip shows.
-9. **Computer only.** On the phone dialogs fill the screen, so no dragging there.
+**Status**
+- **Before launch — the tab half is "Tier 0", the real data-loss risk;** the cross-browser half comes second within
+  this task. Its priority is weighed by outside review 3 (data safety) — it may move ahead of other Before-launch work.
 
-**Watch out**
-- "Every dialog" covers two kinds: the standard dialogs, and the older message boxes (OK/Cancel, type-a-name, progress; about 45 places use them), which are built differently. Drag must work in both — or, as decided, the message boxes are rebuilt as standard dialogs first ("Rebuild the old-style message boxes as standard dialogs", just above), so drag is built once.
-- Today a click anywhere outside the top dialog closes it, including on a dialog showing through underneath. Point 5 changes that rule, so test it carefully.
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review — merged from "Protect against editing in two tabs at once"
+and "Warn when another browser has newer changes"; both earlier designs re-read through Law 18)
+1. **One problem, one mechanism.** The four states are the same everywhere — in sync, behind, ahead, both changed:
+   1. Each saved copy of the organization carries a version stamp (the saved organization already carries
+      `savedAt`).
+   2. **Compare before you overwrite**, at both places it's written: this browser's storage and the cloud copy. A
+      write says "I'm replacing the version I last saw"; if it has changed since, the write is refused.
+   3. A refused write, or a newer copy noticed, gets the same responses everywhere: **behind with no changes of its
+      own → catch up silently + toast + Undo; ahead or in sync → nothing; both changed → the banner**, and this copy
+      sends nothing to the cloud until you choose.
+2. **Only two things differ by place:**
+   - **Tabs** hear at once, for free — the browser tells every other tab when stored data changes, and the app saves
+     the organization on every change — and catch up by reloading from storage.
+   - **Browsers** hear when you come back to one (one small read of the cloud copy's version — the phone's freshness
+     check already makes it) or when the cloud refuses a send, and catch up by taking the cloud copy, which writes
+     their storage — which brings their other tabs along. The layers stack.
+3. **This retires both earlier designs' gatekeepers** — the read-only second tab (with "Edit here instead") and the
+   cross-browser "soft lease" with its 15–30-second check. Neither blocks you any more, and the lease's record would
+   have cost a cloud write every 15–30 seconds per active user (about 120 an hour, against ~1,000 a day on
+   Cloudflare's free plan). Compare-before-overwrite costs no extra writes.
+4. **Kept from the tab design: ❄ Freeze.** A tab can be frozen as a reference snapshot ("Frozen at 6:04 PM") — it
+   stops catching up, and a frozen tab doesn't edit or send. Resume = catch up.
+5. **Duplicate sends:** a tab sends to the cloud only when the stored version differs from the last one sent (recorded
+   in the shared storage), so two in-step tabs don't both send as you leave them.
+6. **Taking the cloud copy is the real work** — the desktop has never applied one; today it reads the cloud
+   organization only in the connection test (readerwrangler.js ~1845).
+7. **Tested with the browser driver:** two real tabs (edit in A; B catches up with the toast; Undo; nothing lost; one
+   send), then two throwaway browsers on one test channel (edit in A, return to B → caught up; edit both → banner,
+   and no overwrite either way).
+8. **Not a goal: live two-way sync** (two machines editing at once, merged) — rejected 2026-09-22: it needs push
+   infrastructure and a merge engine for folders, the case where a merge bug silently corrupts everything. One person
+   moves between machines; catching up at the switch is the need.
 
-**How (technical)**
-- Build drag once in the shared `<Dialog>` (readerwrangler.js ~61) so every dialog gets it at once. The old per-dialog drag code (`dialogDrag`) is already gone.
-- Names from the 2026-09-28 decisions: a `cursor:move` affordance; the off-window opt-in is a `dragBounds:'free'` option.
-- Message boxes share their window chrome in `attachDialogDismiss` (readerwrangler.js ~237); add drag there.
-- A click on a lower dialog actually lands on the top dialog's full-window background layer (readerwrangler.js ~69–71). The background-click close must ignore clicks that fall over another dialog (`document.elementsFromPoint` under the layer).
-- "Not selectable text" (point 6) reuses the 7.19 Ctrl+A area marks: `data-select-text` (text) and `data-select-items` (checklists) — readerwrangler.js ~55–60 — plus inputs, buttons, links, lists. No second list to keep in step.
-- New user feature, so it gets its own branch and release.
-
-#### Search improvements
-
-The right pane's search box: one shared matching rule (incl. ASIN), and searching everywhere without losing your place. Build both parts together — they answer the same question: "is this book in my library?"
-
-##### Find a book by its ASIN in the search box
-<!-- id 20261012-0000 -->
-
-_Why it matters:_ Handy for checking whether one specific book is in your library.
-
-**What you'd get**
-- Type a book's ASIN (e.g. `B08P52K2PZ`) into the search box at the top of the right pane, and it finds the book. Today the box matches only title, author and series.
-- The box's placeholder and tooltip say what it searches: "Title, author, series, notes, tags or ASIN".
-
-**Decided** (Ron, 2026-10-16)
-1. **One shared matching rule everywhere** — the search box and saved Searches, on the computer and the phone.
-2. **It matches title, author, series, your notes and tag names** (as the phone's search box already does), **plus an exact ASIN**: only a complete 10-character ASIN, any case. No partial ASINs — almost every Kindle ASIN starts with "B0", so "B0" would match nearly everything.
-3. Known side effect, accepted: an existing saved Search may pick up a few extra books whose notes or tag names contain its word.
-4. **Build together with "Search everywhere without leaving the current folder"** (next task): a complete ASIN searches Everywhere automatically.
-
-**Bug this fixes** (found 2026-10-16): the rule exists in **four** copies that disagree — computer search box and saved Searches: title/author/series; phone saved Searches: title/author only (**no series**); phone search box: title/author/series/notes/tags. So a saved Search for a series name finds the books on the computer and nothing on the phone.
-
-**Status:** Ron, 2026-10-12 (came up testing removed books). Small.
-
-**How (technical)**
-- Copies: readerwrangler.js ~10020 (live filter), `bookMatchesFilters` ~2269 (saved Searches), mobile.js ~343 (`bookMatchesFilters`, saved Searches), mobile.js ~2287 (search box).
-- One `bookMatchesText(book, term, tagLabel)` in uiHelpers (tag names need the tag list — pass a lookup); ASIN = exact match of a 10-character term, case-insensitive.
-
-##### Search everywhere without leaving the current folder
-<!-- id 20260829-0000a; merged 20261014-1030an -->
-
-_Why it matters:_ Answers "is this book in my library?" without losing your place.
-
-**What you'd get** (Ron, 2026-08-29)
-- The search box still searches the current folder by default. While searching, a toggle shows: **This folder | Everywhere** (as in Finder / Explorer).
-- "Everywhere" shows matches from the whole library in the right pane, temporarily. Clearing the search returns you to the folder, scroll position untouched.
-- **Discoverability:** when nothing matches, offer *"No matches in ‹folder› — Search everywhere?"* as a one-click link (as Gmail and Amazon do).
-- Results work with the existing "where does this book live" popup, so the answer arrives with locations.
-
-**Decided** (Ron + UX, 2026-10-16) — moved here from "Everyday organizing"
-- **Build together with "Find a book by its ASIN in the search box"** (above): both answer "is this book in my library?"
-- **A complete ASIN searches Everywhere automatically** — an ASIN is unique, so "this folder only" is never what you mean. The toggle shows **Everywhere** so you can see why.
-
-**A third way in: "More by ‹author›"** (Ron + UX, 2026-10-21 — merged from "See an author's other books without
-leaving your spot": "Today it takes All Books + a filter + finding your way back")
-1. **Right-click a book → More by ‹author›** fills the search with the book's **whole author text** and switches to
-   **Everywhere**; clearing it returns you to your spot, scroll untouched (the step above). Author text is **never
-   parsed** (AUTO-ORGANIZE-UNIFIED.md): from "Jodi Taylor" it also finds her co-authored books (the search matches text
-   anywhere in the field); from "Larry Niven, Jerry Pournelle" it finds that combination — type "Niven" for just him.
-2. **Right-click a folder → More by ‹author›** when the author comes from data, not a guess: the folder's **name exactly
-   matches an author** in the library (Auto-Organize's author folders, e.g. "Jodi Taylor"), or **every book in it shares
-   one author** (a series folder like "Time Police"). Answers "what else of hers do I have outside this folder?" —
-   Inbox, wishlist, other folders.
-3. **Always in the folder menu, in the same place — disabled, not hidden, when it doesn't apply**: then it reads
-   **More by this author**, with the tooltip *"This folder holds books by several authors — right-click one of its
-   books."* (the menu rule: "Menus keep their items in place", Polish → Small fixes). On a book's menu it's always
-   enabled.
+**Still to decide when building**
+1. **Undo after catching up:** the tab's older undo steps refer to the state before the other copy's changes — undoing
+   one then must not bring old state back. Lean: catching up starts a fresh undo history in that tab, with the
+   catch-up itself as its one step. Check against docs/design/UNDO-MODEL.md first.
+2. **Mid-gesture:** a tab in the middle of a drag, or with the book details window open, catches up when that ends.
+3. **Books live in a second store** (written whole, apart from the organization): the compare must cover it too, or
+   one stamp covers both.
+4. **Dragging between tabs** stops being dangerous (both tabs are current) — allow it or not? Decided in "Two-pane split
+   view" (2026-11-03): try two windows side by side first, including drag between them; build the in-app split only if
+   that falls short.
 
 **How (technical)**
-- Reuse the view-folder filter-stash plumbing for the temporary view.
-- Folder case: the "common author" check Auto-Organize already uses when naming.
+- Tabs: the `storage` event (or BroadcastChannel) for the notice; a compare against the stored `savedAt` before each
+  organization write. Cloud: an optional "expect" generation on the device-state pointer flip
+  (relay/relay-worker.js `handlePutPointer`, ~812) — the worker refuses with 409 if the pointer has moved; the
+  return check reads `getDeviceStatePointerGen`. Cloudflare's storage takes up to about a minute to agree everywhere,
+  so this is a guard for one person moving between machines, not a lock. The worker part rides a relay release (Ron's
+  yes before each deploy).
+- Model the four states as one state machine, not flags.
+- Design: docs/design/MULTI-INSTANCE.md §4 (rewritten 2026-11-02; the old §6 folded into it).
 
-#### Dark theme: fix the unreadable bar and the light strips
-<!-- id 20261007-0000a; merged 20261014-1030ab -->
 
-_Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar's text is unreadable.
+#### Book details window: one Save — nothing changes until you click it, and nothing is lost without asking
+<!-- id 20260910-0000b; merged 20261015-1644, 20261014-1030ba -->
 
-**What you see** (View → Theme → Dark)
-1. The bar under the menu bar reading **"📡 New library data available (uploaded …)"** keeps its light blue/purple background while its text turns near-white — unreadable.
-2. A light strip shows under the **"🔍 Active: Search …"** bar, and wherever there's a gap between sections.
-3. Not yet seen by you, same cause: light boxes in the Auto-Organize preview, and likely more.
+_Why it matters:_ Today some fields save instantly and others wait for Save; Save is enabled even when nothing changed;
+and every way out of edit mode throws your changes away without a word. One rule makes the window predictable, with
+one undo per Save. (Public promise: README's Coming Soon — "A calmer book editor".)
 
-**Why** (verified)
-- Dark mode works by swapping a specific list of colors. Anything colored outside that list stays light.
-- The relay bar's background is a fixed light gradient; the app's outer background is a gradient style that isn't on the list.
+_Merged 2026-10-21 (Ron + UX) from "Book details window: changes happen only when you click Save" (ratified
+2026-09-10) and "…Save only when something changed; offer Save before closing with unsaved changes" (2026-10-15) —
+they share one "what changed?" check. Two steps, in order: step 1 is smaller and works on today's fields._
 
-**Decided** (Ron, 2026-10-16)
-1. **Four themes, two screens.** The computer and the phone both have Light, Dark, High-contrast light and High-contrast dark. A fixed light color breaks High-contrast dark exactly like Dark — check Dark **and** High-contrast dark, on the computer **and** the phone.
-2. **The commit-time check comes first and produces the list.** Run once over today's code, it lists every fixed color (15 hard-coded backgrounds/gradients in readerwrangler.js alone, plus color classes the dark theme doesn't cover) — that list *is* the sweep. Fix everything on it; from then on the same check refuses new ones. It covers the app's own screens only: the bookmarklet's panels run on Amazon's pages, outside our themes, so their fixed colors are right.
-3. **Fix by naming colors, not by adding override rules** ("excellent idea" — Ron). Today Dark overrides a list of 76 specific style classes, and anything missing from the list silently stays light; that list only grows. Instead, each color gets a name defined once per theme ("surface background", "info bar"...) and the screens use the name. A name missing from a theme then shows up in every theme as soon as it's used (no background at all), not just in Dark — and the commit check can verify that every name used is defined in all four themes.
-4. **Shadows the same way — a few named levels** (Ron + Claude, 2026-11-04 — merged from "Leftover desktop polish: one
-   shadow direction", whose origin was lost): e.g. menu, dialog, floating card, each defined once per theme, so the
-   direction can't drift and the dark themes soften them in one place (a dark-on-dark shadow looks muddy). Today: ~57
-   from Tailwind's ready-made set (all straight down — not the problem) and ~49 hand-written (26 in readerwrangler.js,
-   23 in readerwrangler.css) — the commit check lists the hand-written ones as it does fixed colors.
+**Step 1 — Save only when something changed; ask before losing changes** (decided Ron + UX, 2026-10-15)
 
-**How (technical)**
-- Dark remaps Tailwind classes in readerwrangler.css (`[data-theme="dark"] .bg-white {…}` etc.).
-- Relay bar: inline `linear-gradient(135deg, #dbeafe, #ede9fe)` with `color: var(--text-primary)` (readerwrangler.js ~9360).
-- Outer container: `bg-gradient-to-br from-blue-50 to-blue-100` (~8992) — gradient classes aren't remapped; the Active bar's `mb-4` gap shows it.
-- Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
-- The check (beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`): flag inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and Tailwind color classes with no theme mapping, in readerwrangler.js / mobile.js / readerwrangler.css and the site pages (index, features, tutorials, security,
-  changelog, reset — decided 2026-10-22; NOT the fetchers / nav hub); and flag any `var(--name)` that isn't defined for all four `[data-theme]` values. Move each hit to a CSS variable (e.g. `var(--bg-surface)`); retire remap rules as their classes go.
-- Themes: readerwrangler.css `[data-theme="dark"|"hc-light"|"hc-dark"]`; phone adds its own variables at mobile.js ~57–59.
+What you see (Ron, 2026-10-15):
+1. Open a book → **Edit**: **Save** is enabled even though nothing has changed.
+2. Change something, then **Cancel** — or Esc, ✕, or a click on the background (all four do the same): the changes are
+   gone, with no warning.
 
-#### Series positions: one Position dialog, and one book at several positions (omnibus)
-<!-- id 20260915-0000 -->
+Decided:
+1. **Save is disabled until something changes**, with a tooltip "No changes to save". Enter with nothing changed just
+   leaves edit mode.
+2. **With unsaved changes, every exit asks** — Cancel, Esc, ✕, background click, ◀ ▶ to another book, closing:
+   > **Save your changes to "‹title›"?**  **[Save]** · [Discard changes] · [Keep editing]
+   1. **Save is the default** (Enter) — the common case is an accidental exit, and a saved edit can be undone;
+      discarded changes can't.
+   2. "**Discard changes**", never the default, so no keystroke picks it by accident.
+   3. **Esc in this dialog = Keep editing** (back out of the question).
+   4. Only when something changed — otherwise exits just close, as now.
+   5. The same one dialog for the explicit Cancel button too (uniform beats two variants).
+3. **One "what changed?" check** drives both — the comparison Save already makes. Step 2's fields join it.
+4. (2026-10-21, gate item 13) The exit question passes Law 18 — a confirmation for a genuinely destructive case (losing
+   unsaved edits), with Save as the default guessing the likely intent.
 
-_Why it matters:_ Three menu items do nearly the same job under different names (Ron couldn't find the one he needed), and a collection should appear at each place it belongs in its series.
-
-**Today's confusion** (found 2026-10-16) — the book right-click menu's **Edit ▸** submenu has **Position...** (one number for every selected book), **Number by current order...** (1, 2, 3… in the order shown, plus an optional series name) and, three items further down, **Set numbers (13, 13.5, 14…)...** (a comma list, one number per book). Ron tried "1, 4" and "1-3" in **Position...** and the box blocked the comma and dash — while its hint text reads "e.g., 1, 1.5", which looks like a list. Each feature was added at a different time as a new menu item; nobody looked at the whole submenu.
-
-**Decided — one Position dialog** (Ron + UX, 2026-10-16)
-1. **Edit ▸ Position... is the only one.** Number by current order... and Set numbers... leave the menu; Edit ▸ becomes Author..., Series..., Position..., Format...
-2. **It takes a list; each item maps to one selected book, in the order shown.** `13, 13.5, 14` = three books, one number each. A range `7-15` = 9 items (7, 8 … 15), one per book. **Brackets put several positions on one book:** `(4-6)` = an omnibus. Example: `1,2,3,4,(4-6),7-15` = 14 items for 14 books, the 5th being the omnibus. The same number on two books is fine (Ron owns #4 alone *and* the 4–6 omnibus, bought on sale).
-3. **Live preview in the dialog:** each selected book by title with the number(s) it will get, updated as you type. A count mismatch is said plainly ("14 numbers for 15 books — one short") and **Apply** stays off until the counts match.
-4. **"Fill 1, 2, 3… in the order shown"** is a button in the dialog that writes `1-N` into the box, ready to edit — not a separate feature.
-5. **One book selected:** whatever you type is that book's positions — `1-3` is the omnibus — and `(1-3)` works too (Ron: don't punish what the multi-book form taught you). **The book details window's Position field uses the same rule** — one parser everywhere.
-6. **One number with several books selected** (`3`, 5 books) gives them all that number, as today; the preview shows "All 5 books → 3".
-7. **No series name in this dialog** (Ron + UX): Series... sits right beside it. If the selected books have no series name, the preview adds one line: "These books have no series name — set it with Edit ▸ Series...".
-8. **All of it ships together, omnibus included** (Ron): no in-between version to learn.
-9. **Showing an omnibus in a series sort: one entry per unbroken run.** `7-9` shows once, labeled "7–9", at 7 — not three identical covers. `1, 4` shows at 1 **and** 4. `1-3, 5` shows twice ("1–3", "5"). *Side Jobs* `2.5, 4.5, 4.6, 5.5` → three entries ("2.5", "4.5–4.6", "5.5"), each between the right volumes.
-
-**Watch out**
-- Amazon's fetch also writes series and position. A hand-entered list (`7-9`) must survive later fetches — the "your edit beats Amazon's" protection hand-edited fields have — or the next library refresh quietly undoes it. Verify when built.
-- Until this ships, the Position... hint "e.g., 1, 1.5" keeps inviting a list it blocks (readerwrangler.js ~13365).
-
-**What you'd get**
-- **One** book record holding **several** series positions, shown once at **each** position when sorted by series.
-- An omnibus that **is** volumes 1–3 (`1-3` or `1,2,3`; today's Raj Whitehall "789" workaround).
-- An anthology whose stories fall between volumes (`2.5, 4.5, 4.6, 5.5` — the Dresden *Side Jobs* pattern; today you file it at its first position with the story map in the Note).
-- A visible cue on the repeats ("also at 4.5", or a ⟳ badge) — deliberate duplication must look intentional.
-- **A folder's manual order shows the book once** (manual positions are per book; repeats belong to series-sorted
-  views). **A Book List is different — revised 2026-10-21 (Ron):** it's a reading order, so it holds **one entry per
-  run** (*"Side Jobs — 2.5"*, *"Side Jobs — 4.5"*), created when a series sort is baked into it — see "Bake this order
-  into Manual…" (Polish), which is built after this task.
-
-**Extension: several series in one book** (MegaPacks, Ron 2026-09-20)
-- A public-domain MegaPack can hold scattered volumes of several series at once (e.g. Skylark 1, 4 + Lensman 2, 4), possibly by several authors.
-- **Keep the common case simple:** one series → the existing Series field plus a numbers field that takes ranges and lists (`1-3, 5`). A **"+ add series"** link reveals a multi-row editor (series + numbers per row) only for the rare multi-series book.
-- Filtering matches if **any** of its series match; sorting uses the lowest position.
-
-**Decided**
-- **No duplicate book records**, and no fake ASIN-suffixed books (rejected 2026-09-15): they'd fight ASIN-keyed merging, the removed-books scan would flag them every fetch, and duplicate detection, upgrades and CSV would all need special cases.
-- **Per-story notes: out of scope** — you already tag notes free-form.
-- The rule "no duplicates in a folder" is untouched.
-
-**Open**
-- To spec: CSV export (one row, the list in the column). (Settled 2026-10-16 above: how runs display, and "Number by current order" / "Set numbers" folding into the Position dialog.)
-- Multi-author MegaPacks: the compound-author problem is separate and pre-existing — not solved here.
+**Step 2 — changes happen only when you click Save** (ratified 2026-09-10)
+1. In the book details window, **Edit → Save is the only way anything changes** — one undo per Save. Cancel throws
+   away everything you changed (after step 1's question).
+2. Rating, price goal and tags stop being instant controls: they're saved with everything else. A new tag is created at
+   Save.
+3. **Click-to-edit, so no click is dead** (2026-10-21 — the 2026-09-10 decision said "read-only in view mode", which
+   predates Laws 16 and 18: a star you can't click would be a dead control refusing a clear intent). **Clicking any field
+   in view mode switches to edit mode right there:** the 4th star → edit mode with 4 stars staged; the price goal →
+   edit mode with its box focused. Still nothing saved until Save.
+4. **Commands stay live in both modes:** Share, the Amazon link, Status History, ◀ ▶ (previous/next book).
+5. Outside the window, changes stay instant (one undo each).
+6. **Quick access** (replaces the instant controls): in list view, click the Price Goal or My Rating cell to set it in
+   place (preset goals / custom amount, or a row of stars). Decide during the build: should right-clicking a cover also
+   offer a My Rating submenu?
+7. **First, classify every control** in the window as a field (saved by Save) or a command (acts now) — **with a
+   tooltip column**: each control's tooltip wording where it isn't self-explanatory (e.g. Collections: "Read-only:
+   comes from your Kindle collections on Amazon"). Merged 2026-10-21 from "Tooltips in the book details window" — one
+   pass through the window covers behavior and wording. Publish the table for Ron's red pen **before** any code. Its own branch; version number assigned when the work starts (the old
+   "7.14.0" label is stale).
 
 **How (technical)**
-- `seriesPosition` becomes a parseable list / range, expanded at sort time into display instances (the `_instanceId` render-layer idea — not duplicate records).
-- Generalized: `seriesMemberships: [{series, positions:[…]}]` — a normal book is one entry with one position (uniform data; the UI compacts it).
-- Ratified direction 2026-09-15.
+- `enterEditMode` / `cancelEditMode` / `saveEditMode` (readerwrangler.js ~7022–7160 on 2026-10-21); `saveEditMode`
+  already diffs `editBookFields` against `modalBook` — extract that into one `bookEditChanges()` used by Save's enabled
+  state and by the exit guard. The dialog's onClose in edit mode routes to `cancelEditMode`.
+- The confirmation is a `<Dialog>` (overlay system) — not a hand-built box.
+- Step 2: rating / price goal / tags join `editBookFields` as staged fields; Save folds them into the one `EDIT_BOOK`
+  undo step. Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and Ron's context-keying principle:
+  UNDO-MODEL.md, section "fully transactional".
 
-#### Phone: show which test build is running
-<!-- id 20260922-0000 -->
+#### A one-day truth-and-safety release: small things that are false or unsafe today
+<!-- id 20261119-1548 -->
 
-_Why it matters:_ During testing you can't tell from the phone which build it's on.
+_Why it matters:_ Each is small, and each is either untrue on the public site today or can quietly cost a person their
+library. Found or confirmed by the cold review of this TODO (2026-11-19), every one checked in the code that day.
 
-**What you see**
-- The phone's About shows "App v…" — the last **released** version, which by design doesn't change during testing — and "Mobile v…".
-- The desktop shows the live test build (e.g. 7.16.0-alpha.6). The phone can't, since it's a different file. The mobile number does change with each test build, but the "App v" line looks stale.
-
-**The real gap** (found 2026-10-16): the phone's "Mobile v…" moves only when the phone's own file changes, but the phone also runs the shared pieces (date presets, storage, sync). A test build that changes only those leaves **both** phone numbers unchanged — 7.21.2's alpha.1 → .3 all showed "Mobile v1.10.1-alpha.1".
-
-**Decided** (Ron, 2026-10-16)
-1. **One live build number for both screens, defined once** — a "Build" stamp in readerwrangler.html, which both load. Both About boxes show it the same way: "Version 7.21.3 · Build 7.22.0-alpha.2".
-2. **The commit check refuses any app-code commit that doesn't move it**, so it can't go stale. It retires two hand-kept stamps: the desktop's own build number (`ORGANIZER_VERSION`) and the rule that the phone number copies the desktop's "-alpha.N" ending. "Mobile v" can stay as a plain release number, or go. Update CLAUDE.md's versioning section when this ships.
-3. **Tell the installs apart on the home screen** (Ron, 2026-10-15): production keeps its icon and name; the **dev** install gets the icon with a red "DEV" overlay and the name "RW Dev"; and plan now for a **local** install (the PC's server over home Wi-Fi — not used yet, but don't close it off): its own overlay ("LOCAL") and name "RW Local".
-
-**How (technical)**
-- `APP_VERSION` (released, frozen during alphas) vs `ORGANIZER_VERSION` (live, desktop only) vs `MOBILE_VERSION` (moves per alpha).
-- Home-screen icon + name come from the **web app manifest** (`manifest.json`, linked at readerwrangler.html ~14);
-  Android wraps it into a "WebAPK" on install. The dev site serves the SAME files as production, so the manifest
-  must be picked at run time: `manifest-dev.json` and `manifest-local.json` (own icon + name each) and a line in the
-  startup script that points the `<link rel="manifest">` at the right one via `isDevSite()` / `isLocalServer()`
-  (readerwrangler.html ~190). Needs the icon images made (192/512 px, DEV and LOCAL). Reinstall after the change for
-  the new icon to appear. Watch out: a local install's address is the PC's home-network address, which can change.
-- Build stamp: the version-guard (`git-hooks/version-guard.py`) already knows which staged files are app code
-  (`shipped_code_staged`) — require the Build stamp line to change whenever that's true, narrowed to what the app
-  itself loads (not pages like security.html or the fetchers, which have their own versions).
-
-#### Drag a box to select covers
-<!-- id 20261014-1030q -->
-
-_Why it matters:_ Faster than clicking covers one by one.
-
-**What you'd get**
-- In cover view, drag a box to select the covers inside it — the way Windows Explorer does.
-
-**Decided** (Ron + UX, 2026-10-16)
-1. **Start the box on empty space only** — the gaps between covers, the margins, below the last row. Pressing on a cover and dragging still moves the book, exactly as today.
-2. **Plain drag replaces the selection; Ctrl+drag adds to it** (the same split as click vs Ctrl+click).
-3. **Live:** covers highlight as the box passes over them. **Esc** cancels the box and puts back the selection you had before.
-4. **Auto-scroll:** dragging past the top or bottom edge scrolls the library, so a box can cover more than one screen.
-5. **A rectangle, no lasso.** It can span group headers (e.g. two series groups). Computer only — on the phone, dragging is scrolling.
-6. **Looks like Explorer's:** a see-through light-blue fill with a thin **solid** border — never dashed (a dashed outline is the "marching ants" on cut books). Its colors are named per theme (see the Dark theme task): in Dark / High-contrast dark, a brighter see-through blue that stays visible.
-
-**How (technical)**
-- Extends `explorerSelectedItems`.
-- The library hides off-screen rows during a drag to stay fast with 10,000+ books (drag virtualization, readerwrangler.js ~1530) — so work out which books the box covers from the grid's layout (row/column positions), not from what's drawn; otherwise auto-scroll misses books.
+**Decided** (Ron agreed the review's list, 2026-11-19)
+1. **"Tested browsers: Chrome, Edge, Firefox. Safari is untested."** (README.md and features.html) — only Chrome is
+   tested (the screen tests run Chrome). Say what's true now; "Say plainly what ReaderWrangler works with" does the
+   full pass later.
+2. **Remove the old version 4 app from the site** — it shares your library's storage (Polish → Small fixes, "Remove
+   the old version 4 app from the site — it shares your library's storage": that item, built here).
+3. **Ask the browser to keep the library's storage** (`navigator.storage.persist()`) — never asked today, so the
+   browser may clear it when the disk is short (and Safari clears a site after 7 days unvisited). For anyone who never
+   saved a backup, that is the whole organization. Ask once, at the right moment; say plainly if the browser says no.
+   Not in the TODO before 2026-11-19.
+4. **Hidden books start hidden.** A fresh browser (or after a Restore) starts with Show Hidden ticked
+   (`showHidden: true // v4.8.0`, readerwrangler.js ~7119) — so what you hid shows. (Small fixes → "Show only hidden
+   books", its item 3 "Settle the real default".)
+5. **Reset's words** — a person resetting is told to "Use the Export button", which doesn't exist (the full rewrite is
+   "Reset App: one honest message in all four places", below in this gate).
+6. **Relay Setup's connection test is hard-wired to the production relay** (readerwrangler.js ~1953) — use the relay
+   the app is set to ("Relay Setup's connection test checks the wrong relay on dev", below in this gate, item 1–2 only;
+   its planned commit check falls under Law 23).
+7. **Switch the affiliate tag to the app's own, "readerwrangler-20"** (Ron, 2026-11-19: before launch, so launch
+   traffic is counted separately from his WordPress articles from day one) — the Polish → Small fixes item "Switch the
+   affiliate tag to 'readerwrangler-20'", built here. It earns nothing by itself; only clicks do.
 
 #### Fetcher work, in build order
 
@@ -804,6 +426,11 @@ sections, though they depend on each other — the human-check stop needs the sh
 and the ownership batch share one completion window, resume and refresh are the same long run. Gathered 2026-11-04
 (TODO scan, Ron + Claude) like the worker release: one build order, and fewer separate test rounds on Amazon (each
 one a chance to trip its human check).
+
+**Before launch (the launch gate, 2026-11-19):** "A fetch from someone else's Amazon account stops before mixing two
+libraries" goes FIRST — it needs no wrapper (it reads the account name on the page) and its mix can't be undone; then
+steps 1–3 and 6 below (a stranger's first hour). Steps 4–5 ("Faster fetches…", "Honest ownership changes…") can follow
+launch.
 
 **Build order**
 1. The shared Amazon request wrapper — "Fetcher odds and ends…", item 3; then "The fetchers' own logging…" (its comb
@@ -935,7 +562,7 @@ wrong.
 3. **No "much smaller upload — are you sure?" confirmation.** For the demo case the label is better; for any other
    shrunken fetch (Amazon returning half a library), the 7.19 removed-books review is already the safety net — nothing
    is deleted, you're asked.
-4. Build it with, or before, the screen capture pass (Before launch) — that's when the demo filter gets used.
+4. Build it with, or before, the screen capture pass (the launch gate) — that's when the demo filter gets used.
 5. **The label is shared** with "A long fetch resumes after an interruption" (its stages are partial fetches too) —
    one "partial fetch" label, one rule in the app: never infer removals from a fetch that says it's partial.
 
@@ -1159,29 +786,11 @@ doesn't reach that.
 5. **The same account name can guard Restore** (2026-11-04): a backup carrying "belongs to Dana" lets Restore say
    *"This backup belongs to Dana — restoring replaces your library."* before replacing anything.
 
-#### Honest ownership changes: buying, samples, loans
-<!-- id 20261014-1700 -->
 
-_Why it matters:_ When a book changes kind — bought, a sample, a loan, a book in the Trash — ReaderWrangler should notice, tell you, and never lose your settings.
-
-**What this is**
-- One batch, ratified 2026-09-04 (formerly its own section, "⏸️ On hold: honest ownership changes"). **Status: queued**
-  (Ron, 2026-10-20 — no longer on hold). Its tasks are below, **in build order**: the rules doc and the foundation
-  first, then the data fixes, then the summaries (the polish end — there's nothing honest to report until the fetch
-  notices changes). **"Fetch should update books it already knows" goes first.**
-
-**Already shipped from this batch**
-- 7.7.2 (2026-09-07): Imports reclaim old upload storage. Its outstanding proof is **settled**: 7.21.1 reclaims on every
-  save, and since 7.23.0 (2026-10-20) production's nightly storage check confirms nothing is left over.
-- 7.8.0 (2026-09-08): the ownership dialog redesign, the undo fence, undo messages that name what they undo.
-- 7.9.0: one unified Auto-Organize. Two pieces were deferred on purpose: "Auto-Organize: Shift-click ranges should
-  follow what you see" (a task, Polish) and "let a misfiled book go back to the Inbox" (dropped 2026-10-22 — right-click
-  → Move to → Inbox and Ctrl+Z already cover it).
-- 7.10.0: Save as Spreadsheet (CSV) — the user who asked for it was sent a reply (no response).
-- 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
-
-##### Fetch should update books it already knows, not skip them
+#### Fetch should update books it already knows, not skip them
 <!-- id 20260904-0000a; merged 20261014-1030ac -->
+
+**Before launch (the launch gate, Ron 2026-11-19):** split out of "Honest ownership changes" — without it, a re-fetch leaves a book that changed kind (a sample you then bought, a loan returned) showing what's no longer true. The rest of that batch (the summaries) stays in High priority.
 
 _Why it matters:_ A sample or loan of a wishlisted book is thrown away, so the change never shows.
 
@@ -1230,6 +839,983 @@ _The foundation — the summaries below depend on it._
 **How (technical)**
 - amazon-library-fetcher.js (~1422–1425 when filed): `seenASINs` is seeded with every known ASIN, so known records are dup-skipped.
 - Fields: `ownershipType`, `acquisitionDate`, binding; respect `userEdited`. The watermark re-walk quirk heals with the date refresh. `pastPurchase` demoted to backstop.
+
+#### Restore checks every book, folder and list inside a backup — skip a bad one and say so
+<!-- id 20261108-1800a -->
+
+_Why it matters:_ Since 7.26.0 Restore checks that a backup has every part it needs, each of the right kind — but not
+what's inside them. One book with no ID, a folder with no list of books, or a Search with no position can still crash
+the restore part-way or leave a broken library.
+
+**Found** (2026-11-08): each book needs an ID (its ASIN — the app's book ID is the ASIN; a book without one, or two
+with the same, break the folders that hold them); each folder an ID, a name, a parent and a list of books; each Book
+List an ID, a name and a list of books; each Search an ID and a number position (the restore computes
+`Math.max` over the positions — a missing one makes it NaN); each tag-list entry a name.
+
+**To decide first:** skip or refuse. Law 18 (don't block the user) says one bad book out of 3,000 shouldn't refuse
+the whole backup. Claude's verdict: restore everything else, skip the bad items and say so with their titles —
+*"Restored 3,295 books; skipped 1 that had no ID: 'Title'"* — and let the folders' integrity check tidy after it;
+refuse only when what's left is unusable (Ron's rule for the parts, 2026-11-08: "if that makes it unusable, we reject
+it"). The skipped items go in the log (BACKUP area), so support can see them.
+
+**How:** the same one checking function as the parts check (backupCheck.js, 7.26.0), extended to the items, with its
+function tests written first.
+
+#### One backup writer: Save Backup and the copy sent to the relay are built twice and already differ
+<!-- id 20261108-1800b -->
+
+**In the launch gate (Ron, 2026-11-19):** built first — the restore from Cloud Sync below needs one way of building a backup.
+
+_Why it matters:_ The backup file and the copy sent to the relay and the phone hold the same library, but each is put
+together by its own code — and they already disagree: the relay copy carries the folder-list order (Manual / Name;
+`folderListSort`) and when it was saved; the backup has neither, so a restore onto a new computer can't bring the
+folder order back. Every new field has to be remembered twice (Law 4: two answers to one question).
+
+**Found** (2026-11-08): `buildDeviceStatePayload` (readerwrangler.js ~6146, the relay and phone copy) and Save
+Backup's own builder (~6271) each write `books`, `organization`, `collections`; a comment says the first is "shared
+with exportBackup", but Save Backup builds its own. Differences: the relay copy has `savedAt` and
+`explorerSettings.folderListSort`; Save Backup has `exportDate`, `theme`, `appVersion` and the Cloud Sync
+credentials.
+
+**How**
+1. One builder; Save Backup adds only what a file needs (the credentials, the save date) and the relay copy only what
+   it needs (`savedAt`).
+2. The folder-list order joins the view settings it belongs to (a restore onto a computer with books keeps the view
+   here — Ron, 2026-11-08: "restore changes organization, not views").
+3. Then "Remove code left over from older versions…" (Polish) drops the dead parts from the one writer.
+4. Test: a Save Backup → Restore round trip and a relay round trip produce the same organization.
+5. **Build the backup from storage, not the screen** (medium — Ron, 2026-11-09). Save Backup reads the books from the
+   book store but the folders, Book Lists and tags from what's on screen. When the start fails AFTER the books are
+   readable (the organization store is never written by a failed start — F1), the screen is empty but storage still
+   holds the whole library: a backup built from storage would be complete, one from the screen is missing its folders
+   — and since 7.26.0 a restore from it gives exactly that. 7.26.0 refuses Save Backup until the library has loaded
+   (the guard); with this, "save a backup now" becomes safe advice even after a failed start, and BOOT-01's critical box
+   can say so again. Normally the screen and storage agree (the organization is saved on every change) — check that
+   nothing pending is lost (a change still on its way to storage).
+
+#### Restore from Cloud Sync: your books and organization back from the cloud copy, no backup file needed
+<!-- id 20261109-1700 -->
+
+**In the launch gate (Ron, 2026-11-19):** a stranger who clears their browser data, or loses a computer with no recent backup, would otherwise lose all their organizing — while a full copy sits in the cloud.
+
+_Why it matters:_ The worst case — a lost or wiped computer and no recent backup file — already has its cure sitting in
+the cloud. With Cloud Sync on, the computer sends the relay the phone's copy (the code's "device-state") a few seconds
+after each change: the whole library AND the organization (folders, Book Lists, Searches, tags), in a backup's shape. But
+nothing on the computer reads it back; Import from Relay merges only the books the fetcher sent.
+
+**Decided** (Ron + Claude, 2026-11-09)
+1. **One restore, two readers.** A file reader and a relay reader each turn their source into the same backup-shaped
+   data; from there ONE path — the backup check (backupCheck.js), the "restore?" box, the restore itself
+   (performRestore / loadLibrary) — that can't tell where the data came from.
+2. **Credentials:** the relay's copy carries none, and needs none — reaching the relay already took yours. The restore
+   keeps the current ones (as a backup file without credentials does).
+3. **The new computer:** once built, the app tells the person that any backup FILE made since their current credentials
+   were created brings them back — File → Relay Setup → Credentials → "Load credentials from backup file" (the label says
+   "backup file" since 7.26.0, so it can't be mistaken for this).
+4. **Two computers on one Cloud Sync:** the restore brings back whichever sent last — expected, no special handling
+   (Ron).
+5. **Until this is built, every recovery message offers only the backup file** (Ron: one option until then). When it's
+   built, "Reset App: one honest message in all four places" (the launch gate) offers it as the second way
+   back. The menu: one item, "Restore…", asking "from a backup file / from Cloud Sync" only when Cloud Sync is set up —
+   otherwise straight to the file box (Claude's UX verdict; Ron to confirm when it's built).
+- How current: as of the last send (seconds); a change made in the moments before a crash may be missing — say so in
+  the "restore?" box ("your cloud copy from 2 minutes ago").
+6. **After a reset: one choice, and the cloud copy held until it's made** (Ron + Claude, 2026-11-11, building
+   7.27.1's reset words). What happens today, checked in the code: the reset itself sends nothing, and nothing is sent
+   while the library is empty (the device-state push skips `books.length === 0`) — but as soon as books are back (a
+   fetch + Import from Relay, which brings books without folders) any change sends a **full** copy (no deltas: every
+   push is a whole new generation) that replaces the cloud's copy with the folders; the relay keeps two, so one more
+   push and the old organization is gone from the cloud. Decided:
+   - **The first time the app opens after ANY reset** (Tools → Reset App, the emergency screen, the reset page, the
+     phone — each sets one "just reset" mark), it asks once: *"You've reset ReaderWrangler. Bring your library back?
+     [Restore from Cloud Sync] [Restore backup file…] [Start fresh]"* — the natural moment ("what next?"), part of the
+     person's own action; "Start fresh" covers the early-days restart.
+   - **Until a choice is made, nothing is sent to the cloud** — so the cloud copy is guaranteed intact when they choose
+     to restore from it. Closing the box keeps the hold and asks again next time.
+   - **Ships with this task**, not before (Ron): until a restore from the cloud exists, the cloud copy isn't a way back,
+     so there's nothing to hold for — and a hold with no cloud restore to offer is a confusing mode. (The
+     backup-file-only version of the choice could ship earlier on its own — Ron: wait; logged here.)
+   - **Turned down:** a "last chance" prompt at the first push that would overwrite the cloud (it interrupts 60 s after
+     an unrelated change or on leaving the tab — "a stopping prompt is still a block", Law 18 — and asks about a reset
+     that may be an hour old).
+
+#### Lock the Cloud Sync Key in backups with an optional key password
+<!-- id 20261104-1024 -->
+
+**In the launch gate (Ron, 2026-11-19):** a backup shared before this ships stays unlocked forever — adding the lock later doesn't protect files already sent.
+
+_Why it matters:_ Every backup carries your Cloud Sync Key, and since 7.25 that key also signs changes — so whoever you
+share a backup file with ("send your brother your ReaderWrangler file") can change or delete your cloud copy. A family
+member forwarding a file is far likelier than any attacker.
+
+**Decided** (Ron + Claude, 2026-11-04)
+1. **An optional "key password" locks only the key inside the backup** — books, folders and notes stay readable, so
+   forgetting it costs a re-setup, never data. Not stored only in the browser instead: the backup exists for the day
+   the PC dies (Ron). Words: **lock** (not "scramble" — sounds undoable by anyone; not "encrypt" — that's Cloud Sync's
+   word) and **key password** (not "backup password", which reads as "protects the backup" or "a spare password").
+2. **One optional line in the save step, never a pop-up (Law 18):** *"Lock the Cloud Sync Key in this backup with a
+   password (optional) [______]  Why?"* + "Don't ask again". Shown only when Cloud Sync is set up. **Remembered in
+   this browser**, so later backups lock automatically; **File → Key Password…** sets, changes or removes it.
+3. **Why? / help text:** sharing an unlocked backup shares access to your cloud copy (the recipient could change or
+   delete your library and organization; you could recover from your last backup and make a new key); a password,
+   even a simple one, makes sharing a backup harmless — *"but feel free to use a strong password and a password
+   manager. We highly recommend password managers."* And: *"To look at someone else's backup, use a separate browser
+   profile — never swap backups in your own."*
+4. **The backup carries a "key locked" flag.** On restore, the wording adapts:
+   - this browser already has a key: *"This backup's Cloud Sync Key is locked. Enter your key password to restore it
+     too — or skip to keep using this browser's key (the usual case, if you haven't made a new one)."*
+   - no key here (e.g. a new PC): *"…Enter your key password to reconnect Cloud Sync — or skip: you can enter your key
+     later, or make a new one."*
+5. **Restore never blocks:** a skipped or wrong password restores everything else, then says *"Cloud Sync wasn't
+   reconnected — enter your Cloud Sync Key, or make a new one if you don't want to keep using your current cloud copy
+   (a new key means a new cloud copy)."*
+6. **Under the hood:** the same password-to-key method the relay already uses (relay-crypto), on one field of the
+   backup. A weak password can be guessed by someone determined with the file — accepted for this threat (Ron).
+7. **Ripples:** the Disconnect wording ("Relay Setup: disconnect…", part of the Cloud Sync rename) says the key is in your backups "locked
+   with your key password, if you set one"; the private-values commit check still refuses an unlocked key in a
+   backup-shaped file (a locked one holds only scrambled text).
+
+#### Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)
+<!-- id 20261024-1045 -->
+
+**Before launch (the launch gate, 2026-11-19): items 3, 4 and 8 below** — 3, the strict ID check (an ID in the wrong
+form silently opens a separate, empty cloud copy); 4, the nightly email names cloud copies by 6 characters, not 4 (with
+many users, 4-character names collide); 8, a small "request" note per cloud copy, which "Refresh all books from Amazon"
+(in the fetcher work) needs. Ship 3 and 4 with the Cloud Sync rename, 8 with the fetcher work. The rest can follow
+launch.
+
+_Why it matters:_ Every relay change is a separate deploy, each needing Ron's yes; gathering them makes one worker
+release. And two of them close real gaps today: the relay accepts IDs in a form that silently opens an empty
+mailbox, and the Danger zone's wipe may not reach the full copies, which never expire (Ron, 2026-10-24: "I want to
+close this out").
+
+**Order of work:** where it sits in the launch gate — the order of the tasks is the one home for the order.
+
+**What's in it**
+1. **C — a shared notepad** for both relays (no user data) — the last step of the relay storage work (7.21.1–7.23.0):
+   - dev becomes a **backup alerter** — it sends "[Dev] backup alert" if a limit crossing it has seen for over an
+     hour has no production alert recorded;
+   - a **"production is alive" check** — alert if production's daily summary is more than 26 hours old.
+2. **The daily email counts copies, not just keys.** Today "library generations 4, device-state generations 12" are
+   *key* counts — each copy's parts plus its manifest (`groupKeys`, relay-worker.js ~1236) — and device-state has no
+   expected count. Say e.g. "library copies 2 (4 parts), device-state copies 4 (12 parts) — at most 2 per channel is
+   expected". (Found 2026-10-24; the health judgment was right all along — the cleanup applies keep-2 to real copies.)
+   **And no 🚨 on the routine summary** (Ron, 2026-10-30): today every email's subject gets it (`sendAlert`, relay-worker.js
+   ~887, "🚨 Daily usage summary - …"), so a normal morning looks like an alarm — red in Gmail's web page. Keep 🚨 for
+   real alerts only (threshold, auto-block, cron error); the summary becomes e.g. "Daily usage summary - 2026-10-29".
+   **And every "Deleted" line gives the copy's time and age** (e.g. "…dc38, saved 14:27 UTC, 11 min old") — so the
+   10-minute rule for unfinished copies can be checked from the email. Today it shows the date only (2026-10-30: Ron
+   closed the tab ~5 s after an import; the push that closing triggers was torn after its first part, and the on-demand
+   summary ~10 minutes later deleted it — correct, but unprovable from the email).
+   **And how recently the cloud copies were used** (Ron, 2026-11-04 — from item 9's last-used date): one line, e.g.
+   *"Cloud copies: 2 — used in the last day 1 · week 1 · month 2 · year 2 · idle over a month 0 · idle over a year 0
+   (deleted tonight: 0)"* ("idle for a day" is just "not used in the last day" — not shown twice). Dev's test channels
+   skew its counts; the dev email already marks test data.
+3. **Strict ID check** — moved from the Cloud Sync task (item 4) because it's safe now and closes a gap today: the
+   relay's one ID check ignores case while storage doesn't, so an ID in the wrong form opens a separate, empty mailbox.
+   Drop the case-insensitive flag (`UUID_REGEX`, relay-worker.js ~45). Every real ID passes, and so does the test
+   rig's `22222222-…`.
+4. **The nightly email names mailboxes by 6 characters, not 4** (`shortId`, relay-worker.js ~1211) — moved from the
+   Cloud Sync task (item 3); it becomes the support code that task shows beside the key. **One way everywhere:** today
+   the email names a channel two ways — the last 4 characters (`…21fc`, `shortId`) and the FIRST 8 in the "Kept / not
+   judged" and budget lines (`41e0e16f…`, `ch.slice(0, 8)`, ~1287 / ~1304). Use the 6-character support code in every
+   line (found 2026-10-30).
+5. **The test scripts clean up after themselves:** `relay/test-phase1.mjs` leaves one unimported run on the
+   `22222222…` test channel each run (19 now; they expire after 90 days). And since 7.25.0 every run of
+   `relay/test-signed-writes.mjs` / the harness leaves small PERMANENT keys for its throwaway channels — a write key, a
+   block record, a proof, a first-used record (dev 2026-10-31: 8 write keys, 10 blocked channels, mostly tests). Let
+   revoke also delete the channel's write key (the block record is enough), and keep the rest out of the way.
+   **Run the tests locally by default** (`cd relay && npx wrangler dev --env dev --local`; `RELAY_URL=…`) and on dev only
+   as a final check — the 10-31 release day's dev runs used 23.6% of the account's daily writes.
+6. **Once:** compare dev's storage figure in the daily email with the Cloudflare dashboard (open since 2026-10-15).
+7. **The daily summaries also go to a dedicated inbox Claude can read** (Resend Inboxes, through MCP), so Ron stops
+   pasting them — and Claude reaches only that mail, not Ron's whole mailbox. Until then Claude reads them from Ron's
+   Gmail, filtered to `from:alerts@readerwrangler.com subject:"Daily usage summary"` only (Ron, 2026-10-30 — "ReaderWrangler
+   Relay - Daily Summary" is the body's first line, not the subject; if item 2 drops the 🚨, the filter still matches).
+   Check Inboxes' pricing
+   and whether it's still beta when building.
+8. **A small "request" note per channel** for "Refresh all books from Amazon…" (the launch gate → "Fetcher work, in build order"): a route to write, read and
+   delete one encrypted note (the app requests a full refresh; the fetcher reads it at start and deletes it after a
+   successful refresh). Idle until the app + fetcher part ships; the signed-writes gate covers its writes. Name the new
+   key kind in the daily email.
+9. **Delete a cloud copy nobody has used for a year** (Ron + Claude, 2026-11-04). Today a cloud copy whose key was
+   lost (so it can't be revoked) keeps its books forever — encrypted, harmless, but storage. The nightly cleanup deletes
+   a channel's copies after a year with no activity. **Say so** in the app, on the security page and in the help notes:
+   *"A cloud copy nobody uses for a year is deleted. Your library stays safe in your browser and in your backups, and
+   the next time you use ReaderWrangler it fills a cloud copy again."* **The app must refill, never mistake "gone" for
+   "your library is empty"** (the naming review's "silent empty mailbox" trap) — a returning user's next fetch and next
+   change repopulate it. (Considered and rejected: emailing owners of idle copies — it would collect personal data,
+   the "encrypted" address would be readable by the server anyway, and deletion-warning emails train users for
+   phishing; "Remind me when my last backup is getting old" guards the real disaster instead.)
+   **How "used" is known — a last-used date per channel** (Ron + Claude, 2026-11-04), unencrypted, beside the existing
+   first-used record (`lifecycle:{id}:used`, relay-worker.js ~473/706): `lifecycle:{id}:last`, a date.
+   - **Reading counts as use**, not just writing — someone who only browses on the phone for months must not lose the
+     copy they're using.
+   - **Written at most once a day per channel** (only when the stored date isn't today) — writes are the free plan's
+     tight limit; a read costs only the cheap check.
+   - **The year-old cleanup reads it, and also deletes the channel's other permanent leftovers** (its first-used and
+     last-used records and its write key), or those pile up forever.
+   - **Disclosed with GoatCounter, in the same places** (Ron): the security page's analytics bullet (security.html
+     ~113) and the planned privacy policy (outside review 1) — e.g. *"The sync server records the date your cloud copy
+     was last used — never what's in it."*
+
+**Watch out**
+- One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**; alphas deploy from the branch,
+  and both relays are redeployed from main at the release.
+- **Never test with a temporary schedule** — Cloudflare's schedule incidents (2026-10-12/13/14) delayed changes by
+  hours and a replaced test schedule kept mailing. Test with the on-demand summary instead (PowerShell; one email each;
+  Resend allows 100 a day):
+  `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))`
+- Leave production channel `58c1bfd7…` alone — another user's data; it expires Dec 7.
+- Relay tests: `node relay/test-signed-writes.mjs` and `RELAY_URL=… node relay/test-phase1.mjs` — both run against a
+  local relay first (`cd relay && npx wrangler dev --env dev --local`), then dev; both refuse production.
+- Inventory tool: `analyze-relay-keys.js` in the TODO notes' folder (key dumps hold channel IDs — credentials — delete
+  them after use).
+- The shared-numbers commit check must still pass (items 2 and 9 touch the cleanup's rules only if they change keep-2
+  or the grace — they shouldn't). (The old item "the wipe reaches everything" was already true — checked 2026-10-31 in
+  `handleRevoke`; removed 2026-11-04.)
+- Relay tasks that are **app-side, not worker** stay where they are: "Relay Setup's connection test checks the wrong
+  relay on dev" and "Relay Setup: disconnect, or reset credentials" (part of the Cloud Sync rename task), "Bookmarklet: when
+  your key no longer works, say so plainly…" (After launch), "Keep your tabs and browsers in step…" (the launch gate), the
+  Cloudflare $5 plan (the launch gate). The Cloud Sync task keeps its app-side work and the "make a new key" order.
+- Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): Cloudflare's official skills (`cloudflare/skills`) — the skills only, not the remote
+  server with access to the Cloudflare account; the local Workers Vitest plugin for tests; `wrangler telemetry disable`.
+- **Channel IDs in the emails in the app's short form** (2026-11-09): the daily summary says "channel 22222222…" (first
+  8 only — relay-worker.js ~1383, ~1400); the app's log and Relay Setup now show `41e0e16f...726c` (first 8 … last 4,
+  logger.js `shortChannelId`, Ron) so old and new keys read differently. The emails should match.
+
+#### Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one
+<!-- id 20260828-0000a -->
+
+_Why it matters:_ "Relay", "Credentials", "Channel ID" and "Passphrase" are engineering words, and users juggle two
+values that are really one secret. And today making new credentials doesn't retire the old ones: whoever holds an old
+key can still read the full cloud copy (it never expires) and write to or wipe it. Renaming is free before launch and
+expensive after.
+
+**The record: docs/design/CLOUD-SYNC-NAMING.md** — everything decided, why, what was rejected, and the check-character
+test. Decided 2026-10-23 (Ron + UX, three outside-review rounds). **Anti-bounce rule:** only a real user's misreading
+reopens a name, never a new argument.
+
+**What you'd get** (details in the record)
+1. **The words:** Cloud Sync · Cloud Sync Setup · Import from Cloud Sync · **Cloud Sync Key** (one key; "Credentials",
+   "Channel ID", "Passphrase" leave the screens) · Save Key · Make a new key · the bookmarklet's buttons **Send Library
+   to ReaderWrangler** / **Send Collections to ReaderWrangler** · "the sync server" on the security page. Data Status
+   and "bookmarklet" stay. About 80+ places (app ~52, phone 3, bookmarklet screens ~22, site pages ~13), plus README,
+   help notes and the User Guide.
+2. **The name defined once, and a commit check** that refuses retired words in anything users see — now its own task,
+   "An anti-glossary: the words we don't show people…" (below, part of this task — built before the rest of it). This rename
+   sweeps its Retiring words to zero — Relay, Credentials, Channel ID, Passphrase, **and "fetcher"** (Ron, 2026-11-12:
+   the tool is "the bookmarklet", the act "update your library from Amazon" — GLOSSARY.md) — then flips them to Banned.
+   Old CHANGELOG entries, post-mortems and design records keep "Relay".
+3. **One Cloud Sync Key:** `RW1-` + 13 groups of 5, Crockford's alphabet (no I, L, O, U; O read as 0, I/L as 1), the
+   ID's 32 hex digits + a 31-character secret + 2 check characters (ISO 7064 pure, radix 32, modulus 1021). A 6-character
+   support code beside it (the relay's nightly email moving to 6 is done in "Relay worker: one release…").
+4. **One tidy step is the only way in** (strip, fold, check, split, rebuild the ID exactly as stored); the key-making
+   code refuses anything else; **the relay refuses an untidy ID** (its one check made strict — done earlier, in "Relay
+   worker: one release…"); a decrypt failure says
+   "this key doesn't match", never "no data".
+5. **Make a new key = change the locks:** save the new key and park the old one as "pending revoke" in one write, then
+   block and delete the old mailbox (including the full copies and pointer — the relay's wipe is fixed earlier, in
+   "Relay worker: one release…"), retry at next launch if that fails;
+   backups carry the pending slot; an old backup's replaced key is named as such. The confirmation adds "Your books
+   and folders stay as they are."
+6. **Honest wording:** fix the "syncs automatically" message; the bar says what is true ("…ready — Import"); the help
+   line about the bookmarklet containing the key; the security notes' statements (the record, "What we tell users").
+7. **Tests:** the round-trip (ID → key → ID, byte for byte) and the check-character test kept as permanent checks.
+8. **The log hides the key by its shape** (Ron, 2026-11-11, building 7.28.0): the logging kit's cleaner finds a secret
+   only by its exact value — today the current passphrase — so an OLD key (from before a "Make a new key") or one pasted
+   into any text would reach the log and Copy diagnostics. With the key's shape fixed, add "secret patterns" to the kit
+   (`logkit/logger.js`: a list of patterns, each match replaced by the secret label), with a test that fails first, and
+   give it the `RW1-` pattern in `logkit-settings.js`; its label becomes the key's word ("[passphrase]" today).
+
+**Build together**
+- With "Relay Setup: smoother sections and clearer Esc / Help behavior" (below, part of this task) — the same window,
+  touched and re-tested once.
+- Reconcile with "Relay Setup: disconnect, or reset credentials" (below, part of this task): its 6.9.0 "Danger zone → Revoke
+  credentials & wipe relay" is what "Make a new key" reuses; its gentle Disconnect stays its own item.
+- The User Guide rewrite (below) waits for this, so the new names land once.
+
+**Watch out**
+- **Your key:** today's passphrases use another alphabet and there's no legacy path (one user). After the build, make
+  a new key once — then re-drag the bookmarklet (LOCAL, and the DEV and PROD ones) and re-pair the phone.
+- **The relay changes** (strict ID check, nightly email's 6 characters, the wipe reaching the full copies) **moved
+  2026-10-24 to "Relay worker: one release…"** (just above, in the launch gate), which ships first. Anything the key work still needs
+  from the relay is a worker change — Ron's yes before every deploy; dev first.
+- The bookmarklet's screens change the same way for all three bookmarklets → dev and prod together.
+- When this ships, update the CLAUDE.md vocabulary rule to the new names (it describes today's screens until then;
+  both trace to the 2026-08-28 decision).
+- Sizing: a small feature (the key format and its tidy step, the change-the-locks order) plus a worker change plus an
+  80-place rename — not a rename alone.
+
+##### An anti-glossary: the words we don't show people, kept in a list and enforced at every commit
+<!-- id 20261112-1431 -->
+
+**Part of the Cloud Sync rename (Ron, 2026-11-19):** built before the rest of it — the rename sweeps this list's Retiring words to zero, then flips them to Banned (the rename's item 2).
+
+_Why it matters:_ A retired word creeps back one message at a time ("the fetcher" was never decided and is all over the
+help; "Relay" will be retired by the rename). A rule in someone's memory — or buried in a script — doesn't stop it; a
+visible list that a commit check reads does, and adding a word to it takes seconds (Ron, 2026-11-12).
+
+**Decided** (Ron + Claude, 2026-11-12)
+1. **A file of its own** — `docs/design/ANTI-GLOSSARY.md` — not a section: the data the check reads, visible to anyone.
+   The glossary's "Words users never see" section MOVES there (one home per word); the two files link to each other.
+2. **Each row:** the word (word boundaries; case as listed), why, what to say instead, and a **status** — **Banned**
+   (any use in what people see is refused) or **Retiring** (still on screen until a named task replaces it: the check
+   refuses NEW uses only — the count can only go down — so it can be listed today without turning everything red).
+   First rows: Import/Export (for backups, Banned), "Sync now" (Banned), IndexedDB / localStorage / JSON / tombstone
+   (Banned — checked where they'd reach a person), Relay / Credentials / Channel ID / Passphrase (Retiring — the
+   Cloud Sync rename), fetcher (Retiring — the same sweep; glossary: "update your library from Amazon").
+3. **Where it looks** — only text people see: the messages and labels in the shipped scripts (string literals, not code
+   names — `relay-client.js` keeps its name), the site's pages, README, the User Guide, the help pages. It skips the
+   CHANGELOG's history, post-mortems, design notes and tests. The exclusions live in the same file, also visible.
+4. **A commit check** (git-hooks/, like the others; tests first) reads the file — and refuses a malformed row, so the
+   list can't silently stop working.
+
+##### Relay Setup: smoother sections and clearer Esc / Help behavior
+<!-- id 20260928-0000a -->
+
+_Why it matters:_ Its sections jump open so abruptly they look like new windows, and Esc behaves differently in a way you can't see.
+
+**What you see** (File → Relay Setup)
+1. **Sections jump.** Opening "Credentials" / "Enter Credentials Manually" or "Bookmarklet" / "Pairing" shoves everything up and down so hard it reads as "a new window appeared".
+2. **A hidden level.** "Enter Credentials Manually" secretly counts as a level of its own: Esc backs out of it first instead of closing Relay Setup. Nothing shows you that.
+3. **Help looks like a replacement.** Help opens exactly on top of Relay Setup, so it doesn't read as stacked on it.
+
+**Decided** (Ron + UX, 2026-10-21)
+1. **Animate the sections opening and closing** (~150–200 ms), so the eye can follow what moved; respect the system's
+   "reduce motion" setting.
+2. **Drop the hidden level: Esc closes Relay Setup**, like a background click — a section folding open isn't a layer
+   (the overlay system's Esc closes the innermost *layer*). If the manual-credentials fields hold typed-but-unsaved
+   text, closing asks the same *Save / Discard / Keep editing* question as the book details window — ideally the same
+   shared piece, so "ask before losing what you typed" works alike in every window with a form.
+3. **Open Help slightly offset** (~24 px down and right, like stacked windows) so it reads as on top of Relay Setup,
+   not replacing it; "Drag any dialog out of the way" (High priority) adds the full fix later.
+
+**Status:** noted 2026-09-28 during the overlay work; a separate, focused redesign pass. **Build it together with
+"Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one"** (the task this one is part of) — that
+task changes this window's name, wording and key display; one pass touches and re-tests the window once.
+
+**How (technical)**
+- Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog (readerwrangler.js
+  ~11371 on 2026-10-21: `reason === 'esc' && relayManualCreds` closes only the section).
+
+##### Relay Setup: disconnect, or reset credentials
+<!-- id 20261014-1030am -->
+
+_Why it matters:_ A clean way to stop syncing, or to start over with new credentials.
+
+**Already done**
+- 6.9.0: Relay Setup's "Danger zone → Revoke credentials & wipe relay" — clears the keys and reopens the step that makes new ones.
+
+**Left**
+- A gentle **Disconnect** that just stops syncing on this device, without revoking or wiping anything on the relay.
+
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
+1. **The danger is losing the key, not data** — the key IS the access to the cloud copy. The Disconnect window shows
+   the key with a **Copy** button before you confirm: *"You'll need this key to reconnect — it's also in any backup
+   you've saved (File → Save Backup), locked with your key password if you set one. Your bookmarklet and other devices
+   keep syncing."* (Ron: backups carry it — true since 6.0.0; the lock: "Lock the Cloud Sync Key in backups…", the launch gate.) The one explicit, irreversible verb, with the remedy one click away inside it — not a guessing
+   prompt (Law 18).
+2. **Say exactly what stays:** this device's library — untouched; the cloud copy — untouched; other devices and the
+   bookmarklet — unaffected (the bookmarklet carries its own copy of the key, so the next fetch still reaches the
+   cloud; this device just won't import until you reconnect).
+3. **In the Cloud Sync words when they ship:** "Disconnect this device from Cloud Sync"; "key", not "credentials".
+4. **Build it in one pass through the setup window** with "Cloud Sync: rename Relay, show one Cloud Sync Key…" and
+   "Relay Setup: smoother sections and clearer Esc / Help behavior" — touched and tested once.
+
+#### Reset App: one honest message in all four places (what's cleared, what's kept, how to come back)
+<!-- id 20261030-1039 -->
+
+**Built together with "What a reset clears: four resets, four different lists"** (just below — the same four places,
+Ron 2026-11-19): what each reset clears, and what it says it clears, become one.
+
+_Why it matters:_ Every reset message was written before Cloud Sync, so they talk about "files on disk" a user today
+may never have had, point at a button that doesn't exist, and leave out the main way back — the copy in the cloud.
+Someone resetting is often already having a bad day (Ron, 2026-10-30, noticed the Tools → Reset App wording).
+
+**The four places** (found 2026-10-30 — a class of sites)
+1. **Tools → Reset App** (readerwrangler.js ~11784): "Your library/collections files on disk will NOT be deleted. You
+   can reload them anytime." and **"💡 Tip: Use the Export button first"** — there is no Export button, and "Export"
+   is retired (Save / Restore).
+2. **The reset page's confirmation** (reset.js ~106): "Import backup file → Books + organization; Import
+   amazon-library.json → Books only" — that file no longer exists for anyone setting up today.
+3. **The emergency reset** (readerwrangler.html ~342 / ~361 — shown when the app can't start): "Your files on disk are
+   safe — import your backup file after the reset…".
+4. **The reset page's own text** (reset.html ~60): "Good news: … Your files on disk are safe. What you can recover:
+   Import backup file → Restore EVERYTHING…".
+
+**Decided** (Ron + UX, 2026-10-30)
+1. **One message, defined once, used by all four** — so they can't drift again.
+2. It says, in plain words:
+   - **what's cleared:** everything ReaderWrangler keeps in **this browser** (books, folders, tags, settings);
+   - **what's kept:** files you saved on your computer — backups (File → Save) and spreadsheets (File → Save
+     Spreadsheet) — and **your copy in the cloud**;
+   - **how to come back:** restore a backup, or reconnect Cloud Sync and import.
+   Ron's starting wording: "Your library/collections files on disk (backups, CSV files) will NOT be deleted. You can
+   reload backups anytime."
+3. **Build with "Cloud Sync: rename Relay…"** (just above) — the recovery words (Cloud Sync Key, Import from Cloud
+   Sync) change there, so this is written once, in the new words.
+4. **Verify before writing:** does Reset also clear the stored Cloud Sync Key? If it does, "reconnect" needs the key
+   from a backup or another device — and the message must say so ("you'll need your Cloud Sync Key").
+5. Then the help notes and the User Guide's "Starting over" section (User Guide task) say the same thing.
+6. **Updates (2026-11-09):** the reset page's dead "Import amazon-library.json → Books only" bullet was deleted in
+   7.26.0 (the library file was replaced by the relay in 6.0), and its other bullet says "Restore backup file"; checked —
+   the emergency reset does NOT clear the stored Cloud Sync Key (item 4). Until "Restore from Cloud Sync…" (the launch
+   gate) is built, the one way back offered is the backup file (Ron); once it is, offer that as
+   the second.
+7. **Update (2026-11-11, Ron found it):** item 6's fix reached only place 2 (reset.js's confirmation box) — place 4,
+   the reset page's own panel, still offered "Import amazon-library.json" and "File → Export Backup" (fixed in
+   7.27.0's branch: "Restore backup file → Books + organization", "File → Save Backup"). A sweep for
+   amazon-library.json found nothing else a person sees in the app. Still open here: place 1 ("files on disk… reload
+   them anytime", "Use the Export button") and place 3 ("Your files on disk are safe"), and the one shared message.
+
+
+##### What a reset clears: four resets, four different lists
+<!-- id 20261106-1715 -->
+
+_Why it matters:_ "Reset" should mean the same thing everywhere. The app has four resets and each clears its own hand-kept
+list of saved settings — so an Emergency Reset can leave things a Reset App clears, and old Book Lists may come back
+(Law 4: four answers to one question = one missing list). Found 2026-11-06 while fixing F3 (all four now share ONE
+delete of the book store, storage.js `deleteBookStore` — 7.25.1).
+
+**What each clears today** (besides the book store; checked 2026-11-06)
+
+| Saved setting | Tools → Reset App | "Erase and Reset" (app won't load) | Emergency Reset page | Phone's Reset |
+|---|---|---|---|---|
+| library state, cache, status, filters, view, folders | ✅ | ✅ | ✅ | ✅ |
+| **Book Lists** (`readerwrangler-booklists`) | ✅ | ❌ | ❌ | ❌ |
+| settings (`readerwrangler-settings`) | ❌ | ✅ | ✅ | ✅ |
+| theme, phone preferences | ❌ | ✅ | ❌ | ✅ |
+| Cloud Sync credentials + status | ❌ (kept) | ❌ (kept) | ❌ (kept) | ✅ (says so in its confirm) |
+| wizard settings, search history, phone navigation, desktop mode | mixed — see the four lists |
+
+- **Likely bug:** the library load falls back to the separate Book Lists entry when no saved organization exists
+  (readerwrangler.js ~4489) — so after any reset but Reset App, the old Book Lists may reappear. Check with a test.
+- Where: readerwrangler.js `confirmReset` (~6400); readerwrangler.html (the inline emergency reset, ~372); reset.js
+  `STORAGE_KEYS`; mobile.js `handleReset` (~2815).
+
+**To decide (Ron):** what a reset clears — everything, or everything but the Cloud Sync Key (the desktop keeps it, the
+phone clears it — deliberate?) — then ONE list (with the delete, in storage.js), every reset calls it, and a test
+compares the browser's storage after each reset.
+
+**Test gaps from 7.25.1** (filed per TESTING.md §6): RESET-001–005 cover Tools → Reset App only. The emergency "Erase
+and Reset" (needs the app made to fail its load), the phone's Reset (the phone page) and the Emergency Reset page each
+use the shared delete but have no test of their own — including the "Close your other tabs" wait. Build them with this
+task's storage-comparison test.
+
+#### Relay Setup's connection test checks the wrong relay on dev
+<!-- id 20261012-0000a -->
+
+_Why it matters:_ On your local copy or the dev site it tests production, so its answer can be wrong.
+
+**What you see**
+- On your local copy or the dev site: File → Relay Setup → the connection test reports on the **production** relay, not the dev relay your copy actually uses. So "connected" / "revoked" there can be wrong for dev.
+
+**Why it happened** (checked 2026-10-22): relay-client.js already has the wrapper — `relayFetch(path)` builds the
+address from the one "which relay" answer — but it doesn't offer it to the app (not in `window.RWRelay`), so the test
+called the browser's request function directly with a hard-written production address (readerwrangler.js ~1838). The
+relay's addresses are written in **five** places: production in relay-client.js:13 (the default) and the buggy ~1838;
+dev in readerwrangler.js:130, mobile.js:31 and bookmarklet-nav-hub.js:52.
+
+**Decided — relay requests go only through relay-client** (Ron + UX, 2026-10-22)
+1. **relay-client offers what the app needs** — a named `testConnection(channelId)` (better than exposing raw paths),
+   so the app never builds relay addresses; the test uses it. This fixes the dev bug.
+2. **Both addresses are written once, in relay-client.js.** The app, phone and bookmarklet hub only answer "am I on
+   dev?" (each detects it its own way) — **callers never pass Dev or Prod**: a caller that chooses can choose wrong
+   (that's this bug). The relay's own test scripts in `relay/` run outside the app and don't use this.
+3. **Make bypassing it impossible** (Ron): the app page is ours, so its `window.fetch` gets a guard that **throws**
+   for a request to a relay address not coming from relay-client (*"Relay requests go through RWRelay"*);
+   everything else passes untouched. relay-client keeps the real one. An honest error, not a silent substitute.
+4. **A commit check refuses a relay address written outside relay-client.js** (app, phone, bookmarklet files).
+5. Test step: on localhost, Relay Setup's connection test names the **dev** relay.
+6. **Say when the channel is empty** (Ron + Claude, 2026-11-05): today the test reports **connected** for a channel
+   with nothing on it — and a mistyped Channel ID IS an empty channel, so a typo shows green at the very moment it
+   should be caught. Report *"Connected — nothing sent with these credentials yet"* instead (the same two causes Import's
+   "Nothing is on the relay for these credentials yet" names, 7.26.0-alpha.2). A screen test on the local relay
+   (`test/ui/rw.py` `App(relay=True)`): an empty channel's test says so. The Cloud Sync Key's check characters later
+   catch the typo as it's entered.
+
+#### Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome
+<!-- id 20261018-1422b -->
+
+_Why it matters:_ Assumptions baked into the product are nowhere stated — a UK reader, or someone expecting paperbacks, finds out only by failing.
+
+**The facts** (each verified in the code or docs, 2026-10-16; facts 4–5 corrected 2026-11-01)
+1. **Amazon's US store only.** Every fetcher talks to amazon.com only, and prices are read as US dollars (details: see
+   TODO notes).
+2. **Formats** — the library fetch brings in **everything** in your Amazon library, every format (Kindle purchases, samples, Prime, Kindle Unlimited, loans — and print, audio, even a DVD bought on Amazon); series and author adds take Kindle editions only; **the one-book Add Book to Wishlist takes any format** (deliberately — a paperback can hold a place until a Kindle edition exists). Undoing the Kindle-only preference: Someday task "Formats other than Kindle".
+3. **The app is in English.** The books can be in any language.
+4. **Browsers:** tested on **Chrome**. **Edge** should work (it's built on the same engine as Chrome) — and once the
+   browser driver exists (High priority; it runs Edge) it becomes "tested by the automated tests" for real; say so
+   then. **Firefox** was confirmed working once, long ago, but isn't regularly tested. Safari is untested. _(Today the
+   docs contradict each other — and two of them are false: README / features page "Tested: Chrome, Edge, Firefox"
+   (neither Edge nor Firefox is tested), User Guide "Firefox is also fully supported"; SUPPORT-KB "We only test
+   Chrome" is right. Fix them all in ONE pass with this task — Ron, 2026-11-01: not a partial fix ahead of it; with
+   essentially no visitors yet, nobody is relying on the claim.)_
+5. **Fetching and organizing need a computer** (the bookmarklet runs on Amazon's site in a desktop browser). **The
+   phone is read-only**: it shows your library and never writes changes (SUPPORT-KB "What is the mobile app?" —
+   checked 2026-11-01; the old wording "the phone views and organizes" was wrong).
+
+**Where it goes** (Ron, 2026-10-16; 2 and 5 revised 2026-11-01)
+1. A short **"What ReaderWrangler works with"** section in the User Guide (written in the User Guide task, below).
+2. **On the landing page, folded into the existing sub-tagline** — e.g. "Import your Kindle library from
+   **Amazon.com** in minutes…" — not a new line: the "Open My Library" landing task already adds "Always free · No
+   ads · No account needed" under the button, and a third line would crowd the hero. The features page says it once.
+3. One question in SUPPORT-KB.
+4. A developer list in docs/reference/ARCHITECTURE.md — every spot a future change (another country, another app language) would touch.
+5. **Say it at the moment it matters (Law 16)** — when the bookmarklet runs on any Amazon site other than amazon.com,
+   it says "ReaderWrangler works with Amazon.com (the US store) only, for now" instead of offering to send the user to
+   amazon.com's library page (today's dead end for a UK account — details: see TODO notes). The docs explain it; the
+   message catches the person who never read them. The same change for all three bookmarklets → dev and prod together.
+
+Ron's word on the wording first.
+
+#### Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button
+<!-- id 20261030-1036 -->
+
+_Why it matters:_ A returning user arriving at readerwrangler.com sees "Get Started — It's Free!", a sign-up-style
+button, and has to hunt for the way in (the top bar's "Launch ReaderWrangler" is easy to miss — Ron: "My attention is
+drawn to the center"). And what makes RW different — always free, no ads, no account — sits in a row further down.
+
+**Decided** (Ron + UX, 2026-10-30)
+1. **One adaptive hero button:** a returning user sees **"Open My Library →"**, a new visitor **"Get Started"**. Both
+   go to the same app — only the words change, so nobody needs a way to "get" the other one (starting over is Tools →
+   Reset App, not this button).
+2. **How it knows:** the app writes a small "this browser has a library" marker when it loads one; the landing page
+   checks only that the marker exists — locally, nothing sent, the same way it already picks your theme. It never looks
+   at the Cloud Sync Key.
+3. **Never redirect** a returning user into the app — some come back to read the page or share it (Ron: it "breaks our
+   rules"). The top bar's "Launch ReaderWrangler" stays for both.
+4. **One quiet line under the button:** "Always free · No ads · No account needed" — the button names the action;
+   benefits read better beneath it.
+5. **"Always free" is safe** (Ron, 2026-10-30): charging would mean a different product — RW runs in the user's
+   browser, has no accounts to bill, and anyone can host it themselves. If hosting costs ever grow, the levers are fair
+   limits on cloud storage, donations or hosting your own copy — never a paywall. Say so once in the FAQ.
+6. **"No ads" stays honest** because the affiliate support stays disclosed (the "100% free" item's tooltip: "Supported
+   by Amazon affiliate links"). That disclosure is also Amazon's requirement — see outside review 1.
+7. **Align the trust row** below: "100% free" → "Always free", and consider a "No ads" item, so the two places say the
+   same thing in the same words.
+8. **Both buttons' tooltips** today read "The app walks you through setup — relay, bookmarklet, and first import":
+   wrong for a returning user, and "relay" is a retired word. Give the returning-user button its own tooltip; the
+   Cloud Sync task's commit check catches "relay".
+
+**How (technical)**
+- Buttons: index.html ~1278 (top bar) and ~1325 (hero, `.cta-buttons`); the trust row ~1424. The theme check near the
+  top of index.html shows the pattern for reading the app's local setting. The marker: written by the app when a
+  library loads (readerwrangler.js) — a tiny app change, so an alpha + version bump.
+
+#### A privacy page: what ReaderWrangler sends where, in plain words
+<!-- id 20261119-1548a -->
+
+_Why it matters:_ People's libraries are personal. Before launch the site must say plainly what leaves their computer:
+today the security page discloses the visit counter (GoatCounter) but nothing says the app loads its fonts from Google
+(Google sees each visitor's address), and the relay's planned "last used" date per cloud copy isn't disclosed either.
+It existed only as a sub-bullet of "Outside reviews before building" (cold review, 2026-11-19).
+
+**To decide with Ron:** one page or a section of the security page; whether to keep Google Fonts or serve the fonts
+ourselves (then there's nothing to disclose); the affiliate notice's wording (the footer already says "As an Amazon
+Associate, I earn from qualifying purchases").
+
+#### Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere
+<!-- id 20261014-1030ai -->
+
+_Why it matters:_ Every outside script runs inside the page that holds your Cloud Sync Key — the key that, since
+7.25.0, protects your cloud copy. An unannounced update could break the app overnight; a tampered or malicious copy
+could read the key and send it away.
+
+**What's loaded today** (checked 2026-11-01 — six of nine unpinned)
+| Library | Where | Pinned? |
+|---|---|---|
+| React, ReactDOM | the app (readerwrangler.html ~128–129) | `@18` — any 18.x |
+| marked | changelog.html | no version at all — always the newest, even a new major |
+| img-comparison-slider (script + style) | index.html | `@8` — any 8.x |
+| Tailwind | the app, reset.html, security.html | unversioned (Tailwind's docs: this CDN isn't for production) |
+| Babel 7.29.7, qrcodejs 1.0.0, html5-qrcode 2.3.8 (phone, on demand — mobile.js ~2415) | the app, the phone | yes |
+
+**Decided** (Ron + Claude, 2026-11-01/02, in the TODO review)
+1. **Exact versions** for all six (Tailwind's CDN takes an exact version in its address). Its lasting fix stays the
+   "Faster loading: build the app ahead of time" task (Before launch, right below — moved up 2026-11-03).
+2. **Integrity checks** (`integrity` + `crossorigin` on every outside script and stylesheet, and on the phone's
+   on-demand loader): the browser refuses any copy that differs from the one we checked. What they DON'T do (Ron): they
+   can't prove the checked copy is safe — they protect against tampering *after* we pin (e.g. the 2024 polyfill.io
+   takeover, which served malicious code to 100,000+ sites that had trusted that CDN for years).
+3. **For the first copy** — the practical limit of what can be known: prefer old, widely used versions; check each
+   exact version's security advisories; verify the copy matches the release npm recorded.
+4. **A content security policy on our pages — the real fix for "a bad copy steals the key"** (a `<meta>` policy tag;
+   GitHub Pages can't send headers): the page may contact ONLY the servers we list — our two relays, GoatCounter,
+   Amazon's image servers, and the library CDNs — so a malicious library could read the key but couldn't send it
+   anywhere (background requests, images, beacons, form posts are all refused). Tested with the browser driver
+   (violations show in the console) so nothing legitimate breaks.
+   - Its honest limits: while Babel compiles our code in the browser, the policy can't fully restrict which scripts
+     run; and no policy stops a script from replacing the whole page with an outside address carrying the key — the
+     `navigate-to` rule for that was dropped from the standard in 2022 and no browser supports it (Chrome had it only
+     behind an experimental flag, then removed the code — checked 2026-11-02; so it's not included: it would do
+     nothing). That attack is visible — the user sees ReaderWrangler vanish — a much worse deal for a thief than
+     silent theft.
+   - The bookmarklet (on Amazon's pages) can't use our policy — Amazon's page sets its own — but it loads only our own
+     three scripts, no outside libraries. The relay uses no libraries (one self-contained file; `wrangler` is a deploy
+     tool), serves data not pages, and never receives the passphrase.
+5. **A commit check:** refuse an outside script or stylesheet without an exact version and an integrity hash, and a
+   page without the policy — so a new page can't quietly regress.
+6. **No self-hosting** (considered and dropped, Ron 2026-11-02): it protects against later tampering no better than
+   integrity checks; its gains — the app keeps loading if a CDN is down, and a CDN doesn't see visitors — are
+   availability and privacy, not security, and don't justify maintaining copies of other people's files.
+   (Evidence, 2026-11-17: in a deliberate load test, one page start failed because ReactDOM's download from unpkg.com
+   didn't arrive — "ReactDOM is not defined", the app never opened. A test-machine effect, not a CDN outage; it doesn't
+   reopen this decision, and the tests now treat a failed library download as the machine's trouble. Ron, 2026-11-17:
+   "We've discussed it in the past" — already filed here.)
+7. Show all of it to **outside review 2 (security)**.
+
+**How (technical)**
+- Old review item 6h. The servers the app talks to: both relay workers (`readerwrangler-relay*.readerwrangler.workers.dev`),
+  GoatCounter (its script + endpoint), Amazon's image hosts (covers) — list them from the code when building, not from
+  memory.
+
+#### Move to Cloudflare's $5/month plan around launch
+<!-- id 20260828-0000 -->
+
+_Why it matters:_ The free plan supports only a handful of users.
+
+**When (the launch gate, 2026-11-19): before the first public post, not "around launch"** — the free plan's 1,000
+writes a day are shared by every user, and a handful of first fetches on launch day could stop sync for everyone; the
+50% alert fires after that has already happened. (The cold review also noted anyone can open new cloud copies — only a
+per-copy limit exists today; that goes to the security review.)
+
+**What we know** (RELAY-ECONOMICS.md, 2026-08-28)
+- After 7.5.0's savings, the flat $5 plan covers about 250 users like you; the free plan about 6–10 — and it's shared between production and dev.
+- So this is now just the act of upgrading at the right moment, at or shortly before launch.
+
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review — the nightly trend file now gives real numbers)
+1. **Upgrade at launch, or earlier when the numbers say so — whichever comes first:** the relay's threshold alerts
+   (25/50/75/90%) already email; "the writes alert at 50% fires on two days in a week" is the trigger. Writes, not
+   storage, are the binding limit (1,000 a day for the whole account).
+2. **Re-check the "≈250 users on $5, 6–10 on free" estimate against the trend file** (`relay-trend.csv`, kept with
+   the TODO notes, nightly since 2026-10-20) before upgrading — the August model predates the nightly cleanup's deletes,
+   signed writes (one registration write per channel, a few extra reads) and "Refresh all books" (a heavy day).
+3. **Dev shares the free limits** — release day 2026-10-31, the tests on dev used 23.6% of the account's daily writes in
+   an afternoon; a test day plus a busy user day could hit the cap and stop production syncing for everyone. Until the
+   upgrade, "run the relay tests locally by default" ("Relay worker: one release…", item 5) is what protects
+   production.
+4. **Check Cloudflare's current prices and limits when upgrading** — not the August numbers.
+
+---
+
+#### User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help
+<!-- id 20260910-0000c; merged 20261014-1030bd, 20261014-1030o, 20261014-1030bg -->
+
+_Why it matters:_ The guide never mentions Book Lists (checked 2026-10-22: 0 times in 455 lines), and no reader can
+find it — it's on the site only as GitHub's plain, unthemed, unlinked copy (`readerwrangler.com/USER-GUIDE.html`); the
+Help menu has How To Use, Watch Tutorials and Keyboard Shortcuts, but no guide. The same file is what the support
+assistant will read, so it has to be complete and stay current.
+
+**Decided** (Ron, 2026-10-22, in the TODO review — "go with your ideas all the way")
+1. **One file: USER-GUIDE.md, for people, the support assistant and anyone pasting it into their own chatbot.** It
+   stays Markdown: well-headed, self-contained sections suit the assistant (an HTML page would mix menus and theme code
+   into what it reads).
+2. **A themed page shows it:** `guide.html` loads USER-GUIDE.md and displays it, using the site pages' shared named
+   colors ("Site pages use the shared named colors…", part of the Dark theme task), so all four themes work. Linked as **Help → User Guide** in the app, and from the site
+   pages' links and README. How To Use stays as the short first-run version and links to the guide for more.
+3. **One FAQ, inside the guide** — not a separate faq.html (merged the "Create a FAQ page" task). Sections: Security /
+   Privacy, Data / Backup, Troubleshooting, Library, General; question-shaped entries (what users actually type). The
+   footers and README link straight to it. Two FAQs would drift apart, as the browser claims already have.
+4. **Every feature is covered — by a check, not by memory.** Every place a user reaches a feature carries a **guide
+   section name** pointing at the guide (e.g. `guide="move-books"`) — a name, never text, so nothing is written twice:
+   menu-bar items (20), popups including right-click menus (76), dialogs (40), the confirm-style boxes (~19), and the
+   keyboard-shortcut list. A commit check refuses (a) any of those without a guide name — a place that truly needs
+   none says so with a reason (e.g. a picker inside a dialog) — and (b) any guide name with no matching section in
+   USER-GUIDE.md. It also reports guide sections nothing points at (a removed feature's leftovers). Counts from
+   2026-10-22.
+5. **The first run of that check is the sweep:** the list of places with no guide name is the rewrite's outline.
+6. **A "?" in each dialog** opens the guide at its section — cheap once the names exist; real help where you are.
+7. **Behavior with nothing to click** (a book leaving its last folder goes to the Inbox; the drag rules) can't be caught
+   by the check. When the new guide ships, add to the release checklist: the help-notes comb also covers the guide —
+   every CHANGELOG line gets a guide check.
+8. **Build it last in Before launch** — it describes behavior still being decided or built. Wait for: "Cloud Sync:
+   rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one" (so the new names land once), "Move and copy
+   books anywhere — folders, Book Lists, All Books, Searches", and "The Delete key deletes the folder you're in — not
+   the folders you selected".
+
+**What it should cover**
+- The four places: All Books / Searches / Book Lists / Folders — what each is for, and "when to use which".
+- **"One book, many places"** (merged the "Wording pass: explain Book List shortcuts and Linked Copies" task): the
+  same book can be in several folders and Book Lists — not a duplicate; **All Books and Searches are views** (Ron:
+  nothing is put into or taken out of them); folders file books, Book Lists are free-form. Draft text and the facts
+  behind it: docs/design/TERMINOLOGY.md. **No "shortcut", no "Linked Copies"** — both retired 2026-10-22 (why: same
+  doc); the screens already say "Remove from this list", and stay as they are.
+- **The Book List ↔ Folder pattern:** structure lives in Folders; to-read queues live in Book Lists.
+- "Getting books out of the Inbox → use a folder, not a Book List."
+- **Fields you can't filter by:** show the other way, e.g. List view → add that column → sort (merged task).
+- **"What ReaderWrangler works with"** (from the "Say plainly…" task above).
+- **Starting over** (Ron, 2026-10-30): Tools → Reset App — when to use it, what it clears and what it keeps; switching
+  to a different Amazon account; clearing all books and organization to start from scratch. The old guide has a
+  Reset App section and an FAQ entry; keep them, corrected.
+- A glossary and a "what ReaderWrangler doesn't do (yet)" section (the support assistant plan's two best defenses
+  against made-up answers).
+- **FAQ: "How is ReaderWrangler different from Readwise Books, Goodreads or StoryGraph?"** (Ron, 2026-10-30). They are
+  for *reading* (where you read, track sessions, rate, buy — Readwise Books sells ebooks); ReaderWrangler **organizes
+  the Kindle library you already own** — nested folders, series, Book Lists, tags, Auto-Organize, wishlist prices — and
+  never sells or displays books. No account; it runs in your browser. They can be used together. Also a line for the
+  "doesn't do" section: RW doesn't open or read books.
+
+**Sources**
+- Examples of taming a backlog: docs/design/WORKFLOW-PATTERNS.md.
+- Facts and FAQ: docs/design/SUPPORT-KB.md (mined 2026-09-10 from every session back to May, and kept current at each release).
+
+**How (technical)**
+- "Holds vs. points at" = the custodial vs. supplemental model.
+- The live site serves the raw `USER-GUIDE.md` (checked 2026-10-22: `text/markdown`), so `guide.html` can fetch and
+  display it with a Markdown library from a CDN (exact version, integrity check, inside the page's security policy —
+  see "Outside code libraries: exact versions, integrity checks, and a policy…"). Prove that works on dev before
+  relying on it. Decide then whether GitHub's automatic
+  `USER-GUIDE.html` copy should be hidden or point at guide.html.
+- The guide-name check sits beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`; the guide name is a
+  prop on `MenuBarItem` / `<Dialog>` / `<Popover>`, an argument to the confirm-style boxes, and a field in the
+  shortcut list. Section names = the guide's headings' anchors.
+
+##### A glossary page on the site, built from GLOSSARY.md
+<!-- id 20261112-1430 -->
+
+**Part of the User Guide task (Ron, 2026-11-19):** small, and built from a file we already keep.
+
+_Why it matters:_ People meet words like "Cloud Sync Key" and "Book List" with no one place that says what they mean;
+and a page kept by hand beside GLOSSARY.md would drift from it. One source, shown prettily (Ron, 2026-11-12).
+
+**Decided** (Ron + Claude, 2026-11-12)
+1. **Built from the file:** `tools/build.py` turns GLOSSARY.md into a page (the way the app is built ahead of time since
+   7.27.0) — nobody edits the page; the commit check refuses a stale copy, as it does for `dist/`.
+2. **Only what's decided:** the Decided rows' term and meaning — not the proposed ones, the decision records or the
+   words people never see.
+3. **Styled like the other site pages** (the shared named colors, so every theme works), linked from Help and the site's
+   footer.
+
+#### Remind me when my last backup is getting old
+<!-- id 20261104-1024a -->
+
+_Why it matters:_ The one real disaster is a lost or wiped PC with no recent backup — and nothing reminds you today
+(checked 2026-11-04). The cloud copy isn't a full backup yet (see "Keep your tabs and browsers in step…").
+
+**Decided** (Ron + Claude, 2026-11-04 — instead of emailing users about idle cloud copies, which would have ended the
+"the server holds nothing readable about you" promise)
+1. When your last saved backup is more than about a month old, the status area shows a quiet note: *"Last backup: 47
+   days ago — Save Backup"* — one click; never a pop-up (Law 18).
+2. The app records when you last saved a backup (this browser); a Restore counts too.
+
+#### Dark theme: fix the unreadable bar and the light strips
+<!-- id 20261007-0000a; merged 20261014-1030ab -->
+
+**In the launch gate (Ron, 2026-11-19):** if you've never picked a theme, the app follows the computer's dark setting (readerwrangler.html, the theme script at the top) — so every newcomer on a dark-mode computer starts in Dark, and after their first fetch meets the unreadable bar. Built with "Site pages use the shared named colors…" (below, part of this task).
+
+_Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar's text is unreadable.
+
+**What you see** (View → Theme → Dark)
+1. The bar under the menu bar reading **"📡 New library data available (uploaded …)"** keeps its light blue/purple background while its text turns near-white — unreadable.
+2. A light strip shows under the **"🔍 Active: Search …"** bar, and wherever there's a gap between sections.
+3. Not yet seen by you, same cause: light boxes in the Auto-Organize preview, and likely more.
+
+**Why** (verified)
+- Dark mode works by swapping a specific list of colors. Anything colored outside that list stays light.
+- The relay bar's background is a fixed light gradient; the app's outer background is a gradient style that isn't on the list.
+
+**Decided** (Ron, 2026-10-16)
+1. **Four themes, two screens.** The computer and the phone both have Light, Dark, High-contrast light and High-contrast dark. A fixed light color breaks High-contrast dark exactly like Dark — check Dark **and** High-contrast dark, on the computer **and** the phone.
+2. **The commit-time check comes first and produces the list.** Run once over today's code, it lists every fixed color (15 hard-coded backgrounds/gradients in readerwrangler.js alone, plus color classes the dark theme doesn't cover) — that list *is* the sweep. Fix everything on it; from then on the same check refuses new ones. It covers the app's own screens only: the bookmarklet's panels run on Amazon's pages, outside our themes, so their fixed colors are right.
+3. **Fix by naming colors, not by adding override rules** ("excellent idea" — Ron). Today Dark overrides a list of 76 specific style classes, and anything missing from the list silently stays light; that list only grows. Instead, each color gets a name defined once per theme ("surface background", "info bar"...) and the screens use the name. A name missing from a theme then shows up in every theme as soon as it's used (no background at all), not just in Dark — and the commit check can verify that every name used is defined in all four themes.
+4. **Shadows the same way — a few named levels** (Ron + Claude, 2026-11-04 — merged from "Leftover desktop polish: one
+   shadow direction", whose origin was lost): e.g. menu, dialog, floating card, each defined once per theme, so the
+   direction can't drift and the dark themes soften them in one place (a dark-on-dark shadow looks muddy). Today: ~57
+   from Tailwind's ready-made set (all straight down — not the problem) and ~49 hand-written (26 in readerwrangler.js,
+   23 in readerwrangler.css) — the commit check lists the hand-written ones as it does fixed colors.
+
+**How (technical)**
+- Dark remaps Tailwind classes in readerwrangler.css (`[data-theme="dark"] .bg-white {…}` etc.).
+- Relay bar: inline `linear-gradient(135deg, #dbeafe, #ede9fe)` with `color: var(--text-primary)` (readerwrangler.js ~9360).
+- Outer container: `bg-gradient-to-br from-blue-50 to-blue-100` (~8992) — gradient classes aren't remapped; the Active bar's `mb-4` gap shows it.
+- Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
+- The check (beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`): flag inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and Tailwind color classes with no theme mapping, in readerwrangler.js / mobile.js / readerwrangler.css and the site pages (index, features, tutorials, security,
+  changelog, reset — decided 2026-10-22; NOT the fetchers / nav hub); and flag any `var(--name)` that isn't defined for all four `[data-theme]` values. Move each hit to a CSS variable (e.g. `var(--bg-surface)`); retire remap rules as their classes go.
+- Themes: readerwrangler.css `[data-theme="dark"|"hc-light"|"hc-dark"]`; phone adds its own variables at mobile.js ~57–59.
+
+##### Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)
+<!-- id 20260909-0000 -->
+
+_Why it matters:_ The site pages are a reader's first look at RW. Today each one fixes its themes with its own override
+rules, so any color it misses stays wrong in some theme — and two pages have no themes at all.
+
+**Done already** (2026-09-09)
+- The security page's wrong statements were fixed, plus its navigation, and its Dark / High-contrast dark themes.
+
+**Decided** (Ron, 2026-10-22, in the TODO review)
+1. **Fix by naming colors, not by adding override rules** — the same decision as "Dark theme: fix the unreadable bar
+   and the light strips" (Decided 3). The security page's High-contrast light is the first page done this way, not
+   another override.
+2. **All four themes on every site page** (Light, Dark, High-contrast light, High-contrast dark), computer and phone.
+3. **The Dark theme task's commit-time color check covers the site pages too**, so a new fixed color on a site page
+   is refused just like one in the app.
+
+**What's there today** (checked 2026-10-22)
+- index, features and tutorials: all four themes, each through its own page's override rules.
+- security: Dark and High-contrast dark only (override rules); High-contrast light is missing.
+- changelog and reset: no themes at all — they always show Light.
+
+**How (technical)**
+- Each page has its own inline `[data-theme=…]` rules and its own copy of the theme-picking script (reads
+  `readerwrangler-theme`, falls back to the system's dark setting). Move both into one shared file the pages load:
+  the named colors, defined once per theme, plus the one script. Each page then keeps only its layout.
+- Whether that shared file is readerwrangler.css's color names or a small site file built from the same names:
+  decide when building — the names must be the same ones the app uses.
+- Pages: index, features, tutorials, security, changelog, reset (readerwrangler.html is the app — the Dark theme
+  task).
+- **Then write RW's own `DESIGN.md`** (2026-10-31, from the awesome-design-md idea — RW's own look, never another
+  brand's): the named colors for each of the four themes, typography, components, do's and don'ts — one source for
+  Claude, the outside reviewers and any future contributor. Keep it in step with the named colors (the commit check
+  that verifies every name is defined in all four themes can verify DESIGN.md lists them too).
+
+#### A public demo library from Amazon's best-seller lists (nothing personal)
+<!-- id 20261104-1613 -->
+
+_Why it matters:_ The sizzle reel, the landing page's pictures and the User Guide's screenshots need believable books.
+Today's demo library is made from Ron's own purchases — public by his choice, but it shows what he owns. Best sellers
+and classics are recognizable, show off Auto-Organize (real series, authors with many books), and are nobody's
+library.
+
+**Decided** (Ron + Claude, 2026-11-04)
+1. **Read the lists from the page Ron is viewing:** Amazon's best-seller pages (the NYT 2026 list — 7 pages — Kindle and
+   Classics categories) carry each book's ASIN, title and author in the page itself. Ron opens a page and runs one
+   **read-only console snippet** that collects them — no extra requests; next page, run again. (No saving pages.)
+2. **Depth: "More like this"** (the recommendations request probed 2026-11-03) turns each book into ten more — together
+   with the NYT pages, toward **~3,000 books** (Ron): also a selling point on camera ("your whole library, organized").
+3. **Details in one paced run:** the fetcher's own batch lookup (30 books per request) fills in covers, descriptions and
+   ratings; the snippet writes a file. Paced, with the human-check stop in mind — every request read-only, of a kind
+   the fetcher already makes. Request details: see TODO notes when building.
+4. **A generator on Claude's side** packs it into a demo backup — folders by author and series, Book Lists, a few books
+   in the Trash and hidden — the same way the test libraries are generated.
+   - **It must pass Restore's backup check** (backupCheck.js, 7.26.0; Ron's rules, 2026-11-08): Restore replaces
+     everything but the Cloud Sync credentials (merged only after asking), so a part that's missing or empty becomes
+     empty, and a backup is refused only when that leaves the library unusable. Required, each the right kind: the
+     backup marker (`isBackup: true`), a `2.x` version stamp, the list of books (`books.items`, a list), and the tag
+     list (`tagRegistry`, a table) whenever any book has a tag. Folders, Book Lists and Searches: write them (an empty
+     list is fine) — a missing one restores as none (with no folders, every book lands in the Inbox). Any part that's
+     written must be the right kind (collections' `items` a list, the view settings a table).
+   - **Write every part today's Save Backup writes**, and none of the obsolete ones ("Remove code left over from older
+     versions…", Polish: no `hiddenInstances`, `pinnedTagFolders`, `dataSource`, `lastSyncTime`).
+   - **No Cloud Sync credentials** in the file (the private-values commit check refuses them; the old demo files' were
+     revoked 2026-10-31).
+   - **Each book**: what "Restore checks every book, folder and list inside a backup…" (the launch gate) will
+     require — an ASIN, unique; each folder an ID, a name, a parent and a list of books.
+   - **Test it the way a person would:** a screen test restores the generated file and checks the counts and folders.
+5. **It replaces the demo library made from Ron's purchases** (`readerwrangler-demo-library*.json` and the demo filter's
+   list in `tools/demo-library/`) — retire those once the reel no longer needs them.
+6. **Covers:** real ones from Amazon on camera — thumbnails, plus one or two full size in a book window. Ron's call
+   (2026-11-04): fair use as he sees it, and he accepts the risk of a cease-and-desist; listed for outside review 1 so
+   it sees the whole picture.
+- **Built before "Screen capture pass…"** (just below), which records with it.
+
+#### Screen capture pass: the sizzle reel, the landing page's before / after, README's old video
+<!-- id 20261014-1030bc; merged 20261014-1030al -->
+
+_Why it matters:_ What the public sees of the app is stale: the landing page's before / after pictures predate the
+redesign, and README links a walkthrough video (39 MB) of the old way of organizing. The sizzle reel (DEMO-LIBRARY-PLAN.md,
+"Video 0": 20–30 s, rapid cuts, music, no voiceover) was planned but **never made** — Ron: "I think the sizzle reel
+will be a seller."
+
+**Decided** (Ron + UX, 2026-10-23, in the TODO review; merged "Refresh the landing page's before / after screenshot")
+1. **One pass, one sitting:** the sizzle reel, the before / after pictures, the preview thumbnail — same demo library,
+   same build. The User Guide's screenshots come from the same pass.
+2. **Last in Before launch, with the User Guide** — nearly everything on screen is about to change (Cloud Sync names,
+   drag labels, site-page themes, the Send buttons); recording sooner means recording twice.
+   **Changed 2026-11-19 (Ron: the reel is needed AT launch; "I'm expecting you to be able to make the sizzle reel
+   now"):** build the pipeline and a first draft EARLY, on today's screens — every take is scripted, so a screen
+   change means re-running the script, not re-shooting by hand — and the final cut once the launch work has settled
+   the screens. Ron picks a royalty-free music track; Claude cuts to it (Claude can't hear it or judge its license).
+3. **If the outside newcomer review runs** ("Outside reviews before building", review 4), write the reel's script after
+   it — it may change what the landing page needs to say, and the reel is the landing page's opening.
+4. **README's old walkthrough video: remove it** (link and file), not replace it.
+5. **Use the public demo library** — "A public demo library from Amazon's best-seller lists" (just above), built
+   first; Ron's real library never appears on screen. (Until then: today's demo library and the fetcher's demo filter.)
+6. **Keep the reel in the plan** — though Ron dreads making it (the tutorials were "super tedious", which is why they
+   were cancelled; the support assistant replaces tutorials 2–8).
+
+**Approach note** (Ron + Claude, 2026-11-03 — discussed, to confirm when this comes up; the answer to Ron's dread of
+the tedious part)
+1. **Scripted takes:** the browser driver ("Carry over the utilities project's improvements…") plays the shot list on
+   the demo library — real clicks, drags and menus, identical every time; a UI change means re-running, not re-shooting.
+   This tips that task's "Playwright or copy `drive_page.mjs`?" toward **Playwright**, which records video itself.
+2. **Assembly by Claude:** FFmpeg (cuts, joins, fades, titles, captions, even sound levels) — or Remotion (video built
+   from the same kind of code as the app, so title cards can use its real look). Claude can't watch video or hear
+   sound directly, but can check cuts frame by frame as pictures.
+3. **Sound placement: Earshot** (github.com/Leonxlnx/earshot, MIT, runs on the PC) turns audio into text Claude can
+   read — what a sound is, exactly when events happen, whether sound lines up with picture — plus a bank of 201 sound
+   effects. Its own limits: no taste, no licensing judgments. **Before using:** it was version 0.1.0 on 2026-11-03 and
+   connects to Claude as a tool server — read it and pin an exact version (our outside-code rules); leave its optional
+   critique (sends audio to Google's Gemini) off.
+4. **Taste stays Ron's:** he watches drafts and says what's wrong.
+5. **To decide then:** this mostly replaces DaVinci Resolve for assembly (Claude can't drive Resolve's screens).
+
+**Spec:** docs/design/DEMO-LIBRARY-PLAN.md (Video 0 shot list, the demo library, the fetcher's demo filter);
+docs/design/VIDEO-PRODUCTION-GUIDE.md (tools); the demo prep scripts: `tools/demo-library/`.
+**Video work stays outside the repo** (e.g. `Documents\ReaderWrangler-video\`; decided 2026-11-02 when the old
+`tutorials/` work files — 200+ MB of clips, narration, Resolve projects and a saved Amazon page with account details —
+were deleted as out of date): one stray `git add` must never be able to commit them.
+**Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): takes with Playwright for Python's `page.screencast` (chapter cards, a visible
+cursor, drives the installed Edge); assembly with FFmpeg or Remotion (free for individuals; render from the command
+line — browser-side rendering reports usage); Earshot only after vetting and pinning a commit.
+
+#### All the pre-launch data tests pass
+<!-- id 20260904-0000 -->
+
+_Why it matters:_ The core data rules must be proven before strangers rely on them.
+
+**Already done**
+- Suite 1 (merging and edit protection) exists: test/bookMerge.test.js ("the pre-launch gate for the import merge") and test/bookFields.test.js.
+
+**Left**
+- Suites 2 (Import mapping), 3 (permanent-delete markers) and 4 (load guards) from PRELAUNCH-TEST-GATE.md.
+- One command that runs them all.
+
+**What it means**
+- The test suites in docs/design/PRELAUNCH-TEST-GATE.md exist and pass: merging and edit protection, Import mapping, permanent-delete markers, load guards, relay behavior.
+- Specified 2026-09-04 while those bugs were fresh. About 2–4 sessions when the time comes.
+- **Blocks launch; blocks nothing else.**
+
+**Decided** (Ron + Claude, 2026-11-01, in the TODO review)
+0. **Part of the regression library** (docs/design/TESTING.md, 2026-11-04): these suites are its pre-launch data gate,
+   run by the same runner and tiers.
+1. **Outside review 3 (data safety) comes first** — it attacks what we didn't think of; its findings become test cases,
+   rather than writing suites 2–4 now and patching them after ("Outside reviews before building", High priority).
+2. **The relay suite half-exists:** `relay/test-phase1.mjs` (59 checks: torn saves, fallback, cleanup guards…) and
+   `relay/test-signed-writes.mjs` (22: signatures) count toward "relay behavior"; add only what's still uncovered.
+3. **One command, in Python** (Ron's scripts rule) — e.g. `tools/run_tests.py`: the unit suites, then a LOCAL relay
+   (`npx wrangler dev --env dev --local`) and both relay tests against it, then stop the relay by its exact process
+   id (Law 5). Dev only as a final check (it spends the account's shared write limit).
+4. **The fast suites become a commit check:** a commit staging `bookMerge.js`, `bookFields.js` or `organizeEngine.js`
+   (and so on, module → its test file) runs that module's tests and refuses on a failure — seconds, every time; a
+   suite that runs only when remembered is discipline, not a mechanism.
+5. Option, not a requirement: once the browser driver exists (High priority), flows like Restore and Import mapping
+   can also be tested through the real screens, not only the functions underneath.
+
+
+### High priority
+
+#### Honest ownership changes: buying, samples, loans
+<!-- id 20261014-1700 -->
+
+_Why it matters:_ When a book changes kind — bought, a sample, a loan, a book in the Trash — ReaderWrangler should notice, tell you, and never lose your settings.
+
+**What this is**
+- One batch, ratified 2026-09-04 (formerly its own section, "⏸️ On hold: honest ownership changes"). **Status: queued**
+  (Ron, 2026-10-20 — no longer on hold). Its tasks are below, **in build order**: the rules doc and the foundation
+  first, then the data fixes, then the summaries (the polish end — there's nothing honest to report until the fetch
+  notices changes). **"Fetch should update books it already knows" goes first.**
+
+**Already shipped from this batch**
+- 7.7.2 (2026-09-07): Imports reclaim old upload storage. Its outstanding proof is **settled**: 7.21.1 reclaims on every
+  save, and since 7.23.0 (2026-10-20) production's nightly storage check confirms nothing is left over.
+- 7.8.0 (2026-09-08): the ownership dialog redesign, the undo fence, undo messages that name what they undo.
+- 7.9.0: one unified Auto-Organize. Two pieces were deferred on purpose: "Auto-Organize: Shift-click ranges should
+  follow what you see" (a task, Polish) and "let a misfiled book go back to the Inbox" (dropped 2026-10-22 — right-click
+  → Move to → Inbox and Ctrl+Z already cover it).
+- 7.10.0: Save as Spreadsheet (CSV) — the user who asked for it was sent a reply (no response).
+- 7.11.0: item 11. (Item 12 was made unnecessary by the Auto-Organize rework.)
 
 ##### Buying a book that's in the Trash should bring it back
 <!-- id 20261014-1030j -->
@@ -1297,6 +1883,248 @@ tasks: "Import summary: count every ownership change, by kind", "Keep the Import
 **How (technical)**
 - Since 6.17.2 the summary reports "N now owned", but it's keyed on the wishlist flag flipping. Key it on
   `ownershipType` transitions instead (the one function's result).
+
+#### Series positions: one Position dialog, and one book at several positions (omnibus)
+<!-- id 20260915-0000 -->
+
+_Why it matters:_ Three menu items do nearly the same job under different names (Ron couldn't find the one he needed), and a collection should appear at each place it belongs in its series.
+
+**Today's confusion** (found 2026-10-16) — the book right-click menu's **Edit ▸** submenu has **Position...** (one number for every selected book), **Number by current order...** (1, 2, 3… in the order shown, plus an optional series name) and, three items further down, **Set numbers (13, 13.5, 14…)...** (a comma list, one number per book). Ron tried "1, 4" and "1-3" in **Position...** and the box blocked the comma and dash — while its hint text reads "e.g., 1, 1.5", which looks like a list. Each feature was added at a different time as a new menu item; nobody looked at the whole submenu.
+
+**Decided — one Position dialog** (Ron + UX, 2026-10-16)
+1. **Edit ▸ Position... is the only one.** Number by current order... and Set numbers... leave the menu; Edit ▸ becomes Author..., Series..., Position..., Format...
+2. **It takes a list; each item maps to one selected book, in the order shown.** `13, 13.5, 14` = three books, one number each. A range `7-15` = 9 items (7, 8 … 15), one per book. **Brackets put several positions on one book:** `(4-6)` = an omnibus. Example: `1,2,3,4,(4-6),7-15` = 14 items for 14 books, the 5th being the omnibus. The same number on two books is fine (Ron owns #4 alone *and* the 4–6 omnibus, bought on sale).
+3. **Live preview in the dialog:** each selected book by title with the number(s) it will get, updated as you type. A count mismatch is said plainly ("14 numbers for 15 books — one short") and **Apply** stays off until the counts match.
+4. **"Fill 1, 2, 3… in the order shown"** is a button in the dialog that writes `1-N` into the box, ready to edit — not a separate feature.
+5. **One book selected:** whatever you type is that book's positions — `1-3` is the omnibus — and `(1-3)` works too (Ron: don't punish what the multi-book form taught you). **The book details window's Position field uses the same rule** — one parser everywhere.
+6. **One number with several books selected** (`3`, 5 books) gives them all that number, as today; the preview shows "All 5 books → 3".
+7. **No series name in this dialog** (Ron + UX): Series... sits right beside it. If the selected books have no series name, the preview adds one line: "These books have no series name — set it with Edit ▸ Series...".
+8. **All of it ships together, omnibus included** (Ron): no in-between version to learn.
+9. **Showing an omnibus in a series sort: one entry per unbroken run.** `7-9` shows once, labeled "7–9", at 7 — not three identical covers. `1, 4` shows at 1 **and** 4. `1-3, 5` shows twice ("1–3", "5"). *Side Jobs* `2.5, 4.5, 4.6, 5.5` → three entries ("2.5", "4.5–4.6", "5.5"), each between the right volumes.
+
+**Watch out**
+- Amazon's fetch also writes series and position. A hand-entered list (`7-9`) must survive later fetches — the "your edit beats Amazon's" protection hand-edited fields have — or the next library refresh quietly undoes it. Verify when built.
+- Until this ships, the Position... hint "e.g., 1, 1.5" keeps inviting a list it blocks (readerwrangler.js ~13365).
+
+**What you'd get**
+- **One** book record holding **several** series positions, shown once at **each** position when sorted by series.
+- An omnibus that **is** volumes 1–3 (`1-3` or `1,2,3`; today's Raj Whitehall "789" workaround).
+- An anthology whose stories fall between volumes (`2.5, 4.5, 4.6, 5.5` — the Dresden *Side Jobs* pattern; today you file it at its first position with the story map in the Note).
+- A visible cue on the repeats ("also at 4.5", or a ⟳ badge) — deliberate duplication must look intentional.
+- **A folder's manual order shows the book once** (manual positions are per book; repeats belong to series-sorted
+  views). **A Book List is different — revised 2026-10-21 (Ron):** it's a reading order, so it holds **one entry per
+  run** (*"Side Jobs — 2.5"*, *"Side Jobs — 4.5"*), created when a series sort is baked into it — see "Bake this order
+  into Manual…" (Polish), which is built after this task.
+
+**Extension: several series in one book** (MegaPacks, Ron 2026-09-20)
+- A public-domain MegaPack can hold scattered volumes of several series at once (e.g. Skylark 1, 4 + Lensman 2, 4), possibly by several authors.
+- **Keep the common case simple:** one series → the existing Series field plus a numbers field that takes ranges and lists (`1-3, 5`). A **"+ add series"** link reveals a multi-row editor (series + numbers per row) only for the rare multi-series book.
+- Filtering matches if **any** of its series match; sorting uses the lowest position.
+
+**Decided**
+- **No duplicate book records**, and no fake ASIN-suffixed books (rejected 2026-09-15): they'd fight ASIN-keyed merging, the removed-books scan would flag them every fetch, and duplicate detection, upgrades and CSV would all need special cases.
+- **Per-story notes: out of scope** — you already tag notes free-form.
+- The rule "no duplicates in a folder" is untouched.
+
+**Open**
+- To spec: CSV export (one row, the list in the column). (Settled 2026-10-16 above: how runs display, and "Number by current order" / "Set numbers" folding into the Position dialog.)
+- Multi-author MegaPacks: the compound-author problem is separate and pre-existing — not solved here.
+
+**How (technical)**
+- `seriesPosition` becomes a parseable list / range, expanded at sort time into display instances (the `_instanceId` render-layer idea — not duplicate records).
+- Generalized: `seriesMemberships: [{series, positions:[…]}]` — a normal book is one entry with one position (uniform data; the UI compacts it).
+- Ratified direction 2026-09-15.
+
+#### Rebuild the old-style message boxes as standard dialogs
+<!-- id 20261014-1030ak -->
+
+_Why it matters:_ "Drag any dialog out of the way" (next) must work for these boxes too — done after it, dragging gets
+built and maintained twice (Law 5); done first, once, for everything. And every dialog gets one look.
+
+**What's there** (counted 2026-11-02)
+- The message boxes — OK/Cancel, type-a-name, progress, choice, "Owned Book" — are hand-built page elements, used in
+  about 47 places (info 19, confirm 16, type-a-name 8, progress 5, choice 3, delete-warning 2).
+- Since 7.18.0 they behave like every other dialog (Esc, ✕, key blocking), but keep their own hand-built look.
+
+**Decided** (Ron + Claude, 2026-11-02, in the TODO review — moved up from After launch / Dialog look)
+1. **Option A:** one shared piece shows each request as a standard dialog; the ~47 call sites stay unchanged; removes
+   about 300 lines of hand-built code. Costs a visual check of all 47 — the browser driver can open each and screenshot it.
+2. **Before "Drag any dialog out of the way"**, and before the new boxes being designed (the Cloud Sync task's "Make a
+   new Cloud Sync Key?", the Disconnect window, the Reset App message) — so they're standard dialogs from day one.
+3. When it ships, update CLAUDE.md's dialog rule (it calls this "a low-priority TODO").
+
+**How (technical)**
+- `showInfoDialog`, `showConfirmDialog`, `showInputDialog`, `showProgressDialog`, `showChoiceDialog`, `showDeleteWarningDialog`, rendered as `<Dialog>`s by a React "dialog service"; callers keep `await showConfirmDialog(…)`.
+
+#### Drag any dialog out of the way
+<!-- id 20260928-0000 -->
+
+_Why it matters:_ Dialogs sometimes cover what you need to see; dragging them aside is a habit from Quicken.
+
+**Order:** after "Rebuild the old-style message boxes as standard dialogs" (above) — so dragging is built once, for
+every dialog (2026-11-02).
+
+**What you'd get**
+- Drag any dialog by grabbing it anywhere except its controls (buttons, fields, links, lists). The pointer turns into a move cursor to show it.
+- Folder Properties used to be draggable on its own; it lost that in 7.18.0 and gets it back here.
+
+**Decided** (Ron, 2026-09-28 and 2026-10-14)
+1. **Stays on screen.** By default you can't drag a dialog so far that you lose it; a strip you can grab always stays visible. A dialog can opt in to dragging fully off the window (as Quicken's Search Results and Reconciliation do); prove that with one dialog.
+2. **Where dialogs open:**
+   - A first dialog opens centered in the window.
+   - A dialog opened from another dialog opens centered over the one that opened it, wherever you dragged it. If you moved a dialog aside to read the app, what it opens appears beside it too.
+   - Never "wherever it was last time".
+3. **Dialogs underneath are frozen for use.** Their buttons and fields do nothing until the top dialog closes, because the top one may be mid-change.
+4. **But every dialog can be dragged, including the ones underneath.** Moving a window changes nothing, so it's always safe. Windows doesn't allow this: you have to close back down, move the first window, and rebuild the stack.
+5. **Clicking a frozen dialog does nothing.** Above all, it must not close the top dialog. Only a click on empty background closes it. A brief flash of the top dialog is an optional hint.
+6. **Where you can grab it: anywhere that isn't a control or text you might select** (Ron left this to me, 2026-10-16). Pressing on text and moving the mouse must keep selecting text — you copy from descriptions, reviews and notes. So you drag by the title bar, headings, labels, margins and empty space; the move cursor shows only there.
+7. **Points 4 and 5 are built together:** a click on the background layer first checks whether a dialog lies under the pointer — if so it's a drag (on its grab areas) or nothing, never a close. Dialogs underneath show the move cursor on the same grab areas as the top one.
+8. **Stays on screen when the window shrinks too:** a dialog left off screen is pulled back so its grab strip shows.
+9. **Computer only.** On the phone dialogs fill the screen, so no dragging there.
+
+**Watch out**
+- "Every dialog" covers two kinds: the standard dialogs, and the older message boxes (OK/Cancel, type-a-name, progress; about 45 places use them), which are built differently. Drag must work in both — or, as decided, the message boxes are rebuilt as standard dialogs first ("Rebuild the old-style message boxes as standard dialogs", just above), so drag is built once.
+- Today a click anywhere outside the top dialog closes it, including on a dialog showing through underneath. Point 5 changes that rule, so test it carefully.
+
+**How (technical)**
+- Build drag once in the shared `<Dialog>` (readerwrangler.js ~61) so every dialog gets it at once. The old per-dialog drag code (`dialogDrag`) is already gone.
+- Names from the 2026-09-28 decisions: a `cursor:move` affordance; the off-window opt-in is a `dragBounds:'free'` option.
+- Message boxes share their window chrome in `attachDialogDismiss` (readerwrangler.js ~237); add drag there.
+- A click on a lower dialog actually lands on the top dialog's full-window background layer (readerwrangler.js ~69–71). The background-click close must ignore clicks that fall over another dialog (`document.elementsFromPoint` under the layer).
+- "Not selectable text" (point 6) reuses the 7.19 Ctrl+A area marks: `data-select-text` (text) and `data-select-items` (checklists) — readerwrangler.js ~55–60 — plus inputs, buttons, links, lists. No second list to keep in step.
+- New user feature, so it gets its own branch and release.
+
+#### Drag a box to select covers
+<!-- id 20261014-1030q -->
+
+_Why it matters:_ Faster than clicking covers one by one.
+
+**What you'd get**
+- In cover view, drag a box to select the covers inside it — the way Windows Explorer does.
+
+**Decided** (Ron + UX, 2026-10-16)
+1. **Start the box on empty space only** — the gaps between covers, the margins, below the last row. Pressing on a cover and dragging still moves the book, exactly as today.
+2. **Plain drag replaces the selection; Ctrl+drag adds to it** (the same split as click vs Ctrl+click).
+3. **Live:** covers highlight as the box passes over them. **Esc** cancels the box and puts back the selection you had before.
+4. **Auto-scroll:** dragging past the top or bottom edge scrolls the library, so a box can cover more than one screen.
+5. **A rectangle, no lasso.** It can span group headers (e.g. two series groups). Computer only — on the phone, dragging is scrolling.
+6. **Looks like Explorer's:** a see-through light-blue fill with a thin **solid** border — never dashed (a dashed outline is the "marching ants" on cut books). Its colors are named per theme (see the Dark theme task): in Dark / High-contrast dark, a brighter see-through blue that stays visible.
+
+**How (technical)**
+- Extends `explorerSelectedItems`.
+- The library hides off-screen rows during a drag to stay fast with 10,000+ books (drag virtualization, readerwrangler.js ~1530) — so work out which books the box covers from the grid's layout (row/column positions), not from what's drawn; otherwise auto-scroll misses books.
+
+#### Every edit rewrites the whole library in storage
+<!-- id 20261110-1734 -->
+
+**First, measure (the launch gate's review, 2026-11-19):** time one save with 10,000 books. If it takes more than about a second, this moves into the launch gate (a stranger's laptop would feel broken); if not, it stays here.
+
+_Why it matters:_ Changing one book — a tag, a rating, a move — saves all 3,270 books again (the book store is cleared
+and refilled each time, ~0.9 s on Ron's PC): slow work after every change, and a full rewrite is a needless chance
+for something to go wrong. Found 2026-11-10 while fixing the load's save ("Faster loading").
+
+**What to look into**
+1. `saveBooksToIndexedDB(updated)` is called from more than 60 places with the whole list; it clears the store and
+   adds every book (storage.js). The class needs a site map first.
+2. Likely shape: one save that writes only the books that changed (the store keys books by id) — the same "compare
+   with what's stored" idea as the load's `saveBooksIfChanged`, or the callers say which books they changed.
+3. Keep the write lock and the one-transaction safety (no moment where a reader sees half a library).
+4. **Discussed 2026-11-10 (Ron + Claude):** the save finds the delta itself — a changed book is a new copy (the app
+   doesn't edit books in place), so "not the same copy as last saved" costs ~1 ms for 3,270; only those are written,
+   removed ones deleted, in one transaction. Ron: **also change the 60 places once to call one common function** —
+   most repeat the same pattern (`setBooks(prev => { const updated = …; saveBooksToIndexedDB(updated); return
+   updated; })`), so one `updateBooks(change)` (the state update + the save, the delta inside it) is the chokepoint,
+   and a new call site can't forget the save. Claude agrees: both together. First the site map (does every site make
+   new copies?), a contributor-mode guard that compares by content now and then, and a test that edits and reloads.
+
+#### Search improvements
+
+The right pane's search box: one shared matching rule (incl. ASIN), and searching everywhere without losing your place. Build both parts together — they answer the same question: "is this book in my library?"
+
+##### Find a book by its ASIN in the search box
+<!-- id 20261012-0000 -->
+
+_Why it matters:_ Handy for checking whether one specific book is in your library.
+
+**What you'd get**
+- Type a book's ASIN (e.g. `B08P52K2PZ`) into the search box at the top of the right pane, and it finds the book. Today the box matches only title, author and series.
+- The box's placeholder and tooltip say what it searches: "Title, author, series, notes, tags or ASIN".
+
+**Decided** (Ron, 2026-10-16)
+1. **One shared matching rule everywhere** — the search box and saved Searches, on the computer and the phone.
+2. **It matches title, author, series, your notes and tag names** (as the phone's search box already does), **plus an exact ASIN**: only a complete 10-character ASIN, any case. No partial ASINs — almost every Kindle ASIN starts with "B0", so "B0" would match nearly everything.
+3. Known side effect, accepted: an existing saved Search may pick up a few extra books whose notes or tag names contain its word.
+4. **Build together with "Search everywhere without leaving the current folder"** (next task): a complete ASIN searches Everywhere automatically.
+
+**Bug this fixes** (found 2026-10-16): the rule exists in **four** copies that disagree — computer search box and saved Searches: title/author/series; phone saved Searches: title/author only (**no series**); phone search box: title/author/series/notes/tags. So a saved Search for a series name finds the books on the computer and nothing on the phone.
+
+**Status:** Ron, 2026-10-12 (came up testing removed books). Small.
+
+**How (technical)**
+- Copies: readerwrangler.js ~10020 (live filter), `bookMatchesFilters` ~2269 (saved Searches), mobile.js ~343 (`bookMatchesFilters`, saved Searches), mobile.js ~2287 (search box).
+- One `bookMatchesText(book, term, tagLabel)` in uiHelpers (tag names need the tag list — pass a lookup); ASIN = exact match of a 10-character term, case-insensitive.
+
+##### Search everywhere without leaving the current folder
+<!-- id 20260829-0000a; merged 20261014-1030an -->
+
+_Why it matters:_ Answers "is this book in my library?" without losing your place.
+
+**What you'd get** (Ron, 2026-08-29)
+- The search box still searches the current folder by default. While searching, a toggle shows: **This folder | Everywhere** (as in Finder / Explorer).
+- "Everywhere" shows matches from the whole library in the right pane, temporarily. Clearing the search returns you to the folder, scroll position untouched.
+- **Discoverability:** when nothing matches, offer *"No matches in ‹folder› — Search everywhere?"* as a one-click link (as Gmail and Amazon do).
+- Results work with the existing "where does this book live" popup, so the answer arrives with locations.
+
+**Decided** (Ron + UX, 2026-10-16) — moved here from "Everyday organizing"
+- **Build together with "Find a book by its ASIN in the search box"** (above): both answer "is this book in my library?"
+- **A complete ASIN searches Everywhere automatically** — an ASIN is unique, so "this folder only" is never what you mean. The toggle shows **Everywhere** so you can see why.
+
+**A third way in: "More by ‹author›"** (Ron + UX, 2026-10-21 — merged from "See an author's other books without
+leaving your spot": "Today it takes All Books + a filter + finding your way back")
+1. **Right-click a book → More by ‹author›** fills the search with the book's **whole author text** and switches to
+   **Everywhere**; clearing it returns you to your spot, scroll untouched (the step above). Author text is **never
+   parsed** (AUTO-ORGANIZE-UNIFIED.md): from "Jodi Taylor" it also finds her co-authored books (the search matches text
+   anywhere in the field); from "Larry Niven, Jerry Pournelle" it finds that combination — type "Niven" for just him.
+2. **Right-click a folder → More by ‹author›** when the author comes from data, not a guess: the folder's **name exactly
+   matches an author** in the library (Auto-Organize's author folders, e.g. "Jodi Taylor"), or **every book in it shares
+   one author** (a series folder like "Time Police"). Answers "what else of hers do I have outside this folder?" —
+   Inbox, wishlist, other folders.
+3. **Always in the folder menu, in the same place — disabled, not hidden, when it doesn't apply**: then it reads
+   **More by this author**, with the tooltip *"This folder holds books by several authors — right-click one of its
+   books."* (the menu rule: "Menus keep their items in place", Polish → Small fixes). On a book's menu it's always
+   enabled.
+
+**How (technical)**
+- Reuse the view-folder filter-stash plumbing for the temporary view.
+- Folder case: the "common author" check Auto-Organize already uses when naming.
+
+#### Phone: show which test build is running
+<!-- id 20260922-0000 -->
+
+_Why it matters:_ During testing you can't tell from the phone which build it's on.
+
+**What you see**
+- The phone's About shows "App v…" — the last **released** version, which by design doesn't change during testing — and "Mobile v…".
+- The desktop shows the live test build (e.g. 7.16.0-alpha.6). The phone can't, since it's a different file. The mobile number does change with each test build, but the "App v" line looks stale.
+
+**The real gap** (found 2026-10-16): the phone's "Mobile v…" moves only when the phone's own file changes, but the phone also runs the shared pieces (date presets, storage, sync). A test build that changes only those leaves **both** phone numbers unchanged — 7.21.2's alpha.1 → .3 all showed "Mobile v1.10.1-alpha.1".
+
+**Decided** (Ron, 2026-10-16)
+1. **One live build number for both screens, defined once** — a "Build" stamp in readerwrangler.html, which both load. Both About boxes show it the same way: "Version 7.21.3 · Build 7.22.0-alpha.2".
+2. **The commit check refuses any app-code commit that doesn't move it**, so it can't go stale. It retires two hand-kept stamps: the desktop's own build number (`ORGANIZER_VERSION`) and the rule that the phone number copies the desktop's "-alpha.N" ending. "Mobile v" can stay as a plain release number, or go. Update CLAUDE.md's versioning section when this ships.
+3. **Tell the installs apart on the home screen** (Ron, 2026-10-15): production keeps its icon and name; the **dev** install gets the icon with a red "DEV" overlay and the name "RW Dev"; and plan now for a **local** install (the PC's server over home Wi-Fi — not used yet, but don't close it off): its own overlay ("LOCAL") and name "RW Local".
+
+**How (technical)**
+- `APP_VERSION` (released, frozen during alphas) vs `ORGANIZER_VERSION` (live, desktop only) vs `MOBILE_VERSION` (moves per alpha).
+- Home-screen icon + name come from the **web app manifest** (`manifest.json`, linked at readerwrangler.html ~14);
+  Android wraps it into a "WebAPK" on install. The dev site serves the SAME files as production, so the manifest
+  must be picked at run time: `manifest-dev.json` and `manifest-local.json` (own icon + name each) and a line in the
+  startup script that points the `<link rel="manifest">` at the right one via `isDevSite()` / `isLocalServer()`
+  (readerwrangler.html ~190). Needs the icon images made (192/512 px, DEV and LOCAL). Reinstall after the change for
+  the new icon to appear. Watch out: a local install's address is the PC's home-network address, which can change.
+- Build stamp: the version-guard (`git-hooks/version-guard.py`) already knows which staged files are app code
+  (`shipped_code_staged`) — require the Build stamp line to change whenever that's true, narrowed to what the app
+  itself loads (not pages like security.html or the fetchers, which have their own versions).
 
 #### The left pane, one release
 
@@ -1712,7 +2540,7 @@ are approximate (readerwrangler.js unless named).
    `isHidden` backfill (uiHelpers.js ~95), `__views__`, the phone's own covers / list setting.
 
 **How**
-1. **With "One backup writer…"** (Before launch → Safety and data protection), not before: three of these
+1. **With "One backup writer…"** (the launch gate), not before: three of these
    (`hiddenInstances`, `dataSource`, `lastSyncTime`) are written by both copies of the backup writer — one writer,
    then one change.
 2. **Readers stay tolerant:** an old backup or a phone's old copy may still carry them — ignored, never an error (the
@@ -1809,68 +2637,6 @@ later; both added an interruption around a rule that shouldn't apply — Law 18)
 - The notice is raised from 3 places (search `setNewFolderHiddenAlert`); remove them with it.
 - Keep a "just created" id set that the filtered folder / Book List lists always include; clear it when the filters
   change.
-
-#### Book details window: one Save — nothing changes until you click it, and nothing is lost without asking
-<!-- id 20260910-0000b; merged 20261015-1644, 20261014-1030ba -->
-
-_Why it matters:_ Today some fields save instantly and others wait for Save; Save is enabled even when nothing changed;
-and every way out of edit mode throws your changes away without a word. One rule makes the window predictable, with
-one undo per Save. (Public promise: README's Coming Soon — "A calmer book editor".)
-
-_Merged 2026-10-21 (Ron + UX) from "Book details window: changes happen only when you click Save" (ratified
-2026-09-10) and "…Save only when something changed; offer Save before closing with unsaved changes" (2026-10-15) —
-they share one "what changed?" check. Two steps, in order: step 1 is smaller and works on today's fields._
-
-**Step 1 — Save only when something changed; ask before losing changes** (decided Ron + UX, 2026-10-15)
-
-What you see (Ron, 2026-10-15):
-1. Open a book → **Edit**: **Save** is enabled even though nothing has changed.
-2. Change something, then **Cancel** — or Esc, ✕, or a click on the background (all four do the same): the changes are
-   gone, with no warning.
-
-Decided:
-1. **Save is disabled until something changes**, with a tooltip "No changes to save". Enter with nothing changed just
-   leaves edit mode.
-2. **With unsaved changes, every exit asks** — Cancel, Esc, ✕, background click, ◀ ▶ to another book, closing:
-   > **Save your changes to "‹title›"?**  **[Save]** · [Discard changes] · [Keep editing]
-   1. **Save is the default** (Enter) — the common case is an accidental exit, and a saved edit can be undone;
-      discarded changes can't.
-   2. "**Discard changes**", never the default, so no keystroke picks it by accident.
-   3. **Esc in this dialog = Keep editing** (back out of the question).
-   4. Only when something changed — otherwise exits just close, as now.
-   5. The same one dialog for the explicit Cancel button too (uniform beats two variants).
-3. **One "what changed?" check** drives both — the comparison Save already makes. Step 2's fields join it.
-4. (2026-10-21, gate item 13) The exit question passes Law 18 — a confirmation for a genuinely destructive case (losing
-   unsaved edits), with Save as the default guessing the likely intent.
-
-**Step 2 — changes happen only when you click Save** (ratified 2026-09-10)
-1. In the book details window, **Edit → Save is the only way anything changes** — one undo per Save. Cancel throws
-   away everything you changed (after step 1's question).
-2. Rating, price goal and tags stop being instant controls: they're saved with everything else. A new tag is created at
-   Save.
-3. **Click-to-edit, so no click is dead** (2026-10-21 — the 2026-09-10 decision said "read-only in view mode", which
-   predates Laws 16 and 18: a star you can't click would be a dead control refusing a clear intent). **Clicking any field
-   in view mode switches to edit mode right there:** the 4th star → edit mode with 4 stars staged; the price goal →
-   edit mode with its box focused. Still nothing saved until Save.
-4. **Commands stay live in both modes:** Share, the Amazon link, Status History, ◀ ▶ (previous/next book).
-5. Outside the window, changes stay instant (one undo each).
-6. **Quick access** (replaces the instant controls): in list view, click the Price Goal or My Rating cell to set it in
-   place (preset goals / custom amount, or a row of stars). Decide during the build: should right-clicking a cover also
-   offer a My Rating submenu?
-7. **First, classify every control** in the window as a field (saved by Save) or a command (acts now) — **with a
-   tooltip column**: each control's tooltip wording where it isn't self-explanatory (e.g. Collections: "Read-only:
-   comes from your Kindle collections on Amazon"). Merged 2026-10-21 from "Tooltips in the book details window" — one
-   pass through the window covers behavior and wording. Publish the table for Ron's red pen **before** any code. Its own branch; version number assigned when the work starts (the old
-   "7.14.0" label is stale).
-
-**How (technical)**
-- `enterEditMode` / `cancelEditMode` / `saveEditMode` (readerwrangler.js ~7022–7160 on 2026-10-21); `saveEditMode`
-  already diffs `editBookFields` against `modalBook` — extract that into one `bookEditChanges()` used by Save's enabled
-  state and by the exit guard. The dialog's onClose in edit mode routes to `cancelEditMode`.
-- The confirmation is a `<Dialog>` (overlay system) — not a hand-built box.
-- Step 2: rating / price goal / tags join `editBookFields` as staged fields; Save folds them into the one `EDIT_BOOK`
-  undo step. Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and Ron's context-keying principle:
-  UNDO-MODEL.md, section "fully transactional".
 
 #### Tag lists and long lists, one release
 
@@ -2123,39 +2889,6 @@ the status bar, the same box is reused and slides there over a second (`transiti
 message glides in from the old spot or from the status bar. It reads as wrong, and for a second it's somewhere you
 didn't look. Found by sprint 6's TOAST-006 (which now waits for a message to arrive); not changed there — it's visible
 behavior. **How:** a new message starts where it belongs (no transition for the jump), then holds and flies as today.
-
-##### What a reset clears: four resets, four different lists
-<!-- id 20261106-1715 -->
-
-_Why it matters:_ "Reset" should mean the same thing everywhere. The app has four resets and each clears its own hand-kept
-list of saved settings — so an Emergency Reset can leave things a Reset App clears, and old Book Lists may come back
-(Law 4: four answers to one question = one missing list). Found 2026-11-06 while fixing F3 (all four now share ONE
-delete of the book store, storage.js `deleteBookStore` — 7.25.1).
-
-**What each clears today** (besides the book store; checked 2026-11-06)
-
-| Saved setting | Tools → Reset App | "Erase and Reset" (app won't load) | Emergency Reset page | Phone's Reset |
-|---|---|---|---|---|
-| library state, cache, status, filters, view, folders | ✅ | ✅ | ✅ | ✅ |
-| **Book Lists** (`readerwrangler-booklists`) | ✅ | ❌ | ❌ | ❌ |
-| settings (`readerwrangler-settings`) | ❌ | ✅ | ✅ | ✅ |
-| theme, phone preferences | ❌ | ✅ | ❌ | ✅ |
-| Cloud Sync credentials + status | ❌ (kept) | ❌ (kept) | ❌ (kept) | ✅ (says so in its confirm) |
-| wizard settings, search history, phone navigation, desktop mode | mixed — see the four lists |
-
-- **Likely bug:** the library load falls back to the separate Book Lists entry when no saved organization exists
-  (readerwrangler.js ~4489) — so after any reset but Reset App, the old Book Lists may reappear. Check with a test.
-- Where: readerwrangler.js `confirmReset` (~6400); readerwrangler.html (the inline emergency reset, ~372); reset.js
-  `STORAGE_KEYS`; mobile.js `handleReset` (~2815).
-
-**To decide (Ron):** what a reset clears — everything, or everything but the Cloud Sync Key (the desktop keeps it, the
-phone clears it — deliberate?) — then ONE list (with the delete, in storage.js), every reset calls it, and a test
-compares the browser's storage after each reset.
-
-**Test gaps from 7.25.1** (filed per TESTING.md §6): RESET-001–005 cover Tools → Reset App only. The emergency "Erase
-and Reset" (needs the app made to fail its load), the phone's Reset (the phone page) and the Emergency Reset page each
-use the shared delete but have no test of their own — including the "Close your other tabs" wait. Build them with this
-task's storage-comparison test.
 
 ##### Tidy up the notes
 <!-- id 20261020-1448 -->
@@ -2411,27 +3144,6 @@ historical reference", docs/design/archive/V4-REMOVAL-PLAN.md)
    use since 5.0, the book-field table's round-trip check guards the data, and outside review 4 looks at today's
    features fresh.
 
-##### Every edit rewrites the whole library in storage
-<!-- id 20261110-1734 -->
-
-_Why it matters:_ Changing one book — a tag, a rating, a move — saves all 3,270 books again (the book store is cleared
-and refilled each time, ~0.9 s on Ron's PC): slow work after every change, and a full rewrite is a needless chance
-for something to go wrong. Found 2026-11-10 while fixing the load's save ("Faster loading").
-
-**What to look into**
-1. `saveBooksToIndexedDB(updated)` is called from more than 60 places with the whole list; it clears the store and
-   adds every book (storage.js). The class needs a site map first.
-2. Likely shape: one save that writes only the books that changed (the store keys books by id) — the same "compare
-   with what's stored" idea as the load's `saveBooksIfChanged`, or the callers say which books they changed.
-3. Keep the write lock and the one-transaction safety (no moment where a reader sees half a library).
-4. **Discussed 2026-11-10 (Ron + Claude):** the save finds the delta itself — a changed book is a new copy (the app
-   doesn't edit books in place), so "not the same copy as last saved" costs ~1 ms for 3,270; only those are written,
-   removed ones deleted, in one transaction. Ron: **also change the 60 places once to call one common function** —
-   most repeat the same pattern (`setBooks(prev => { const updated = …; saveBooksToIndexedDB(updated); return
-   updated; })`), so one `updateBooks(change)` (the state update + the save, the delta inside it) is the chokepoint,
-   and a new call site can't forget the save. Claude agrees: both together. First the site map (does every site make
-   new copies?), a contributor-mode guard that compares by content now and then, and a test that edits and reloads.
-
 ##### The phone's cover copies: still worth it? And why wasn't the browser's own cache enough?
 <!-- id 20261110-1734a -->
 
@@ -2518,57 +3230,6 @@ _Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder 
 - Folder menu: readerwrangler.js ~18443 (`folderContextMenu`). The Inbox menu's entry (~18348) and the book menu's
   (~19292) show how to open it scoped to a folder.
 
-#### ✅ The "open" shortcut: start serve.py if needed and open the app
-<!-- id 20261104-1540 -->
-
-**Done 2026-11-18 (sprint 9); Ron's click 2026-11-19: "It appears in Windows Search. Starts server and opens the app to
-the http://localhost:8000/readerwrangler.html".** `py tools/shortcuts.py` writes "ReaderWrangler (local)" in
-the Start menu; it runs `serve.py --open` (starts the server if nothing answers, then opens the page in a browser tab;
-if our server already answers, just opens the page; another program on the port → says so, opens nothing). Tested
-without opening a browser; Ron runs the tool once and clicks it. Note: his older "ReaderWrangler Server" Start-menu
-shortcut will show beside it in Windows search — keep or remove, his call.
-
-_Why it matters:_ A convenience — one click opens ReaderWrangler locally, starting the server first if it isn't running.
-Split out 2026-11-04 from "Carry over the utilities project's improvements…" (Ron: "the shortcut part can wait").
-
-**Decided** (Ron + Claude, 2026-10-31)
-- **`tools/shortcuts.py`** writes the shortcut(s); the shortcut opens the page, starting `serve.py` first if it isn't
-  running. The open half only — no restart or shutdown: `serve.py` only serves files and rarely changes, and it listens
-  on the home network on purpose, so an off switch any device there could press gains nothing (the utilities
-  project's decision). Source: `C:\Users\Ron\Projects\Hsv-Utilities-App\tools\shortcuts.py`.
-
-#### ✅ Working-process safety net: three small follow-ups
-<!-- id 20261015-1917 -->
-
-**Done 2026-11-18 (sprint 9):** (1) serve.py and Claude's session start warn loudly when a copy isn't set up for the
-commit checks (`tools/setup_check.py`); (2) Claude Code's global settings are backed up into the Projects folder repo
-as `claude-settings.json`; (3) `py tools/backup_claude.py` backs up memory and settings and saves both repos — first
-real run 2026-11-18 (19 memory files added, 14 updated). Its release-checklist line awaits Ron's word (review queue).
-
-_Why it matters:_ Closes the last gaps left after "Save our working process in git" (done 2026-10-15).
-
-**Decided** (Ron + UX, 2026-10-22)
-1. **Warn loudly when a copy of the project isn't set up for the commit checks** (`core.hooksPath` isn't `git-hooks`
-   — a local git setting a clone never brings, which is the real "install" step; the session hooks themselves travel
-   with the repo). **In serve.py first** — every contributor runs it to test locally, including people who don't use
-   Claude Code (Ron runs it at logon) — and in the session-start hook for Claude's sessions.
-2. **Back up the global settings file** (`~/.claude/settings.json` — it wires the timestamp hook; no secrets, but
-   personal paths and project names) **into the Projects repo**, next to `stamp.py` and CLAUDE-TOOLING.md. That repo
-   (Ron-L/projects-root, renamed from homelab-notes 2026-10-22) is **private** — Ron confirmed 2026-10-22. Add the
-   file to its `.gitignore` allow-list, or git never sees it.
-3. **Memory backs itself up at every release:** a small script copies memory into the private repo's
-   `claude-backup/memory/` (and the global settings into the Projects repo), commits and pushes — run as a
-   **release-checklist step**, so the backup is never more than one release behind. Not a per-turn hook (a commit per
-   turn is noise). Why: the by-hand backup slipped a week (Oct 15 → 22: 56 files backed up of 68, 18 differing) —
-   refreshed by hand 2026-10-22 (private repo `f785de3`).
-
-**How (technical)**
-- Item 1: serve.py's start-up and the SessionStart hook (beside `gate-reset.py`) check `git config core.hooksPath`
-  and print a loud warning when it isn't `git-hooks`.
-- Item 3: what it copies today by hand — `~/.claude/projects/c--Users-Ron-Projects-ReaderWrangler/memory/*.md` into
-  `claude-backup/memory/`, plus `.claude/settings.local.json` (see that folder's README; update its "whether to
-  automate" line when built). A Python script (pytools `keepopen`), like the other tools.
-
 #### A refused Restore shows a false "Restore Warning" box a minute later
 <!-- id 20261118-1136 -->
 
@@ -2584,873 +3245,6 @@ starts, wait past 60 s (or shorten the timer in the test), and check no box appe
 **When (Ron, 2026-11-18): "watch for an opportunistic time to include it in a sprint"** — it happens rarely (only a
 very old backup, or something else already failing mid-restore; nothing in the library changes), so it rides along
 with the next sprint that touches app code, as a small extra task.
-
-## 🚦 Before public launch
-
-_Formerly: 🚦 Pre-Launch (must-do before public launch)_
-
-### Help, docs and onboarding
-
-_Formerly: Docs & onboarding_
-
-#### An anti-glossary: the words we don't show people, kept in a list and enforced at every commit
-<!-- id 20261112-1431 -->
-
-_Why it matters:_ A retired word creeps back one message at a time ("the fetcher" was never decided and is all over the
-help; "Relay" will be retired by the rename). A rule in someone's memory — or buried in a script — doesn't stop it; a
-visible list that a commit check reads does, and adding a word to it takes seconds (Ron, 2026-11-12).
-
-**Decided** (Ron + Claude, 2026-11-12)
-1. **A file of its own** — `docs/design/ANTI-GLOSSARY.md` — not a section: the data the check reads, visible to anyone.
-   The glossary's "Words users never see" section MOVES there (one home per word); the two files link to each other.
-2. **Each row:** the word (word boundaries; case as listed), why, what to say instead, and a **status** — **Banned**
-   (any use in what people see is refused) or **Retiring** (still on screen until a named task replaces it: the check
-   refuses NEW uses only — the count can only go down — so it can be listed today without turning everything red).
-   First rows: Import/Export (for backups, Banned), "Sync now" (Banned), IndexedDB / localStorage / JSON / tombstone
-   (Banned — checked where they'd reach a person), Relay / Credentials / Channel ID / Passphrase (Retiring — the
-   Cloud Sync rename), fetcher (Retiring — the same sweep; glossary: "update your library from Amazon").
-3. **Where it looks** — only text people see: the messages and labels in the shipped scripts (string literals, not code
-   names — `relay-client.js` keeps its name), the site's pages, README, the User Guide, the help pages. It skips the
-   CHANGELOG's history, post-mortems, design notes and tests. The exclusions live in the same file, also visible.
-4. **A commit check** (git-hooks/, like the others; tests first) reads the file — and refuses a malformed row, so the
-   list can't silently stop working.
-
-#### A glossary page on the site, built from GLOSSARY.md
-<!-- id 20261112-1430 -->
-
-_Why it matters:_ People meet words like "Cloud Sync Key" and "Book List" with no one place that says what they mean;
-and a page kept by hand beside GLOSSARY.md would drift from it. One source, shown prettily (Ron, 2026-11-12).
-
-**Decided** (Ron + Claude, 2026-11-12)
-1. **Built from the file:** `tools/build.py` turns GLOSSARY.md into a page (the way the app is built ahead of time since
-   7.27.0) — nobody edits the page; the commit check refuses a stale copy, as it does for `dist/`.
-2. **Only what's decided:** the Decided rows' term and meaning — not the proposed ones, the decision records or the
-   words people never see.
-3. **Styled like the other site pages** (the shared named colors, so every theme works), linked from Help and the site's
-   footer.
-
-#### Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)
-<!-- id 20260909-0000 -->
-
-_Why it matters:_ The site pages are a reader's first look at RW. Today each one fixes its themes with its own override
-rules, so any color it misses stays wrong in some theme — and two pages have no themes at all.
-
-**Done already** (2026-09-09)
-- The security page's wrong statements were fixed, plus its navigation, and its Dark / High-contrast dark themes.
-
-**Decided** (Ron, 2026-10-22, in the TODO review)
-1. **Fix by naming colors, not by adding override rules** — the same decision as "Dark theme: fix the unreadable bar
-   and the light strips" (Decided 3). The security page's High-contrast light is the first page done this way, not
-   another override.
-2. **All four themes on every site page** (Light, Dark, High-contrast light, High-contrast dark), computer and phone.
-3. **The Dark theme task's commit-time color check covers the site pages too**, so a new fixed color on a site page
-   is refused just like one in the app.
-
-**What's there today** (checked 2026-10-22)
-- index, features and tutorials: all four themes, each through its own page's override rules.
-- security: Dark and High-contrast dark only (override rules); High-contrast light is missing.
-- changelog and reset: no themes at all — they always show Light.
-
-**How (technical)**
-- Each page has its own inline `[data-theme=…]` rules and its own copy of the theme-picking script (reads
-  `readerwrangler-theme`, falls back to the system's dark setting). Move both into one shared file the pages load:
-  the named colors, defined once per theme, plus the one script. Each page then keeps only its layout.
-- Whether that shared file is readerwrangler.css's color names or a small site file built from the same names:
-  decide when building — the names must be the same ones the app uses.
-- Pages: index, features, tutorials, security, changelog, reset (readerwrangler.html is the app — the Dark theme
-  task).
-- **Then write RW's own `DESIGN.md`** (2026-10-31, from the awesome-design-md idea — RW's own look, never another
-  brand's): the named colors for each of the four themes, typography, components, do's and don'ts — one source for
-  Claude, the outside reviewers and any future contributor. Keep it in step with the named colors (the commit check
-  that verifies every name is defined in all four themes can verify DESIGN.md lists them too).
-
-#### Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button
-<!-- id 20261030-1036 -->
-
-_Why it matters:_ A returning user arriving at readerwrangler.com sees "Get Started — It's Free!", a sign-up-style
-button, and has to hunt for the way in (the top bar's "Launch ReaderWrangler" is easy to miss — Ron: "My attention is
-drawn to the center"). And what makes RW different — always free, no ads, no account — sits in a row further down.
-
-**Decided** (Ron + UX, 2026-10-30)
-1. **One adaptive hero button:** a returning user sees **"Open My Library →"**, a new visitor **"Get Started"**. Both
-   go to the same app — only the words change, so nobody needs a way to "get" the other one (starting over is Tools →
-   Reset App, not this button).
-2. **How it knows:** the app writes a small "this browser has a library" marker when it loads one; the landing page
-   checks only that the marker exists — locally, nothing sent, the same way it already picks your theme. It never looks
-   at the Cloud Sync Key.
-3. **Never redirect** a returning user into the app — some come back to read the page or share it (Ron: it "breaks our
-   rules"). The top bar's "Launch ReaderWrangler" stays for both.
-4. **One quiet line under the button:** "Always free · No ads · No account needed" — the button names the action;
-   benefits read better beneath it.
-5. **"Always free" is safe** (Ron, 2026-10-30): charging would mean a different product — RW runs in the user's
-   browser, has no accounts to bill, and anyone can host it themselves. If hosting costs ever grow, the levers are fair
-   limits on cloud storage, donations or hosting your own copy — never a paywall. Say so once in the FAQ.
-6. **"No ads" stays honest** because the affiliate support stays disclosed (the "100% free" item's tooltip: "Supported
-   by Amazon affiliate links"). That disclosure is also Amazon's requirement — see outside review 1.
-7. **Align the trust row** below: "100% free" → "Always free", and consider a "No ads" item, so the two places say the
-   same thing in the same words.
-8. **Both buttons' tooltips** today read "The app walks you through setup — relay, bookmarklet, and first import":
-   wrong for a returning user, and "relay" is a retired word. Give the returning-user button its own tooltip; the
-   Cloud Sync task's commit check catches "relay".
-
-**How (technical)**
-- Buttons: index.html ~1278 (top bar) and ~1325 (hero, `.cta-buttons`); the trust row ~1424. The theme check near the
-  top of index.html shows the pattern for reading the app's local setting. The marker: written by the app when a
-  library loads (readerwrangler.js) — a tiny app change, so an alpha + version bump.
-
-#### Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome
-<!-- id 20261018-1422b -->
-
-_Why it matters:_ Assumptions baked into the product are nowhere stated — a UK reader, or someone expecting paperbacks, finds out only by failing.
-
-**The facts** (each verified in the code or docs, 2026-10-16; facts 4–5 corrected 2026-11-01)
-1. **Amazon's US store only.** Every fetcher talks to amazon.com only, and prices are read as US dollars (details: see
-   TODO notes).
-2. **Formats** — the library fetch brings in **everything** in your Amazon library, every format (Kindle purchases, samples, Prime, Kindle Unlimited, loans — and print, audio, even a DVD bought on Amazon); series and author adds take Kindle editions only; **the one-book Add Book to Wishlist takes any format** (deliberately — a paperback can hold a place until a Kindle edition exists). Undoing the Kindle-only preference: Someday task "Formats other than Kindle".
-3. **The app is in English.** The books can be in any language.
-4. **Browsers:** tested on **Chrome**. **Edge** should work (it's built on the same engine as Chrome) — and once the
-   browser driver exists (High priority; it runs Edge) it becomes "tested by the automated tests" for real; say so
-   then. **Firefox** was confirmed working once, long ago, but isn't regularly tested. Safari is untested. _(Today the
-   docs contradict each other — and two of them are false: README / features page "Tested: Chrome, Edge, Firefox"
-   (neither Edge nor Firefox is tested), User Guide "Firefox is also fully supported"; SUPPORT-KB "We only test
-   Chrome" is right. Fix them all in ONE pass with this task — Ron, 2026-11-01: not a partial fix ahead of it; with
-   essentially no visitors yet, nobody is relying on the claim.)_
-5. **Fetching and organizing need a computer** (the bookmarklet runs on Amazon's site in a desktop browser). **The
-   phone is read-only**: it shows your library and never writes changes (SUPPORT-KB "What is the mobile app?" —
-   checked 2026-11-01; the old wording "the phone views and organizes" was wrong).
-
-**Where it goes** (Ron, 2026-10-16; 2 and 5 revised 2026-11-01)
-1. A short **"What ReaderWrangler works with"** section in the User Guide (written in the User Guide task, below).
-2. **On the landing page, folded into the existing sub-tagline** — e.g. "Import your Kindle library from
-   **Amazon.com** in minutes…" — not a new line: the "Open My Library" landing task already adds "Always free · No
-   ads · No account needed" under the button, and a third line would crowd the hero. The features page says it once.
-3. One question in SUPPORT-KB.
-4. A developer list in docs/reference/ARCHITECTURE.md — every spot a future change (another country, another app language) would touch.
-5. **Say it at the moment it matters (Law 16)** — when the bookmarklet runs on any Amazon site other than amazon.com,
-   it says "ReaderWrangler works with Amazon.com (the US store) only, for now" instead of offering to send the user to
-   amazon.com's library page (today's dead end for a UK account — details: see TODO notes). The docs explain it; the
-   message catches the person who never read them. The same change for all three bookmarklets → dev and prod together.
-
-Ron's word on the wording first.
-
-#### User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help
-<!-- id 20260910-0000c; merged 20261014-1030bd, 20261014-1030o, 20261014-1030bg -->
-
-_Why it matters:_ The guide never mentions Book Lists (checked 2026-10-22: 0 times in 455 lines), and no reader can
-find it — it's on the site only as GitHub's plain, unthemed, unlinked copy (`readerwrangler.com/USER-GUIDE.html`); the
-Help menu has How To Use, Watch Tutorials and Keyboard Shortcuts, but no guide. The same file is what the support
-assistant will read, so it has to be complete and stay current.
-
-**Decided** (Ron, 2026-10-22, in the TODO review — "go with your ideas all the way")
-1. **One file: USER-GUIDE.md, for people, the support assistant and anyone pasting it into their own chatbot.** It
-   stays Markdown: well-headed, self-contained sections suit the assistant (an HTML page would mix menus and theme code
-   into what it reads).
-2. **A themed page shows it:** `guide.html` loads USER-GUIDE.md and displays it, using the site pages' shared named
-   colors (the task above), so all four themes work. Linked as **Help → User Guide** in the app, and from the site
-   pages' links and README. How To Use stays as the short first-run version and links to the guide for more.
-3. **One FAQ, inside the guide** — not a separate faq.html (merged the "Create a FAQ page" task). Sections: Security /
-   Privacy, Data / Backup, Troubleshooting, Library, General; question-shaped entries (what users actually type). The
-   footers and README link straight to it. Two FAQs would drift apart, as the browser claims already have.
-4. **Every feature is covered — by a check, not by memory.** Every place a user reaches a feature carries a **guide
-   section name** pointing at the guide (e.g. `guide="move-books"`) — a name, never text, so nothing is written twice:
-   menu-bar items (20), popups including right-click menus (76), dialogs (40), the confirm-style boxes (~19), and the
-   keyboard-shortcut list. A commit check refuses (a) any of those without a guide name — a place that truly needs
-   none says so with a reason (e.g. a picker inside a dialog) — and (b) any guide name with no matching section in
-   USER-GUIDE.md. It also reports guide sections nothing points at (a removed feature's leftovers). Counts from
-   2026-10-22.
-5. **The first run of that check is the sweep:** the list of places with no guide name is the rewrite's outline.
-6. **A "?" in each dialog** opens the guide at its section — cheap once the names exist; real help where you are.
-7. **Behavior with nothing to click** (a book leaving its last folder goes to the Inbox; the drag rules) can't be caught
-   by the check. When the new guide ships, add to the release checklist: the help-notes comb also covers the guide —
-   every CHANGELOG line gets a guide check.
-8. **Build it last in Before launch** — it describes behavior still being decided or built. Wait for: "Cloud Sync:
-   rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one" (so the new names land once), "Move and copy
-   books anywhere — folders, Book Lists, All Books, Searches", and "The Delete key deletes the folder you're in — not
-   the folders you selected".
-
-**What it should cover**
-- The four places: All Books / Searches / Book Lists / Folders — what each is for, and "when to use which".
-- **"One book, many places"** (merged the "Wording pass: explain Book List shortcuts and Linked Copies" task): the
-  same book can be in several folders and Book Lists — not a duplicate; **All Books and Searches are views** (Ron:
-  nothing is put into or taken out of them); folders file books, Book Lists are free-form. Draft text and the facts
-  behind it: docs/design/TERMINOLOGY.md. **No "shortcut", no "Linked Copies"** — both retired 2026-10-22 (why: same
-  doc); the screens already say "Remove from this list", and stay as they are.
-- **The Book List ↔ Folder pattern:** structure lives in Folders; to-read queues live in Book Lists.
-- "Getting books out of the Inbox → use a folder, not a Book List."
-- **Fields you can't filter by:** show the other way, e.g. List view → add that column → sort (merged task).
-- **"What ReaderWrangler works with"** (from the "Say plainly…" task above).
-- **Starting over** (Ron, 2026-10-30): Tools → Reset App — when to use it, what it clears and what it keeps; switching
-  to a different Amazon account; clearing all books and organization to start from scratch. The old guide has a
-  Reset App section and an FAQ entry; keep them, corrected.
-- A glossary and a "what ReaderWrangler doesn't do (yet)" section (the support assistant plan's two best defenses
-  against made-up answers).
-- **FAQ: "How is ReaderWrangler different from Readwise Books, Goodreads or StoryGraph?"** (Ron, 2026-10-30). They are
-  for *reading* (where you read, track sessions, rate, buy — Readwise Books sells ebooks); ReaderWrangler **organizes
-  the Kindle library you already own** — nested folders, series, Book Lists, tags, Auto-Organize, wishlist prices — and
-  never sells or displays books. No account; it runs in your browser. They can be used together. Also a line for the
-  "doesn't do" section: RW doesn't open or read books.
-
-**Sources**
-- Examples of taming a backlog: docs/design/WORKFLOW-PATTERNS.md.
-- Facts and FAQ: docs/design/SUPPORT-KB.md (mined 2026-09-10 from every session back to May, and kept current at each release).
-
-**How (technical)**
-- "Holds vs. points at" = the custodial vs. supplemental model.
-- The live site serves the raw `USER-GUIDE.md` (checked 2026-10-22: `text/markdown`), so `guide.html` can fetch and
-  display it with a Markdown library from a CDN (exact version, integrity check, inside the page's security policy —
-  see "Outside code libraries: exact versions, integrity checks, and a policy…"). Prove that works on dev before
-  relying on it. Decide then whether GitHub's automatic
-  `USER-GUIDE.html` copy should be hidden or point at guide.html.
-- The guide-name check sits beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`; the guide name is a
-  prop on `MenuBarItem` / `<Dialog>` / `<Popover>`, an argument to the confirm-style boxes, and a field in the
-  shortcut list. Section names = the guide's headings' anchors.
-
-#### A public demo library from Amazon's best-seller lists (nothing personal)
-<!-- id 20261104-1613 -->
-
-_Why it matters:_ The sizzle reel, the landing page's pictures and the User Guide's screenshots need believable books.
-Today's demo library is made from Ron's own purchases — public by his choice, but it shows what he owns. Best sellers
-and classics are recognizable, show off Auto-Organize (real series, authors with many books), and are nobody's
-library.
-
-**Decided** (Ron + Claude, 2026-11-04)
-1. **Read the lists from the page Ron is viewing:** Amazon's best-seller pages (the NYT 2026 list — 7 pages — Kindle and
-   Classics categories) carry each book's ASIN, title and author in the page itself. Ron opens a page and runs one
-   **read-only console snippet** that collects them — no extra requests; next page, run again. (No saving pages.)
-2. **Depth: "More like this"** (the recommendations request probed 2026-11-03) turns each book into ten more — together
-   with the NYT pages, toward **~3,000 books** (Ron): also a selling point on camera ("your whole library, organized").
-3. **Details in one paced run:** the fetcher's own batch lookup (30 books per request) fills in covers, descriptions and
-   ratings; the snippet writes a file. Paced, with the human-check stop in mind — every request read-only, of a kind
-   the fetcher already makes. Request details: see TODO notes when building.
-4. **A generator on Claude's side** packs it into a demo backup — folders by author and series, Book Lists, a few books
-   in the Trash and hidden — the same way the test libraries are generated.
-   - **It must pass Restore's backup check** (backupCheck.js, 7.26.0; Ron's rules, 2026-11-08): Restore replaces
-     everything but the Cloud Sync credentials (merged only after asking), so a part that's missing or empty becomes
-     empty, and a backup is refused only when that leaves the library unusable. Required, each the right kind: the
-     backup marker (`isBackup: true`), a `2.x` version stamp, the list of books (`books.items`, a list), and the tag
-     list (`tagRegistry`, a table) whenever any book has a tag. Folders, Book Lists and Searches: write them (an empty
-     list is fine) — a missing one restores as none (with no folders, every book lands in the Inbox). Any part that's
-     written must be the right kind (collections' `items` a list, the view settings a table).
-   - **Write every part today's Save Backup writes**, and none of the obsolete ones ("Remove code left over from older
-     versions…", Polish: no `hiddenInstances`, `pinnedTagFolders`, `dataSource`, `lastSyncTime`).
-   - **No Cloud Sync credentials** in the file (the private-values commit check refuses them; the old demo files' were
-     revoked 2026-10-31).
-   - **Each book**: what "Restore checks every book, folder and list inside a backup…" (Before launch → Safety and data
-     protection) will require — an ASIN, unique; each folder an ID, a name, a parent and a list of books.
-   - **Test it the way a person would:** a screen test restores the generated file and checks the counts and folders.
-5. **It replaces the demo library made from Ron's purchases** (`readerwrangler-demo-library*.json` and the demo filter's
-   list in `tools/demo-library/`) — retire those once the reel no longer needs them.
-6. **Covers:** real ones from Amazon on camera — thumbnails, plus one or two full size in a book window. Ron's call
-   (2026-11-04): fair use as he sees it, and he accepts the risk of a cease-and-desist; listed for outside review 1 so
-   it sees the whole picture.
-- **Built before "Screen capture pass…"** (just below), which records with it.
-
-#### Screen capture pass: the sizzle reel, the landing page's before / after, README's old video
-<!-- id 20261014-1030bc; merged 20261014-1030al -->
-
-_Why it matters:_ What the public sees of the app is stale: the landing page's before / after pictures predate the
-redesign, and README links a walkthrough video (39 MB) of the old way of organizing. The sizzle reel (DEMO-LIBRARY-PLAN.md,
-"Video 0": 20–30 s, rapid cuts, music, no voiceover) was planned but **never made** — Ron: "I think the sizzle reel
-will be a seller."
-
-**Decided** (Ron + UX, 2026-10-23, in the TODO review; merged "Refresh the landing page's before / after screenshot")
-1. **One pass, one sitting:** the sizzle reel, the before / after pictures, the preview thumbnail — same demo library,
-   same build. The User Guide's screenshots come from the same pass.
-2. **Last in Before launch, with the User Guide** — nearly everything on screen is about to change (Cloud Sync names,
-   drag labels, site-page themes, the Send buttons); recording sooner means recording twice.
-3. **If the outside newcomer review runs** ("Outside reviews before building", review 4), write the reel's script after
-   it — it may change what the landing page needs to say, and the reel is the landing page's opening.
-4. **README's old walkthrough video: remove it** (link and file), not replace it.
-5. **Use the public demo library** — "A public demo library from Amazon's best-seller lists" (just above), built
-   first; Ron's real library never appears on screen. (Until then: today's demo library and the fetcher's demo filter.)
-6. **Keep the reel in the plan** — though Ron dreads making it (the tutorials were "super tedious", which is why they
-   were cancelled; the support assistant replaces tutorials 2–8).
-
-**Approach note** (Ron + Claude, 2026-11-03 — discussed, to confirm when this comes up; the answer to Ron's dread of
-the tedious part)
-1. **Scripted takes:** the browser driver ("Carry over the utilities project's improvements…") plays the shot list on
-   the demo library — real clicks, drags and menus, identical every time; a UI change means re-running, not re-shooting.
-   This tips that task's "Playwright or copy `drive_page.mjs`?" toward **Playwright**, which records video itself.
-2. **Assembly by Claude:** FFmpeg (cuts, joins, fades, titles, captions, even sound levels) — or Remotion (video built
-   from the same kind of code as the app, so title cards can use its real look). Claude can't watch video or hear
-   sound directly, but can check cuts frame by frame as pictures.
-3. **Sound placement: Earshot** (github.com/Leonxlnx/earshot, MIT, runs on the PC) turns audio into text Claude can
-   read — what a sound is, exactly when events happen, whether sound lines up with picture — plus a bank of 201 sound
-   effects. Its own limits: no taste, no licensing judgments. **Before using:** it was version 0.1.0 on 2026-11-03 and
-   connects to Claude as a tool server — read it and pin an exact version (our outside-code rules); leave its optional
-   critique (sends audio to Google's Gemini) off.
-4. **Taste stays Ron's:** he watches drafts and says what's wrong.
-5. **To decide then:** this mostly replaces DaVinci Resolve for assembly (Claude can't drive Resolve's screens).
-
-**Spec:** docs/design/DEMO-LIBRARY-PLAN.md (Video 0 shot list, the demo library, the fetcher's demo filter);
-docs/design/VIDEO-PRODUCTION-GUIDE.md (tools); the demo prep scripts: `tools/demo-library/`.
-**Video work stays outside the repo** (e.g. `Documents\ReaderWrangler-video\`; decided 2026-11-02 when the old
-`tutorials/` work files — 200+ MB of clips, narration, Resolve projects and a saved Amazon page with account details —
-were deleted as out of date): one stray `git add` must never be able to commit them.
-**Tool survey 2026-11-03** (docs/design/TOOL-SURVEY.md): takes with Playwright for Python's `page.screencast` (chapter cards, a visible
-cursor, drives the installed Edge); assembly with FFmpeg or Remotion (free for individuals; render from the command
-line — browser-side rendering reports usage); Earshot only after vetting and pinning a commit.
-
-#### Build the support assistant (custom GPT)
-<!-- id 20261014-1030i -->
-
-_Why it matters:_ Lets users get answers without waiting for you.
-
-**What you'd get**
-- A custom GPT that answers ReaderWrangler questions, linked from the Help menu.
-
-**Decided** (Ron, 2026-10-22)
-- **It reads USER-GUIDE.md — the same file people read** (the User Guide task above); no separate manual.
-- **The uploaded copy is the one thing that can drift.** A custom GPT keeps its own copy (believed not to re-read our
-  site by itself — confirm when building). So: the guide carries an "up to date through release X" stamp, the
-  assistant is told to quote it when asked, and the release checklist gets "re-upload the guide to the assistant".
-
-**Decided** (Ron + Claude, 2026-11-01, in the TODO review)
-1. **Choose the platform when building, from current facts** — the custom-GPT choice dates from July (Ron's ~$20/mo
-   authoring seat; users need a ChatGPT account; free-account limits change). Compare then: a custom GPT, a Claude
-   equivalent (the spec's own "evaluate" line), an assistant on our own site through an API (per-use cost, no outside
-   account). Prices and limits move monthly — no recommendation ahead of time.
-2. **It never asks for, or accepts, the Cloud Sync Key.** Support chats are where people paste secrets. Its
-   instructions say never to request it, and to tell anyone who pastes it to make a new key; the User Guide's
-   troubleshooting says "nobody needs your key to help you".
-3. **A way out when it can't answer:** the support inbox, if launch-risk review 1 brings one ("email support@…"), else
-   a link to report an issue — never a dead end.
-4. (Not a change — the "one file" decision applied:) the help notes (SUPPORT-KB) aren't uploaded separately; their
-   troubleshooting answers flow into the User Guide's FAQ and troubleshooting when the guide is written.
-
-**Spec:** docs/design/SUPPORT-GPT.md.
-
-### Cloud Sync
-
-One pass through the setup window and the words around it (gathered 2026-11-04 in the TODO scan from Help, Polish
-and Safety — each of these already said "touch the window once"). Build order: the rename first, then the rest in
-its new words.
-
-
-#### Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one
-<!-- id 20260828-0000a -->
-
-_Why it matters:_ "Relay", "Credentials", "Channel ID" and "Passphrase" are engineering words, and users juggle two
-values that are really one secret. And today making new credentials doesn't retire the old ones: whoever holds an old
-key can still read the full cloud copy (it never expires) and write to or wipe it. Renaming is free before launch and
-expensive after.
-
-**The record: docs/design/CLOUD-SYNC-NAMING.md** — everything decided, why, what was rejected, and the check-character
-test. Decided 2026-10-23 (Ron + UX, three outside-review rounds). **Anti-bounce rule:** only a real user's misreading
-reopens a name, never a new argument.
-
-**What you'd get** (details in the record)
-1. **The words:** Cloud Sync · Cloud Sync Setup · Import from Cloud Sync · **Cloud Sync Key** (one key; "Credentials",
-   "Channel ID", "Passphrase" leave the screens) · Save Key · Make a new key · the bookmarklet's buttons **Send Library
-   to ReaderWrangler** / **Send Collections to ReaderWrangler** · "the sync server" on the security page. Data Status
-   and "bookmarklet" stay. About 80+ places (app ~52, phone 3, bookmarklet screens ~22, site pages ~13), plus README,
-   help notes and the User Guide.
-2. **The name defined once, and a commit check** that refuses retired words in anything users see — now its own task,
-   "An anti-glossary: the words we don't show people…" (Help, docs and onboarding — built before this one). This rename
-   sweeps its Retiring words to zero — Relay, Credentials, Channel ID, Passphrase, **and "fetcher"** (Ron, 2026-11-12:
-   the tool is "the bookmarklet", the act "update your library from Amazon" — GLOSSARY.md) — then flips them to Banned.
-   Old CHANGELOG entries, post-mortems and design records keep "Relay".
-3. **One Cloud Sync Key:** `RW1-` + 13 groups of 5, Crockford's alphabet (no I, L, O, U; O read as 0, I/L as 1), the
-   ID's 32 hex digits + a 31-character secret + 2 check characters (ISO 7064 pure, radix 32, modulus 1021). A 6-character
-   support code beside it (the relay's nightly email moving to 6 is done in "Relay worker: one release…").
-4. **One tidy step is the only way in** (strip, fold, check, split, rebuild the ID exactly as stored); the key-making
-   code refuses anything else; **the relay refuses an untidy ID** (its one check made strict — done earlier, in "Relay
-   worker: one release…"); a decrypt failure says
-   "this key doesn't match", never "no data".
-5. **Make a new key = change the locks:** save the new key and park the old one as "pending revoke" in one write, then
-   block and delete the old mailbox (including the full copies and pointer — the relay's wipe is fixed earlier, in
-   "Relay worker: one release…"), retry at next launch if that fails;
-   backups carry the pending slot; an old backup's replaced key is named as such. The confirmation adds "Your books
-   and folders stay as they are."
-6. **Honest wording:** fix the "syncs automatically" message; the bar says what is true ("…ready — Import"); the help
-   line about the bookmarklet containing the key; the security notes' statements (the record, "What we tell users").
-7. **Tests:** the round-trip (ID → key → ID, byte for byte) and the check-character test kept as permanent checks.
-8. **The log hides the key by its shape** (Ron, 2026-11-11, building 7.28.0): the logging kit's cleaner finds a secret
-   only by its exact value — today the current passphrase — so an OLD key (from before a "Make a new key") or one pasted
-   into any text would reach the log and Copy diagnostics. With the key's shape fixed, add "secret patterns" to the kit
-   (`logkit/logger.js`: a list of patterns, each match replaced by the secret label), with a test that fails first, and
-   give it the `RW1-` pattern in `logkit-settings.js`; its label becomes the key's word ("[passphrase]" today).
-
-**Build together**
-- With "Relay Setup: smoother sections and clearer Esc / Help behavior" (below, this section) — the same window,
-  touched and re-tested once.
-- Reconcile with "Relay Setup: disconnect, or reset credentials" (below, this section): its 6.9.0 "Danger zone → Revoke
-  credentials & wipe relay" is what "Make a new key" reuses; its gentle Disconnect stays its own item.
-- The User Guide rewrite (below) waits for this, so the new names land once.
-
-**Watch out**
-- **Your key:** today's passphrases use another alphabet and there's no legacy path (one user). After the build, make
-  a new key once — then re-drag the bookmarklet (LOCAL, and the DEV and PROD ones) and re-pair the phone.
-- **The relay changes** (strict ID check, nightly email's 6 characters, the wipe reaching the full copies) **moved
-  2026-10-24 to "Relay worker: one release…"** (High priority), which ships first. Anything the key work still needs
-  from the relay is a worker change — Ron's yes before every deploy; dev first.
-- The bookmarklet's screens change the same way for all three bookmarklets → dev and prod together.
-- When this ships, update the CLAUDE.md vocabulary rule to the new names (it describes today's screens until then;
-  both trace to the 2026-08-28 decision).
-- Sizing: a small feature (the key format and its tidy step, the change-the-locks order) plus a worker change plus an
-  80-place rename — not a rename alone.
-
-#### Relay Setup: smoother sections and clearer Esc / Help behavior
-<!-- id 20260928-0000a -->
-
-_Why it matters:_ Its sections jump open so abruptly they look like new windows, and Esc behaves differently in a way you can't see.
-
-**What you see** (File → Relay Setup)
-1. **Sections jump.** Opening "Credentials" / "Enter Credentials Manually" or "Bookmarklet" / "Pairing" shoves everything up and down so hard it reads as "a new window appeared".
-2. **A hidden level.** "Enter Credentials Manually" secretly counts as a level of its own: Esc backs out of it first instead of closing Relay Setup. Nothing shows you that.
-3. **Help looks like a replacement.** Help opens exactly on top of Relay Setup, so it doesn't read as stacked on it.
-
-**Decided** (Ron + UX, 2026-10-21)
-1. **Animate the sections opening and closing** (~150–200 ms), so the eye can follow what moved; respect the system's
-   "reduce motion" setting.
-2. **Drop the hidden level: Esc closes Relay Setup**, like a background click — a section folding open isn't a layer
-   (the overlay system's Esc closes the innermost *layer*). If the manual-credentials fields hold typed-but-unsaved
-   text, closing asks the same *Save / Discard / Keep editing* question as the book details window — ideally the same
-   shared piece, so "ask before losing what you typed" works alike in every window with a form.
-3. **Open Help slightly offset** (~24 px down and right, like stacked windows) so it reads as on top of Relay Setup,
-   not replacing it; "Drag any dialog out of the way" (High priority) adds the full fix later.
-
-**Status:** noted 2026-09-28 during the overlay work; a separate, focused redesign pass. **Build it together with
-"Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one"** (Before launch) — that
-task changes this window's name, wording and key display; one pass touches and re-tests the window once.
-
-**How (technical)**
-- Item 2 is the `onClose` branch that handles `reason === 'esc'` specially in the Relay Setup dialog (readerwrangler.js
-  ~11371 on 2026-10-21: `reason === 'esc' && relayManualCreds` closes only the section).
-
-#### Relay Setup's connection test checks the wrong relay on dev
-<!-- id 20261012-0000a -->
-
-_Why it matters:_ On your local copy or the dev site it tests production, so its answer can be wrong.
-
-**What you see**
-- On your local copy or the dev site: File → Relay Setup → the connection test reports on the **production** relay, not the dev relay your copy actually uses. So "connected" / "revoked" there can be wrong for dev.
-
-**Why it happened** (checked 2026-10-22): relay-client.js already has the wrapper — `relayFetch(path)` builds the
-address from the one "which relay" answer — but it doesn't offer it to the app (not in `window.RWRelay`), so the test
-called the browser's request function directly with a hard-written production address (readerwrangler.js ~1838). The
-relay's addresses are written in **five** places: production in relay-client.js:13 (the default) and the buggy ~1838;
-dev in readerwrangler.js:130, mobile.js:31 and bookmarklet-nav-hub.js:52.
-
-**Decided — relay requests go only through relay-client** (Ron + UX, 2026-10-22)
-1. **relay-client offers what the app needs** — a named `testConnection(channelId)` (better than exposing raw paths),
-   so the app never builds relay addresses; the test uses it. This fixes the dev bug.
-2. **Both addresses are written once, in relay-client.js.** The app, phone and bookmarklet hub only answer "am I on
-   dev?" (each detects it its own way) — **callers never pass Dev or Prod**: a caller that chooses can choose wrong
-   (that's this bug). The relay's own test scripts in `relay/` run outside the app and don't use this.
-3. **Make bypassing it impossible** (Ron): the app page is ours, so its `window.fetch` gets a guard that **throws**
-   for a request to a relay address not coming from relay-client (*"Relay requests go through RWRelay"*);
-   everything else passes untouched. relay-client keeps the real one. An honest error, not a silent substitute.
-4. **A commit check refuses a relay address written outside relay-client.js** (app, phone, bookmarklet files).
-5. Test step: on localhost, Relay Setup's connection test names the **dev** relay.
-6. **Say when the channel is empty** (Ron + Claude, 2026-11-05): today the test reports **connected** for a channel
-   with nothing on it — and a mistyped Channel ID IS an empty channel, so a typo shows green at the very moment it
-   should be caught. Report *"Connected — nothing sent with these credentials yet"* instead (the same two causes Import's
-   "Nothing is on the relay for these credentials yet" names, 7.26.0-alpha.2). A screen test on the local relay
-   (`test/ui/rw.py` `App(relay=True)`): an empty channel's test says so. The Cloud Sync Key's check characters later
-   catch the typo as it's entered.
-
-#### Relay Setup: disconnect, or reset credentials
-<!-- id 20261014-1030am -->
-
-_Why it matters:_ A clean way to stop syncing, or to start over with new credentials.
-
-**Already done**
-- 6.9.0: Relay Setup's "Danger zone → Revoke credentials & wipe relay" — clears the keys and reopens the step that makes new ones.
-
-**Left**
-- A gentle **Disconnect** that just stops syncing on this device, without revoking or wiping anything on the relay.
-
-**Decided** (Ron + Claude, 2026-11-02, in the TODO review)
-1. **The danger is losing the key, not data** — the key IS the access to the cloud copy. The Disconnect window shows
-   the key with a **Copy** button before you confirm: *"You'll need this key to reconnect — it's also in any backup
-   you've saved (File → Save Backup), locked with your key password if you set one. Your bookmarklet and other devices
-   keep syncing."* (Ron: backups carry it — true since 6.0.0; the lock: "Lock the Cloud Sync Key in backups…", Safety.) The one explicit, irreversible verb, with the remedy one click away inside it — not a guessing
-   prompt (Law 18).
-2. **Say exactly what stays:** this device's library — untouched; the cloud copy — untouched; other devices and the
-   bookmarklet — unaffected (the bookmarklet carries its own copy of the key, so the next fetch still reaches the
-   cloud; this device just won't import until you reconnect).
-3. **In the Cloud Sync words when they ship:** "Disconnect this device from Cloud Sync"; "key", not "credentials".
-4. **Build it in one pass through the setup window** with "Cloud Sync: rename Relay, show one Cloud Sync Key…" and
-   "Relay Setup: smoother sections and clearer Esc / Help behavior" — touched and tested once.
-
-#### Reset App: one honest message in all four places (what's cleared, what's kept, how to come back)
-<!-- id 20261030-1039 -->
-
-_Why it matters:_ Every reset message was written before Cloud Sync, so they talk about "files on disk" a user today
-may never have had, point at a button that doesn't exist, and leave out the main way back — the copy in the cloud.
-Someone resetting is often already having a bad day (Ron, 2026-10-30, noticed the Tools → Reset App wording).
-
-**The four places** (found 2026-10-30 — a class of sites)
-1. **Tools → Reset App** (readerwrangler.js ~11784): "Your library/collections files on disk will NOT be deleted. You
-   can reload them anytime." and **"💡 Tip: Use the Export button first"** — there is no Export button, and "Export"
-   is retired (Save / Restore).
-2. **The reset page's confirmation** (reset.js ~106): "Import backup file → Books + organization; Import
-   amazon-library.json → Books only" — that file no longer exists for anyone setting up today.
-3. **The emergency reset** (readerwrangler.html ~342 / ~361 — shown when the app can't start): "Your files on disk are
-   safe — import your backup file after the reset…".
-4. **The reset page's own text** (reset.html ~60): "Good news: … Your files on disk are safe. What you can recover:
-   Import backup file → Restore EVERYTHING…".
-
-**Decided** (Ron + UX, 2026-10-30)
-1. **One message, defined once, used by all four** — so they can't drift again.
-2. It says, in plain words:
-   - **what's cleared:** everything ReaderWrangler keeps in **this browser** (books, folders, tags, settings);
-   - **what's kept:** files you saved on your computer — backups (File → Save) and spreadsheets (File → Save
-     Spreadsheet) — and **your copy in the cloud**;
-   - **how to come back:** restore a backup, or reconnect Cloud Sync and import.
-   Ron's starting wording: "Your library/collections files on disk (backups, CSV files) will NOT be deleted. You can
-   reload backups anytime."
-3. **Build with "Cloud Sync: rename Relay…"** (just above) — the recovery words (Cloud Sync Key, Import from Cloud
-   Sync) change there, so this is written once, in the new words.
-4. **Verify before writing:** does Reset also clear the stored Cloud Sync Key? If it does, "reconnect" needs the key
-   from a backup or another device — and the message must say so ("you'll need your Cloud Sync Key").
-5. Then the help notes and the User Guide's "Starting over" section (User Guide task) say the same thing.
-6. **Updates (2026-11-09):** the reset page's dead "Import amazon-library.json → Books only" bullet was deleted in
-   7.26.0 (the library file was replaced by the relay in 6.0), and its other bullet says "Restore backup file"; checked —
-   the emergency reset does NOT clear the stored Cloud Sync Key (item 4). Until "Restore from Cloud Sync…" (Before launch
-   → Safety and data protection) is built, the one way back offered is the backup file (Ron); once it is, offer that as
-   the second.
-7. **Update (2026-11-11, Ron found it):** item 6's fix reached only place 2 (reset.js's confirmation box) — place 4,
-   the reset page's own panel, still offered "Import amazon-library.json" and "File → Export Backup" (fixed in
-   7.27.0's branch: "Restore backup file → Books + organization", "File → Save Backup"). A sweep for
-   amazon-library.json found nothing else a person sees in the app. Still open here: place 1 ("files on disk… reload
-   them anytime", "Use the Export button") and place 3 ("Your files on disk are safe"), and the one shared message.
-
-### Safety and data protection
-
-_Formerly: Safety / data-integrity guards_
-
-#### All the pre-launch data tests pass
-<!-- id 20260904-0000 -->
-
-_Why it matters:_ The core data rules must be proven before strangers rely on them.
-
-**Already done**
-- Suite 1 (merging and edit protection) exists: test/bookMerge.test.js ("the pre-launch gate for the import merge") and test/bookFields.test.js.
-
-**Left**
-- Suites 2 (Import mapping), 3 (permanent-delete markers) and 4 (load guards) from PRELAUNCH-TEST-GATE.md.
-- One command that runs them all.
-
-**What it means**
-- The test suites in docs/design/PRELAUNCH-TEST-GATE.md exist and pass: merging and edit protection, Import mapping, permanent-delete markers, load guards, relay behavior.
-- Specified 2026-09-04 while those bugs were fresh. About 2–4 sessions when the time comes.
-- **Blocks launch; blocks nothing else.**
-
-**Decided** (Ron + Claude, 2026-11-01, in the TODO review)
-0. **Part of the regression library** (docs/design/TESTING.md, 2026-11-04): these suites are its pre-launch data gate,
-   run by the same runner and tiers.
-1. **Outside review 3 (data safety) comes first** — it attacks what we didn't think of; its findings become test cases,
-   rather than writing suites 2–4 now and patching them after ("Outside reviews before building", High priority).
-2. **The relay suite half-exists:** `relay/test-phase1.mjs` (59 checks: torn saves, fallback, cleanup guards…) and
-   `relay/test-signed-writes.mjs` (22: signatures) count toward "relay behavior"; add only what's still uncovered.
-3. **One command, in Python** (Ron's scripts rule) — e.g. `tools/run_tests.py`: the unit suites, then a LOCAL relay
-   (`npx wrangler dev --env dev --local`) and both relay tests against it, then stop the relay by its exact process
-   id (Law 5). Dev only as a final check (it spends the account's shared write limit).
-4. **The fast suites become a commit check:** a commit staging `bookMerge.js`, `bookFields.js` or `organizeEngine.js`
-   (and so on, module → its test file) runs that module's tests and refuses on a failure — seconds, every time; a
-   suite that runs only when remembered is discipline, not a mechanism.
-5. Option, not a requirement: once the browser driver exists (High priority), flows like Restore and Import mapping
-   can also be tested through the real screens, not only the functions underneath.
-
-#### Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere
-<!-- id 20261014-1030ai -->
-
-_Why it matters:_ Every outside script runs inside the page that holds your Cloud Sync Key — the key that, since
-7.25.0, protects your cloud copy. An unannounced update could break the app overnight; a tampered or malicious copy
-could read the key and send it away.
-
-**What's loaded today** (checked 2026-11-01 — six of nine unpinned)
-| Library | Where | Pinned? |
-|---|---|---|
-| React, ReactDOM | the app (readerwrangler.html ~128–129) | `@18` — any 18.x |
-| marked | changelog.html | no version at all — always the newest, even a new major |
-| img-comparison-slider (script + style) | index.html | `@8` — any 8.x |
-| Tailwind | the app, reset.html, security.html | unversioned (Tailwind's docs: this CDN isn't for production) |
-| Babel 7.29.7, qrcodejs 1.0.0, html5-qrcode 2.3.8 (phone, on demand — mobile.js ~2415) | the app, the phone | yes |
-
-**Decided** (Ron + Claude, 2026-11-01/02, in the TODO review)
-1. **Exact versions** for all six (Tailwind's CDN takes an exact version in its address). Its lasting fix stays the
-   "Faster loading: build the app ahead of time" task (Before launch, right below — moved up 2026-11-03).
-2. **Integrity checks** (`integrity` + `crossorigin` on every outside script and stylesheet, and on the phone's
-   on-demand loader): the browser refuses any copy that differs from the one we checked. What they DON'T do (Ron): they
-   can't prove the checked copy is safe — they protect against tampering *after* we pin (e.g. the 2024 polyfill.io
-   takeover, which served malicious code to 100,000+ sites that had trusted that CDN for years).
-3. **For the first copy** — the practical limit of what can be known: prefer old, widely used versions; check each
-   exact version's security advisories; verify the copy matches the release npm recorded.
-4. **A content security policy on our pages — the real fix for "a bad copy steals the key"** (a `<meta>` policy tag;
-   GitHub Pages can't send headers): the page may contact ONLY the servers we list — our two relays, GoatCounter,
-   Amazon's image servers, and the library CDNs — so a malicious library could read the key but couldn't send it
-   anywhere (background requests, images, beacons, form posts are all refused). Tested with the browser driver
-   (violations show in the console) so nothing legitimate breaks.
-   - Its honest limits: while Babel compiles our code in the browser, the policy can't fully restrict which scripts
-     run; and no policy stops a script from replacing the whole page with an outside address carrying the key — the
-     `navigate-to` rule for that was dropped from the standard in 2022 and no browser supports it (Chrome had it only
-     behind an experimental flag, then removed the code — checked 2026-11-02; so it's not included: it would do
-     nothing). That attack is visible — the user sees ReaderWrangler vanish — a much worse deal for a thief than
-     silent theft.
-   - The bookmarklet (on Amazon's pages) can't use our policy — Amazon's page sets its own — but it loads only our own
-     three scripts, no outside libraries. The relay uses no libraries (one self-contained file; `wrangler` is a deploy
-     tool), serves data not pages, and never receives the passphrase.
-5. **A commit check:** refuse an outside script or stylesheet without an exact version and an integrity hash, and a
-   page without the policy — so a new page can't quietly regress.
-6. **No self-hosting** (considered and dropped, Ron 2026-11-02): it protects against later tampering no better than
-   integrity checks; its gains — the app keeps loading if a CDN is down, and a CDN doesn't see visitors — are
-   availability and privacy, not security, and don't justify maintaining copies of other people's files.
-   (Evidence, 2026-11-17: in a deliberate load test, one page start failed because ReactDOM's download from unpkg.com
-   didn't arrive — "ReactDOM is not defined", the app never opened. A test-machine effect, not a CDN outage; it doesn't
-   reopen this decision, and the tests now treat a failed library download as the machine's trouble. Ron, 2026-11-17:
-   "We've discussed it in the past" — already filed here.)
-7. Show all of it to **outside review 2 (security)**.
-
-**How (technical)**
-- Old review item 6h. The servers the app talks to: both relay workers (`readerwrangler-relay*.readerwrangler.workers.dev`),
-  GoatCounter (its script + endpoint), Amazon's image hosts (covers) — list them from the code when building, not from
-  memory.
-
-#### Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes
-<!-- id 20260830-0000; merged 20260922-0000d -->
-
-_Why it matters:_ A copy of ReaderWrangler working from an old state overwrites newer work — today, in two ways. Two
-**tabs** share one browser's storage, and one innocent edit in an out-of-date tab writes its whole old organization
-over everything done since it loaded (a real data-loss risk). Two **browsers or computers** on one Cloud Sync each
-keep their own folders, which drift apart while nobody is told — and whichever sends last overwrites the cloud copy
-the phone shows. At launch the second case is ordinary, not a clever-user trick: plenty of people have a laptop and
-a desktop.
-
-**What you'd get**
-- Every tab and every browser stays editable and keeps up with your latest changes on its own. Come back to one that
-  is behind and it catches up: *"Caught up with changes from your other tab / browser"*, with **Undo**.
-- Nothing ever overwrites a newer change. In the rare case both copies changed since they last matched, a banner (not
-  a window — you keep working) offers **Use the other one's** / **Keep this one's**.
-
-**Status**
-- **Before launch — the tab half is "Tier 0", the real data-loss risk;** the cross-browser half comes second within
-  this task. Its priority is weighed by outside review 3 (data safety) — it may move ahead of other Before-launch work.
-
-**Decided** (Ron + Claude, 2026-11-02, in the TODO review — merged from "Protect against editing in two tabs at once"
-and "Warn when another browser has newer changes"; both earlier designs re-read through Law 18)
-1. **One problem, one mechanism.** The four states are the same everywhere — in sync, behind, ahead, both changed:
-   1. Each saved copy of the organization carries a version stamp (the saved organization already carries
-      `savedAt`).
-   2. **Compare before you overwrite**, at both places it's written: this browser's storage and the cloud copy. A
-      write says "I'm replacing the version I last saw"; if it has changed since, the write is refused.
-   3. A refused write, or a newer copy noticed, gets the same responses everywhere: **behind with no changes of its
-      own → catch up silently + toast + Undo; ahead or in sync → nothing; both changed → the banner**, and this copy
-      sends nothing to the cloud until you choose.
-2. **Only two things differ by place:**
-   - **Tabs** hear at once, for free — the browser tells every other tab when stored data changes, and the app saves
-     the organization on every change — and catch up by reloading from storage.
-   - **Browsers** hear when you come back to one (one small read of the cloud copy's version — the phone's freshness
-     check already makes it) or when the cloud refuses a send, and catch up by taking the cloud copy, which writes
-     their storage — which brings their other tabs along. The layers stack.
-3. **This retires both earlier designs' gatekeepers** — the read-only second tab (with "Edit here instead") and the
-   cross-browser "soft lease" with its 15–30-second check. Neither blocks you any more, and the lease's record would
-   have cost a cloud write every 15–30 seconds per active user (about 120 an hour, against ~1,000 a day on
-   Cloudflare's free plan). Compare-before-overwrite costs no extra writes.
-4. **Kept from the tab design: ❄ Freeze.** A tab can be frozen as a reference snapshot ("Frozen at 6:04 PM") — it
-   stops catching up, and a frozen tab doesn't edit or send. Resume = catch up.
-5. **Duplicate sends:** a tab sends to the cloud only when the stored version differs from the last one sent (recorded
-   in the shared storage), so two in-step tabs don't both send as you leave them.
-6. **Taking the cloud copy is the real work** — the desktop has never applied one; today it reads the cloud
-   organization only in the connection test (readerwrangler.js ~1845).
-7. **Tested with the browser driver:** two real tabs (edit in A; B catches up with the toast; Undo; nothing lost; one
-   send), then two throwaway browsers on one test channel (edit in A, return to B → caught up; edit both → banner,
-   and no overwrite either way).
-8. **Not a goal: live two-way sync** (two machines editing at once, merged) — rejected 2026-09-22: it needs push
-   infrastructure and a merge engine for folders, the case where a merge bug silently corrupts everything. One person
-   moves between machines; catching up at the switch is the need.
-
-**Still to decide when building**
-1. **Undo after catching up:** the tab's older undo steps refer to the state before the other copy's changes — undoing
-   one then must not bring old state back. Lean: catching up starts a fresh undo history in that tab, with the
-   catch-up itself as its one step. Check against docs/design/UNDO-MODEL.md first.
-2. **Mid-gesture:** a tab in the middle of a drag, or with the book details window open, catches up when that ends.
-3. **Books live in a second store** (written whole, apart from the organization): the compare must cover it too, or
-   one stamp covers both.
-4. **Dragging between tabs** stops being dangerous (both tabs are current) — allow it or not? Decided in "Two-pane split
-   view" (2026-11-03): try two windows side by side first, including drag between them; build the in-app split only if
-   that falls short.
-
-**How (technical)**
-- Tabs: the `storage` event (or BroadcastChannel) for the notice; a compare against the stored `savedAt` before each
-  organization write. Cloud: an optional "expect" generation on the device-state pointer flip
-  (relay/relay-worker.js `handlePutPointer`, ~812) — the worker refuses with 409 if the pointer has moved; the
-  return check reads `getDeviceStatePointerGen`. Cloudflare's storage takes up to about a minute to agree everywhere,
-  so this is a guard for one person moving between machines, not a lock. The worker part rides a relay release (Ron's
-  yes before each deploy).
-- Model the four states as one state machine, not flags.
-- Design: docs/design/MULTI-INSTANCE.md §4 (rewritten 2026-11-02; the old §6 folded into it).
-
-#### Lock the Cloud Sync Key in backups with an optional key password
-<!-- id 20261104-1024 -->
-
-_Why it matters:_ Every backup carries your Cloud Sync Key, and since 7.25 that key also signs changes — so whoever you
-share a backup file with ("send your brother your ReaderWrangler file") can change or delete your cloud copy. A family
-member forwarding a file is far likelier than any attacker.
-
-**Decided** (Ron + Claude, 2026-11-04)
-1. **An optional "key password" locks only the key inside the backup** — books, folders and notes stay readable, so
-   forgetting it costs a re-setup, never data. Not stored only in the browser instead: the backup exists for the day
-   the PC dies (Ron). Words: **lock** (not "scramble" — sounds undoable by anyone; not "encrypt" — that's Cloud Sync's
-   word) and **key password** (not "backup password", which reads as "protects the backup" or "a spare password").
-2. **One optional line in the save step, never a pop-up (Law 18):** *"Lock the Cloud Sync Key in this backup with a
-   password (optional) [______]  Why?"* + "Don't ask again". Shown only when Cloud Sync is set up. **Remembered in
-   this browser**, so later backups lock automatically; **File → Key Password…** sets, changes or removes it.
-3. **Why? / help text:** sharing an unlocked backup shares access to your cloud copy (the recipient could change or
-   delete your library and organization; you could recover from your last backup and make a new key); a password,
-   even a simple one, makes sharing a backup harmless — *"but feel free to use a strong password and a password
-   manager. We highly recommend password managers."* And: *"To look at someone else's backup, use a separate browser
-   profile — never swap backups in your own."*
-4. **The backup carries a "key locked" flag.** On restore, the wording adapts:
-   - this browser already has a key: *"This backup's Cloud Sync Key is locked. Enter your key password to restore it
-     too — or skip to keep using this browser's key (the usual case, if you haven't made a new one)."*
-   - no key here (e.g. a new PC): *"…Enter your key password to reconnect Cloud Sync — or skip: you can enter your key
-     later, or make a new one."*
-5. **Restore never blocks:** a skipped or wrong password restores everything else, then says *"Cloud Sync wasn't
-   reconnected — enter your Cloud Sync Key, or make a new one if you don't want to keep using your current cloud copy
-   (a new key means a new cloud copy)."*
-6. **Under the hood:** the same password-to-key method the relay already uses (relay-crypto), on one field of the
-   backup. A weak password can be guessed by someone determined with the file — accepted for this threat (Ron).
-7. **Ripples:** the Disconnect wording ("Relay Setup: disconnect…", Before launch → Cloud Sync) says the key is in your backups "locked
-   with your key password, if you set one"; the private-values commit check still refuses an unlocked key in a
-   backup-shaped file (a locked one holds only scrambled text).
-
-#### Remind me when my last backup is getting old
-<!-- id 20261104-1024a -->
-
-_Why it matters:_ The one real disaster is a lost or wiped PC with no recent backup — and nothing reminds you today
-(checked 2026-11-04). The cloud copy isn't a full backup yet (see "Keep your tabs and browsers in step…").
-
-**Decided** (Ron + Claude, 2026-11-04 — instead of emailing users about idle cloud copies, which would have ended the
-"the server holds nothing readable about you" promise)
-1. When your last saved backup is more than about a month old, the status area shows a quiet note: *"Last backup: 47
-   days ago — Save Backup"* — one click; never a pop-up (Law 18).
-2. The app records when you last saved a backup (this browser); a Restore counts too.
-
-#### Restore from Cloud Sync: your books and organization back from the cloud copy, no backup file needed
-<!-- id 20261109-1700 -->
-
-_Why it matters:_ The worst case — a lost or wiped computer and no recent backup file — already has its cure sitting in
-the cloud. With Cloud Sync on, the computer sends the relay the phone's copy (the code's "device-state") a few seconds
-after each change: the whole library AND the organization (folders, Book Lists, Searches, tags), in a backup's shape. But
-nothing on the computer reads it back; Import from Relay merges only the books the fetcher sent.
-
-**Decided** (Ron + Claude, 2026-11-09)
-1. **One restore, two readers.** A file reader and a relay reader each turn their source into the same backup-shaped
-   data; from there ONE path — the backup check (backupCheck.js), the "restore?" box, the restore itself
-   (performRestore / loadLibrary) — that can't tell where the data came from.
-2. **Credentials:** the relay's copy carries none, and needs none — reaching the relay already took yours. The restore
-   keeps the current ones (as a backup file without credentials does).
-3. **The new computer:** once built, the app tells the person that any backup FILE made since their current credentials
-   were created brings them back — File → Relay Setup → Credentials → "Load credentials from backup file" (the label says
-   "backup file" since 7.26.0, so it can't be mistaken for this).
-4. **Two computers on one Cloud Sync:** the restore brings back whichever sent last — expected, no special handling
-   (Ron).
-5. **Until this is built, every recovery message offers only the backup file** (Ron: one option until then). When it's
-   built, "Reset App: one honest message in all four places" (Before launch → Cloud Sync) offers it as the second way
-   back. The menu: one item, "Restore…", asking "from a backup file / from Cloud Sync" only when Cloud Sync is set up —
-   otherwise straight to the file box (Claude's UX verdict; Ron to confirm when it's built).
-- How current: as of the last send (seconds); a change made in the moments before a crash may be missing — say so in
-  the "restore?" box ("your cloud copy from 2 minutes ago").
-6. **After a reset: one choice, and the cloud copy held until it's made** (Ron + Claude, 2026-11-11, building
-   7.27.1's reset words). What happens today, checked in the code: the reset itself sends nothing, and nothing is sent
-   while the library is empty (the device-state push skips `books.length === 0`) — but as soon as books are back (a
-   fetch + Import from Relay, which brings books without folders) any change sends a **full** copy (no deltas: every
-   push is a whole new generation) that replaces the cloud's copy with the folders; the relay keeps two, so one more
-   push and the old organization is gone from the cloud. Decided:
-   - **The first time the app opens after ANY reset** (Tools → Reset App, the emergency screen, the reset page, the
-     phone — each sets one "just reset" mark), it asks once: *"You've reset ReaderWrangler. Bring your library back?
-     [Restore from Cloud Sync] [Restore backup file…] [Start fresh]"* — the natural moment ("what next?"), part of the
-     person's own action; "Start fresh" covers the early-days restart.
-   - **Until a choice is made, nothing is sent to the cloud** — so the cloud copy is guaranteed intact when they choose
-     to restore from it. Closing the box keeps the hold and asks again next time.
-   - **Ships with this task**, not before (Ron): until a restore from the cloud exists, the cloud copy isn't a way back,
-     so there's nothing to hold for — and a hold with no cloud restore to offer is a confusing mode. (The
-     backup-file-only version of the choice could ship earlier on its own — Ron: wait; logged here.)
-   - **Turned down:** a "last chance" prompt at the first push that would overwrite the cloud (it interrupts 60 s after
-     an unrelated change or on leaving the tab — "a stopping prompt is still a block", Law 18 — and asks about a reset
-     that may be an hour old).
-
-#### Restore checks every book, folder and list inside a backup — skip a bad one and say so
-<!-- id 20261108-1800a -->
-
-_Why it matters:_ Since 7.26.0 Restore checks that a backup has every part it needs, each of the right kind — but not
-what's inside them. One book with no ID, a folder with no list of books, or a Search with no position can still crash
-the restore part-way or leave a broken library.
-
-**Found** (2026-11-08): each book needs an ID (its ASIN — the app's book ID is the ASIN; a book without one, or two
-with the same, break the folders that hold them); each folder an ID, a name, a parent and a list of books; each Book
-List an ID, a name and a list of books; each Search an ID and a number position (the restore computes
-`Math.max` over the positions — a missing one makes it NaN); each tag-list entry a name.
-
-**To decide first:** skip or refuse. Law 18 (don't block the user) says one bad book out of 3,000 shouldn't refuse
-the whole backup. Claude's verdict: restore everything else, skip the bad items and say so with their titles —
-*"Restored 3,295 books; skipped 1 that had no ID: 'Title'"* — and let the folders' integrity check tidy after it;
-refuse only when what's left is unusable (Ron's rule for the parts, 2026-11-08: "if that makes it unusable, we reject
-it"). The skipped items go in the log (BACKUP area), so support can see them.
-
-**How:** the same one checking function as the parts check (backupCheck.js, 7.26.0), extended to the items, with its
-function tests written first.
-
-#### One backup writer: Save Backup and the copy sent to the relay are built twice and already differ
-<!-- id 20261108-1800b -->
-
-_Why it matters:_ The backup file and the copy sent to the relay and the phone hold the same library, but each is put
-together by its own code — and they already disagree: the relay copy carries the folder-list order (Manual / Name;
-`folderListSort`) and when it was saved; the backup has neither, so a restore onto a new computer can't bring the
-folder order back. Every new field has to be remembered twice (Law 4: two answers to one question).
-
-**Found** (2026-11-08): `buildDeviceStatePayload` (readerwrangler.js ~6146, the relay and phone copy) and Save
-Backup's own builder (~6271) each write `books`, `organization`, `collections`; a comment says the first is "shared
-with exportBackup", but Save Backup builds its own. Differences: the relay copy has `savedAt` and
-`explorerSettings.folderListSort`; Save Backup has `exportDate`, `theme`, `appVersion` and the Cloud Sync
-credentials.
-
-**How**
-1. One builder; Save Backup adds only what a file needs (the credentials, the save date) and the relay copy only what
-   it needs (`savedAt`).
-2. The folder-list order joins the view settings it belongs to (a restore onto a computer with books keeps the view
-   here — Ron, 2026-11-08: "restore changes organization, not views").
-3. Then "Remove code left over from older versions…" (Polish) drops the dead parts from the one writer.
-4. Test: a Save Backup → Restore round trip and a relay round trip produce the same organization.
-5. **Build the backup from storage, not the screen** (medium — Ron, 2026-11-09). Save Backup reads the books from the
-   book store but the folders, Book Lists and tags from what's on screen. When the start fails AFTER the books are
-   readable (the organization store is never written by a failed start — F1), the screen is empty but storage still
-   holds the whole library: a backup built from storage would be complete, one from the screen is missing its folders
-   — and since 7.26.0 a restore from it gives exactly that. 7.26.0 refuses Save Backup until the library has loaded
-   (the guard); with this, "save a backup now" becomes safe advice even after a failed start, and BOOT-01's critical box
-   can say so again. Normally the screen and storage agree (the organization is saved on every change) — check that
-   nothing pending is lost (a change still on its way to storage).
-
-### Costs
-
-_Formerly: Launch economics_
-
-#### Move to Cloudflare's $5/month plan around launch
-<!-- id 20260828-0000 -->
-
-_Why it matters:_ The free plan supports only a handful of users.
-
-**What we know** (RELAY-ECONOMICS.md, 2026-08-28)
-- After 7.5.0's savings, the flat $5 plan covers about 250 users like you; the free plan about 6–10 — and it's shared between production and dev.
-- So this is now just the act of upgrading at the right moment, at or shortly before launch.
-
-**Decided** (Ron + Claude, 2026-11-02, in the TODO review — the nightly trend file now gives real numbers)
-1. **Upgrade at launch, or earlier when the numbers say so — whichever comes first:** the relay's threshold alerts
-   (25/50/75/90%) already email; "the writes alert at 50% fires on two days in a week" is the trigger. Writes, not
-   storage, are the binding limit (1,000 a day for the whole account).
-2. **Re-check the "≈250 users on $5, 6–10 on free" estimate against the trend file** (`relay-trend.csv`, kept with
-   the TODO notes, nightly since 2026-10-20) before upgrading — the August model predates the nightly cleanup's deletes,
-   signed writes (one registration write per channel, a few extra reads) and "Refresh all books" (a heavy day).
-3. **Dev shares the free limits** — release day 2026-10-31, the tests on dev used 23.6% of the account's daily writes in
-   an afternoon; a test day plus a busy user day could hit the cap and stop production syncing for everyone. Until the
-   upgrade, "run the relay tests locally by default" ("Relay worker: one release…", item 5) is what protects
-   production.
-4. **Check Cloudflare's current prices and limits when upgrading** — not the August numbers.
-
----
 
 ## 🗄️ After launch
 
@@ -3571,6 +3365,37 @@ also prints the full Channel ID on screen — exactly the kind of error people s
 ### Features
 
 _Formerly: Features_
+
+#### Build the support assistant (custom GPT)
+<!-- id 20261014-1030i -->
+
+**After launch (Ron, 2026-11-19):** it needs the finished User Guide, and real people's questions to tune it — and it adds an outside service.
+
+_Why it matters:_ Lets users get answers without waiting for you.
+
+**What you'd get**
+- A custom GPT that answers ReaderWrangler questions, linked from the Help menu.
+
+**Decided** (Ron, 2026-10-22)
+- **It reads USER-GUIDE.md — the same file people read** (the User Guide task above); no separate manual.
+- **The uploaded copy is the one thing that can drift.** A custom GPT keeps its own copy (believed not to re-read our
+  site by itself — confirm when building). So: the guide carries an "up to date through release X" stamp, the
+  assistant is told to quote it when asked, and the release checklist gets "re-upload the guide to the assistant".
+
+**Decided** (Ron + Claude, 2026-11-01, in the TODO review)
+1. **Choose the platform when building, from current facts** — the custom-GPT choice dates from July (Ron's ~$20/mo
+   authoring seat; users need a ChatGPT account; free-account limits change). Compare then: a custom GPT, a Claude
+   equivalent (the spec's own "evaluate" line), an assistant on our own site through an API (per-use cost, no outside
+   account). Prices and limits move monthly — no recommendation ahead of time.
+2. **It never asks for, or accepts, the Cloud Sync Key.** Support chats are where people paste secrets. Its
+   instructions say never to request it, and to tell anyone who pastes it to make a new key; the User Guide's
+   troubleshooting says "nobody needs your key to help you".
+3. **A way out when it can't answer:** the support inbox, if launch-risk review 1 brings one ("email support@…"), else
+   a link to report an issue — never a dead end.
+4. (Not a change — the "one file" decision applied:) the help notes (SUPPORT-KB) aren't uploaded separately; their
+   troubleshooting answers flow into the User Guide's FAQ and troubleshooting when the guide is written.
+
+**Spec:** docs/design/SUPPORT-GPT.md.
 
 #### "Read in Kindle": open a book in the Kindle app or Cloud Reader
 <!-- id 20260919-0000 -->
@@ -4088,6 +3913,62 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       prompt. Inside a sprint the new prod guard covers them.
 
 
+### Generated test libraries: made-up books at any size, with their own covers
+<!-- id 20261104-1613a -->
+
+**Parked in Watching 2026-11-19** (the cold review of the TODO; Law 23): test infrastructure, not app work — built only if the failure it guards against recurs.
+
+_Why it matters:_ Test data with nothing personal can be committed and backed up anywhere, is identical every run (a
+failure always reproduces), plants the awkward cases on purpose, and comes in any size — so the tests stop leaning on
+Ron's real library (Ron, 2026-11-04: "it would be nice to migrate away").
+
+**Decided** (Ron + Claude, 2026-11-04 — Claude's call, Ron's ideas)
+1. **Generated, not real**, for tests: one generator (today's `test/fixtures/make-small-fixture.js`, grown) with a
+   **size setting** — 23 books for exact checks, ~3,000 for scale, 10,000 for stress — and **seeded**, so the same
+   "random" library every run.
+2. **Titles from a little title machine** (Ron's rules): *The [X] of [Y]*, *Adjective + Noun*, *A [Court] of
+   [Starlight] and [Shadow]* (fantasy), *-ing* openers, *Hook: subtitle* (nonfiction) — word lists per category,
+   picked by the seeded random ("A Kingdom of Teacups and Regret"). **Lorem-ipsum descriptions.** Cases a test depends on
+   keep fixed names (the series a Search looks for, the folder names).
+3. **Organization generated too:** folders by author with series subfolders, Book Lists by Amazon tags, some books in
+   the Trash, hidden, wishlisted with goals, every ownership kind — the planted cases, at scale.
+4. **Covers generated, served by the repo itself** — no website: a small **SVG** per cover (a solid background by genre,
+   the title on top — a tiny text file, no image library needed) in `test/fixtures/covers/`, which serve.py already
+   serves to the tests on Ron's PC: no internet, nothing test-related on readerwrangler.com or the home server, identical
+   every run. The scale library reuses a pool of ~50 rather than committing thousands. (The one path that built an
+   Amazon image link from the ASIN — the old CSV loader — was dead code, deleted in 7.26.0-alpha.1; nothing in the
+   app's code builds one now, checked 2026-11-05. The screen tests' request detector would catch a new one.)
+5. **Ron's library snapshot stays, used rarely** (`.private/test/`): only for "does real data have a quirk we never
+   thought to generate" checks — real data catches what nobody imagined.
+
+**How (technical)**
+- Packed with the app's own book packer (bookFields.js `packBook`), as the small fixture is. TESTING.md §5 gains the
+  sizes and the covers when built.
+- **First user — a load-time test at scale** (the 7.27.0 post-mortem's "bug no test would have caught"): Ron's books
+  took ~7 s to show on 7.27.0-alpha.1 while every screen test (23 books, no cover copies) said under a second. With a
+  generated ~3,000-book library committed, a LOAD test can time "folders on screen" at that scale with a full cover
+  cache (as tools/time_load.py does with the private copy) and fail on a regression — with a bound loose enough that a
+  slow moment can't fail it.
+
+### Receipts reach the screen: one screen test per area, not only the log
+<!-- id 20261110-1021 -->
+
+**Parked in Watching 2026-11-19** (the cold review of the TODO; Law 23): test infrastructure, not app work — built only if the failure it guards against recurs.
+
+_Why it matters:_ Since 7.26.0 every toast goes through the log (`rwLog.log(…, { toast: true })`). If an edit drops the
+`{ toast: true }`, the log still records the line, and no check notices that the person no longer sees it. That
+happened once in 7.26.0, to the tag-delete receipt: it was found and fixed during the build, but not by any test (the
+post-mortem's "bug no test would have caught").
+
+**Done already (2026-11-10, Ron's yes):** `test/ui/test_tags.py` — TAGS-001 (delete one tag) and TAGS-002 (delete
+two ticked tags) check that the receipt is on screen, on top and readable. Both were seen to fail with the receipts'
+`{ toast: true }` removed.
+
+**The rest — the class:** one such check for each area's main confirmation (ORG: create, rename, delete a folder, Book
+List or Search; EDIT: a book's details saved, Bulk Edit; MOVE: a move's receipt; UNDO: Undo / Redo; BACKUP: Save Backup;
+SYNC: Import from Relay's summary; AUTO; SHARE…), through the same helper (a toast holding the words, reached by the
+pointer). **When:** after "Faster loading" (each screen test then starts in about a second instead of ~35).
+
 ### Undo history sometimes empties by itself
 <!-- id 20260807-0000 -->
 
@@ -4314,7 +4195,8 @@ _Why it matters:_ Separate libraries for several people in one copy of the app.
 browser profile per person** (or another browser). Each profile is its own world: its own library, its own Cloud Sync
 key, nothing shared (help notes, "One working tab…"). Swapping libraries with Save / Restore Backup, the old
 workaround, is clumsy and easy to get wrong. The real hazard — someone else's Amazon account fetched into your library —
-is its own task: "A fetch from someone else's Amazon account stops before mixing two libraries" (Before launch).
+is its own task: "A fetch from someone else's Amazon account stops before mixing two libraries" (the launch gate, in the
+fetcher work).
 
 **Spec:** docs/design/archive/MULTI-USER-DESIGN.md.
 
