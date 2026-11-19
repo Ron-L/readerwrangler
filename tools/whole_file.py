@@ -9,9 +9,8 @@ and then right after the file was rewritten (six runs saving test costs at once 
 (PermissionError) is retried, SWAP_TRIES times SWAP_PAUSE_S apart (~2 s in all). Still refused: the scratch copy is
 removed, the old file is left whole, and the PermissionError is raised. Any other failure stops at once, the same way.
 
-Used by tools/build.py (dist/, LF line endings), tools/browser_level.py (save — also how tools/test_costs.py writes) and
-tools/backup_claude.py (copies, as bytes). Before 2026-11-18 the first two had their own copies of this loop. Tested by
-test/test_whole_file.py (WHOLE-001–007).
+Used by tools/build.py (dist/, LF line endings), tools/held_tests.py (save) and tools/backup_claude.py (copies, as
+bytes). Tested by test/test_whole_file.py (WHOLE-001–007).
 """
 import os
 import threading

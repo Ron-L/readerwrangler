@@ -162,7 +162,6 @@ git-hooks`; bypass is Ron's call only: `--no-verify`). Each one, what it refuses
 10. **Saved-value reads** — a bare `JSON.parse` of a saved setting where `readSaved` should be used.
 11. **No task leaves TODO.md silently** — a removed task needs a ✅, a "merged" mark, or `done <id>` / `dropped <id>` in
     the message.
-12. **No test line joined onto a comment** — `# not-joined: <why>` for a comment that truly ends in code.
 
 ---
 

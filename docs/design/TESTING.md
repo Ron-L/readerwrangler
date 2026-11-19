@@ -146,33 +146,32 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   look once it has reached amber; `app.held(text, words, ms)` — a toast still where it appeared `ms` after it was shown
   (a duration, timed on purpose, on the page's clock). **One limit for a step: `rw.LIMIT_MS`, 60 s** — every screen
   test's (it was 30 s in test_cells.py, 60 s in the two key files, 3–10 s at ~120 waits elsewhere). Generous: a step
-  answers in well under a second, 2–5× slower on a loaded PC. And under the runner's 120 s floor for "ran past its usual
-  time" (below), so a wait that runs out is reported as the test failure it is, not stopped as the machine's trouble.
+  answers in well under a second, 2–5× slower on a loaded PC — and far under the runner's 10-minute limit for a whole
+  file (below), so a wait that runs out is reported as the test failure it is, naming the step.
   The app opening or a load (a reload, a reset) has its own: `rw.APP_TIMEOUT_MS`, 180 s (test_reset.py, test_boot.py
   and three files' relay / restore / reset waits use it). A sleep that stays proves something does NOT happen (a
   window, measured from the right moment) and says so: `# timed on purpose: …`.
-- **Heavy tier-1 files** (Ron, 2026-11-17: "Yes. Also back off"; the merge's full run failed a different timing test of
-  test_run_tests.py twice — RUN-079, then RUN-057 — under 4 tier-1 files at once). A tier-1 file whose header says
+- **Heavy tier-1 files** (2026-11-17: the merge's full run failed a different timing test of test_run_tests.py twice
+  under 4 tier-1 files at once). A tier-1 file whose header says
   **`heavy: yes`** (optionally `— why`; `heavy: no` or no line = light; anything else is a header problem) starts many
-  processes of its own. It **holds one of the PC's test slots while it runs, within the same browsers-at-once level** —
-  so the level governs heavy work of both tiers — and `--list` marks it. Counted 2026-11-17 (each run alone, every process
+  processes of its own. It **holds one of the PC's test slots while it runs**, as a screen test does — so the PC's
+  limit covers heavy work of both tiers — and `--list` marks it. Counted 2026-11-17 (each run alone, every process
   it started): `test_backlog_report.py` ~1,200 git processes one after another for ~2 min; `test_copies.py` ~400, up to
   9 at once; `test_merge_branches.py` ~350; `test_run_tests.py` ~300, up to 8 at once (sample runs in parallel, stand-in
   relays); `test_sync_remotes.py` ~220, up to 5 at once — the five marked. The next, `test_gate_check.py`, ~75 (2 at
   once); every other tier-1 file under 15. **Light tier-1 files run beside them, outside the slots, as before**: each of
   the `--jobs` workers takes the first file in order that may start now — a light one always, a slotted one only with
-  room — so a light file never waits behind a slotted one. **Its machine trouble backs the level off as a browser's
-  does** (halved at once, saved) and it is **rerun once, alone**, said loudly — only when the file itself says so (exit 3
-  and the marked line), never guessed. What a heavy file can tell reliably: **test_run_tests.py's stand-in relay wasn't
+  room — so a light file never waits behind a slotted one. **Its machine trouble is rerun once, alone**, as a screen
+  test's is, said loudly — only when the file itself says so (exit 3 and the marked line), never guessed. What a heavy
+  file can tell reliably: **test_run_tests.py's stand-in relay wasn't
   ready within its time** — only when the stand-in's last try never reached its own ready line (each try leaves a note)
   AND the runner waited its whole time; if the stand-in said "Ready", whatever followed is the runner's — a failure
-  (`standin_late`; RUN-016–020, 052, 057). The others have no time limits of their own: they only get slower. A run with
-  no screen tests is no measure of browsers — only its trouble moves the level, never up. A light tier-1 file's exit 3 is
-  a failure like any other. test_run_tests.py ends through `environment_trouble.tally` (its summary — a check the
-  machine's trouble stopped counted apart, `N passed, M failed, K stopped by the machine's trouble` — the exit rule and
-  the marked line), and `RUN-093` runs a stand-in that ends the same way through the real runner, the whole path end to
-  end (2026-11-18, TODO tooling 11.2): exit 3 → 4 → 2 at once, saved → rerun alone, passed → the summary's counts and
-  the record. Tests: `RUN-077`, `087`–`090`, `093`, `LEVEL-022`.
+  (`standin_late`; RUN-016–020, 052, 057). The others have no time limits of their own: they only get slower. A light
+  tier-1 file's exit 3 is a failure like any other. test_run_tests.py ends through `environment_trouble.tally` (its
+  summary — a check the machine's trouble stopped counted apart, `N passed, M failed, K stopped by the machine's trouble`
+  — the exit rule and the marked line), and `RUN-093` runs a stand-in that ends the same way through the real runner,
+  the whole path end to end: exit 3 → said → rerun alone, passed → the summary's counts and the record. Tests:
+  `RUN-077`, `087`–`090`, `093`.
 - **Rerun once, ALONE — never silently** (2026-11-17): a screen-test file — or a heavy tier-1 file (above) — that exits 3
   with that line (both needed; a light tier-1 file and tier 3 never) is not reported yet; when every other file of the
   run is done, the runner waits 10 s, takes **every**
@@ -203,19 +202,18 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   machine's trouble)` — and says loudly, right under it, `! 5 files met the machine's or the browser's trouble this run
   — only 4 are rerun alone; that many points at something broken, not a passing hiccup — look at what else the PC is
   doing`, naming them. The record marks the file (`result: "not proven"`, `not_proven`: why) and the run (`result:
-  "not proven"`); its cost sample teaches nothing (`the machine's trouble — not proven`). **The run's exit is 3** (the
+  "not proven"`). **The run's exit is 3** (the
   machine's trouble, `environment_trouble.EXIT_CODE`) when nothing failed — **a real failure still wins: 1**. Nothing
   treats it as a pass: the stamp is NOT PROVEN (the file named under its tier: `<file> not proven — the machine was
   too busy: <why> — 5 files met its trouble this run; only 4 are rerun — full output: <path>`), so the merge script
   doesn't land on it (and says `tier 1 not proven — the machine was too busy`, never "failed"); the commit hook's
-  `--changed` refuses the commit (any exit but 0); the browsers-at-once level backs off for the trouble and learns
-  nothing from the run. A sharded file is failed if a shard failed, else not proven if a shard was. Tests: `RUN-095`–`097`,
-  `COST-023`, `MERGE-005`.
+  `--changed` refuses the commit (any exit but 0). A sharded file is failed if a shard failed, else not proven if a shard
+  was. Tests: `RUN-095`–`097`, `MERGE-005`.
 - **A file that can't be proven is HELD** (2026-11-18, TODO tooling 13.13 — Ron: "we don't want to go into an infinite
   try loop if a file is never going to run under current resources and loading … Give up after say 3 failures of same file
   and report it and await instruction from me"; the proposal approved the same day; `tools/held_tests.py`). Counted **per
-  PC**, in the slots folder (`%TEMP%\rw-test-slots\held-tests.json`, or `RW_TEST_SLOTS_DIR`'s) — so the runs of every
-  working copy and of every merge on this PC add up (it read one folder's records until then, TODO tooling 13.10) — over
+  PC**, in this PC's test-state folder (`%LOCALAPPDATA%\ReaderWrangler-tests\held-tests.json`, or `RW_TEST_SLOTS_DIR`'s)
+  — so the runs of every working copy and of every merge on this PC add up — over
   **full runs only**: a run narrowed by `--changed`, `--id`, `--tag` or `RW_CELLS` is passed over. For each file, the full
   runs in a row in which it met the machine's or the browser's trouble — `rerun alone` (passed on its rerun) or `not
   proven`; a full run that passed it the first time, or failed it (a test failure — a definite answer), ends its streak.
@@ -249,187 +247,41 @@ merged result, and the target moves only when its stamp is PROVEN — two change
     others; anything else is a header problem); a hold taken while it ran beside others is lifted by it, said (`the hold
     is lifted and its streak starts over`); or **`skip: <TODO id> — <why>`** (set aside, below).
   Tests: `RUN-074`–`078`, `092`, `098`–`101`.
-- **How many browsers at once — the runner finds it itself** (2026-11-17; Ron: "similar to how TCP works" — use more
-  until failures, back off, occasionally try more; measure diminishing returns; conditions change). It replaced, the
-  same day, a fixed rule (under 4 GB free → 2 browsers, under 2 GB → 1). `tools/browser_level.py`:
-  - **The level** — how many screen-test browsers a run may run at once, **1 to 6** (the PC's slots are 6 to match).
-    It is **saved per PC**, beside the slot files: `%TEMP%\rw-test-slots\browsers-at-once.json` — the level, why, and
-    the last 30 runs (`{level, end, wall seconds, files, suite, full, trouble, failed, free GB, when}` + what was
-    decided after each). Written to a temporary file, then put in place. **Missing or damaged → start at 4, and the run
-    says so.** **To reset it: delete that file** (the next run starts at 4).
-    **A folder of its own — `RW_TEST_SLOTS_DIR`** (2026-11-17): set, it holds the slot files AND this file instead of
-    `%TEMP%\rw-test-slots` — TEMP itself stays where it is (a lab that moved TEMP broke the local relay emulator:
-    wrangler keeps its storage in TEMP). Every run that should share the PC's limit must use the same folder. Recorded
-    with the run; it doesn't narrow it. Unset → `%TEMP%\rw-test-slots`, as before. Test: `RUN-085`.
-  - **Back off hard:** a screen test meeting the machine's or the browser's trouble (exit 3, above) **halves the level
-    at once** for the rest of the run (`! browsers at once: 4 → 2 for the rest of this run — <file> met …`): the files
-    already running go on; new ones start only while fewer than the level are running. One halving per burst (trouble
-    from a file that started before the last halving doesn't halve again); never below 1. The file is rerun alone as
-    before, and **the halved level is saved** — whether or not the run was narrowed.
-  - **Grow gently:** after a **full** screen-test run (`--tier 2` or `--tier all`, not narrowed by `--id`, `--tag`,
-    `--changed`, `RW_CELLS` or a set-aside tier-2 file) with no such trouble **and every file passing**, the next run
-    gets **one more** (up to 6).
-  - **Only fully passing runs count** (Ron, 2026-11-17 — Karn's algorithm: an ambiguous sample is dropped, not risked):
-    a full run where **any** file failed — or couldn't run, or the build failed (tiers 1 and 2 and their reruns; tier 3
-    runs after, outside the timed part) — is **saved, marked `failed`** (how many), shown `(failed)` on the level line,
-    and **moves nothing**: `· browsers at once next run: 4 — 1 file failed in the last run at 4 at once — only a run
-    where every file passed moves the level or is compared — staying at 4`. It is never a yardstick (not the best recent
-    time, not the bar for "twice as slow"), and doesn't count toward the 5-run wait below. A try at one more whose run
-    failed isn't judged: the next clean run at that level is. **The machine's trouble still backs off**, failed or not.
-  - **Diminishing returns:** the run right after a step up is judged — its wall time (the parallel part: not the build,
-    reruns or tier 3) against **the best recent full run at the level below** (the last 10 saved runs; the same suite —
-    tier 2 or all — and about the same number of screen-test files, within 10 %; never a run with trouble or a failed
-    file). **Not faster by more than 5 % → back to the level below, and no try at the higher one for the next 5 full
-    runs** — then it tries again (conditions change). A suite that changed size a lot isn't compared: the run stays at
-    its level to measure it.
-  - **Sustained slowness steps down by one** (Ron, 2026-11-17): a clean full run (every file passed, no trouble) at
-    level L that took **more than twice** the best recent clean full run at the same L (the same suite and size, as
-    above) → the next run at **L−1** — not halved; never below 1 — saying both times (`4 at once took 6 min 50 s — more
-    than twice the best recent run at 4 (3 min 20 s) — one fewer: 3`). No wait afterwards: the next clean run at normal
-    speed may grow again by the rules above.
-  - **Said and recorded:** each screen-test run starts with a line like
-    `· browsers at once: 4 (saved — 5 at once took 3 min 40 s — no faster than 4 at once (3 min 24 s, the best recent
-    run) — back to 4, and no try at 5 for the next 5 full runs; last 3 full runs: 4 → 3 min 24 s, 5 → 3 min 40 s, 4 →
-    3 min 22 s) · 18.2 GB of memory free` and ends with `· browsers at once next run: 4 — <why>`. The record holds
-    `browsers` (the level it started at, where from, each change, the end, the most at once, troubles, the wall time,
-    the next level and why) and `memory` (free GB — evidence, no longer a rule).
-  - **Forcing a number:** `--jobs N` or `RW_TEST_SLOTS=N` runs N at once (the slots still cap it) — **the saved level is
-    left alone**, and trouble doesn't move N within that run. `--jobs` also sets how many files at once overall; by
-    default that's 4, or the level when higher (tier-1 files beside the browsers in a `--tier all` run aren't held to
-    the browsers' level).
-  - Two runs at once (two working copies) each save their own result; the last one written wins. A run at level L takes
-    only the first L of the PC's slots, so runs at the same level together stay within it.
-  - Measured 2026-11-17 for scale: one screen-test file's Chrome takes 0.15 GB of RAM typically, 0.57 GB at most; our
-    servers and relays up to 0.27 GB together (tools/test_slots.py).
-
-  Tests: `LEVEL-001`–`021` (test/test_browser_level.py — the rule, a pure function: history in → next level and why
-  out; `017`–`019` a failed run, `020`–`021` slowness), `RUN-079`, `083`–`086`.
-- **What each test costs this PC — measured, averaged, shown** (2026-11-18, TODO tooling item 12 step 1; Ron: "Measure
-  1st. If you don't measure you won't know if you've improved things"). **Step 1 measured only; step 4 puts the time
-  averages to work — the order and a "stuck" limit (the next bullet).** `tools/test_costs.py`:
-  - **What is measured** — per **unit** (one process the runner starts: a whole file, or one shard of a `shards: N`
-    file), per run, for its **whole process tree, exited processes included** (git, node, Chrome's helpers): the unit is
-    started suspended, put in a Windows **job object** of its own, then let go — a job counts every process started
-    inside it, and nothing can leave it (breakaway is never allowed; Chrome's own nested jobs still count in ours).
-    Checked 2026-11-18 on three real screen-test files: every process under the test was asked "are you in the job?"
-    every half second — 8–12 chrome.exe each, none outside. In the run's record, beside each file's `seconds` (and each
-    shard's), `measures`:
-    - `committed_peak_bytes` — **memory committed, at its peak**: the most private memory the tree held at once (what
-      the processes asked Windows to guarantee them — RAM or the page file). **It is NOT RAM in use** (Law 2: 7.31.0
-      quoted committed memory as RAM);
-    - `ram_peak_sampled_bytes` — **RAM, private (sampled peak)**: what the test adds to the PC's RAM — each process's
-      **private** working set (RAM only it uses; the pages it shares with others — Chrome's and Python's DLLs — left
-      out; `PROCESS_MEMORY_COUNTERS_EX2`), added up about once a second (first at ¼ s), the highest sum seen. A peak
-      between two samples is missed; a unit shorter than ¼ s has none (`None`). `ram_kind` says which kind was measured:
-      `private`, or — on a Windows without the private figure (before Windows 10 1709) — `shared included` (the whole
-      working sets, shared pages counted in each process; `ram_note` says why; `--costs` stars it and leaves it out of
-      the comparison below; an average never mixes the two kinds). Why private (2026-11-18, the first version summed
-      whole working sets): the same shared base — about 0.45 GB a screen test — was added to every test, squeezing the
-      ratio between tests toward 1 (1.2× whole, 1.5× private on the same three files). Checked against Windows' own
-      figure for one process: 203.9 MB from both (WMI's `WorkingSetPrivate`, by process id). The whole-working-set sum
-      is kept beside it, `ram_with_shared_peak_sampled_bytes` — the same call gives it, so it costs nothing, and it shows
-      the shared base — but it is never averaged or shown: nothing is decided on it;
-    - `cpu_seconds` — user + kernel time of every process in the tree;
-    - `io_read_bytes`, `io_written_bytes` — **I/O, every kind**: Windows counts files, pipes AND network here — not the
-      disk alone;
-    - `processes` — how many the tree started in all.
-    A sharded file's own entry adds CPU, I/O and processes over its shards and takes the largest shard's peaks (they
-    ran side by side — their sum would claim they all peaked at once). A file rerun alone keeps its first run's
-    measures too (`retried` → `first_measures`). Measured on 2026-11-18, one screen-test file at a time
-    (test_app_loads, test_reset, test_delete_key): 41–51 processes, 0.66–0.82 GB committed, 0.39–0.59 GB RAM private
-    (0.83–1.09 GB with shared pages counted in each), 10–20 s of CPU, 27–40 MB read, 8–19 MB written.
-    **Not on Windows, or anything about measuring fails: every measure is `None`, the test runs exactly as before, and
-    the run says why once** (`· measures missing for …`). Only a run that leaves a record measures — every run of the
-    repository's files since 2026-11-18, the commit hook's `--changed` included (on the quick shelf; a narrowed run's
-    measures stay in its record and teach nothing).
-  - **Where the averages live** — per PC, beside the browsers-at-once level: `%TEMP%\rw-test-slots\test-costs.json`
-    (or `RW_TEST_SLOTS_DIR`'s folder). For each unit and each measure (time included), **a running average and
-    spread — TCP's own method for round-trip times (RFC 6298)**: the spread moves ¼ of the way to |sample − the old
-    average|, then the average ⅛ of the way to the sample; the first sample sets average = sample, spread = half of it
-    (so a unit measured once shows a wide ± — by design). Each with its count, last value and date.
-    - **Only a unit that ran in full and passed, the first time, teaches it** (Karn's rule, as the browsers-at-once
-      level): never a unit of a run narrowed by `--id`, `--tag`, `--changed` or `RW_CELLS`, never a failed one, never a
-      rerun alone after the machine's trouble. Those stay in the run's record, marked: `costs` → `taught` (how many),
-      `left_out` (each unit and why).
-    - **Only the repository's own test files teach it** (2026-11-18 — the runner's self-tests run it on throwaway sample
-      files, and one of them, RUN-051, takes a real run's path: it taught the PC's real averages under names like
-      `../../AppData/Local/Temp/tmp…/a.test.js`): a unit whose file is outside the repository being tested is left out
-      (`outside the repository`), and every save drops any saved entry named outside it — so such entries clean
-      themselves up. And **the runner's self-tests use slot files, a level and test costs of their own**: a test file
-      that runs the runner (test/test_run_tests.py, test/test_test_costs.py) sets its own temporary `RW_TEST_SLOTS_DIR`
-      at its top (removed when it ends) — never the PC's real `browsers-at-once.json`, `test-costs.json` or slots.
-      (test_merge_branches.py and test_copies.py drive stand-in runners, which touch none of them.)
-    - **A test file whose contents changed starts its history over** (its hash, taken as the run starts, is kept).
-    - **Runs finishing together lose nothing**: each save reads, merges and writes under an OS file lock (the slots' own
-      lock, `test_slots.locked`) and is written whole (`browser_level.save` — a temporary file put in place, a refused
-      swap retried for ~2 s). Six runs saving 10 times each at once: 60 of 60 kept (3 without the lock).
-    - To start again: delete the file.
-  - **`py tools/run_tests.py --costs`** runs nothing; it prints each unit — how many runs taught it, average ± spread of
-    time, memory committed, RAM private (sampled), CPU, I/O read and written — slowest first; the totals (time, CPU
-    and I/O for one run of each, one after another); and how much the screen tests differ in RAM: `Screen tests differ
-    in RAM by 1.5× — the biggest average private RAM peak (sampled) is …, the smallest … — less than twice` (the next
-    step's question: is the biggest at least twice the smallest?).
-
-  Tests: `COST-001`–`016` (test/test_test_costs.py — `015`–`016` a file outside the repository: never taught, cleaned
-  up on the next save — `006` a real child holding 200 MB whose grandchild burns 1 s of CPU
-  and exits first: the job counts it, and its private RAM is ≥ the 200 MB; `014` private vs whole working set, the API
-  stubbed).
-- **The averages at work — longest first, and a "stuck" limit per unit** (2026-11-18, TODO tooling item 12 step 4;
-  Ron: "longest first by each file's average, and a 'stuck' limit of average + 4 spreads (never above today's 10
-  minutes): act once every file has at least 5 runs measured"). Both read this PC's averages (above), and only for a
-  unit whose file still has the contents they were measured on (its hash — a changed file starts over):
-  - **Longest first by the average** — the units of tiers 1 and 2 start in order of their average time on this PC;
-    a unit with none: its time in this copy's latest record (a shard: its file's longest shard then, or its file's
-    time split N ways); with neither, 60 s for a screen test, 5 s for any other. One place decides (`estimate` in the
-    runner).
-  - **The stuck limit — TCP's own retransmission timer** (RFC 6298: average + 4 spreads; `test_costs.stuck_limit`).
-    A unit with **at least 5 runs measured** gets **average + 4 spreads, never under 4 times its average or 120 s,
-    never over 600 s** (the flat 10 minutes every unit had before — the ceiling wins when 4 times the average is over
-    it). **Why the floor:** healthy tests ran 2–5× slower when other programs took the CPU — 2× stopped five healthy
-    files (the 2026-11-18 lab, 12 of 16 CPUs kept busy by other programs: test_merge_branches.py stopped at 110 s,
-    average 55; test_environment.py 170 s, average 85; test_copies.py 171 s, average 86; test_run_tests.py 207 s,
-    average 103; test_backlog_report.py 282 s, average 141 — the first four passed rerun alone, in about their normal
-    time; the fifth found the reruns taken and was reported as a failure, which is now NOT PROVEN, above). The floor
-    was twice the average or 60 s until then (an earlier lab, the CPU alone squeezed, had seen 2.8×). **The flat 600 s stays** for a unit with fewer than 5
-    runs, for **every unit of a narrowed run** (`--id`, `--tag`, `--changed`, `RW_CELLS` — a narrowed unit's
-    average doesn't apply), for tier 3 (one file at a time, its own relay) and for every rerun alone. The run's opening
-    lines say it once: `· stuck limits from this PC's averages (59 units; the other 2: the flat 600 s — fewer than 5
-    runs measured on their contents, or stopped at their limit last time)`.
-  - **Past its limit, a unit is the machine's trouble, not a test failure** (TCP: a timeout is congestion, not a lost
-    connection): it is **stopped with every process it started** — the unit runs in a Windows job of its own (above),
-    and the job is ended by its handle (never by a name, never `taskkill /T`; before, only the unit's own process was
-    killed and its children ran on); **said plainly** — `! test/x.py: ran past its usual time: 196 s, its average 98 s
-    — stopped, with every process it started: the machine's trouble, not a test failure — it will be rerun once,
-    alone, with the flat 600 s, when the others are done`; **the browsers-at-once level halved** as for other machine
-    trouble (a light tier-1 unit, which holds no place in the level, halves it where it stands; a run with no screen
-    test or heavy file has no level to halve); and **rerun once, alone, with the flat 600 s** (TCP doubles its timer
-    on a retransmit) — the same rerun as for any machine trouble (above: after the others, holding every slot; said at
-    the end; the record's `retried` holds the reason, `limit` and `average`; a rerun teaches no average). Its line
-    ends `; rerun alone after ran past its usual time: N s, its average M s`. **Past the flat 600 s too, it's a hang
-    — a failure**, reported as before (`✗ timed out after 600 s`, both outputs kept). **Stopped when the run's 4
-    reruns are already taken, it is NOT PROVEN** — never a failure (the rerun bullet above; `COST-023`).
-  - **The backed-off limit is kept until a pass it can trust** (TCP keeps its backed-off timer until a sample that
-    wasn't a retransmit — Karn): a unit stopped at its limit is marked `backed_off` in `test-costs.json` (the run's
-    `· test costs:` line says so, the record's `costs` → `backed_off` names it), and **its next runs get the flat 600
-    s** until one passes the first time — that pass teaches its average, as any, and clears the mark. Why: a rerun alone
-    never teaches, so without it a test that truly got slower — the app it drives slower, its own file unchanged (so
-    its history doesn't start over) — would be stopped at the old limit every run, forever, halving the level each time.
-  - What the PC's averages gave on 2026-11-18 (61 units, 59 with 5+ runs), with the first floor (2× / 60 s):
-    `test_backlog_report.py` first — average 141 s, limit 283 s; then `test_run_tests.py` 98 s → 196 s,
-    `test_environment.py` 88 s → 176 s, `test_copies.py` 88 s → 175 s, `test_merge_branches.py` 58 s → 115 s, the three
-    `test_cells.py` shards ~46–51 s → 104–110 s, `test_delete_key.py` 37 s → 94 s (average + 4 spreads, its times vary
-    more). With the floor at 4× / 120 s (the same day, after the lab), 4 times the average sets every one of those:
-    564 s, 392 s, 352 s, 352 s, 232 s, ~184–204 s, 148 s.
-
-  Tests: `COST-017` (the limit at its floor — 120 s, and 4 times the average: the lab's two files — its middle and its
-  ceiling; fewer than 5 runs → flat), `018` (the order:
-  average, then the record, then the defaults; a changed file's average unused — through the runner, one at a time),
-  `019` (a stand-in past its limit: its child gone too, said, the level halved 4 → 2, rerun alone with the flat limit —
-  longer than the stuck one — and passing), `020` (past both: a failure, as before), `021` (fewer than 5 runs, `--id`,
-  `--tag`, `RW_CELLS` → the flat limit), `022` (stopped once → marked; its next run gets the flat limit, passes, teaches,
-  and the mark is gone), `023` (past its limit with the reruns already taken — the cap made 0: not proven, exit 3, never
-  a failure). The 120 s floor, 4 times the average and the flat 600 s are made 1 s, twice and 10 s (5 s) inside those
-  rows.
+- **How many at once, how long, and what each file cost** (sprint 10 replaced a number the runner chose and saved, a
+  time limit learned from running averages, and a list of started processes — Law 23: they cost more than they saved):
+  - **4 browsers at once, fixed.** A run runs 4 files at once (`--jobs N` for another number); each screen test or heavy
+    file holds one of the first 4 of the PC's test slots, so every run on the PC together stays at 4 browsers.
+    `--jobs N` or `RW_TEST_SLOTS=N` choose another number for one run. Nothing is learned or saved; each run says its
+    number (`· browsers at once: 4 · 18.2 GB of memory free`) and records the free memory as evidence. Tests: `RUN-083`,
+    `079`.
+  - **A flat 10-minute limit.** A file (or shard) still running after 600 s (`TIME_LIMIT_S`) is stopped with everything
+    it started and reported `✗ timed out after 600 s` — a failure, never rerun (`RUN-106`).
+  - **Windows ends what a test started.** Each file (or shard) runs in a Windows job (`tools/job.py`) set to end every
+    process in it when the job closes: when the file ends, and when the runner itself is stopped — a crash, a closed
+    window. A process can't leave its job, so nothing a test starts can outlive it; nothing is listed or stopped by hand.
+    The relay tests' local relay and each screen test's web server (`rw.App`) run in jobs of their own the same way.
+    Tests: `JOB-004`–`007`.
+  - **What each file cost, in its record** — for its whole process tree, exited processes included, beside its seconds
+    (`measures`): `committed_peak_bytes` (the most private memory the tree held at once — RAM or page file, **not** RAM
+    in use), `ram_peak_sampled_bytes` (the highest sum of the processes' private working sets, sampled about once a
+    second — what the test adds to the PC's RAM; `ram_kind` says `private`, or `shared included` on an older Windows),
+    `cpu_seconds`, `io_read_bytes` / `io_written_bytes` (files, pipes and network), `processes` (how many it started)
+    and `left_running` (how many were still running when its own process ended — ended with its job). A sharded file
+    adds CPU, I/O and processes over its shards and takes the largest shard's peaks; a file rerun alone keeps its first
+    run's too (`first_measures`); the relay tests' relay has its own (`relay`). Not on Windows, or if the job can't be
+    made: every measure `None`, and why — the test runs as before. Tests: `JOB-001`–`003`, `008`.
+  - **Longest first**, by each file's time in this working copy's latest full-run record (a shard: its file's longest
+    shard then, or its time split N ways); with none, 60 s for a screen test, 5 s for any other (`RUN-105`).
+  - **This PC's test state** — the slot files and the held files — lives in **`%LOCALAPPDATA%\ReaderWrangler-tests`**
+    (`test_slots.FOLDER`), not the temp folder, which Windows may clear (a held file's record would vanish with it).
+    `RW_TEST_SLOTS_DIR` chooses another folder (recorded with the run; it doesn't narrow it); every run that should
+    share the PC's limit must use the same folder. The runner's own self-tests set a throwaway one at their top. Tests:
+    `JOB-009`, `RUN-085`.
+  - **The repository's shared git settings are checked** before and after each run — not bare (`core.bare`), the commit
+    checks on (`core.hooksPath`). Every working copy shares them; a test once set the repository bare through the commit
+    hook's variables and git stopped working everywhere. A run that changed one says so loudly, quiet or not, with the
+    command that puts it back (`!! THIS RUN CHANGED THE REPOSITORY'S GIT SETTING core.bare: false → true — … Put it
+    back:  git config --file "…\.git\config" core.bare false`), and the record notes it. Test: `RUN-104`.
 - **`--id` picks a file only where it names the ID as a test** (2026-11-16; it picked any file whose text held the ID —
   `--id CELL-005` also ran `test/test_run_tests.py`, ~25 s, where it is sample data, and `--id CELL-001`
   `test/gestureTable.test.js`, where a comment names it). Every file names a test by its ID as a whole quoted string,
@@ -443,14 +295,13 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   tier 2, exactly the quoted IDs each holds. `py tools/run_tests.py --id CELL-005 --list` → test_cells.py alone. Tests:
   `RUN-063`, `064`.
 - **In parallel, under a machine-wide limit** (2026-11-16): tier 1 and tier 2 files run several at once — `--jobs N`
-  (default: 4, or the browsers-at-once level above when higher; `--jobs 1` = one at a time, as before), the longest
-  first by each unit's average on this PC (step 4, above — else its time in the last record). **Every screen-test file — and every heavy tier-1 file (above) — holds
-  one of the PC's test slots while it runs** (`tools/test_slots.py`): 6 in total for every run on this PC (4 until 2026-11-17, when the runner began choosing
-  its own level, 1–6, above), whatever working copy it's in (`RW_TEST_SLOTS` overrides — every run should use the same
-  number). A slot is a file in `%TEMP%\rw-test-slots` (or `RW_TEST_SLOTS_DIR`, above) held with an OS file lock, so a
-  run that crashes or is stopped frees its slot by itself. A run waiting for one prints `· <file> waits for a test slot — all 6 on this PC are in use`
-  (or `— the first 4 of the 6 on this PC (browsers at once: 4) are in use`) and who holds each (process id, folder,
-  file, since when). Tier 3 stays one file at a time (its own local relay).
+  (default 4; `--jobs 1` = one at a time), the longest first (above). **Every screen-test file — and every heavy tier-1
+  file (above) — holds one of the PC's test slots while it runs** (`tools/test_slots.py`): a run uses the first 4 (its
+  `--jobs N`: the first N; the PC has 6 — the most any run may use, and what a rerun alone holds), whatever working copy
+  it's in (`RW_TEST_SLOTS` overrides — every run should use the same number). A slot is a file in this PC's test-state
+  folder (above) held with an OS file lock, so a run that crashes or is stopped frees its slot by itself. A run waiting
+  for one prints `· <file> waits for a test slot — the first 4 of the 6 on this PC (its browsers at once: 4) are in
+  use` and who holds each (process id, folder, file, since when). Tier 3 stays one file at a time (its own local relay).
   Output: one line per file as it finishes, with its time; a failing file's details together, never interleaved; the
   same `Tests: N file(s) passed, M failed` line at the end. Before the screen tests start, the runner builds `dist/`
   once — otherwise each test's own serve.py would rebuild the same stale files at the same time.
@@ -470,9 +321,9 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   all. With `RW_CELLS` already set, `--id` leaves the file's cells as given.
   A sharded file's cells must not depend on each other (test_cells: each cell restores the fixture). Tests:
   `RUN-054`–`056`, `060`–`062`, `064`.
-  Isolation (checked 2026-11-16): each screen-test file has its own serve.py on its own free port (started through
-  `tools/starter.py` since 2026-11-18, below) — and checks the port
-  is served by ITS server (by process id), trying another if a parallel file's server took it in between — its own
+  Isolation (checked 2026-11-16): each screen-test file has its own serve.py on its own free port (in a Windows job of
+  its own, above) — and checks the port
+  is served by ITS server (a process in that job), trying another if a parallel file's server took it in between — its own
   throwaway browser profile, its own local relay (free ports, a throwaway store) when it uses one, and files only in
   folders of its own (`tempfile.mkdtemp`); screenshot names are distinct per file. **No test process sees git's own
   variables** (2026-11-18): every process the runner starts for a test file — the file and its `--list-cells` — gets the
@@ -504,7 +355,7 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   full run wherever it's read. A narrowed run's NOT PROVEN line on the stamp ("its latest tier 2 run … was narrowed by
   --id …") is gone with it: the stamp now says only `no full tier 2 run recorded on this commit`. It costs the commit hook
   about 0.3 s (the commit and git status, before and after). `tools/copies.py` counts the shelf in a copy's time report,
-  labelled `quick` (COPY-010). Tests: `RUN-042`, `059`, `060`, `102`, `COST-010`.
+  labelled `quick` (COPY-010). Tests: `RUN-042`, `059`, `060`, `102`.
   `py tools/run_tests.py --stamp [<commit>]` (default HEAD) runs nothing; it prints **PROVEN** (exit 0) only if tier 1
   AND tier 2 each ran in full on exactly that commit (`--tier 1` and `--tier 2`, or `--tier all`; a run narrowed by
   `--id` / `--tag` doesn't count, nor one with a file of that tier set aside — below), every file passed (a file NOT
@@ -529,77 +380,23 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   a shard's share, or the cells `--id` named — goes only to that file's process, never in the record's variables: an
   `--id` run is already narrowed by `--id`, RUN-060.) The others are recorded and shown on
   the stamp's line but don't narrow — every test still runs: `RW_HEADED` (the browser shown, slowed), `RW_BROWSER`
-  (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's limit, and
-  the browsers at once forced to it), `RW_TEST_SLOTS_DIR` (the folder of the slots and the saved level),
+  (chrome or msedge), `RW_TEST_ARTIFACTS` (where screenshots go), `RW_TEST_SLOTS` (the PC's slots, and this run's
+  browsers at once), `RW_TEST_SLOTS_DIR` (the folder of this PC's test state),
   `RELAY_URL` (tier 3's relay; tier 3 isn't part of the stamp's verdict). Records written before this have no variables and are read as full
   runs.
   Tests: `RUN-035`–`051`, `058`, `059`.
 - **Tier 3 brings its own relay** (`tools/local_relay.py`, 2026-11-12): with no `--relay-url`, the runner starts
   relay-worker.js in wrangler's local emulator (`wrangler dev --env dev --local`) on a free port with an empty,
   throwaway store, waits for its "Ready on" line (60 s, else it fails with the end of wrangler's output), runs the relay
-  files against it, then stops every process it started **by exact id** (the whole tree) and **checks**: each one gone,
-  both its ports no longer listening. Anything left fails the run, named by id — and is left running, since the runner
-  can't show it started it. `--relay-url <address>` runs against a relay you started instead (no start, no stop). Never
-  the dev or production relay by default. **The screen tests' relay is the same one** (`App(relay=True)`, 2026-11-16 —
-  Law 22; rw.py's own copy, which stopped its tree with `taskkill /T`, is gone). **"Ready" is proven against its own
-  process:** its ready line must name its port and only its own processes may listen there (by id) — the old screen-test
-  relay took any answer on the port, so with files in parallel another run's relay could answer for it. Another process
-  on its port that started BEFORE it (proven not its own) is left alone and the relay starts again on new ports, as it
-  does when wrangler stops before it's ready (what a taken port does to wrangler); any other fails loud, named by id,
-  left running, never retried (it may be one of its own that escaped). Tests: `RUN-016`–`021`, `052`, `053`, `057`.
-  **Measured too** (2026-11-18, sprint 9 — TODO tooling 13.3: it ran outside every relay test's measurement): in a run
-  that leaves a record, tier 3's relay runs in a Windows job of its own (as each test unit does, below), so its CPU,
-  memory, I/O and processes are in the run's record (`relay`), said after the stop (`· the local relay cost: …`), and —
-  a full tier 3 where every relay file passed and the relay stopped clean — teach this PC's averages as their own row,
-  `tools/local_relay.py (the relay for tier 3)`, in `--costs`. Test: `START-012`.
-- **One starter for every process our tools start — a list of their ids, leftovers shown loudly** (`tools/starter.py`,
-  2026-11-18, sprint 9; TODO 20261112-1240 — Ron: "keep a list of IDs as you create them, delete from list when
-  confirmed dead"; "draw my attention to it"). Grown from `tools/local_relay.py` (its process code moved there): the
-  relay tests' relay and the screen tests' relay (both through `local_relay.py`) and **the screen tests' web server**
-  (`rw.App` — it had its own `Popen` and `terminate()`; it keeps its check that the server answering is its own, by
-  process id) all start through it (Law 22).
-  - **The list** — `started-processes.json` beside the test slots (`%TEMP%\rw-test-slots`, or `RW_TEST_SLOTS_DIR`, so
-    every working copy's runs share it): every process started — and each process of its tree as it's seen — with its
-    **id, its start time** (an id Windows later gives another process is never taken for ours), its program, **what it
-    is** ("the screen tests' web server (serve.py) for test_x.py"), **which run** started it (the runner gives its label
-    to every file it starts as `RW_RUN_ID`; else "<script> run directly"), the process that started it and its ports. An
-    entry leaves the list **only when its process is confirmed gone** (that id with that start time no longer running).
-    The file outlives a crashed run. Every change is read, merged and written whole under the slots' own OS file lock
-    (no second lock). A list that can't be updated is said loudly on the error output, never a test failure.
-  - **Stopping** — unchanged in kind: every process of the tree by its exact id (start time checked; never `/T`, never by
-    name), the one started by its own handle, then checked gone and its ports free; a gone process leaves the list, one
-    still running stays on it and is reported with its stop command. **Something on our port the list doesn't name is
-    reported, never stopped** — and kept on the list's "unnamed" side so the next run's start banner names it once more.
-  - **Leftovers, loudly** — **at the START of every run that runs tests** (the commit hook's too, quiet or not): a banner
-    naming each listed process still running whose run has ENDED (its owner gone — a process of a run still going in
-    another working copy is none), what it is, which run, since when, and the exact command to stop it; plus anything
-    unnamed found on such a process's port. **At the END of the run that left them:** every process that run started
-    still running. Both end with one line starting **`NEEDS YOUR ATTENTION:`** — the line Claude reads into its "needs
-    your attention" list when reporting to Ron. The banner stops nothing. `py tools/starter.py` prints the same banner
-    on its own. A sample:
-
-        !! ══════════════════════════════════════════════════════…
-        !! LEFTOVER PROCESSES — 2 started by an earlier test run on this PC and still running:
-        !!   process 63000 (python.exe) — the screen tests' web server (serve.py) for test_paste.py, port 60043
-        !!       started 2026-11-18 20:20:34 by the test run of 2026-11-18 20:20:01 in C:\…\ReaderWrangler (process 1111) — that run has ended
-        !!       stop it:  taskkill /PID 63000 /F
-        !!   …
-        !! ══════════════════════════════════════════════════════…
-        NEEDS YOUR ATTENTION: 2 leftover process(es) from an earlier test run — process 63000 (python.exe): taskkill /PID 63000 /F; …
-
-  - **What a test unit leaves running** (TODO tooling 13.4): each unit already runs in a Windows job of its own
-    (`test_costs.py`, below). When the unit's own process ends, the job is asked what is still running in it; after a
-    short grace (5 s — a browser's helpers may be on their way out) each one left is named (id, program) and, being in the
-    unit's job and so provably its own, **stopped by the job's handle** and checked gone — also when one of them holds
-    the unit's output pipes (the runner used to wait for it until the unit's time limit, and call the unit stuck). Said
-    at the end of the file's output and loudly at the run's end (`!! LEFT RUNNING AFTER ITS TEST ENDED …` and a
-    `NEEDS YOUR ATTENTION:` line — a leak in the test or a tool it uses), kept in the record (`left_running`, and the
-    unit's measures' `leftovers`). It doesn't fail the file. Only in runs that measure (those that leave a record) —
-    the commit hook's `--changed` run has no jobs.
-  Tests: `START-001`–`013` (`test/test_starter.py`: stand-ins in a throwaway folder and list — a run "crashed" keeps its
-  entries; the next run's banner names them with the stop command; a reused id with another start time is not ours,
-  reported on our port, never stopped; six runs adding and tidying at once lose nothing; a unit's leftover — and one
-  holding its pipe — named and stopped by its job; the relay measured).
+  files against it, then stops every process in its job (the whole tree, by the job's handle) and **checks**: each one
+  gone, both its ports no longer listening. Anything left fails the run. `--relay-url <address>` runs against a relay
+  you started instead (no start, no stop). Never the dev or production relay by default. **The screen tests' relay is
+  the same one** (`App(relay=True)` — Law 22). **"Ready" is proven against its own processes:** its ready line must
+  name its port and only processes in its job may listen there — with files in parallel another run's relay could
+  answer for it. Anything else on its port is not its own: left alone, and the relay starts again on new ports (3 tries),
+  as it does when wrangler stops before it's ready (what a taken port does to wrangler). A child that outlived its own
+  parent is still in the job, so it is still the relay's — and ended with it. What the relay cost is in the run's
+  record (`relay`). Tests: `RUN-016`–`021`, `052`, `053`, `057`.
 - **`--release` — skipped is not passed** (2026-11-12; 7.28.0: "31 passed, 2 skipped" read as a pass): with it, any
   file that didn't run fails the run, each named with why. One function decides a skip (`skip_reason` in the runner);
   nothing skips today — tier 3 brings its own relay, and a missing tool fails loud — so this guards any skip added later.
@@ -692,8 +489,8 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   its partner; now each waits for the other's mark, up to 180 s): a partner the runner started with it that never
   reached its mark in that time is the machine's (`partner_late` — the check is stopped, the file exits 3 and is rerun
   alone); a pair the runner ran one after the other is a failure (RUN-094);
-- **a fresh browser profile** for each run; stop what a test started by its exact process id (Law 5) — **and check it
-  stopped** (each process gone, its port free: Law 12, 7.28.0);
+- **a fresh browser profile** for each run; what a test started runs in its job and is stopped by the job's handle,
+  never by a name (Law 5) — **and checked stopped** (each process gone, its port free: Law 12, 7.28.0);
 - **a flaky test is fixed — or set aside, with a TODO — the same day.** Never tolerated, never "just re-run it". Set
   aside = a `skip: <TODO id> — why` line in the file's header (§4): every run then says so, and the next release is
   blocked until it's fixed.
@@ -710,17 +507,9 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   first outputs say what happened — or a file that truly needs to run alone: **2 full runs in a row on this PC and the
   run says so, loudly**, with each run's kept outputs; **not proven 3 full runs in a row on this PC and it is HELD** —
   later runs don't run it ("held — not run", not proven) until Ron decides: `--release-held` (try again), `alone: yes —
-  <why>` (run it alone every time) or `skip:` (§4). The run also slows down by itself: that trouble halves the browsers at once, at once,
-  and the next runs start from the halved level, climbing back one at a time only after full runs without it (§4).
-- **"Ran past its usual time" is the machine's trouble, not a failure** (2026-11-18, TODO tooling item 12 step 4; §4):
-  a unit that runs past its stuck limit — from its average on this PC: average + 4 spreads, at least 4 times the average
-  or 2 minutes (healthy tests ran 2–5× slower when other programs took the CPU — 2× stopped five healthy files, the
-  2026-11-18 lab), at most 10 minutes — is stopped with every process it started, said plainly (`ran past its usual time:
-  N s, its average M s`), the browsers at once halved, and rerun once, alone, with the flat 10 minutes. Read it as a
-  busy PC, as any rerun after the machine's trouble: passed on its rerun, it counts as passed (the summary and the stamp
-  say so). **Past the 10 minutes on its rerun too, it is a hang — a failure** (`✗ timed out after 600 s`), read as any
-  failure: both outputs are kept. Its next run gets the full 10 minutes, so a test that truly grew slower relearns its
-  average from that pass (§4) — a file that keeps being stopped at its limit is worth a look at what changed in it.
+  <why>` (run it alone every time) or `skip:` (§4).
+- **A file still running after 10 minutes is a hang — a failure** (`✗ timed out after 600 s`), stopped with everything
+  it started, read as any failure (§4).
 - **"Not proven" is the machine's trouble, not a failure — and not a pass** (2026-11-18 lab; §4): when more files meet
   the machine's or the browser's trouble in one run than are rerun (4), each one past that is reported `? <file>  not
   proven — the machine was too busy (N files met its trouble this run; only 4 are rerun) — <why>`, counted apart in
@@ -731,17 +520,6 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   same holds for a file whose rerun alone met the trouble again (`… (it met its trouble again on its rerun alone — one
   rerun a run) …`) — and for a HELD file (`held — not run`): not proven 3 full runs in a row on this PC, it waits for
   Ron's decision (§4).
-- **A failed run is no measure of speed** (2026-11-17, §4): the browsers-at-once level learns only from runs where every
-  file passed — a run with a failure is kept in its history, marked, but neither grows the level nor sets a time to
-  beat, so a failure can't be mistaken for "faster" or "slower". A clean run more than twice as slow as usual at its
-  level steps down by one — the PC busy with something else, answered gently, not halved.
-- **A test can't vanish into a comment** (2026-11-18, sprint 8; TODO tooling item 11.3): an edit that swallows a line
-  break joins the next line onto the comment above it — a `check(…)`, a table row, a `test(…)` stops running and the file
-  still passes. The commit check `git-hooks/check-joined.py` (pre-commit step 11) refuses a staged test file whose
-  comment ends in a complete line of code, read by each language's own parser. A comment that truly ends in code says
-  why: `# not-joined: <why>` (`//` in JavaScript). `py git-hooks/check-joined.py --all` checks every test file; what it
-  catches and what it doesn't is in its header. Since sprint 9 also a line joined with one space after a line of dashes
-  (a separator comment) and JavaScript's `'use strict';`. Tests: `JOIN-001`–`054`.
 
 ## 8. What stays manual (a short list per release)
 
@@ -816,4 +594,11 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   is confirmed gone, leftovers shown loudly at a run's start and end with a `NEEDS YOUR ATTENTION:` line; what a test unit
   leaves running stopped by its job; the relay tests' relay measured — §4. `test/test_starter.py` (START-001–013);
   COST-024 (a run narrowed by `--id` with a screen test no longer teaches the averages).
+- **Removed 2026-11-19 (sprint 10, after an outside review — Law 23):** the browsers-at-once level (4, fixed, instead),
+  the running averages, `--costs` and the stuck limits learned from them (a flat 10 minutes instead), the starter's list
+  of started processes and its banners (Windows ends what a test started: a job with kill-on-close, `tools/job.py`), and
+  the joined-line commit check. Kept: the measures in each run's record, the rerun once alone, held files, the kept
+  output, the stamp, parallel runs. The per-PC test state moved to `%LOCALAPPDATA%\ReaderWrangler-tests`; the runner
+  checks the repository's shared git settings before and after each run. `test/test_job.py` (JOB-001–009); RUN-083,
+  104–106.
 - From then on, every task follows §6.
