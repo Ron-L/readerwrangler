@@ -458,7 +458,8 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   all. With `RW_CELLS` already set, `--id` leaves the file's cells as given.
   A sharded file's cells must not depend on each other (test_cells: each cell restores the fixture). Tests:
   `RUN-054`–`056`, `060`–`062`, `064`.
-  Isolation (checked 2026-11-16): each screen-test file has its own serve.py on its own free port — and checks the port
+  Isolation (checked 2026-11-16): each screen-test file has its own serve.py on its own free port (started through
+  `tools/starter.py` since 2026-11-18, below) — and checks the port
   is served by ITS server (by process id), trying another if a parallel file's server took it in between — its own
   throwaway browser profile, its own local relay (free ports, a throwaway store) when it uses one, and files only in
   folders of its own (`tempfile.mkdtemp`); screenshot names are distinct per file. **No test process sees git's own
@@ -534,6 +535,59 @@ merged result, and the target moves only when its stamp is PROVEN — two change
   on its port that started BEFORE it (proven not its own) is left alone and the relay starts again on new ports, as it
   does when wrangler stops before it's ready (what a taken port does to wrangler); any other fails loud, named by id,
   left running, never retried (it may be one of its own that escaped). Tests: `RUN-016`–`021`, `052`, `053`, `057`.
+  **Measured too** (2026-11-18, sprint 9 — TODO tooling 13.3: it ran outside every relay test's measurement): in a run
+  that leaves a record, tier 3's relay runs in a Windows job of its own (as each test unit does, below), so its CPU,
+  memory, I/O and processes are in the run's record (`relay`), said after the stop (`· the local relay cost: …`), and —
+  a full tier 3 where every relay file passed and the relay stopped clean — teach this PC's averages as their own row,
+  `tools/local_relay.py (the relay for tier 3)`, in `--costs`. Test: `START-012`.
+- **One starter for every process our tools start — a list of their ids, leftovers shown loudly** (`tools/starter.py`,
+  2026-11-18, sprint 9; TODO 20261112-1240 — Ron: "keep a list of IDs as you create them, delete from list when
+  confirmed dead"; "draw my attention to it"). Grown from `tools/local_relay.py` (its process code moved there): the
+  relay tests' relay and the screen tests' relay (both through `local_relay.py`) and **the screen tests' web server**
+  (`rw.App` — it had its own `Popen` and `terminate()`; it keeps its check that the server answering is its own, by
+  process id) all start through it (Law 22).
+  - **The list** — `started-processes.json` beside the test slots (`%TEMP%\rw-test-slots`, or `RW_TEST_SLOTS_DIR`, so
+    every working copy's runs share it): every process started — and each process of its tree as it's seen — with its
+    **id, its start time** (an id Windows later gives another process is never taken for ours), its program, **what it
+    is** ("the screen tests' web server (serve.py) for test_x.py"), **which run** started it (the runner gives its label
+    to every file it starts as `RW_RUN_ID`; else "<script> run directly"), the process that started it and its ports. An
+    entry leaves the list **only when its process is confirmed gone** (that id with that start time no longer running).
+    The file outlives a crashed run. Every change is read, merged and written whole under the slots' own OS file lock
+    (no second lock). A list that can't be updated is said loudly on the error output, never a test failure.
+  - **Stopping** — unchanged in kind: every process of the tree by its exact id (start time checked; never `/T`, never by
+    name), the one started by its own handle, then checked gone and its ports free; a gone process leaves the list, one
+    still running stays on it and is reported with its stop command. **Something on our port the list doesn't name is
+    reported, never stopped** — and kept on the list's "unnamed" side so the next run's start banner names it once more.
+  - **Leftovers, loudly** — **at the START of every run that runs tests** (the commit hook's too, quiet or not): a banner
+    naming each listed process still running whose run has ENDED (its owner gone — a process of a run still going in
+    another working copy is none), what it is, which run, since when, and the exact command to stop it; plus anything
+    unnamed found on such a process's port. **At the END of the run that left them:** every process that run started
+    still running. Both end with one line starting **`NEEDS YOUR ATTENTION:`** — the line Claude reads into its "needs
+    your attention" list when reporting to Ron. The banner stops nothing. `py tools/starter.py` prints the same banner
+    on its own. A sample:
+
+        !! ══════════════════════════════════════════════════════…
+        !! LEFTOVER PROCESSES — 2 started by an earlier test run on this PC and still running:
+        !!   process 63000 (python.exe) — the screen tests' web server (serve.py) for test_paste.py, port 60043
+        !!       started 2026-11-18 20:20:34 by the test run of 2026-11-18 20:20:01 in C:\…\ReaderWrangler (process 1111) — that run has ended
+        !!       stop it:  taskkill /PID 63000 /F
+        !!   …
+        !! ══════════════════════════════════════════════════════…
+        NEEDS YOUR ATTENTION: 2 leftover process(es) from an earlier test run — process 63000 (python.exe): taskkill /PID 63000 /F; …
+
+  - **What a test unit leaves running** (TODO tooling 13.4): each unit already runs in a Windows job of its own
+    (`test_costs.py`, below). When the unit's own process ends, the job is asked what is still running in it; after a
+    short grace (5 s — a browser's helpers may be on their way out) each one left is named (id, program) and, being in the
+    unit's job and so provably its own, **stopped by the job's handle** and checked gone — also when one of them holds
+    the unit's output pipes (the runner used to wait for it until the unit's time limit, and call the unit stuck). Said
+    at the end of the file's output and loudly at the run's end (`!! LEFT RUNNING AFTER ITS TEST ENDED …` and a
+    `NEEDS YOUR ATTENTION:` line — a leak in the test or a tool it uses), kept in the record (`left_running`, and the
+    unit's measures' `leftovers`). It doesn't fail the file. Only in runs that measure (those that leave a record) —
+    the commit hook's `--changed` run has no jobs.
+  Tests: `START-001`–`013` (`test/test_starter.py`: stand-ins in a throwaway folder and list — a run "crashed" keeps its
+  entries; the next run's banner names them with the stop command; a reused id with another start time is not ours,
+  reported on our port, never stopped; six runs adding and tidying at once lose nothing; a unit's leftover — and one
+  holding its pipe — named and stopped by its job; the relay measured).
 - **`--release` — skipped is not passed** (2026-11-12; 7.28.0: "31 passed, 2 skipped" read as a pass): with it, any
   file that didn't run fails the run, each named with why. One function decides a skip (`skip_reason` in the runner);
   nothing skips today — tier 3 brings its own relay, and a missing tool fails loud — so this guards any skip added later.
@@ -744,4 +798,9 @@ A test that fails sometimes teaches everyone to ignore failures (Law 12: an alar
   process tree (a Windows job object) — memory committed, RAM private (sampled), CPU, I/O — in each run's record, averaged per PC
   (RFC 6298) by full passing runs only, and shown by `--costs` — §4. `tools/test_costs.py`; `test/test_test_costs.py`
   (COST-001–013). Measuring only; scheduling unchanged.
+- **Built 2026-11-18 (branch `tooling/one-starter`, sprint 9):** one starter for every process our tools start
+  (`tools/starter.py` — the screen tests' web server moved onto it), a list of every process it started kept until each
+  is confirmed gone, leftovers shown loudly at a run's start and end with a `NEEDS YOUR ATTENTION:` line; what a test unit
+  leaves running stopped by its job; the relay tests' relay measured — §4. `test/test_starter.py` (START-001–013);
+  COST-024 (a run narrowed by `--id` with a screen test no longer teaches the averages).
 - From then on, every task follows §6.

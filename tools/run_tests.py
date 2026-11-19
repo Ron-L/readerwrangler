@@ -159,6 +159,7 @@ import time
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import local_relay  # noqa: E402 — tools/local_relay.py, next to this file
+import starter      # noqa: E402 — tools/starter.py: the list of every process our tools started; leftovers, loudly
 import test_slots   # noqa: E402 — tools/test_slots.py: the machine-wide limit on screen tests at once
 import environment_trouble   # noqa: E402 — tools/environment_trouble.py: a screen test's "the machine failed, not me"
 import browser_level   # noqa: E402 — tools/browser_level.py: how many browsers at once, found by the runner itself
@@ -377,12 +378,14 @@ def test_env(**extra):
     return env
 
 
-def run_process(tf, relay_url=None, timeout=None, cells=None, measure=False):
+def run_process(tf, relay_url=None, timeout=None, cells=None, measure=False, run=None):
     """(exit code, its whole output — stdout, then stderr, what it cost) — runs one test file from the repo root. Exit
     code None: it couldn't start, or ran past `timeout` (None: the flat limit, test_costs.STUCK_FLAT_S — 10 minutes) and
     was stopped — measured, its whole tree, by its job (what it printed until then is kept). cells: run only these
     (RW_CELLS). measure: what its whole process tree cost — memory, CPU, I/O (tools/test_costs.py; every measure None
-    when not asked or not possible, and why)."""
+    when not asked or not possible, and why) — and what it left running after it ended, stopped by its job (the cost's
+    "leftovers"; said at the end of its output too). run: the run's label (starter.RW_RUN_ID — what the starter's list
+    says started each process the file starts)."""
     timeout = test_costs.STUCK_FLAT_S if timeout is None else timeout
     cmd, why = command(tf)
     if cmd is None:
@@ -392,8 +395,14 @@ def run_process(tf, relay_url=None, timeout=None, cells=None, measure=False):
         env["RELAY_URL"] = relay_url
     if cells is not None:
         env["RW_CELLS"] = ",".join(cells)
+    if run:
+        env[starter.RUN_VAR] = run
     code, stdout, stderr, cost = test_costs.run(cmd, timeout=timeout, measure=measure, cwd=ROOT, env=env)
     out = (stdout + stderr).decode("utf-8", "replace")
+    for p in (cost or {}).get("leftovers") or []:
+        out += (f"\n! LEFT RUNNING after this file ended: process {p['pid']} ({p.get('name')}) — in its job, so started by "
+                "it: " + ("stopped by its job, checked gone" if p.get("stopped") else "stopped by its job, but STILL "
+                          f"RUNNING — stop it:  taskkill /PID {p['pid']} /F"))
     if code is None:
         return None, out + f"\n✗ timed out after {timeout:g} s", cost
     return code, out, cost
@@ -885,6 +894,7 @@ RETRY_WAIT_S = 10       # before a file is rerun alone: the others are done by t
 MAX_RETRIES = 4         # files rerun alone at most per run; more meeting the machine's trouble points at something
 #                         broken — said loudly, and the ones past it are NOT PROVEN, never failures (2026-11-18 lab)
 NOT_PROVEN = "not proven"   # a file's result in the record: the machine's trouble, and no rerun left for it
+RELAY_UNIT = ("tools/local_relay.py", "the relay for tier 3")    # the relay tests' relay in this PC's averages (--costs)
 
 
 def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None, retry_wait=None, free_memory=None,
@@ -1013,6 +1023,13 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         if not a.quiet:   # the commit hook stays silent when no test covers the change (Law 12: no noise on the normal path)
             print("No tests cover these changes." if a.changed else "No tests match.")
         return 0
+    # Leftovers of earlier runs on this PC, at the START (tools/starter.py; sprint 9 — Ron: "draw my attention to it"):
+    # processes our tools started whose run has ended, still running — a banner with the command to stop each, quiet
+    # or not. Nothing is stopped. This run's label goes to every file it starts (RW_RUN_ID): the list says which run.
+    run_label = starter.new_run(ROOT)
+    shown = starter.banner(starter.Ledger().review())
+    if shown:
+        print("\n".join(shown), flush=True)
     # What narrowed this run, in words ([] = a full run): such a run leaves its record on the quick shelf, teaches the
     # averages nothing, its units keep the flat stuck limit — a narrowed unit's average doesn't apply (test_costs.py §4)
     # — and it's passed over by the held streak (held_tests.py: full runs only).
@@ -1132,9 +1149,17 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
             costed.append({"tf": f, "shard": k, "of": n, "seconds": seconds, "measures": measures, "passed": passed,
                            "rerun": rerun, "trouble": trouble})
 
+    left_behind = []    # (a unit's name, [{pid, name, stopped}]) — what it left running after it ended, stopped by its job
+
+    def note_left(label, cost):
+        if (cost or {}).get("leftovers"):
+            with say_lock:
+                left_behind.append((label, cost["leftovers"]))
+
     def run_and_report(f, relay_url):
         t0 = time.monotonic()
-        code, out, m = run_process(f, relay_url=relay_url, measure=measure)
+        code, out, m = run_process(f, relay_url=relay_url, measure=measure, run=run_label)
+        note_left(f.rel(), m)
         seconds = time.monotonic() - t0
         cost_sample(f, None, None, seconds, m, code == 0)
         report(f, code == 0, out, seconds, measures=m if measure else None)
@@ -1239,7 +1264,9 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         reported as its failure, never a lost thread."""
         f, _, _, cells = u
         try:
-            return run_process(f, relay_url=a.relay_url, timeout=limit, cells=cells, measure=measure)
+            got = run_process(f, relay_url=a.relay_url, timeout=limit, cells=cells, measure=measure, run=run_label)
+            note_left(label_of(u), got[2])
+            return got
         except Exception as e:      # noqa: BLE001
             return None, f"✗ the runner couldn't run it: {type(e).__name__}: {e}", test_costs.nothing("it didn't run")
 
@@ -1447,8 +1474,8 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
         elif not screen and not troubles:
             moves.update(next=None, why="no screen tests ran — only machine trouble moves the level")
         else:
-            # (it reassigned `narrowing` itself until 2026-11-18 — a run's narrowing then read as [] below it: a narrowed
-            # screen-test run taught the cost averages)
+            # (it reassigned `narrowing` itself until 2026-11-18 — a run's --id / --tag / --changed then read as [] below
+            # it: a narrowed run with a screen test taught the cost averages; COST-024. `narrowing` holds them all.)
             full = bool(screen) and not (narrowing or any(f.tier == 2 for f in aside))
             done_run = {"level": start_level, "end": gate.level, "seconds": round(pool_seconds, 1), "files": len(screen),
                         "heavy": len(heavy), "suite": "tier all" if tier == "all" else f"tier {tier}", "full": full,
@@ -1470,8 +1497,10 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     for f in chosen:
         if f.tier == 3 and f not in own_relay:
             run_and_report(f, a.relay_url)
+    relay_cost = None   # what the local relay cost (measured: in a job of its own — TODO tooling 13.3), when it ran
     if own_relay:
         r = (relay or local_relay.LocalRelay)()
+        r.run, r.measure = run_label, measure       # on the starter's list under this run; measured with the run's units
         if not a.quiet:
             print("· starting a local relay for the relay tests (wrangler dev --local, on a free port)…")
         try:
@@ -1492,6 +1521,18 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                 print("✗ local relay: not everything it started was stopped —\n    " + "\n    ".join(left))
             elif not a.quiet:
                 print(f"✓ local relay stopped — every process it started is gone, ports {', '.join(map(str, r.ports))} free")
+            if measure and getattr(r, "measures", None) is not None:
+                relay_cost = {"seconds": r.seconds, "measures": r.measures,
+                              "clean": not left and all(x.get("result") == "passed" for x in (rec or {}).get("files", [])
+                                                        if x.get("tier") == 3)}
+                if rec:
+                    rec["relay"] = {"seconds": r.seconds, "measures": r.measures}
+                if not a.quiet:
+                    m = r.measures
+                    print(f"· the local relay cost: {r.seconds} s"
+                          + (f", CPU {m['cpu_seconds']} s, {m['processes']} process(es), memory committed (peak) "
+                             f"{test_costs._mb(m['committed_peak_bytes'])}" if m.get("cpu_seconds") is not None else
+                             f" (not measured: {m.get('missing')})"))
     # What each unit cost, taught to this PC's averages (tools/test_costs.py, 2026-11-18): only a unit that ran in full
     # and passed, the first time (Karn's rule) — the others stay in the record, marked. Measuring never fails a run.
     if measure and costed:
@@ -1516,6 +1557,14 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
                     taught.append({"file": f.rel(), "tier": f.tier, "hash": hashes.get(f.path),
                                    "unit": test_costs.unit_key(s["shard"], s["of"]), "seconds": round(s["seconds"], 1),
                                    "measures": s["measures"]})
+            if relay_cost:      # the relay tests' relay — its own row, taught as a unit is (a full run, all passed)
+                why = test_costs.left_out(narrowing, relay_cost["clean"], False)
+                if why:
+                    left[RELAY_UNIT[1]] = why
+                else:
+                    taught.append({"file": RELAY_UNIT[0], "tier": 3, "hash": test_costs.file_hash(local_relay.__file__),
+                                   "unit": RELAY_UNIT[1], "seconds": relay_cost["seconds"],
+                                   "measures": relay_cost["measures"]})
             marked = [{"file": u[0].rel(), "hash": hashes.get(u[0].path), "unit": test_costs.unit_key(u[1], u[2])}
                       for u in stopped]     # stopped at their limit: the flat limit next run, until a pass teaches
             err = test_costs.teach(costs_file, taught, stopped=marked)
@@ -1564,6 +1613,14 @@ def main(argv=None, files=None, relay=None, results=None, slots=None, todo=None,
     for f, path, unproven in kept:
         print(f"{'? ' if unproven else '✗ '}{f.rel()} — " + ("not proven (the machine's trouble) — " if unproven else "")
               + f"full output: {path}")
+    # What this run left running, loudly, at its END (tools/starter.py; sprint 9): what each file left after it ended
+    # (stopped by its job), and every process this run started through the starter that is still running — with the
+    # command to stop each, and the "NEEDS YOUR ATTENTION:" line.
+    ended = starter.job_leftover_lines(left_behind) + starter.banner(starter.Ledger().review(run=run_label), at="end")
+    if ended:
+        print("\n".join(ended), flush=True)
+    if rec and left_behind:
+        rec["left_running"] = [{"unit": u, "processes": p} for u, p in left_behind]
     refused = False
     if a.release and skipped:    # a release needs every file to have RUN — skipped is not passed (7.28.0)
         print(f"✗ release run: {len(skipped)} file(s) skipped — a release needs every file to run:\n    "
