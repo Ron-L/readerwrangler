@@ -1,5 +1,5 @@
 """
-test/ui/rw.py — the shared setup every screen test uses (docs/design/TESTING.md §2, §5, §7; 2026-11-04).
+test/ui/rw.py — the shared setup every screen test uses (docs/design/TESTING.md §2, §5, §7).
 
     with App() as app:                      # serve.py on a free port + a fresh, throwaway Chrome profile
         app.restore(FIXTURE)                # File → Restore Backup… through the real menu and file box
@@ -11,7 +11,7 @@ test/ui/rw.py — the shared setup every screen test uses (docs/design/TESTING.m
         app.unexpected_console()            # console errors / warnings / crashes not on the known-noise list
         app.violations                      # requests to a relay or to Amazon — the tests must make none
         app.shot("name")                    # a screenshot in the artifacts folder
-        app.covered_scroll_boxes()          # scroll areas something else covers (the status bar, 2026-11-06)
+        app.covered_scroll_boxes()          # scroll areas something else covers (the status bar)
         app.show_boxes(locator, "name")     # outline a box and every box around it, each in its own color (Law 19)
         app.stub_outside(page)              # window.open and the clipboard RECORDED, never a real mail program or web page
         app.open_broken_app()               # a tab whose app code is broken on purpose → the "Something went wrong" screen
@@ -24,27 +24,26 @@ test/ui/rw.py — the shared setup every screen test uses (docs/design/TESTING.m
         app.import_from_relay()             # File → Import from Relay, through the real menu
 
 Rules it enforces (TESTING.md §5, §7): a fresh browser profile every time (Playwright's default — nothing of Ron's);
-serve.py started through the one starter (tools/starter.py, 2026-11-18) — on the PC's list of started processes until
-confirmed gone, every process it started stopped by exact id and checked gone, its port free, anything left failing the
-file (Law 5); GoatCounter answered with an empty reply (tests never touch the usage
-statistics); any request to a relay or to Amazon recorded as a violation; a data file carrying a Cloud Sync Key
-refused. RW_HEADED=1 shows the browser (slowed down) for watching a test. Screenshots go to RW_TEST_ARTIFACTS, else
-%TEMP%\\rw-test-artifacts — in a working copy (tools/copies.py) with "-<copy name>" added. The browser is Chrome, the one Ron uses (2026-11-06); RW_BROWSER=msedge runs Edge. Scrollbars
-are SHOWN: Playwright hides them in a hidden browser by default, which hides exactly the bugs a person sees (the status
-bar covering the right pane's scrollbar, 2026-11-06).
+serve.py started in a job of its own (tools/job.py) — at the end every process in it is stopped by the job's handle and
+checked gone, its port free, anything left failing the file (Law 5); GoatCounter answered with an empty reply (tests
+never touch the usage statistics); any request to a relay or to Amazon recorded as a violation; a data file carrying a
+Cloud Sync Key refused. RW_HEADED=1 shows the browser (slowed down) for watching a test. Screenshots go to
+RW_TEST_ARTIFACTS, else %TEMP%\\rw-test-artifacts — in a working copy (tools/copies.py) with "-<copy name>" added. The
+browser is Chrome, the one Ron uses; RW_BROWSER=msedge runs Edge. Scrollbars are SHOWN: Playwright hides them in a
+hidden browser by default, which hides exactly the bugs a person sees (the status bar covering the right pane's
+scrollbar).
 
-The local relay (2026-11-05) is Cloudflare's own emulator (`wrangler dev --local`) running relay-worker.js on this PC
+The local relay is Cloudflare's own emulator (`wrangler dev --local`) running relay-worker.js on this PC
 with an empty store made for the run and deleted after — never the dev or production relay, which the request detector
-still catches. Since 2026-11-16 it is the ONE relay launcher, tools/local_relay.py (Law 22; this file had its own copy):
-"ready" only when its own ready line names its port and only its own processes listen there (another run's relay can't
-answer for it); every process it started stopped by exact id and CHECKED gone, its ports free — anything left fails the
-file (Law 5).
+still catches. It is the ONE relay launcher, tools/local_relay.py (Law 22): "ready" only when its own ready line names
+its port and only processes in its job listen there (another run's relay can't answer for it); at the end every process
+in its job is stopped and CHECKED gone, its ports free — anything left fails the file (Law 5).
 
-The machine's or the browser's trouble is told from a test failure HERE, where it's known (2026-11-17, TODO tooling item
-9; tools/environment_trouble.py): our web server or local relay didn't start, the browser didn't start, the page never
-loaded (the start screen still up — with no error of the page's own; with one, it's a test failure naming it), the
-browser disconnected or a tab crashed, a request to our own server failed for the machine's reasons
-(net::ERR_NO_BUFFER_SPACE, a refused connection…), and — the same day — a script or stylesheet the page loads from a
+The machine's or the browser's trouble is told from a test failure HERE, where it's known (tools/environment_trouble.py):
+our web server or local relay didn't start, the browser didn't start, the page never loaded (the start screen still up
+— with no error of the page's own; with one, it's a test failure naming it), the browser disconnected or a tab crashed,
+a request to our own server failed for the machine's reasons (net::ERR_NO_BUFFER_SPACE, a refused connection…), and a
+script or stylesheet the page loads from a
 LIBRARY host (React from unpkg.com, the QR-code maker from cdnjs, the fonts from Google Fonts) that failed to download:
 refused, cut, timed out, answered 5xx or with nothing; a start-up whose only errors are "<library> is not defined"
 because its script never arrived is that trouble too — one whose library downloaded and then threw is not
@@ -52,7 +51,7 @@ because its script never arrived is that trouble too — one whose library downl
 then exits 3 and the runner reruns it once, alone. The console check reports such a network error as that trouble,
 never as a test failure. A failing test's screenshot is saved and named (on_failure).
 
-Tabs (2026-11-17): open_tab() opens a second tab IN FRONT, and Chrome slows the tabs behind it — under load a click on
+Tabs: open_tab() opens a second tab IN FRONT, and Chrome slows the tabs behind it — under load a click on
 the tab behind took 122-222 s (0.1 s in front). menu() and reload() bring the app's tab to the front first, as a person
 switches to it; a test acting on another tab itself brings that one to the front (page.bring_to_front(); test_reset.py).
 """
@@ -71,9 +70,9 @@ from playwright.sync_api import Error as PlaywrightError, TimeoutError as Playwr
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import local_relay   # noqa: E402 — the local relay (LocalRelay)
-import starter       # noqa: E402 — tools/starter.py: the one starter (our web server), free ports, who listens on a port
-import copies        # noqa: E402 — tools/copies.py: a working copy keeps its screenshots apart
+import local_relay   # noqa: E402 — the local relay (LocalRelay); free ports, who listens on a port
+import job           # noqa: E402 — tools/job.py: our web server in a job of its own
+import copies       # noqa: E402 — tools/copies.py: a working copy keeps its screenshots apart
 import environment_trouble   # noqa: E402 — tools/: which network errors are the machine's
 import harness       # noqa: E402 — test/ui/harness.py: EnvironmentTrouble, environment(), on_failure()
 FIXTURE = os.path.join(ROOT, "test", "fixtures", "small-fixture.json")
@@ -115,11 +114,10 @@ APP_TIMEOUT_MS = 180_000     # generous: the app opens in ~0.5 s since 7.27.0 (i
 # integrityCheckPending) — its own debug line, so it needs extra detail on (the driver's default; log=None turns it off).
 # Its last step: a repair it makes is logged right after it. Wait for it with wait_console(AFTER_CHECK, since=…).
 AFTER_CHECK = r"^debug · INTEG · After-Import check sees "
-# THE one limit for a step's wait — every screen test's (2026-11-18, sprint 9; Law 22 — it was 30 s in test_cells.py, 60 s
-# in the two key files and 3–10 s in most others). Generous: a step answers in well under a second, 2–5× slower on a
-# loaded PC, so only a real failure reaches it. And well under the runner's 2-minute floor for "ran past its usual time"
-# (TESTING.md §4), so a wait that runs out is reported as the test failure it is — not stopped as the machine's trouble.
-# The app OPENING has its own, APP_TIMEOUT_MS. The waits that use it: the section "the waits" in App, below.
+# THE one limit for a step's wait — every screen test's (Law 22). Generous: a step answers in well under a second, 2–5×
+# slower on a loaded PC, so only a real failure reaches it — and far under the runner's 10-minute limit for a whole file
+# (TESTING.md §4), so a wait that runs out is reported as the test failure it is, naming the step. The app OPENING has
+# its own, APP_TIMEOUT_MS. The waits that use it: the section "the waits" in App, below.
 LIMIT_MS = 60_000
 LIMIT_S = LIMIT_MS // 1000
 BROWSER = os.environ.get("RW_BROWSER", "chrome")
@@ -162,19 +160,20 @@ class App:
         # serve.py a moment later, so another file's server can take it in between. Then ours can't start — and a plain
         # "does the port answer?" would be answered by the OTHER server (this file's pages from a server that stops when
         # that file ends). So the port must be served by OUR serve.py; if it isn't, try another port.
-        # Started through the ONE starter (tools/starter.py, sprint 9): serve.py — and the real Python the venv's python.exe
-        # starts as its child — is on the PC's list of started processes from the moment it's known until confirmed gone.
-        what = f"the screen tests' web server (serve.py) for {os.path.basename(sys.argv[0] or 'a screen test')}"
+        # serve.py — and the real Python the venv's python.exe starts as its child — runs in a job of its own
+        # (tools/job.py): what listens on the port is ours only if it is in that job.
         for _ in range(3):
-            self.port = starter.free_port()
-            self.server = starter.Started(what, ports=[self.port])
-            self.server.start([sys.executable, "serve.py", str(self.port)], cwd=ROOT, stdin=subprocess.DEVNULL,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.port = local_relay.free_port()
+            self.server_job = job.new()
+            self.server, _ = self.server_job.launch([sys.executable, "serve.py", str(self.port)], cwd=ROOT,
+                                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                                    stderr=subprocess.DEVNULL)
             if self._server_is_ours():
                 break
-            left = self.server.stop(ports=[])       # the port is another run's: only our own processes are checked
+            left = self.server_job.end()       # the port is another run's: only our own processes are stopped
+            self.server_job.close()
             if left:
-                print("  ! our web server's failed start left:\n      " + "\n      ".join(left), flush=True)
+                print(f"  ! our web server's failed start left processes {left} running", flush=True)
         else:
             raise harness.EnvironmentTrouble("our web server (serve.py) didn't start — 3 ports tried")
         try:
@@ -187,9 +186,7 @@ class App:
         if self.want_relay:
             # The worker answers only listed pages: --var lists this test's page for this run, wrangler.toml untouched.
             # Kept before start(), so __exit__ stops whatever it started even if starting fails.
-            self.relay = local_relay.LocalRelay(extra_args=["--var", f"ALLOWED_ORIGINS:http://localhost:{self.port}"],
-                                                what="the screen tests' local relay for "
-                                                     + os.path.basename(sys.argv[0] or "a screen test"))
+            self.relay = local_relay.LocalRelay(extra_args=["--var", f"ALLOWED_ORIGINS:http://localhost:{self.port}"])
             try:
                 self.relay.start()
             except local_relay.RelayError as e:
@@ -422,11 +419,11 @@ class App:
 
     def _server_is_ours(self, wait_s=10):
         """True once our serve.py answers on self.port — False if it stopped (the port was taken) or never answered. On
-        Windows the listener is checked by process id: ours, or its child (the venv's python.exe starts the real Python
-        as a child)."""
+        Windows the listener is checked by process id: one in its job (the venv's python.exe starts the real Python as a
+        child)."""
         deadline = time.time() + wait_s
         while time.time() < deadline:
-            if self.server.proc.poll() is not None:
+            if self.server.poll() is not None:
                 return False
             try:
                 socket.create_connection(("127.0.0.1", self.port), 0.2).close()
@@ -435,16 +432,19 @@ class App:
                 continue
             if os.name != "nt":
                 return True
-            self.server.note_tree()     # its tree, each process started after its parent — and on the list
-            if starter.port_owners(self.port) & set(self.server.ours):
+            if local_relay.port_owners(self.port) & set(self.server_job.running()):
                 return True
             time.sleep(0.1)          # someone else answers there: ours either takes it or stops
         return False
 
     def _stop_server(self):
-        """Stop our web server — every process it started, each by its exact id, checked gone and its port free
-        (tools/starter.py). What's left is never quiet: it fails the file (Law 5). A second call does nothing."""
-        left = self.server.stop()
+        """Stop our web server — every process in its job, by the job's handle — then check they're gone and its port
+        is free. What's left is never quiet: it fails the file (Law 5). A second call does nothing."""
+        if getattr(self, "server_job", None) is None:
+            return
+        left = local_relay.stop_and_check(self.server_job, [self.port], "our web server (serve.py)")
+        self.server_job.close()
+        self.server_job = None
         if left:
             from harness import fail_after
             fail_after("our web server (serve.py)", "not everything it started was stopped:\n" + "\n".join(left))

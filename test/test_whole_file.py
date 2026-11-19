@@ -1,11 +1,8 @@
-# Tests for tools/whole_file.py — the one way a tool writes a file whole (Law 22; TODO "Working-process safety net",
-# sprint 9 item 4).
+# Tests for tools/whole_file.py — the one way a tool writes a file whole (Law 22): tools/build.py (_write) and
+# tools/held_tests.py (save) both write through it.
 # tags: build, tooling, tier 1
-# covers: tools/whole_file.py, tools/build.py, tools/browser_level.py
+# covers: tools/whole_file.py, tools/build.py, tools/held_tests.py
 # Run: python test/test_whole_file.py
-#
-# tools/build.py (_write) and tools/browser_level.py (save) each wrote a scratch copy and swapped it in, retrying while
-# Windows refused the swap — two copies of the same routine. Now both use whole_file.write.
 import importlib.util
 import json
 import os
@@ -23,7 +20,7 @@ sys.path.insert(0, os.path.join(ROOT, "test", "ui"))
 from harness import check, done, test   # noqa: E402
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import whole_file   # noqa: E402
-import browser_level   # noqa: E402
+import held_tests   # noqa: E402
 
 _spec = importlib.util.spec_from_file_location("rw_build_for_whole", os.path.join(ROOT, "tools", "build.py"))
 build = importlib.util.module_from_spec(_spec)
@@ -106,8 +103,8 @@ test("WHOLE-004", "a write that fails before the swap leaves no scratch copy and
 
 
 def both_tools_use_it():
-    """Law 22 — one routine: build.py and browser_level.py both write through whole_file (no swap loop of their own)."""
-    for rel in ("tools/build.py", "tools/browser_level.py"):
+    """Law 22 — one routine: build.py and held_tests.py both write through whole_file (no swap loop of their own)."""
+    for rel in ("tools/build.py", "tools/held_tests.py"):
         src = open(os.path.join(ROOT, rel), encoding="utf-8").read()
         check("whole_file.write(" in src, f"{rel} writes through whole_file.write")
         check("os.replace(" not in src and "SWAP_TRIES" not in src, f"{rel} has no swap-and-retry of its own")
@@ -118,24 +115,24 @@ def both_tools_use_it():
         with tempfile.TemporaryDirectory(prefix="rw-whole-") as tmp:
             build._write(os.path.join(tmp, "dist", "a.js"), "x\ny\n")
             check(open(os.path.join(tmp, "dist", "a.js"), "rb").read() == b"x\ny\n", "build.py's copy keeps LF endings")
-            err = browser_level.save(os.path.join(tmp, "level.json"), {"level": 4})
-            check(err is None and json.load(open(os.path.join(tmp, "level.json"))) == {"level": 4},
-                  f"browser_level.save writes the state (err={err})")
+            err = held_tests.save(os.path.join(tmp, "held.json"), {"version": 1, "files": {}})
+            check(err is None and json.load(open(os.path.join(tmp, "held.json"))) == {"version": 1, "files": {}},
+                  f"held_tests.save writes the state (err={err})")
     finally:
         whole_file.write = real
     check(len(seen) == 2, f"both went through whole_file.write: {len(seen)} calls")
-test("WHOLE-005", "tools/build.py and tools/browser_level.py both write through whole_file.write (Law 22)",
+test("WHOLE-005", "tools/build.py and tools/held_tests.py both write through whole_file.write (Law 22)",
      both_tools_use_it)
 
 
 def save_failure_in_words():
-    """browser_level.save still answers in words, never raises (the runner prints it)."""
+    """held_tests.save answers in words, never raises (the runner prints it)."""
     with tempfile.TemporaryDirectory(prefix="rw-whole-") as tmp:
         blocker = os.path.join(tmp, "file")
         open(blocker, "w").write("x")
-        err = browser_level.save(os.path.join(blocker, "level.json"), {"level": 4})   # a folder that is a file
+        err = held_tests.save(os.path.join(blocker, "held.json"), {"files": {}})   # a folder that is a file
         check(isinstance(err, str) and "couldn't save" in err, f"why it couldn't, in words: {err!r}")
-test("WHOLE-006", "browser_level.save that can't write says why in words (never raises)", save_failure_in_words)
+test("WHOLE-006", "held_tests.save that can't write says why in words (never raises)", save_failure_in_words)
 
 
 def bytes_as_they_are():

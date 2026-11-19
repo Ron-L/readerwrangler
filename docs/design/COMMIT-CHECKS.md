@@ -71,10 +71,5 @@ Bypass (Ron's call only): `git commit --no-verify`.
   report counts it done) or **`dropped <id>`** (and why). Squash and merge commits are skipped (each branch commit was
   checked). Earned 2026-11-10: a task filed 11-02 was deleted by accident 27 minutes later inside a big TODO edit.
   The backlog report also finds a task's ✅ on any branch (squashes hide it from main).
-- **No test line joined onto a comment** (`git-hooks/check-joined.py`, pre-commit step 11; 2026-11-18), whenever a test
-  file is staged: refuses a test file where a line of code was joined onto the end of the comment above it — an edit
-  that lost a line break, so that line stopped running while the file still passes (7.18.0-alpha.55's joined line, in
-  a test). A comment that truly ends in code says why: `# not-joined: <why>` (`//` in JavaScript); `--all` checks every
-  test file.
 
 ---

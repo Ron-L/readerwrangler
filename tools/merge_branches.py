@@ -9,8 +9,11 @@ together?").
     py tools/merge_branches.py --continue     after resolving a real conflict by hand (or fixing a failed test run)
     py tools/merge_branches.py --abort        give up: back on the target, exactly as it was
 
-Run it in a folder whose current branch is the target, with nothing uncommitted — a working copy (tools/copies.py) or
-the main folder. The target moves only at the end, and only once the merged result has passed.
+Run it in a folder whose current branch is the target, with nothing uncommitted — the main folder (or a working copy,
+tools/copies.py). The target moves only at the end, and only once the merged result has passed.
+
+  0. Each branch being built in a working copy — its own clone since 2026-11-19, so its commits live there — is fetched
+     from that copy first (fast-forward only: a branch that moved on both sides stops the run, nothing touched).
 
   1. A scratch branch, merging/<target>, is made at the target and the folder switched to it.
   2. Each branch, in the order given, is squash-merged onto it as ONE commit (as a task goes into the sprint's branch —
@@ -48,6 +51,9 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import copies  # noqa: E402  (fetch_from_copies: a working copy's branch brought back before merging)
+
 GENERATED_DIR = "dist/"
 CODES = "docs/design/MESSAGE-CODES.md"
 TODO = "TODO.md"
@@ -481,6 +487,12 @@ def begin(repo, a):
     dirty = repo.out("status", "--porcelain", "--untracked-files=normal")
     if dirty:
         raise Stop("not merging over uncommitted changes:\n  " + "\n  ".join(dirty.splitlines()[:10]))
+    # A working copy is its own clone (2026-11-19): an agent's branch is fetched from its copy first (tools/copies.py)
+    said, problems = copies.fetch_from_copies(repo.dir, a.branches)
+    for line in said:
+        print(line)
+    if problems:
+        raise Stop("NOT MERGED — nothing was touched:\n  " + "\n  ".join(problems))
     for b in a.branches:
         if repo.git("rev-parse", "--verify", "--quiet", f"{b}^{{commit}}", check=False).returncode:
             raise Stop(f"{b!r} isn't a branch or commit here")
