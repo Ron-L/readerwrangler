@@ -81,6 +81,15 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
   (framed in `!`) and a note telling Claude to say it first thing, with the fix: `git config core.hooksPath git-hooks`.
   Set up → silent. The rule and wording are `tools/setup_check.py`'s (serve.py prints the same at start-up); if that
   can't be loaded the hook says so (fail loud). Tests: `SETUP-001`–`004`.
+- **`prod-guard.py`** (PreToolUse: Bash, PowerShell; sprint 10, 2026-11-19 — TODO "Remove the test-runner parts…",
+  Decided item 7) — while the autonomy switch is on (the main folder's `.private/AUTONOMY.md` says `on` or `trial`,
+  found from a working copy too), a push of main to prod (it deploys) is refused unless **Ron's newest typed message**
+  in the conversation record says "push to prod" — the switch is usually on even while Ron releases, so his word lets it
+  through. Only a push that reaches prod's main counts (`main`, `…:main`, `--all`, `--mirror`, no branch named, a bare
+  `git push` — main's own remote is prod; `-C <path>` and longer command lines too); dev pushes and prod pushes of
+  other branches pass. Switch off or missing → no say (the "ask" rule in settings still applies). When unsure — a switch
+  file it can't read, no readable record, no message of Ron's — it refuses (it guards a deploy); a command that isn't a
+  prod push is never stopped. Tests: `PROD-001`–`008`.
 - **`/sitemap`** (`.claude/commands/`) — mechanizes the class-of-sites comb (two independent pivots).
 
 ## RW's commit checks (`git-hooks/` — run BY GIT, saved in the repo)
