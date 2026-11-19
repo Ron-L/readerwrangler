@@ -8,7 +8,7 @@
       - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
       - [Receipts reach the screen: one screen test per area, not only the log](#receipts-reach-the-screen-one-screen-test-per-area-not-only-the-log)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
-      - [One starter for every process our tools start: a list of their ids, leftovers shown loudly](#one-starter-for-every-process-our-tools-start-a-list-of-their-ids-leftovers-shown-loudly)
+      - [✅ One starter for every process our tools start: a list of their ids, leftovers shown loudly](#one-starter-for-every-process-our-tools-start-a-list-of-their-ids-leftovers-shown-loudly)
       - [Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
       - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
@@ -88,8 +88,8 @@
         - [F2 follows the Delete key's rule: what's selected, where you're working, and words when it can't](#f2-follows-the-delete-keys-rule-whats-selected-where-youre-working-and-words-when-it-cant)
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
-      - [The "open" shortcut: start serve.py if needed and open the app](#the-open-shortcut-start-servepy-if-needed-and-open-the-app)
-      - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
+      - [✅ The "open" shortcut: start serve.py if needed and open the app](#the-open-shortcut-start-servepy-if-needed-and-open-the-app)
+      - [✅ Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
       - [A refused Restore shows a false "Restore Warning" box a minute later](#a-refused-restore-shows-a-false-restore-warning-box-a-minute-later)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
@@ -520,33 +520,34 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       average instead of being stopped every run. Today's averages: test_backlog_report.py first (141 s → limit 283 s).
       (2026-11-18 lab: floor raised to 4× the average / 120 s; trouble beyond the rerun cap is 'not proven', never a
       failure)
-13. **Found while building sprint 8** (filed 2026-11-18):
-   1. A run of only the tests covering what changed (`--changed`, what the commit check runs) and a test file run
+13. **Found while building sprint 8** (filed 2026-11-18) — **sub-items 1–10, 12 and 13 done 2026-11-18 (sprint 9)**;
+   11, 14 and 15 are notes to keep:
+   1. ✅ A run of only the tests covering what changed (`--changed`, what the commit check runs) and a test file run
       directly write no record — so an agent's own test time lands in "everything else" in a copy's time report.
       Recording them would mean a record on every commit (more pruning, more kept output) — Ron's call.
-   2. Two "write a file whole, retry if Windows refuses the swap" routines — `tools/build.py`'s and
+   2. ✅ Two "write a file whole, retry if Windows refuses the swap" routines — `tools/build.py`'s and
       `browser_level.save` — should be one (Law 22).
-   3. Tier 3's local relay runs outside each relay test's measurement, so tier-3 costs leave it out.
-   4. A process still running after its test ends isn't reported; the test's measurement already knows how many are
+   3. ✅ Tier 3's local relay runs outside each relay test's measurement, so tier-3 costs leave it out.
+   4. ✅ A process still running after its test ends isn't reported; the test's measurement already knows how many are
       still running — a cheap leftover check (belongs with "One starter for every process our tools start").
-   5. The copies' archive (`rw-test-results\copies\`) is never trimmed — small, but it grows forever.
-   6. The joined-line check (commit check step 11) doesn't catch a comment line of dashes followed by one space and
+   5. ✅ The copies' archive (`rw-test-results\copies\`) is never trimmed — small, but it grows forever.
+   6. ✅ The joined-line check (commit check step 11) doesn't catch a comment line of dashes followed by one space and
       code, nor `'use strict'`; its glued-inside-a-word scan is slow on very long comments (fine today).
-   7. The screen tests' new wait helpers live in several files (Law 22): `until`, `toast`, `LIMIT_MS` twice (the two
+   7. ✅ The screen tests' new wait helpers live in several files (Law 22): `until`, `toast`, `LIMIT_MS` twice (the two
       key files); `caught_up`, `settled`, `heard`, `held`, `amber_look` in test_cells.py; `wait_loaded` in rw.py — move
       them into rw.py as one set, with one step limit for the library.
-   8. test_cells.py still has ~39 condition waits with a 3-second limit (and 11 at 4–10 s) — not fixed waits, but the
+   8. ✅ test_cells.py still has ~39 condition waits with a 3-second limit (and 11 at 4–10 s) — not fixed waits, but the
       same "a slow PC breaks it" guess; give them the generous limit.
-   9. `test/ui/harness.py`'s `done()` repeats what `environment_trouble.tally` now does (summary, stopped count, exit
+   9. ✅ `test/ui/harness.py`'s `done()` repeats what `environment_trouble.tally` now does (summary, stopped count, exit
       code, marked line) — one implementation (Law 22).
-   10. The "rerun alone runs in a row" alert reads only the folder's own records — a file troubled in an agent's copy
+   10. ✅ The "rerun alone runs in a row" alert reads only the folder's own records — a file troubled in an agent's copy
       and then in the merge doesn't add up (the copies' archive isn't read). → Folded into "a file that can't be
       proven is held" (sub-item 13 below, decided 2026-11-18): the in-a-row count lives per PC.
    11. Found by the test_cells agent: after an Escape, Chrome gave the page no idle time for 3–5 s — so any future
       "wait until the page is idle" helper must not rely on idle callbacks (caught_up uses a task-queue flush).
-   12. `tools/copies.py new` calls a tier-1 run that ended "not proven — the machine was too busy" (exit 3) "tier 1
+   12. ✅ `tools/copies.py new` calls a tier-1 run that ended "not proven — the machine was too busy" (exit 3) "tier 1
       failed" — right to refuse, wrong words (the merge script already says "not proven").
-   13. A file rerun alone that meets the machine's trouble AGAIN still counts as a failure (TESTING.md: "failed again,
+   13. ✅ A file rerun alone that meets the machine's trouble AGAIN still counts as a failure (TESTING.md: "failed again,
       it's a failure") — by sprint 8's rule "the machine's trouble is never a test failure" it may better be "not
       proven". **Ron, 2026-11-18: "I think not proven. But we don't want to go into an infinite try loop if a file is
       never going to run under current resources and loading … Give up after say 3 failures of same file and report
@@ -569,9 +570,38 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       indications that the current back off based on failures is not sufficient."** — so: watch for that sign (runs
       not proven, or backed off for long, on an ordinary working day); only then a CPU budget (each test's CPU seconds
       are already measured) and/or a gentler back-off when other programs hold the CPU.
+14. **Found while building sprint 9** (filed 2026-11-18):
+   1. ENV-007 (and ENV-002/004) start a small test run of their own; when THAT run meets real machine trouble (it did
+      twice: "no network buffer space"), the outer test reports a failure — it should report the machine's trouble.
+   2. Six test IDs exist twice: COPY-001–006 in both the screen test for copying and the working-copy tool's test —
+      `--id COPY-001` runs both; renumber one.
+   3. A few step waits still allow 180 s (test_boot, test_reset, and three files' `LIMIT_S`) — above the runner's
+      2-minute "stuck" floor, so a failing wait there can be reported as the machine's trouble first. Sprint 8 chose
+      them on purpose (test_reset was proven under load) — splitting each into a step wait and a load wait is a choice.
+   4. Waits with no limit written still get the browser driver's own 30 s default in most screen-test files — one line
+      when the app opens (`set_default_timeout`) would give the whole library the shared limit.
+   5. When many cells fail in test_cells.py at once, each costs a full wait, so a shard can pass its stuck limit and
+      be reported as the machine's trouble rather than as its failures.
+   6. The relay's own process group could also stop children that escaped it (as each test now does); today a test
+      decides that such a child is "left running" — a design choice.
+   7. A test that leaves processes behind is only caught in runs that measure (every recorded run); a test file run
+      directly isn't.
+   8. The tools' own processes (the local relay, its helper) still inherit git's variables — only test processes are
+      cleaned.
+   9. A held file's notes point at output kept in a working copy's records; when the copy is removed those move to the
+      archive and the paths go stale.
+   10. Even with `--quiet`, the commit check prints the "waiting for a test slot" lines.
+   11. Now that the commit check's own runs are recorded: in the runner agent's copy they took 3–6 minutes each
+      (heavy tier-1 files covering run_tests.py) — the next speed-up target for commits.
 
-#### One starter for every process our tools start: a list of their ids, leftovers shown loudly
+#### ✅ One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->
+
+**Done 2026-11-18 (sprint 9):** `tools/starter.py` starts the relays and the screen tests' web server; a list of every
+process started (`started-processes.json` beside the slots), each leaving it only when confirmed gone; leftovers said
+loudly at a run's end and at the next run's start (with the exact stop command, and a `NEEDS YOUR ATTENTION:` line);
+a test that leaves processes behind has them named and stopped through its own measurement; the relay tests' relay is
+measured too (TESTING.md §4).
 
 _Why it matters:_ The tools start processes — a local relay, the screen tests' web server and their own relay — and a
 crashed or interrupted run can leave them running, unnoticed (2026-11-11: a hand-stopped relay left four processes on
@@ -2589,8 +2619,14 @@ _Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder 
 - Folder menu: readerwrangler.js ~18443 (`folderContextMenu`). The Inbox menu's entry (~18348) and the book menu's
   (~19292) show how to open it scoped to a folder.
 
-#### The "open" shortcut: start serve.py if needed and open the app
+#### ✅ The "open" shortcut: start serve.py if needed and open the app
 <!-- id 20261104-1540 -->
+
+**Done 2026-11-18 (sprint 9) — Ron's click still to come:** `py tools/shortcuts.py` writes "ReaderWrangler (local)" in
+the Start menu; it runs `serve.py --open` (starts the server if nothing answers, then opens the page in a browser tab;
+if our server already answers, just opens the page; another program on the port → says so, opens nothing). Tested
+without opening a browser; Ron runs the tool once and clicks it. Note: his older "ReaderWrangler Server" Start-menu
+shortcut will show beside it in Windows search — keep or remove, his call.
 
 _Why it matters:_ A convenience — one click opens ReaderWrangler locally, starting the server first if it isn't running.
 Split out 2026-11-04 from "Carry over the utilities project's improvements…" (Ron: "the shortcut part can wait").
@@ -2601,8 +2637,13 @@ Split out 2026-11-04 from "Carry over the utilities project's improvements…" (
   on the home network on purpose, so an off switch any device there could press gains nothing (the utilities
   project's decision). Source: `C:\Users\Ron\Projects\Hsv-Utilities-App\tools\shortcuts.py`.
 
-#### Working-process safety net: three small follow-ups
+#### ✅ Working-process safety net: three small follow-ups
 <!-- id 20261015-1917 -->
+
+**Done 2026-11-18 (sprint 9):** (1) serve.py and Claude's session start warn loudly when a copy isn't set up for the
+commit checks (`tools/setup_check.py`); (2) Claude Code's global settings are backed up into the Projects folder repo
+as `claude-settings.json`; (3) `py tools/backup_claude.py` backs up memory and settings and saves both repos — first
+real run 2026-11-18 (19 memory files added, 14 updated). Its release-checklist line awaits Ron's word (review queue).
 
 _Why it matters:_ Closes the last gaps left after "Save our working process in git" (done 2026-10-15).
 
