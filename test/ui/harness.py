@@ -1,6 +1,7 @@
 """
 test/ui/harness.py — the Python twin of test/harness.js for screen tests: stable IDs (AREA-NNN), a failure is counted
-and the file carries on, done() prints the summary and exits 1 if anything failed (tools/run_tests.py reads both).
+and the file carries on, done() prints the summary and exits 1 if anything failed (tools/run_tests.py reads both) —
+both from tools/environment_trouble.py's tally, the one implementation of a test file's end (2026-11-18, sprint 9).
 differs_today() — a test of decided behavior the app doesn't have yet, with what it does today (2026-11-13, CELL-…).
 
 The machine's or the browser's trouble (2026-11-17, TODO tooling item 9; tools/environment_trouble.py): the screen-test
@@ -201,12 +202,16 @@ def _exit_code():
 
 
 def _finish():
-    """Print the summary (and, for the machine's trouble, the marked line the runner reads); return the exit code."""
-    code = _exit_code()
-    print(f"{_passed} passed, {len(_failures)} failed" + (f", {len(_differ)} differ today (as measured)" if _differ else "")
-          + (f", {len(_troubled)} stopped by the machine's or the browser's trouble" if _troubled else ""), flush=True)
+    """Print the summary (and, for the machine's trouble, the marked line the runner reads); return the exit code — both
+    from tools/environment_trouble.py's tally, the one implementation of a test file's end (2026-11-18, sprint 9: this
+    repeated it; test/test_ui_harness.py, HARNESS-001–008). Its rows: each test passed, each failure (a failed test, a
+    bad ID, a failure found after the tests), each test the machine's trouble stopped."""
+    rows = ([("", "", True, "")] * _passed + [(f, "", False, "") for f in _failures]
+            + [(t, "", None, "") for t in _troubled])
+    lines, code = environment_trouble.tally(rows, _events, trouble="the machine's or the browser's trouble",
+                                            also=[f"{len(_differ)} differ today (as measured)"] if _differ else [])
+    print("\n".join(lines), flush=True)
     if code == environment_trouble.EXIT_CODE:
-        print(environment_trouble.mark_line(_events), flush=True)
         print(f"  (exit {code}: the machine or the browser failed, not a test — tools/run_tests.py reruns this file once, "
               "alone)", flush=True)
     return code
