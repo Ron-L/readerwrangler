@@ -22,11 +22,13 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "git-hooks"))
 import shipped_paths as _shipped  # noqa: E402  (the one "is this shipped?" rule)
+if os.path.join(ROOT, "tools") not in sys.path:
+    sys.path.append(os.path.join(ROOT, "tools"))
+import whole_file  # noqa: E402  (the one way to write a file whole — Law 22)
 # the scripts the page used to compile in the browser; 7.28.0: + the logging kit's Diagnostics window (JSX, moved out
 # of readerwrangler.js) — built into dist/logkit/, keeping its folder
 SOURCES = ("readerwrangler.js", "mobile.js", "logkit/diagnostics-window.js")
@@ -134,31 +136,12 @@ def styles_if_stale():
         return True
 
 
-SWAP_TRIES, SWAP_PAUSE_S = 20, 0.1      # ~2 s in all
-
-
 def _write(path, text):
-    """Written whole, then swapped in — never half a file. The scratch copy is named for this process (2026-11-16): two
-    servers rebuilding at once (Ron's serve.py and a screen test's) would otherwise write the SAME scratch file.
-    Windows refuses the swap while another program is reading the old copy (another server sending it) — so it's retried
-    for ~2 s; still refused, the scratch copy is removed and PermissionError raised (serve.py then serves the copy that's
-    there; TODO "Faster sprints" item 3, 2026-11-16)."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = f"{path}.{os.getpid()}.tmp"
-    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
-    for attempt in range(SWAP_TRIES):
-        try:
-            os.replace(tmp, path)
-            return
-        except PermissionError:
-            if attempt == SWAP_TRIES - 1:
-                try:
-                    os.remove(tmp)
-                except OSError:
-                    pass
-                raise
-            time.sleep(SWAP_PAUSE_S)
+    """Written whole (LF endings), then swapped in — never half a file: tools/whole_file.py, the one routine (Law 22,
+    2026-11-18). Windows refuses the swap while another program is reading the old copy (another server sending it) —
+    it's retried for ~2 s; still refused, PermissionError is raised with the old copy whole (serve.py then serves the
+    copy that's there; TODO "Faster sprints" item 3, 2026-11-16)."""
+    whole_file.write(path, text, newline="\n")
 
 
 def _staged_paths():
