@@ -2626,7 +2626,8 @@ _Why it matters:_ Auto-Organize works on a folder, so right-clicking the folder 
 #### ✅ The "open" shortcut: start serve.py if needed and open the app
 <!-- id 20261104-1540 -->
 
-**Done 2026-11-18 (sprint 9) — Ron's click still to come:** `py tools/shortcuts.py` writes "ReaderWrangler (local)" in
+**Done 2026-11-18 (sprint 9); Ron's click 2026-11-19: "It appears in Windows Search. Starts server and opens the app to
+the http://localhost:8000/readerwrangler.html".** `py tools/shortcuts.py` writes "ReaderWrangler (local)" in
 the Start menu; it runs `serve.py --open` (starts the server if nothing answers, then opens the page in a browser tab;
 if our server already answers, just opens the page; another program on the port → says so, opens nothing). Tested
 without opening a browser; Ron runs the tool once and clicks it. Note: his older "ReaderWrangler Server" Start-menu
