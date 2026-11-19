@@ -540,7 +540,8 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    9. `test/ui/harness.py`'s `done()` repeats what `environment_trouble.tally` now does (summary, stopped count, exit
       code, marked line) — one implementation (Law 22).
    10. The "rerun alone runs in a row" alert reads only the folder's own records — a file troubled in an agent's copy
-      and then in the merge doesn't add up (the copies' archive isn't read).
+      and then in the merge doesn't add up (the copies' archive isn't read). → Folded into "a file that can't be
+      proven is held" (sub-item 13 below, decided 2026-11-18): the in-a-row count lives per PC.
    11. Found by the test_cells agent: after an Escape, Chrome gave the page no idle time for 3–5 s — so any future
       "wait until the page is idle" helper must not rely on idle callbacks (caught_up uses a task-queue flush).
    12. `tools/copies.py new` calls a tier-1 run that ended "not proven — the machine was too busy" (exit 3) "tier 1
@@ -549,7 +550,17 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
       it's a failure") — by sprint 8's rule "the machine's trouble is never a test failure" it may better be "not
       proven". **Ron, 2026-11-18: "I think not proven. But we don't want to go into an infinite try loop if a file is
       never going to run under current resources and loading … Give up after say 3 failures of same file and report
-      it and await instruction from me?"** — design being talked through (Claude's proposal in the chat, 2026-11-18).
+      it and await instruction from me?"**
+      **Decided (Ron approved the proposal, 2026-11-18): a file that can't be proven is held.**
+      1. Within one run nothing changes in count: a file in the machine's trouble is rerun alone once; if the rerun
+         meets the trouble again it is **"not proven"**, not failed. One run never retries more than once.
+      2. Across runs: **3 runs in a row "not proven" for the same file → the file is held** — recorded per PC (in the
+         slots folder, so runs in working copies and in the merge all count — this absorbs sub-item 10) and said loudly:
+         "test_x couldn't be proven in 3 runs in a row on this PC — held for Ron's decision".
+      3. Later runs don't run a held file: they report it "held — not run", so they can't be proven and nothing merges
+         past it — that block IS the "await instruction"; in a sprint it goes to the review queue and its task parks.
+      4. Ron's choices then: release it (try again), run it alone every time, or set it aside with a `skip:` line naming
+         a TODO (the existing way).
    14. The commit check refuses a commit when its covering tests end "not proven" (a busy PC, no test failed) — right
       (not proof), but a busy PC can then block a commit; worth knowing, maybe saying so in the refusal.
    15. From the sprint 8 labs: when OTHER programs take the CPU, fewer browsers is slower (2 at once 1,687 s vs 3 at
@@ -2628,8 +2639,10 @@ covered the File menu and failed BACKUP-005).
 **How (technical):** in `readerwrangler.js` Restore (~line 6308) starts a 60-second timer before `loadLibrary`; the
 `catch` (~6334) closes the progress box but never clears the timer, so it fires and shows the box (and logs BACKUP-03).
 Fix: clear it in the `catch` (or a `finally`) — a failing test first: Restore a file that's refused after loading
-starts, wait past 60 s (or shorten the timer in the test), and check no box appears. Filed at the end of Polish —
-Ron sets its place.
+starts, wait past 60 s (or shorten the timer in the test), and check no box appears.
+**When (Ron, 2026-11-18): "watch for an opportunistic time to include it in a sprint"** — it happens rarely (only a
+very old backup, or something else already failing mid-restore; nothing in the library changes), so it rides along
+with the next sprint that touches app code, as a small extra task.
 
 ## 🚦 Before public launch
 
