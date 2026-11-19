@@ -39,10 +39,12 @@ majority I don't feel I needed to review").
    merged back. Later tasks build on earlier ones because each task's branch comes off the sprint's branch.
 2. **Branches to both remotes** (2026-11-16) — `python tools/sync_remotes.py`; it never pushes `main` to prod, which
    deploys (2026-11-12).
-3. **Working copies** — `py tools/copies.py new <name> --branch <b>` makes a git worktree in `..\ReaderWrangler-copies\`
-   with the tools that aren't in git linked in; `remove` takes the links out first (git's worktree removal deletes
-   through links) and keeps the copy's run records and time report. Independent tasks build at the same time —
-   `readerwrangler.js` included. `py tools/merge_branches.py` restamps the version, regenerates `dist/`, the message
+3. **Working copies** — `py tools/copies.py new <name> --branch <b>` makes its own clone in `..\ReaderWrangler-copies\`
+   (since 2026-11-19 — a mistake in one copy can't break the others) with the tools that aren't in git linked in; the
+   agent's commits stay in the copy until the merge fetches them; `remove` refuses while the copy holds commits the main
+   folder hasn't got, takes the links out first (deleting a folder deletes through links) and keeps the copy's run
+   records and time report. Independent tasks build at the same time — `readerwrangler.js` included.
+   `py tools/merge_branches.py` fetches each branch from its copy, restamps the version, regenerates `dist/`, the message
    codes table and TODO's contents, and runs the full tiers on the merged result before the target moves. The testing
    cadence is Ron's (2026-11-18: "1 full regression after each task").
 4. **Decisions** — the profile holds how Ron decides (his rules, his patterns, what he always wants to see); each
