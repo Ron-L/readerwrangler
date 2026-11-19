@@ -26,11 +26,15 @@ files (tools/browser_level.py, 2026-11-17: it replaced the fixed low-memory rule
 takes only the first L slots, so every run on this PC together stays within the PC's level too. free_memory() reads
 what the PC has available — noted in each run's record, as evidence.
 
-The folder: %TEMP%\\rw-test-slots, or RW_TEST_SLOTS_DIR when set (slots_folder() — the slots and the saved level move
-together; TEMP itself stays where it is).
+The folder: %TEMP%\\rw-test-slots, or RW_TEST_SLOTS_DIR when set (slots_folder() — the slots, the saved level and the
+test costs move together; TEMP itself stays where it is).
+
+    with locked(path) as held:                       # the same OS file lock, on any file — waits (30 s at most)
+        ...                                          # tools/test_costs.py reads, merges and saves its averages here
 
 Tested by test/test_run_tests.py (RUN-035…, 074, 079, 083, 085).
 """
+import contextlib
 import datetime
 import os
 import tempfile
@@ -84,6 +88,27 @@ else:   # Ron's PC is Windows; this keeps the runner usable elsewhere
 
     def _unlock(fd):
         fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+@contextlib.contextmanager
+def locked(path, limit_s=30.0, poll_s=0.05):
+    """Hold the OS file lock on `path` (made if missing) for the with-block — the slots' own lock (_try_lock), the one
+    way a file is locked on this PC (Law 22). Waits while another process (or another handle here) holds it, `limit_s`
+    at most; yields True when held, False when it gave up waiting. Freed by the OS if the process ends. Used by
+    tools/test_costs.py to read, merge and save its averages while other runs may be saving theirs."""
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOINHERIT", 0))
+    try:
+        deadline, got = time.monotonic() + limit_s, False
+        while not (got := _try_lock(fd)) and time.monotonic() < deadline:
+            time.sleep(poll_s)
+        try:
+            yield got
+        finally:
+            if got:
+                _unlock(fd)
+    finally:
+        os.close(fd)
 
 
 def slot_count():

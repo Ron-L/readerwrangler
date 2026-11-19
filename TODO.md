@@ -90,6 +90,7 @@
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [The "open" shortcut: start serve.py if needed and open the app](#the-open-shortcut-start-servepy-if-needed-and-open-the-app)
       - [Working-process safety net: three small follow-ups](#working-process-safety-net-three-small-follow-ups)
+      - [A refused Restore shows a false "Restore Warning" box a minute later](#a-refused-restore-shows-a-false-restore-warning-box-a-minute-later)
   - [🚦 Before public launch](#before-public-launch)
     - [Help, docs and onboarding](#help-docs-and-onboarding)
       - [An anti-glossary: the words we don't show people, kept in a list and enforced at every commit](#an-anti-glossary-the-words-we-dont-show-people-kept-in-a-list-and-enforced-at-every-commit)
@@ -144,6 +145,7 @@
     - [A screen test that failed once: the File menu not found after the start-up test](#a-screen-test-that-failed-once-the-file-menu-not-found-after-the-start-up-test)
     - [A screen test that failed once: the logging script not loaded at start-up (Diagnostics)](#a-screen-test-that-failed-once-the-logging-script-not-loaded-at-start-up-diagnostics)
     - [A screen test that failed once: Reset's reload hung while a commit ran alongside](#a-screen-test-that-failed-once-resets-reload-hung-while-a-commit-ran-alongside)
+    - [A screen test that failed once: ENV-006 named the wrong trouble on a squeezed PC](#a-screen-test-that-failed-once-env-006-named-the-wrong-trouble-on-a-squeezed-pc)
     - [Books just bought weren't at the top of All Books sorted by Date Added — once, not reproduced](#books-just-bought-werent-at-the-top-of-all-books-sorted-by-date-added--once-not-reproduced)
   - [🧊 Someday](#someday)
     - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
@@ -458,21 +460,42 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    squeezed the PC on purpose (Ron's idea): the number came down under load (5 → 2 → 1) and, once the load was gone,
    climbed back one step per clean run (2 → 3 → 4 → 5).
 11. **Left over from sprint 7** (filed 2026-11-17):
-   1. 79 fixed waits ("sleep 2 s") in 15 screen-test files (test_cells 25, test_delete_key 14, test_rename_key 9 …) —
-      each one is a guess that a slow PC breaks; wait for the condition instead, as test_reset.py now does.
-   2. No test runs a heavy tier-1 file end to end that exits with "the machine's trouble" and checks the number backs
-      off and the stopped count is right (the pieces are tested; the whole path only by hand).
-   3. A test file can lose a line by joining it onto a comment by accident and still pass — no check catches that.
-   4. RUN-049 still waits a fixed 20 s for its partner file to start; under heavy load that can fail.
+   1. ✅ 79 fixed waits ("sleep 2 s") in 15 screen-test files (test_cells 25, test_delete_key 14, test_rename_key 9 …) —
+      each one is a guess that a slow PC breaks; wait for the condition instead, as test_reset.py now does. — Done
+      2026-11-18 (sprint 8, three agents by file): each now waits for the thing itself under a generous limit; the 11
+      that prove a duration or that nothing happens stay, marked `# timed on purpose`; every file passed 3+ runs and
+      failed when a condition was broken on purpose; no app bug was hiding behind them except the false Restore
+      Warning (filed in Polish).
+   2. ✅ No test runs a heavy tier-1 file end to end that exits with "the machine's trouble" and checks the number backs
+      off and the stopped count is right (the pieces are tested; the whole path only by hand). — Done 2026-11-18
+      (sprint 8): test_run_tests.py's ending is one shared routine (`environment_trouble.tally`), and RUN-093 runs a
+      stand-in that ends the same way through the real runner: "1 stopped by the machine's trouble" and exit 3 → the
+      level 4 → 2, saved in its own slots folder → rerun alone, passed → the summary's counts and the record checked.
+      Shown failing with the path broken on purpose, on each side.
+   3. ✅ A test file can lose a line by joining it onto a comment by accident and still pass — no check catches that.
+      Done 2026-11-18 (sprint 8): the commit check `git-hooks/check-joined.py` (pre-commit step 11) refuses a staged
+      test file whose comment ends in a complete line of code; `# not-joined: <why>` for one that does on purpose;
+      `--all` checks every test file (JOIN-001–045).
+   4. ✅ RUN-049 still waits a fixed 20 s for its partner file to start; under heavy load that can fail. — Done
+      2026-11-18 (sprint 8): each file waits for the other's mark, up to 180 s (only a real failure gets there); a
+      partner the runner started with it but the machine made slower than that is the machine's (`partner_late` in
+      test_run_tests.py, beside `standin_late`; the check is stopped, the file rerun alone), a pair run one after the
+      other is a failure (RUN-094). Shown first: the old RUN-049 failed with its partner 25 s late; the new one passes.
    5. With `--tier all`, heavy tier-1 files and screen tests compete for the same slots — not yet timed under load.
-   6. A working copy's test-run records are deleted with the copy (`tools/copies.py remove`), so how long an agent's
+   6. ✅ A working copy's test-run records are deleted with the copy (`tools/copies.py remove`), so how long an agent's
       own test runs took can't be counted afterwards — keep them (move them into the main folder's records), and have
       the removal print where that copy's time went (Ron, 2026-11-18: "Should the agents record where their time
       goes … so we can analyze that?"): from the copy's start to its removal — its test runs (how many, minutes,
-      passed or failed, full or narrow) and the rest (building), kept per copy for the sprint's post-mortem.
-   7. A file that needs a rerun alone (the machine's trouble) two or three runs in a row is said loudly — it may truly
+      passed or failed, full or narrow) and the rest (building), kept per copy for the sprint's post-mortem. — Done
+      2026-11-18 (sprint 8): `copies.py remove` keeps them in `.git\rw-test-results\copies\<name>-<when>\` with
+      `time.txt` (also printed), and `copies.py report [--since]` lists the removed copies (SESSION-TOOLING.md;
+      COPY-007–009).
+   7. ✅ A file that needs a rerun alone (the machine's trouble) two or three runs in a row is said loudly — it may truly
       need to run alone (Ron, 2026-11-18). So far it has never been the same file: five files, once each, all under
-      the load lab, each passed alone.
+      the load lab, each passed alone. — Done 2026-11-18 (sprint 8): 2 whole runs of the file in a row (from the working
+      copy's run records; a run that didn't run it, or only some of its cells, is passed over) → a loud line at the end
+      of the run naming the file, how many runs, and each run's kept outputs; nothing about what runs changes
+      (TESTING.md §4; RUN-092).
 12. **Measure each test; schedule by what it uses, not by how many** (Ron, 2026-11-17 — being talked through; TCP
    counts its window in bytes, not packets): per file and per PC, keep a smoothed average and spread (TCP's own method
    for round-trip times) of its time, peak memory, CPU and disk; the browsers-at-once number becomes a budget (e.g. GB
@@ -480,6 +503,56 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    raising rules. Steps: (1) measure only, and see whether tests differ enough to matter; (2) the load lab squeezes one
    resource at a time, to learn which one breaks runs; (3) the budget; (4) longest-first and a "stuck" limit from the
    averages instead of a flat 10 minutes.
+   1. ✅ **Step 1, measuring, built 2026-11-18** (sprint 8, `tools/test_costs.py`; TESTING.md §4): every test file (and
+      each shard) is measured for all the processes it starts — time, memory committed, the RAM it adds (its private
+      RAM, sampled), CPU, I/O — in each run's record; a running average and spread per PC, learned only from full runs
+      that passed; `py tools/run_tests.py --costs` shows them, and whether the biggest screen test uses at least twice
+      the RAM of the smallest. First look, three screen tests one at a time: 0.39–0.59 GB of private RAM each (1.5×
+      apart) — not twice. A full run's averages answer it.
+   2. ✅ **Step 4, longest first and a "stuck" limit from the averages, built 2026-11-18** (sprint 8; Ron's rule the same
+      day: "longest first by each file's average, and a 'stuck' limit of average + 4 spreads (never above today's 10
+      minutes): act once every file has at least 5 runs measured"; TESTING.md §4, §7): tests start longest first by
+      their average on this PC; a test with 5+ runs gets a limit of average + 4 spreads, at least twice its average or a
+      minute, at most 10 minutes (the 10 minutes stays for fewer runs and for narrowed runs). Past it, the test is
+      stopped with everything it started, said plainly ("ran past its usual time"), the browsers at once halved, and it
+      is rerun alone with the full 10 minutes — past that too, a failure. Its next runs keep the 10 minutes until one
+      passes the first time (TCP keeps its backed-off timer the same way), so a test that truly got slower relearns its
+      average instead of being stopped every run. Today's averages: test_backlog_report.py first (141 s → limit 283 s).
+      (2026-11-18 lab: floor raised to 4× the average / 120 s; trouble beyond the rerun cap is 'not proven', never a
+      failure)
+13. **Found while building sprint 8** (filed 2026-11-18):
+   1. A run of only the tests covering what changed (`--changed`, what the commit check runs) and a test file run
+      directly write no record — so an agent's own test time lands in "everything else" in a copy's time report.
+      Recording them would mean a record on every commit (more pruning, more kept output) — Ron's call.
+   2. Two "write a file whole, retry if Windows refuses the swap" routines — `tools/build.py`'s and
+      `browser_level.save` — should be one (Law 22).
+   3. Tier 3's local relay runs outside each relay test's measurement, so tier-3 costs leave it out.
+   4. A process still running after its test ends isn't reported; the test's measurement already knows how many are
+      still running — a cheap leftover check (belongs with "One starter for every process our tools start").
+   5. The copies' archive (`rw-test-results\copies\`) is never trimmed — small, but it grows forever.
+   6. The joined-line check (commit check step 11) doesn't catch a comment line of dashes followed by one space and
+      code, nor `'use strict'`; its glued-inside-a-word scan is slow on very long comments (fine today).
+   7. The screen tests' new wait helpers live in several files (Law 22): `until`, `toast`, `LIMIT_MS` twice (the two
+      key files); `caught_up`, `settled`, `heard`, `held`, `amber_look` in test_cells.py; `wait_loaded` in rw.py — move
+      them into rw.py as one set, with one step limit for the library.
+   8. test_cells.py still has ~39 condition waits with a 3-second limit (and 11 at 4–10 s) — not fixed waits, but the
+      same "a slow PC breaks it" guess; give them the generous limit.
+   9. `test/ui/harness.py`'s `done()` repeats what `environment_trouble.tally` now does (summary, stopped count, exit
+      code, marked line) — one implementation (Law 22).
+   10. The "rerun alone runs in a row" alert reads only the folder's own records — a file troubled in an agent's copy
+      and then in the merge doesn't add up (the copies' archive isn't read).
+   11. Found by the test_cells agent: after an Escape, Chrome gave the page no idle time for 3–5 s — so any future
+      "wait until the page is idle" helper must not rely on idle callbacks (caught_up uses a task-queue flush).
+   12. `tools/copies.py new` calls a tier-1 run that ended "not proven — the machine was too busy" (exit 3) "tier 1
+      failed" — right to refuse, wrong words (the merge script already says "not proven").
+   13. A file rerun alone that meets the machine's trouble AGAIN still counts as a failure (TESTING.md: "failed again,
+      it's a failure") — by sprint 8's rule "the machine's trouble is never a test failure" it may better be "not
+      proven". Ron's call (it changes what a busy day's run reports).
+   14. The commit check refuses a commit when its covering tests end "not proven" (a busy PC, no test failed) — right
+      (not proof), but a busy PC can then block a commit; worth knowing, maybe saying so in the refusal.
+   15. From the sprint 8 labs: when OTHER programs take the CPU, fewer browsers is slower (2 at once 1,687 s vs 3 at
+      once 924 s) — halving on trouble costs time there; and memory squeezed to 0.7 GB free broke nothing. Whether
+      that leads to a CPU budget or a gentler back-off is Ron's call (review queue Q-045).
 
 #### One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->
@@ -2539,6 +2612,20 @@ _Why it matters:_ Closes the last gaps left after "Save our working process in g
   `claude-backup/memory/`, plus `.claude/settings.local.json` (see that folder's README; update its "whether to
   automate" line when built). A Python script (pytools `keepopen`), like the other tools.
 
+#### A refused Restore shows a false "Restore Warning" box a minute later
+<!-- id 20261118-1136 -->
+
+_Why it matters:_ After a backup the app refuses part-way through Restore (e.g. an old Collections file), a minute
+later a box says "Restore Warning — Library loaded but status check timed out. Please refresh the page." — untrue,
+and it covers whatever the person is doing (found 2026-11-18 by sprint 8's test-waits work: during a long wait the box
+covered the File menu and failed BACKUP-005).
+
+**How (technical):** in `readerwrangler.js` Restore (~line 6308) starts a 60-second timer before `loadLibrary`; the
+`catch` (~6334) closes the progress box but never clears the timer, so it fires and shows the box (and logs BACKUP-03).
+Fix: clear it in the `catch` (or a `finally`) — a failing test first: Restore a file that's refused after loading
+starts, wait past 60 s (or shorten the timer in the test), and check no box appears. Filed at the end of Polish —
+Ron sets its place.
+
 ## 🚦 Before public launch
 
 _Formerly: 🚦 Pre-Launch (must-do before public launch)_
@@ -3936,6 +4023,25 @@ the one place where a hang would leave a person stuck mid-reset.
   connections in TIME_WAIT, no leftover test servers or browsers). The file alone and the whole tier passed right
   after. Done 2026-11-17 (sprint 7): the console check now reports it as the machine's trouble (exit 3), and the file
   is rerun alone, said loudly.
+
+### A screen test that failed once: ENV-006 named the wrong trouble on a squeezed PC
+<!-- id 20261118-1402 -->
+
+_Why it matters:_ ENV-006 checks that our trouble detector names a lost library ("the network lost a library the page
+needs") — if the generic "the page never loaded after 8 s" alarm wins the race on a slow PC, the detector's own test
+fails even though both answers are the machine's trouble (exit 3).
+
+**What happened**
+- Once (2026-11-18 12:30, sprint 8's resource lab, memory squeezed to ~1 GB free, 5 browsers): test_environment.py
+  6 passed, 1 failed — ENV-006 "the same library answered with NOTHING … → exit 3, the library named" got exit 3 with
+  "the page never loaded — the app's start screen was still up after 8 s". Every other run that day passed it. Full
+  output kept in the lab copy's archive (`.git\rw-test-results\copies\s8-lab-…`).
+
+**Next time it happens**
+- Read the kept output first (TESTING.md §7). Likely cause: the detector checks for the start screen at a fixed 8 s
+  before it looks at which library is missing — a fixed moment, the kind sprint 8 removed from the screen tests. The
+  fix would be to name the missing library whenever the start screen times out with a library absent, whatever the
+  timing.
 
 ### Books just bought weren't at the top of All Books sorted by Date Added — once, not reproduced
 <!-- id 20261112-1925 -->

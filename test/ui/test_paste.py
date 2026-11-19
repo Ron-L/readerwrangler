@@ -17,16 +17,22 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
 
 PLACES = ["All Books", "Inbox", "Fantasy", "Science Fiction", "Read Next", "Trash"]
 ONLY_SCIFI = "A Book With No Description"
 TWO_FOLDERS = "Good Omens"
 
 
+LIMIT_MS = APP_TIMEOUT_MS   # every wait here is for a condition, under the driver's own generous limit (TESTING.md §3)
+
+
 def open_(app, label):
-    app.click_reachable(app.page.get_by_text(label, exact=True).first)
-    app.page.wait_for_timeout(500)
+    """Open a place in the left pane: wait until its row is the selected one — the right pane shows it from the same
+    update (before: a 0.5 s sleep)."""
+    target = app.page.get_by_text(label, exact=True).first
+    app.click_reachable(target)
+    app.page.wait_for_function("el => !!el.closest('.bg-blue-100')", arg=target.element_handle(), timeout=LIMIT_MS)
 
 
 def counts(app):
@@ -41,10 +47,13 @@ def changed(before, after):
 def take(app, title, folder, key):
     """Select a book in a folder and press Ctrl+C or Ctrl+X."""
     open_(app, folder)
-    app.page.locator("tbody tr", has_text=title).first.click()
-    app.page.wait_for_timeout(150)
+    row = app.page.locator("tbody tr", has_text=title).first
+    row.click()
+    # the row is selected (before: a 0.15 s sleep), then the clipboard took it — its notice logged (before: 0.25 s)
+    app.page.wait_for_function("el => el.matches('.bg-blue-50')", arg=row.element_handle(), timeout=LIMIT_MS)
+    n0 = len(app.console)
     app.page.keyboard.press(f"Control+{key}")
-    app.page.wait_for_timeout(250)
+    app.wait_console(r"^(info · MOVE|warning · MOVE-10) · ", LIMIT_MS // 1000, since=n0)
 
 
 def paste_in(app, place):
@@ -57,8 +66,10 @@ def paste_in(app, place):
 
 
 def undo(app):
+    """Ctrl+Z, then wait for its answer — "Undone: …" (or "Nothing to undo") is its last step (before: a 0.6 s sleep)."""
+    n0 = len(app.console)
     app.page.keyboard.press("Control+z")
-    app.page.wait_for_timeout(600)
+    app.wait_console(r"^info · UNDO · ", LIMIT_MS // 1000, since=n0)
 
 
 with App() as app:

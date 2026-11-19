@@ -27,7 +27,9 @@ the main folder. The target moves only at the end, and only once the merged resu
      commit that lands — and `run_tests.py --stamp` must say PROVEN. Then the target is fast-forwarded there, the folder
      switched back to it and the scratch branch deleted. A failure leaves the target untouched and the folder on the
      scratch branch (fix and commit there, then --continue; or --abort). --no-test lands without testing and says,
-     loudly, that nothing was proven.
+     loudly, that nothing was proven. A tier NOT PROVEN — the runner's exit 3: no test failed, but more files met the
+     machine's trouble than it reruns (2026-11-18) — doesn't land either (its stamp is NOT PROVEN) and is said as such,
+     never as a failure: run it again once the PC is quieter (--continue).
 
 The fresh version: the highest ORGANIZER_VERSION among the target and every branch given (and their ?v= stamps), one
 alpha up — for the first branch that moved a stamp; the next such branch gets the next alpha, and so on, so each commit
@@ -55,6 +57,9 @@ VERSION = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-alpha\.(\d+))?$")
 MASK = "@@RW-STAMP@@"
 GIT_LOCATION_VARS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR",
                      "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX")
+# run_tests.py's exit when no test failed but a file is NOT PROVEN — the machine's trouble past its reruns
+# (tools/environment_trouble.py EXIT_CODE; a literal here: this script runs on its own, its tests copy it alone).
+NOT_PROVEN_EXIT = 3
 
 
 class Stop(Exception):
@@ -425,7 +430,9 @@ def test_and_land(repo, state):
             code = subprocess.run([sys.executable, repo.path("tools/run_tests.py"), "--tier", tier], cwd=repo.dir,
                                   env=_env()).returncode
             if code:
-                print(f"· tier {tier} failed — tier 2 not run" if tier == "1" else f"· tier {tier} failed")
+                what = ("not proven — the machine was too busy (no test failed; more files met its trouble than the "
+                        "runner reruns — run it again when the PC is quieter)") if code == NOT_PROVEN_EXIT else "failed"
+                print(f"· tier {tier} {what} — tier 2 not run" if tier == "1" else f"· tier {tier} {what}")
                 break
         ok, stamp = proven(repo)
         print(stamp)

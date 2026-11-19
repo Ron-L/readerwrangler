@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import AFTER_CHECK, APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
 
 
 def toast_says(app, words):
@@ -50,8 +50,10 @@ def row(app, name):
 
 with App() as app:
     page = app.page
+    n0 = len(app.console)
     app.restore(FIXTURE)
-    page.wait_for_timeout(1000)
+    # the Restore has finished — its after-check, its last step, has run (before: a 1 s sleep)
+    app.wait_console(AFTER_CHECK, APP_TIMEOUT_MS // 1000, since=n0)
     app.click_reachable(app.menu("Tools", "Manage Tags"))
     page.get_by_placeholder("Create new tag...").wait_for(timeout=5000)
 

@@ -18,9 +18,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
 
 CRITICAL = "#rw-log-critical"
+LIMIT_MS = APP_TIMEOUT_MS   # every wait here is for a condition, under the driver's own generous limit (TESTING.md §3)
 SAVED_ORG = "() => localStorage.getItem('readerwrangler-state')"
 
 
@@ -44,7 +45,7 @@ with App() as app:
         page.evaluate("() => localStorage.setItem('readerwrangler-status', '{damaged')")
         n0 = len(app.console)
         app.reload()
-        page.wait_for_timeout(1500)
+        app.wait_loaded()       # the load has finished — its warnings logged, or BOOT-01 shown (before: a 1.5 s sleep)
         check(all_books > 0 and app.left_count("All Books") == all_books,
               f"the library didn't load: All Books {app.left_count('All Books')}, was {all_books}")
         check(since(app, n0, r'^warning · STORE-13 · The saved "readerwrangler-status" couldn.t be read'),
@@ -59,7 +60,7 @@ with App() as app:
         page.evaluate("() => localStorage.setItem('readerwrangler-filters', '{damaged')")
         n0 = len(app.console)
         app.reload()
-        page.wait_for_timeout(1500)
+        app.wait_loaded()       # (before: a 1.5 s sleep)
         check(app.left_count("All Books") == all_books, "the library didn't load")
         check(since(app, n0, r'^warning · STORE-13 · The saved "readerwrangler-filters" couldn.t be read'),
               "no STORE-13 warning naming the damaged filters note")
@@ -86,8 +87,9 @@ with App() as app:
             throw new Error('the book store refused to save (screen test)'); };""")
         n0 = len(app.console)
         app.reload()
-        page.locator(CRITICAL).wait_for(timeout=60_000)
-        page.wait_for_timeout(500)
+        # the box shows the latest critical message: the failed save's STORE-07 first, then the start's own BOOT-01 — the
+        # last thing the failed start does (before: a 0.5 s sleep after the box appeared)
+        page.locator(CRITICAL).get_by_text("code BOOT-01", exact=False).wait_for(timeout=LIMIT_MS)
         text = page.locator(CRITICAL).inner_text()
         check("BOOT-01" in text and "couldn't be loaded" in text, f"no BOOT-01 \"couldn't be loaded\": {text!r}")
         check("Don't save a backup now" in text and "save a backup now: File" not in text,
@@ -113,10 +115,9 @@ with App() as app:
             localStorage.setItem('readerwrangler-booklists', '{"not": "a list"}'); }""")
         n0 = len(app.console)
         app.reload()
-        for _ in range(300):   # this start's own line (the session's first start logged one too) — a condition, not a sleep
-            if since(app, n0, r"^info · BOOT · A fresh start: created the Inbox|BOOT-01"):
-                break
-            page.wait_for_timeout(100)
+        # this start's load has finished (its folders set, or BOOT-01 shown) — every warning it logs comes before (before:
+        # a loop until its "fresh start" line, which comes before the books are read — a BOOT-01 could still follow)
+        app.wait_loaded()
         check(not since(app, n0, r"BOOT-01"), "a damaged old-format note stopped the library from loading (BOOT-01)")
         for note in ("readerwrangler-folders", "readerwrangler-booklists"):
             check(len(since(app, n0, rf'^warning · STORE-13 · The saved "{note}" couldn.t be read')) == 1,
@@ -129,15 +130,16 @@ with App() as app:
     def store_wont_open():
         app.expect("BOOT-01")   # caused on purpose
         # the first, normal start saves its organization a moment after the screen is up — wait for it, or "before" is
-        # read too early and that save looks like the failed start's (measured 2026-11-09: its savedAt preceded the reload)
-        page.wait_for_function("() => localStorage.getItem('readerwrangler-state') !== null", timeout=30_000)
-        page.wait_for_timeout(500)
+        # read too early and that save looks like the failed start's (measured 2026-11-09: its savedAt preceded the reload).
+        # The load finished, then its save (the organization's, once the load opens the gate) — before: also a 0.5 s sleep
+        app.wait_loaded()
+        page.wait_for_function("() => localStorage.getItem('readerwrangler-state') !== null",
+                               timeout=LIMIT_MS)
         saved_before = page.evaluate(SAVED_ORG)
         app.ctx.add_init_script("""indexedDB.open = function () {
             throw new Error('the book store refused to open (screen test)'); };""")
         app.reload()
-        page.locator(CRITICAL).wait_for(timeout=60_000)
-        page.wait_for_timeout(500)
+        page.locator(CRITICAL).get_by_text("code BOOT-01", exact=False).wait_for(timeout=LIMIT_MS)   # (before: + 0.5 s)
         text = page.locator(CRITICAL).inner_text()
         check("BOOT-01" in text and "couldn't be loaded" in text, f"no BOOT-01 \"couldn't be loaded\": {text!r}")
         check(page.evaluate(SAVED_ORG) == saved_before, "the failed start changed the saved organization (F1)")

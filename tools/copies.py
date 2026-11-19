@@ -15,6 +15,17 @@ folder. One agent builds in one copy while Claude reviews and tests in another, 
         and refuses, even with --force, while any folder in the copy can't be looked into (a link there would be missed)
     py tools/copies.py list            (also what a double-click shows)
         each copy: its branch, its commit, anything uncommitted, and its test stamp (run_tests.py --stamp there)
+    py tools/copies.py report [--since YYYY-MM-DD]
+        one row per removed copy (from its kept records): made, removed, wall time, test minutes and their share, runs
+        full / narrow, passed / failed — and the totals. For a sprint's post-mortem.
+
+Where a copy's time went (TODO tooling item 11.6; Ron, 2026-11-18: "Should the agents record where their time goes … so
+we can analyze that?"): `new` notes when it made the copy (rw-copy.json in the copy's own git folder — it goes with the
+copy). Before `remove` takes anything out, the copy's test-run records — and its failed files' kept outputs — are copied
+into the main folder's records, in their own archive folder (rw-test-results/copies/<name>-<when removed>/, which the
+runner never reads nor prunes), with time.json and time.txt: made → removed, its test runs (how many, their minutes —
+overlapping runs counted once — full or narrow, passed or failed, reruns alone), its commits, and everything else. If
+they can't be kept, nothing is removed (even with --force). The copy's own folder of them goes when git removes the copy.
 
 What a copy needs that git doesn't hold (proven 2026-11-16 — a copy without them fails tier 1: the build tests, the
 parse and saved-reads checks, the screen-test runner tests — and tier 2 can't start at all):
@@ -34,13 +45,21 @@ main folder's linked folders are checked afterwards.
 Nothing here stops a process. Tested by test/test_copies.py.
 """
 import argparse
+import datetime
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LINKS = (".venv", "node_modules", "tools/build/node_modules", "relay/node_modules")
+RESULTS = "rw-test-results"      # run_tests.py RESULTS_NAME: a folder's records, in its own git folder
+ARCHIVE = "copies"               # run_tests.py COPIES_ARCHIVE: removed copies' records, inside the main folder's (COPY-007)
+NOTE = "rw-copy.json"            # when `new` made the copy — in the copy's own git folder, gone with it
+NARROWING_ENV = ("RW_CELLS",)    # run_tests.py RUN_ENV's narrowing variables — COPY-007 checks they're the same
+EVERYTHING_ELSE = "building, reading, thinking, waiting — the records can't tell these apart"
 # git's location variables, set when git runs a hook: they'd point every command here at the folder that ran the hook
 GIT_LOCATION_VARS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR",
                      "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX")
@@ -91,6 +110,40 @@ def screenshots_folder(root=ROOT, environ=None):
 
 def _same(a, b):
     return os.path.normcase(os.path.normpath(a)) == os.path.normcase(os.path.normpath(b))
+
+
+def git_path(folder, name):
+    """The absolute path of `name` in the folder's own git folder (a copy's: .git/worktrees/<its name>/<name>)."""
+    return os.path.normpath(git(folder, "rev-parse", "--path-format=absolute", "--git-path", name, check=True)
+                            .stdout.strip())
+
+
+def _now():
+    return datetime.datetime.now().astimezone()
+
+
+def _when(text):
+    """A record's or note's time (ISO 8601, with its offset), or None."""
+    try:
+        t = datetime.datetime.fromisoformat(str(text))
+    except (TypeError, ValueError):
+        return None
+    return t if t.tzinfo else t.astimezone()
+
+
+def _write_json(path, data):
+    with open(path + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=1)
+    os.replace(path + ".tmp", path)
+
+
+def _read_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def worktrees(main):
@@ -199,6 +252,10 @@ def cmd_new(a, repo):
     if r.returncode:
         raise SystemExit(f"git couldn't make the copy:\n{(r.stderr or r.stdout).strip()}")
     print(f"· made {dest} {made}")
+    note_path = git_path(dest, NOTE)
+    note = {"name": a.name, "branch": branch, "made": _now().isoformat(timespec="seconds"),
+            "start": git(dest, "rev-parse", "HEAD").stdout.strip() or None}
+    _write_json(note_path, note)
 
     missing = []
     for rel in LINKS:
@@ -235,12 +292,170 @@ def cmd_new(a, repo):
     print("· tier 1 in the copy (py tools/run_tests.py --tier 1) …", flush=True)
     code = subprocess.run([sys.executable, os.path.join(dest, "tools", "run_tests.py"), "--tier", "1"], cwd=dest,
                           env=_env()).returncode
+    # Runs that began before this are the copy's making, not its work (where its time went, at removal).
+    _write_json(note_path, {**note, "ready": _now().isoformat(timespec="seconds"), "ready_passed": code == 0})
     if code:
         print(f"NOT READY — tier 1 failed in {dest} (above). It's left as it is for a look; "
               f"py tools/copies.py remove {a.name} --force  removes it (the branch stays).")
         return 1
     print(f"READY — {dest}, branch {branch}. When done:  py tools/copies.py remove {a.name}")
     return 0
+
+
+# --- where a copy's time went (TODO tooling item 11.6, 2026-11-18) ------------------------------------------------------
+def narrowed(rec):
+    """What narrowed a run to part of its tier, in words ([] = a full run) — as run_tests.py narrowed_by judges what was
+    ASKED: --tag, --id, a narrowing variable. (A record never shows --changed: such a run writes none.)"""
+    ran = rec.get("ran") or {}
+    return ([f"--tag {', '.join(ran['tags'])}"] if ran.get("tags") else []) \
+        + ([f"--id {', '.join(ran['ids'])}"] if ran.get("ids") else []) \
+        + [f"{k}={v}" for k, v in (rec.get("env") or {}).items() if k in NARROWING_ENV and v]
+
+
+def covered_seconds(spans):
+    """The seconds the spans [(start, end)] cover together — overlapping spans counted once."""
+    total, cur = 0.0, None
+    for s, e in sorted(sp for sp in spans if sp[1] > sp[0]):
+        if cur and s <= cur[1]:
+            cur[1] = max(cur[1], e)
+            continue
+        if cur:
+            total += (cur[1] - cur[0]).total_seconds()
+        cur = [s, e]
+    return total + ((cur[1] - cur[0]).total_seconds() if cur else 0.0)
+
+
+def made_estimate(dest):
+    """When git made the copy's own folder — the made time of a copy that has no note (made before `new` wrote one)."""
+    try:
+        return datetime.datetime.fromtimestamp(os.stat(git_path(dest, "commondir")).st_mtime).astimezone()
+    except (OSError, SystemExit):
+        return None
+
+
+def commits_since(main, head, note, made):
+    """[{hash, when, subject}] — the commits on the copy's own line since it was made (oldest first)."""
+    fmt = "--format=%h%x09%cI%x09%s"
+    if note.get("start") and head:
+        r = git(main, "log", "--first-parent", "--reverse", fmt, f"{note['start']}..{head}")
+    elif made and head:
+        r = git(main, "log", "--first-parent", "--reverse", fmt, f"--since={made.isoformat()}", head)
+    else:
+        return []
+    return [dict(zip(("hash", "when", "subject"), ln.split("\t", 2))) for ln in r.stdout.splitlines() if ln.strip()]
+
+
+def where_time_went(name, branch, note, made, estimated, records, commits, removed):
+    """The summary kept as time.json (and said as time.txt)."""
+    ready = _when(note.get("ready"))
+    runs, spans = [], []
+    for r in sorted(records, key=lambda x: str(x.get("started", ""))):
+        s, e = _when(r.get("started")), _when(r.get("ended"))
+        if s and not e and isinstance(r.get("seconds"), (int, float)):
+            e = s + datetime.timedelta(seconds=r["seconds"])
+        why = narrowed(r)
+        if s and e:
+            spans.append((max(s, made) if made else s, min(e, removed)))
+        runs.append({"id": r.get("id"), "started": r.get("started"), "ended": r.get("ended"),
+                     "seconds": round((e - s).total_seconds()) if s and e else None,
+                     "tier": str((r.get("ran") or {}).get("tier") or "?"), "full": not why, "narrowed_by": why,
+                     "result": r.get("result") or "unknown",
+                     "reruns_alone": sum(len(f.get("retried") or []) for f in r.get("files") or []),
+                     "readiness": bool(ready and s and s < ready and not why)})
+    wall = max(0.0, (removed - made).total_seconds()) if made else None
+    tests = covered_seconds(spans)
+    return {"name": name, "branch": branch, "made": made.isoformat(timespec="seconds") if made else None,
+            "made_estimated": estimated, "removed": removed.isoformat(timespec="seconds"),
+            "wall_seconds": None if wall is None else round(wall), "test_seconds": round(tests),
+            "everything_else_seconds": None if wall is None else round(max(0.0, wall - tests)),
+            "everything_else_is": EVERYTHING_ELSE,
+            "counts": {"runs": len(runs), "full": sum(r["full"] for r in runs),
+                       "narrow": sum(not r["full"] for r in runs),
+                       "passed": sum(r["result"] == "passed" for r in runs),
+                       "failed": sum(r["result"] != "passed" for r in runs),
+                       "reruns_alone": sum(r["reruns_alone"] for r in runs),
+                       "readiness": sum(r["readiness"] for r in runs)},
+            "runs": runs, "commits": commits}
+
+
+def minutes(seconds):
+    if seconds is None:
+        return "?"
+    m = seconds / 60
+    return f"{m:.1f} min" if m < 10 else f"{m:.0f} min" if m < 60 else f"{int(m // 60)} h {int(m % 60):02d} min"
+
+
+def share(part, whole):
+    return f"{100 * part / whole:.0f}%" if whole else "?"
+
+
+def time_text(s, kept):
+    """time.txt — and what the removal prints."""
+    n, wall, tests = s["counts"], s["wall_seconds"], s["test_seconds"]
+    made = (s["made"] or "?")[:19].replace("T", " ")
+    lines = [f"Where the time of copy {s['name']} (branch {s['branch'] or '(detached)'}) went:",
+             f"  made {made}" + (" (estimated — when git made its folder; made before copies.py noted the time)"
+                                 if s["made_estimated"] else "")
+             + f" → removed {s['removed'][:19].replace('T', ' ')}: {minutes(wall)}",
+             f"  test runs: {n['runs']} — {minutes(tests)} ({share(tests, wall)} of it; runs that overlapped counted once)",
+             f"      {n['full']} full" + (f" ({n['readiness']} of them the tier 1 that `new` ran to make it ready)"
+                                         if n["readiness"] else "")
+             + f", {n['narrow']} narrow · {n['passed']} passed, {n['failed']} failed"
+             + f" · {n['reruns_alone']} file(s) rerun alone after the machine's or the browser's trouble"]
+    for r in s["runs"]:
+        lines.append(f"      {str(r['started'] or '?')[11:19]}  {minutes(r['seconds']):>9}  tier {r['tier']:<3}  "
+                     f"{r['result']:<7} " + ("full" + (" (making it ready)" if r["readiness"] else "")
+                                             if r["full"] else "narrow: " + "; ".join(r["narrowed_by"]))
+                     + (f" · {r['reruns_alone']} rerun alone" if r["reruns_alone"] else ""))
+    lines.append(f"  everything else: {minutes(s['everything_else_seconds'])} ({share(s['everything_else_seconds'] or 0, wall)}"
+                 f") — {s['everything_else_is']}")
+    lines.append(f"  commits on its branch since it was made: {len(s['commits'])}")
+    lines += [f"      {c['hash']}  {c['when'][:16].replace('T', ' ')}  {c['subject'][:90]}" for c in s["commits"]]
+    lines.append(f"  kept: {kept}  (its run records, failed outputs, time.json, time.txt — py tools/copies.py report)")
+    return "\n".join(lines)
+
+
+def keep_records(main, dest, name, branch, head):
+    """Copy the copy's test-run records (and kept outputs) into the main folder's archive, with its time summary — BEFORE
+    anything is removed. Returns (archive folder, the summary's text). Anything fails: the partial archive is taken back
+    and the removal stops (SystemExit) — records are never lost silently."""
+    src = git_path(dest, RESULTS)
+    home = os.path.join(git_path(main, RESULTS), ARCHIVE)
+    removed = _now()
+    note = _read_json(git_path(dest, NOTE)) or {}
+    made, estimated = _when(note.get("made")), False
+    if made is None:
+        made, estimated = made_estimate(dest), True
+    target = os.path.join(home, f"{name}-{removed:%Y%m%d-%H%M}")
+    k = 2
+    while os.path.lexists(target):
+        target = os.path.join(home, f"{name}-{removed:%Y%m%d-%H%M}-{k}")
+        k += 1
+    try:
+        os.makedirs(home, exist_ok=True)
+        if os.path.isdir(src):
+            shutil.copytree(src, target)
+        else:
+            os.makedirs(target)
+        missing = [os.path.relpath(os.path.join(d, f), src) for d, _, fs in os.walk(src) for f in fs
+                   if not os.path.exists(os.path.join(target, os.path.relpath(os.path.join(d, f), src)))]
+        if missing:
+            raise OSError(f"not copied: {', '.join(missing[:5])}")
+        records = [r for r in (_read_json(os.path.join(target, f)) for f in os.listdir(target) if f.endswith(".json"))
+                   if r is not None]
+        summary = where_time_went(name, branch, note, made, estimated, records,
+                                  commits_since(main, head, note, made), removed)
+        text = time_text(summary, target)
+        _write_json(os.path.join(target, "time.json"), {**summary, "note": note})
+        with open(os.path.join(target, "time.txt"), "w", encoding="utf-8") as f:
+            f.write(text + "\n")
+    except (OSError, shutil.Error) as e:
+        if os.path.isdir(target):
+            shutil.rmtree(target, ignore_errors=True)
+        raise SystemExit(f"NOT REMOVED — nothing was touched: the copy's test-run records couldn't be kept in "
+                         f"{target}:\n  {e}\nThey're still in {src}. Fix that (or move them by hand), then run this "
+                         "again.")
+    return target, text
 
 
 # --- remove -------------------------------------------------------------------------------------------------------------
@@ -285,6 +500,8 @@ def cmd_remove(a, repo):
                          f"inside one would be missed and git's remove would delete what it points at:\n  "
                          + "\n  ".join(f"{d} ({why})" for d, why in e.folders)
                          + "\nMake them readable again (or remove each link in them by hand), then run this again.")
+    # Its test-run records kept, with where its time went — before anything is taken out (a failure stops here).
+    kept, time_said = keep_records(main, dest, a.name, wt["branch"], wt["head"])
     for link in sorted(links, key=len, reverse=True):
         remove_link(link)
         if os.path.lexists(link):
@@ -292,16 +509,70 @@ def cmd_remove(a, repo):
         print(f"· unlinked {os.path.relpath(link, dest)}")
     r = git(main, "worktree", "remove", "--force", dest)
     if r.returncode or os.path.exists(dest):
+        shutil.rmtree(kept, ignore_errors=True)        # the records are still in the copy — kept again next time
         raise SystemExit(f"git couldn't remove {dest} (a program still using a file there?):\n"
-                         f"{(r.stderr or r.stdout).strip()}")
+                         f"{(r.stderr or r.stdout).strip()}\n(Its test-run records stay in the copy; the archive made "
+                         "for them was taken back.)")
     # Checked, not assumed: each linked folder of the main folder still holds what it held before.
     lost = [rel for rel, names in held.items() if not os.path.isdir(os.path.join(main, rel))
             or not set(names) <= set(os.listdir(os.path.join(main, rel)))]
     if lost:
         print(f"REMOVED {dest} — {where} kept.\n!! THE MAIN FOLDER LOST FILES in {', '.join(lost)} — set them up again "
               "(docs/design/TESTING.md §4) and report this: the links were supposed to be removed first.")
+        print(time_said)
         return 1
     print(f"REMOVED {dest} — {where} kept. The main folder's {', '.join(held)} still hold everything they held.")
+    print(time_said)
+    return 0
+
+
+# --- report -------------------------------------------------------------------------------------------------------------
+def cmd_report(a, repo):
+    """One row per removed copy whose records were kept (rw-test-results/copies/*/time.json), then the totals."""
+    since = None
+    if a.since:
+        try:
+            since = datetime.date.fromisoformat(a.since)
+        except ValueError:
+            raise SystemExit(f"--since {a.since!r}: a date, YYYY-MM-DD")
+    home = os.path.join(git_path(main_folder(repo), RESULTS), ARCHIVE)
+    rows, unread = [], []
+    for d in sorted(os.listdir(home)) if os.path.isdir(home) else []:
+        s = _read_json(os.path.join(home, d, "time.json"))
+        if s is None:
+            unread.append(d)
+            continue
+        removed = _when(s.get("removed"))
+        if since and removed and removed.date() < since:
+            continue
+        rows.append(s)
+    rows.sort(key=lambda s: str(s.get("removed")))
+    head = ("copy", "branch", "made", "removed", "wall", "tests", "share", "runs full/narrow", "passed/failed")
+
+    def cells(name, branch, made, removed, wall, tests, n):
+        return (name, branch, made, removed, minutes(wall), minutes(tests), share(tests, wall),
+                f"{n['runs']}: {n['full']}/{n['narrow']}", f"{n['passed']}/{n['failed']}")
+    table = [cells(s.get("name", "?"), s.get("branch") or "(detached)",
+                   (s.get("made") or "?")[:16].replace("T", " ") + ("~" if s.get("made_estimated") else ""),
+                   str(s.get("removed", "?"))[:16].replace("T", " "), s.get("wall_seconds"), s.get("test_seconds", 0),
+                   s.get("counts") or {}) for s in rows]
+    if not rows:
+        print(f"No removed copies' records kept{f' since {since}' if since else ''} (in {home}).")
+    else:
+        keys = ("runs", "full", "narrow", "passed", "failed")
+        total = {k: sum((s.get("counts") or {}).get(k, 0) for s in rows) for k in keys}
+        walls = [s.get("wall_seconds") for s in rows if s.get("wall_seconds") is not None]
+        tests = sum(s.get("test_seconds") or 0 for s in rows if s.get("wall_seconds") is not None)
+        table.append(cells(f"total ({len(rows)} copies)", "", "", "", sum(walls), tests, total))
+        widths = [max(len(str(r[i])) for r in [head] + table) for i in range(len(head))]
+        for i, r in enumerate([head] + table):
+            if i == len(table):          # (the totals row, after a rule)
+                print("  ".join("-" * w for w in widths))
+            print("  ".join(str(c).ljust(w) for c, w in zip(r, widths)).rstrip())
+        print(f"(tests = the minutes its test runs covered, overlaps once; the rest of the wall time is {EVERYTHING_ELSE}"
+              f". ~ = made time estimated. Each copy's runs: {os.path.join(home, '<copy>-<when>', 'time.txt')})")
+    for d in unread:
+        print(f"! {os.path.join(home, d)}: no readable time.json")
     return 0
 
 
@@ -357,11 +628,15 @@ def main(argv=None, repo=ROOT):
     r.add_argument("name")
     r.add_argument("--force", action="store_true", help="even with uncommitted changes or commits found nowhere else")
     sub.add_parser("list", help="each copy, its branch and its test stamp")
+    p = sub.add_parser("report", help="where each removed copy's time went: wall, test minutes, runs — and totals")
+    p.add_argument("--since", help="only copies removed on or after this day (YYYY-MM-DD)")
     a = ap.parse_args(argv)
     if a.cmd == "new":
         return cmd_new(a, repo)
     if a.cmd == "remove":
         return cmd_remove(a, repo)
+    if a.cmd == "report":
+        return cmd_report(a, repo)
     return cmd_list(a, repo)          # "list", or nothing (a double-click)
 
 

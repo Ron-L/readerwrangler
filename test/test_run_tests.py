@@ -5,12 +5,14 @@
 # Run: python test/test_run_tests.py
 #
 # Sample test files are written to a temporary folder; each row checks one thing the runner must do.
+import atexit
 import contextlib
 import glob
 import importlib.util
 import io
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -19,6 +21,13 @@ import tempfile
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Every run of the runner started here — main() called in this process, or any process started from it — uses slot files,
+# a saved browsers-at-once level and test costs of its OWN, never the PC's real ones (2026-11-18: RUN-051's run, which
+# takes the real path, taught the PC's real test costs under its throwaway file's name). test_slots.slots_folder() reads
+# it at each call; a row that needs another folder sets its own and puts this one back (RUN-085).
+SELF_SLOTS = tempfile.mkdtemp(prefix="rw-selftest-slots-")
+os.environ["RW_TEST_SLOTS_DIR"] = SELF_SLOTS
+atexit.register(shutil.rmtree, SELF_SLOTS, True)       # gone when this file ends (ignore_errors)
 spec = importlib.util.spec_from_file_location("run_tests", os.path.join(ROOT, "tools", "run_tests.py"))
 rt = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rt)
@@ -65,6 +74,20 @@ def standin_late(text, pids, limit):
         return f"a stand-in relay wasn't ready within {limit} — the machine was too slow to start it"
     if "the stand-in's server never came up" in (text or ""):
         return "a stand-in relay's own server never came up — the machine was too slow to start it"
+    return None
+
+
+def partner_late(text, launched, limit):
+    """The machine's trouble, in words, when one of two files that must run together (RUN-049) gave up waiting for the
+    other — standin_late's rule, for a pair: only when it waited its WHOLE time ("waited <limit> s") AND the runner had
+    started both within that time of each other (launched: {file: when the runner started it}) — the partner was running
+    all along, the machine too slow to bring it to its mark. Started further apart, the runner ran them one after the
+    other (their overlap broken): None — what went wrong is the runner's, a failure. (2026-11-18, TODO tooling 11.4.)"""
+    if f"waited {limit:g} s" not in (text or "") or len(launched) < 2:
+        return None
+    if max(launched.values()) - min(launched.values()) < limit:
+        return (f"a file of the pair waited its whole {limit:g} s for the other, which the runner had started with it — "
+                "the machine was too slow to run it")
     return None
 
 
@@ -656,7 +679,9 @@ done()
     env3 = got3[0].get("env") if isinstance(got3, list) and len(got3) == 1 else None
     row("RUN-059", "a run's record notes the variables that change a run, with their values (RW_CELLS=CELL-005, "
         "RW_BROWSER=msedge), and the run says it was narrowed",
-        env3 == {"RW_CELLS": "CELL-005", "RW_BROWSER": "msedge"} and "RW_CELLS=CELL-005" in out,
+        # (and this file's own slots folder, set at its top — every run here has it)
+        env3 == {"RW_CELLS": "CELL-005", "RW_BROWSER": "msedge", "RW_TEST_SLOTS_DIR": SELF_SLOTS}
+        and "RW_CELLS=CELL-005" in out,
         f"exit {code}; env {env3}; {out[-300:]}")
 
     sdir = os.path.join(d, "stamp-results")
@@ -748,32 +773,83 @@ done()
     row("RUN-048", "6 slots on the PC by default (the most browsers at once a run may choose); RW_TEST_SLOTS overrides",
         n7 == 7 and nbad == 6 and ts.DEFAULT_SLOTS == 6, f"{n7}, {nbad}")
 
-    # Two files that can only pass TOGETHER: each waits (up to 20 s) for the other's mark — run one after the other, the
-    # first gives up. The failing one prints several detail lines, which must come out together, never interleaved.
-    def pair_file(name, me, other, fail=False):
+    # Two files that can only pass TOGETHER: each waits for the other's mark — run one after the other, the first gives
+    # up. A CONDITION under a generous limit, never a moment (TESTING.md §3; TODO tooling 11.4, 2026-11-18 — the wait was
+    # a fixed 20 s, which a busy machine starting the partner late could fail): only a real failure waits PAIR_LIMIT_S.
+    # A file that gives up says how long it waited, and partner_late() tells a partner the runner started with it but the
+    # machine made too slow (the machine's: stopped) from a pair the runner ran one after the other (a failure). The
+    # failing one prints several detail lines, which must come out together, never interleaved.
+    PAIR_LIMIT_S = 180
+
+    def pair_file(name, me, other, fail=False, limit=PAIR_LIMIT_S, mark_after=None):
+        """mark_after: a file this one waits for (up to PAIR_LIMIT_S) before putting down its own mark — a partner slower
+        than the other's whole wait, on purpose (RUN-094)."""
         return write(name, f"""# sample
 # tags: parallel-sample, tier 1
 # covers: tools/run_tests.py
 import os, sys, time
+def appears(path, limit):
+    end = time.time() + limit
+    while not os.path.exists(path):
+        if time.time() > end:
+            return False
+        time.sleep(0.05)
+    return True
+{f'appears({mark_after!r}, {PAIR_LIMIT_S})' if mark_after else ''}
 open(os.path.join({d!r}, {me!r}), "w").close()
-end = time.time() + 20
-while not os.path.exists(os.path.join({d!r}, {other!r})):
-    if time.time() > end:
-        print("  ✗ PAIR-001 the other file never ran at the same time"); print("0 passed, 1 failed"); sys.exit(1)
-    time.sleep(0.05)
+if not appears(os.path.join({d!r}, {other!r}), {limit}):
+    open(os.path.join({d!r}, {me!r} + ".gave-up"), "w").close()
+    print("  ✗ PAIR-001 the other file never ran at the same time — waited {limit:g} s"); print("0 passed, 1 failed")
+    sys.exit(1)
 for i in range(5):
     print("  {'✗' if fail else '✓'} {me}-line", i, flush=True)
     time.sleep(0.05)
 print("{'0 passed, 1 failed' if fail else '1 passed, 0 failed'}")
 sys.exit({1 if fail else 0})
 """)
+
+    def pair_run(argv, pair):
+        """quiet_main() on a pair, noting when the runner started each file (its run_process — the original kept and put
+        back): (exit code, printed text, {file name: when})."""
+        launched, real_run_process = {}, rt.run_process
+
+        def noting(tf, *args, **kw):
+            launched[os.path.basename(tf.path)] = time.time()
+            return real_run_process(tf, *args, **kw)
+        rt.run_process = noting
+        try:
+            code, out = quiet_main(argv, files=[rt.TestFile(p) for p in pair])
+        finally:
+            rt.run_process = real_run_process
+        return code, out, launched
     pa, pb = pair_file("pa.test_pair.py", "PA", "PB"), pair_file("pb.test_pair.py", "PB", "PA", fail=True)
-    code, out = quiet_main(["--tier", "1", "--jobs", "2"], files=[rt.TestFile(pa), rt.TestFile(pb)])
+    code, out, launched = pair_run(["--tier", "1", "--jobs", "2"], [pa, pb])
     pb_lines = [i for i, ln in enumerate(out.splitlines()) if "PB-line" in ln]
-    row("RUN-049", "--jobs 2 runs two files at the same time; the failing one's lines come out together; the summary line "
-        "is the same as ever",
-        "Tests: 1 file(s) passed, 1 failed" in out and code == 1 and len(pb_lines) == 5
-        and pb_lines == list(range(pb_lines[0], pb_lines[0] + 5)) and "PAIR-001" not in out, f"exit {code}: {out[-700:]}")
+    judged_row("RUN-049", "--jobs 2 runs two files at the same time; the failing one's lines come out together; the summary "
+               "line is the same as ever",
+               "Tests: 1 file(s) passed, 1 failed" in out and code == 1 and len(pb_lines) == 5
+               and pb_lines == list(range(pb_lines[0], pb_lines[0] + 5)) and "PAIR-001" not in out,
+               f"exit {code}, started {launched}: {out[-700:]}", partner_late(out, launched, PAIR_LIMIT_S))
+    # partner_late both ways, for real, with a 1 s wait: a partner the runner started with its pair but that puts its mark
+    # down only once the other has given up (the machine's slowness, made on purpose) → the machine's; a pair run one after
+    # the other (--jobs 1: the overlap broken) → the runner's. And made-up cases (a wait cut short, one file).
+    qa = pair_file("qa.test_pair.py", "QA", "QB", limit=1)
+    qb = pair_file("qb.test_pair.py", "QB", "QA", limit=1, mark_after=os.path.join(d, "QA.gave-up"))
+    q_code, q_out, q_launched = pair_run(["--tier", "1", "--jobs", "2"], [qa, qb])
+    sa, sb = pair_file("sa.test_pair.py", "SA", "SB", limit=1), pair_file("sb.test_pair.py", "SB", "SA", limit=1)
+    s_code, s_out, s_launched = pair_run(["--tier", "1", "--jobs", "1"], [sa, sb])
+    gave = "  ✗ PAIR-001 the other file never ran at the same time — waited 180 s"
+    made_up = [partner_late(gave, {"a": 0.0, "b": 0.4}, 180), partner_late(gave, {"a": 0.0, "b": 181.0}, 180),
+               partner_late(gave.replace("180 s", "20 s"), {"a": 0.0, "b": 0.4}, 180),
+               partner_late(gave, {"a": 0.0}, 180)]
+    row("RUN-094", "RUN-049's judge (partner_late): a file that waited its whole time for a partner the runner started with "
+        "it is the machine's slowness; a pair the runner ran one after the other is the runner's failure; a wait cut short, "
+        "or one file, is no lateness",
+        q_code == 1 and "waited 1 s" in q_out and bool(partner_late(q_out, q_launched, 1))
+        and s_code == 1 and "waited 1 s" in s_out and len(s_launched) == 2 and partner_late(s_out, s_launched, 1) is None
+        and bool(made_up[0]) and made_up[1:] == [None, None, None],
+        f"late: exit {q_code}, started {q_launched}: {q_out[-300:]} | one after the other: exit {s_code}, started "
+        f"{s_launched}: {s_out[-300:]} | made up: {made_up}")
 
     # Screen tests (tier 2) each hold a slot: with 1 slot on the PC, two tier-2 files never overlap — even with --jobs 2.
     def timed_file(name):
@@ -1292,6 +1368,124 @@ done()
         and "1 file retried after a request to our own server failed" in out,
         f"exit {code}, ran {ran}, entry {str(entry)[:400]}: {out[-600:]}")
 
+    # More files meeting the machine's trouble than are rerun (2026-11-18 lab, 12 of 16 CPUs busy: the fifth file past
+    # its limit was reported "✗ … timed out", a slow-but-healthy test called broken). Past the rerun cap the trouble is
+    # NOT PROVEN — never a failure. Stand-ins that meet it once each; the cap made 1 (rt.MAX_RETRIES, read at each run).
+    def cap_run(names, extra=(), folder="cap"):
+        once = [harness_file(f"{n}.py", count_runs(n) + f"""def first_time():
+    if n == 0:
+        raise EnvironmentTrouble("the page never loaded ({n})")
+test("CAP-{i:03d}", "a sample test", first_time)
+done()
+""") for i, n in enumerate(names, 1)]
+        saved = rt.MAX_RETRIES
+        rt.MAX_RETRIES = 1
+        try:
+            code, out = quiet_main(["--tier", "2", "--jobs", "2"], files=[rt.TestFile(p) for p in once + list(extra)],
+                                   slots=ts.Slots(count=2, folder=os.path.join(d, f"slots-{folder}")),
+                                   results=os.path.join(d, f"{folder}-results"), retry_wait=0.1)
+        finally:
+            rt.MAX_RETRIES = saved
+        got = records_in(os.path.join(d, f"{folder}-results"))
+        last = got[-1] if isinstance(got, list) and got else {}
+        return code, out, last, {n: next((f for f in last.get("files", []) if f.get("file", "").endswith(f"{n}.py")), {})
+                                 for n in names}
+
+    names = ["test_capa", "test_capb", "test_capc"]
+    code, out, cap_rec, by = cap_run(names)
+    unproven = [n for n in names if by[n].get("result") == "not proven"]
+    rerun = [n for n in names if by[n].get("result") == "passed" and by[n].get("retried")]
+    row("RUN-095", "more files meeting the machine's trouble than are rerun (the cap made 1): the one rerun alone passes; the "
+        "others are NOT PROVEN — never a failure: run once, no ✗ line, counted apart in the summary, said plainly with "
+        "how many met the trouble, their whole output kept, the record marking each (and the run) 'not proven', a loud "
+        "warning that that many points at something broken — and the run's exit is the machine's trouble (3)",
+        code == 3 and sorted(runs_of(n) for n in names) == [1, 1, 2] and len(unproven) == 2 and len(rerun) == 1
+        and "Tests: 1 file(s) passed, 0 failed, 2 not proven (the machine's trouble)" in out
+        and not any(ln.lstrip().startswith("✗") for ln in out.splitlines())
+        and out.count("not proven — the machine was too busy (3 files met its trouble this run; only 1 is rerun)") == 2
+        and all("the page never loaded" in str(by[n].get("not_proven")) and "ENVIRONMENT FAILURE" in text_of(
+            by[n].get("output")) and f"{by[n].get('output')}" in out for n in unproven)
+        and cap_rec.get("result") == "not proven" and "that many points at something broken" in out
+        and "! 3 files met the machine's or the browser's trouble this run" in out,
+        f"exit {code}, runs {[runs_of(n) for n in names]}, entries {str(by)[:600]}: {out[-1200:]}")
+
+    cap_fail = harness_file("test_capfail.py", 'test("CAP-009", "a real failure", lambda: check(False, "an assertion"))\n'
+                            "done()\n")
+    names2 = ["test_capd", "test_cape", "test_capf"]
+    code2, out2, _, by2 = cap_run(names2, extra=[cap_fail], folder="capfail")
+    row("RUN-096", "the same with one real failure among them: the failure wins — exit 1, '1 failed', and the files past "
+        "the cap are still not proven, not failed",
+        code2 == 1 and "Tests: 1 file(s) passed, 1 failed, 2 not proven (the machine's trouble)" in out2
+        and sum(1 for n in names2 if by2[n].get("result") == "not proven") == 2,
+        f"exit {code2}, entries {str(by2)[:500]}: {out2[-800:]}")
+
+    np_entry = dict(by[unproven[0]]) if unproven else {"file": "test/ui/test_capa.py", "tier": 2,
+                                                       "result": "not proven", "not_proven": "(not built yet)"}
+    np_entry.update(file="test/ui/test_capa.py", tier=2)
+    p, why = judged([dict(rec(files=t1 + t2 + [np_entry]), result="not proven")])
+    row("RUN-097", "--stamp on a run with a file NOT PROVEN (the machine's trouble past the rerun cap) → NOT PROVEN, naming "
+        "the file, why and its kept output — never PROVEN",
+        p is False and any(ln.strip().startswith("✗ tier 2") for ln in why.splitlines())
+        and any("test/ui/test_capa.py not proven — the machine was too busy" in ln
+                and str(np_entry.get("not_proven")) in ln for ln in why.splitlines()),
+        f"{p}: {why}")
+
+    # The same file rerun alone run after run is said loudly (TODO tooling 11.7; Ron, 2026-11-18: "it may truly need to
+    # run alone") — told, never acted on; read from the records, where only WHOLE runs of the file count. A stand-in that
+    # meets the trouble once in each run its control file says so ("trouble" — it writes "fine" as it meets it), and one
+    # beside it.
+    ctl = os.path.join(d, "streak.ctl")
+    streaky = harness_file("test_streaky.py", f"""def maybe():
+    if open({ctl!r}).read() == "trouble":
+        open({ctl!r}, "w").write("fine")
+        raise EnvironmentTrouble("the page never loaded (a streak sample)")
+test("STRK-001", "a sample test", maybe)
+done()
+""")
+    beside = harness_file("test_streakbeside.py", 'test("STRK-002", "a sample test beside it", lambda: None)\ndone()\n')
+    strk_rec, strk_slots, strk_started = os.path.join(d, "streak-results"), os.path.join(d, "slots-streak"), [""]
+
+    def streak_run(trouble, argv=("--tier", "2"), env=None):
+        open(ctl, "w").write("trouble" if trouble else "fine")
+        while rt._now()[:19] == strk_started[0]:    # a record is named by the second its run started: one run a second
+            time.sleep(0.05)
+        strk_started[0] = rt._now()[:19]
+        saved_env = {k: os.environ.get(k) for k in (env or {})}
+        os.environ.update(env or {})
+        try:
+            return quiet_main(list(argv), files=[rt.TestFile(streaky), rt.TestFile(beside)],
+                              slots=ts.Slots(count=2, folder=strk_slots), results=strk_rec, retry_wait=0.1)
+        finally:
+            for k, v in saved_env.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+    said = "test_streaky.py was rerun alone after the machine's or the browser's trouble {} runs in a row"
+    runs = [streak_run(True), streak_run(True),                         # 1, 2 → said: 2 in a row
+            streak_run(False, argv=("--tier", "2", "--id", "STRK-002")),  # didn't run it: passed over
+            streak_run(True, env={"RW_CELLS": "STRK-001"}),             # only some of it (RW_CELLS): passed over, not said
+            streak_run(True),                                           # 3 in a row (runs 1, 2, 5)
+            streak_run(False),                                          # a whole run without a rerun ends it
+            streak_run(True)]                                           # 1 again: not said
+    firsts, got = [], records_in(strk_rec)
+    for r in got if isinstance(got, list) else []:
+        e = next((f for f in r.get("files", []) if f.get("file", "").endswith("test_streaky.py")), {})
+        firsts.append(((e.get("retried") or [{}])[0]).get("first_output"))
+    out5 = runs[4][1]
+    row("RUN-092", "a file rerun alone after the machine's trouble in 2 whole runs of it in a row is said loudly at the end "
+        "— the file, how many runs, each run's kept outputs — counted from the records: a run that didn't run it, or ran "
+        "only some of it (RW_CELLS), is passed over; a whole run without a rerun ends the streak; what runs is unchanged",
+        all(c == 0 and "Tests: 2 file(s) passed, 0 failed" in o for c, o in runs[:2] + runs[3:])
+        and runs[2][0] == 0 and "Tests: 1 file(s) passed, 0 failed" in runs[2][1]
+        and len(firsts) == 7 and all(firsts[i] for i in (0, 1, 3, 4, 6)) and firsts[2] is None and firsts[5] is None
+        and "runs in a row" not in runs[0][1] and said.format(2) in runs[1][1]
+        and all(firsts[i] in runs[1][1] for i in (0, 1))
+        and "runs in a row" not in runs[2][1] + runs[3][1] and "1 file retried after" in runs[3][1]
+        and said.format(3) in out5 and all(firsts[i] in out5 for i in (0, 1, 4)) and firsts[3] not in out5
+        and "runs in a row" not in runs[5][1] + runs[6][1] and "1 file retried after" in runs[6][1],
+        f"firsts {firsts} | " + " || ".join(f"exit {c}: {o[-400:]}" for c, o in runs))
+
     # Free memory: recorded with every screen-test run, as evidence — no longer a fixed threshold (2026-11-17: the level
     # the runner finds for itself replaced "under 4 GB free → 2 browsers"). The free memory injectable; the real reading
     # checked to give a number.
@@ -1546,6 +1740,59 @@ done()
         and "Tests: 2 file(s) passed, 0 failed" in out,
         f"exit {code}, runs {runs_of('hvtrouble')}, saved {hv2_state}: {out[-600:]}")
 
+    # The whole path of a heavy tier-1 file's trouble, end to end (TODO tooling 11.2 — the pieces were tested: RUN-088's
+    # stand-in ends through the screen-test harness, RUN-090 the exit rule; THIS file's own way only by hand): a stand-in
+    # that ends as this file does (environment_trouble.tally: its rows, a check the machine's trouble stopped counted
+    # apart) — the first time a check is stopped by a late stand-in relay, then it passes — through the real main(), with
+    # slots (and so a saved level) of its own and a record.
+    e2e_slots = ts.Slots(count=6, folder=os.path.join(d, "slots-heavy3"))    # nothing saved: the level starts at 4
+    e2e_rec = os.path.join(d, "heavy3-results")
+    late_why = "a stand-in relay wasn't ready within 20 s — the machine was too slow to start it (a sample)"
+    hv_e2e = write("test_hve2e.py", f"""# sample
+# tags: heavy-sample, tier 1
+# covers: tools/run_tests.py
+# heavy: yes — a stand-in for test/test_run_tests.py
+import os, sys
+sys.path.insert(0, {tools_dir!r})
+import environment_trouble
+{count_runs("hve2e")}results, events = [("HVE-001", "a check", True, "")], []
+if n == 0:
+    results.append(("HVE-002", "a check a late stand-in relay stopped", None, {late_why!r}))
+    events.append(("env", {late_why!r}))
+    print("  ! HVE-002 stopped by the machine's trouble, not a test failure: " + {late_why!r})
+else:
+    results.append(("HVE-002", "the same check", True, ""))
+lines, code = environment_trouble.tally(results, events)
+print(chr(10).join(lines))
+sys.exit(code)
+""")
+    code, out = quiet_main(["--tier", "1"], files=[rt.TestFile(hv_e2e), rt.TestFile(js_ok)], slots=e2e_slots,
+                           results=e2e_rec, retry_wait=0.1)
+    e2e_state, e2e_note = rt.browser_level.load(os.path.join(e2e_slots.folder, rt.browser_level.FILE_NAME))
+    entry, e2e_last = entry_of(e2e_rec, "test_hve2e.py")
+    tries = entry.get("retried") or [{}]
+    moves = e2e_last.get("browsers") or {}
+    row("RUN-093", "a heavy tier-1 file that ends as this one does, end to end through the runner: its first run says '1 "
+        "passed, 0 failed, 1 stopped by the machine's trouble' and the marked line, exits 3 — the level backs off 4 → 2 at "
+        "once, said and saved (in its own slots folder); the file is rerun once, alone, and passes; the summary says 2 "
+        "passed, 0 failed, 1 retried; the record notes the retry (its reason, both outputs, 'passed'), the file passed "
+        "with its rerun's counts, the level's change and one trouble",
+        code == 0 and runs_of("hve2e") == 2
+        and f"test_hve2e.py met the machine's or the browser's trouble ({late_why})" in out
+        and "! browsers at once: 4 → 2 for the rest of this run" in out
+        and e2e_note is None and e2e_state["level"] == 2 and (e2e_state["history"] or [{}])[-1].get("outcome") == "backed off"
+        and "Tests: 2 file(s) passed, 0 failed" in out and out.count("file retried after") == 1
+        and f"1 file retried after {late_why} — its first output: {tries[0].get('first_output')}" in out
+        and [ln.strip() for ln in text_of(tries[0].get("first_output")).splitlines() if ln.strip()][-2:]
+        == ["1 passed, 0 failed, 1 stopped by the machine's trouble", f"ENVIRONMENT FAILURE: {late_why}"]
+        and "2 passed, 0 failed" in text_of(tries[0].get("rerun_output"))
+        and entry.get("result") == "passed" and entry.get("heavy") is True and entry.get("counts") == "2 passed, 0 failed"
+        and len(entry.get("retried") or []) == 1 and tries[0].get("reason") == late_why and tries[0].get("rerun") == "passed"
+        and moves.get("level") == 4 and moves.get("changes") == [{"from": 4, "to": 2}] and moves.get("troubles") == 1
+        and moves.get("next") == 2 and e2e_last.get("result") == "passed",
+        f"exit {code}, runs {runs_of('hve2e')}, saved {e2e_state} ({e2e_note}), entry {str(entry)[:500]}, browsers "
+        f"{moves}: {out[-700:]}")
+
     hp = {v: rt.read_header(write(f"test_hp_{i}.py", f"# sample\n# tags: hp-sample, tier 1\n# covers: a.js\n# heavy: {v}\n"))
           for i, v in enumerate(["yes", "yes — it starts many processes", "no", "maybe"])}
     plain = rt.read_header(py_ok)
@@ -1692,12 +1939,8 @@ done()
         and reasons == ["the page never loaded", None, None],
         f"{verdicts} | {reasons}")
 
-failed = [r for r in results if r[2] is False]
-held_up = [r for r in results if r[2] is None]       # stopped by the machine's trouble (stopped())
-print(f"{len(results) - len(failed) - len(held_up)} passed, {len(failed)} failed"
-      + (f", {len(held_up)} stopped by the machine's trouble" if held_up else ""))
-# The harness's rule, in one place (tools/environment_trouble.py): 3 only when the machine's trouble came first
-code = rt.environment_trouble.exit_code(events, stopped=len(held_up))
-if code == rt.environment_trouble.EXIT_CODE:
-    print(rt.environment_trouble.mark_line(events))
+# The summary (checks stopped by the machine's trouble counted apart) and the harness's exit rule, in one place
+# (tools/environment_trouble.py tally): 3, with the marked line, only when the machine's trouble came first (RUN-093).
+end_lines, code = rt.environment_trouble.tally(results, events)
+print("\n".join(end_lines))
 sys.exit(code)

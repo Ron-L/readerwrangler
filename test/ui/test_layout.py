@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import FIXTURE, App              # noqa: E402
+from rw import APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
 
 RIGHT_PANE = ".overflow-auto.pb-16"      # the right pane's scroll area (readerwrangler.js, the dragVirtScrollRef box)
 
@@ -42,14 +42,21 @@ for zoom in (1.0, 1.25):
              lambda: nothing_covered(app, f"list-{pct}"))
 
         untall = app.status_bar_taller(24)
-        app.page.wait_for_timeout(300)
+        # the bar holds the tall item — the page lays it out the moment it's measured (before: a 0.3 s sleep)
+        app.page.wait_for_function("() => document.getElementById('rw-test-tall').getBoundingClientRect().height >= 24",
+                                   timeout=APP_TIMEOUT_MS)
         test(ids["tall"], f"List View at {pct}, the status bar as tall as the Cloud Sync icon makes it: still nothing covered",
              lambda: nothing_covered(app, f"list-tall-{pct}"))
         untall()
 
         if zoom == 1.0:
             app.menu("View", "Cover View").click()
-            app.page.wait_for_timeout(500)
+            # Cover View is drawn: the list's table gone from the right pane, the grid of covers there, and every cover
+            # picture in it loaded — one arriving changes the pane's height, so its scrollbars (the fixture's books have
+            # none: blank tiles) (before: a 0.5 s sleep)
+            app.page.wait_for_function("""(sel) => { const pane = document.querySelector(sel);
+                return !!pane && !pane.querySelector('table') && !!pane.querySelector('.grid')
+                    && [...pane.querySelectorAll('img')].every(i => i.complete); }""", arg=RIGHT_PANE, timeout=APP_TIMEOUT_MS)
             test(ids["covers"], "Cover View at 100%: nothing covers a scroll area or its scrollbar",
                  lambda: nothing_covered(app, "covers-100%"))
 
