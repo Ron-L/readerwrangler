@@ -3,14 +3,14 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
+      - [Working copies that can't break each other: separate clones, plus a check on what they still share](#working-copies-that-cant-break-each-other-separate-clones-plus-a-check-on-what-they-still-share)
+      - [Carry the discussion across a compaction: a hook before it and one after](#carry-the-discussion-across-a-compaction-a-hook-before-it-and-one-after)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
       - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
       - [Receipts reach the screen: one screen test per area, not only the log](#receipts-reach-the-screen-one-screen-test-per-area-not-only-the-log)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [✅ One starter for every process our tools start: a list of their ids, leftovers shown loudly](#one-starter-for-every-process-our-tools-start-a-list-of-their-ids-leftovers-shown-loudly)
-      - [Working copies that can't break each other: separate clones, plus a check on what they still share](#working-copies-that-cant-break-each-other-separate-clones-plus-a-check-on-what-they-still-share)
-      - [Carry the discussion across a compaction: a hook before it and one after](#carry-the-discussion-across-a-compaction-a-hook-before-it-and-one-after)
       - [Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
       - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
@@ -185,6 +185,49 @@ tasks themselves sit in that order; the numbered "order of work" list that used 
 drifted). To change the order, move the task.
 
 ### High priority
+
+#### Working copies that can't break each other: separate clones, plus a check on what they still share
+<!-- id 20261119-1159 -->
+
+_Why it matters:_ Today each agent's working copy is another folder on ONE shared repository — so git's settings and
+history are shared, and a mistake in one copy breaks every copy and the main folder at once. On 2026-11-18 an agent's
+test set that shared repository to "bare" (no working files) and git stopped working everywhere for 13 minutes (sprint
+9 post-mortem). (Ron, 2026-11-19: "Yes to belt and suspenders"; "No way to copy rather than share the settings?";
+moved to the top: "We'll finish up this tooling if it kills us".)
+
+**Decided** (Ron + Claude, 2026-11-19)
+1. **Belt — each working copy its own clone.** `tools/copies.py new` makes a local clone (on the same drive git shares
+   the stored history through file links, so it costs almost no disk — the repository is ~113 MB) instead of a
+   worktree. A copy then has its own git settings and history: a mistake damages only that copy.
+   - The merge script fetches the agent's branch from the copy before merging; `copies.py remove` refuses while the
+     copy holds commits not yet fetched (today's "commits nowhere else" check, adapted).
+   - Stays shared, on purpose: the test-slot folder (how all copies together stay under the PC's browser limit) and
+     the records' archive — our own files, which our tools guard directly.
+2. **Suspenders — a check on what's still shared.** The runner checks the main repository's git settings (not bare;
+   the commit checks on) before and after each run, and says loudly — with the one command that repairs it — if they
+   changed. Cheap, and it catches whatever path nobody thought of.
+3. Already done (sprint 9): the runner strips git's hook variables from every test it starts — the path that caused
+   the incident.
+
+#### Carry the discussion across a compaction: a hook before it and one after
+<!-- id 20261119-1159a -->
+
+_Why it matters:_ When a long conversation is compacted, the summary keeps the decisions but loses the argument — and
+weeks ago a compaction left Claude acting from default habits until Ron reined it back in. Today that's a paragraph of
+instructions in the Projects-root CLAUDE.md ("Compaction") — a promise, not a mechanism. (Ron, 2026-11-19: "Is there a
+way to make this a mechanism? A post compaction hook to use to go back and read the last discussion and capture it
+rather than just the decisions?")
+
+**Proposed** (Claude, 2026-11-19 — checked against Claude Code's hook documentation: a PreCompact hook's printed output
+becomes instructions for the summary; a SessionStart hook with the "compact" matcher runs after it and can add text to
+Claude's context; every hook receives the conversation's transcript path)
+1. **Before compaction** — a hook that tells the summarizer exactly what to carry: the collaboration mode, each open
+   topic with Ron's words, Claude's position and verdict, and where Ron pushed back (today's "Compaction" paragraph,
+   made automatic).
+2. **After compaction** — a hook that reads the saved transcript and puts Ron's last few messages back in front of
+   Claude word for word (and Claude's last reply), with "re-read CLAUDE.md and the autonomy switch before acting".
+3. Global (all projects): the scripts beside `stamp.py` in the Projects folder repo, wired in `~/.claude/settings.json`;
+   documented in `CLAUDE-TOOLING.md`. To decide with Ron: how many messages to bring back.
 
 #### Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)
 <!-- id 20261024-1045 -->
@@ -629,48 +672,6 @@ queue Q-020, Q-022, Q-024.)
    the run that left them, at the START of the next run (a banner, with the exact command to stop each), and in
    Claude's "needs your attention" list when reporting to Ron. Something on our port that the list doesn't name is
    reported, never stopped (it isn't provably ours).
-
-#### Working copies that can't break each other: separate clones, plus a check on what they still share
-<!-- id 20261119-1159 -->
-
-_Why it matters:_ Today each agent's working copy is another folder on ONE shared repository — so git's settings and
-history are shared, and a mistake in one copy breaks every copy and the main folder at once. On 2026-11-18 an agent's
-test set that shared repository to "bare" (no working files) and git stopped working everywhere for 13 minutes (sprint
-9 post-mortem). (Ron, 2026-11-19: "Yes to belt and suspenders"; "No way to copy rather than share the settings?")
-
-**Decided** (Ron + Claude, 2026-11-19)
-1. **Belt — each working copy its own clone.** `tools/copies.py new` makes a local clone (on the same drive git shares
-   the stored history through file links, so it costs almost no disk — the repository is ~113 MB) instead of a
-   worktree. A copy then has its own git settings and history: a mistake damages only that copy.
-   - The merge script fetches the agent's branch from the copy before merging; `copies.py remove` refuses while the
-     copy holds commits not yet fetched (today's "commits nowhere else" check, adapted).
-   - Stays shared, on purpose: the test-slot folder (how all copies together stay under the PC's browser limit) and
-     the records' archive — our own files, which our tools guard directly.
-2. **Suspenders — a check on what's still shared.** The runner checks the main repository's git settings (not bare;
-   the commit checks on) before and after each run, and says loudly — with the one command that repairs it — if they
-   changed. Cheap, and it catches whatever path nobody thought of.
-3. Already done (sprint 9): the runner strips git's hook variables from every test it starts — the path that caused
-   the incident.
-
-#### Carry the discussion across a compaction: a hook before it and one after
-<!-- id 20261119-1159a -->
-
-_Why it matters:_ When a long conversation is compacted, the summary keeps the decisions but loses the argument — and
-weeks ago a compaction left Claude acting from default habits until Ron reined it back in. Today that's a paragraph of
-instructions in the Projects-root CLAUDE.md ("Compaction") — a promise, not a mechanism. (Ron, 2026-11-19: "Is there a
-way to make this a mechanism? A post compaction hook to use to go back and read the last discussion and capture it
-rather than just the decisions?")
-
-**Proposed** (Claude, 2026-11-19 — checked against Claude Code's hook documentation: a PreCompact hook's printed output
-becomes instructions for the summary; a SessionStart hook with the "compact" matcher runs after it and can add text to
-Claude's context; every hook receives the conversation's transcript path)
-1. **Before compaction** — a hook that tells the summarizer exactly what to carry: the collaboration mode, each open
-   topic with Ron's words, Claude's position and verdict, and where Ron pushed back (today's "Compaction" paragraph,
-   made automatic).
-2. **After compaction** — a hook that reads the saved transcript and puts Ron's last few messages back in front of
-   Claude word for word (and Claude's last reply), with "re-read CLAUDE.md and the autonomy switch before acting".
-3. Global (all projects): the scripts beside `stamp.py` in the Projects folder repo, wired in `~/.claude/settings.json`;
-   documented in `CLAUDE-TOOLING.md`. To decide with Ron: how many messages to bring back.
 
 #### Trim the always-loaded rules: one home per rule, history out, a lean memory index
 <!-- id 20261021-1332 -->
