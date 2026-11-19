@@ -46,9 +46,9 @@ class BackupError(Exception):
     pass
 
 
-def project_folder():
-    """The main project folder — never a working copy."""
-    return copies.main_folder(ROOT)
+def project_folder(root=ROOT):
+    """The main project folder of the copy `root` — never a working copy. (`root`: the tests use a temporary one.)"""
+    return copies.main_folder(root)
 
 
 def memory_folder(main, home):

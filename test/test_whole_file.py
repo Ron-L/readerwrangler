@@ -13,6 +13,11 @@ import sys
 import tempfile
 import threading
 
+# No git here at all; git's own variables (a commit hook's GIT_DIR points at the REAL repository — 2026-11-18, a test
+# elsewhere wrote core.bare = true through them) are removed anyway, so nothing loaded below could inherit them.
+for _k in [k for k in os.environ if k.startswith("GIT_")]:
+    del os.environ[_k]
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "test", "ui"))
 from harness import check, done, test   # noqa: E402

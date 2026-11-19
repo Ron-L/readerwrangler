@@ -11,16 +11,18 @@ import subprocess
 import sys
 import tempfile
 
+# NEVER inherit git's own variables (2026-11-18, sprint 9 — a real incident): while the commit hook runs this test,
+# GIT_DIR / GIT_INDEX_FILE point at the REAL repository's git folder, and a git command here would act on it (a `git
+# init` in another test wrote core.bare = true into the real shared config). Removed before anything else runs; the
+# tool itself removes them too (backup_claude.git).
+for _k in [k for k in os.environ if k.startswith("GIT_")]:
+    del os.environ[_k]
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "test", "ui"))
 from harness import check, done, test   # noqa: E402
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import backup_claude as bc   # noqa: E402
-
-# git's own variables (GIT_DIR, GIT_INDEX_FILE…) point every git command at THIS repository while the commit hook runs
-# the test — the throwaway repositories must not see them (as test/test_copies.py).
-for _k in [k for k in os.environ if k.startswith("GIT_")]:
-    del os.environ[_k]
 
 
 def git(repo, *args, check_=True):
@@ -232,9 +234,16 @@ test("CBAK-007", "only line endings differ (git's CRLF on checkout): git sees no
 
 
 def from_a_copy():
-    """Run from a working copy (as this test may be), the main folder is copies.main_folder — never the copy."""
-    import copies
-    check(bc.project_folder() == copies.main_folder(ROOT), f"main folder: {bc.project_folder()}")
+    """Run from a working copy, the main folder is found — never the copy. A temporary main folder and copy (a git
+    worktree, as tools/copies.py makes) — never the real repository."""
+    with tempfile.TemporaryDirectory(prefix="rw-cbak-") as tmp:
+        main = repo_with_remote(tmp, "Main", {"x.txt": "x\n"})
+        copy = os.path.join(tmp, "copies", "a-copy")
+        git(main, "worktree", "add", "-q", "-b", "a-copy", copy)
+        got = bc.project_folder(copy)
+        check(os.path.normcase(os.path.normpath(got)) == os.path.normcase(os.path.normpath(main)),
+              f"from the copy: the main folder ({got})")
+        git(main, "worktree", "remove", "--force", copy)
 test("CBAK-006", "the main folder is found even from a working copy (copies.main_folder)", from_a_copy)
 
 done()

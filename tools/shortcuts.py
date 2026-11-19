@@ -36,9 +36,9 @@ NAME = "ReaderWrangler (local)"
 DESCRIPTION = "Opens ReaderWrangler on this PC (starts its local server first if it isn't running)"
 
 
-def project_folder():
-    """The main project folder — never a working copy."""
-    return copies.main_folder(ROOT)
+def project_folder(root=ROOT):
+    """The main project folder of the copy `root` — never a working copy. (`root`: the tests use a temporary one.)"""
+    return copies.main_folder(root)
 
 
 def start_menu(environ=None):
@@ -64,16 +64,16 @@ def default_python(which=shutil.which):
     return which("py") or sys.executable
 
 
-def write(folder, python=None):
+def write(folder, python=None, root=ROOT):
     """Write the shortcut into `folder` (an existing folder); its path."""
-    main = project_folder()
+    main = project_folder(root)
     lnk = os.path.join(folder, NAME + ".lnk")
     make_shortcut(lnk, python or default_python(), f'"{os.path.join(main, "serve.py")}" --open', main,
                   os.path.join(main, "icons", "favicon.ico") + ",0", DESCRIPTION)
     return lnk
 
 
-def main(argv=None, environ=None):
+def main(argv=None, environ=None, root=ROOT):
     ap = argparse.ArgumentParser(description="Write ReaderWrangler's \"open\" shortcut (Start menu by default).")
     ap.add_argument("--folder", help="write it here instead of the Start menu")
     a = ap.parse_args(argv)
@@ -81,8 +81,8 @@ def main(argv=None, environ=None):
         sys.exit("shortcuts.py makes Windows shortcuts; elsewhere run:  python serve.py --open")
     folder = a.folder or start_menu(environ)
     python = default_python()
-    lnk = write(folder, python)
-    print(f"{lnk}\n    runs {python} \"{os.path.join(project_folder(), 'serve.py')}\" --open\n"
+    lnk = write(folder, python, root)
+    print(f"{lnk}\n    runs {python} \"{os.path.join(project_folder(root), 'serve.py')}\" --open\n"
           f"    (opens the page; starts serve.py first if it isn't running)")
     return 0
 

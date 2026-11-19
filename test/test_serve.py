@@ -18,6 +18,13 @@ import socket
 import sys
 import threading
 
+# NEVER inherit git's own variables (2026-11-18, sprint 9 — a real incident): while the commit hook runs this test,
+# GIT_DIR / GIT_INDEX_FILE point at the REAL repository's git folder (a `git init` in another test, run with them,
+# wrote core.bare = true into the real shared config). Removed before anything else runs — and no test here runs git
+# at all: load_serve() replaces serve.py's two questions to git (is git there? is this path ignored?) with answers.
+for _k in [k for k in os.environ if k.startswith("GIT_")]:
+    del os.environ[_k]
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "test", "ui"))
 from harness import check, done, test   # noqa: E402
@@ -26,9 +33,12 @@ SERVE = os.path.join(ROOT, "serve.py")
 
 
 def load_serve():
+    """This module's own copy of serve.py — asking git nothing (the files these tests fetch are all in git)."""
     spec = importlib.util.spec_from_file_location("rw_serve", SERVE)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    mod.git_available = lambda: True
+    mod.git_ignores = lambda rel_path: False
     return mod
 
 

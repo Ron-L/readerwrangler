@@ -7,11 +7,21 @@
 # The commit checks (git-hooks/) run only when git's local setting core.hooksPath says "git-hooks" — a setting a clone
 # never brings. A copy without it commits with no checks at all, silently. serve.py (every contributor runs it) and
 # Claude's session start now print a warning that can't be missed, with the one command that fixes it.
+import contextlib
+import hashlib
 import json
 import os
 import subprocess
 import sys
 import tempfile
+
+# NEVER inherit git's own variables (2026-11-18, sprint 9 — a real incident): while the commit hook runs this test,
+# GIT_DIR / GIT_INDEX_FILE point at the REAL repository's git folder. The first version of this file ran `git init` in a
+# temporary folder with them inherited — git re-initialised the real git folder and wrote core.bare = true into the
+# shared config, breaking every working copy. So they're removed from this process before anything else, and where a
+# test needs them present (to prove the check ignores them) they point at a DECOY temporary repository made here.
+for _k in [k for k in os.environ if k.startswith("GIT_")]:
+    del os.environ[_k]
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "test", "ui"))
@@ -21,17 +31,15 @@ import setup_check   # noqa: E402
 
 HOOK = os.path.join(ROOT, ".claude", "hooks", "setup-check.py")
 FIX = "git config core.hooksPath git-hooks"
-# git's own variables (GIT_DIR, GIT_INDEX_FILE…) point every git command at THIS repository while the commit hook runs
-# the test — the throwaway repositories here must not see them (as test/test_copies.py).
-CLEAN_ENV = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+CLEAN_ENV = dict(os.environ)          # no GIT_* (removed above)
 
 
 def git(repo, *args):
     return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True, env=CLEAN_ENV)
 
 
-def new_repo(tmp, hooks_path=None):
-    repo = os.path.join(tmp, "copy")
+def new_repo(tmp, hooks_path=None, name="copy"):
+    repo = os.path.join(tmp, name)
     os.makedirs(repo)
     git(repo, "init", "-q")
     if hooks_path is not None:
@@ -39,11 +47,40 @@ def new_repo(tmp, hooks_path=None):
     return repo
 
 
+def decoy(tmp):
+    """A temporary repository that IS set up, and git's variables as a commit hook would set them for it — so a check
+    that wrongly followed GIT_DIR would answer "set up" for the decoy instead of the repository asked about. Also the
+    hash of its config, to show nothing wrote there."""
+    repo = new_repo(tmp, "git-hooks", name="decoy")
+    git_dir = os.path.join(repo, ".git")
+    return {"GIT_DIR": git_dir, "GIT_INDEX_FILE": os.path.join(git_dir, "index")}, config_hash(git_dir)
+
+
+def config_hash(git_dir):
+    with open(os.path.join(git_dir, "config"), "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
+@contextlib.contextmanager
+def environ_with(extra):
+    os.environ.update(extra)
+    try:
+        yield
+    finally:
+        for k in extra:
+            os.environ.pop(k, None)
+
+
 def problem_found():
     with tempfile.TemporaryDirectory(prefix="rw-setup-") as tmp:
         repo = new_repo(tmp)
         p = setup_check.hooks_path_problem(repo)
         check(p and "isn't set" in p, f"not set: said so ({p!r})")
+        decoy_env, before = decoy(tmp)
+        with environ_with(decoy_env):                       # as inside a commit hook — pointing at the DECOY
+            p = setup_check.hooks_path_problem(repo)
+        check(p and "isn't set" in p, f"git's variables (a hook's) are ignored: it answers for the folder asked ({p!r})")
+        check(config_hash(decoy_env["GIT_DIR"]) == before, "and nothing wrote to the repository they point at")
         git(repo, "config", "core.hooksPath", ".git/hooks")
         p = setup_check.hooks_path_problem(repo)
         check(p and ".git/hooks" in p, f"set to something else: names what it is ({p!r})")
@@ -68,8 +105,10 @@ test("SETUP-002", "the warning is loud (framed in '!'), says the checks are OFF 
      loud_lines)
 
 
-def run_hook(project_dir):
-    env = dict(os.environ, CLAUDE_PROJECT_DIR=project_dir)   # GIT_* left in on purpose: the check must ignore them
+def run_hook(project_dir, git_env):
+    """The hook, as a session would start it — with git's variables pointing at a DECOY temporary repository (never the
+    real one), so it's proven to ignore them."""
+    env = dict(CLEAN_ENV, CLAUDE_PROJECT_DIR=project_dir, **git_env)
     r = subprocess.run([sys.executable, HOOK], input=json.dumps({"session_id": "t", "hook_event_name": "SessionStart"}),
                        capture_output=True, text=True, env=env, timeout=60)
     return r
@@ -78,7 +117,8 @@ def run_hook(project_dir):
 def hook_warns():
     with tempfile.TemporaryDirectory(prefix="rw-setup-") as tmp:
         repo = new_repo(tmp)
-        r = run_hook(repo)
+        decoy_env, before = decoy(tmp)
+        r = run_hook(repo, decoy_env)
         check(r.returncode == 0, f"the hook never fails the session (exit {r.returncode}, {r.stderr})")
         out = json.loads(r.stdout)
         check(FIX in out.get("systemMessage", ""), f"Ron sees it, with the fix command: {out}")
@@ -86,8 +126,9 @@ def hook_warns():
         check(ctx.get("hookEventName") == "SessionStart" and FIX in ctx.get("additionalContext", ""),
               f"and Claude is told, to say it to Ron: {ctx}")
         git(repo, "config", "core.hooksPath", "git-hooks")
-        r = run_hook(repo)
+        r = run_hook(repo, decoy_env)
         check(r.returncode == 0 and r.stdout.strip() == "", f"set up: the hook says nothing ({r.stdout!r})")
+        check(config_hash(decoy_env["GIT_DIR"]) == before, "nothing wrote to the repository git's variables point at")
 test("SETUP-003", "the session-start hook: not set up → a message Ron sees and Claude is told (with the fix); set up → "
      "silent", hook_warns)
 
