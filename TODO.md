@@ -37,11 +37,11 @@
       - [A privacy page: what ReaderWrangler sends where, in plain words](#a-privacy-page-what-readerwrangler-sends-where-in-plain-words)
       - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
       - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
+      - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
+        - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
       - [User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help](#user-guide-rewrite-it-around-searches-book-lists-and-folders-as-a-page-you-can-reach-from-help)
         - [A glossary page on the site, built from GLOSSARY.md](#a-glossary-page-on-the-site-built-from-glossarymd)
       - [Remind me when my last backup is getting old](#remind-me-when-my-last-backup-is-getting-old)
-      - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
-        - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
       - [A public demo library from Amazon's best-seller lists (nothing personal)](#a-public-demo-library-from-amazons-best-seller-lists-nothing-personal)
       - [Screen capture pass: the sizzle reel, the landing page's before / after, README's old video](#screen-capture-pass-the-sizzle-reel-the-landing-pages-before--after-readmes-old-video)
       - [All the pre-launch data tests pass](#all-the-pre-launch-data-tests-pass)
@@ -1500,6 +1500,76 @@ per-copy limit exists today; that goes to the security review.)
 
 ---
 
+#### Dark theme: fix the unreadable bar and the light strips
+<!-- id 20261007-0000a; merged 20261014-1030ab -->
+
+**In the launch gate (Ron, 2026-11-19):** if you've never picked a theme, the app follows the computer's dark setting (readerwrangler.html, the theme script at the top) — so every newcomer on a dark-mode computer starts in Dark, and after their first fetch meets the unreadable bar. Built with "Site pages use the shared named colors…" (below, part of this task).
+
+_Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar's text is unreadable.
+
+**What you see** (View → Theme → Dark)
+1. The bar under the menu bar reading **"📡 New library data available (uploaded …)"** keeps its light blue/purple background while its text turns near-white — unreadable.
+2. A light strip shows under the **"🔍 Active: Search …"** bar, and wherever there's a gap between sections.
+3. Not yet seen by you, same cause: light boxes in the Auto-Organize preview, and likely more.
+
+**Why** (verified)
+- Dark mode works by swapping a specific list of colors. Anything colored outside that list stays light.
+- The relay bar's background is a fixed light gradient; the app's outer background is a gradient style that isn't on the list.
+
+**Decided** (Ron, 2026-10-16)
+1. **Four themes, two screens.** The computer and the phone both have Light, Dark, High-contrast light and High-contrast dark. A fixed light color breaks High-contrast dark exactly like Dark — check Dark **and** High-contrast dark, on the computer **and** the phone.
+2. **The commit-time check comes first and produces the list.** Run once over today's code, it lists every fixed color (15 hard-coded backgrounds/gradients in readerwrangler.js alone, plus color classes the dark theme doesn't cover) — that list *is* the sweep. Fix everything on it; from then on the same check refuses new ones. It covers the app's own screens only: the bookmarklet's panels run on Amazon's pages, outside our themes, so their fixed colors are right.
+3. **Fix by naming colors, not by adding override rules** ("excellent idea" — Ron). Today Dark overrides a list of 76 specific style classes, and anything missing from the list silently stays light; that list only grows. Instead, each color gets a name defined once per theme ("surface background", "info bar"...) and the screens use the name. A name missing from a theme then shows up in every theme as soon as it's used (no background at all), not just in Dark — and the commit check can verify that every name used is defined in all four themes.
+4. **Shadows the same way — a few named levels** (Ron + Claude, 2026-11-04 — merged from "Leftover desktop polish: one
+   shadow direction", whose origin was lost): e.g. menu, dialog, floating card, each defined once per theme, so the
+   direction can't drift and the dark themes soften them in one place (a dark-on-dark shadow looks muddy). Today: ~57
+   from Tailwind's ready-made set (all straight down — not the problem) and ~49 hand-written (26 in readerwrangler.js,
+   23 in readerwrangler.css) — the commit check lists the hand-written ones as it does fixed colors.
+
+**How (technical)**
+- Dark remaps Tailwind classes in readerwrangler.css (`[data-theme="dark"] .bg-white {…}` etc.).
+- Relay bar: inline `linear-gradient(135deg, #dbeafe, #ede9fe)` with `color: var(--text-primary)` (readerwrangler.js ~9360).
+- Outer container: `bg-gradient-to-br from-blue-50 to-blue-100` (~8992) — gradient classes aren't remapped; the Active bar's `mb-4` gap shows it.
+- Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
+- The check (beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`): flag inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and Tailwind color classes with no theme mapping, in readerwrangler.js / mobile.js / readerwrangler.css and the site pages (index, features, tutorials, security,
+  changelog, reset — decided 2026-10-22; NOT the fetchers / nav hub); and flag any `var(--name)` that isn't defined for all four `[data-theme]` values. Move each hit to a CSS variable (e.g. `var(--bg-surface)`); retire remap rules as their classes go.
+- Themes: readerwrangler.css `[data-theme="dark"|"hc-light"|"hc-dark"]`; phone adds its own variables at mobile.js ~57–59.
+
+##### Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)
+<!-- id 20260909-0000 -->
+
+_Why it matters:_ The site pages are a reader's first look at RW. Today each one fixes its themes with its own override
+rules, so any color it misses stays wrong in some theme — and two pages have no themes at all.
+
+**Done already** (2026-09-09)
+- The security page's wrong statements were fixed, plus its navigation, and its Dark / High-contrast dark themes.
+
+**Decided** (Ron, 2026-10-22, in the TODO review)
+1. **Fix by naming colors, not by adding override rules** — the same decision as "Dark theme: fix the unreadable bar
+   and the light strips" (Decided 3). The security page's High-contrast light is the first page done this way, not
+   another override.
+2. **All four themes on every site page** (Light, Dark, High-contrast light, High-contrast dark), computer and phone.
+3. **The Dark theme task's commit-time color check covers the site pages too**, so a new fixed color on a site page
+   is refused just like one in the app.
+
+**What's there today** (checked 2026-10-22)
+- index, features and tutorials: all four themes, each through its own page's override rules.
+- security: Dark and High-contrast dark only (override rules); High-contrast light is missing.
+- changelog and reset: no themes at all — they always show Light.
+
+**How (technical)**
+- Each page has its own inline `[data-theme=…]` rules and its own copy of the theme-picking script (reads
+  `readerwrangler-theme`, falls back to the system's dark setting). Move both into one shared file the pages load:
+  the named colors, defined once per theme, plus the one script. Each page then keeps only its layout.
+- Whether that shared file is readerwrangler.css's color names or a small site file built from the same names:
+  decide when building — the names must be the same ones the app uses.
+- Pages: index, features, tutorials, security, changelog, reset (readerwrangler.html is the app — the Dark theme
+  task).
+- **Then write RW's own `DESIGN.md`** (2026-10-31, from the awesome-design-md idea — RW's own look, never another
+  brand's): the named colors for each of the four themes, typography, components, do's and don'ts — one source for
+  Claude, the outside reviewers and any future contributor. Keep it in step with the named colors (the commit check
+  that verifies every name is defined in all four themes can verify DESIGN.md lists them too).
+
 #### User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help
 <!-- id 20260910-0000c; merged 20261014-1030bd, 20261014-1030o, 20261014-1030bg -->
 
@@ -1599,76 +1669,6 @@ _Why it matters:_ The one real disaster is a lost or wiped PC with no recent bac
 1. When your last saved backup is more than about a month old, the status area shows a quiet note: *"Last backup: 47
    days ago — Save Backup"* — one click; never a pop-up (Law 18).
 2. The app records when you last saved a backup (this browser); a Restore counts too.
-
-#### Dark theme: fix the unreadable bar and the light strips
-<!-- id 20261007-0000a; merged 20261014-1030ab -->
-
-**In the launch gate (Ron, 2026-11-19):** if you've never picked a theme, the app follows the computer's dark setting (readerwrangler.html, the theme script at the top) — so every newcomer on a dark-mode computer starts in Dark, and after their first fetch meets the unreadable bar. Built with "Site pages use the shared named colors…" (below, part of this task).
-
-_Why it matters:_ Some parts of the screen stay light in Dark mode, and one bar's text is unreadable.
-
-**What you see** (View → Theme → Dark)
-1. The bar under the menu bar reading **"📡 New library data available (uploaded …)"** keeps its light blue/purple background while its text turns near-white — unreadable.
-2. A light strip shows under the **"🔍 Active: Search …"** bar, and wherever there's a gap between sections.
-3. Not yet seen by you, same cause: light boxes in the Auto-Organize preview, and likely more.
-
-**Why** (verified)
-- Dark mode works by swapping a specific list of colors. Anything colored outside that list stays light.
-- The relay bar's background is a fixed light gradient; the app's outer background is a gradient style that isn't on the list.
-
-**Decided** (Ron, 2026-10-16)
-1. **Four themes, two screens.** The computer and the phone both have Light, Dark, High-contrast light and High-contrast dark. A fixed light color breaks High-contrast dark exactly like Dark — check Dark **and** High-contrast dark, on the computer **and** the phone.
-2. **The commit-time check comes first and produces the list.** Run once over today's code, it lists every fixed color (15 hard-coded backgrounds/gradients in readerwrangler.js alone, plus color classes the dark theme doesn't cover) — that list *is* the sweep. Fix everything on it; from then on the same check refuses new ones. It covers the app's own screens only: the bookmarklet's panels run on Amazon's pages, outside our themes, so their fixed colors are right.
-3. **Fix by naming colors, not by adding override rules** ("excellent idea" — Ron). Today Dark overrides a list of 76 specific style classes, and anything missing from the list silently stays light; that list only grows. Instead, each color gets a name defined once per theme ("surface background", "info bar"...) and the screens use the name. A name missing from a theme then shows up in every theme as soon as it's used (no background at all), not just in Dark — and the commit check can verify that every name used is defined in all four themes.
-4. **Shadows the same way — a few named levels** (Ron + Claude, 2026-11-04 — merged from "Leftover desktop polish: one
-   shadow direction", whose origin was lost): e.g. menu, dialog, floating card, each defined once per theme, so the
-   direction can't drift and the dark themes soften them in one place (a dark-on-dark shadow looks muddy). Today: ~57
-   from Tailwind's ready-made set (all straight down — not the problem) and ~49 hand-written (26 in readerwrangler.js,
-   23 in readerwrangler.css) — the commit check lists the hand-written ones as it does fixed colors.
-
-**How (technical)**
-- Dark remaps Tailwind classes in readerwrangler.css (`[data-theme="dark"] .bg-white {…}` etc.).
-- Relay bar: inline `linear-gradient(135deg, #dbeafe, #ede9fe)` with `color: var(--text-primary)` (readerwrangler.js ~9360).
-- Outer container: `bg-gradient-to-br from-blue-50 to-blue-100` (~8992) — gradient classes aren't remapped; the Active bar's `mb-4` gap shows it.
-- Auto-Organize preview: `#f1f3f5`, `#fafafa`, `#e5e7eb` (~12009 / 12018 / 12046).
-- The check (beside `git-hooks/check-names.js`, run from `git-hooks/pre-commit`): flag inline `background: '#…'`, light `linear-gradient`, `from-*/to-*` classes and Tailwind color classes with no theme mapping, in readerwrangler.js / mobile.js / readerwrangler.css and the site pages (index, features, tutorials, security,
-  changelog, reset — decided 2026-10-22; NOT the fetchers / nav hub); and flag any `var(--name)` that isn't defined for all four `[data-theme]` values. Move each hit to a CSS variable (e.g. `var(--bg-surface)`); retire remap rules as their classes go.
-- Themes: readerwrangler.css `[data-theme="dark"|"hc-light"|"hc-dark"]`; phone adds its own variables at mobile.js ~57–59.
-
-##### Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)
-<!-- id 20260909-0000 -->
-
-_Why it matters:_ The site pages are a reader's first look at RW. Today each one fixes its themes with its own override
-rules, so any color it misses stays wrong in some theme — and two pages have no themes at all.
-
-**Done already** (2026-09-09)
-- The security page's wrong statements were fixed, plus its navigation, and its Dark / High-contrast dark themes.
-
-**Decided** (Ron, 2026-10-22, in the TODO review)
-1. **Fix by naming colors, not by adding override rules** — the same decision as "Dark theme: fix the unreadable bar
-   and the light strips" (Decided 3). The security page's High-contrast light is the first page done this way, not
-   another override.
-2. **All four themes on every site page** (Light, Dark, High-contrast light, High-contrast dark), computer and phone.
-3. **The Dark theme task's commit-time color check covers the site pages too**, so a new fixed color on a site page
-   is refused just like one in the app.
-
-**What's there today** (checked 2026-10-22)
-- index, features and tutorials: all four themes, each through its own page's override rules.
-- security: Dark and High-contrast dark only (override rules); High-contrast light is missing.
-- changelog and reset: no themes at all — they always show Light.
-
-**How (technical)**
-- Each page has its own inline `[data-theme=…]` rules and its own copy of the theme-picking script (reads
-  `readerwrangler-theme`, falls back to the system's dark setting). Move both into one shared file the pages load:
-  the named colors, defined once per theme, plus the one script. Each page then keeps only its layout.
-- Whether that shared file is readerwrangler.css's color names or a small site file built from the same names:
-  decide when building — the names must be the same ones the app uses.
-- Pages: index, features, tutorials, security, changelog, reset (readerwrangler.html is the app — the Dark theme
-  task).
-- **Then write RW's own `DESIGN.md`** (2026-10-31, from the awesome-design-md idea — RW's own look, never another
-  brand's): the named colors for each of the four themes, typography, components, do's and don'ts — one source for
-  Claude, the outside reviewers and any future contributor. Keep it in step with the named colors (the commit check
-  that verifies every name is defined in all four themes can verify DESIGN.md lists them too).
 
 #### A public demo library from Amazon's best-seller lists (nothing personal)
 <!-- id 20261104-1613 -->
