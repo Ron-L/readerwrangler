@@ -320,12 +320,31 @@ with tempfile.TemporaryDirectory() as d:
                                      slots=test_slots.Slots(count=2, folder=slots_dir))
         finally:
             del os.environ["RW_CELLS"]
-        rec = (records_in(os.path.join(d, "rec10")) or [{}])[0]
+        # (a narrowed run's record is on the quick shelf since 2026-11-18 — tools/run_tests.py QUICK_SHELF)
+        rec = (records_in(os.path.join(d, "rec10", "quick")) or [{}])[0]
         after = units_in(costs)
         return after == before and code == 0 and "--id" in json.dumps(rec.get("costs")), \
             (code, code2, rec.get("costs"), out[-400:])
 
     row("COST-010", "a run narrowed by --id, or by RW_CELLS, teaches nothing — its record says why", r010)
+
+    def r024():
+        """The same with a SCREEN test (2026-11-18, sprint 9: `--id APP-001 --id IMPORT-001 --id ENV-001` said "3 unit(s)
+        taught this PC's averages" — the browsers-at-once step reused the name of the run's narrowing for its own
+        list, without --id / --tag, and the averages then read that one)."""
+        ui_py = write("test_cost_ui.py", "# tags: costs, tier 2\n# covers: nothing.js\n"
+                      "def check(tid, ok): print(('  ✓ ' if ok else '  ✗ ') + tid)\n"
+                      "check(\"SAMP-024\", True)\nprint('1 passed, 0 failed')\n")
+        before = units_in(costs)
+        rdir = os.path.join(d, "rec24")
+        code, out = quiet_main(["--id", "SAMP-024"], files=[Inside(ui_py)], results=rdir, costs=costs,
+                               slots=test_slots.Slots(count=2, folder=slots_dir))
+        rec = (records_in(os.path.join(rdir, "quick")) or [{}])[0]     # (narrowed: on the quick shelf)
+        after = units_in(costs)
+        return after == before and code == 0 and "--id" in json.dumps(rec.get("costs")), \
+            (code, sorted(set(after) - set(before)), rec.get("costs"), out[-400:])
+
+    row("COST-024", "a run narrowed by --id that runs a SCREEN test teaches nothing either — its record says why", r024)
 
     def r011():
         rdir = os.path.join(d, "rec11")

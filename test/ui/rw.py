@@ -5,6 +5,8 @@ test/ui/rw.py — the shared setup every screen test uses (docs/design/TESTING.m
         app.restore(FIXTURE)                # File → Restore Backup… through the real menu and file box
         app.reload(); app.wait_loaded()     # F5, then the library's load finished (folders set, or the critical box)
         app.wait_console(AFTER_CHECK, since=n0)   # the check after an Import / Restore has run (a condition, never a sleep)
+        app.until(cond); app.heard(pattern, n0)   # the waits — one set, each under LIMIT_MS (also: caught_up, settled,
+        app.toast(*words); app.amber_look(words)  #   held — the section "the waits" below; TESTING.md §4)
         app.left_count("All Books")         # the count the left pane shows for an entry
         app.unexpected_console()            # console errors / warnings / crashes not on the known-noise list
         app.violations                      # requests to a relay or to Amazon — the tests must make none
@@ -22,7 +24,9 @@ test/ui/rw.py — the shared setup every screen test uses (docs/design/TESTING.m
         app.import_from_relay()             # File → Import from Relay, through the real menu
 
 Rules it enforces (TESTING.md §5, §7): a fresh browser profile every time (Playwright's default — nothing of Ron's);
-serve.py stopped by its exact process (Law 5); GoatCounter answered with an empty reply (tests never touch the usage
+serve.py started through the one starter (tools/starter.py, 2026-11-18) — on the PC's list of started processes until
+confirmed gone, every process it started stopped by exact id and checked gone, its port free, anything left failing the
+file (Law 5); GoatCounter answered with an empty reply (tests never touch the usage
 statistics); any request to a relay or to Amazon recorded as a violation; a data file carrying a Cloud Sync Key
 refused. RW_HEADED=1 shows the browser (slowed down) for watching a test. Screenshots go to RW_TEST_ARTIFACTS, else
 %TEMP%\\rw-test-artifacts — in a working copy (tools/copies.py) with "-<copy name>" added. The browser is Chrome, the one Ron uses (2026-11-06); RW_BROWSER=msedge runs Edge. Scrollbars
@@ -67,7 +71,8 @@ from playwright.sync_api import Error as PlaywrightError, TimeoutError as Playwr
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import local_relay   # noqa: E402 — the local relay (LocalRelay), free ports, and who listens on a port, by process id
+import local_relay   # noqa: E402 — the local relay (LocalRelay)
+import starter       # noqa: E402 — tools/starter.py: the one starter (our web server), free ports, who listens on a port
 import copies        # noqa: E402 — tools/copies.py: a working copy keeps its screenshots apart
 import environment_trouble   # noqa: E402 — tools/: which network errors are the machine's
 import harness       # noqa: E402 — test/ui/harness.py: EnvironmentTrouble, environment(), on_failure()
@@ -110,6 +115,13 @@ APP_TIMEOUT_MS = 180_000     # generous: the app opens in ~0.5 s since 7.27.0 (i
 # integrityCheckPending) — its own debug line, so it needs extra detail on (the driver's default; log=None turns it off).
 # Its last step: a repair it makes is logged right after it. Wait for it with wait_console(AFTER_CHECK, since=…).
 AFTER_CHECK = r"^debug · INTEG · After-Import check sees "
+# THE one limit for a step's wait — every screen test's (2026-11-18, sprint 9; Law 22 — it was 30 s in test_cells.py, 60 s
+# in the two key files and 3–10 s in most others). Generous: a step answers in well under a second, 2–5× slower on a
+# loaded PC, so only a real failure reaches it. And well under the runner's 2-minute floor for "ran past its usual time"
+# (TESTING.md §4), so a wait that runs out is reported as the test failure it is — not stopped as the machine's trouble.
+# The app OPENING has its own, APP_TIMEOUT_MS. The waits that use it: the section "the waits" in App, below.
+LIMIT_MS = 60_000
+LIMIT_S = LIMIT_MS // 1000
 BROWSER = os.environ.get("RW_BROWSER", "chrome")
 
 # The local relay's test channel: made up, existing only in the run's throwaway store. Credentials are planted at run
@@ -150,13 +162,19 @@ class App:
         # serve.py a moment later, so another file's server can take it in between. Then ours can't start — and a plain
         # "does the port answer?" would be answered by the OTHER server (this file's pages from a server that stops when
         # that file ends). So the port must be served by OUR serve.py; if it isn't, try another port.
+        # Started through the ONE starter (tools/starter.py, sprint 9): serve.py — and the real Python the venv's python.exe
+        # starts as its child — is on the PC's list of started processes from the moment it's known until confirmed gone.
+        what = f"the screen tests' web server (serve.py) for {os.path.basename(sys.argv[0] or 'a screen test')}"
         for _ in range(3):
-            self.port = local_relay.free_port()
-            self.server = subprocess.Popen([sys.executable, "serve.py", str(self.port)], cwd=ROOT,
-                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.port = starter.free_port()
+            self.server = starter.Started(what, ports=[self.port])
+            self.server.start([sys.executable, "serve.py", str(self.port)], cwd=ROOT, stdin=subprocess.DEVNULL,
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if self._server_is_ours():
                 break
-            self._stop_server()
+            left = self.server.stop(ports=[])       # the port is another run's: only our own processes are checked
+            if left:
+                print("  ! our web server's failed start left:\n      " + "\n      ".join(left), flush=True)
         else:
             raise harness.EnvironmentTrouble("our web server (serve.py) didn't start — 3 ports tried")
         try:
@@ -169,7 +187,9 @@ class App:
         if self.want_relay:
             # The worker answers only listed pages: --var lists this test's page for this run, wrangler.toml untouched.
             # Kept before start(), so __exit__ stops whatever it started even if starting fails.
-            self.relay = local_relay.LocalRelay(extra_args=["--var", f"ALLOWED_ORIGINS:http://localhost:{self.port}"])
+            self.relay = local_relay.LocalRelay(extra_args=["--var", f"ALLOWED_ORIGINS:http://localhost:{self.port}"],
+                                                what="the screen tests' local relay for "
+                                                     + os.path.basename(sys.argv[0] or "a screen test"))
             try:
                 self.relay.start()
             except local_relay.RelayError as e:
@@ -406,7 +426,7 @@ class App:
         as a child)."""
         deadline = time.time() + wait_s
         while time.time() < deadline:
-            if self.server.poll() is not None:
+            if self.server.proc.poll() is not None:
                 return False
             try:
                 socket.create_connection(("127.0.0.1", self.port), 0.2).close()
@@ -415,18 +435,19 @@ class App:
                 continue
             if os.name != "nt":
                 return True
-            ours = {self.server.pid} | {p for p, (parent, _) in local_relay.processes().items() if parent == self.server.pid}
-            if local_relay.port_owners(self.port) & ours:
+            self.server.note_tree()     # its tree, each process started after its parent — and on the list
+            if starter.port_owners(self.port) & set(self.server.ours):
                 return True
             time.sleep(0.1)          # someone else answers there: ours either takes it or stops
         return False
 
     def _stop_server(self):
-        self.server.terminate()          # the exact process we started (Law 5) — never a pattern
-        try:
-            self.server.wait(10)
-        except subprocess.TimeoutExpired:
-            self.server.kill()
+        """Stop our web server — every process it started, each by its exact id, checked gone and its port free
+        (tools/starter.py). What's left is never quiet: it fails the file (Law 5). A second call does nothing."""
+        left = self.server.stop()
+        if left:
+            from harness import fail_after
+            fail_after("our web server (serve.py)", "not everything it started was stopped:\n" + "\n".join(left))
 
     def _record_console(self, m):
         # A "Failed to load resource" line names no address in its text — add the one the browser reports, so a
@@ -508,7 +529,12 @@ class App:
             };
         })""")
 
-    def wait_console(self, pattern, timeout_s=60, since=0):
+    # --- the waits: ONE set for every screen test (2026-11-18, sprint 9 — TESTING.md §3, §4; Law 22) ----------------------
+    # A test waits for a condition, never a moment, each under LIMIT_MS (the app opening: APP_TIMEOUT_MS). Until sprint 9
+    # they lived in the files that first needed them: until / toast in test_delete_key.py and test_rename_key.py (each with
+    # its own LIMIT_MS), caught_up / settled / heard / held / amber_look in test_cells.py. A wait that proves something
+    # does NOT happen is the exception — a fixed window, said in its line: "# timed on purpose: …".
+    def wait_console(self, pattern, timeout_s=LIMIT_S, since=0):
         """Wait until a console line matching `pattern` has appeared (a condition, never a fixed sleep — §7). since: only
         lines from that many on (len(app.console) taken before the action — so an earlier line can't answer). Lines the
         page logged in the same moment as it (a repair right after the check that found it) are in app.console too when
@@ -534,6 +560,110 @@ class App:
 
     def console_matching(self, pattern, since=0):
         return [x for _, x in self.console[since:] if re.search(pattern, x)]
+
+    def heard(self, pattern, since=0):
+        """wait_console that never raises: True once a line matching `pattern` (from line `since` on) has come, False when
+        none came within LIMIT_S — so the checks after it still run and say what went wrong, in their own words (as they
+        did when the wait was a fixed moment; test_cells.py's words() and undo)."""
+        try:
+            self.wait_console(pattern, LIMIT_S, since=since)
+            return True
+        except AssertionError:
+            return False
+
+    def until(self, cond, limit_ms=LIMIT_MS):
+        """Wait until cond() is true, or limit_ms has passed — a condition, never a moment. Raises nothing: the check after
+        it says what's wrong, in its own words. (Python's Playwright has no expect.poll; this is it, on the page's own
+        clock.) For a condition the page answers in one expression, page.wait_for_function is the same, and raises."""
+        deadline = time.monotonic() + limit_ms / 1000
+        while not cond() and time.monotonic() < deadline:
+            self.page.wait_for_timeout(50)   # a poll's step, not a wait for a moment
+
+    # The page has run every task queued before now: a timer task, a message task (React's scheduler runs a render's
+    # effects in message tasks — the left pane's scroll to the open folder, the saves, window.folders), a timer task. NOT
+    # requestIdleCallback, on purpose: after an Escape, Chrome gave the page no idle time for 3–5 s with nothing to do
+    # (measured 2026-11-18; after a click, ~0.3 s) — a wait for "idle" would wait that long for nothing.
+    CAUGHT_UP_JS = """() => new Promise(r => setTimeout(() => { const c = new MessageChannel();
+        c.port1.onmessage = () => setTimeout(r, 0); c.port2.postMessage(null); }, 0))"""
+
+    def caught_up(self, page=None):
+        """Wait until the page has done what the last step started: every task it queued has run — React's effects after
+        its render, and any message they say. A condition the page answers (CAUGHT_UP_JS), not a moment."""
+        (page or self.page).evaluate(self.CAUGHT_UP_JS)
+
+    def settled(self, read_js, page=None):
+        """read_js's reading (a JS function's source, returning anything JSON can hold) once the page has settled: two
+        readings with the page caught up between them are the same. Still changing at LIMIT_MS: a failure."""
+        got = (page or self.page).evaluate(f"""async (limit) => {{
+            const read = {read_js};
+            const caughtUp = {self.CAUGHT_UP_JS};
+            const end = performance.now() + limit;
+            let last = JSON.stringify(read());
+            for (;;) {{
+                await caughtUp();
+                const now = JSON.stringify(read());
+                if (now === last) return {{ ok: true, value: JSON.parse(now) }};
+                if (performance.now() > end) return {{ ok: false, value: JSON.parse(now) }};
+                last = now;
+            }}
+        }}""", LIMIT_MS)
+        if not got["ok"]:
+            raise AssertionError(f"the page's reading never settled within {LIMIT_S} s (it was still changing)")
+        return got["value"]
+
+    def toast(self, *words):
+        """The toast's words — waiting (LIMIT_MS) for a toast holding every one of `words` (an earlier toast may still be
+        up); if none comes, whatever toast is up ("" for none): no such toast is an answer too, said by the check after."""
+        t = self.page.locator(".clipboard-toast")
+        for w in words:
+            t = t.filter(has_text=w)
+        try:
+            t.first.wait_for(state="visible", timeout=LIMIT_MS)
+            return t.first.inner_text()
+        except PlaywrightTimeout:
+            up = self.page.locator(".clipboard-toast")
+            return up.first.inner_text() if up.count() else ""
+
+    # The toast holding `words` ('' = the toast on screen): its look once it has reached amber — or once it's leaving (its
+    # .animating flight to the status bar) or gone, never amber: then the check after says so with what it was.
+    AMBER_JS = """words => {
+        const el = [...document.querySelectorAll('.clipboard-toast')].find(t => t.innerText.includes(words));
+        const probe = document.createElement('div');
+        probe.style.backgroundColor = 'var(--toast-warning-bg)';
+        document.body.appendChild(probe);
+        const amber = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        if (!el) return { cls: '(no toast)', bg: '(no toast)', amber };
+        const look = { cls: el.className, bg: getComputedStyle(el).backgroundColor, amber };
+        return look.bg === amber || el.classList.contains('animating') ? look : null;
+    }"""
+
+    def amber_look(self, words=""):
+        """The look of a toast that should be a warning — {cls, bg, amber} — once it has reached amber: a toast fades to its
+        colors (.clipboard-toast's 1 s transition) — read too soon, it's still part-way (2026-11-17, a loaded PC:
+        rgba(254, 243, 199, 0.557)). Waited for each frame (AMBER_JS)."""
+        return self.page.wait_for_function(self.AMBER_JS, arg=words, timeout=LIMIT_MS).json_value()
+
+    # Timed on purpose — a DURATION is what's tested ("a warning stays ~4 s where it appeared, others 1.5 s"): `ms` after
+    # the app was told to show the toast whose words are `text` (its log entry's time — the toast's own hold timers start
+    # in that same moment), is a toast holding `words` ('' = any) still where it appeared (not .animating)? Waited IN the
+    # page, on the page's clock: the app's hold timers and this one share one queue, so under any load this one (due
+    # first) runs before a later-due hold ends — no lag between our clock and the browser's can move the answer.
+    HELD_JS = """async ([text, words, ms]) => {
+        const e = window.rwLog.entries().reverse().find(x => x.text && text.includes(x.text));
+        if (!e) return 'no log entry for the toast';
+        await new Promise(r => setTimeout(r, Math.max(0, e.time + ms - Date.now())));   // timed on purpose (above)
+        return [...document.querySelectorAll('.clipboard-toast:not(.animating)')].some(t => t.innerText.includes(words));
+    }"""
+
+    def held(self, text, words, ms):
+        """True if, `ms` after the toast saying `text` was shown, a toast holding `words` is still where it appeared
+        (HELD_JS — timed on purpose: a duration is what's tested)."""
+        still = self.page.evaluate(self.HELD_JS, [text, words, ms])
+        if not isinstance(still, bool):
+            raise AssertionError(f"can't time the toast {text!r}: {still}")
+        return still
+    # --- (end of the waits) --------------------------------------------------------------------------------------------
 
     # --- Cloud Sync, against the local relay (App(relay=True)) --------------------------------------------------------
     def upload_fetch(self, items):
@@ -567,7 +697,7 @@ class App:
         {'under': description, 'title': its tooltip, 'width', 'height'}. Refuses (App.Unreachable) a target with no
         size, or one covered by something else — naming what covers it. Reading an attribute proves a thing exists,
         not that anyone can get to it."""
-        target.scroll_into_view_if_needed(timeout=10_000)
+        target.scroll_into_view_if_needed(timeout=LIMIT_MS)
         box = target.bounding_box()
         if not box or box["width"] < 1 or box["height"] < 1:
             raise App.Unreachable(f"the target has no size ({box}) — nobody can point at it")
@@ -601,7 +731,7 @@ class App:
         naming what covers it. hover() can't judge it: the browser's "what's under the pointer" skips a thing that lets
         clicks through, so it would name what's underneath. Here the target counts for that one question (its own
         pointer-events put back at once); the pointer isn't moved."""
-        target.scroll_into_view_if_needed(timeout=10_000)
+        target.scroll_into_view_if_needed(timeout=LIMIT_MS)
         box = target.bounding_box()
         if not box or box["width"] < 1 or box["height"] < 1:
             raise App.Unreachable(f"the target has no size ({box}) — nobody can see it")
@@ -659,7 +789,7 @@ class App:
         page.clock.install()
         page.goto(f"http://localhost:{self.port}/readerwrangler.html")
         page.clock.fast_forward(16_000)
-        page.get_by_text("Something went wrong", exact=True).wait_for(timeout=10_000)
+        page.get_by_text("Something went wrong", exact=True).wait_for(timeout=LIMIT_MS)
         return page, log
 
     # --- reading the screen -------------------------------------------------------------------------------------

@@ -90,6 +90,23 @@ ROWS = [
     ("JOIN-037", "a marker with no why is no marker", ".py", PY_TOP + "# not-joined:\n# x    check(1, \"a\")\n", True),
     ("JOIN-038", "a marker above a line of code doesn't reach past it", ".py",
      PY_TOP + "# not-joined: the one below\ny = 2\n# x    check(1, \"a\")\n", True),
+    # ── 2026-11-18 (sprint 9; TODO tooling 13.6): the two shapes it missed ──
+    ("JOIN-046", "a line of dashes, the next line joined with ONE space", ".py",
+     PY_TOP + "# ---------------------------- check(1 == 1, \"one\")\n", True),
+    ("JOIN-047", "a section header's dashes (box-drawing), a row joined with one space", ".py",
+     PY_TOP + "def t(ok):\n    # ── 4.1 Move ───────────── row(\"A-003\", ok, \"three\")\n    return ok\n", True),
+    ("JOIN-048", "a line of dashes, a one-line def joined with one space", ".py",
+     PY_TOP + "# ---------- def menu(app, top): pass\n", True),
+    ("JOIN-049", "a line of dashes, a line joined with one space (JavaScript)", ".js",
+     JS_TOP + "// ---------------- test('A-001', 'x', () => assert.ok(true));\n", True),
+    ("JOIN-050", "'use strict'; joined onto the header comment with one space", ".js",
+     "// a header that ends here. 'use strict';\nconst a = 1;\n", True),
+    ("JOIN-051", "'use strict'; joined keeping its indent", ".js", "// a header    'use strict';\nconst a = 1;\n", True),
+    ("JOIN-052", "'use strict'; glued to the comment's closing dot", ".js", "// a header.'use strict';\nconst a = 1;\n", True),
+    ("JOIN-053", "prose naming 'use strict' (no semicolon) passes", ".js",
+     "'use strict';\n// runs in 'use strict' mode, as 'use strict'\nconst a = 1;\n", False),
+    ("JOIN-054", "a separator of dashes around prose passes; a dash in a sentence before a call too", ".py",
+     PY_TOP + "# ---------- the menus ----------\n# --- then check it ---\n# the fix — check(ok, msg) runs\n", False),
 ]
 
 found = cj.find_joined([(f"{tid}{ext}", src) for tid, _, ext, src, _ in ROWS])

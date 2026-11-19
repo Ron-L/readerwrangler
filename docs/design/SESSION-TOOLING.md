@@ -76,6 +76,11 @@ gate prints a loud `SOURCE MISSING` alarm instead of a stale checklist.
   reads through the ONE Gmail filter Ron allowed (`from:alerts@readerwrangler.com subject:"Daily usage summary"`,
   memory `feedback_gmail_relay_only`); the hook only reminds. Why a hook: "remember to check each evening" doesn't
   survive a compaction. A dedicated inbox later (TODO "Relay worker: one release…", item 8) changes only the filter.
+- **`setup-check.py`** (SessionStart, beside `gate-reset.py`; sprint 9, 2026-11-18 — TODO "Working-process safety net"
+  item 1) — when the session's copy of the project isn't set up for the commit checks (below), a message Ron sees at once
+  (framed in `!`) and a note telling Claude to say it first thing, with the fix: `git config core.hooksPath git-hooks`.
+  Set up → silent. The rule and wording are `tools/setup_check.py`'s (serve.py prints the same at start-up); if that
+  can't be loaded the hook says so (fail loud). Tests: `SETUP-001`–`004`.
 - **`/sitemap`** (`.claude/commands/`) — mechanizes the class-of-sites comb (two independent pivots).
 
 ## RW's commit checks (`git-hooks/` — run BY GIT, saved in the repo)
@@ -84,6 +89,14 @@ Moved 2026-10-15 from `.git/hooks/` (git never saves its own hooks folder) + `.c
 that, losing this PC — or a fresh clone — silently lost every commit check. **One-time setup per copy of the project:
 `git config core.hooksPath git-hooks`.** `git-hooks/pre-commit` is the thin wiring; each check is its own script.
 Bypass (Ron's call): `git commit --no-verify`.
+
+**A copy that isn't set up is warned LOUDLY** (sprint 9, 2026-11-18; TODO "Working-process safety net" item 1 —
+decided Ron + UX 2026-10-22): the setting is local to git and a clone never brings it, so a fresh copy committed with no
+checks at all and nothing said so. Now **`serve.py`** (every contributor runs it to test locally — Claude Code or not;
+Ron at logon) prints a warning framed in `!` lines, in red where the console can, as the FIRST thing it prints — and
+Claude's session start does the same (`setup-check.py`, above). Both say the one command that fixes it. One rule
+(`hooks_path_problem`: set, and exactly `git-hooks`) and one wording, in **`tools/setup_check.py`**. A working copy
+(`tools/copies.py`) shares the main folder's setting. Tests: `SETUP-001`–`004`, `SERVE-002`.
 
 - **`version-guard.py`** — refuses a commit that stages
   shipped code without moving its version stamp: `readerwrangler.js`→`ORGANIZER_VERSION`,
@@ -139,13 +152,21 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   with the copy, its content kept in the archive's `time.json`; a copy made before that note existed gets git's own
   folder time, marked "estimated". Beside the records, `time.json` + `time.txt` (also printed at removal): made →
   removed (wall time); its test runs — how many, the minutes they covered (overlapping runs counted once), full or
-  narrow (`--id`, `--tag`, `RW_CELLS`; a `--changed` run leaves no record, so it isn't seen), passed / failed, files
+  narrow (`--changed`, `--id`, `--tag`, `RW_CELLS` — since 2026-11-18 every narrowed run, the commit hook's `--changed`
+  included, leaves its record on the copy's quick shelf, `rw-test-results\quick\`, archived with the rest and labelled
+  `quick: <what narrowed it>`, COPY-010), passed / failed, files
   rerun alone after the machine's trouble, which full tier 1 was `new`'s own readiness run — each run on a line; its
   commits since it was made; and **everything else** = wall − test minutes: building, reading, thinking, waiting (the
   records can't tell these apart, and it doesn't pretend to).
+  **The archive is kept bounded** (2026-11-18, TODO tooling 13.5 — it grew forever): after each removal, the newest
+  `ARCHIVE_KEEP` (100) copies' folders are kept, and every one removed less than `ARCHIVE_MIN_DAYS` (30) days ago however
+  many; the older rest is deleted, said (`· the archive trimmed: N older copies' records deleted …`). A folder's age is
+  its `time.json`'s "removed", else the folder's own time (COPY-012).
+- **`copies.py new`'s words** (2026-11-18, TODO tooling 13.12): a tier 1 that ended NOT PROVEN (exit 3 — no test failed,
+  the machine too busy) is `NOT READY — tier 1 not proven … — the machine was too busy`, never "tier 1 failed" (COPY-011).
 - **`py tools/copies.py report [--since YYYY-MM-DD]`** — for a sprint's post-mortem: one row per archived copy (name,
   branch, made, removed, wall, test minutes and their share, runs full / narrow, passed / failed) and the totals.
-  Tests: `COPY-007`–`009`.
+  Tests: `COPY-007`–`012`.
 - **`py tools/copies.py list`** (also a double-click) — each copy, its branch and commit, anything uncommitted, and its
   test stamp (`run_tests.py --stamp` run there: each copy keeps its own run records).
 - **What works inside a copy** (checked 2026-11-16): the pre-build gate (above); the commit checks — `core.hooksPath
@@ -153,7 +174,11 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   guard refused, the name check and the build check ran, all on the copy's files); serve.py and the test runner use the
   copy's own `dist/`; screenshots go to `%TEMP%\rw-test-artifacts-<name>` (the main folder's stay in
   `rw-test-artifacts`); the private-values check reads the main folder's `.private/` notes (a copy has none, and it
-  silently checked credential shapes only).
+  silently checked credential shapes only). **Every copy's runs share one list of the processes our tools started**
+  (`tools/starter.py`, 2026-11-18: `started-processes.json` beside the test slots, changed under the slots' lock): a
+  process whose run is still going in another copy is never called a leftover; one whose run has ended is named in a
+  banner at the start of the next run anywhere on the PC, with a `NEEDS YOUR ATTENTION:` line (TESTING.md §4).
+  `py tools/starter.py` shows it on its own.
 - **serve.py's rebuild while another server reads the file:** Windows refuses to swap a new `dist/` copy in over a file
   another program is reading. `tools/build.py` retries for ~2 s; still refused, serve.py serves the copy that's there and
   logs `REBUILD NOT SWAPPED IN` (the next request tries again) — before, the request died. Tests: `BUILD-010`,
@@ -176,7 +201,78 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   branch deleted. A failure leaves the target untouched (fix and commit on the scratch branch, then `--continue`).
   `--no-test` lands and prints `NOTHING WAS PROVEN`. Tests: `MERGE-001`–`004` (real git in throwaway repositories).
 
+## Backing up Claude's memory and settings (`tools/backup_claude.py`; sprint 9, 2026-11-18)
+
+TODO "Working-process safety net", items 2–3 (decided Ron + UX 2026-10-22). The pieces of the working process that live
+OUTSIDE the repository were backed up by hand — and the hand slipped a week (Oct 15 → 22: 56 files of 68, 18
+differing). **`py tools/backup_claude.py`** is a **release-checklist step** (not a per-turn hook — a commit per turn is
+noise), so the backup is never more than one release behind:
+
+1. **Claude's memory** (`~\.claude\projects\<the project's folder name>\memory\*.md`) → `.private\claude-backup\memory\`
+   — a **mirror**: a memory file deleted is deleted in the backup too (git's history keeps it). Only `.md` files; an
+   empty or missing memory folder is refused, so the backup is never emptied by mistake.
+2. **`.claude\settings.local.json`** → `.private\claude-backup\settings.local.json`.
+3. **Claude Code's global settings** (`~\.claude\settings.json` — wires the timestamp hook; no secrets, personal paths)
+   → the **Projects repository** (`C:\Users\Ron\Projects`, private, Ron-L/projects-root) as **`claude-settings.json`**,
+   beside `stamp.py` and `CLAUDE-TOOLING.md` (the `claude-` name sorts with CLAUDE.md and says whose settings — a bare
+   `settings.json` there would read as the folder's own). That repository's `.gitignore` is an allow-list: the first run
+   adds `!/claude-settings.json`, or git would never see it. (Ron gave permission for this repository, 2026-11-18.)
+
+Then each repository (`.private` and Projects) **commits ONLY the backup's files** — anything else staged or untracked
+there is left as it is — with a message counted from what git staged (with `core.autocrlf` a copy can differ from the
+checked-out file in line endings only; git sees no change, so no commit is claimed), and **pushes to `origin`**. Nothing
+changed → no commit. A push the remote refuses is said loudly (`PUSH FAILED`), the commit kept — never forced; one
+repository failing doesn't stop the other; exit 1 if anything failed. It finds the **main** folder from a working copy
+(`copies.main_folder`). Restoring on a new PC: `.private/claude-backup/README.md`. Tests: `CBAK-001`–`007` (throwaway
+repositories with local bare stand-ins for GitHub).
+
+## The "open" shortcut (`tools/shortcuts.py`, `serve.py --open`; sprint 9, 2026-11-18)
+
+TODO "The 'open' shortcut: start serve.py if needed and open the app" (decided Ron + Claude 2026-10-31; adapted from the
+utilities project's `tools/shortcuts.py`). **`py tools\shortcuts.py`** writes `Start Menu\Programs\ReaderWrangler
+(local).lnk` (Windows search: "ReaderWrangler"; "(local)" tells it apart from the site): the py launcher running
+`"<main folder>\serve.py" --open`, in the main folder (never a working copy — it is removed when its task is done), with
+the app's icon. `--folder <f>` writes it elsewhere (the tests use a temporary folder). Rewriting it is harmless. Ron's
+hand-made "ReaderWrangler Server" shortcuts (Start menu + Startup — they start the server without opening the page) are
+left alone.
+
+**`serve.py --open`** opens `http://localhost:<port>/readerwrangler.html` in the default browser — a tab, not an app
+window (the bookmarklets live on the bookmarks bar) — starting the server first only if nothing is on the port: our
+server already there (it answers with the app's page) → just the page, the server left as it is; another program →
+says so, opens nothing. The open half only — no restart or shutdown (serve.py only serves files and rarely changes, and
+it listens on the home network on purpose: an off switch any device there could press gains nothing). Tests:
+`SHORTCUT-001`–`003`, `SERVE-003`–`007` (never a real Start menu, never a browser — the opener is a stand-in).
+
+## Writing a file whole (`tools/whole_file.py`; Law 22, 2026-11-18)
+
+One routine: a scratch copy beside the file, swapped in, retried for ~2 s while Windows refuses the swap (another program
+reading the old copy), no scratch copy left on failure. `tools/build.py` (dist/), `tools/browser_level.py`'s `save` (and
+through it `tools/test_costs.py`) and `tools/backup_claude.py` all write through it; before, build.py and browser_level.py
+each had their own copy of the loop. Tests: `WHOLE-001`–`007`, `BUILD-010`.
+
 ## Related
 - The gate's checklist content + the debugging law it now carries: `docs/PRINCIPLES.md` (Laws + the
   `GATE-CHECKLIST` block).
 - Global (cross-project) tooling: `CLAUDE-TOOLING.md` at the Projects root.
+
+## (to add to docs/design/SESSION-TOOLING.md) The pre-build gate — moved verbatim from CLAUDE.md
+
+
+- **Pre-build gate** — before Claude changes app code, a safety checklist stops it once per turn. Since 2026-11-16
+  that also happens when the change is made by typing a command (not only with the editing tool) — two agents had
+  changed version numbers that way, skipping the checklist (Ron's wording; which commands it recognizes:
+  `docs/design/SESSION-TOOLING.md`). The mechanics: a `PreToolUse` hook (`.claude/hooks/gate-check.py`) denies the
+  first edit of shipped code each turn — **any shipped `.js`: everything outside the non-shipped folders, never `dist/`** — the one rule in
+  `git-hooks/shipped_paths.py`, shared with the version guard and the style build, so a new module or folder (`logkit/`,
+  `relay/`) is covered (widened 2026-10-08 from just readerwrangler.js/mobile.js; the shared rule 2026-11-11) — with a
+  checklist (mechanism, not memory). Consider it, then
+  re-send EVERY app edit from that batch (the whole batch is refused; PostToolBatch clears it for the next one).
+  `Stop`/`SessionStart` re-arm it per turn. The checklist is the **single source** in
+  `docs/PRINCIPLES.md` (the `GATE-CHECKLIST` block); the hook just pulls + prints it and **fails LOUD** if
+  it can't reach it. Full local tooling + the pattern: **`docs/design/SESSION-TOOLING.md`**.
+- **`/sitemap`** (`.claude/commands/sitemap.md`) — mechanizes the class-of-sites comb.
+- **Timestamp stamp hook is GLOBAL, not RW-local** — it is `C:/Users/Ron/Projects/stamp.py`, wired in
+  `~/.claude/settings.json` (`UserPromptSubmit`), injecting the live time each turn for **all** projects.
+  See the Projects-root **`CLAUDE-TOOLING.md`**. (Corrected 2026-09-30 — the old `.claude/hooks/stamp.py`
+  path was wrong and cost a chase; its absence there is *not* a sign it's missing.)
+

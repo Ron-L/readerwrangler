@@ -14,14 +14,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from harness import check, done, test   # noqa: E402
-from rw import AFTER_CHECK, APP_TIMEOUT_MS, FIXTURE, App   # noqa: E402
+from rw import AFTER_CHECK, APP_TIMEOUT_MS, FIXTURE, LIMIT_MS, App   # noqa: E402
 
 
 def toast_says(app, words):
     """Wait for the toast holding `words`; check a person can see it (a size, not covered — the pointer lands on it)."""
     toast = app.page.locator(".clipboard-toast", has_text=words).first
     try:
-        toast.wait_for(state="visible", timeout=5000)
+        toast.wait_for(state="visible", timeout=LIMIT_MS)
     except Exception:   # noqa: BLE001 — say what WAS on screen
         shown = app.page.locator(".clipboard-toast")
         now = shown.first.inner_text() if shown.count() else "no toast at all"
@@ -55,7 +55,7 @@ with App() as app:
     # the Restore has finished — its after-check, its last step, has run (before: a 1 s sleep)
     app.wait_console(AFTER_CHECK, APP_TIMEOUT_MS // 1000, since=n0)
     app.click_reachable(app.menu("Tools", "Manage Tags"))
-    page.get_by_placeholder("Create new tag...").wait_for(timeout=5000)
+    page.get_by_placeholder("Create new tag...").wait_for(timeout=LIMIT_MS)
 
     def delete_one():
         create_tag(app, "Delete Me")

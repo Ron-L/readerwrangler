@@ -51,7 +51,11 @@
       "Bash(export PYTHONIOENCODING=utf-8)",
       "Bash(curl -s -m 10 \"https://readerwrangler.com/:*)",
       "Bash(curl -s -m 10 \"https://ron-l.github.io/readerwranglerdev/:*)",
-      "Bash(grep -v \"^remote: *$\")"
+      "Bash(grep -v \"^remote: *$\")",
+      "Bash(git fetch *)",
+      "Bash(git push dev *)",
+      "Bash(python tools/sync_remotes.py)",
+      "Bash(curl -s -o /dev/null -w \"readerwrangler.com %{http_code}\\\\n\" https://readerwrangler.com/)"
     ],
     "deny": [
       "Bash(git push --force:*)",
@@ -128,6 +132,10 @@
           {
             "type": "command",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/gate-reset.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/setup-check.py\""
           }
         ]
       }

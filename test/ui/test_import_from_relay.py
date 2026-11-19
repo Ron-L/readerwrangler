@@ -100,7 +100,7 @@ with App(relay=True) as app:
         app.reload()
         # The app's own word for this state (its Welcome screen, shown once loading has finished with no books) — not
         # the left pane, which shows "All Books (0)" only for a moment while the app is still loading (a race).
-        app.page.get_by_text("Your folders and lists are intact", exact=False).wait_for(timeout=60_000)
+        app.page.get_by_text("Your folders and lists are intact", exact=False).wait_for(timeout=APP_TIMEOUT_MS)   # a load
         backstop_before = len(app.console_matching(r"Inbox backstop"))
         repairs_before_007 = len(app.console_matching(REPAIR))
         n0 = len(app.console)

@@ -189,15 +189,15 @@ def swap_in(tmp):
     check(open(target).read() == "new", "the swap waited for the reader, then the new copy went in")
     if os.name == "nt":                                 # only Windows refuses a swap over an open file
         reader = open(target)
-        tries = b.SWAP_TRIES
+        tries = b.whole_file.SWAP_TRIES                 # the retry lives in tools/whole_file.py (2026-11-18, Law 22)
         try:
-            b.SWAP_TRIES = 3
+            b.whole_file.SWAP_TRIES = 3
             b._write(target, "newer")
             raise AssertionError("a reader holding the file the whole time: PermissionError expected")
         except PermissionError:
             pass
         finally:
-            b.SWAP_TRIES = tries
+            b.whole_file.SWAP_TRIES = tries
             reader.close()
         check(open(target).read() == "new", "still refused: the old copy is left whole")
         check(os.listdir(tmp) == ["app.js"], f"and no scratch file is left behind: {os.listdir(tmp)}")

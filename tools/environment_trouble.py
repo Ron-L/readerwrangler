@@ -21,7 +21,8 @@ failed on "ReactDOM is not defined"): library_download_failed() and library_fail
 library_not_defined() a start-up whose only errors are a library's missing name. One that downloaded and then threw is
 never the network's.
 
-Tested by test/test_run_tests.py (RUN-080, 082, 090, 091, 093) and test/ui/test_environment.py (ENV-001–007).
+Tested by test/test_run_tests.py (RUN-080, 082, 090, 091, 093), test/ui/test_environment.py (ENV-001–007) and
+test/test_ui_harness.py (HARNESS-001–008: the harness's end, through tally).
 """
 import re
 
@@ -87,15 +88,18 @@ def mark_line(events):
     return f"{MARK} {next((r for k, r in events if k == 'env'), 'no reason given')}"
 
 
-def tally(results, events, trouble="the machine's trouble"):
+def tally(results, events, trouble="the machine's trouble", also=()):
     """(a test file's last lines, its exit code) from its rows — results: [(id, name, ok, detail)], ok None for a check the
-    machine's trouble stopped (neither passed nor failed); events: as exit_code's. The summary line ("N passed, M failed,
-    K stopped by <trouble>"), then the marked line when the exit is EXIT_CODE. How test/test_run_tests.py — a heavy
-    tier-1 file with its own row helper — ends; RUN-093 runs a stand-in that ends the same way through the runner, the
-    whole path (TODO tooling 11.2)."""
+    machine's trouble stopped (neither passed nor failed); events: as exit_code's; also: more counts in words, said after
+    the failed ones (the screen-test harness's "2 differ today (as measured)"). The summary line ("N passed, M failed,
+    K stopped by <trouble>"), then the marked line when the exit is EXIT_CODE. The one implementation of a test file's
+    end (Law 22): test/test_run_tests.py — a heavy tier-1 file with its own row helper — and the screen-test harness
+    (test/ui/harness.py, since 2026-11-18, sprint 9) both end through it; RUN-093 runs a stand-in that ends the same way
+    through the runner, the whole path (TODO tooling 11.2); test/test_ui_harness.py (HARNESS-001–008) the harness's."""
     failed = sum(1 for r in results if r[2] is False)
     held = sum(1 for r in results if r[2] is None)
-    lines = [f"{len(results) - failed - held} passed, {failed} failed" + (f", {held} stopped by {trouble}" if held else "")]
+    lines = [f"{len(results) - failed - held} passed, {failed} failed" + "".join(f", {a}" for a in also)
+             + (f", {held} stopped by {trouble}" if held else "")]
     code = exit_code(events, stopped=held)
     return lines + ([mark_line(events)] if code == EXIT_CODE else []), code
 

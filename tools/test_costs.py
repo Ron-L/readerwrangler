@@ -28,6 +28,13 @@ A UNIT is one process the runner starts: a whole test file, or one shard of a fi
      - processes — how many the tree started in all (the proof that Chrome stayed in the job: a screen test shows many).
    Not on Windows, or anything about measuring fails: every measure is None, the run goes on exactly as before, and
    `missing` says why — measuring must never fail or slow a test run.
+   LEFT RUNNING (2026-11-18, sprint 9 — TODO "One starter for every process our tools start", and tooling 13.4): when
+   the unit's own process ends, the job is asked what is still running in it; after a short grace (LEFTOVER_GRACE_S —
+   a browser's helpers may be on their way out) each one left is named (id, program) in the measures' "leftovers" and —
+   being in the unit's job, so provably its own — stopped by the job's handle and checked gone. Also when one of them
+   holds the unit's output pipes (before, the runner then waited for it until the unit's time limit). The runner says
+   each one loudly at the run's end (tools/starter.py job_leftover_lines). Launching in a job is one function, launch(),
+   also used by tools/starter.py for the relay tests' relay (measured too — TODO tooling 13.3).
 
 2. KEPT, per PC (teach(), below): for each unit, a running average and spread of each measure — TCP's own method for
    round-trip times (RFC 6298: spread += (|sample − average| − spread)/4, then average += (sample − average)/8; the first
@@ -63,7 +70,8 @@ A UNIT is one process the runner starts: a whole test file, or one shard of a fi
    lookup). A rerun alone never teaches, so without the mark a test that truly got slower — the app it drives slower,
    its own file unchanged — would be stopped every run, forever.
 
-Tested by test/test_test_costs.py (COST-001–…).
+Tested by test/test_test_costs.py (COST-001–…); what a unit leaves running, and the relay tests' relay measured, by
+test/test_starter.py (START-009, 010, 012).
 """
 import contextlib
 import datetime
@@ -72,6 +80,7 @@ import json
 import os
 import subprocess
 import threading
+import time
 
 import browser_level    # tools/: its save() writes a file whole (a temporary file, then put in place)
 import test_slots       # tools/: the slots' OS file lock (locked()) and their folder (slots_folder())
@@ -309,6 +318,34 @@ if os.name == "nt":
             process list): what a unit past its time gets (step 4). True if Windows did it."""
             return bool(self.handle) and bool(_k32.TerminateJobObject(self.handle, 1))
 
+        def running(self):
+            """The ids of the processes in the job right now (a process in a job can't leave it: each is ours)."""
+            ids = _query(self.handle, BASIC_PROCESS_ID_LIST, _PidList())
+            return [int(p) for p in ids.ProcessIdList[:min(ids.NumberOfProcessIdsInList, 1024)]]
+
+        def leftovers(self, grace_s):
+            """Once the unit's own process has ended: whatever is still running in its job (2026-11-18, sprint 9 — TODO
+            tooling 13.4 and "One starter…": "a process still running after its test unit ends"). Waited for up to
+            grace_s (they may be on their way out — a browser's helpers); any still there are named and — being in our
+            job, so provably the unit's own — stopped by the job's handle and checked gone. [{pid, name, stopped}]; []
+            when none was left (or the job can't be read)."""
+            try:
+                end = time.monotonic() + grace_s
+                while (ids := self.running()) and time.monotonic() < end:
+                    time.sleep(0.1)
+                if not ids:
+                    return []
+                import starter      # tools/: the process list, for the names (imported here: starter uses this module)
+                names = {p: n for p, (_, n) in starter.processes().items()}
+                found = [{"pid": p, "name": names.get(p, "?")} for p in ids]
+                self.end()
+                gone_by = time.monotonic() + 10
+                while (still := set(self.running())) and time.monotonic() < gone_by:
+                    time.sleep(0.1)
+                return [dict(f, stopped=f["pid"] not in still) for f in found]
+            except OSError:
+                return []
+
         def close(self):
             if self.handle:
                 _k32.CloseHandle(self.handle)
@@ -322,13 +359,62 @@ def available():
     return True, None
 
 
+def launch(cmd, job, **popen_kw):
+    """subprocess.Popen(cmd, **popen_kw) — in `job` (a _Job; None = no job) BEFORE it runs a single instruction: started
+    suspended, put in the job, let go — so nothing it starts escapes. (the process, None) — or (the process, why) when it
+    couldn't be put in the job: it then runs outside it (one that couldn't be let go is stopped by its own handle and
+    started again, outside). The one way a process is started in a job (Law 22): run() below, and tools/starter.py (the
+    relay tests' relay, measured)."""
+    if job is None:
+        return subprocess.Popen(cmd, **popen_kw), None
+    flags = popen_kw.pop("creationflags", 0)
+    p = subprocess.Popen(cmd, creationflags=flags | CREATE_SUSPENDED, **popen_kw)
+    why = job.adopt(p.pid)
+    if not _resume(p.pid):          # never left suspended: stopped by its own handle (exact), started again outside
+        why = _err("letting the process go") + " — started again, outside the job"
+        p.kill()
+        p.communicate()
+        return subprocess.Popen(cmd, creationflags=flags, **popen_kw), why
+    return p, why
+
+
+LEFTOVER_GRACE_S = 5.0      # after a unit's own process ends, how long what it started may take to end by itself
+_POLL_S = 0.5               # with a job: how often the wait for the unit looks whether its own process has ended
+
+
+def _communicate(p, timeout, job, left):
+    """p.communicate(timeout) — and, in a job, once p itself has ended, what it left running (job.leftovers, into
+    `left`): also when one of those holds p's output pipes, which would otherwise keep communicate waiting until the time
+    limit (sprint 9 — a leftover named, not a unit "past its time")."""
+    if job is None:
+        return p.communicate(timeout=timeout)
+    deadline = None if timeout is None else time.monotonic() + timeout
+    looked = False
+    while True:
+        step = _POLL_S if deadline is None else max(0.0, min(_POLL_S, deadline - time.monotonic()))
+        try:
+            out, err = p.communicate(timeout=step)
+            break
+        except subprocess.TimeoutExpired:
+            if deadline is not None and time.monotonic() >= deadline:
+                raise
+            if p.poll() is not None and not looked:     # its own process ended; its pipes are still held open
+                looked = True
+                left.extend(job.leftovers(LEFTOVER_GRACE_S))
+    if not looked:
+        left.extend(job.leftovers(LEFTOVER_GRACE_S))
+    return out, err
+
+
 def run(cmd, timeout=None, measure=True, **popen_kw):
     """subprocess.run(cmd, capture_output=True, timeout=timeout, **popen_kw), measured: (exit code — None when it ran past
     `timeout` and was stopped —, stdout bytes, stderr bytes, measures). Stopped = its whole tree when it runs in a job
     (every process it started — step 4, 2026-11-18: killing only the unit's own process left its children running);
     only its own process when it doesn't (not measured, or the job couldn't be made — `missing` says why). measure
     False: run as before, measures all None. Anything about measuring that fails leaves the run itself as it would have
-    been: measures None, and why."""
+    been: measures None, and why.
+    In a job, the measures also say what the unit LEFT RUNNING after its own process ended (sprint 9): "leftovers" —
+    [{pid, name, stopped}], each stopped by the job's handle (_Job.leftovers); [] when none."""
     ok, why = available() if measure else (False, "not asked")
     job = None
     if ok:
@@ -336,24 +422,16 @@ def run(cmd, timeout=None, measure=True, **popen_kw):
             job = _Job()
         except Exception as e:      # noqa: BLE001 — measuring never fails a run
             why = f"{e}"
-    flags = popen_kw.pop("creationflags", 0) | (CREATE_SUSPENDED if job else 0)
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=flags, **popen_kw)
+    p, outside = launch(cmd, job, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **popen_kw)
+    if job and outside:
+        job.close()
+        job, why = None, outside
+    elif job:
+        job.start_sampling()
+    left = []
     with p:
-        if job:
-            why = job.adopt(p.pid)          # in the job BEFORE it runs a single instruction: nothing it starts escapes
-            if not _resume(p.pid):          # never left suspended: stopped by its own handle (exact) and run unmeasured
-                p.kill()
-                p.communicate()
-                job.close()
-                code, out, err, _ = run(cmd, timeout=timeout, measure=False, **popen_kw)
-                return code, out, err, nothing(_err("letting the test's process go") + " — run again unmeasured")
-            if why:
-                job.close()
-                job = None
-            else:
-                job.start_sampling()
         try:
-            out, err = p.communicate(timeout=timeout)
+            out, err = _communicate(p, timeout, job, left)
             code = p.returncode
         except subprocess.TimeoutExpired:
             if not (job and job.end()):     # the whole tree, by the job's handle — else its own process, by its handle
@@ -365,6 +443,8 @@ def run(cmd, timeout=None, measure=True, **popen_kw):
             raise
         finally:
             measures = job.finish() if job else None
+    if measures is not None:
+        measures["leftovers"] = left
     return code, out, err, measures if measures is not None else nothing(why)
 
 
