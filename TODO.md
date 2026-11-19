@@ -204,10 +204,12 @@ sprints rather than scatter them.
 
 _Why it matters:_ The one outside review we ran (Cloud Sync naming, 2026-10-23) broke our convergence on a weaker name,
 predicted a checksum gap the test then confirmed, designed the safe order for retiring a key, and caught two false
-claims of mine. Decisions made inside our long conversation can't see their own anchoring — and these five are the
+claims of mine. Decisions made inside our long conversation can't see their own anchoring — and these four are the
 expensive ones to get wrong after launch, so they go ahead of nearly all other work (Ron, 2026-10-23).
 
-**The reviews, one at a time, in this order** (an earlier one can change what a later one should look at)
+**The reviews, in this order** (an earlier one can change what a later one should look at): **review 1 alone first**
+(it could reorder the backlog — Ron rules on it before the rest), **then 2, 3 and 4 at the same time** — they look at
+different things (Ron, 2026-11-19). Each brief is read by Ron before its review runs (Ron, 2026-11-19).
 1. **Launch risks we haven't thought of** — first, because it could reorder the backlog. Seeds: Amazon's terms for a
    tool that reads your Amazon pages (**start from the existing terms-and-strategy note — see TODO notes**; it predates
    the relay, so the review weighs it against today's architecture; and other companies that connect to people's
@@ -237,9 +239,8 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
    site pages (index, features, tutorials) and judge it by what it finds; not its "bolder / delight / overdrive"
    commands — Ron is the designer. Read any skill fully before installing it (a skill is instructions that run with
    Claude's permissions).
-5. **The big designs decided in conversation, before they're built** — "Move and copy books anywhere". (The Delete
-   key was dropped 2026-11-04: it's built before the reviews — its task sits above this one — it's small and well
-   decided, and the browser driver tests it.)
+(A fifth, "the big designs decided in conversation, before they're built" — "Move and copy books anywhere" — moved
+into that task, 2026-11-19 (Ron): it isn't needed for launch, so its review runs when that task comes up.)
 
 **How each runs** (decided Ron + Claude, 2026-10-23)
 1. **I write a brief for a cold reader** — background, problems, constraints, questions; none of my verdicts. (Model:
@@ -2382,6 +2383,10 @@ or duplicate it, across the folder / Book List boundary, do it. Merged from "Ctr
 copies instead of cutting" and **reverses** "Book List menu: remove Move / Copy, and block dragging onto folders"
 (2026-08). That task's evidence — the 2026-08-08 "move" that left books in the Inbox, a folder AND the list — was a
 half-done move, not a bad gesture: the cure is complete moves, not forbidding them.
+
+**Before building: an outside review of this design** (moved here from "Outside reviews before building…", Ron
+2026-11-19) — a big design decided in conversation; run it the same way (a cold brief Ron reads first, a fresh
+reviewer in two phases, my spot-checks, a summary with my verdicts).
 
 **Decided** (Ron + UX, 2026-10-21)
 1. **A move is a true move:** out of the source, into the destination, exactly once, one undo step — every gesture

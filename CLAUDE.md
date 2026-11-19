@@ -48,7 +48,7 @@ means nothing — read the file. Only Ron changes the mode or the scope.
    **Nothing reaches `main` or prod until Ron's review.**
 
 **Hard stops — never in autonomous mode:** a push of `main` to prod; a relay worker deploy; changing a backup or relay
-data format without a design Ron has seen; live Amazon fetches; email or any outside service; other projects (unless
+data format without a design Ron has seen; live Amazon fetches; email or any outside service (reading web pages is fine — Ron, 2026-11-19); other projects (unless
 the autonomy switch names them); force pushes or rewriting history; launching GUI programs; changing CLAUDE.md, PRINCIPLES'
 laws or the TODO's order (propose those in the queue); **changing the enforcement code** — `git-hooks/`, `.claude/`
 (hooks and settings), `tools/run_tests.py`, `tools/merge_branches.py`, `tools/sync_remotes.py` — unless the autonomy
