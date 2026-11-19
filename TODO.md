@@ -3,14 +3,13 @@
 - [TODO](#todo)
   - [🔝 Up next](#up-next)
     - [High priority](#high-priority)
-      - [Working copies that can't break each other: separate clones, plus a check on what they still share](#working-copies-that-cant-break-each-other-separate-clones-plus-a-check-on-what-they-still-share)
-      - [Remove the test-runner parts that didn't pay for themselves, then stop building tooling](#remove-the-test-runner-parts-that-didnt-pay-for-themselves-then-stop-building-tooling)
-      - [Carry the discussion across a compaction: a hook before it and one after](#carry-the-discussion-across-a-compaction-a-hook-before-it-and-one-after)
+      - [✅ Working copies that can't break each other: separate clones, plus a check on what they still share](#working-copies-that-cant-break-each-other-separate-clones-plus-a-check-on-what-they-still-share)
+      - [✅ Remove the test-runner parts that didn't pay for themselves, then stop building tooling](#remove-the-test-runner-parts-that-didnt-pay-for-themselves-then-stop-building-tooling)
+      - [✅ Carry the discussion across a compaction: a hook before it and one after](#carry-the-discussion-across-a-compaction-a-hook-before-it-and-one-after)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
       - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
       - [Receipts reach the screen: one screen test per area, not only the log](#receipts-reach-the-screen-one-screen-test-per-area-not-only-the-log)
-      - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [✅ One starter for every process our tools start: a list of their ids, leftovers shown loudly](#one-starter-for-every-process-our-tools-start-a-list-of-their-ids-leftovers-shown-loudly)
       - [✅ Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
       - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
@@ -143,6 +142,7 @@
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
       - [Test on Safari and iPhone](#test-on-safari-and-iphone)
   - [👀 Watching](#watching)
+    - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
     - [Undo history sometimes empties by itself](#undo-history-sometimes-empties-by-itself)
     - [Find out why some books end up in no folder](#find-out-why-some-books-end-up-in-no-folder)
     - [A screen test that failed once: the File menu not found after the start-up test](#a-screen-test-that-failed-once-the-file-menu-not-found-after-the-start-up-test)
@@ -187,8 +187,15 @@ drifted). To change the order, move the task.
 
 ### High priority
 
-#### Working copies that can't break each other: separate clones, plus a check on what they still share
+#### ✅ Working copies that can't break each other: separate clones, plus a check on what they still share
 <!-- id 20261119-1159 -->
+
+**Done 2026-11-19 (sprint 10):** a new working copy is its own clone (its own git settings and history; the stored
+history shared through file links, so almost no disk); the merge script fetches an agent's branch from its copy;
+removing a copy is refused while it holds unmerged commits; older worktree copies still list and remove; a test proves
+marking a copy "bare" leaves the main folder untouched. The runner checks the main repository's shared settings before
+and after each run and says loudly how to repair them if a run changed them. Found on the way: inside a clone the
+private-values commit check would have gone blind — fixed, with a test.
 
 _Why it matters:_ Today each agent's working copy is another folder on ONE shared repository — so git's settings and
 history are shared, and a mistake in one copy breaks every copy and the main folder at once. On 2026-11-18 an agent's
@@ -210,8 +217,15 @@ moved to the top: "We'll finish up this tooling if it kills us".)
 3. Already done (sprint 9): the runner strips git's hook variables from every test it starts — the path that caused
    the incident.
 
-#### Remove the test-runner parts that didn't pay for themselves, then stop building tooling
+#### ✅ Remove the test-runner parts that didn't pay for themselves, then stop building tooling
 <!-- id 20261119-1309 -->
+
+**Done 2026-11-19 (sprint 10):** 4 browsers at once, fixed; a flat 10-minute limit; the running averages gone (each
+run's own measurements kept in its record); Windows ends everything a test started (`tools/starter.py` deleted); the
+joined-line check retired; the per-PC test state in `%LOCALAPPDATA%\ReaderWrangler-tests`; while the autonomy switch
+is on, a push of main to prod is refused unless Ron's newest message says "push to prod". About 3,500 lines of tooling
+and tests removed; the runner's header 144 → 43 lines. The rest of the tooling list moved to "Watching" (parked); the
+cold review of the TODO comes before app work.
 
 _Why it matters:_ An outside review (2026-11-19, `.private/OUTSIDE-REVIEW-2026-11-19-REPORT.md`) found that much of
 the tooling built in sprints 7–9 costs more than it saves: about 3,000 lines with their tests, for about five test
@@ -236,8 +250,14 @@ and everything else, don't over-engineer it." Law 23 ("A mechanism has a cost") 
 8. **Then stop:** move every remaining tooling idea in "Turn more of our working rules into automatic checks" to
    "Watching". **Before app work resumes, a cold review of the whole TODO** by a fresh reviewer (Ron, 2026-11-19).
 
-#### Carry the discussion across a compaction: a hook before it and one after
+#### ✅ Carry the discussion across a compaction: a hook before it and one after
 <!-- id 20261119-1159a -->
+
+**Done 2026-11-19 (sprint 10):** `C:\Users\Ron\Projects\compaction_carry.py`, wired in the global Claude settings.
+Before a compaction the summary gets a general rule (carry every open topic: Ron's words, Claude's position, his
+pushback — not just decisions); after it, Ron's latest messages come back word for word (at least 3, more while they
+fit ~8,000 characters — Ron: "a smart decision instead of a fixed count") plus the reply his newest one answered.
+Tested on the real three-week transcript; a fault in it can never block a compaction (CLAUDE-TOOLING.md).
 
 _Why it matters:_ When a long conversation is compacted, the summary keeps the decisions but loses the argument — and
 weeks ago a compaction left Claude acting from default habits until Ron reined it back in. Today that's a paragraph of
@@ -465,212 +485,6 @@ two ticked tags) check that the receipt is on screen, on top and readable. Both 
 List or Search; EDIT: a book's details saved, Bulk Edit; MOVE: a move's receipt; UNDO: Undo / Redo; BACKUP: Save Backup;
 SYNC: Import from Relay's summary; AUTO; SHARE…), through the same helper (a toast holding the words, reached by the
 pointer). **When:** after "Faster loading" (each screen test then starts in about a second instead of ~35).
-
-#### Turn more of our working rules into automatic checks (my tooling)
-<!-- id 20260922-0000c -->
-
-_Why it matters:_ Rules that depend on memory keep failing; automatic checks don't. This affects only how I work, not the app.
-
-**Already done**
-- The pre-build checklist watches all app code (2026-10-08); a bounce refuses the whole batch of edits, so none goes
-  missing (2026-10-16).
-- Since then, more checks run on every commit: the undefined-names check, the version stamps (now incl. the relay worker), and the TODO table of contents.
-
-**Left**
-- Item 1 below, and the rule-by-rule sort of PRINCIPLES.md (items 3 and 4: ✅ 2026-11-12, in `main-prime` for review).
-
-**The idea** (Ron, 2026-09-22, after "assuming bit us again")
-- Go through docs/PRINCIPLES.md rule by rule and sort each one:
-  - **Can become an automatic check** that blocks a commit or release — for example: run the tests before a commit; search for leftover TODO / REMOVE markers before release; version bumped when code changed; cache-busters match.
-  - **Judgment only** (never assume, model the legal states, UX first). A hook can only *remind*, and reminders fade into rubber stamps. Give these teeth with a required artifact instead: e.g. every design doc must have an **"Assumptions (and how each was verified)"** section, which a hook can check exists when a design doc is written — catching assumptions at design time, not just at edit time.
-- Guard against reminder bloat — the pre-build checklist is already 11 points.
-
-**Open items**
-1. ✅ **My code safety check can be skipped by accident** — done 2026-11-16 (sprint 6, after two agents moved version
-   stamps with `sed` that week): the pre-build gate also fires for terminal commands that write shipped code — `sed -i`,
-   `perl -i`, redirects, `tee`, `cp`/`mv`, PowerShell `Set-Content`/`Out-File`, python/node one-liners
-   (`.claude/hooks/command_writes.py`; GATE-002–009). Not covered, by design: targets in variables or loops, scripts run
-   from a file, `xargs`/`find -exec`, `patch` (see SESSION-TOOLING.md).
-2. ✅ **The version check reads only readerwrangler.html's cache-busters** (found 2026-11-09, 7.26.0-alpha.20) — done
-   in 7.27.0: every page's `?v=` stamps are read from the page itself (test/test_version_guard.py, VG-001–005).
-3. ✅ **The relay tests start and stop their own local relay** (7.28.0 post-mortem) — done 2026-11-12 (autonomous
-   trial): `tools/local_relay.py`; `run_tests.py --tier 3` with no `--relay-url` starts wrangler's local emulator on a
-   free port, stops each process it proves it started (by exact id, never `/T`), and checks every port is free
-   (RUN-016–021). ✅ Follow-up done 2026-11-16 (sprint 5): the screen tests' own relay starter (`test/ui/rw.py`
-   `LocalRelay`, a second copy that stopped processes with `/T`) is gone — they use `tools/local_relay.py`, whose
-   readiness is now proven against its own processes, retrying on new ports when another process holds one
-   (RUN-052, 053, 057).
-4. ✅ **A release run counts "skipped" as failed** (7.28.0 post-mortem) — done 2026-11-12: `run_tests.py --release`
-   fails on any skipped file, naming it and why (RUN-022–024). The release checklist's line in CLAUDE.md names it
-   (Ron, 2026-11-12).
-5. ✅ **A test file can be set aside on purpose — a `skip:` line naming its TODO** — done 2026-11-16 (sprint 6): the
-   runner doesn't run it and says so in every summary; the TODO id must exist; `--release` refuses while any file is set
-   aside; the stamp counts such a run as not full (RUN-065–070). Use judiciously (Ron, 2026-11-12).
-6. ✅ **`--id` narrows a file split into shards** — done 2026-11-16 (sprint 6): `--id TOAST-006` runs that one cell in
-   one process (6 s, was all 132); RUN-060–062.
-7. ✅ **`--id` picks a file only where it names the id as a test** — done 2026-11-16 (sprint 6): one lookup
-   (`test_names()`) of test calls and table rows, comments dropped; `--id CELL-005` picks test_cells.py alone
-   (RUN-063, 064). The stamp also shows tier 3 now (information only; RUN-071).
-8. **Logging kit leftovers** (sprint 6): the bar's **Report this problem** copies the diagnostics without the bar's
-   messages first (Copy now puts them first — one copy routine should); a one-line `codeOf` helper exists twice in
-   logkit/logger.js (Law 22); the phone and the reset page don't hand the kit a report button or the diagnostics copy;
-   the critical box still shows "(code …)" to everyone — **Ron's call** (asked 2026-11-16: the bar's rule, no code on
-   screen for ordinary users?). Small.
-9. ✅ **A failed test file's full output is kept; the machine's or the browser's trouble is rerun once, alone** — done
-   2026-11-17 (sprint 7; Ron, 2026-11-16: "Detect that is what it is, back off and slow down and repeat"): every failed
-   file's whole output (and its screenshot) is kept beside the run's record — the summary names the path; the
-   screen-test driver says ENVIRONMENT with exit 3 when the page never loaded, the browser closed or crashed, our server
-   or relay didn't start, or a request to our own server failed for the machine's reasons (e.g. `ERR_NO_BUFFER_SPACE`);
-   such a file is rerun once, alone (every slot held), said loudly and noted on the stamp; a test failure is never
-   rerun (RUN-072–082, ENV-001–004). (Its first fixed rule — under 4 GB of free memory 2 browsers, under 2 GB 1 — was
-   replaced by item 10.)
-10. ✅ **The runner chooses how many browsers to run at once by itself** — done 2026-11-17 (sprint 7; Ron's design,
-   "similar to how TCP works"): 1 to 6, saved per PC; halved at once on the machine's trouble; one more after a clean
-   full run; back down when one more gained nothing (then held for 5 runs); only fully passing runs count. Heavy tier-1
-   files (`heavy: yes — why` in their header) take a test slot inside that number and back it off too; a library that
-   failed to download from its site counts as the network's trouble, not a test failure. Checked with a load lab that
-   squeezed the PC on purpose (Ron's idea): the number came down under load (5 → 2 → 1) and, once the load was gone,
-   climbed back one step per clean run (2 → 3 → 4 → 5).
-11. **Left over from sprint 7** (filed 2026-11-17):
-   1. ✅ 79 fixed waits ("sleep 2 s") in 15 screen-test files (test_cells 25, test_delete_key 14, test_rename_key 9 …) —
-      each one is a guess that a slow PC breaks; wait for the condition instead, as test_reset.py now does. — Done
-      2026-11-18 (sprint 8, three agents by file): each now waits for the thing itself under a generous limit; the 11
-      that prove a duration or that nothing happens stay, marked `# timed on purpose`; every file passed 3+ runs and
-      failed when a condition was broken on purpose; no app bug was hiding behind them except the false Restore
-      Warning (filed in Polish).
-   2. ✅ No test runs a heavy tier-1 file end to end that exits with "the machine's trouble" and checks the number backs
-      off and the stopped count is right (the pieces are tested; the whole path only by hand). — Done 2026-11-18
-      (sprint 8): test_run_tests.py's ending is one shared routine (`environment_trouble.tally`), and RUN-093 runs a
-      stand-in that ends the same way through the real runner: "1 stopped by the machine's trouble" and exit 3 → the
-      level 4 → 2, saved in its own slots folder → rerun alone, passed → the summary's counts and the record checked.
-      Shown failing with the path broken on purpose, on each side.
-   3. ✅ A test file can lose a line by joining it onto a comment by accident and still pass — no check catches that.
-      Done 2026-11-18 (sprint 8): the commit check `git-hooks/check-joined.py` (pre-commit step 11) refuses a staged
-      test file whose comment ends in a complete line of code; `# not-joined: <why>` for one that does on purpose;
-      `--all` checks every test file (JOIN-001–045).
-   4. ✅ RUN-049 still waits a fixed 20 s for its partner file to start; under heavy load that can fail. — Done
-      2026-11-18 (sprint 8): each file waits for the other's mark, up to 180 s (only a real failure gets there); a
-      partner the runner started with it but the machine made slower than that is the machine's (`partner_late` in
-      test_run_tests.py, beside `standin_late`; the check is stopped, the file rerun alone), a pair run one after the
-      other is a failure (RUN-094). Shown first: the old RUN-049 failed with its partner 25 s late; the new one passes.
-   5. With `--tier all`, heavy tier-1 files and screen tests compete for the same slots — not yet timed under load.
-   6. ✅ A working copy's test-run records are deleted with the copy (`tools/copies.py remove`), so how long an agent's
-      own test runs took can't be counted afterwards — keep them (move them into the main folder's records), and have
-      the removal print where that copy's time went (Ron, 2026-11-18: "Should the agents record where their time
-      goes … so we can analyze that?"): from the copy's start to its removal — its test runs (how many, minutes,
-      passed or failed, full or narrow) and the rest (building), kept per copy for the sprint's post-mortem. — Done
-      2026-11-18 (sprint 8): `copies.py remove` keeps them in `.git\rw-test-results\copies\<name>-<when>\` with
-      `time.txt` (also printed), and `copies.py report [--since]` lists the removed copies (SESSION-TOOLING.md;
-      COPY-007–009).
-   7. ✅ A file that needs a rerun alone (the machine's trouble) two or three runs in a row is said loudly — it may truly
-      need to run alone (Ron, 2026-11-18). So far it has never been the same file: five files, once each, all under
-      the load lab, each passed alone. — Done 2026-11-18 (sprint 8): 2 whole runs of the file in a row (from the working
-      copy's run records; a run that didn't run it, or only some of its cells, is passed over) → a loud line at the end
-      of the run naming the file, how many runs, and each run's kept outputs; nothing about what runs changes
-      (TESTING.md §4; RUN-092).
-12. **Measure each test; schedule by what it uses, not by how many** (Ron, 2026-11-17 — being talked through; TCP
-   counts its window in bytes, not packets): per file and per PC, keep a smoothed average and spread (TCP's own method
-   for round-trip times) of its time, peak memory, CPU and disk; the browsers-at-once number becomes a budget (e.g. GB
-   of memory) that each test is charged against, checked also against what's free on the PC right now; same halving and
-   raising rules. Steps: (1) measure only, and see whether tests differ enough to matter; (2) the load lab squeezes one
-   resource at a time, to learn which one breaks runs; (3) the budget; (4) longest-first and a "stuck" limit from the
-   averages instead of a flat 10 minutes.
-   1. ✅ **Step 1, measuring, built 2026-11-18** (sprint 8, `tools/test_costs.py`; TESTING.md §4): every test file (and
-      each shard) is measured for all the processes it starts — time, memory committed, the RAM it adds (its private
-      RAM, sampled), CPU, I/O — in each run's record; a running average and spread per PC, learned only from full runs
-      that passed; `py tools/run_tests.py --costs` shows them, and whether the biggest screen test uses at least twice
-      the RAM of the smallest. First look, three screen tests one at a time: 0.39–0.59 GB of private RAM each (1.5×
-      apart) — not twice. A full run's averages answer it.
-   2. ✅ **Step 4, longest first and a "stuck" limit from the averages, built 2026-11-18** (sprint 8; Ron's rule the same
-      day: "longest first by each file's average, and a 'stuck' limit of average + 4 spreads (never above today's 10
-      minutes): act once every file has at least 5 runs measured"; TESTING.md §4, §7): tests start longest first by
-      their average on this PC; a test with 5+ runs gets a limit of average + 4 spreads, at least twice its average or a
-      minute, at most 10 minutes (the 10 minutes stays for fewer runs and for narrowed runs). Past it, the test is
-      stopped with everything it started, said plainly ("ran past its usual time"), the browsers at once halved, and it
-      is rerun alone with the full 10 minutes — past that too, a failure. Its next runs keep the 10 minutes until one
-      passes the first time (TCP keeps its backed-off timer the same way), so a test that truly got slower relearns its
-      average instead of being stopped every run. Today's averages: test_backlog_report.py first (141 s → limit 283 s).
-      (2026-11-18 lab: floor raised to 4× the average / 120 s; trouble beyond the rerun cap is 'not proven', never a
-      failure)
-13. **Found while building sprint 8** (filed 2026-11-18) — **sub-items 1–10, 12 and 13 done 2026-11-18 (sprint 9)**;
-   11, 14 and 15 are notes to keep:
-   1. ✅ A run of only the tests covering what changed (`--changed`, what the commit check runs) and a test file run
-      directly write no record — so an agent's own test time lands in "everything else" in a copy's time report.
-      Recording them would mean a record on every commit (more pruning, more kept output) — Ron's call.
-   2. ✅ Two "write a file whole, retry if Windows refuses the swap" routines — `tools/build.py`'s and
-      `browser_level.save` — should be one (Law 22).
-   3. ✅ Tier 3's local relay runs outside each relay test's measurement, so tier-3 costs leave it out.
-   4. ✅ A process still running after its test ends isn't reported; the test's measurement already knows how many are
-      still running — a cheap leftover check (belongs with "One starter for every process our tools start").
-   5. ✅ The copies' archive (`rw-test-results\copies\`) is never trimmed — small, but it grows forever.
-   6. ✅ The joined-line check (commit check step 11) doesn't catch a comment line of dashes followed by one space and
-      code, nor `'use strict'`; its glued-inside-a-word scan is slow on very long comments (fine today).
-   7. ✅ The screen tests' new wait helpers live in several files (Law 22): `until`, `toast`, `LIMIT_MS` twice (the two
-      key files); `caught_up`, `settled`, `heard`, `held`, `amber_look` in test_cells.py; `wait_loaded` in rw.py — move
-      them into rw.py as one set, with one step limit for the library.
-   8. ✅ test_cells.py still has ~39 condition waits with a 3-second limit (and 11 at 4–10 s) — not fixed waits, but the
-      same "a slow PC breaks it" guess; give them the generous limit.
-   9. ✅ `test/ui/harness.py`'s `done()` repeats what `environment_trouble.tally` now does (summary, stopped count, exit
-      code, marked line) — one implementation (Law 22).
-   10. ✅ The "rerun alone runs in a row" alert reads only the folder's own records — a file troubled in an agent's copy
-      and then in the merge doesn't add up (the copies' archive isn't read). → Folded into "a file that can't be
-      proven is held" (sub-item 13 below, decided 2026-11-18): the in-a-row count lives per PC.
-   11. Found by the test_cells agent: after an Escape, Chrome gave the page no idle time for 3–5 s — so any future
-      "wait until the page is idle" helper must not rely on idle callbacks (caught_up uses a task-queue flush).
-   12. ✅ `tools/copies.py new` calls a tier-1 run that ended "not proven — the machine was too busy" (exit 3) "tier 1
-      failed" — right to refuse, wrong words (the merge script already says "not proven").
-   13. ✅ A file rerun alone that meets the machine's trouble AGAIN still counts as a failure (TESTING.md: "failed again,
-      it's a failure") — by sprint 8's rule "the machine's trouble is never a test failure" it may better be "not
-      proven". **Ron, 2026-11-18: "I think not proven. But we don't want to go into an infinite try loop if a file is
-      never going to run under current resources and loading … Give up after say 3 failures of same file and report
-      it and await instruction from me?"**
-      **Decided (Ron approved the proposal, 2026-11-18): a file that can't be proven is held.**
-      1. Within one run nothing changes in count: a file in the machine's trouble is rerun alone once; if the rerun
-         meets the trouble again it is **"not proven"**, not failed. One run never retries more than once.
-      2. Across runs: **3 runs in a row "not proven" for the same file → the file is held** — recorded per PC (in the
-         slots folder, so runs in working copies and in the merge all count — this absorbs sub-item 10) and said loudly:
-         "test_x couldn't be proven in 3 runs in a row on this PC — held for Ron's decision".
-      3. Later runs don't run a held file: they report it "held — not run", so they can't be proven and nothing merges
-         past it — that block IS the "await instruction"; in a sprint it goes to the review queue and its task parks.
-      4. Ron's choices then: release it (try again), run it alone every time, or set it aside with a `skip:` line naming
-         a TODO (the existing way).
-   14. The commit check refuses a commit when its covering tests end "not proven" (a busy PC, no test failed) — right
-      (not proof), but a busy PC can then block a commit; worth knowing, maybe saying so in the refusal.
-   15. From the sprint 8 labs: when OTHER programs take the CPU, fewer browsers is slower (2 at once 1,687 s vs 3 at
-      once 924 s) — halving on trouble costs time there; and memory squeezed to 0.7 GB free broke nothing. **Ron,
-      2026-11-18 (Q-045): item 12 closes here; "File the CPU budgeting as a potential TODO if there are any
-      indications that the current back off based on failures is not sufficient."** — so: watch for that sign (runs
-      not proven, or backed off for long, on an ordinary working day); only then a CPU budget (each test's CPU seconds
-      are already measured) and/or a gentler back-off when other programs hold the CPU.
-14. **Found while building sprint 9** (filed 2026-11-18):
-   1. ENV-007 (and ENV-002/004) start a small test run of their own; when THAT run meets real machine trouble (it did
-      twice: "no network buffer space"), the outer test reports a failure — it should report the machine's trouble.
-   2. Six test IDs exist twice: COPY-001–006 in both the screen test for copying and the working-copy tool's test —
-      `--id COPY-001` runs both; renumber one.
-   3. A few step waits still allow 180 s (test_boot, test_reset, and three files' `LIMIT_S`) — above the runner's
-      2-minute "stuck" floor, so a failing wait there can be reported as the machine's trouble first. Sprint 8 chose
-      them on purpose (test_reset was proven under load) — splitting each into a step wait and a load wait is a choice.
-   4. Waits with no limit written still get the browser driver's own 30 s default in most screen-test files — one line
-      when the app opens (`set_default_timeout`) would give the whole library the shared limit.
-   5. When many cells fail in test_cells.py at once, each costs a full wait, so a shard can pass its stuck limit and
-      be reported as the machine's trouble rather than as its failures.
-   6. The relay's own process group could also stop children that escaped it (as each test now does); today a test
-      decides that such a child is "left running" — a design choice.
-   7. A test that leaves processes behind is only caught in runs that measure (every recorded run); a test file run
-      directly isn't.
-   8. The tools' own processes (the local relay, its helper) still inherit git's variables — only test processes are
-      cleaned.
-   9. A held file's notes point at output kept in a working copy's records; when the copy is removed those move to the
-      archive and the paths go stale.
-   10. Even with `--quiet`, the commit check prints the "waiting for a test slot" lines.
-   11. Now that the commit check's own runs are recorded: in the runner agent's copy they took 3–6 minutes each
-      (heavy tier-1 files covering run_tests.py) — the next speed-up target for commits.
-   12. **Nothing checks that what the working copies share stays healthy** (the sprint 9 incident: a test set the real
-      repository's git settings to "bare" and every copy broke). Proposed mechanism: the runner checks the shared git
-      settings (not bare; the commit checks on) before and after each run, and says loudly — with the one command that
-      repairs it — if a run changed them. Law 5's proposed line (sprint 9 post-mortem) — Ron decides. → **Now its own
-      task: "Working copies that can't break each other: separate clones, plus a check on what they still share"**
-      (Ron, 2026-11-19: "Yes to belt and suspenders").
 
 #### ✅ One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->
@@ -4061,6 +3875,218 @@ iPhones. Some Safari differences could break storage, installing as a phone app,
 ## 👀 Watching
 
 Not work to do — conditions to watch for. Each says what to check if it happens again. (Ron, 2026-10-15)
+
+### Turn more of our working rules into automatic checks (my tooling)
+<!-- id 20260922-0000c -->
+
+**Parked in Watching 2026-11-19** (Ron's decision after the outside review — Law 23, "A mechanism has a cost"): no more tooling is built from this list unless a failure here actually recurs; then weigh it by Law 23 first.
+
+_Why it matters:_ Rules that depend on memory keep failing; automatic checks don't. This affects only how I work, not the app.
+
+**Already done**
+- The pre-build checklist watches all app code (2026-10-08); a bounce refuses the whole batch of edits, so none goes
+  missing (2026-10-16).
+- Since then, more checks run on every commit: the undefined-names check, the version stamps (now incl. the relay worker), and the TODO table of contents.
+
+**Left**
+- Item 1 below, and the rule-by-rule sort of PRINCIPLES.md (items 3 and 4: ✅ 2026-11-12, in `main-prime` for review).
+
+**The idea** (Ron, 2026-09-22, after "assuming bit us again")
+- Go through docs/PRINCIPLES.md rule by rule and sort each one:
+  - **Can become an automatic check** that blocks a commit or release — for example: run the tests before a commit; search for leftover TODO / REMOVE markers before release; version bumped when code changed; cache-busters match.
+  - **Judgment only** (never assume, model the legal states, UX first). A hook can only *remind*, and reminders fade into rubber stamps. Give these teeth with a required artifact instead: e.g. every design doc must have an **"Assumptions (and how each was verified)"** section, which a hook can check exists when a design doc is written — catching assumptions at design time, not just at edit time.
+- Guard against reminder bloat — the pre-build checklist is already 11 points.
+
+**Open items**
+1. ✅ **My code safety check can be skipped by accident** — done 2026-11-16 (sprint 6, after two agents moved version
+   stamps with `sed` that week): the pre-build gate also fires for terminal commands that write shipped code — `sed -i`,
+   `perl -i`, redirects, `tee`, `cp`/`mv`, PowerShell `Set-Content`/`Out-File`, python/node one-liners
+   (`.claude/hooks/command_writes.py`; GATE-002–009). Not covered, by design: targets in variables or loops, scripts run
+   from a file, `xargs`/`find -exec`, `patch` (see SESSION-TOOLING.md).
+2. ✅ **The version check reads only readerwrangler.html's cache-busters** (found 2026-11-09, 7.26.0-alpha.20) — done
+   in 7.27.0: every page's `?v=` stamps are read from the page itself (test/test_version_guard.py, VG-001–005).
+3. ✅ **The relay tests start and stop their own local relay** (7.28.0 post-mortem) — done 2026-11-12 (autonomous
+   trial): `tools/local_relay.py`; `run_tests.py --tier 3` with no `--relay-url` starts wrangler's local emulator on a
+   free port, stops each process it proves it started (by exact id, never `/T`), and checks every port is free
+   (RUN-016–021). ✅ Follow-up done 2026-11-16 (sprint 5): the screen tests' own relay starter (`test/ui/rw.py`
+   `LocalRelay`, a second copy that stopped processes with `/T`) is gone — they use `tools/local_relay.py`, whose
+   readiness is now proven against its own processes, retrying on new ports when another process holds one
+   (RUN-052, 053, 057).
+4. ✅ **A release run counts "skipped" as failed** (7.28.0 post-mortem) — done 2026-11-12: `run_tests.py --release`
+   fails on any skipped file, naming it and why (RUN-022–024). The release checklist's line in CLAUDE.md names it
+   (Ron, 2026-11-12).
+5. ✅ **A test file can be set aside on purpose — a `skip:` line naming its TODO** — done 2026-11-16 (sprint 6): the
+   runner doesn't run it and says so in every summary; the TODO id must exist; `--release` refuses while any file is set
+   aside; the stamp counts such a run as not full (RUN-065–070). Use judiciously (Ron, 2026-11-12).
+6. ✅ **`--id` narrows a file split into shards** — done 2026-11-16 (sprint 6): `--id TOAST-006` runs that one cell in
+   one process (6 s, was all 132); RUN-060–062.
+7. ✅ **`--id` picks a file only where it names the id as a test** — done 2026-11-16 (sprint 6): one lookup
+   (`test_names()`) of test calls and table rows, comments dropped; `--id CELL-005` picks test_cells.py alone
+   (RUN-063, 064). The stamp also shows tier 3 now (information only; RUN-071).
+8. **Logging kit leftovers** (sprint 6): the bar's **Report this problem** copies the diagnostics without the bar's
+   messages first (Copy now puts them first — one copy routine should); a one-line `codeOf` helper exists twice in
+   logkit/logger.js (Law 22); the phone and the reset page don't hand the kit a report button or the diagnostics copy;
+   the critical box still shows "(code …)" to everyone — **Ron's call** (asked 2026-11-16: the bar's rule, no code on
+   screen for ordinary users?). Small.
+9. ✅ **A failed test file's full output is kept; the machine's or the browser's trouble is rerun once, alone** — done
+   2026-11-17 (sprint 7; Ron, 2026-11-16: "Detect that is what it is, back off and slow down and repeat"): every failed
+   file's whole output (and its screenshot) is kept beside the run's record — the summary names the path; the
+   screen-test driver says ENVIRONMENT with exit 3 when the page never loaded, the browser closed or crashed, our server
+   or relay didn't start, or a request to our own server failed for the machine's reasons (e.g. `ERR_NO_BUFFER_SPACE`);
+   such a file is rerun once, alone (every slot held), said loudly and noted on the stamp; a test failure is never
+   rerun (RUN-072–082, ENV-001–004). (Its first fixed rule — under 4 GB of free memory 2 browsers, under 2 GB 1 — was
+   replaced by item 10.)
+10. ✅ **The runner chooses how many browsers to run at once by itself** — done 2026-11-17 (sprint 7; Ron's design,
+   "similar to how TCP works"): 1 to 6, saved per PC; halved at once on the machine's trouble; one more after a clean
+   full run; back down when one more gained nothing (then held for 5 runs); only fully passing runs count. Heavy tier-1
+   files (`heavy: yes — why` in their header) take a test slot inside that number and back it off too; a library that
+   failed to download from its site counts as the network's trouble, not a test failure. Checked with a load lab that
+   squeezed the PC on purpose (Ron's idea): the number came down under load (5 → 2 → 1) and, once the load was gone,
+   climbed back one step per clean run (2 → 3 → 4 → 5).
+11. **Left over from sprint 7** (filed 2026-11-17):
+   1. ✅ 79 fixed waits ("sleep 2 s") in 15 screen-test files (test_cells 25, test_delete_key 14, test_rename_key 9 …) —
+      each one is a guess that a slow PC breaks; wait for the condition instead, as test_reset.py now does. — Done
+      2026-11-18 (sprint 8, three agents by file): each now waits for the thing itself under a generous limit; the 11
+      that prove a duration or that nothing happens stay, marked `# timed on purpose`; every file passed 3+ runs and
+      failed when a condition was broken on purpose; no app bug was hiding behind them except the false Restore
+      Warning (filed in Polish).
+   2. ✅ No test runs a heavy tier-1 file end to end that exits with "the machine's trouble" and checks the number backs
+      off and the stopped count is right (the pieces are tested; the whole path only by hand). — Done 2026-11-18
+      (sprint 8): test_run_tests.py's ending is one shared routine (`environment_trouble.tally`), and RUN-093 runs a
+      stand-in that ends the same way through the real runner: "1 stopped by the machine's trouble" and exit 3 → the
+      level 4 → 2, saved in its own slots folder → rerun alone, passed → the summary's counts and the record checked.
+      Shown failing with the path broken on purpose, on each side.
+   3. ✅ A test file can lose a line by joining it onto a comment by accident and still pass — no check catches that.
+      Done 2026-11-18 (sprint 8): the commit check `git-hooks/check-joined.py` (pre-commit step 11) refuses a staged
+      test file whose comment ends in a complete line of code; `# not-joined: <why>` for one that does on purpose;
+      `--all` checks every test file (JOIN-001–045).
+   4. ✅ RUN-049 still waits a fixed 20 s for its partner file to start; under heavy load that can fail. — Done
+      2026-11-18 (sprint 8): each file waits for the other's mark, up to 180 s (only a real failure gets there); a
+      partner the runner started with it but the machine made slower than that is the machine's (`partner_late` in
+      test_run_tests.py, beside `standin_late`; the check is stopped, the file rerun alone), a pair run one after the
+      other is a failure (RUN-094). Shown first: the old RUN-049 failed with its partner 25 s late; the new one passes.
+   5. With `--tier all`, heavy tier-1 files and screen tests compete for the same slots — not yet timed under load.
+   6. ✅ A working copy's test-run records are deleted with the copy (`tools/copies.py remove`), so how long an agent's
+      own test runs took can't be counted afterwards — keep them (move them into the main folder's records), and have
+      the removal print where that copy's time went (Ron, 2026-11-18: "Should the agents record where their time
+      goes … so we can analyze that?"): from the copy's start to its removal — its test runs (how many, minutes,
+      passed or failed, full or narrow) and the rest (building), kept per copy for the sprint's post-mortem. — Done
+      2026-11-18 (sprint 8): `copies.py remove` keeps them in `.git\rw-test-results\copies\<name>-<when>\` with
+      `time.txt` (also printed), and `copies.py report [--since]` lists the removed copies (SESSION-TOOLING.md;
+      COPY-007–009).
+   7. ✅ A file that needs a rerun alone (the machine's trouble) two or three runs in a row is said loudly — it may truly
+      need to run alone (Ron, 2026-11-18). So far it has never been the same file: five files, once each, all under
+      the load lab, each passed alone. — Done 2026-11-18 (sprint 8): 2 whole runs of the file in a row (from the working
+      copy's run records; a run that didn't run it, or only some of its cells, is passed over) → a loud line at the end
+      of the run naming the file, how many runs, and each run's kept outputs; nothing about what runs changes
+      (TESTING.md §4; RUN-092).
+12. **Measure each test; schedule by what it uses, not by how many** (Ron, 2026-11-17 — being talked through; TCP
+   counts its window in bytes, not packets): per file and per PC, keep a smoothed average and spread (TCP's own method
+   for round-trip times) of its time, peak memory, CPU and disk; the browsers-at-once number becomes a budget (e.g. GB
+   of memory) that each test is charged against, checked also against what's free on the PC right now; same halving and
+   raising rules. Steps: (1) measure only, and see whether tests differ enough to matter; (2) the load lab squeezes one
+   resource at a time, to learn which one breaks runs; (3) the budget; (4) longest-first and a "stuck" limit from the
+   averages instead of a flat 10 minutes.
+   1. ✅ **Step 1, measuring, built 2026-11-18** (sprint 8, `tools/test_costs.py`; TESTING.md §4): every test file (and
+      each shard) is measured for all the processes it starts — time, memory committed, the RAM it adds (its private
+      RAM, sampled), CPU, I/O — in each run's record; a running average and spread per PC, learned only from full runs
+      that passed; `py tools/run_tests.py --costs` shows them, and whether the biggest screen test uses at least twice
+      the RAM of the smallest. First look, three screen tests one at a time: 0.39–0.59 GB of private RAM each (1.5×
+      apart) — not twice. A full run's averages answer it.
+   2. ✅ **Step 4, longest first and a "stuck" limit from the averages, built 2026-11-18** (sprint 8; Ron's rule the same
+      day: "longest first by each file's average, and a 'stuck' limit of average + 4 spreads (never above today's 10
+      minutes): act once every file has at least 5 runs measured"; TESTING.md §4, §7): tests start longest first by
+      their average on this PC; a test with 5+ runs gets a limit of average + 4 spreads, at least twice its average or a
+      minute, at most 10 minutes (the 10 minutes stays for fewer runs and for narrowed runs). Past it, the test is
+      stopped with everything it started, said plainly ("ran past its usual time"), the browsers at once halved, and it
+      is rerun alone with the full 10 minutes — past that too, a failure. Its next runs keep the 10 minutes until one
+      passes the first time (TCP keeps its backed-off timer the same way), so a test that truly got slower relearns its
+      average instead of being stopped every run. Today's averages: test_backlog_report.py first (141 s → limit 283 s).
+      (2026-11-18 lab: floor raised to 4× the average / 120 s; trouble beyond the rerun cap is 'not proven', never a
+      failure)
+13. **Found while building sprint 8** (filed 2026-11-18) — **sub-items 1–10, 12 and 13 done 2026-11-18 (sprint 9)**;
+   11, 14 and 15 are notes to keep:
+   1. ✅ A run of only the tests covering what changed (`--changed`, what the commit check runs) and a test file run
+      directly write no record — so an agent's own test time lands in "everything else" in a copy's time report.
+      Recording them would mean a record on every commit (more pruning, more kept output) — Ron's call.
+   2. ✅ Two "write a file whole, retry if Windows refuses the swap" routines — `tools/build.py`'s and
+      `browser_level.save` — should be one (Law 22).
+   3. ✅ Tier 3's local relay runs outside each relay test's measurement, so tier-3 costs leave it out.
+   4. ✅ A process still running after its test ends isn't reported; the test's measurement already knows how many are
+      still running — a cheap leftover check (belongs with "One starter for every process our tools start").
+   5. ✅ The copies' archive (`rw-test-results\copies\`) is never trimmed — small, but it grows forever.
+   6. ✅ The joined-line check (commit check step 11) doesn't catch a comment line of dashes followed by one space and
+      code, nor `'use strict'`; its glued-inside-a-word scan is slow on very long comments (fine today).
+   7. ✅ The screen tests' new wait helpers live in several files (Law 22): `until`, `toast`, `LIMIT_MS` twice (the two
+      key files); `caught_up`, `settled`, `heard`, `held`, `amber_look` in test_cells.py; `wait_loaded` in rw.py — move
+      them into rw.py as one set, with one step limit for the library.
+   8. ✅ test_cells.py still has ~39 condition waits with a 3-second limit (and 11 at 4–10 s) — not fixed waits, but the
+      same "a slow PC breaks it" guess; give them the generous limit.
+   9. ✅ `test/ui/harness.py`'s `done()` repeats what `environment_trouble.tally` now does (summary, stopped count, exit
+      code, marked line) — one implementation (Law 22).
+   10. ✅ The "rerun alone runs in a row" alert reads only the folder's own records — a file troubled in an agent's copy
+      and then in the merge doesn't add up (the copies' archive isn't read). → Folded into "a file that can't be
+      proven is held" (sub-item 13 below, decided 2026-11-18): the in-a-row count lives per PC.
+   11. Found by the test_cells agent: after an Escape, Chrome gave the page no idle time for 3–5 s — so any future
+      "wait until the page is idle" helper must not rely on idle callbacks (caught_up uses a task-queue flush).
+   12. ✅ `tools/copies.py new` calls a tier-1 run that ended "not proven — the machine was too busy" (exit 3) "tier 1
+      failed" — right to refuse, wrong words (the merge script already says "not proven").
+   13. ✅ A file rerun alone that meets the machine's trouble AGAIN still counts as a failure (TESTING.md: "failed again,
+      it's a failure") — by sprint 8's rule "the machine's trouble is never a test failure" it may better be "not
+      proven". **Ron, 2026-11-18: "I think not proven. But we don't want to go into an infinite try loop if a file is
+      never going to run under current resources and loading … Give up after say 3 failures of same file and report
+      it and await instruction from me?"**
+      **Decided (Ron approved the proposal, 2026-11-18): a file that can't be proven is held.**
+      1. Within one run nothing changes in count: a file in the machine's trouble is rerun alone once; if the rerun
+         meets the trouble again it is **"not proven"**, not failed. One run never retries more than once.
+      2. Across runs: **3 runs in a row "not proven" for the same file → the file is held** — recorded per PC (in the
+         slots folder, so runs in working copies and in the merge all count — this absorbs sub-item 10) and said loudly:
+         "test_x couldn't be proven in 3 runs in a row on this PC — held for Ron's decision".
+      3. Later runs don't run a held file: they report it "held — not run", so they can't be proven and nothing merges
+         past it — that block IS the "await instruction"; in a sprint it goes to the review queue and its task parks.
+      4. Ron's choices then: release it (try again), run it alone every time, or set it aside with a `skip:` line naming
+         a TODO (the existing way).
+   14. The commit check refuses a commit when its covering tests end "not proven" (a busy PC, no test failed) — right
+      (not proof), but a busy PC can then block a commit; worth knowing, maybe saying so in the refusal.
+   15. From the sprint 8 labs: when OTHER programs take the CPU, fewer browsers is slower (2 at once 1,687 s vs 3 at
+      once 924 s) — halving on trouble costs time there; and memory squeezed to 0.7 GB free broke nothing. **Ron,
+      2026-11-18 (Q-045): item 12 closes here; "File the CPU budgeting as a potential TODO if there are any
+      indications that the current back off based on failures is not sufficient."** — so: watch for that sign (runs
+      not proven, or backed off for long, on an ordinary working day); only then a CPU budget (each test's CPU seconds
+      are already measured) and/or a gentler back-off when other programs hold the CPU.
+14. **Found while building sprint 9** (filed 2026-11-18):
+   1. ENV-007 (and ENV-002/004) start a small test run of their own; when THAT run meets real machine trouble (it did
+      twice: "no network buffer space"), the outer test reports a failure — it should report the machine's trouble.
+   2. Six test IDs exist twice: COPY-001–006 in both the screen test for copying and the working-copy tool's test —
+      `--id COPY-001` runs both; renumber one.
+   3. A few step waits still allow 180 s (test_boot, test_reset, and three files' `LIMIT_S`) — above the runner's
+      2-minute "stuck" floor, so a failing wait there can be reported as the machine's trouble first. Sprint 8 chose
+      them on purpose (test_reset was proven under load) — splitting each into a step wait and a load wait is a choice.
+   4. Waits with no limit written still get the browser driver's own 30 s default in most screen-test files — one line
+      when the app opens (`set_default_timeout`) would give the whole library the shared limit.
+   5. When many cells fail in test_cells.py at once, each costs a full wait, so a shard can pass its stuck limit and
+      be reported as the machine's trouble rather than as its failures.
+   6. The relay's own process group could also stop children that escaped it (as each test now does); today a test
+      decides that such a child is "left running" — a design choice.
+   7. A test that leaves processes behind is only caught in runs that measure (every recorded run); a test file run
+      directly isn't.
+   8. The tools' own processes (the local relay, its helper) still inherit git's variables — only test processes are
+      cleaned.
+   9. A held file's notes point at output kept in a working copy's records; when the copy is removed those move to the
+      archive and the paths go stale.
+   10. Even with `--quiet`, the commit check prints the "waiting for a test slot" lines.
+   11. Now that the commit check's own runs are recorded: in the runner agent's copy they took 3–6 minutes each
+      (heavy tier-1 files covering run_tests.py) — the next speed-up target for commits.
+   12. **Nothing checks that what the working copies share stays healthy** (the sprint 9 incident: a test set the real
+      repository's git settings to "bare" and every copy broke). Proposed mechanism: the runner checks the shared git
+      settings (not bare; the commit checks on) before and after each run, and says loudly — with the one command that
+      repairs it — if a run changed them. Law 5's proposed line (sprint 9 post-mortem) — Ron decides. → **Now its own
+      task: "Working copies that can't break each other: separate clones, plus a check on what they still share"**
+      (Ron, 2026-11-19: "Yes to belt and suspenders"). ✅ Done in sprint 10.
+   13. (Sprint 10.) The settings' "ask before pushing to prod" rule (`Bash(git push prod:*)`) has no PowerShell
+      counterpart and may miss `git -C <path> push prod main` — outside autonomous mode those could run without a
+      prompt. Inside a sprint the new prod guard covers them.
+
 
 ### Undo history sometimes empties by itself
 <!-- id 20260807-0000 -->
