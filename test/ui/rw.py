@@ -22,7 +22,9 @@ test/ui/rw.py — the shared setup every screen test uses (docs/design/TESTING.m
         app.import_from_relay()             # File → Import from Relay, through the real menu
 
 Rules it enforces (TESTING.md §5, §7): a fresh browser profile every time (Playwright's default — nothing of Ron's);
-serve.py stopped by its exact process (Law 5); GoatCounter answered with an empty reply (tests never touch the usage
+serve.py started through the one starter (tools/starter.py, 2026-11-18) — on the PC's list of started processes until
+confirmed gone, every process it started stopped by exact id and checked gone, its port free, anything left failing the
+file (Law 5); GoatCounter answered with an empty reply (tests never touch the usage
 statistics); any request to a relay or to Amazon recorded as a violation; a data file carrying a Cloud Sync Key
 refused. RW_HEADED=1 shows the browser (slowed down) for watching a test. Screenshots go to RW_TEST_ARTIFACTS, else
 %TEMP%\\rw-test-artifacts — in a working copy (tools/copies.py) with "-<copy name>" added. The browser is Chrome, the one Ron uses (2026-11-06); RW_BROWSER=msedge runs Edge. Scrollbars
@@ -67,7 +69,8 @@ from playwright.sync_api import Error as PlaywrightError, TimeoutError as Playwr
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import local_relay   # noqa: E402 — the local relay (LocalRelay), free ports, and who listens on a port, by process id
+import local_relay   # noqa: E402 — the local relay (LocalRelay)
+import starter       # noqa: E402 — tools/starter.py: the one starter (our web server), free ports, who listens on a port
 import copies        # noqa: E402 — tools/copies.py: a working copy keeps its screenshots apart
 import environment_trouble   # noqa: E402 — tools/: which network errors are the machine's
 import harness       # noqa: E402 — test/ui/harness.py: EnvironmentTrouble, environment(), on_failure()
@@ -150,13 +153,19 @@ class App:
         # serve.py a moment later, so another file's server can take it in between. Then ours can't start — and a plain
         # "does the port answer?" would be answered by the OTHER server (this file's pages from a server that stops when
         # that file ends). So the port must be served by OUR serve.py; if it isn't, try another port.
+        # Started through the ONE starter (tools/starter.py, sprint 9): serve.py — and the real Python the venv's python.exe
+        # starts as its child — is on the PC's list of started processes from the moment it's known until confirmed gone.
+        what = f"the screen tests' web server (serve.py) for {os.path.basename(sys.argv[0] or 'a screen test')}"
         for _ in range(3):
-            self.port = local_relay.free_port()
-            self.server = subprocess.Popen([sys.executable, "serve.py", str(self.port)], cwd=ROOT,
-                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.port = starter.free_port()
+            self.server = starter.Started(what, ports=[self.port])
+            self.server.start([sys.executable, "serve.py", str(self.port)], cwd=ROOT, stdin=subprocess.DEVNULL,
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if self._server_is_ours():
                 break
-            self._stop_server()
+            left = self.server.stop(ports=[])       # the port is another run's: only our own processes are checked
+            if left:
+                print("  ! our web server's failed start left:\n      " + "\n      ".join(left), flush=True)
         else:
             raise harness.EnvironmentTrouble("our web server (serve.py) didn't start — 3 ports tried")
         try:
@@ -169,7 +178,9 @@ class App:
         if self.want_relay:
             # The worker answers only listed pages: --var lists this test's page for this run, wrangler.toml untouched.
             # Kept before start(), so __exit__ stops whatever it started even if starting fails.
-            self.relay = local_relay.LocalRelay(extra_args=["--var", f"ALLOWED_ORIGINS:http://localhost:{self.port}"])
+            self.relay = local_relay.LocalRelay(extra_args=["--var", f"ALLOWED_ORIGINS:http://localhost:{self.port}"],
+                                                what="the screen tests' local relay for "
+                                                     + os.path.basename(sys.argv[0] or "a screen test"))
             try:
                 self.relay.start()
             except local_relay.RelayError as e:
@@ -406,7 +417,7 @@ class App:
         as a child)."""
         deadline = time.time() + wait_s
         while time.time() < deadline:
-            if self.server.poll() is not None:
+            if self.server.proc.poll() is not None:
                 return False
             try:
                 socket.create_connection(("127.0.0.1", self.port), 0.2).close()
@@ -415,18 +426,19 @@ class App:
                 continue
             if os.name != "nt":
                 return True
-            ours = {self.server.pid} | {p for p, (parent, _) in local_relay.processes().items() if parent == self.server.pid}
-            if local_relay.port_owners(self.port) & ours:
+            self.server.note_tree()     # its tree, each process started after its parent — and on the list
+            if starter.port_owners(self.port) & set(self.server.ours):
                 return True
             time.sleep(0.1)          # someone else answers there: ours either takes it or stops
         return False
 
     def _stop_server(self):
-        self.server.terminate()          # the exact process we started (Law 5) — never a pattern
-        try:
-            self.server.wait(10)
-        except subprocess.TimeoutExpired:
-            self.server.kill()
+        """Stop our web server — every process it started, each by its exact id, checked gone and its port free
+        (tools/starter.py). What's left is never quiet: it fails the file (Law 5). A second call does nothing."""
+        left = self.server.stop()
+        if left:
+            from harness import fail_after
+            fail_after("our web server (serve.py)", "not everything it started was stopped:\n" + "\n".join(left))
 
     def _record_console(self, m):
         # A "Failed to load resource" line names no address in its text — add the one the browser reports, so a

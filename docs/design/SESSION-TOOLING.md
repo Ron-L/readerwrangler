@@ -153,7 +153,11 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   guard refused, the name check and the build check ran, all on the copy's files); serve.py and the test runner use the
   copy's own `dist/`; screenshots go to `%TEMP%\rw-test-artifacts-<name>` (the main folder's stay in
   `rw-test-artifacts`); the private-values check reads the main folder's `.private/` notes (a copy has none, and it
-  silently checked credential shapes only).
+  silently checked credential shapes only). **Every copy's runs share one list of the processes our tools started**
+  (`tools/starter.py`, 2026-11-18: `started-processes.json` beside the test slots, changed under the slots' lock): a
+  process whose run is still going in another copy is never called a leftover; one whose run has ended is named in a
+  banner at the start of the next run anywhere on the PC, with a `NEEDS YOUR ATTENTION:` line (TESTING.md §4).
+  `py tools/starter.py` shows it on its own.
 - **serve.py's rebuild while another server reads the file:** Windows refuses to swap a new `dist/` copy in over a file
   another program is reading. `tools/build.py` retries for ~2 s; still refused, serve.py serves the copy that's there and
   logs `REBUILD NOT SWAPPED IN` (the next request tries again) — before, the request died. Tests: `BUILD-010`,
