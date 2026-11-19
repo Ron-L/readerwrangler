@@ -132,4 +132,15 @@ def save_failure_in_words():
         check(isinstance(err, str) and "couldn't save" in err, f"why it couldn't, in words: {err!r}")
 test("WHOLE-006", "browser_level.save that can't write says why in words (never raises)", save_failure_in_words)
 
+
+def bytes_as_they_are():
+    """A copied file (tools/backup_claude.py) is written byte for byte — no line endings changed."""
+    with tempfile.TemporaryDirectory(prefix="rw-whole-") as tmp:
+        target = os.path.join(tmp, "m.md")
+        data = "a\r\nb\nü\n".encode("utf-8")
+        whole_file.write(target, data)
+        check(open(target, "rb").read() == data, "bytes are written exactly as given")
+        check(os.listdir(tmp) == ["m.md"], "no scratch copy left")
+test("WHOLE-007", "bytes are written whole, exactly as given (a copy of a file)", bytes_as_they_are)
+
 done()

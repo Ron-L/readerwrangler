@@ -9,8 +9,9 @@ and then right after the file was rewritten (six runs saving test costs at once 
 (PermissionError) is retried, SWAP_TRIES times SWAP_PAUSE_S apart (~2 s in all). Still refused: the scratch copy is
 removed, the old file is left whole, and the PermissionError is raised. Any other failure stops at once, the same way.
 
-Used by tools/build.py (dist/, LF line endings) and tools/browser_level.py (save — also how tools/test_costs.py writes).
-Before 2026-11-18 each had its own copy of this loop. Tested by test/test_whole_file.py (WHOLE-001–006).
+Used by tools/build.py (dist/, LF line endings), tools/browser_level.py (save — also how tools/test_costs.py writes) and
+tools/backup_claude.py (copies, as bytes). Before 2026-11-18 the first two had their own copies of this loop. Tested by
+test/test_whole_file.py (WHOLE-001–007).
 """
 import os
 import threading
@@ -20,14 +21,19 @@ SWAP_TRIES, SWAP_PAUSE_S = 20, 0.1      # ~2 s in all
 
 
 def write(path, text, newline=None):
-    """Write `text` (UTF-8) to `path` whole. newline: as open()'s — None writes the system's ending, "\\n" keeps LF."""
+    """Write `text` (UTF-8) to `path` whole. newline: as open()'s — None writes the system's ending, "\\n" keeps LF.
+    Bytes are written exactly as given (a copy of a file — tools/backup_claude.py)."""
     folder = os.path.dirname(path)
     if folder:
         os.makedirs(folder, exist_ok=True)
     tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
     try:
-        with open(tmp, "w", encoding="utf-8", newline=newline) as f:
-            f.write(text)
+        if isinstance(text, bytes):
+            with open(tmp, "wb") as f:
+                f.write(text)
+        else:
+            with open(tmp, "w", encoding="utf-8", newline=newline) as f:
+                f.write(text)
         for attempt in range(SWAP_TRIES):
             try:
                 os.replace(tmp, path)
