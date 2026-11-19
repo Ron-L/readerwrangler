@@ -1,6 +1,6 @@
 # Commit checks — what each refuses, and why
 
-_Moved verbatim from CLAUDE.md on 2026-11-19 (proposed — not yet approved) (rule trim); CLAUDE.md keeps one line per check and points here._
+_Moved verbatim from CLAUDE.md on 2026-11-19 (the rule trim, approved by Ron); CLAUDE.md keeps one line per check and points here._
 
 
 Every check runs from **`git-hooks/pre-commit`**. One-time setup per copy of the project:
