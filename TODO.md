@@ -593,6 +593,10 @@ _Why it matters:_ Rules that depend on memory keep failing; automatic checks don
    10. Even with `--quiet`, the commit check prints the "waiting for a test slot" lines.
    11. Now that the commit check's own runs are recorded: in the runner agent's copy they took 3–6 minutes each
       (heavy tier-1 files covering run_tests.py) — the next speed-up target for commits.
+   12. **Nothing checks that what the working copies share stays healthy** (the sprint 9 incident: a test set the real
+      repository's git settings to "bare" and every copy broke). Proposed mechanism: the runner checks the shared git
+      settings (not bare; the commit checks on) before and after each run, and says loudly — with the one command that
+      repairs it — if a run changed them. Law 5's proposed line (sprint 9 post-mortem) — Ron decides.
 
 #### ✅ One starter for every process our tools start: a list of their ids, leftovers shown loudly
 <!-- id 20261112-1240 -->
