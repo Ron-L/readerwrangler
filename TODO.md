@@ -11,7 +11,7 @@
       - [Receipts reach the screen: one screen test per area, not only the log](#receipts-reach-the-screen-one-screen-test-per-area-not-only-the-log)
       - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
       - [✅ One starter for every process our tools start: a list of their ids, leftovers shown loudly](#one-starter-for-every-process-our-tools-start-a-list-of-their-ids-leftovers-shown-loudly)
-      - [Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
+      - [✅ Trim the always-loaded rules: one home per rule, history out, a lean memory index](#trim-the-always-loaded-rules-one-home-per-rule-history-out-a-lean-memory-index)
       - [Rebuild the old-style message boxes as standard dialogs](#rebuild-the-old-style-message-boxes-as-standard-dialogs)
       - [Drag any dialog out of the way](#drag-any-dialog-out-of-the-way)
       - [Search improvements](#search-improvements)
@@ -673,8 +673,15 @@ queue Q-020, Q-022, Q-024.)
    Claude's "needs your attention" list when reporting to Ron. Something on our port that the list doesn't name is
    reported, never stopped (it isn't provably ours).
 
-#### Trim the always-loaded rules: one home per rule, history out, a lean memory index
+#### ✅ Trim the always-loaded rules: one home per rule, history out, a lean memory index
 <!-- id 20261021-1332 -->
+
+**Done 2026-11-19 (sprint 9's proposal, reviewed line by line and approved by Ron):** the three always-loaded files
+57.8 K → 28.3 K characters (ReaderWrangler CLAUDE.md 26.5 → 12.2 K; Projects-root CLAUDE.md 12.8 → 8.8 K; the memory
+index 18.5 → 7.3 K). Every rule kept; history and detail moved to one home each (docs/design/AUTONOMOUS-SPRINTS.md,
+COMMIT-CHECKS.md, SESSION-TOOLING.md; the root's CLAUDE-TOOLING.md; memory's older_releases.md); retired with Ron's yes:
+five memory index lines whose rule lives in a CLAUDE.md, the overlay system's old line, "don't push to dev for routine
+testing", the terminology example list, the dialog rule's history.
 
 _Why it matters:_ The more always-on text there is, the less each rule stands out — and a rule kept in two or three
 files drifts (the single-source lesson behind the gate's design).
