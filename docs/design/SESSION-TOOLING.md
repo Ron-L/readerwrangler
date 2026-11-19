@@ -174,11 +174,9 @@ in another; independent tasks build at once, each on its own branch, and a scrip
   guard refused, the name check and the build check ran, all on the copy's files); serve.py and the test runner use the
   copy's own `dist/`; screenshots go to `%TEMP%\rw-test-artifacts-<name>` (the main folder's stay in
   `rw-test-artifacts`); the private-values check reads the main folder's `.private/` notes (a copy has none, and it
-  silently checked credential shapes only). **Every copy's runs share one list of the processes our tools started**
-  (`tools/starter.py`, 2026-11-18: `started-processes.json` beside the test slots, changed under the slots' lock): a
-  process whose run is still going in another copy is never called a leftover; one whose run has ended is named in a
-  banner at the start of the next run anywhere on the PC, with a `NEEDS YOUR ATTENTION:` line (TESTING.md §4).
-  `py tools/starter.py` shows it on its own.
+  silently checked credential shapes only). **Every copy's runs share this PC's test state** — the test slots and the
+  held files, in `%LOCALAPPDATA%\ReaderWrangler-tests` — so all copies together stay at 4 browsers at once. What a
+  copy's test started is ended by Windows with it (each test runs in a job — TESTING.md §4); nothing is left to list.
 - **serve.py's rebuild while another server reads the file:** Windows refuses to swap a new `dist/` copy in over a file
   another program is reading. `tools/build.py` retries for ~2 s; still refused, serve.py serves the copy that's there and
   logs `REBUILD NOT SWAPPED IN` (the next request tries again) — before, the request died. Tests: `BUILD-010`,
@@ -246,9 +244,8 @@ it listens on the home network on purpose: an off switch any device there could 
 ## Writing a file whole (`tools/whole_file.py`; Law 22, 2026-11-18)
 
 One routine: a scratch copy beside the file, swapped in, retried for ~2 s while Windows refuses the swap (another program
-reading the old copy), no scratch copy left on failure. `tools/build.py` (dist/), `tools/browser_level.py`'s `save` (and
-through it `tools/test_costs.py`) and `tools/backup_claude.py` all write through it; before, build.py and browser_level.py
-each had their own copy of the loop. Tests: `WHOLE-001`–`007`, `BUILD-010`.
+reading the old copy), no scratch copy left on failure. `tools/build.py` (dist/), `tools/held_tests.py` (its `save`) and
+`tools/backup_claude.py` all write through it. Tests: `WHOLE-001`–`007`, `BUILD-010`.
 
 ## Related
 - The gate's checklist content + the debugging law it now carries: `docs/PRINCIPLES.md` (Laws + the
