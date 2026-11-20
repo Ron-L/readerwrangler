@@ -11,6 +11,7 @@
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
         - [The fetchers' own logging: levels and codes, a log on Amazon's site, problems shown in Diagnostics](#the-fetchers-own-logging-levels-and-codes-a-log-on-amazons-site-problems-shown-in-diagnostics)
         - [Stop cleanly when Amazon asks for a human check mid-fetch](#stop-cleanly-when-amazon-asks-for-a-human-check-mid-fetch)
+        - [When Amazon stops a fetch: tell Ron, and show people it's a known problem](#when-amazon-stops-a-fetch-tell-ron-and-show-people-its-a-known-problem)
         - [A fetch made with the demo filter on says so, and never marks books as gone](#a-fetch-made-with-the-demo-filter-on-says-so-and-never-marks-books-as-gone)
         - [Faster fetches that report exactly how your library compares with Amazon](#faster-fetches-that-report-exactly-how-your-library-compares-with-amazon)
         - [Fetcher: give the library filter one name, in one place](#fetcher-give-the-library-filter-one-name-in-one-place)
@@ -33,10 +34,13 @@
         - [What a reset clears: four resets, four different lists](#what-a-reset-clears-four-resets-four-different-lists)
       - [Relay Setup's connection test checks the wrong relay on dev](#relay-setups-connection-test-checks-the-wrong-relay-on-dev)
       - [Say plainly what ReaderWrangler works with: US Amazon, Kindle, English, Chrome](#say-plainly-what-readerwrangler-works-with-us-amazon-kindle-english-chrome)
+      - [Safari deletes a library after 7 days without a visit: warn, and help people restore](#safari-deletes-a-library-after-7-days-without-a-visit-warn-and-help-people-restore)
       - [Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button](#landing-page-open-my-library-for-returning-users-and-always-free--no-ads--no-account-needed-under-the-start-button)
-      - [A privacy page: what ReaderWrangler sends where, in plain words](#a-privacy-page-what-readerwrangler-sends-where-in-plain-words)
+      - [The Security & Privacy page made specific, and a terms page: what we send where, what we promise](#the-security--privacy-page-made-specific-and-a-terms-page-what-we-send-where-what-we-promise)
+      - [An accessibility page: what works, and how to tell us what doesn't](#an-accessibility-page-what-works-and-how-to-tell-us-what-doesnt)
       - [Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere](#outside-code-libraries-exact-versions-integrity-checks-and-a-policy-that-keeps-the-page-from-sending-your-key-anywhere)
       - [Move to Cloudflare's $5/month plan around launch](#move-to-cloudflares-5month-plan-around-launch)
+      - [Ron's accounts: a second sign-in step on GitHub (it now guards the site, Cloud Sync and email)](#rons-accounts-a-second-sign-in-step-on-github-it-now-guards-the-site-cloud-sync-and-email)
       - [Dark theme: fix the unreadable bar and the light strips](#dark-theme-fix-the-unreadable-bar-and-the-light-strips)
         - [Site pages use the shared named colors, so all four themes work (the security page's high-contrast light first)](#site-pages-use-the-shared-named-colors-so-all-four-themes-work-the-security-pages-high-contrast-light-first)
       - [User Guide: rewrite it around Searches, Book Lists and Folders, as a page you can reach from Help](#user-guide-rewrite-it-around-searches-book-lists-and-folders-as-a-page-you-can-reach-from-help)
@@ -128,6 +132,7 @@
       - [Capture book ideas from your phone (Share → ReaderWrangler)](#capture-book-ideas-from-your-phone-share--readerwrangler)
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
     - [Technical clean-up](#technical-clean-up)
+      - [A hand-over guide: how anyone can run ReaderWrangler on their own accounts](#a-hand-over-guide-how-anyone-can-run-readerwrangler-on-their-own-accounts)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
       - [Test on Safari and iPhone](#test-on-safari-and-iphone)
   - [👀 Watching](#watching)
@@ -141,6 +146,7 @@
     - [A screen test that failed once: Reset's reload hung while a commit ran alongside](#a-screen-test-that-failed-once-resets-reload-hung-while-a-commit-ran-alongside)
     - [A screen test that failed once: ENV-006 named the wrong trouble on a squeezed PC](#a-screen-test-that-failed-once-env-006-named-the-wrong-trouble-on-a-squeezed-pc)
     - [Books just bought weren't at the top of All Books sorted by Date Added — once, not reproduced](#books-just-bought-werent-at-the-top-of-all-books-sorted-by-date-added--once-not-reproduced)
+    - [Resend's email limits](#resends-email-limits)
   - [🧊 Someday](#someday)
     - [Formats other than Kindle: undo my Kindle-only preference](#formats-other-than-kindle-undo-my-kindle-only-preference)
     - [Find out whether reading progress can be fetched from Amazon](#find-out-whether-reading-progress-can-be-fetched-from-amazon)
@@ -210,6 +216,15 @@ expensive ones to get wrong after launch, so they go ahead of nearly all other w
 **The reviews, in this order** (an earlier one can change what a later one should look at): **review 1 alone first**
 (it could reorder the backlog — Ron rules on it before the rest), **then 2, 3 and 4 at the same time** — they look at
 different things (Ron, 2026-11-19). Each brief is read by Ron before its review runs (Ron, 2026-11-19).
+
+**Review 1 done (2026-11-20):** the report and our decisions on each of its points are kept with the TODO notes. What
+it changed here: new items in "A one-day truth-and-safety release", "Fetcher odds and ends", "Stop cleanly when Amazon
+asks for a human check", "Relay worker: one release of changes" and "Move to Cloudflare's $5/month plan"; new tasks
+"When Amazon stops a fetch: tell Ron, and show people it's a known problem", "Safari deletes a library after 7 days
+without a visit: warn, and help people restore", "An accessibility page" and "Ron's accounts: a second sign-in step on
+GitHub"; the privacy task became "The Security & Privacy page made specific, and a terms page"; a hand-over guide
+(After launch); Resend's email limits (Watching).
+
 1. **Launch risks we haven't thought of** — first, because it could reorder the backlog. Seeds: Amazon's terms for a
    tool that reads your Amazon pages (**start from the existing terms-and-strategy note — see TODO notes**; it predates
    the relay, so the review weighs it against today's architecture; and other companies that connect to people's
@@ -420,6 +435,22 @@ library. Found or confirmed by the cold review of this TODO (2026-11-19), every 
    traffic is counted separately from his WordPress articles from day one) — the Polish → Small fixes item "Switch the
    affiliate tag to 'readerwrangler-20'", built here. It earns nothing by itself; only clicks do.
 
+**Added by outside review 1** (Ron, 2026-11-20)
+8. **README says the domain is at FreeDNS** — it's at Porkbun.
+9. **"No cloud storage, no tracking"** — untrue since Cloud Sync and the visit counter; say what's true.
+10. **features.html's "the only tool…"** — drop the claim (Ron: "hyperbole but we can change it anyway").
+11. **security.txt expires 2026-12-31** (`.well-known/security.txt`) — set it six months ahead; the relay's reminder
+    email keeps it current from then on ("Relay worker: one release of changes", item 14).
+12. **"Not created or endorsed by Amazon"** in the app's About, as the site pages already say.
+13. **The LICENSE's "Affiliate Attribution Condition"** puts Ron's tag on sites not listed in his Associates account
+    (which its rules forbid). Replace it: public hosting needs Ron's written permission; **except** that if
+    readerwrangler.com has been unavailable for 90 days, anyone may host a copy with their own services (so the app can
+    outlive Ron). The Commons Clause stays. Ron's word on the exact wording first.
+14. **The affiliate disclosure on the phone** — one line on the phone's book details screen, where the cover and the
+    title open Amazon (mobile.js ~2103, ~2128); the phone has the links but no disclosure today.
+15. **Ron's own purchases untagged** — Polish → Small fixes, "Leave the affiliate tag off Amazon links on the test rig"
+    (widened 2026-11-20 to any browser Ron uses), built here: Associates pays nothing on your own purchases.
+
 #### Fetcher work, in build order
 
 The fetchers (the bookmarklet's scripts on Amazon's pages) had about a dozen tasks spread over five
@@ -455,7 +486,9 @@ launch.
 _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
 
 **The list**
-1. Fix the "772%" figure in the details-filled ratio.
+1. Fix the "772%" figure in the details-filled ratio. (Seen again 2026-11-20: "Successfully enriched: 78/3
+   (2600.00%)" — the count includes older books filled in that run, the divisor only the new ones,
+   amazon-library-fetcher.js ~1942 / ~2723.)
 2. The elapsed time freezes during the "Checking Relay" (both lines) and "Recovering" phases — it only repaints when the phase or progress changes. (Ron, 2026-09-03, twice.)
 3. **One shared Amazon request wrapper for every fetcher** (corrected 2026-11-04 in the TODO scan — the pacing itself
    already exists: since 7.0.1 (2026-08-27) `amazonFetch` keeps a minimum gap of ~350 ms between request STARTS,
@@ -473,6 +506,13 @@ _Why it matters:_ Small fetcher fixes that are each too minor to stand alone.
       say so in the fetch summary or console ("paced N requests to the safe rate").
    4. **Re-measure the floor** in one normal full fetch and write where the number came from beside the constant.
    5. It's also where the human-check stop lives ("Stop cleanly when Amazon asks for a human check mid-fetch").
+   6. **Name ourselves to Amazon** (outside review 1, Ron 2026-11-20): every request carries
+      `x-agent: Agent/ReaderWrangler`. Amazon's Conditions of Use ask software acting for a person to name itself;
+      Chrome won't let a page change the User-Agent line itself, so this header is as close as a bookmarklet gets — the
+      public explanation says so. **Tested by Ron 2026-11-20:** one request, then a whole library update plus the
+      check for removed books, with the header on every request — all answered normally.
+   7. **Drop the ±10% wobble** on the floor (`0.9 + Math.random() * 0.2`) — a fixed floor (Ron: "not much of a
+      disguise. Drop it."). Amazon's terms ask agents not to imitate human timing.
 4. **The collections fetcher's finish message names a file it no longer writes** (found 2026-11-11 by a sweep for
    amazon-library.json): it uploads to the relay (its console says so), then shows *"Updated amazon-library.json with N
    books' collections"* (amazon-collections-fetcher.js ~866, its `FILENAME` constant; the header comment's steps
@@ -538,8 +578,33 @@ _Why it matters:_ Today it shows confusing errors instead of saying what to do.
    Once "A long fetch resumes after an interruption" exists, the message becomes "…then run it
    again — it continues where it stopped".
 
+3. **Stop at Amazon's first refusal, whatever kind** (outside review 1, Ron 2026-11-20): a human check, a "too many
+   requests" answer, an access refusal — the fetch stops there and never retries past it, and never touches a check
+   itself. (Ordinary network hiccups keep their retries; a refusal is Amazon saying no.) Amazon's Conditions of Use ask
+   agents not to bypass its checks.
+
 **How (technical)**
 - In `amazonFetch`, recognize check-shaped answers: HTML where JSON was expected, a validate-captcha redirect, a robot-check 503.
+
+##### When Amazon stops a fetch: tell Ron, and show people it's a known problem
+<!-- id 20261120-1700 -->
+
+_Why it matters:_ If Amazon changes something or starts refusing the bookmarklet, every user hits it at once — and
+today Ron would hear only if someone writes in, while each person thinks it's their own fault (outside review 1,
+Risk 8 and Question 4; Ron, 2026-11-20).
+
+**Decided** (Ron + Claude, 2026-11-20)
+1. **Tell Ron:** when a fetch stops on a refusal or an answer it doesn't understand, the fetcher sends a GoatCounter
+   event (as it already does for some failures, e.g. `fetch-phase0-endpoint-fail`) **and** asks the relay to email Ron
+   — the bookmarklet can't hold Resend's key, so the relay sends it ("Relay worker: one release of changes", item 15),
+   **at most one email a day per kind of problem**, so nobody can flood Ron's inbox through it.
+2. **Tell people:** a "known problems" line on the site that the app (and the bookmarklet's stop message) shows when a
+   fetch stops — so a person sees "Amazon changed something on <date>; we're working on it" instead of guessing. Ron
+   updates it by hand.
+3. **One sentence before a fetch** (outside review 1, Risk 8): what the bookmarklet does on Amazon's page, in the
+   person's name — so a later Amazon question isn't a surprise. Ron's word on the wording first.
+
+**When:** with "Stop cleanly when Amazon asks for a human check mid-fetch" (just above) — the same stop.
 
 ##### A fetch made with the demo filter on says so, and never marks books as gone
 <!-- id 20261014-1030be -->
@@ -982,8 +1047,9 @@ member forwarding a file is far likelier than any attacker.
 **Before launch (the launch gate, 2026-11-19): items 3, 4 and 8 below** — 3, the strict ID check (an ID in the wrong
 form silently opens a separate, empty cloud copy); 4, the nightly email names cloud copies by 6 characters, not 4 (with
 many users, 4-character names collide); 8, a small "request" note per cloud copy, which "Refresh all books from Amazon"
-(in the fetcher work) needs. Ship 3 and 4 with the Cloud Sync rename, 8 with the fetcher work. The rest can follow
-launch.
+(in the fetcher work) needs. Ship 3 and 4 with the Cloud Sync rename, 8 with the fetcher work. **Also before launch:
+items 10–15** (outside review 1, 2026-11-20 — the open door for strangers, the alert email's full ID, security.txt's
+reminder, the "Amazon stopped a fetch" email). The rest can follow launch.
 
 _Why it matters:_ Every relay change is a separate deploy, each needing Ron's yes; gathering them makes one worker
 release. And two of them close real gaps today: the relay accepts IDs in a form that silently opens an empty
@@ -1059,6 +1125,34 @@ close this out").
    - **Disclosed with GoatCounter, in the same places** (Ron): the security page's analytics bullet (security.html
      ~113) and the planned privacy policy (outside review 1) — e.g. *"The sync server records the date your cloud copy
      was last used — never what's in it."*
+
+**Added by outside review 1** (Ron + Claude, 2026-11-20) — all before launch. The problem: the relay takes any made-up
+ID as a new cloud copy, from anyone; its limits are per cloud copy (200 writes an hour, relay-worker.js ~61–63), so
+every made-up ID starts fresh, and anyone can register a write key on a made-up ID with one request (`handleRegister`,
+first come wins). Even refused requests use part of the free plan's daily writes. Why, with no abuse seen (Ron): once
+the big targets are locked down, people with ready-made attack scripts go after whatever is left, for bragging rights.
+10. **No storing without a write key** — remove the path that accepts unsigned writes for a channel with no key (Ron:
+    "We can definitely remove that acceptance of an unsigned write without the key"). Every current app version
+    registers its key before its first write (relay-client.js ~96–114).
+11. **Cloudflare's "are you human" check (Turnstile) when a cloud copy is created** — at Cloud Sync setup and "make a
+    new key", once per person, never on fetches. The check hands the app a one-time ticket; the app sends it with the
+    new write key; the relay asks Cloudflare whether the ticket is real before registering the key. With item 10, no
+    ticket means nothing is ever stored, and skipping our code doesn't help (Ron: "People are used to the Are You a
+    Human checkbox from Cloud Flare. We'll plan to go with it pre-launch."). An app change too (the setup screen); one
+    line on the Security & Privacy page. Free; Cloudflare says it uses no cookies. Rejected: a per-person limit (the
+    relay can't tell people apart), email sign-up (breaks "no account"), browser fingerprinting (unreliable,
+    skippable, and it's tracking).
+12. **The brakes — to decide with Ron** (the review's five, revised for item 11; context in the TODO notes): a daily
+    count of new cloud copies as an alarm email, never a closed door; a size limit per cloud copy; a storage ceiling
+    that refuses only NEW cloud copies; no limit per internet address. Before picking sizes: check why production
+    holds 195 MB for 48 entries (the daily email) — far more than a compressed library of 3,273 books should take.
+13. **The full Channel ID out of the auto-block alert email** (relay-worker.js ~935) — it's half of a Cloud Sync Key;
+    use the short form (first 8 … last 4) the logs use.
+14. **security.txt's reminder:** the relay reads readerwrangler.com/.well-known/security.txt each night and sends its
+    own email that stands out — weekly in the 4 weeks before the expiry date, daily in the last week (Ron). The date
+    is set six months ahead each time.
+15. **"Amazon stopped a fetch" emails** — the relay's half of "When Amazon stops a fetch: tell Ron…" (the fetcher work):
+    a small request the bookmarklet can send; at most one email a day per kind of problem.
 
 **Watch out**
 - One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**; alphas deploy from the branch,
@@ -1371,6 +1465,31 @@ _Why it matters:_ Assumptions baked into the product are nowhere stated — a UK
 
 Ron's word on the wording first.
 
+#### Safari deletes a library after 7 days without a visit: warn, and help people restore
+<!-- id 20261120-1700b -->
+
+_Why it matters:_ Safari deletes everything a site saved — the whole library, folders, settings — after 7 days of
+using Safari without visiting that site (WebKit's own page, checked 2026-11-20). Mac Safari users will try
+ReaderWrangler whatever we say, and someone who opens it less than weekly loses their organizing (outside review 1,
+Risk 10). Every iPhone and iPad browser is Safari underneath.
+
+**Decided** (Ron: "Yes to all, especially the bookmarklet as a breadcrumb", 2026-11-20)
+1. **A one-line notice when the app opens in Safari:** Safari deletes a site's saved data after 7 days without a
+   visit — use Chrome or Edge, or save a backup often. On iPhone and iPad: add ReaderWrangler to the Home Screen, which
+   WebKit says is exempt (its own counter) — and say that the Home Screen app starts empty, so you restore once. (A
+   Mac "Add to Dock" web app keeps its own data too, but no source says it's exempt — don't promise it.)
+2. **An empty library in Safari:** the getting-started words, plus *"If you've used ReaderWrangler in this browser
+   before, Safari may have cleared it — restore your backup file"*; once "Restore from Cloud Sync" exists (in this
+   gate), *"or restore from Cloud Sync"* — its copy is kept 90 days after its last update.
+3. **The bookmarklet is the breadcrumb.** It's made at Cloud Sync setup and holds the Cloud Sync Key. Its "open
+   ReaderWrangler" button (bookmarklet-nav-hub.js ~381) opens the app with nothing extra today; it adds a mark to the
+   address (after `#`, so it never leaves the browser) that says "this person has a bookmarklet" — **never the key**,
+   which would land in the browser's history. An empty library plus that mark means the library was lost, for certain:
+   say so plainly, with the restore buttons.
+- Dropped: a cookie set by the relay to survive the deletion ("a reach" — Ron).
+- Ron's word on the wording first. Placed beside "Say plainly what ReaderWrangler works with" (Ron: "OK to launch
+  gate").
+
 #### Landing page: "Open My Library" for returning users, and "Always free · No ads · No account needed" under the start button
 <!-- id 20261030-1036 -->
 
@@ -1405,17 +1524,52 @@ drawn to the center"). And what makes RW different — always free, no ads, no a
   top of index.html shows the pattern for reading the app's local setting. The marker: written by the app when a
   library loads (readerwrangler.js) — a tiny app change, so an alpha + version bump.
 
-#### A privacy page: what ReaderWrangler sends where, in plain words
+#### The Security & Privacy page made specific, and a terms page: what we send where, what we promise
 <!-- id 20261119-1548a -->
 
 _Why it matters:_ People's libraries are personal. Before launch the site must say plainly what leaves their computer:
 today the security page discloses the visit counter (GoatCounter) but nothing says the app loads its fonts from Google
 (Google sees each visitor's address), and the relay's planned "last used" date per cloud copy isn't disclosed either.
-It existed only as a sub-bullet of "Outside reviews before building" (cold review, 2026-11-19).
+Its blanket "No personal information collected" (security.html ~111) needs to become specific sentences that are each
+literally true. It existed only as a sub-bullet of "Outside reviews before building" (cold review, 2026-11-19).
 
-**To decide with Ron:** one page or a section of the security page; whether to keep Google Fonts or serve the fonts
-ourselves (then there's nothing to disclose); the affiliate notice's wording (the footer already says "As an Amazon
-Associate, I earn from qualifying purchases").
+**Decided** (Ron + Claude, 2026-11-20, outside review 1 — Risks 4 and 5, Questions 8 and 9)
+1. **The existing Security & Privacy page (security.html), made specific** — not a new page.
+2. **A general statement, then links to theirs:** ReaderWrangler collects no personal information except counts of
+   page visits and feature use (GoatCounter); the pages load fonts from Google and code from unpkg and cdnjs, which see
+   your visit like any website. Link to each one's own privacy policy rather than describing it — it can't go out of
+   date when they change theirs. E.g. *"ReaderWrangler doesn't collect personal information. We count page visits
+   and which features get used, with GoatCounter (their privacy policy). The pages load fonts from Google and code
+   libraries from unpkg and cdnjs; like any website, those see your visit (their policies)."*
+3. **A short "what goes where" table** (Ron: "Yes. perfect"):
+   | What | Where it goes |
+   |---|---|
+   | Your books, folders, tags, notes | Only your browser. With Cloud Sync, also an encrypted copy on our sync server that we can't read |
+   | Your Cloud Sync Key | Your browser, your bookmarklet, your backup files. The secret part is never sent to us |
+   | What the sync server knows about your copy | An ID, its size, when it was first used and last saved. Never its contents |
+   | Your Amazon sign-in | Never leaves Amazon's page. The bookmarklet uses it there, in your browser |
+   | Feature counts | GoatCounter: which page, which feature. No cookies |
+   | Your email address | We don't have it |
+4. **One line for Cloudflare's "are you human" check** at Cloud Sync setup ("Relay worker: one release…", item 11).
+5. **A terms section** (Risk 4): what we promise and don't — your library lives in your browser, so a cleared browser
+   without a backup loses it; a lost Cloud Sync Key can't be recovered by anyone; always free (Ron: "I might be forced
+   to put out a coffee can. But that is still free."); offered for the United States — not without a good reason
+   (Ron: "like a volunteer EU privacy expert or lawyer").
+6. **The affiliate notice** stays as the footer says it ("As an Amazon Associate, I earn from qualifying purchases").
+
+**Still open:** keep Google Fonts (disclosed) or serve the fonts ourselves (then nothing to disclose) — disclose now,
+decide later.
+
+#### An accessibility page: what works, and how to tell us what doesn't
+<!-- id 20261120-1700a -->
+
+_Why it matters:_ Ron (2026-11-20): "Handicap access (and accessibility) get short shrift." Keyboard work is in
+progress (Polish, "Finish keyboard accessibility") but nothing tells a person what works or how to reach us when it
+doesn't (outside review 1, Risk 15).
+
+**Decided** (Ron, 2026-11-20): a quick page before launch — what works today (keyboard use, the themes including high
+contrast), what doesn't yet, and an invitation to report accessibility problems **by email or by opening an issue on
+GitHub**. Linked from the site's footer beside Security & Privacy. Ron's word on the wording first.
 
 #### Outside code libraries: exact versions, integrity checks, and a policy that keeps the page from sending your key anywhere
 <!-- id 20261014-1030ai -->
@@ -1480,7 +1634,10 @@ _Why it matters:_ The free plan supports only a handful of users.
 **When (the launch gate, 2026-11-19): before the first public post, not "around launch"** — the free plan's 1,000
 writes a day are shared by every user, and a handful of first fetches on launch day could stop sync for everyone; the
 50% alert fires after that has already happened. (The cold review also noted anyone can open new cloud copies — only a
-per-copy limit exists today; that goes to the security review.)
+per-copy limit exists today; outside review 1 put the fix in "Relay worker: one release of changes", items 10–12.)
+**Outside review 1 (2026-11-20): before anyone outside the household has the link** — not just before the first post;
+and **set Cloudflare's billing alert** when upgrading. On the paid plan, a flood of junk requests becomes a small bill
+instead of an outage for everyone (1 million writes a month included, against the free plan's 1,000 a day).
 
 **What we know** (RELAY-ECONOMICS.md, 2026-08-28)
 - After 7.5.0's savings, the flat $5 plan covers about 250 users like you; the free plan about 6–10 — and it's shared between production and dev.
@@ -1500,6 +1657,24 @@ per-copy limit exists today; that goes to the security review.)
 4. **Check Cloudflare's current prices and limits when upgrading** — not the August numbers.
 
 ---
+
+#### Ron's accounts: a second sign-in step on GitHub (it now guards the site, Cloud Sync and email)
+<!-- id 20261120-1700c -->
+
+_Why it matters:_ The bookmarklet loads its code from readerwrangler.com into each person's signed-in Amazon tab, so
+whoever takes over the accounts behind the site could serve code there (outside review 1, Risk 6). Checked by Ron
+2026-11-20: GitHub (hosts the site) — password only; Porkbun (the domain) — a code by email; Cloudflare (Cloud Sync)
+and Resend (email) — both sign in **through GitHub**. So one GitHub password guards three of the four.
+
+**Decided** (Ron, 2026-11-20): no passkeys or hardware keys (a passkey adds nothing while the account still recovers
+by password). **Ron is holding off on a second step for now** — a slow text message at every sign-in is the cost; Claude
+may keep reminding him ("You can continue to bug me (really - I'm giving you permission)"). The least-fuss option
+when he's ready: GitHub Mobile's tap-to-approve on the phone. Meanwhile, Ron's own steps:
+1. Save each service's recovery codes in the password manager.
+2. Check that Porkbun's domain lock (the block on moving the domain to another registrar) is on.
+3. The email account the services send codes to is the real master key — keep it protected.
+
+**When:** before launch — the reminder lives here, not in anyone's memory.
 
 #### Dark theme: fix the unreadable bar and the light strips
 <!-- id 20261007-0000a; merged 20261014-1030ab -->
@@ -2917,6 +3092,10 @@ muddying the stats, and Associates doesn't pay on your own purchases (repeated o
   tag included (the same split contributor mode already makes for the relay and the usage statistics).
 - One place: `getAmazonUrl` asks it; nothing else builds a tagged link (verify with a search when building — the
   phone app and Share included).
+- **Widened 2026-11-20 (outside review 1, Ron):** also off in any browser Ron uses day to day — a per-browser setting,
+  `remove_affiliate_tag`, set once on his computer and his phone (so his own purchases never go through the tag). Built
+  in "A one-day truth-and-safety release" (item 15), before launch. (The Associates summary of 2026-11-20 again showed
+  items ordered and $0 earned — most likely Ron's own purchases.)
 
 ##### Switch the affiliate tag to "readerwrangler-20"
 <!-- id 20261021-1401a -->
@@ -3654,6 +3833,18 @@ _Why it matters:_ So you can switch to the Kindle edition without losing its fol
 
 _Formerly: Tech / performance_
 
+#### A hand-over guide: how anyone can run ReaderWrangler on their own accounts
+<!-- id 20261120-1700d -->
+
+_Why it matters:_ The code is open, but nobody else holds the accounts it runs on, and there's no named successor. If
+Ron can't continue, the app should be able to outlive him (outside review 1, Risk 13 and Question 5).
+
+**Decided** (Ron, 2026-11-20): a guide **for someone to repeat Ron's steps with their own accounts** — which accounts
+(GitHub Pages, a domain, Cloudflare for Cloud Sync, Resend for email, GoatCounter, Amazon Associates if wanted), how
+each is set up, and every place the app names the site or the relay, so a clone can be pointed at new ones. After
+launch. The one before-launch piece is the LICENSE's continuity exception ("A one-day truth-and-safety release",
+item 13).
+
 #### Split the main code file into modules
 <!-- id 20261014-1030at -->
 
@@ -4125,6 +4316,19 @@ so before 6:42 none of them was owned or dated new. **Most likely explanation: h
 **Next time it happens**
 - Note the folder's sort (the column header's arrow) before changing anything.
 - Open Help → Diagnostics…: when was the last import (its "N now owned" line), against when you looked?
+
+### Resend's email limits
+<!-- id 20261120-1700e -->
+
+_Why it matters:_ Every email the relay sends goes through Resend's free plan: 3,000 a month, at most 100 a day
+(checked 2026-11-20). Today that's about 60 a month (the two nightly summaries); outside review 1 adds a few kinds
+(security.txt's reminder, "Amazon stopped a fetch"), each limited to one a day. Support replies don't use it — the
+contact address is a forwarder.
+
+**If it grows:** Resend Pro is $20 a month for 50,000 emails. Check when the daily alerts start to add up, or if
+replies ever need to come *from* the contact address (Gmail's "Send mail as" through Resend would count against it).
+Resend's new inbox product ("Inboxes") isn't needed for support — the forwarder already receives (Ron + Claude,
+2026-11-20); "Relay worker: one release…", item 7, still considers it for the daily summaries.
 
 ---
 
