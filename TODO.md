@@ -1142,10 +1142,33 @@ the big targets are locked down, people with ready-made attack scripts go after 
     line on the Security & Privacy page. Free; Cloudflare says it uses no cookies. Rejected: a per-person limit (the
     relay can't tell people apart), email sign-up (breaks "no account"), browser fingerprinting (unreliable,
     skippable, and it's tracking).
-12. **The brakes — to decide with Ron** (the review's five, revised for item 11; context in the TODO notes): a daily
-    count of new cloud copies as an alarm email, never a closed door; a size limit per cloud copy; a storage ceiling
-    that refuses only NEW cloud copies; no limit per internet address. Before picking sizes: check why production
-    holds 195 MB for 48 entries (the daily email) — far more than a compressed library of 3,273 books should take.
+12. **The brakes** (the review's five, revised for item 11 — Ron, 2026-11-20). They catch what gets past the human
+    check (checks solved by hand or by a paid service, or a real surge) and cap the one cost that grows, storage:
+    1. **New cloud copies are counted, never refused:** an email to Ron when a day's count reaches 5, then after 8
+       more, 13 more, 21 more… (Ron: Fibonacci gaps) — at 5, 13, 26, 47, 81, 136, 225, 369, 602, 979: about ten
+       emails for a thousand new copies, so a flood of alarms can't use up Resend's 100 emails a day and silence the
+       nightly summary. Each email gives the day's count. Raise the start as normal days grow.
+    2. **A size limit per cloud copy, enforced by the relay:** 5 × what a copy of Ron's library *should* hold (Ron) —
+       **200 MB** (agreed): at rest, two library versions of ~18 MB plus a small organization ≈ 40 MB; plus room for a
+       week of fetches waiting to be imported (each a full library, ~18 MB). Ron's copy today, with its oversized
+       organization and 4 waiting fetches, peaks near 144 MB — under it. Revisit after "Smaller organization syncs",
+       item 4.
+    3. **A storage ceiling of 10 GB** (about $5 a month over the paid plan's included 1 GB): past it, the relay refuses
+       **new** cloud copies — including "make a new key" — and emails Ron; existing copies keep syncing. Because the
+       bookmarklet can't fetch without Cloud Sync, a refused newcomer can't bring in their library at all until it
+       reopens — the words must say so, and give the reason, "full" (Ron: a reason earns forgiveness). The words (agreed, Ron 2026-11-20):
+       *"Cloud Sync is full for new setups right now. We're aware of it and working on it — please try again in a day
+       or two. Until then ReaderWrangler can't bring in your library from Amazon, because your books travel through
+       Cloud Sync. Sorry for the wait."* and, for Make a new key: *"Cloud Sync is full right now, so it can't make the
+       new cloud copy a new key needs. Your current key keeps working, and nothing has changed. We're aware of it and
+       working on it — please try again in a day or two."* The storage alerts (25/50/75/90%, today measured
+       against the free plan's 1 GB — `CF_LIMITS.kvStorageMB`) move to fractions of this ceiling at the upgrade.
+    4. **No storing without a write key** — item 10.
+    - **Two versions of each copy stay** (Ron, 2026-11-20, after asking why): the reader falls back to the previous
+      version when the current one is missing or fails its check (relay-client.js `readCanonical`) — Cloudflare's
+      storage can show the new "current" marker before the new version's data everywhere, and a bad save must never
+      leave nothing to read. The cost is one extra version (~18 MB for a 3,270-book library).
+    5. **No limit per internet address** — dropped: whole households, offices and phone carriers share one address.
 13. **The full Channel ID out of the auto-block alert email** (relay-worker.js ~935) — it's half of a Cloud Sync Key;
     use the short form (first 8 … last 4) the logs use.
 14. **security.txt's reminder:** the relay reads readerwrangler.com/.well-known/security.txt each night and sends its
@@ -1638,6 +1661,10 @@ per-copy limit exists today; outside review 1 put the fix in "Relay worker: one 
 **Outside review 1 (2026-11-20): before anyone outside the household has the link** — not just before the first post;
 and **set Cloudflare's billing alert** when upgrading. On the paid plan, a flood of junk requests becomes a small bill
 instead of an outage for everyone (1 million writes a month included, against the free plan's 1,000 a day).
+**Storage can bind too (measured 2026-11-20):** a library of 3,270 books takes about 72 MB on the relay (four
+versions of ~18 MB) — so the free plan's 1 GB holds only about 14 libraries that size, and item 1 below ("writes, not
+storage, are the binding limit") may no longer hold. On the paid plan it's cheap: 1 GB included, then $0.50 per GB a
+month.
 
 **What we know** (RELAY-ECONOMICS.md, 2026-08-28)
 - After 7.5.0's savings, the flat $5 plan covers about 250 users like you; the free plan about 6–10 — and it's shared between production and dev.
@@ -3513,6 +3540,10 @@ downloads the whole thing on every refresh.
    it. The cost isn't money (a 17 MB push is one or two writes — writes are the binding free limit, and cheap on the $5
    plan); it's upload time and the phone's download, against real complexity (merge logic in the app AND the phone, plus
    occasional compaction).
+4. **Measured 2026-11-20 (outside review 1's storage look):** on the relay an organization version is 17.9 MB — the
+   same size as a library version (17.8 MB) for 3,270 books, compressed and encrypted. An organization that small in
+   itself (folders, tags, lists) shouldn't be that big; it looks as if it carries the books too. **Check that first** —
+   if so, leaving them out would roughly halve every user's storage and the phone's download, without any merge logic.
 
 **Spec:** docs/design/RELAY-DELTA.md (written before 7.0 — its library half is superseded by the mailbox).
 
