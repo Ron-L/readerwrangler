@@ -1161,7 +1161,11 @@ the big targets are locked down, people with ready-made attack scripts go after 
        or two. Until then ReaderWrangler can't bring in your library from Amazon, because your books travel through
        Cloud Sync. Sorry for the wait."* and, for Make a new key: *"Cloud Sync is full right now, so it can't make the
        new cloud copy a new key needs. Your current key keeps working, and nothing has changed. We're aware of it and
-       working on it — please try again in a day or two."* The storage alerts (25/50/75/90%, today measured
+       working on it — please try again in a day or two."* **Try again, and a quiet retry** (Ron, 2026-11-20): the
+       refused screen keeps a **Try again** button, and the next time the person opens ReaderWrangler, setup quietly
+       tries again by itself and carries on if there's room — no email sign-up (it would need verification emails
+       from a budget of 100 a day, and break "we don't have your email"). The site's "known problems" line says when
+       Cloud Sync has room again. The storage alerts (25/50/75/90%, today measured
        against the free plan's 1 GB — `CF_LIMITS.kvStorageMB`) move to fractions of this ceiling at the upgrade.
     4. **No storing without a write key** — item 10.
     - **Two versions of each copy stay** (Ron, 2026-11-20, after asking why): the reader falls back to the previous
