@@ -106,7 +106,7 @@
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
         - [With a filter on, the right pane still shows subfolders with no matching books](#with-a-filter-on-the-right-pane-still-shows-subfolders-with-no-matching-books)
         - [A missing book description: one quiet line, on the computer and the phone](#a-missing-book-description-one-quiet-line-on-the-computer-and-the-phone)
-        - [Remove the old version 4 app from the site — it shares your library's storage](#remove-the-old-version-4-app-from-the-site--it-shares-your-librarys-storage)
+        - [✅ Remove the old version 4 app from the site — it shares your library's storage](#-remove-the-old-version-4-app-from-the-site--it-shares-your-librarys-storage)
         - [The phone's cover copies: still worth it? And why wasn't the browser's own cache enough?](#the-phones-cover-copies-still-worth-it-and-why-wasnt-the-browsers-own-cache-enough)
         - [Relay Setup's Test connection always checks the production relay](#relay-setups-test-connection-always-checks-the-production-relay)
         - [F2 follows the Delete key's rule: what's selected, where you're working, and words when it can't](#f2-follows-the-delete-keys-rule-whats-selected-where-youre-working-and-words-when-it-cant)
@@ -3379,7 +3379,7 @@ _Why it matters:_ So a missing description reads as known, not broken — and th
 3. **Written once, used by both:** the wording lives in one shared place (uiHelpers) that the computer and the phone
    both use, so they can't drift apart again.
 
-##### Remove the old version 4 app from the site — it shares your library's storage
+##### ✅ Remove the old version 4 app from the site — it shares your library's storage
 <!-- id 20261104-1254 -->
 
 _Why it matters:_ The old app is still live at readerwrangler.com/v4/readerwrangler.html (checked 2026-11-04: it
