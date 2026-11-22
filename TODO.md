@@ -113,6 +113,7 @@
       - [Auto-Organize: Shift-click ranges should follow what you see](#auto-organize-shift-click-ranges-should-follow-what-you-see)
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [A refused Restore shows a false "Restore Warning" box a minute later](#a-refused-restore-shows-a-false-restore-warning-box-a-minute-later)
+      - [Share Library: a copy of your library for a friend, without your Cloud Sync Key](#share-library-a-copy-of-your-library-for-a-friend-without-your-cloud-sync-key)
   - [🗄️ After launch](#after-launch)
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
@@ -3467,6 +3468,24 @@ starts, wait past 60 s (or shorten the timer in the test), and check no box appe
 very old backup, or something else already failing mid-restore; nothing in the library changes), so it rides along
 with the next sprint that touches app code, as a small extra task.
 
+#### Share Library: a copy of your library for a friend, without your Cloud Sync Key
+<!-- id 20261122-1440 -->
+
+_Why it matters:_ Sending a friend your library today means Save Backup, then remembering to take your Cloud Sync Key
+out by hand — and a backup carries the key, so whoever has the file can overwrite or wipe your cloud copy. Readers
+swap libraries ("Books I Want To Borrow From Ron"); a rule people must remember fails, a menu item doesn't.
+
+**Decided** (Ron, 2026-11-22, during outside review 3):
+1. **File → Share Library…**, right after Save Backup: the same writer as Save Backup (one writer — "One backup
+   writer…"), **never the Cloud Sync Key**, named `readerwrangler-share-<date> <time>.json`.
+2. **Your notes: a switch at every share, off by default** ("Include my notes") — notes can be private in a way
+   folders aren't.
+3. It carries **whose library it is** (the account name from "A fetch from someone else's Amazon account stops…"), so
+   the friend's Restore can say whose library it replaces.
+4. **The friend opens it with Restore, in a browser profile of their own** (help notes, with pictures) — until "Several
+   people on one installation" is weighed again. The later, fuller version is "Share a filtered, read-only copy of
+   your library" (Someday).
+
 ## 🗄️ After launch
 
 _Formerly: 🗄️ Backlog (post-launch)_
@@ -4449,6 +4468,21 @@ is its own task: "A fetch from someone else's Amazon account stops before mixing
 fetcher work).
 
 **Spec:** docs/design/archive/MULTI-USER-DESIGN.md.
+
+**Weighed again (Ron, 2026-11-22, with "Share Library" — outside review 3):**
+1. **The cost of profiles grows with friends:** five reader friends swapping libraries means five extra browser
+   profiles — and the browser then asks which profile at every new window, where it never asked before. Weigh that
+   against the work below.
+2. **A friend's library is a different case from two people on one computer:** it is only looked at and organized
+   (a "Books I Want To Borrow From Ron" Book List) — never fetched into, since it has no Cloud Sync Key and none would
+   lead anywhere useful.
+3. **The shape, if built** (Ron's): a library ID (a GUID) in the name of every saved item — the book database
+   (`ReaderWrangler<ID>DB`), the simple-storage items, the session items — or one level under storage per library;
+   **every read and write of a saved item goes through one function** that looks up the current library
+   (`readSaved` is already the one reader for settings; the writes and the book database's name would join it); Restore
+   of a share switches to its library; **File → Choose Library** (greyed out with one library).
+4. **The same one function would give the phone page storage names of its own**, if that is ever wanted (outside
+   review 3, item 8 — Ron prefers one copy, 2026-11-22); built for either, it makes the other a smaller change.
 
 ### Animated drag-and-drop
 <!-- id 20261014-1030c -->
