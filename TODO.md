@@ -269,6 +269,12 @@ into that task, 2026-11-19 (Ron): it isn't needed for launch, so its review runs
 4. **I spot-check its code claims, then bring Ron a digest with my verdicts.** Ron decides; decided items get the
    anti-bounce rule (only evidence — a real user's misreading, a failing test — reopens them).
 5. Claude.ai stays an option for a second opinion from outside our tools, when a verdict looks too comfortable.
+6. **A progress file, and checks from outside** (Ron, 2026-11-22, after reviews 2–4 started without one): every brief
+   asks the reviewer to add a dated line to a progress file beside its report at each step ("Phase 1 written",
+   "reading the relay", "experiment 2 done") — for how far along it is. Staying within bounds is **not** judged from
+   it — that's the reviewer reporting on itself. At each reviewer's finish, before its report is trusted: no project
+   file changed but its own (git, in the project and the private notes), nothing it started still running, and the
+   next nightly relay summary shows no writes it could have made.
 
 #### Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes
 <!-- id 20260830-0000; merged 20260922-0000d -->
