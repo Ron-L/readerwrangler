@@ -321,6 +321,20 @@ and "Warn when another browser has newer changes"; both earlier designs re-read 
      seen — instead of today's newer-clock-wins comparison. Today, the phone page opening on a computer (a window
      under 768 pixels) can save another computer's newer copy over this one's library, silently. A phone that later
      writes ("Phone: change Book Lists and tags") is a writer under the same rule — the same copy, no special case.
+   - **How the cloud enforces it: a Durable Object holds each cloud copy's pointer** (Ron + Claude, 2026-11-22,
+     outside review 3 item 10 — Ron's design). On KV alone the relay can't refuse reliably (KV is eventually
+     consistent: up to 60 s or more between locations; two near-simultaneous writes can both pass). The bulky parts
+     stay in KV, under new names per version, never overwritten; one Durable Object per cloud copy (strongly
+     consistent, one request at a time) holds "the current version is #42" and moves it only if it still says what
+     the writer last saw. Readers ask it for the current version, read that version's parts from KV, and wait and retry
+     if a part isn't visible yet. **The older version is deleted after a grace period (~10 minutes, by the object's
+     alarm), not kept until the next write** — so the second kept version goes, for both cloud copies (storage
+     roughly halves between writes); a torn upload already never becomes current. **Chosen over R2** (also strongly
+     consistent, with conditional writes) because the same object can also hold the exact write counter (outside
+     review 2 found the KV counter doesn't hold) and the write-key registration without a race. Costs: one small round
+     trip per read; free plan 100,000 Durable Object requests a day. A relay storage change: a design Ron sees first,
+     and readers fall back to the old KV pointer until a copy's next write moves it. Cloudflare's own advice: "send all
+     writes for a given key through a corresponding Durable Object instance, then read that value from KV."
 3. **This retires both earlier designs' gatekeepers** — the read-only second tab (with "Edit here instead") and the
    cross-browser "soft lease" with its 15–30-second check. Neither blocks you any more, and the lease's record would
    have cost a cloud write every 15–30 seconds per active user (about 120 an hour, against ~1,000 a day on
@@ -465,6 +479,11 @@ library. Found or confirmed by the cold review of this TODO (2026-11-19), every 
     title open Amazon (mobile.js ~2103, ~2128); the phone has the links but no disclosure today.
 15. **Ron's own purchases untagged** — Polish → Small fixes, "Leave the affiliate tag off Amazon links on the test rig"
     (widened 2026-11-20 to any browser Ron uses), built here: Associates pays nothing on your own purchases.
+16. **Cloud Sync's description says how long your organization is kept** (outside review 3, item 10; Ron
+    2026-11-22) — wherever Cloud Sync is described (the glossary's "your cloud copy", Cloud Sync Setup, the security
+    page, the guide): *"your organization is kept for 90 days after your last change; Save Backup is your backup."*
+    Today "a backup of your books and organization" overstates it: the Complete Copy keeps two versions minutes apart
+    and expires 90 days after the last send.
 
 #### Fetcher work, in build order
 
@@ -1013,6 +1032,9 @@ nothing on the computer reads it back; Import from Relay merges only the books t
      person's own action; "Start fresh" covers the early-days restart.
    - **Until a choice is made, nothing is sent to the cloud** — so the cloud copy is guaranteed intact when they choose
      to restore from it. Closing the box keeps the hold and asks again next time.
+   - **One case of a general rule** (Ron, 2026-11-22, outside review 3 item 10): the "just reset" mark is one case
+     of "never replace a version you haven't seen" ("Keep your tabs and browsers in step") — which also covers a
+     cleared browser, a new computer given the key by hand, and books brought back by a fetch without their folders.
    - **Ships with this task**, not before (Ron): until a restore from the cloud exists, the cloud copy isn't a way back,
      so there's nothing to hold for — and a hold with no cloud restore to offer is a confusing mode. (The
      backup-file-only version of the choice could ship earlier on its own — Ron: wait; logged here.)
