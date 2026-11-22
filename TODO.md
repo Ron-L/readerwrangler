@@ -138,6 +138,7 @@
       - [A hand-over guide: how anyone can run ReaderWrangler on their own accounts](#a-hand-over-guide-how-anyone-can-run-readerwrangler-on-their-own-accounts)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
       - [Test on Safari and iPhone](#test-on-safari-and-iphone)
+      - [Our working names in the code and docs: Fetched Copy, Complete Copy, compact view, full view](#our-working-names-in-the-code-and-docs-fetched-copy-complete-copy-compact-view-full-view)
   - [👀 Watching](#watching)
     - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
     - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
@@ -4000,6 +4001,22 @@ iPhones. Some Safari differences could break storage, installing as a phone app,
 - The browser's book storage (IndexedDB) — Safari clears a site's stored data after 7 days of Safari use without a
   visit to it, but exempts apps installed to the home screen (to verify when testing; it would make installing the
   phone view the recommended way on iPhone) — installing as a phone app (PWA), and styling.
+
+#### Our working names in the code and docs: Fetched Copy, Complete Copy, compact view, full view
+<!-- id 20261122-1608 -->
+
+_Why it matters:_ Muddled names lead to muddled thinking (Ron, 2026-11-22): "device-state" is your whole library, not a
+device's state, and "the phone page" also opens on a computer. The new names are decided (GLOSSARY.md, "Our working
+names"); the code, comments and design docs still use the old ones.
+
+**Decided** (Ron, 2026-11-22, during outside review 3):
+1. **Fetched Copy** (was "canonical"), **Complete Copy** (was "device-state"), **compact view** (was "the phone page /
+   mobile"), **full view** (was "the desktop app") — used in our talk and new writing from now on; Claude corrects the
+   old names when they slip in.
+2. **Not now:** renaming the code's names, comments and design docs is a sweep for a quiet time — a class-of-sites change
+   (the comb), and the relay's stored key names (`relay:{id}:device-state`…) are a stored format: those stay, or
+   change only with a migration and a design Ron has seen.
+3. **When it migrates,** the old names go to the glossary's anti-list, so nothing new uses them.
 
 ---
 

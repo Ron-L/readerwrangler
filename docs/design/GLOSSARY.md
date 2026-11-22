@@ -59,6 +59,19 @@ post-mortem).
 | **bookmarklet** | The button you drag to your bookmarks bar that fetches from Amazon's pages. Kept — no plainer word. | Decided |
 | **update your library from Amazon** | Running the bookmarklet on Amazon's page to bring your books in — the act, in messages ("…the next time you update your library from Amazon"). Replaces "run the fetcher": the TOOL is **the bookmarklet**, the ACT is this — "fetcher" is retired (Ron, 2026-11-12, review queue Q-033/Q-034). First used in 7.28.1's owned-book boxes; the rest of the app, the help pages and the User Guide still say "the fetcher" until the Cloud Sync rename's sweep, which the anti-glossary then enforces. | Decided 2026-11-12 (Ron) |
 
+## Our working names — for docs, code and our talk (internal)
+
+_Muddled names lead to muddled thinking (Ron, 2026-11-22, during outside review 3). Mostly not shown to people — they
+see "your cloud copy". Named by **what the thing holds or is**, not who writes it or what device shows it, so the names
+stay true if the writers change (the phone may edit one day)._
+
+| Term | Meaning | Replaces (retired when the rename migrates — TODO "Our working names in the code and docs…") | Status |
+| --- | --- | --- | --- |
+| **Fetched Copy** | The cloud copy of your **books** as fetched from Amazon — fed by the bookmarklet's uploads, read by Import. Holds no organization. | "the canonical", "canonical library", "generations" (of the library), "the cloud's library copy" | Decided 2026-11-22 (Ron) |
+| **Complete Copy** | The cloud copy of **everything** — books, organization and your own fields — written by the app, read by the compact view (and, once "Keep your tabs and browsers in step" is built, by any browser that's behind). | "device-state", "dstate", "the phone's copy", "the mobile payload" | Decided 2026-11-22 (Ron) |
+| **compact view** | ReaderWrangler on a small screen (a window under 768 pixels wide — a phone, or a narrow computer window): `mobile.js`. | "the phone page", "mobile app", "mobile viewer", "the phone" (when it means the view, not the device) | Decided 2026-11-22 (Ron) |
+| **full view** | ReaderWrangler on a wider screen — everything: `readerwrangler.js`. | "the desktop app", "desktop" (when it means the view) | Decided 2026-11-22 (Ron) |
+
 ## Words users never see
 
 Relay · Credentials · Channel ID · Passphrase (until the rename ships, they're still on screen) · "Sync now" ·
