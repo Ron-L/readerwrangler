@@ -120,6 +120,7 @@
     - [Relay and sync](#relay-and-sync)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Smaller organization syncs (send only what changed in your folders, tags and lists)](#smaller-organization-syncs-send-only-what-changed-in-your-folders-tags-and-lists)
+      - [One cloud copy instead of two: the library copy and the phone's copy as one](#one-cloud-copy-instead-of-two-the-library-copy-and-the-phones-copy-as-one)
       - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
     - [Features](#features)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
@@ -132,6 +133,7 @@
       - [Import book details from a list or spreadsheet; Goodreads / StoryGraph files in and out](#import-book-details-from-a-list-or-spreadsheet-goodreads--storygraph-files-in-and-out)
       - [Capture book ideas from your phone (Share → ReaderWrangler)](#capture-book-ideas-from-your-phone-share--readerwrangler)
       - [Notice when a Kindle edition appears for a print-only book](#notice-when-a-kindle-edition-appears-for-a-print-only-book)
+      - [Phone: change Book Lists and tags](#phone-change-book-lists-and-tags)
     - [Technical clean-up](#technical-clean-up)
       - [A hand-over guide: how anyone can run ReaderWrangler on their own accounts](#a-hand-over-guide-how-anyone-can-run-readerwrangler-on-their-own-accounts)
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
@@ -3576,6 +3578,31 @@ downloads the whole thing on every refresh.
 
 **Spec:** docs/design/RELAY-DELTA.md (written before 7.0 — its library half is superseded by the mailbox).
 
+**Answered 2026-11-22 (outside review 3):** yes — the organization version carries the books, by design: it is the
+phone's complete copy (books, organization and your own fields together), written only by the app and read only by the
+phone (RELAY-WRITE-REDESIGN.md §2b). Leaving the books out would break the phone. The real halving is "One cloud copy
+instead of two", below.
+
+#### One cloud copy instead of two: the library copy and the phone's copy as one
+<!-- id 20261122-1535 -->
+
+_Why it matters:_ The relay keeps two copies of each person's library, one per flow: the **library copy** (fed by the
+bookmarklet, read by Import — the books, without your organization) and the **phone's copy** (written by the app, read
+by the phone — everything). The complete one is the one no computer can read, and the two together double the storage.
+
+**Weighed** (Ron + Claude, 2026-11-22, during outside review 3 — Ron: "file to consider after launch"):
+1. **For one copy:** one source of truth — "Restore from Cloud Sync" comes almost for free and Import gets your own
+   fields; about half the storage (~36 MB instead of ~72 MB for a 3,270-book library, against the 200 MB cap per cloud
+   copy); one set of rules; and **room for the phone to edit** (Ron: moving books in and out of Book Lists, Read tags —
+   "Phone: change Book Lists and tags", below), which a one-way copy can't carry back.
+2. **For two (today):** a fetch can never damage the organization in the cloud (it isn't in the copy fetches feed —
+   the August 2026 reason, after a torn upload); the bookmarklet never needs to understand the organization.
+3. **Against one copy:** the bookmarklet and the app write the same copy (the library copy's mailbox-and-merge pattern
+   would extend to both — an extension, not an invention); a fetcher bug or a wrong-account fetch lands next to the
+   organization; it changes the relay's stored format — a migration of existing cloud copies, and a design Ron has seen
+   first.
+4. **Before launch instead:** "Restore from Cloud Sync" (reading the phone's copy) closes the gap that hurts people.
+
 #### Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error
 <!-- id 20261018-1422 -->
 
@@ -3888,6 +3915,24 @@ _Why it matters:_ So you can switch to the Kindle edition without losing its fol
 - `formatWatch: 'kindle'` on print placeholders. The "slow refresh" it was to share became "Fetcher: refresh ratings with
   the price check" (Polish, 2026-11-03) — if the batch request reports other editions, this check can ride the price
   check the same way, with no schedule. (Outside review item 6.)
+
+#### Phone: change Book Lists and tags
+<!-- id 20261122-1536 -->
+
+_Why it matters:_ Browsing on the phone is where you notice a book is finished or wanted — take a read book out of a
+"To Read" Book List, put one in, add or remove the "Read" tag — and today the phone can only look (Ron, 2026-11-22).
+
+**Wished** (Ron, 2026-11-22, during outside review 3: "I'd prefer if the design left room for the mobile to be a
+writer"):
+1. **Leave room now:** nothing built before this may assume the phone never writes. The stated rule "the phone reads
+   the relay, never writes it" (MULTI-INSTANCE.md §1, RELAY-WRITE-REDESIGN.md §2b) is today's fact, not a design
+   promise; "Keep your tabs and browsers in step" treats the phone as one more browser under "never replace a version
+   you haven't seen".
+2. **How it could travel:** the phone already holds the key and signs like the desktop ("Capture book ideas from your
+   phone" — the same signed single letters); an edit letter the desktop applies at its next Import, or — simpler —
+   through "One cloud copy instead of two" (Relay and sync), where the phone writes the one copy like any browser.
+3. Undecided: which edits (Book Lists and tags first; folders?), and what the phone shows when the desktop changed the
+   same book.
 
 ### Technical clean-up
 
