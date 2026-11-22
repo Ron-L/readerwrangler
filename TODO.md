@@ -315,6 +315,11 @@ and "Warn when another browser has newer changes"; both earlier designs re-read 
    - **Browsers** hear when you come back to one (one small read of the cloud copy's version — the phone's freshness
      check already makes it) or when the cloud refuses a send, and catch up by taking the cloud copy, which writes
      their storage — which brings their other tabs along. The layers stack.
+   - **The phone page is one more browser, not an exception** (Ron, 2026-11-22, outside review 3 item 8). Its local
+     save of the cloud copy (mobile.js, the guest guard) follows the same rule — never replace a version you haven't
+     seen — instead of today's newer-clock-wins comparison. Today, the phone page opening on a computer (a window
+     under 768 pixels) can save another computer's newer copy over this one's library, silently. A phone that later
+     writes ("Phone: change Book Lists and tags") is a writer under the same rule — the same copy, no special case.
 3. **This retires both earlier designs' gatekeepers** — the read-only second tab (with "Edit here instead") and the
    cross-browser "soft lease" with its 15–30-second check. Neither blocks you any more, and the lease's record would
    have cost a cloud write every 15–30 seconds per active user (about 120 an hour, against ~1,000 a day on
