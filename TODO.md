@@ -878,6 +878,14 @@ doesn't reach that.
 4. The better answer for a household: one browser profile per person (see "Several people on one installation").
 5. **The same account name can guard Restore** (2026-11-04): a backup carrying "belongs to Dana" lets Restore say
    *"This backup belongs to Dana — restoring replaces your library."* before replacing anything.
+6. **Where "the library remembers" lives** (Ron + Claude, 2026-11-23, outside review 3 item 11): the fetcher runs on
+   Amazon's page and sees only your cloud library, never this browser's storage — so the owner's account name is stored
+   **in the Fetched Copy** (encrypted like the rest) and in backups (item 5). A stored-format change: a design Ron sees
+   first.
+7. **The first fetch after this ships** (Ron + Claude, 2026-11-23): existing libraries have no owner recorded yet. If
+   that first fetch were Dana's, the library would adopt Dana and then refuse its real owner. So when a library that
+   already has books gets its owner set for the first time, ask once: *"This library will be marked as belonging to
+   Dana — is that you?"* One question per library, ever.
 
 
 #### Fetch should update books it already knows, not skip them
