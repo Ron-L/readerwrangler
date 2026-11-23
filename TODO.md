@@ -4081,6 +4081,12 @@ updates and a crash.
 2. Test first: a stand-in that stalls the same way every time must get the new words; one that stalls once and then
    passes keeps today's.
 3. Enforcement code (`tools/run_tests.py`): its own branch.
+4. **Sized 2026-11-23 — not a "do it now" fix** (Ron: do it now only if quick): it touches the rerun's record, its
+   printed line, the summary and the stamp (`tools/run_tests.py` ~645, ~957, ~1189, ~1262); the runner's own tests
+   already model "the same trouble twice, rerun alone" as the machine's (test/test_run_tests.py ~1342 — Ron's
+   2026-11-17 design), so it changes tested behavior; and "the same reason twice" reads the same for a real bug and a
+   truly slow PC — telling them apart (e.g. a reason that stalls at the same step every time vs. a slow start) is the
+   design question.
 
 ---
 
