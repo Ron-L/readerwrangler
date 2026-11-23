@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+- **Removed an old copy of ReaderWrangler (version 4) that was still on the website.** Opening it would have quietly
+  undone your organization: every book back in the Inbox, and your Book Lists, Searches and tags gone.
+
 ## [7.31.0] - 2026-11-16
 
 ### Added
