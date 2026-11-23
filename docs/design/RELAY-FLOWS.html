@@ -49,6 +49,11 @@
   ol.steps li.now  { color: var(--ink); font-weight: 700; }
   ol.steps li.now::marker { color: var(--accent); }
   .hint { margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .legend { margin: 4px 10px 6px; padding-top: 8px; border-top: 1px solid var(--edge); display: grid; gap: 4px 18px;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); font-size: 12.5px; }
+  .lg { display: flex; align-items: center; gap: 8px; }
+  .lg svg { width: 48px; height: 18px; flex: none; }
+  .lg path.arrow { stroke-width: 1.5; }   /* the marker scales with the stroke — full width makes heads too big here */
 
   /* ---------- protocol table ---------- */
   .proto { margin: 0 22px 26px; background: var(--panel); border: 1px solid var(--edge); border-radius: 12px; padding: 6px 18px 16px; }
@@ -282,13 +287,36 @@
       <!-- runtime arrows land here -->
       <g id="arrows"></g>
     </svg>
+    <!-- The legend: one line per meaning, each drawn the way the diagram draws it, its words in its own color -->
+    <div class="legend" aria-label="What the colors mean">
+      <div class="lg"><svg viewBox="0 0 48 18"><path class="arrow read" d="M3 9 L40 9" marker-end="url(#mk)"/></svg>
+        <span style="color:var(--ok)">A read</span></div>
+      <div class="lg"><svg viewBox="0 0 48 18"><path class="arrow" d="M3 9 L40 9" marker-end="url(#mk)"/></svg>
+        <span style="color:var(--accent)">A write</span></div>
+      <div class="lg"><svg viewBox="0 0 48 18"><path class="arrow fail" d="M3 9 L40 9" marker-end="url(#mk)"/></svg>
+        <span style="color:var(--bad)">A failure or a refusal</span></div>
+      <div class="lg"><svg viewBox="0 0 48 18"><path class="arrow w1" d="M3 5 L40 5" marker-end="url(#mk)"/><path class="arrow w2" d="M3 13 L40 13" marker-end="url(#mk)"/></svg>
+        <span><span style="color:var(--w1)">Two writers</span> <span style="color:var(--w2)">racing</span> (0b, P3)</span></div>
+      <div class="lg"><svg viewBox="0 0 48 18"><path class="arrow old" d="M3 9 L40 9" marker-end="url(#mk)"/></svg>
+        <span style="color:var(--muted)">An earlier step (the current step is in color)</span></div>
+      <div class="lg"><svg viewBox="0 0 48 18"><rect x="3" y="2" width="40" height="14" rx="4" style="fill:var(--lit);stroke:var(--warn);stroke-width:2"/></svg>
+        <span style="color:var(--warn)">Touched this step</span></div>
+      <div class="lg"><svg viewBox="0 0 48 18"><rect x="3" y="2" width="40" height="14" rx="4" class="chip striped"/></svg>
+        <span>Already there before the scenario (0a, 0b)</span></div>
+      <div class="lg"><svg viewBox="0 0 48 18"><g class="fresh"><rect x="3" y="2" width="40" height="14" rx="4" class="chip body"/></g></svg>
+        <span style="color:var(--accent)">Written during the scenario (0a)</span></div>
+      <div class="lg"><svg viewBox="0 0 48 18"><g class="gone"><rect x="3" y="2" width="40" height="14" rx="4" class="chip body" style="stroke:var(--ink);stroke-width:1.5"/></g></svg>
+        <span style="color:var(--muted)">Deleted</span></div>
+      <div class="lg"><svg viewBox="0 0 48 18"><rect x="2" y="1" width="18" height="10" rx="3" class="chip"/><rect x="26" y="7" width="20" height="10" rx="3" class="chip"/><path class="arrow read" d="M11 11 C11 15, 16 13, 24 12" marker-end="url(#mk)" style="stroke-width:1.2"/></svg>
+        <span style="color:var(--ok)">Pointer &#8594; version (always shown)</span></div>
+    </div>
   </div>
 
   <div class="side">
     <h2 id="title"></h2>
     <p class="intro" id="intro"></p>
     <ol class="steps" id="steps"></ol>
-    <p class="hint">Step with the buttons or &#8592;/&#8594; keys. Green = read, purple = write, red dashed = failure/refusal; in 0b each writer has its own color. Striped fill = pre-existing data, solid = written during this scenario. Yellow glow = touched this step.</p>
+    <p class="hint">Step with the buttons or &#8592;/&#8594; keys.</p>
   </div>
 </div>
 
