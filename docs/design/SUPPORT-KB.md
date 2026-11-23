@@ -148,7 +148,7 @@ library with your passphrase before sending it through the relay — which is wh
 credentials means dragging a fresh bookmarklet. **Since 7.25.0 the passphrase also signs every change**
 sent to the relay (with a separate key made from it — the passphrase itself still never leaves your
 devices), and the relay refuses an unsigned change once your channel has started signing. So knowing a
-Channel ID alone no longer lets anyone change or delete your synced copy. Nothing to set up: an
+Channel ID alone no longer lets anyone change or delete your cloud library. Nothing to set up: an
 existing channel switches over by itself at its next save.
 
 **Do I need an Amazon account to try it? (The Demo Library.)** No — download the demo library
@@ -933,7 +933,7 @@ record and in the copy) and has no **Turn off this banner**.
 | Slow first "Checking pending additions" | First fetch after new relay data does extra accounting | Let it run; later fetches are quick |
 | "ReaderWrangler was reset in another tab. This tab's contents are out of date." (7.25.1) | Reset App ran in another tab of the same browser; this tab still shows the library from before, and stopped saving so it can't bring that library back | Press **Reload** |
 | Reset App says "Close your other ReaderWrangler tabs to finish the reset" (7.25.1) | Another tab still holds the library open (usually one running an older version) | Close the other ReaderWrangler tabs — the reset finishes by itself |
-| "I reset the app — is my copy in the cloud safe?" (7.27.1) | The reset itself doesn't change it, and nothing is sent while the library is empty. But once books are back (for example via File → Import from Relay, which brings books without folders), your first change sends the reduced library and replaces the cloud copy | Restore your backup file **before** changing anything after a reset (File → Restore Backup…) |
+| "I reset the app — is my copy in the cloud safe?" (7.27.1) | The reset itself doesn't change it, and nothing is sent while the library is empty. But once books are back (for example via File → Import from Relay, which brings books without folders), your first change sends the reduced library and replaces the organization in your cloud library | Restore your backup file **before** changing anything after a reset (File → Restore Backup…) |
 | "How do I save a backup before I reset?" (7.29.0) | The Reset App box (Tools → Reset App) has a **Save Backup…** button right in its tip — the same save as File → Save Backup; the box stays open while it saves, and a cancelled save resets nothing | Press **Save Backup…**, then **Reset App** (or Cancel) |
 | Bookmarklet fetches the wrong library / mismatch warning | Bookmarklet carries older credentials than the app | Recreate the bookmarklet from Relay Setup |
 | Import from Relay says "Nothing is on the relay for these credentials yet" (7.26.0) | Either nothing has been sent yet, or the app and the bookmarklet use different credentials — the Relay can't tell the two apart (a mistyped Channel ID is simply an empty channel) | New: on the Amazon library page, bookmarklet → **Download Library** (then **Download Collections**), then Import. Already sent: File → Relay Setup — check the credentials, then update the bookmarklet |

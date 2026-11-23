@@ -449,7 +449,7 @@ it from a **frozen, labelled snapshot**: built once on purpose, saved as `relay/
 meaningful label, not a number), with an index listing each snapshot and what it's for; a run COPIES it into place, so
 the frozen copy is always there for the next run. None exists yet — the first test that needs one makes it.
 
-Screen tests never use Amazon's pages and never the real library's cloud copy: the test app has no Cloud Sync (or a
+Screen tests never use Amazon's pages and never Ron's real cloud library: the test app has no Cloud Sync (or a
 throwaway test channel on a local relay). Whatever the driver shows Claude goes to Anthropic — so the demo-style
 fixture, never anything sensitive on screen.
 

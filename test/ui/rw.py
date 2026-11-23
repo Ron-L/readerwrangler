@@ -667,7 +667,7 @@ class App:
 
     # --- Cloud Sync, against the local relay (App(relay=True)) --------------------------------------------------------
     def upload_fetch(self, items):
-        """Send books to the cloud copy exactly as the library fetcher does: one "books" run through the page's own
+        """Send books to the cloud library exactly as the library fetcher does: one "books" run through the page's own
         relay-client (amazon-library-fetcher.js's writeRun call), with the fetcher's payload shape."""
         if not self.relay:
             raise RuntimeError("upload_fetch needs App(relay=True)")

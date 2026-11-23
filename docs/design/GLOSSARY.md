@@ -24,21 +24,21 @@ post-mortem).
 | --- | --- | --- |
 | **Cloud Sync** | The service that carries your library and organization between your computer, your phone and the bookmarklet, encrypted end to end. Replaces "Relay". | Decided |
 | **Cloud Sync Setup** | The window where you set it up (was Relay Setup). | Decided |
-| **Cloud Sync Key** | The one secret that opens your cloud copy: `RW1-` + 13 groups of 5 characters. Replaces Credentials / Channel ID / Passphrase. Whoever has it can read **and change** your cloud copy. | Decided |
+| **Cloud Sync Key** | The one secret that opens your cloud library: `RW1-` + 13 groups of 5 characters. Replaces Credentials / Channel ID / Passphrase. Whoever has it can read **and change** your cloud copy. | Decided |
 | **Support code** | The last 6 characters of the key's ID, shown beside the key — safe to quote to support. | Decided |
 | **Save Key** | Save the key you typed (was "Save Credentials"). | Decided |
 | **Make a new key** | Replace your key and lock out the old one ("change the locks"); your books and folders stay as they are. | Decided |
 | **Import** (from Cloud Sync) | The click that brings new data in — never "Sync now". | Decided |
 | **Send Library / Send Collections to ReaderWrangler** | The bookmarklet's buttons on Amazon's page. | Decided |
 | **the sync server** | The server, on the security and site pages (was "relay server"). | Decided |
-| **your cloud copy** | What your Cloud Sync Key opens, held by Cloud Sync — **always encrypted**, readable only with your key in your ReaderWrangler or your bookmarklets. Two purposes: **(1) the relay** between your Amazon fetches and the app (and the phone); **(2) a backup** of your books and organization — *books today; your organization once the app can take it back (TODO "Keep your tabs and browsers in step…"); until then, Save Backup is your backup.* A **new key means a new cloud copy** — no problem: your next fetch and your next change fill it (set up the bookmarklet and phone again — the old key is built into them); "Make a new key" deletes the old one right away, and a copy nobody uses for a year is deleted (planned). Internally: the "mailbox". | Decided 2026-11-04 (Ron) |
+| **your cloud library** | What your Cloud Sync Key opens, held by Cloud Sync — **always encrypted**, readable only with your key in your ReaderWrangler or your bookmarklets. Two purposes: **(1) the relay** between your Amazon fetches and the app (and the phone); **(2) a backup** of your books and organization — *books today; your organization once the app can take it back (TODO "Keep your tabs and browsers in step…"); until then, Save Backup is your backup.* A **new key means a new cloud library** — no problem: your next fetch and your next change fill it (set up the bookmarklet and phone again — the old key is built into them); "Make a new key" deletes the old one right away, and a cloud library nobody uses for a year is deleted (planned). Inside it: two copies — the Fetched Copy and the Complete Copy (see "Our working names"). | Decided 2026-11-04 (Ron); **renamed 2026-11-23** (Ron) from "your cloud copy" — "copy" now means only one of its two parts |
 
 ## Backups
 
 | Term | Meaning | Status |
 | --- | --- | --- |
 | **Save Backup / Restore Backup** | A file of your whole library and organization — never "Import/Export". Restore **replaces** what this browser has. | Decided (CLAUDE.md) |
-| **key password** | An optional password that **locks the Cloud Sync Key inside your backups**, so sharing a backup file doesn't share access to your cloud copy. Forgetting it loses nothing but the key (restore everything else; enter the key or make a new one). | Decided 2026-11-04 (not "backup password" — reads as "protects the backup" or "a spare password"); menu **File → Key Password…** |
+| **key password** | An optional password that **locks the Cloud Sync Key inside your backups**, so sharing a backup file doesn't share access to your cloud library. Forgetting it loses nothing but the key (restore everything else; enter the key or make a new one). | Decided 2026-11-04 (not "backup password" — reads as "protects the backup" or "a spare password"); menu **File → Key Password…** |
 | **lock** (the key) | What the key password does — chosen over "scramble" (sounds undoable by anyone) and "encrypt" (that's what Cloud Sync does). | Decided 2026-11-04 |
 | **Save as Spreadsheet** | Your books as a spreadsheet file (CSV) — no key, no organization. | Decided (7.10) |
 
@@ -62,17 +62,19 @@ post-mortem).
 ## Our working names — for docs, code and our talk (internal)
 
 _Muddled names lead to muddled thinking (Ron, 2026-11-22, during outside review 3). Mostly not shown to people — they
-see "your cloud copy". Named by **what the thing holds or is**, not who writes it or what device shows it, so the names
+see "your cloud library". Named by **what the thing holds or is**, not who writes it or what device shows it, so the names
 stay true if the writers change (the phone may edit one day)._
 
 | Term | Meaning | Replaces (retired when the rename migrates — TODO "Our working names in the code and docs…") | Status |
 | --- | --- | --- | --- |
-| **Fetched Copy** | The cloud copy of your **books** as fetched from Amazon — fed by the bookmarklet's uploads, read by Import. Holds no organization. | "the canonical", "canonical library", "generations" (of the library), "the cloud's library copy" | Decided 2026-11-22 (Ron) |
-| **Complete Copy** | The cloud copy of **everything** — books, organization and your own fields — written by the app, read by the compact view (and, once "Keep your tabs and browsers in step" is built, by any browser that's behind). | "device-state", "dstate", "the phone's copy", "the mobile payload" | Decided 2026-11-22 (Ron) |
+| **Fetched Copy** | The copy of your **books** in your cloud library, as fetched from Amazon — fed by the bookmarklet's uploads, read by Import. Holds no organization. | "the canonical", "canonical library", "generations" (of the library), "the cloud's library copy" | Decided 2026-11-22 (Ron) |
+| **Complete Copy** | The copy of **everything** in your cloud library — books, organization and your own fields — written by the app, read by the compact view (and, once "Keep your tabs and browsers in step" is built, by any browser that's behind). | "device-state", "dstate", "the phone's copy", "the mobile payload" | Decided 2026-11-22 (Ron) |
+| **version** | One saved state of a copy. Each copy keeps its newest versions (today two; one between saves once the pointer keeper is built — MULTI-INSTANCE.md §4). The three levels never share a word: **cloud library** → its two **copies** → their **versions**. | "generation" (the code's word), "copy" when it meant a saved state | Decided 2026-11-23 (Ron) |
 | **compact view** | ReaderWrangler on a small screen (a window under 768 pixels wide — a phone, or a narrow computer window): `mobile.js`. | "the phone page", "mobile app", "mobile viewer", "the phone" (when it means the view, not the device) | Decided 2026-11-22 (Ron) |
 | **full view** | ReaderWrangler on a wider screen — everything: `readerwrangler.js`. | "the desktop app", "desktop" (when it means the view) | Decided 2026-11-22 (Ron) |
 
 ## Words users never see
 
 Relay · Credentials · Channel ID · Passphrase (until the rename ships, they're still on screen) · "Sync now" ·
-"Import/Export" for backups · IndexedDB · JSON · localStorage · tombstone · mailbox · storage bucket.
+"Import/Export" for backups · IndexedDB · JSON · localStorage · tombstone · mailbox · storage bucket · "your cloud copy"
+(now "your cloud library", 2026-11-23).

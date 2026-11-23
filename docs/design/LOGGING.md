@@ -122,7 +122,7 @@ may plant `IMPORT-12` to test how `IMPORT-12` is handled). What marks them is ex
 | Area | What |
 |---|---|
 | **BOOT** | starting up: the build, the environment, migrations, loading the library |
-| **SYNC** | Cloud Sync: polling, sending, the cloud copy, consolidation |
+| **SYNC** | Cloud Sync: polling, sending, the cloud library, consolidation |
 | **IMPORT** | Import (from Cloud Sync) and merging what arrives |
 | **BACKUP** | Save / Restore Backup, Save as Spreadsheet |
 | **STORE** | this browser's storage: the book store, the organization, Reset App |
@@ -326,7 +326,7 @@ the other modules or the page's inline scripts. Totals: **critical** 6, **error*
 | 158 | relay-client.js:400 | warn | `'Relay cleanup failed:', await response.text());` | warning | SYNC | SYNC-09 |  |
 | 159 | relay-client.js:997 | warn | `` `Bulk-run GC skipped for ${r.runId} (TTL will handle it):`, e.message); } `` | warning | SYNC | SYNC-10 | harmless — expiry cleans up |
 | 160 | relay-client.js:999 | log | `` `🧹 Reclaimed ${deleted} absorbed bulk run(s)`); `` | info | SYNC |  |  |
-| 161 | relay-client.js:1068 | warn | `'composeCanonical: unparseable canonical ignored:', e.message); }` | **critical** | SYNC | SYNC-11 | the cloud copy itself is unreadable — data at risk |
+| 161 | relay-client.js:1068 | warn | `'composeCanonical: unparseable canonical ignored:', e.message); }` | **critical** | SYNC | SYNC-11 | the Fetched Copy itself is unreadable — data at risk |
 | 162 | relay-client.js:1074 | warn | `` `composeCanonical: unparseable run ${run.runId} ignored:`, e.message); continue; } `` | **error** | SYNC | SYNC-12 | a sent batch of books is unreadable — those books are missing |
 | 163 | relay-client.js:1150 | log | `` `⏰ Age cap: oldest pending run is ${((Date.now() - oldest) / 86400000).toFixed(1)}d old — conso… `` | info | SYNC |  |  |
 | 164 | relay-client.js:1159 | warn | `'Age-cap merge skipped:', e.message);` | warning | SYNC | SYNC-13 |  |

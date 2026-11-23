@@ -114,7 +114,7 @@
 <header>
   <h1>Relay Data Flows — how ReaderWrangler sync moves</h1>
   <p>Companion to <code>RELAY-WRITE-REDESIGN.md</code>. <b>Today</b> = as built (app 7.31, relay worker 7.25), each step checked against the code on 2026-11-23. Start with the <b>Tour</b>, then step the scenarios — 0a/0b are history: the pre-7.0 design and why it broke (torn write, RMW race). Known defects are marked as such, with the review that found them. <b>Proposed</b> (P0–P4) = the decided, not-built pointer keeper — its text is <code>MULTI-INSTANCE.md</code> §4 (“How the cloud enforces it”). A protocol cheat-sheet is at the bottom (today only).</p>
-  <p><b>Names</b> (our working names, GLOSSARY.md): <b>Fetched Copy</b> = the cloud copy of your books as fetched (code: canonical, <code>/gen</code>, “generations”) · <b>Complete Copy</b> = books + organization + your own fields (code: device-state, <code>/dstate</code>) · <b>full view</b> = <code>readerwrangler.js</code> · <b>compact view</b> = <code>mobile.js</code>. A “version” here is what the code calls a generation.</p>
+  <p><b>Names</b> (our working names, GLOSSARY.md): <b>cloud library</b> = everything your Cloud Sync Key opens: two copies, each kept in versions · <b>Fetched Copy</b> = the copy of your books as fetched (code: canonical, <code>/gen</code>, “generations”) · <b>Complete Copy</b> = books + organization + your own fields (code: device-state, <code>/dstate</code>) · <b>full view</b> = <code>readerwrangler.js</code> · <b>compact view</b> = <code>mobile.js</code>. A “version” here is what the code calls a generation.</p>
 </header>
 
 <div class="controls">
@@ -243,7 +243,7 @@
           <text x="105" y="350" text-anchor="middle" class="t-small">another full view</text></g>
         <g id="keeper"><rect class="store" x="555" y="448" width="260" height="160" rx="10"/>
           <text x="685" y="468" text-anchor="middle" class="t-bold">Pointer keeper</text>
-          <text x="685" y="483" text-anchor="middle" class="t-tiny">a Durable Object &#8212; one per cloud copy &#183; strongly</text>
+          <text x="685" y="483" text-anchor="middle" class="t-tiny">a Durable Object &#8212; one per cloud library &#183; strongly</text>
           <text x="685" y="495" text-anchor="middle" class="t-tiny">consistent, answers one request at a time</text></g>
         <g id="kpF"><rect class="chip body" x="570" y="503" width="230" height="24" rx="6"/>
           <text x="685" y="519" text-anchor="middle" class="t-small">Fetched Copy &#8594; version A</text></g>
@@ -385,7 +385,7 @@ const SCENARIOS = [
   steps:[
     { t:'The Worker is the only door: nothing touches the stored data except by sending it a message (an ordinary HTTPS request — see the cheat-sheet below). It checks each write’s signature, rate-limits, stamps server time into ids, and enforces the commit rules. It also wakes on a clock: every night it cleans up leftovers and emails the daily summary (scenario 8). Everything it stores is encrypted — the key stays on your devices, never in Cloudflare.',
       lit:['worker','admin'] },
-    { t:'Signed writes (7.25.0): the first write from a cloud copy registers its write key — made from your Cloud Sync Key — and from then on the worker refuses any write or delete that isn’t signed with it. Reads need no signature: all they return is encrypted. The refusals are in scenario 4.',
+    { t:'Signed writes (7.25.0): the first write to a cloud library registers its write key — made from your Cloud Sync Key — and from then on the worker refuses any write or delete that isn’t signed with it. Reads need no signature: all they return is encrypted. The refusals are in scenario 4.',
       lit:['admin','fetchers','app'] },
     { t:'The Fetched Copy (code: the canonical) is a STACK of complete versions — each a whole, checksummed copy of your books as fetched from Amazon; it holds no organization. The pointer names the current one. To change it you write a NEW version beside the old and move the pointer — never an edit-in-place. The two newest are kept: older ones are deleted at once, unfinished ones after 10 minutes. No expiry date — it lives until replaced.',
       lit:['canon','genA','ghostGen','ptr'] },
@@ -507,7 +507,7 @@ const SCENARIOS = [
 { id:'4', layout:'v7', title:'4 · Worker guardrails',
   intro:'The worker is in every flow — it is the only door. These are the refusals that keep even a buggy client (or someone without your key) from doing damage.',
   steps:[
-    { t:'A write that isn’t signed with this cloud copy’s write key — or whose time is more than 5 minutes off — is refused (401). Registering a DIFFERENT write key for a cloud copy that already has one is refused too (409).',
+    { t:'A write that isn’t signed with this cloud library’s write key — or whose time is more than 5 minutes off — is refused (401). Registering a DIFFERENT write key for a cloud copy that already has one is refused too (409).',
       lit:['worker','admin'],
       arr:[['fetchers','worker','✖ unsigned write → 401','fail',-30]] },
     { t:'A client tries to move the pointer to a version whose manifest doesn’t exist (unfinished). Refused (409): commit-before-pointer is enforced by the worker, not just by client discipline.',
@@ -519,10 +519,10 @@ const SCENARIOS = [
     { t:'A client tries to DELETE the version the pointer currently names. Refused (409) — a client bug can’t torch the current library.',
       lit:['worker','genA'],
       arr:[['app','worker','✖ delete pointed version → 409','fail',-50]] },
-    { t:'Any request for a revoked cloud copy is refused (403) — scenario 7.',
+    { t:'Any request for a revoked cloud library is refused (403) — scenario 7.',
       lit:['worker','admin'],
       arr:[['app','worker','✖ revoked → 403','fail',-65]] },
-    { t:'A runaway client: designed as 200 writes an hour per cloud copy (429), blocked automatically at 2,000. KNOWN DEFECT (outside review 2; confirmed in the code): the count is sampled 1 in 5 and saved only when a write is allowed, so past 200 about four writes in five still go through — and the automatic block can never happen.',
+    { t:'A runaway client: designed as 200 writes an hour per cloud library (429), blocked automatically at 2,000. KNOWN DEFECT (outside review 2; confirmed in the code): the count is sampled 1 in 5 and saved only when a write is allowed, so past 200 about four writes in five still go through — and the automatic block can never happen.',
       lit:['worker','admin'],
       arr:[['fetchers','worker','✖ too many writes → 429, but only 1 in 5','fail',-30]] },
     { t:'Everything else passes: the worker validates channels and ids, stamps SERVER time into run and version ids (a device with a wrong clock can’t win “newest”), and stores only ciphertext it cannot read.',
@@ -639,13 +639,13 @@ const SCENARIOS = [
       arr:[['worker','app','next import absorbs it','read',30]] }
   ]},
 
-{ id:'7', layout:'v7', title:'7 · Revoke — wipe the cloud copy and lock its key out',
-  intro:'Relay Setup → “Revoke credentials & wipe relay” (the danger zone at the bottom). Today the only way to delete a cloud copy on purpose.',
+{ id:'7', layout:'v7', title:'7 · Revoke — wipe the cloud library and lock its key out',
+  intro:'Relay Setup → “Revoke credentials & wipe relay” (the danger zone at the bottom). Today the only way to delete a cloud library on purpose.',
   steps:[
     { t:'After you confirm, the full view sends a revoke — signed like every write, carrying a proof made from the key.',
       lit:['app'], show:['runBooks','letterWish'], hide:['mailEmpty'],
       arr:[['app','worker','revoke (signed)','write',0]] },
-    { t:'The worker deletes everything stored for that cloud copy: the mailbox, both stacks of versions, both pointers, and any pre-7.0 items.',
+    { t:'The worker deletes everything stored for that cloud library: the mailbox, both stacks of versions, both pointers, and any pre-7.0 items.',
       lit:['worker'],
       mark:[['canon','gone'],['genA','gone'],['ghostGen','gone'],['ptr','gone'],['ptrA','gone'],['mailbox','gone'],['runBooks','gone'],['letterWish','gone'],
             ['devstate','gone'],['ccVer','gone'],['ccGhost','gone'],['ccPtr','gone'],['ccPtrArrow','gone'],['legacy','gone']],
@@ -653,17 +653,17 @@ const SCENARIOS = [
     { t:'…and puts it on the block list: every later request for it is refused (403). This browser forgets the key, and Relay Setup reopens to make a new one (then set up the bookmarklet and the phone again — the old key is built into them).',
       lit:['admin','app'],
       arr:[['fetchers','worker','✖ old key → 403','fail',-30]] },
-    { t:'KNOWN GAPS (outside review 2): the write key and the proof stay stored for ever (TODO: delete the write key on revoke); and making new credentials WITHOUT revoking leaves the old cloud copy alive and usable by anyone holding the old key — “Make a new key” is meant to revoke (GLOSSARY), but it doesn’t yet.',
+    { t:'KNOWN GAPS (outside review 2): the write key and the proof stay stored for ever (TODO: delete the write key on revoke); and making new credentials WITHOUT revoking leaves the old cloud library alive and usable by anyone holding the old key — “Make a new key” is meant to revoke (GLOSSARY), but it doesn’t yet.',
       lit:['admin'] }
   ]},
 
 { id:'8', layout:'v7', title:'8 · The nightly cleanup and daily summary',
   intro:'Every night at 23:55 UTC each relay wakes on its own, checks its storage and emails the daily summary. It deletes only what an interrupted or never-repeated save left behind — the same rules the app follows when it saves.',
   steps:[
-    { t:'It lists every stored item and groups them by cloud copy (one storage count per relay).',
+    { t:'It lists every stored item and groups them by cloud library (one storage count per relay).',
       lit:['worker','canon','mailbox','devstate'],
       arr:[['canon','worker','list everything','read',-10],['mailbox','worker','','read',10],['ccVer','worker','','read',0,CC_VER()]] },
-    { t:'Per cloud copy it deletes: versions beyond the two newest (in either stack); unfinished versions (no manifest) over 10 minutes old; and mailbox runs of 2+ letters that the current Fetched Copy lists as absorbed, once that version is over 10 minutes old.',
+    { t:'Per cloud library it deletes: versions beyond the two newest (in either stack); unfinished versions (no manifest) over 10 minutes old; and mailbox runs of 2+ letters that the current Fetched Copy lists as absorbed, once that version is over 10 minutes old.',
       lit:['ghostGen','runBooks'], show:['runBooks'], hide:['mailEmpty'], mark:[['runBooks','gone']],
       arr:[['worker','mailbox','delete absorbed runs','fail',0]] },
     { t:'Never: a run nothing has absorbed (it may be the only copy of a change — the email lists these as “not yet imported - kept”), or a version a pointer names. A cloud copy whose pointer is missing isn’t judged at all. At most 20 deletes a night — a backlog clears over several nights.',
@@ -677,7 +677,7 @@ const SCENARIOS = [
 { id:'P0', layout:'p', group:'Proposed — not built', title:'P0 · Proposed — the pointer keeper',
   intro:'Not built. The decided design (TODO “Keep your tabs and browsers in step”, 2026-11-22 — Ron’s design): how the cloud enforces “never replace a version you haven’t seen”. Today’s KV pointers and kept older versions are left out of this picture.',
   steps:[
-    { t:'The pointer keeper: one Durable Object per cloud copy — Cloudflare storage that is strongly consistent and answers one request at a time. It holds which version is current, for both copies. The bulky parts stay in KV under a new name per version, never overwritten — as today.',
+    { t:'The pointer keeper: one Durable Object per cloud library — Cloudflare storage that is strongly consistent and answers one request at a time. It holds which version is current, for both copies. The bulky parts stay in KV under a new name per version, never overwritten — as today.',
       lit:['keeper','kpF','kpC17'] },
     { t:'Readers ask the keeper “what’s current?”, then read that version’s parts from KV. A part that isn’t visible yet (KV can take a minute to reach every location) → wait and retry.',
       lit:['kpF','kpC17','genA','pc17'] },
@@ -744,7 +744,7 @@ const SCENARIOS = [
 { id:'P4', layout:'p', title:'P4 · Proposed — after a reset',
   intro:'The “just reset” case (TODO “Restore from Cloud Sync”, item 6) is one case of the same rule. So is a cleared browser, or a new computer given the key by hand.',
   steps:[
-    { t:'You reset ReaderWrangler on this computer. This browser now holds nothing — and has seen no version of the cloud copy.',
+    { t:'You reset ReaderWrangler on this computer. This browser now holds nothing — and has seen no version of the Complete Copy.',
       lit:['app'] },
     { t:'A fetch and an Import bring the books back — without their folders (the Fetched Copy holds no organization).',
       lit:['app','genA'],

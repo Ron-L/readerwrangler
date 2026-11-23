@@ -243,7 +243,7 @@ Phase 1 needs exactly three rules:
 **Not built (2026-11-23)** — neither job: the quota counter is still a KV counter in the worker (outside review 2
 found it doesn't hold — sampled 1 in 5 and saved only when allowed, so the auto-block can't trigger), and the
 merge-lease wasn't built either (two merges at once are safe without it — RELAY-FLOWS 6b). **A third job, decided 2026-11-22:** the pointer
-keeper — one Durable Object per cloud copy holding both copies' pointers with compare-and-swap, the older version
+keeper — one Durable Object per cloud library holding both copies' pointers with compare-and-swap, the older version
 deleted ~10 minutes after it's replaced. It would hold the exact write counter too. Design: `MULTI-INSTANCE.md` §4
 ("How the cloud enforces it — the pointer keeper"); drawn in `RELAY-FLOWS.html`, Proposed group.
 

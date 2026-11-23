@@ -23,7 +23,7 @@
       - [Fetch should update books it already knows, not skip them](#fetch-should-update-books-it-already-knows-not-skip-them)
       - [Restore checks every book, folder and list inside a backup — skip a bad one and say so](#restore-checks-every-book-folder-and-list-inside-a-backup--skip-a-bad-one-and-say-so)
       - [One backup writer: Save Backup and the copy sent to the relay are built twice and already differ](#one-backup-writer-save-backup-and-the-copy-sent-to-the-relay-are-built-twice-and-already-differ)
-      - [Restore from Cloud Sync: your books and organization back from the cloud copy, no backup file needed](#restore-from-cloud-sync-your-books-and-organization-back-from-the-cloud-copy-no-backup-file-needed)
+      - [Restore from Cloud Sync: your books and organization back from your cloud library, no backup file needed](#restore-from-cloud-sync-your-books-and-organization-back-from-your-cloud-library-no-backup-file-needed)
       - [Lock the Cloud Sync Key in backups with an optional key password](#lock-the-cloud-sync-key-in-backups-with-an-optional-key-password)
       - [Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)](#relay-worker-one-release-of-changes-backup-alerter-clearer-daily-email-strict-id-check)
       - [Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one](#cloud-sync-rename-relay-show-one-cloud-sync-key-and-make-a-new-key-retires-the-old-one)
@@ -120,7 +120,7 @@
     - [Relay and sync](#relay-and-sync)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Smaller organization syncs (send only what changed in your folders, tags and lists)](#smaller-organization-syncs-send-only-what-changed-in-your-folders-tags-and-lists)
-      - [One cloud copy instead of two: the library copy and the phone's copy as one](#one-cloud-copy-instead-of-two-the-library-copy-and-the-phones-copy-as-one)
+      - [One copy instead of two: the Fetched Copy and the Complete Copy as one](#one-copy-instead-of-two-the-fetched-copy-and-the-complete-copy-as-one)
       - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
     - [Features](#features)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
@@ -236,7 +236,7 @@ GitHub"; the privacy task became "The Security & Privacy page made specific, and
    ReaderWrangler" would be the first feature to change a user's Amazon account, a bigger step than reading: weigh it
    explicitly); the Amazon Associates rules for the affiliate tag (a visible disclosure is
    required; self-purchases are a known pitfall); a privacy policy (including GoatCounter and the sync server's
-   last-used date per cloud copy — disclosed together, Ron 2026-11-04); Cloudflare's free-tier
+   last-used date per cloud library — disclosed together, Ron 2026-11-04); Cloudflare's free-tier
    limits as users grow; **book covers on camera** (the sizzle reel and screenshots show real covers — Ron: fair use as
    he sees it, risk accepted, 2026-11-04); **iPhone at launch, or not** (every iPhone browser is Safari underneath — "Test on Safari and
    iPhone", 2026-11-04); support load with one person — including **a support inbox** (Resend Inboxes, announced
@@ -286,7 +286,7 @@ into that task, 2026-11-19 (Ron): it isn't needed for launch, so its review runs
 _Why it matters:_ A copy of ReaderWrangler working from an old state overwrites newer work — today, in two ways. Two
 **tabs** share one browser's storage, and one innocent edit in an out-of-date tab writes its whole old organization
 over everything done since it loaded (a real data-loss risk). Two **browsers or computers** on one Cloud Sync each
-keep their own folders, which drift apart while nobody is told — and whichever sends last overwrites the cloud copy
+keep their own folders, which drift apart while nobody is told — and whichever sends last overwrites the Complete Copy
 the phone shows. At launch the second case is ordinary, not a clever-user trick: plenty of people have a laptop and
 a desktop.
 
@@ -305,7 +305,7 @@ and "Warn when another browser has newer changes"; both earlier designs re-read 
 1. **One problem, one mechanism.** The four states are the same everywhere — in sync, behind, ahead, both changed:
    1. Each saved copy of the organization carries a version stamp (the saved organization already carries
       `savedAt`).
-   2. **Compare before you overwrite**, at both places it's written: this browser's storage and the cloud copy. A
+   2. **Compare before you overwrite**, at both places it's written: this browser's storage and the Complete Copy. A
       write says "I'm replacing the version I last saw"; if it has changed since, the write is refused.
    3. A refused write, or a newer copy noticed, gets the same responses everywhere: **behind with no changes of its
       own → catch up silently + toast + Undo; ahead or in sync → nothing; both changed → the banner**, and this copy
@@ -313,15 +313,15 @@ and "Warn when another browser has newer changes"; both earlier designs re-read 
 2. **Only two things differ by place:**
    - **Tabs** hear at once, for free — the browser tells every other tab when stored data changes, and the app saves
      the organization on every change — and catch up by reloading from storage.
-   - **Browsers** hear when you come back to one (one small read of the cloud copy's version — the phone's freshness
-     check already makes it) or when the cloud refuses a send, and catch up by taking the cloud copy, which writes
+   - **Browsers** hear when you come back to one (one small read of the Complete Copy's version — the phone's freshness
+     check already makes it) or when the cloud refuses a send, and catch up by taking the Complete Copy, which writes
      their storage — which brings their other tabs along. The layers stack.
    - **The phone page is one more browser, not an exception** (Ron, 2026-11-22, outside review 3 item 8). Its local
-     save of the cloud copy (mobile.js, the guest guard) follows the same rule — never replace a version you haven't
+     save of the Complete Copy (mobile.js, the guest guard) follows the same rule — never replace a version you haven't
      seen — instead of today's newer-clock-wins comparison. Today, the phone page opening on a computer (a window
      under 768 pixels) can save another computer's newer copy over this one's library, silently. A phone that later
      writes ("Phone: change Book Lists and tags") is a writer under the same rule — the same copy, no special case.
-   - **How the cloud enforces it: a Durable Object holds each cloud copy's pointer** (Ron + Claude, 2026-11-22,
+   - **How the cloud enforces it: a Durable Object per cloud library holds its copies' pointers** (Ron + Claude, 2026-11-22,
      outside review 3 item 10 — Ron's design): compare-and-swap on the pointer; the parts stay in KV; the older
      version deleted ~10 minutes after it's replaced; the same object holds the exact write counter and the write key.
      **The design lives in `docs/design/MULTI-INSTANCE.md` §4 ("How the cloud enforces it — the pointer keeper"),
@@ -334,7 +334,7 @@ and "Warn when another browser has newer changes"; both earlier designs re-read 
    stops catching up, and a frozen tab doesn't edit or send. Resume = catch up.
 5. **Duplicate sends:** a tab sends to the cloud only when the stored version differs from the last one sent (recorded
    in the shared storage), so two in-step tabs don't both send as you leave them.
-6. **Taking the cloud copy is the real work** — the desktop has never applied one; today it reads the cloud
+6. **Taking the Complete Copy is the real work** — the desktop has never applied one; today it reads the cloud
    organization only in the connection test (readerwrangler.js ~1845).
 7. **Tested with the browser driver:** two real tabs (edit in A; B catches up with the toast; Undo; nothing lost; one
    send), then two throwaway browsers on one test channel (edit in A, return to B → caught up; edit both → banner,
@@ -471,7 +471,7 @@ library. Found or confirmed by the cold review of this TODO (2026-11-19), every 
 15. **Ron's own purchases untagged** — Polish → Small fixes, "Leave the affiliate tag off Amazon links on the test rig"
     (widened 2026-11-20 to any browser Ron uses), built here: Associates pays nothing on your own purchases.
 16. **Cloud Sync's description says how long your organization is kept** (outside review 3, item 10; Ron
-    2026-11-22) — wherever Cloud Sync is described (the glossary's "your cloud copy", Cloud Sync Setup, the security
+    2026-11-22) — wherever Cloud Sync is described (the glossary's "your cloud library", Cloud Sync Setup, the security
     page, the guide): *"your organization is kept for 90 days after your last change; Save Backup is your backup."*
     Today "a backup of your books and organization" overstates it: the Complete Copy keeps two versions minutes apart
     and expires 90 days after the last send.
@@ -814,11 +814,11 @@ now also every "Refresh all books from Amazon" run, the likeliest to trip Amazon
 ##### Refresh all books from Amazon — a choice in the fetcher, which the app can pre-select
 <!-- id 20261014-1030 -->
 
-_Why it matters:_ Fetches are incremental — they build on the books the cloud copy already holds, and only re-read
+_Why it matters:_ Fetches are incremental — they build on the books the Fetched Copy already holds, and only re-read
 deeper when the counts disagree with Amazon. So book details that went stale or wrong (a cover, rating, description,
-series Amazon later corrected — or a damaged record) are never re-read. Today the only way out is clearing the cloud
-copy with the browser's developer tools. (Not a clean restart — that's Tools → Reset App, plus the Danger zone wipe for
-the cloud copy.)
+series Amazon later corrected — or a damaged record) are never re-read. Today the only way out is clearing the Fetched
+Copy with the browser's developer tools. (Not a clean restart — that's Tools → Reset App, plus the Danger zone wipe for
+the cloud library.)
 
 **Decided** (Ron + Claude, 2026-11-01, in the TODO review)
 1. **Name:** "Refresh all books from Amazon" — plain and exact. Not "integrity" (the app's integrity check is a
@@ -958,18 +958,18 @@ function tests written first.
 **In the launch gate (Ron, 2026-11-19):** built first — the restore from Cloud Sync below needs one way of building a backup.
 
 _Why it matters:_ The backup file and the copy sent to the relay and the phone hold the same library, but each is put
-together by its own code — and they already disagree: the relay copy carries the folder-list order (Manual / Name;
+together by its own code — and they already disagree: the Complete Copy carries the folder-list order (Manual / Name;
 `folderListSort`) and when it was saved; the backup has neither, so a restore onto a new computer can't bring the
 folder order back. Every new field has to be remembered twice (Law 4: two answers to one question).
 
 **Found** (2026-11-08): `buildDeviceStatePayload` (readerwrangler.js ~6146, the relay and phone copy) and Save
 Backup's own builder (~6271) each write `books`, `organization`, `collections`; a comment says the first is "shared
-with exportBackup", but Save Backup builds its own. Differences: the relay copy has `savedAt` and
+with exportBackup", but Save Backup builds its own. Differences: the Complete Copy has `savedAt` and
 `explorerSettings.folderListSort`; Save Backup has `exportDate`, `theme`, `appVersion` and the Cloud Sync
 credentials.
 
 **How**
-1. One builder; Save Backup adds only what a file needs (the credentials, the save date) and the relay copy only what
+1. One builder; Save Backup adds only what a file needs (the credentials, the save date) and the Complete Copy only what
    it needs (`savedAt`).
 2. The folder-list order joins the view settings it belongs to (a restore onto a computer with books keeps the view
    here — Ron, 2026-11-08: "restore changes organization, not views").
@@ -984,7 +984,7 @@ credentials.
    can say so again. Normally the screen and storage agree (the organization is saved on every change) — check that
    nothing pending is lost (a change still on its way to storage).
 
-#### Restore from Cloud Sync: your books and organization back from the cloud copy, no backup file needed
+#### Restore from Cloud Sync: your books and organization back from your cloud library, no backup file needed
 <!-- id 20261109-1700 -->
 
 **In the launch gate (Ron, 2026-11-19):** a stranger who clears their browser data, or loses a computer with no recent backup, would otherwise lose all their organizing — while a full copy sits in the cloud.
@@ -998,7 +998,7 @@ nothing on the computer reads it back; Import from Relay merges only the books t
 1. **One restore, two readers.** A file reader and a relay reader each turn their source into the same backup-shaped
    data; from there ONE path — the backup check (backupCheck.js), the "restore?" box, the restore itself
    (performRestore / loadLibrary) — that can't tell where the data came from.
-2. **Credentials:** the relay's copy carries none, and needs none — reaching the relay already took yours. The restore
+2. **Credentials:** the Complete Copy carries none, and needs none — reaching the relay already took yours. The restore
    keeps the current ones (as a backup file without credentials does).
 3. **The new computer:** once built, the app tells the person that any backup FILE made since their current credentials
    were created brings them back — File → Relay Setup → Credentials → "Load credentials from backup file" (the label says
@@ -1010,23 +1010,23 @@ nothing on the computer reads it back; Import from Relay merges only the books t
    back. The menu: one item, "Restore…", asking "from a backup file / from Cloud Sync" only when Cloud Sync is set up —
    otherwise straight to the file box (Claude's UX verdict; Ron to confirm when it's built).
 - How current: as of the last send (seconds); a change made in the moments before a crash may be missing — say so in
-  the "restore?" box ("your cloud copy from 2 minutes ago").
-6. **After a reset: one choice, and the cloud copy held until it's made** (Ron + Claude, 2026-11-11, building
+  the "restore?" box ("your cloud library from 2 minutes ago").
+6. **After a reset: one choice, and the cloud library held until it's made** (Ron + Claude, 2026-11-11, building
    7.27.1's reset words). What happens today, checked in the code: the reset itself sends nothing, and nothing is sent
    while the library is empty (the device-state push skips `books.length === 0`) — but as soon as books are back (a
    fetch + Import from Relay, which brings books without folders) any change sends a **full** copy (no deltas: every
-   push is a whole new generation) that replaces the cloud's copy with the folders; the relay keeps two, so one more
+   push is a whole new generation) that replaces the cloud's Complete Copy, the one with the folders; the relay keeps two, so one more
    push and the old organization is gone from the cloud. Decided:
    - **The first time the app opens after ANY reset** (Tools → Reset App, the emergency screen, the reset page, the
      phone — each sets one "just reset" mark), it asks once: *"You've reset ReaderWrangler. Bring your library back?
      [Restore from Cloud Sync] [Restore backup file…] [Start fresh]"* — the natural moment ("what next?"), part of the
      person's own action; "Start fresh" covers the early-days restart.
-   - **Until a choice is made, nothing is sent to the cloud** — so the cloud copy is guaranteed intact when they choose
+   - **Until a choice is made, nothing is sent to the cloud** — so the cloud library is guaranteed intact when they choose
      to restore from it. Closing the box keeps the hold and asks again next time.
    - **One case of a general rule** (Ron, 2026-11-22, outside review 3 item 10): the "just reset" mark is one case
      of "never replace a version you haven't seen" ("Keep your tabs and browsers in step") — which also covers a
      cleared browser, a new computer given the key by hand, and books brought back by a fetch without their folders.
-   - **Ships with this task**, not before (Ron): until a restore from the cloud exists, the cloud copy isn't a way back,
+   - **Ships with this task**, not before (Ron): until a restore from the cloud exists, the cloud library isn't a way back,
      so there's nothing to hold for — and a hold with no cloud restore to offer is a confusing mode. (The
      backup-file-only version of the choice could ship earlier on its own — Ron: wait; logged here.)
    - **Turned down:** a "last chance" prompt at the first push that would overwrite the cloud (it interrupts 60 s after
@@ -1039,7 +1039,7 @@ nothing on the computer reads it back; Import from Relay merges only the books t
 **In the launch gate (Ron, 2026-11-19):** a backup shared before this ships stays unlocked forever — adding the lock later doesn't protect files already sent.
 
 _Why it matters:_ Every backup carries your Cloud Sync Key, and since 7.25 that key also signs changes — so whoever you
-share a backup file with ("send your brother your ReaderWrangler file") can change or delete your cloud copy. A family
+share a backup file with ("send your brother your ReaderWrangler file") can change or delete your cloud library. A family
 member forwarding a file is far likelier than any attacker.
 
 **Decided** (Ron + Claude, 2026-11-04)
@@ -1050,7 +1050,7 @@ member forwarding a file is far likelier than any attacker.
 2. **One optional line in the save step, never a pop-up (Law 18):** *"Lock the Cloud Sync Key in this backup with a
    password (optional) [______]  Why?"* + "Don't ask again". Shown only when Cloud Sync is set up. **Remembered in
    this browser**, so later backups lock automatically; **File → Key Password…** sets, changes or removes it.
-3. **Why? / help text:** sharing an unlocked backup shares access to your cloud copy (the recipient could change or
+3. **Why? / help text:** sharing an unlocked backup shares access to your cloud library (the recipient could change or
    delete your library and organization; you could recover from your last backup and make a new key); a password,
    even a simple one, makes sharing a backup harmless — *"but feel free to use a strong password and a password
    manager. We highly recommend password managers."* And: *"To look at someone else's backup, use a separate browser
@@ -1061,8 +1061,8 @@ member forwarding a file is far likelier than any attacker.
    - no key here (e.g. a new PC): *"…Enter your key password to reconnect Cloud Sync — or skip: you can enter your key
      later, or make a new one."*
 5. **Restore never blocks:** a skipped or wrong password restores everything else, then says *"Cloud Sync wasn't
-   reconnected — enter your Cloud Sync Key, or make a new one if you don't want to keep using your current cloud copy
-   (a new key means a new cloud copy)."*
+   reconnected — enter your Cloud Sync Key, or make a new one if you don't want to keep using your current cloud library
+   (a new key means a new cloud library)."*
 6. **Under the hood:** the same password-to-key method the relay already uses (relay-crypto), on one field of the
    backup. A weak password can be guessed by someone determined with the file — accepted for this threat (Ron).
 7. **Ripples:** the Disconnect wording ("Relay Setup: disconnect…", part of the Cloud Sync rename) says the key is in your backups "locked
@@ -1073,8 +1073,8 @@ member forwarding a file is far likelier than any attacker.
 <!-- id 20261024-1045 -->
 
 **Before launch (the launch gate, 2026-11-19): items 3, 4 and 8 below** — 3, the strict ID check (an ID in the wrong
-form silently opens a separate, empty cloud copy); 4, the nightly email names cloud copies by 6 characters, not 4 (with
-many users, 4-character names collide); 8, a small "request" note per cloud copy, which "Refresh all books from Amazon"
+form silently opens a separate, empty cloud library); 4, the nightly email names cloud libraries by 6 characters, not 4 (with
+many users, 4-character names collide); 8, a small "request" note per cloud library, which "Refresh all books from Amazon"
 (in the fetcher work) needs. Ship 3 and 4 with the Cloud Sync rename, 8 with the fetcher work. **Also before launch:
 items 10–15** (outside review 1, 2026-11-20 — the open door for strangers, the alert email's full ID, security.txt's
 reminder, the "Amazon stopped a fetch" email). The rest can follow launch.
@@ -1102,8 +1102,8 @@ close this out").
    10-minute rule for unfinished copies can be checked from the email. Today it shows the date only (2026-10-30: Ron
    closed the tab ~5 s after an import; the push that closing triggers was torn after its first part, and the on-demand
    summary ~10 minutes later deleted it — correct, but unprovable from the email).
-   **And how recently the cloud copies were used** (Ron, 2026-11-04 — from item 9's last-used date): one line, e.g.
-   *"Cloud copies: 2 — used in the last day 1 · week 1 · month 2 · year 2 · idle over a month 0 · idle over a year 0
+   **And how recently the cloud libraries were used** (Ron, 2026-11-04 — from item 9's last-used date): one line, e.g.
+   *"Cloud libraries: 2 — used in the last day 1 · week 1 · month 2 · year 2 · idle over a month 0 · idle over a year 0
    (deleted tonight: 0)"* ("idle for a day" is just "not used in the last day" — not shown twice). Dev's test channels
    skew its counts; the dev email already marks test data.
 3. **Strict ID check** — moved from the Cloud Sync task (item 4) because it's safe now and closes a gap today: the
@@ -1133,11 +1133,11 @@ close this out").
    delete one encrypted note (the app requests a full refresh; the fetcher reads it at start and deletes it after a
    successful refresh). Idle until the app + fetcher part ships; the signed-writes gate covers its writes. Name the new
    key kind in the daily email.
-9. **Delete a cloud copy nobody has used for a year** (Ron + Claude, 2026-11-04). Today a cloud copy whose key was
+9. **Delete a cloud library nobody has used for a year** (Ron + Claude, 2026-11-04). Today a cloud library whose key was
    lost (so it can't be revoked) keeps its books forever — encrypted, harmless, but storage. The nightly cleanup deletes
    a channel's copies after a year with no activity. **Say so** in the app, on the security page and in the help notes:
-   *"A cloud copy nobody uses for a year is deleted. Your library stays safe in your browser and in your backups, and
-   the next time you use ReaderWrangler it fills a cloud copy again."* **The app must refill, never mistake "gone" for
+   *"A cloud library nobody uses for a year is deleted. Your library stays safe in your browser and in your backups, and
+   the next time you use ReaderWrangler it fills a cloud library again."* **The app must refill, never mistake "gone" for
    "your library is empty"** (the naming review's "silent empty mailbox" trap) — a returning user's next fetch and next
    change repopulate it. (Considered and rejected: emailing owners of idle copies — it would collect personal data,
    the "encrypted" address would be readable by the server anyway, and deletion-warning emails train users for
@@ -1151,18 +1151,18 @@ close this out").
    - **The year-old cleanup reads it, and also deletes the channel's other permanent leftovers** (its first-used and
      last-used records and its write key), or those pile up forever.
    - **Disclosed with GoatCounter, in the same places** (Ron): the security page's analytics bullet (security.html
-     ~113) and the planned privacy policy (outside review 1) — e.g. *"The sync server records the date your cloud copy
+     ~113) and the planned privacy policy (outside review 1) — e.g. *"The sync server records the date your cloud library
      was last used — never what's in it."*
 
 **Added by outside review 1** (Ron + Claude, 2026-11-20) — all before launch. The problem: the relay takes any made-up
-ID as a new cloud copy, from anyone; its limits are per cloud copy (200 writes an hour, relay-worker.js ~61–63), so
+ID as a new cloud library, from anyone; its limits are per cloud library (200 writes an hour, relay-worker.js ~61–63), so
 every made-up ID starts fresh, and anyone can register a write key on a made-up ID with one request (`handleRegister`,
 first come wins). Even refused requests use part of the free plan's daily writes. Why, with no abuse seen (Ron): once
 the big targets are locked down, people with ready-made attack scripts go after whatever is left, for bragging rights.
 10. **No storing without a write key** — remove the path that accepts unsigned writes for a channel with no key (Ron:
     "We can definitely remove that acceptance of an unsigned write without the key"). Every current app version
     registers its key before its first write (relay-client.js ~96–114).
-11. **Cloudflare's "are you human" check (Turnstile) when a cloud copy is created** — at Cloud Sync setup and "make a
+11. **Cloudflare's "are you human" check (Turnstile) when a cloud library is created** — at Cloud Sync setup and "make a
     new key", once per person, never on fetches. The check hands the app a one-time ticket; the app sends it with the
     new write key; the relay asks Cloudflare whether the ticket is real before registering the key. With item 10, no
     ticket means nothing is ever stored, and skipping our code doesn't help (Ron: "People are used to the Are You a
@@ -1172,23 +1172,23 @@ the big targets are locked down, people with ready-made attack scripts go after 
     skippable, and it's tracking).
 12. **The brakes** (the review's five, revised for item 11 — Ron, 2026-11-20). They catch what gets past the human
     check (checks solved by hand or by a paid service, or a real surge) and cap the one cost that grows, storage:
-    1. **New cloud copies are counted, never refused:** an email to Ron when a day's count reaches 5, then after 8
+    1. **New cloud libraries are counted, never refused:** an email to Ron when a day's count reaches 5, then after 8
        more, 13 more, 21 more… (Ron: Fibonacci gaps) — at 5, 13, 26, 47, 81, 136, 225, 369, 602, 979: about ten
        emails for a thousand new copies, so a flood of alarms can't use up Resend's 100 emails a day and silence the
        nightly summary. Each email gives the day's count. Raise the start as normal days grow.
-    2. **A size limit per cloud copy, enforced by the relay:** 5 × what a copy of Ron's library *should* hold (Ron) —
+    2. **A size limit per cloud library, enforced by the relay:** 5 × what a copy of Ron's library *should* hold (Ron) —
        **200 MB** (agreed): at rest, two library versions of ~18 MB plus a small organization ≈ 40 MB; plus room for a
        week of fetches waiting to be imported (each a full library, ~18 MB). Ron's copy today, with its oversized
        organization and 4 waiting fetches, peaks near 144 MB — under it. Revisit after "Smaller organization syncs",
        item 4.
     3. **A storage ceiling of 10 GB** (about $5 a month over the paid plan's included 1 GB): past it, the relay refuses
-       **new** cloud copies — including "make a new key" — and emails Ron; existing copies keep syncing. Because the
+       **new** cloud libraries — including "make a new key" — and emails Ron; existing cloud libraries keep syncing. Because the
        bookmarklet can't fetch without Cloud Sync, a refused newcomer can't bring in their library at all until it
        reopens — the words must say so, and give the reason, "full" (Ron: a reason earns forgiveness). The words (agreed, Ron 2026-11-20):
        *"Cloud Sync is full for new setups right now. We're aware of it and working on it — please try again in a day
        or two. Until then ReaderWrangler can't bring in your library from Amazon, because your books travel through
        Cloud Sync. Sorry for the wait."* and, for Make a new key: *"Cloud Sync is full right now, so it can't make the
-       new cloud copy a new key needs. Your current key keeps working, and nothing has changed. We're aware of it and
+       new cloud library a new key needs. Your current key keeps working, and nothing has changed. We're aware of it and
        working on it — please try again in a day or two."* **Try again, and a quiet retry** (Ron, 2026-11-20): the
        refused screen keeps a **Try again** button, and the next time the person opens ReaderWrangler, setup quietly
        tries again by itself and carries on if there's room — no email sign-up (it would need verification emails
@@ -1239,7 +1239,7 @@ the big targets are locked down, people with ready-made attack scripts go after 
 
 _Why it matters:_ "Relay", "Credentials", "Channel ID" and "Passphrase" are engineering words, and users juggle two
 values that are really one secret. And today making new credentials doesn't retire the old ones: whoever holds an old
-key can still read the full cloud copy (it never expires) and write to or wipe it. Renaming is free before launch and
+key can still read the whole cloud library (the Fetched Copy never expires) and write to or wipe it. Renaming is free before launch and
 expensive after.
 
 **The record: docs/design/CLOUD-SYNC-NAMING.md** — everything decided, why, what was rejected, and the check-character
@@ -1249,9 +1249,10 @@ reopens a name, never a new argument.
 **What you'd get** (details in the record)
 1. **The words:** Cloud Sync · Cloud Sync Setup · Import from Cloud Sync · **Cloud Sync Key** (one key; "Credentials",
    "Channel ID", "Passphrase" leave the screens) · Save Key · Make a new key · the bookmarklet's buttons **Send Library
-   to ReaderWrangler** / **Send Collections to ReaderWrangler** · "the sync server" on the security page. Data Status
-   and "bookmarklet" stay. About 80+ places (app ~52, phone 3, bookmarklet screens ~22, site pages ~13), plus README,
-   help notes and the User Guide.
+   to ReaderWrangler** / **Send Collections to ReaderWrangler** · "the sync server" on the security page ·
+   **your cloud library** (what the key opens — was "your cloud copy", Ron 2026-11-23; it also replaces the app's "the
+   relay's copy" and "temporary copy on the relay"). Data Status and "bookmarklet" stay. About 80+ places (app ~52,
+   phone 3, bookmarklet screens ~22, site pages ~13), plus README, help notes and the User Guide.
 2. **The name defined once, and a commit check** that refuses retired words in anything users see — now its own task,
    "An anti-glossary: the words we don't show people…" (below, part of this task — built before the rest of it). This rename
    sweeps its Retiring words to zero — Relay, Credentials, Channel ID, Passphrase, **and "fetcher"** (Ron, 2026-11-12:
@@ -1361,12 +1362,12 @@ _Why it matters:_ A clean way to stop syncing, or to start over with new credent
 - A gentle **Disconnect** that just stops syncing on this device, without revoking or wiping anything on the relay.
 
 **Decided** (Ron + Claude, 2026-11-02, in the TODO review)
-1. **The danger is losing the key, not data** — the key IS the access to the cloud copy. The Disconnect window shows
+1. **The danger is losing the key, not data** — the key IS the access to the cloud library. The Disconnect window shows
    the key with a **Copy** button before you confirm: *"You'll need this key to reconnect — it's also in any backup
    you've saved (File → Save Backup), locked with your key password if you set one. Your bookmarklet and other devices
    keep syncing."* (Ron: backups carry it — true since 6.0.0; the lock: "Lock the Cloud Sync Key in backups…", the launch gate.) The one explicit, irreversible verb, with the remedy one click away inside it — not a guessing
    prompt (Law 18).
-2. **Say exactly what stays:** this device's library — untouched; the cloud copy — untouched; other devices and the
+2. **Say exactly what stays:** this device's library — untouched; the cloud library — untouched; other devices and the
    bookmarklet — unaffected (the bookmarklet carries its own copy of the key, so the next fetch still reaches the
    cloud; this device just won't import until you reconnect).
 3. **In the Cloud Sync words when they ship:** "Disconnect this device from Cloud Sync"; "key", not "credentials".
@@ -1380,7 +1381,7 @@ _Why it matters:_ A clean way to stop syncing, or to start over with new credent
 Ron 2026-11-19): what each reset clears, and what it says it clears, become one.
 
 _Why it matters:_ Every reset message was written before Cloud Sync, so they talk about "files on disk" a user today
-may never have had, point at a button that doesn't exist, and leave out the main way back — the copy in the cloud.
+may never have had, point at a button that doesn't exist, and leave out the main way back — your cloud library.
 Someone resetting is often already having a bad day (Ron, 2026-10-30, noticed the Tools → Reset App wording).
 
 **The four places** (found 2026-10-30 — a class of sites)
@@ -1399,7 +1400,7 @@ Someone resetting is often already having a bad day (Ron, 2026-10-30, noticed th
 2. It says, in plain words:
    - **what's cleared:** everything ReaderWrangler keeps in **this browser** (books, folders, tags, settings);
    - **what's kept:** files you saved on your computer — backups (File → Save) and spreadsheets (File → Save
-     Spreadsheet) — and **your copy in the cloud**;
+     Spreadsheet) — and **your cloud library**;
    - **how to come back:** restore a backup, or reconnect Cloud Sync and import.
    Ron's starting wording: "Your library/collections files on disk (backups, CSV files) will NOT be deleted. You can
    reload backups anytime."
@@ -1584,7 +1585,7 @@ drawn to the center"). And what makes RW different — always free, no ads, no a
 
 _Why it matters:_ People's libraries are personal. Before launch the site must say plainly what leaves their computer:
 today the security page discloses the visit counter (GoatCounter) but nothing says the app loads its fonts from Google
-(Google sees each visitor's address), and the relay's planned "last used" date per cloud copy isn't disclosed either.
+(Google sees each visitor's address), and the relay's planned "last used" date per cloud library isn't disclosed either.
 Its blanket "No personal information collected" (security.html ~111) needs to become specific sentences that are each
 literally true. It existed only as a sub-bullet of "Outside reviews before building" (cold review, 2026-11-19).
 
@@ -1630,7 +1631,7 @@ GitHub**. Linked from the site's footer beside Security & Privacy. Ron's word on
 <!-- id 20261014-1030ai -->
 
 _Why it matters:_ Every outside script runs inside the page that holds your Cloud Sync Key — the key that, since
-7.25.0, protects your cloud copy. An unannounced update could break the app overnight; a tampered or malicious copy
+7.25.0, protects your cloud library. An unannounced update could break the app overnight; a tampered or malicious copy
 could read the key and send it away.
 
 **What's loaded today** (checked 2026-11-01 — six of nine unpinned)
@@ -1688,7 +1689,7 @@ _Why it matters:_ The free plan supports only a handful of users.
 
 **When (the launch gate, 2026-11-19): before the first public post, not "around launch"** — the free plan's 1,000
 writes a day are shared by every user, and a handful of first fetches on launch day could stop sync for everyone; the
-50% alert fires after that has already happened. (The cold review also noted anyone can open new cloud copies — only a
+50% alert fires after that has already happened. (The cold review also noted anyone can open new cloud libraries — only a
 per-copy limit exists today; outside review 1 put the fix in "Relay worker: one release of changes", items 10–12.)
 **Outside review 1 (2026-11-20): before anyone outside the household has the link** — not just before the first post;
 and **set Cloudflare's billing alert** when upgrading. On the paid plan, a flood of junk requests becomes a small bill
@@ -1897,9 +1898,9 @@ and a page kept by hand beside GLOSSARY.md would drift from it. One source, show
 <!-- id 20261104-1024a -->
 
 _Why it matters:_ The one real disaster is a lost or wiped PC with no recent backup — and nothing reminds you today
-(checked 2026-11-04). The cloud copy isn't a full backup yet (see "Keep your tabs and browsers in step…").
+(checked 2026-11-04). The cloud library isn't a full backup yet (see "Keep your tabs and browsers in step…").
 
-**Decided** (Ron + Claude, 2026-11-04 — instead of emailing users about idle cloud copies, which would have ended the
+**Decided** (Ron + Claude, 2026-11-04 — instead of emailing users about idle cloud libraries, which would have ended the
 "the server holds nothing readable about you" promise)
 1. When your last saved backup is more than about a month old, the status area shows a quiet note: *"Last backup: 47
    days ago — Save Backup"* — one click; never a pop-up (Law 18).
@@ -2755,7 +2756,7 @@ are approximate (readerwrangler.js unless named).
       cases (state ~1536; set ~4657, ~7961, ~8520; read ~17059, ~17216, ~17679, ~17820; label ~7403) and mobile.js
       (~106, ~2429, ~2639). Nothing assigns `_instanceId` and nothing records `HIDE_COPIES`; hiding today is
       `book.isHidden` (a book field, so a restore brings it back). **Written into saved data** — the saved
-      organization (~4798), the relay copy (~6206), Save Backup (~6314) — always empty: every backup of Ron's from
+      organization (~4798), the Complete Copy (~6206), Save Backup (~6314) — always empty: every backup of Ron's from
       2026-09-01 to 2026-11-06 holds `hiddenInstances: []`.
    2. **Pinned tag folders on the phone** (`pinnedTagFolders`, the `__tag_…__` shelves): mobile.js ~108, ~678,
       ~853-869, ~1517, ~1640-1660, ~1846-1875, ~2426, ~2636, ~3117, ~3177, ~3209. The desktop dropped it on purpose
@@ -3493,7 +3494,7 @@ with the next sprint that touches app code, as a small extra task.
 <!-- id 20261122-1440 -->
 
 _Why it matters:_ Sending a friend your library today means Save Backup, then remembering to take your Cloud Sync Key
-out by hand — and a backup carries the key, so whoever has the file can overwrite or wipe your cloud copy. Readers
+out by hand — and a backup carries the key, so whoever has the file can overwrite or wipe your cloud library. Readers
 swap libraries ("Books I Want To Borrow From Ron"); a rule people must remember fails, a menu item doesn't.
 
 **Decided** (Ron, 2026-11-22, during outside review 3):
@@ -3598,11 +3599,11 @@ downloads the whole thing on every refresh.
 **Spec:** docs/design/RELAY-DELTA.md (written before 7.0 — its library half is superseded by the mailbox).
 
 **Answered 2026-11-22 (outside review 3):** yes — the organization version carries the books, by design: it is the
-phone's complete copy (books, organization and your own fields together), written only by the app and read only by the
-phone (RELAY-WRITE-REDESIGN.md §2b). Leaving the books out would break the phone. The real halving is "One cloud copy
+Complete Copy (books, organization and your own fields together), written only by the app and read only by the
+phone (RELAY-WRITE-REDESIGN.md §2b). Leaving the books out would break the phone. The real halving is "One copy
 instead of two", below.
 
-#### One cloud copy instead of two: the library copy and the phone's copy as one
+#### One copy instead of two: the Fetched Copy and the Complete Copy as one
 <!-- id 20261122-1535 -->
 
 _Why it matters:_ The relay keeps two copies of each person's library, one per flow: the **library copy** (fed by the
@@ -3618,7 +3619,7 @@ by the phone — everything). The complete one is the one no computer can read, 
    the August 2026 reason, after a torn upload); the bookmarklet never needs to understand the organization.
 3. **Against one copy:** the bookmarklet and the app write the same copy (the library copy's mailbox-and-merge pattern
    would extend to both — an extension, not an invention); a fetcher bug or a wrong-account fetch lands next to the
-   organization; it changes the relay's stored format — a migration of existing cloud copies, and a design Ron has seen
+   organization; it changes the relay's stored format — a migration of existing cloud libraries, and a design Ron has seen
    first.
 4. **Before launch instead:** "Restore from Cloud Sync" (reading the phone's copy) closes the gap that hurts people.
 
@@ -3949,7 +3950,7 @@ writer"):
    you haven't seen".
 2. **How it could travel:** the phone already holds the key and signs like the desktop ("Capture book ideas from your
    phone" — the same signed single letters); an edit letter the desktop applies at its next Import, or — simpler —
-   through "One cloud copy instead of two" (Relay and sync), where the phone writes the one copy like any browser.
+   through "One copy instead of two" (Relay and sync), where the phone writes the one copy like any browser.
 3. Undecided: which edits (Book Lists and tags first; folders?), and what the phone shows when the desktop changed the
    same book.
 
@@ -4590,4 +4591,4 @@ how a key could leak — "Lock the Cloud Sync Key in backups…").
 - **Until then — profiles, not backup-swapping** (Ron): the brother-in-law who wants to browse your books opens your
   backup in **a separate browser profile** (its own key, its own library), picks the ones to borrow, and emails you —
   never restoring someone else's backup into his own and then restoring his own back. (With the key password, even a
-  restore can't take over your cloud copy — he can't unlock your key.)
+  restore can't take over your cloud library — he can't unlock your key.)

@@ -100,7 +100,7 @@ saw). Model them as one state machine, not flags.
 2. Every write says "I'm replacing the version I last saw" and is refused if that has changed. Two places:
    - **this browser's storage** — compare the stored `savedAt` with the one this tab last loaded or wrote, before
      each organization write;
-   - **the cloud copy** — the pointer moves only if it still names the version the writer last saw; otherwise 409.
+   - **the cloud library** — the pointer moves only if it still names the version the writer last saw; otherwise 409.
      **How:** the pointer keeper below (2026-11-22). *(Superseded: an optional "expect" generation on today's KV
      pointer flip, `handlePutPointer` — KV takes up to a minute or more to agree everywhere, so two near-simultaneous
      sends could both pass; it was a guard, not a lock.)*
@@ -116,7 +116,7 @@ here from the TODO 2026-11-23. Drawn step by step: `RELAY-FLOWS.html`, the Propo
 - **Why not KV alone:** KV is eventually consistent — up to 60 s or more between Cloudflare locations, and two
   near-simultaneous writes can both pass a read-then-write check. So the relay can't refuse "you haven't seen the
   newest" reliably on KV, and today the last pointer move silently wins (RELAY-FLOWS 6b).
-- **The design:** one **Durable Object per cloud copy** (per Cloud Sync Key — it holds the pointers of both its
+- **The design:** one **Durable Object per cloud library** (per Cloud Sync Key — it holds the pointers of both its
   copies, the Fetched Copy and the Complete Copy). A Durable Object is strongly consistent and answers one request at a
   time. It holds "the current version is #42" and moves it only if it still says what the writer last saw
   (compare-and-swap). The bulky parts stay in KV, under a new name per version, never overwritten. Readers ask it for
@@ -168,7 +168,7 @@ The layers stack: a browser catching up from the cloud IS a storage write, so it
 **Duplicate sends:** a tab sends to the cloud only when the stored version differs from the last one sent (recorded in
 the shared storage), so two in-step tabs don't both push as you leave them.
 
-**Taking the cloud copy is the real work:** the phone rebuilds a *view* from a device-state blob, but the desktop has
+**Taking the Complete Copy is the real work:** the phone rebuilds a *view* from a device-state blob, but the desktop has
 never applied one to its own editable state — today it reads it only in the Relay Setup connection test
 (readerwrangler.js ~1845). The monolithic blob is authoritative, so nothing needs merging.
 
