@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>ReaderWrangler — Relay Data Flows (7.0)</title>
+<title>ReaderWrangler — Relay Data Flows</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root {
@@ -86,8 +86,9 @@
   .gone { opacity: .18; }
   .hiddenEl { display: none; }
   .dim { opacity: .55; }
+  .dim.gone { opacity: .18; }   /* a deleted box that was already faint stays deleted-looking */
 
-  path.arrow { fill: none; stroke: var(--accent); stroke-width: 2.4; }
+  path.arrow { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linejoin: round; }
   path.arrow.read  { stroke: var(--ok); }
   path.arrow.fail  { stroke: var(--bad); stroke-dasharray: 6 4; }
   path.arrow.w1    { stroke: var(--w1); }
@@ -106,8 +107,9 @@
 </head>
 <body>
 <header>
-  <h1>Relay Data Flows — how ReaderWrangler sync moves (7.0)</h1>
-  <p>Companion to <code>RELAY-WRITE-REDESIGN.md</code>. Start with the <b>Tour</b>, then step the scenarios — 0a/0b show the pre-7.0 design and why it broke (torn write, RMW race). A protocol cheat-sheet is at the bottom.</p>
+  <h1>Relay Data Flows — how ReaderWrangler sync moves</h1>
+  <p>Companion to <code>RELAY-WRITE-REDESIGN.md</code>. <b>Today</b> = as built (app 7.31, relay worker 7.25), each step checked against the code on 2026-11-23. Start with the <b>Tour</b>, then step the scenarios — 0a/0b are history: the pre-7.0 design and why it broke (torn write, RMW race). Known defects are marked as such, with the review that found them. A protocol cheat-sheet is at the bottom.</p>
+  <p><b>Names</b> (our working names, GLOSSARY.md): <b>Fetched Copy</b> = the cloud copy of your books as fetched (code: canonical, <code>/gen</code>, “generations”) · <b>Complete Copy</b> = books + organization + your own fields (code: device-state, <code>/dstate</code>) · <b>full view</b> = <code>readerwrangler.js</code> · <b>compact view</b> = <code>mobile.js</code>. A “version” here is what the code calls a generation.</p>
 </header>
 
 <div class="controls">
@@ -133,17 +135,18 @@
 
       <!-- ==================== Actors (left) ==================== -->
       <g id="app"><rect class="box" x="25" y="120" width="160" height="96" rx="10"/>
-        <text x="105" y="150" text-anchor="middle" class="t-bold">App</text>
+        <text x="105" y="150" text-anchor="middle" class="t-bold">Full view</text>
         <text x="105" y="170" text-anchor="middle" class="t-small">readerwrangler.com</text>
-        <text x="105" y="188" text-anchor="middle" class="t-small">library lives locally</text></g>
+        <text x="105" y="188" text-anchor="middle" class="t-small">library lives in this browser</text></g>
       <g id="mobile"><rect class="box" x="25" y="470" width="160" height="80" rx="10"/>
-        <text x="105" y="500" text-anchor="middle" class="t-bold">Mobile viewer</text>
-        <text x="105" y="520" text-anchor="middle" class="t-small">read-only snapshot</text></g>
+        <text x="105" y="498" text-anchor="middle" class="t-bold">Compact view</text>
+        <text x="105" y="517" text-anchor="middle" class="t-small">reads the Complete Copy</text>
+        <text x="105" y="533" text-anchor="middle" class="t-tiny">writes only its own browser</text></g>
 
       <!-- ==================== Actors (right) ==================== -->
       <g id="fetchers"><rect class="box" x="895" y="120" width="160" height="150" rx="10"/>
         <text x="975" y="146" text-anchor="middle" class="t-bold">Fetchers</text>
-        <text x="975" y="166" text-anchor="middle" class="t-small">on amazon.com</text>
+        <text x="975" y="166" text-anchor="middle" class="t-small">the bookmarklet, on amazon.com</text>
         <text x="975" y="188" text-anchor="middle" class="t-tiny">library &#183; collections</text>
         <text x="975" y="203" text-anchor="middle" class="t-tiny">wishlist &#183; series &#183; author</text>
         <text x="975" y="225" text-anchor="middle" class="t-small">fetch via API, then send</text>
@@ -159,32 +162,32 @@
         <text x="975" y="386" text-anchor="middle" class="t-small">pages &amp; APIs</text></g>
 
       <!-- ==================== Cloudflare ==================== -->
-      <rect class="zone" x="255" y="48" width="580" height="560" rx="14"/>
+      <rect class="zone" x="255" y="48" width="580" height="572" rx="14"/>
       <text x="270" y="70" class="t-small">Cloudflare</text>
 
       <!-- Worker: the only door -->
       <g id="worker"><rect class="box" x="270" y="80" width="550" height="52" rx="9"/>
-        <text x="420" y="102" text-anchor="middle" class="t-bold">Worker &#8212; the only door to the data</text>
-        <text x="420" y="119" text-anchor="middle" class="t-tiny">answers messages &#183; runs scheduled tasks &#183; mints ids &#183; guards commits &amp; deletes</text>
+        <text x="460" y="102" text-anchor="middle" class="t-bold">Worker &#8212; the only door to the data</text>
+        <text x="460" y="119" text-anchor="middle" class="t-tiny">checks signatures &#183; mints ids &#183; guards commits &amp; deletes</text>
         <g id="admin"><rect class="chip body" x="660" y="88" width="146" height="36" rx="7"/>
-          <text x="733" y="103" text-anchor="middle" class="t-tiny">rate limit &#183; blocklist</text>
-          <text x="733" y="116" text-anchor="middle" class="t-tiny">(worker bookkeeping)</text></g></g>
+          <text x="733" y="103" text-anchor="middle" class="t-tiny">rate limit &#183; block list</text>
+          <text x="733" y="116" text-anchor="middle" class="t-tiny">write keys &#183; nightly cleanup</text></g></g>
 
-      <!-- ========== V7 stores ========== -->
+      <!-- ========== V7 stores (today) ========== -->
       <g id="layout-v7">
-        <!-- Canonical library: a STACK of generations, pointer at the live one -->
+        <!-- Fetched Copy: a STACK of versions, pointer at the current one -->
         <g id="canon"><rect class="store" x="275" y="160" width="260" height="270" rx="10"/>
-          <text x="405" y="184" text-anchor="middle" class="t-bold">Canonical library</text>
-          <text x="405" y="200" text-anchor="middle" class="t-tiny">a stack of whole generations &#8212; replaced, never edited</text></g>
+          <text x="405" y="184" text-anchor="middle" class="t-bold">Fetched Copy</text>
+          <text x="405" y="200" text-anchor="middle" class="t-tiny">a stack of whole versions &#8212; replaced, never edited</text></g>
         <g id="ghostGen" class="dim"><rect class="chip body" x="330" y="322" width="160" height="96" rx="8"/>
-          <text x="410" y="404" text-anchor="middle" class="t-tiny">&#8230;older generations (cleaned up)</text></g>
+          <text x="410" y="404" text-anchor="middle" class="t-tiny">&#8230;the one before (2 kept)</text></g>
         <g id="genA"><rect class="chip body" x="342" y="300" width="160" height="100" rx="8"/>
-          <text x="422" y="320" text-anchor="middle" class="t-bold">gen A</text>
+          <text x="422" y="320" text-anchor="middle" class="t-bold">version A</text>
           <text x="422" y="338" text-anchor="middle" class="t-tiny">parts 1&#8230;N &#183; manifest &#10003;</text>
           <g id="absA"><rect class="chip" x="356" y="350" width="132" height="24" rx="6"/>
             <text x="422" y="366" text-anchor="middle" class="t-tiny">list of absorbed runs</text></g></g>
         <g id="genB" class="hiddenEl"><rect class="chip body" x="354" y="278" width="160" height="100" rx="8"/>
-          <text x="434" y="298" text-anchor="middle" class="t-bold">gen B</text>
+          <text x="434" y="298" text-anchor="middle" class="t-bold">version B</text>
           <text x="434" y="316" text-anchor="middle" class="t-tiny">parts 1&#8230;N &#183; manifest &#10003;</text>
           <g id="absB"><rect class="chip" x="368" y="328" width="132" height="24" rx="6"/>
             <text x="434" y="344" text-anchor="middle" class="t-tiny">list of absorbed runs (+new)</text></g></g>
@@ -209,14 +212,23 @@
         <g id="letterReset" class="hiddenEl"><rect class="chip body" x="570" y="376" width="230" height="34" rx="8"/>
           <text x="685" y="397" text-anchor="middle" class="t-small">run: reset (backup restore baseline)</text></g>
 
-        <!-- Device-state -->
-        <g id="devstate"><rect class="store" x="275" y="470" width="260" height="70" rx="10"/>
-          <text x="405" y="498" text-anchor="middle" class="t-bold">Device-state</text>
-          <text x="405" y="516" text-anchor="middle" class="t-tiny">mobile snapshot (books + organization)</text></g>
-        <g id="legacy" class="dim"><rect class="store" x="555" y="470" width="260" height="70" rx="10"/>
-          <text x="685" y="494" text-anchor="middle" class="t-bold">Pre-7.0 library copy</text>
-          <text x="685" y="512" text-anchor="middle" class="t-tiny">old format &#8212; read once at migration, then</text>
-          <text x="685" y="526" text-anchor="middle" class="t-tiny">expires &amp; is auto-deleted (nothing renews it)</text></g>
+        <!-- Complete Copy: the same stack-and-pointer pattern (since 7.2-7.5), 90-day expiry -->
+        <g id="devstate"><rect class="store" x="275" y="448" width="260" height="160" rx="10"/>
+          <text x="405" y="470" text-anchor="middle" class="t-bold">Complete Copy</text>
+          <text x="405" y="485" text-anchor="middle" class="t-tiny">books + organization + your own fields</text>
+          <text x="405" y="498" text-anchor="middle" class="t-tiny">a stack of versions &#183; each expires 90 days after it&#8217;s sent</text></g>
+        <g id="ccGhost" class="dim"><rect class="chip body" x="282" y="540" width="158" height="60" rx="8"/>
+          <text x="361" y="594" text-anchor="middle" class="t-tiny">&#8230;the one before (2 kept)</text></g>
+        <g id="ccVer"><rect class="chip body" x="294" y="524" width="158" height="54" rx="8"/>
+          <text x="373" y="545" text-anchor="middle" class="t-small t-bold">newest version</text>
+          <text x="373" y="563" text-anchor="middle" class="t-tiny">parts 1&#8230;N &#183; manifest &#10003;</text></g>
+        <g id="ccPtr"><rect class="chip body" x="474" y="506" width="54" height="24" rx="7"/>
+          <text x="501" y="522" text-anchor="middle" class="t-tiny t-bold">pointer</text></g>
+        <path id="ccPtrArrow" class="arrow read" d="M 490 530 C 490 548, 474 551, 456 551" marker-end="url(#mk)"/>
+        <g id="legacy" class="dim"><rect class="store" x="555" y="540" width="260" height="68" rx="10"/>
+          <text x="685" y="562" text-anchor="middle" class="t-bold">Pre-7.0 copies</text>
+          <text x="685" y="579" text-anchor="middle" class="t-tiny">old one-item format &#8212; still readable; an Import</text>
+          <text x="685" y="593" text-anchor="middle" class="t-tiny">moves an old library into the stack; they expire</text></g>
       </g>
 
       <!-- ========== V6 stores (pre-7.0) ========== -->
@@ -255,7 +267,7 @@
 <!-- ==================== Protocol cheat-sheet ==================== -->
 <details class="proto" open>
   <summary>The messages — our protocol over plain HTTPS</summary>
-  <p class="note">Everything is an ordinary HTTPS request to the worker; the response carries the data. The <em>transport</em> (HTTP verbs, URLs, bodies) is the universal standard — the URL shapes and payload formats below are ours alone. The worker also wakes on a clock (cron: usage-alert emails), which is why it's a “worker,” not just a listener. <code>{ch}</code> is your <b>channel id</b> — the unique UUID minted at Relay Setup that your app, fetchers, and mobile share (it also feeds the encryption-key derivation). Every payload stored is encrypted; the key stays on your devices, never in Cloudflare.</p>
+  <p class="note">Everything is an ordinary HTTPS request to the worker; the response carries the data. The <em>transport</em> (HTTP verbs, URLs, bodies) is the universal standard — the URL shapes and payload formats below are ours alone. The worker also wakes on a clock — every night at 23:55 UTC (storage check + cleanup + the daily summary email, both relays) and, on production only, every 30 minutes (usage against the free limits) — which is why it's a “worker,” not just a listener. <code>{ch}</code> is your <b>channel id</b> — the ID half of your Cloud Sync Key, shared by the full view, the fetchers and the compact view (it also feeds the encryption-key derivation). Every payload stored is encrypted; the key stays on your devices, never in Cloudflare. <b>Signed writes (7.25.0):</b> every non-GET request on a channel must carry <code>t=&amp;sig=</code> — an HMAC by the channel's write key (made from your Cloud Sync Key) — once that key is registered; reads are unsigned (what they return is ciphertext).</p>
   <table class="msgs">
     <tr><th>Message</th><th>HTTP</th><th>Sent by</th><th>What it does</th><th>Worker guard</th></tr>
     <tr class="grp gmail"><td colspan="5">Mailbox</td></tr>
@@ -265,29 +277,32 @@
     <tr><td><code>/mail/{ch}/{run}/manifest</code></td><td><span class="verb">POST</span></td><td>same</td><td><b>The run's commit</b> — written last; without it the run doesn't exist</td><td>rate limit</td></tr>
     <tr><td><code>/mail/{ch}/list</code><br><code>/mail/{ch}/{run}/letter/{n}</code><br><code>/mail/{ch}/{run}/manifest</code></td><td><span class="verb GET">GET</span></td><td>app, fetchers</td><td>Enumerate / read letters (dedup checks, imports)</td><td>—</td></tr>
     <tr><td><code>/mail/{ch}/{run}</code></td><td><span class="verb DELETE">DELETE</span></td><td>app, fetchers</td><td>Reclaim an <em>absorbed</em> bulk run early (small letters just age out)</td><td>—</td></tr>
-    <tr class="grp gcanon"><td colspan="5">Canonical library</td></tr>
-    <tr><td><code>/gen/{ch}/begin</code></td><td><span class="verb">POST</span></td><td>whoever merges</td><td>Mint a generation id (server-stamped time)</td><td>id/channel validation</td></tr>
-    <tr><td><code>/gen/{ch}/{gen}/chunk/{n}</code></td><td><span class="verb">POST</span></td><td>whoever merges</td><td>One part of a new generation (no expiry — lifecycle is keep-2 + cleanup)</td><td>rate limit, size cap</td></tr>
-    <tr><td><code>/gen/{ch}/{gen}/manifest</code></td><td><span class="verb">POST</span></td><td>whoever merges</td><td>The generation's manifest: checksum + <code>absorbedRuns</code> ledger</td><td>rate limit</td></tr>
-    <tr><td><code>/pointer/{ch}</code></td><td><span class="verb PUT">PUT</span></td><td>whoever merges</td><td><b>THE atomic commit</b> — flip which generation is live</td><td><b>refuses an uncommitted generation</b></td></tr>
-    <tr><td><code>/pointer/{ch}</code><br><code>/gen/{ch}/list</code><br><code>/gen/{ch}/{gen}/chunk/{n}</code><br><code>/gen/{ch}/{gen}/manifest</code></td><td><span class="verb GET">GET</span></td><td>app, fetchers</td><td>Discover + read the live generation (pointer first; list is the fallback)</td><td>—</td></tr>
-    <tr><td><code>/gen/{ch}/{gen}</code></td><td><span class="verb DELETE">DELETE</span></td><td>whoever merges</td><td>Clean up an old generation (keep-2)</td><td><b>refuses the pointed generation</b></td></tr>
-    <tr class="grp gdev"><td colspan="5">Device-state (mobile)</td></tr>
-    <tr><td><code>/device-state/{ch}</code></td><td><span class="verb PUT">PUT</span> / <span class="verb GET">GET</span></td><td>app writes · mobile reads</td><td>One-way snapshot: books + organization for the mobile viewer</td><td>rate limit, size cap</td></tr>
+    <tr class="grp gcanon"><td colspan="5">Fetched Copy (code: canonical)</td></tr>
+    <tr><td><code>/gen/{ch}/begin</code></td><td><span class="verb">POST</span></td><td>whoever merges</td><td>Mint a version id (server-stamped time)</td><td>id/channel validation</td></tr>
+    <tr><td><code>/gen/{ch}/{gen}/chunk/{n}</code></td><td><span class="verb">POST</span></td><td>whoever merges</td><td>One part of a new version (no expiry — lifecycle is keep-2 + cleanup)</td><td>rate limit, size cap; <b>refused once the version is finished</b></td></tr>
+    <tr><td><code>/gen/{ch}/{gen}/manifest</code></td><td><span class="verb">POST</span></td><td>whoever merges</td><td>The version's manifest: checksum + <code>absorbedRuns</code> ledger — written last; it finishes the version</td><td>rate limit</td></tr>
+    <tr><td><code>/pointer/{ch}</code></td><td><span class="verb PUT">PUT</span></td><td>whoever merges</td><td><b>THE commit</b> — move the pointer to the new version (one KV item; see 6b on KV's minute)</td><td><b>refuses an unfinished version</b></td></tr>
+    <tr><td><code>/pointer/{ch}</code><br><code>/gen/{ch}/list</code><br><code>/gen/{ch}/{gen}/chunk/{n}</code><br><code>/gen/{ch}/{gen}/manifest</code></td><td><span class="verb GET">GET</span></td><td>full view, fetchers</td><td>Find + read the current version (pointer first; the list is the fallback)</td><td>—</td></tr>
+    <tr><td><code>/gen/{ch}/{gen}</code></td><td><span class="verb DELETE">DELETE</span></td><td>whoever merges</td><td>Delete an old version (beyond the newest 2: at once; unfinished: after 10 minutes)</td><td><b>refuses the pointed version</b></td></tr>
+    <tr class="grp gdev"><td colspan="5">Complete Copy (code: device-state) — the same pattern, 90-day expiry refreshed by each send</td></tr>
+    <tr><td><code>/dstate/{ch}/begin</code> · <code>/dstate/{ch}/{gen}/chunk/{n}</code><br><code>/dstate/{ch}/{gen}/manifest</code> · <code>/dstate-pointer/{ch}</code></td><td><span class="verb">POST</span> / <span class="verb PUT">PUT</span></td><td>full view</td><td>Send a new version: parts, manifest, pointer — 60 s after you stop changing things, when you leave the tab, and after a Restore</td><td>as the Fetched Copy's</td></tr>
+    <tr><td><code>/dstate-pointer/{ch}</code><br><code>/dstate/{ch}/list</code> · <code>/dstate/{ch}/{gen}/…</code></td><td><span class="verb GET">GET</span></td><td>compact view (full view: connection test only)</td><td>“Is there a newer one?” (the pointer alone), then read it</td><td>—</td></tr>
+    <tr><td><code>/dstate/{ch}/{gen}</code></td><td><span class="verb DELETE">DELETE</span></td><td>full view</td><td>Delete an old version (keep-2)</td><td><b>refuses the pointed version</b></td></tr>
     <tr class="grp gold"><td colspan="5">Pre-7.0 (legacy — still answered, fading out)</td></tr>
-    <tr><td><code>/upload/{ch}/…</code><br><code>/status/{ch}</code> · <code>/download/{ch}/…</code><br><code>/cleanup/{ch}</code></td><td>mixed</td><td>old clients</td><td>The in-place single-copy scheme scenarios 0a/0b break</td><td>rate limit</td></tr>
+    <tr><td><code>/upload/{ch}/…</code><br><code>/status/{ch}</code> · <code>/download/{ch}/…</code><br><code>/cleanup/{ch}</code><br><code>/device-state/{ch}</code></td><td>mixed</td><td>old clients; readers as a last fallback</td><td>The in-place single-copy scheme scenarios 0a/0b break; the old one-item Complete Copy (no app writes it since 7.5.0)</td><td>rate limit</td></tr>
     <tr class="grp gacct"><td colspan="5">Account / safety</td></tr>
-    <tr><td><code>/revoke/{ch}</code></td><td><span class="verb">POST</span></td><td>app (owner)</td><td>Proof-of-ownership wipe: deletes ALL channel data, blocklists the channel</td><td>proof hash required</td></tr>
-    <tr><td><em>(every write)</em></td><td>—</td><td>—</td><td>—</td><td>200 writes/hour per channel; 10&#215; → auto-blocklist</td></tr>
+    <tr><td><code>/auth/{ch}/register</code></td><td><span class="verb">POST</span></td><td>every writer, once a session</td><td>Register the channel's write key — the first time only; the same key again is fine</td><td><b>a different key → 409</b></td></tr>
+    <tr><td><code>/revoke/{ch}</code></td><td><span class="verb">POST</span></td><td>full view (Relay Setup → Revoke)</td><td>Deletes ALL the channel's data, block-lists the channel (scenario 7). Keeps the write key and proof (known gap)</td><td>signed; proof hash required</td></tr>
+    <tr><td><em>(every write)</em></td><td>—</td><td>—</td><td>—</td><td>Designed: 200 writes/hour per channel, 10&#215; → auto-block. <b>Known defect</b> (outside review 2): sampled 1 in 5 and saved only when allowed — most writes past 200 pass, the auto-block can't trigger</td></tr>
   </table>
   <p class="note" style="margin-top:16px"><b>The letters</b> — every letter carries one <em>kind</em>, so the merge knows what to do with it:</p>
   <table class="msgs">
     <tr><th>Kind</th><th>Sent by</th><th>Shape</th><th>What the merge does with it</th></tr>
     <tr><td><b>books</b></td><td>library fetcher</td><td>multi-part run</td><td>Adds new books, updates existing ones (newest fetch date wins per book)</td></tr>
     <tr><td><b>collections</b></td><td>collections fetcher</td><td>single or few parts</td><td>Updates collection membership + read status per book</td></tr>
-    <tr><td><b>wishlist-add</b></td><td>wishlist / series / author fetchers</td><td>one self-committing letter</td><td>Adds the new book(s); dedup already happened at send time</td></tr>
-    <tr><td><b>tombstone</b></td><td>app (permanent delete)</td><td>one letter</td><td>Removes the book and keeps a marker so older fetched data can't resurrect it; a NEWER sighting revives it (deliberate re-add)</td></tr>
-    <tr><td><b>reset</b></td><td>app (backup restore)</td><td>multi-part run</td><td>New baseline: everything older is superseded; newer runs merge on top</td></tr>
+    <tr><td><b>wishlist-add</b></td><td>wishlist / series / author fetchers</td><td>one self-committing letter (under 1 MB encrypted)</td><td>Adds the new book(s); dedup already happened at send time</td></tr>
+    <tr><td><b>tombstone</b></td><td>full view (permanent delete)</td><td>one letter</td><td>Removes the book and keeps a marker so older fetched data can't resurrect it; a NEWER sighting revives it (deliberate re-add)</td></tr>
+    <tr><td><b>reset</b></td><td>full view (Restore Backup)</td><td>multi-part run</td><td>New baseline: everything older is superseded; newer runs merge on top</td></tr>
   </table>
 </details>
 
@@ -300,28 +315,36 @@
      show/hide: ids revealed/concealed from this step on · mark: [[id,cls]]
    cls values: write | read | fail | w1 | w2 (writer colors; w1r/w2r = reads)
    ==========================================================================*/
+// Routes around the boxes (drawArrow's `route`): the gap between the Fetched Copy and the Mailbox (x 545) leads down
+// to the Complete Copy; the left margin (x 230) leads to the compact view. Labels go in clear space.
+const CC_VER = (at) => ({ via:[[545,551]], at });   // worker <-> the Complete Copy's newest version
+const CC_PTR = (at) => ({ via:[[545,518]], at });   // worker <-> its pointer
+const MOBILE = (at) => ({ via:[[230,106],[230,510]], at });
+
 const SCENARIOS = [
 
 { id:'T', layout:'v7', title:'Tour — the pieces of the diagram',
   intro:'What each part is, before any data moves. Step through once; every scenario builds on this vocabulary.',
   steps:[
-    { t:'The Worker is the only door: nothing touches the stored data except by sending it a message (an ordinary HTTPS request — see the cheat-sheet below). It validates, rate-limits, stamps server time into ids, and enforces the commit rules. It also wakes on a clock for housekeeping. Everything it stores is encrypted — the key stays on your devices, never in Cloudflare.',
+    { t:'The Worker is the only door: nothing touches the stored data except by sending it a message (an ordinary HTTPS request — see the cheat-sheet below). It checks each write’s signature, rate-limits, stamps server time into ids, and enforces the commit rules. It also wakes on a clock: every night it cleans up leftovers and emails the daily summary (scenario 8). Everything it stores is encrypted — the key stays on your devices, never in Cloudflare.',
       lit:['worker','admin'] },
-    { t:'The Canonical library is a STACK of complete snapshots called generations — each one a whole, checksummed copy of the library (a snapshot of the entire state, no diffs — that is what “canonical” means here). The pointer names the live one. To change the library you write a NEW generation beside the old and flip the pointer: one atomic switch, never an edit-in-place. The two newest are kept, so there is always a fallback.',
+    { t:'Signed writes (7.25.0): the first write from a cloud copy registers its write key — made from your Cloud Sync Key — and from then on the worker refuses any write or delete that isn’t signed with it. Reads need no signature: all they return is encrypted. The refusals are in scenario 4.',
+      lit:['admin','fetchers','app'] },
+    { t:'The Fetched Copy (code: the canonical) is a STACK of complete versions — each a whole, checksummed copy of your books as fetched from Amazon; it holds no organization. The pointer names the current one. To change it you write a NEW version beside the old and move the pointer — never an edit-in-place. The two newest are kept: older ones are deleted at once, unfinished ones after 10 minutes. No expiry date — it lives until replaced.',
       lit:['canon','genA','ghostGen','ptr'] },
-    { t:'The Mailbox holds sealed letters — each letter one sealed parcel of data. A fetch delivers its results as a run of several letters; a wishlist add is a run of one. Fetchers ADD fetch results and wishlist adds; the app ADDS tombstones (deletes) and resets (restores). Nobody edits anything — letters left un-merged (because nothing was ever run to merge them) expire and are deleted after ~90 days.',
+    { t:'The Mailbox holds sealed letters — each letter one sealed parcel of data. A fetch delivers its results as a run of several letters; a wishlist add is a run of one. Fetchers ADD fetch results and wishlist adds; the full view ADDS tombstones (permanent deletes) and resets (Restore Backup). Nobody edits anything. A letter nothing ever merges expires after 90 days.',
       lit:['mailbox'], show:['runBooks','letterWish','letterTomb'], hide:['mailEmpty'] },
-    { t:'Each generation’s manifest carries its list of absorbed runs (code name: absorbedRuns) — a RECEIPT, not a container: “these mailbox runs are already merged into me; readers, skip their letters.” Because it is a complete list (never a “highest so far” mark), slow and fast senders can finish in any order and nothing is ever lost or double-counted.',
+    { t:'Each version’s manifest carries its list of absorbed runs (code name: absorbedRuns) — a RECEIPT, not a container: “these mailbox runs are already merged into me; readers, skip their letters.” Because it is a complete list (never a “highest so far” mark), slow and fast senders can finish in any order and nothing is ever lost or double-counted.',
       lit:['absA'] },
-    { t:'The circle closes when the app imports from the relay: it reads the live generation plus the un-merged runs, merges them into one complete library, and writes THAT back as a new generation on the stack (pointer flip = done). Letters are retired only by the generation that absorbed them — so every piece of data always lives somewhere. Scenario 3 walks this flow.',
+    { t:'The circle closes when the full view imports: it reads the current version plus the un-merged runs, merges them into one complete library, and writes THAT back as a new version on the stack (pointer moved = done). Letters are retired only by the version that absorbed them — so every piece of data always lives somewhere. Scenario 3 walks this flow.',
       lit:['app','ptr','genA','mailbox'] },
-    { t:'Device-state is the mobile viewer’s snapshot — books AND organization — pushed one-way by the app. Mobile reads it and writes nothing.',
-      lit:['devstate','mobile'] },
-    { t:'Leftovers: the pre-7.0 single-copy library is still readable (the first 7.0 import migrates it into a generation); after that nothing renews it, so it expires and is auto-deleted. The worker’s own bookkeeping (rate-limit counters, blocklist) lives beside the door.',
+    { t:'The Complete Copy (code: device-state) is everything — books, organization and your own fields — sent one-way by the full view: about a minute after you stop changing things, when you leave the tab, and right after a Restore. It is a stack of versions with its own pointer, the same pattern as the Fetched Copy; the two newest are kept, and each version expires 90 days after it was sent. The compact view reads it (scenario 5) and writes nothing to the cloud.',
+      lit:['devstate','ccPtr','ccVer','mobile'] },
+    { t:'Leftovers: copies in the pre-7.0 one-item format are still readable — an Import moves an old library into the stack. Nothing renews them, so they expire on their own (the old library after 10 days, the old Complete Copy after 90). The worker’s own bookkeeping — rate-limit counters, the block list, each cloud copy’s write key — lives beside the door.',
       lit:['legacy','admin'] }
   ]},
 
-{ id:'0a', layout:'v6', title:'0a · Pre-7.0 — the original corruption',
+{ id:'0a', layout:'v6', title:'0a · History (before 7.0) — the original corruption',
   intro:'How one closed tab corrupted the synced library — the bug that motivated 7.0. The library is a set of fixed slots, edited in place. Striped = existing data.',
   steps:[
     { t:'You click Add to Wishlist on Amazon. To add ONE book, the fetcher must rewrite the whole library — so first it downloads all of it.',
@@ -342,7 +365,7 @@ const SCENARIOS = [
       arr:[['v6man','worker','','fail',0],['worker','app','✖ checksum mismatch','fail',30]] }
   ]},
 
-{ id:'0b', layout:'v6', title:'0b · Pre-7.0 — the classic RMW race',
+{ id:'0b', layout:'v6', title:'0b · History (before 7.0) — the classic RMW race',
   intro:'The classic read-modify-write race: two writers each read the shared copy, modify their private copy, and write it back — last upload wins, silently. Blue = the wishlist add, rose = the library fetch.',
   steps:[
     { t:'A library fetch starts: it downloads the library (its private copy — rose chip appears by the Fetchers box) and begins fetching from Amazon. This runs for a long time.',
@@ -363,25 +386,25 @@ const SCENARIOS = [
       lit:['app'], arr:[['v6lib','worker','','fail',0],['worker','app','import — book missing','fail',30]] }
   ]},
 
-{ id:'1', layout:'v7', title:'1 · Wishlist add (7.0)',
-  intro:'The simplest write in the new design: one sealed, self-committing letter. The library itself is never touched.',
+{ id:'1', layout:'v7', title:'1 · Wishlist, series or author add',
+  intro:'The simplest write: one sealed, self-committing letter. The Fetched Copy itself is never touched. (The wishlist, series-page and author-page fetchers all send this way.)',
   steps:[
-    { t:'The fetcher reads what’s already known: the live generation (found via the pointer) plus any pending letters in the mailbox — purely for duplicate detection. Read-only; the data flows store → worker → fetcher.',
+    { t:'The fetcher reads what’s already known: the current version (found via the pointer) plus any pending letters in the mailbox — purely for duplicate detection. Read-only; the data flows store → worker → fetcher.',
       lit:['ptr','genA','mailbox'],
       arr:[['genA','worker','','read',-10],['mailbox','worker','','read',10],['worker','fetchers','known books (read-only)','read',30]] },
     { t:'It fetches the book’s details from the Amazon product page (via API).',
       lit:['fetchers'], arr:[['amazon','fetchers','fetch book details','read',0]] },
-    { t:'It sends ONE sealed letter to the mailbox — payload and commit in a single atomic write. Close the tab a millisecond earlier and the letter simply never existed; nothing can tear.',
+    { t:'It sends ONE sealed letter to the mailbox — payload and commit in a single write (anything under 1 MB encrypted; a bigger add goes as a run, like scenario 2). Close the tab a millisecond earlier and the letter simply never existed; nothing can tear.',
       lit:['letterWish','mailbox'], show:['letterWish'], hide:['mailEmpty'],
       arr:[['fetchers','worker','1 letter (atomic)','write',-30],['worker','letterWish','','write',0]] },
-    { t:'Done. The canonical library is untouched; the letter waits (up to ~90 days) for a merge to absorb it. What happens then → Scenario 3.',
+    { t:'Done. The Fetched Copy is untouched; the letter waits (up to 90 days) for a merge to absorb it. What happens then → Scenario 3.',
       lit:['letterWish','genA'] }
   ]},
 
-{ id:'2', layout:'v7', title:'2 · Library fetch (7.0)',
+{ id:'2', layout:'v7', title:'2 · Library or collections fetch',
   intro:'A big fetch delivers its results as a multi-part run — letters first, run manifest last. The manifest IS the commit.',
   steps:[
-    { t:'Skip-hint read: live generation (via pointer) + pending letters, combined with the SAME merge the app uses. Books added five minutes ago are already “known” — nothing gets fetched twice.',
+    { t:'Skip-hint read (library fetch): current version (via pointer) + pending letters, combined with the SAME merge the full view uses. Books added five minutes ago are already “known” — nothing gets fetched twice.',
       lit:['ptr','genA','mailbox'],
       arr:[['genA','worker','','read',-10],['mailbox','worker','','read',10],['worker','fetchers','skip-hint (read-only)','read',30]] },
     { t:'The fetcher pulls new books, enrichment, tags, and prices from Amazon’s APIs. This can run for many minutes.',
@@ -392,70 +415,85 @@ const SCENARIOS = [
     { t:'The run manifest is written LAST. Its presence is the commit: only now does the run exist to any reader. Die before this and the parts are ignored — retried next fetch, nothing corrupted.',
       lit:['runBooks'],
       arr:[['fetchers','worker','run manifest = commit','write',-50],['worker','runBooks','','write',12]] },
-    { t:'Age-cap check: if some OTHER run has waited un-merged for ~3 days (the app never opened), the fetcher consolidates the canonical itself. Usually: nothing to do. The normal path to absorption → Scenario 3. And if the app wakes up and merges at the same moment the fetcher does → that race is Scenario 6b (one winner, nothing lost).',
+    { t:'Age-cap check: if some run has waited un-merged for over 3 days (the full view never imported), the fetcher merges a new version of the Fetched Copy itself. Usually: nothing to do. The normal path to absorption → Scenario 3. And if the full view merges at the same moment → that race is Scenario 6b (one winner, nothing lost).',
       lit:['fetchers','mailbox'] }
   ]},
 
-{ id:'3', layout:'v7', title:'3 · App import + consolidation (7.0)',
-  intro:'Import is a read; consolidation afterwards writes a NEW generation onto the stack and flips the pointer — the atomic commit.',
+{ id:'3', layout:'v7', title:'3 · Import + consolidation',
+  intro:'Import is a read; consolidation afterwards writes a NEW version onto the stack and moves the pointer — the commit.',
   steps:[
-    { t:'Read the canonical: pointer → gen A → parts → checksum verified. (If gen A were ever unreadable, the reader falls back to the next-newest complete generation automatically.)',
+    { t:'Read the Fetched Copy: pointer → version A → parts → checksum verified. (If version A were ever unreadable, the reader falls back to the next-newest complete version, then to the pre-7.0 format.)',
       lit:['ptr','genA'], show:['runBooks','letterWish'], hide:['mailEmpty'],
-      arr:[['genA','worker','','read',-10],['worker','app','canonical (gen A)','read',30]] },
-    { t:'Read the mailbox; keep only runs NOT already in gen A’s absorbedRuns ledger.',
+      arr:[['genA','worker','','read',-10],['worker','app','Fetched Copy (version A)','read',30]] },
+    { t:'Read the mailbox; keep only runs NOT already in version A’s absorbedRuns ledger (absorbed ones aren’t even downloaded).',
       lit:['mailbox','runBooks','letterWish','absA'],
       arr:[['mailbox','worker','','read',10],['worker','app','pending runs','read',50]] },
-    { t:'Compose: one deterministic merge (canonical ⊕ pending runs, newest wins per book) → loaded into the local library. Tags, edits, and organization are preserved locally.',
+    { t:'Compose: one deterministic merge (Fetched Copy ⊕ pending runs, newest fetch wins per book) → loaded into this browser’s library; your folders, Book Lists, Searches and own fields stay as they are here. KNOWN DEFECT (outside review 3, item 3): a book this browser has that the result lacks is dropped — only wishlist books are kept — so an owned book missing from the Fetched Copy disappears here.',
       lit:['app'] },
-    { t:'Consolidation (background): the merged result is written as gen B — a new card on the stack. Parts first…',
+    { t:'Consolidation (background, never blocks the Import): the merged result is written as version B — a new card on the stack. Parts first…',
       lit:['genB'], show:['genB'],
-      arr:[['app','worker','gen B parts','write',-30],['worker','genB','','write',0]] },
-    { t:'…then gen B’s manifest, whose absorbedRuns ledger = everything gen A had absorbed PLUS the runs just merged.',
+      arr:[['app','worker','version B parts','write',-30],['worker','genB','','write',0]] },
+    { t:'…then version B’s manifest, whose absorbedRuns ledger = everything version A had absorbed PLUS the runs just merged.',
       lit:['genB','absB'],
-      arr:[['app','worker','gen B manifest','write',-45],['worker','genB','','write',10]] },
-    { t:'THE COMMIT: the pointer flips from gen A to gen B — one atomic write. Every reader now sees gen B. Interrupt anything before this and gen A was still perfectly live.',
+      arr:[['app','worker','version B manifest','write',-45],['worker','genB','','write',10]] },
+    { t:'THE COMMIT: the pointer moves from version A to version B — one write. Readers now find version B. Interrupt anything before this and version A was still perfectly current. (A reader elsewhere can see the old pointer for up to a minute — KV’s delay; see 6b.)',
       lit:['ptr','genB'], hide:['ptrA'], show:['ptrB'],
-      arr:[['app','worker','pointer flip (atomic)','write',-60],['worker','ptr','','write',0]] },
-    { t:'Cleanup: generations beyond keep-2 are deleted, and absorbed BULK runs are reclaimed early (small letters just age out on their own).',
+      arr:[['app','worker','pointer moves','write',-60],['worker','ptr','','write',0]] },
+    { t:'Cleanup, in the same save: versions beyond the two newest are deleted at once (unfinished ones after 10 minutes), and the big runs version B absorbed are deleted early (small letters just age out). Anything missed is retried at the next Import and by the nightly cleanup (scenario 8).',
       lit:['runBooks'], mark:[['runBooks','gone']],
-      arr:[['app','worker','GC + reclaim','write',-70]] },
-    { t:'Finally the app pushes a fresh device-state snapshot for mobile.',
-      lit:['devstate'],
-      arr:[['app','worker','device-state push','write',20],['worker','devstate','','write',0]] }
+      arr:[['app','worker','delete old versions + absorbed runs','write',-70]] },
+    { t:'The imported books changed your library, so about a minute later — or when you leave the tab — the full view sends a fresh Complete Copy (scenario 5).',
+      lit:['devstate','ccVer'],
+      arr:[['app','worker','','write',20],['worker','ccVer','Complete Copy send','write',0,CC_VER([690,452])]] }
   ]},
 
 { id:'4', layout:'v7', title:'4 · Worker guardrails',
-  intro:'The worker is in every flow — it is the only door. This scenario shows the refusals that keep even a buggy client from doing damage.',
+  intro:'The worker is in every flow — it is the only door. These are the refusals that keep even a buggy client (or someone without your key) from doing damage.',
   steps:[
-    { t:'A client tries to flip the pointer to a generation whose manifest doesn’t exist (not committed). Refused: commit-before-flip is enforced server-side, not just by client discipline.',
-      lit:['worker','ptr'],
-      arr:[['app','worker','✖ flip to uncommitted gen → 409','fail',-20]] },
-    { t:'A client tries to DELETE the generation the pointer currently names. Refused — a client bug can’t torch the live library.',
-      lit:['worker','genA'],
-      arr:[['app','worker','✖ delete pointed gen → 409','fail',-40]] },
-    { t:'A runaway client exceeds the per-channel write rate (200/hour). Refused with 429; at 10× the limit the channel is auto-blocklisted. The counter itself is best-effort — it can never fail an honest write.',
+    { t:'A write that isn’t signed with this cloud copy’s write key — or whose time is more than 5 minutes off — is refused (401). Registering a DIFFERENT write key for a cloud copy that already has one is refused too (409).',
       lit:['worker','admin'],
-      arr:[['fetchers','worker','✖ too many writes → 429','fail',-30]] },
-    { t:'Everything else passes: the worker validates channels and ids, stamps SERVER time into run/gen ids (a device with a wrong clock can’t win “newest”), and stores only ciphertext it cannot read.',
+      arr:[['fetchers','worker','✖ unsigned write → 401','fail',-30]] },
+    { t:'A client tries to move the pointer to a version whose manifest doesn’t exist (unfinished). Refused (409): commit-before-pointer is enforced by the worker, not just by client discipline.',
+      lit:['worker','ptr'],
+      arr:[['app','worker','✖ pointer to unfinished version → 409','fail',-20]] },
+    { t:'A client tries to rewrite a part of a version or run that is already finished. Refused (409): a finished copy can’t be changed under its checksum.',
+      lit:['worker','genA'],
+      arr:[['app','worker','✖ rewrite a finished part → 409','fail',-35]] },
+    { t:'A client tries to DELETE the version the pointer currently names. Refused (409) — a client bug can’t torch the current library.',
+      lit:['worker','genA'],
+      arr:[['app','worker','✖ delete pointed version → 409','fail',-50]] },
+    { t:'Any request for a revoked cloud copy is refused (403) — scenario 7.',
+      lit:['worker','admin'],
+      arr:[['app','worker','✖ revoked → 403','fail',-65]] },
+    { t:'A runaway client: designed as 200 writes an hour per cloud copy (429), blocked automatically at 2,000. KNOWN DEFECT (outside review 2; confirmed in the code): the count is sampled 1 in 5 and saved only when a write is allowed, so past 200 about four writes in five still go through — and the automatic block can never happen.',
+      lit:['worker','admin'],
+      arr:[['fetchers','worker','✖ too many writes → 429, but only 1 in 5','fail',-30]] },
+    { t:'Everything else passes: the worker validates channels and ids, stamps SERVER time into run and version ids (a device with a wrong clock can’t win “newest”), and stores only ciphertext it cannot read.',
       lit:['worker'],
       arr:[['fetchers','worker','normal writes','write',-30],['worker','app','normal reads','read',30]] }
   ]},
 
-{ id:'5', layout:'v7', title:'5 · Mobile',
-  intro:'Mobile is a one-way reader of its own snapshot — it never touches the canonical or the mailbox.',
+{ id:'5', layout:'v7', title:'5 · The Complete Copy and the compact view',
+  intro:'The full view sends; the compact view only reads — it never touches the Fetched Copy or the mailbox, and writes nothing to the cloud.',
   steps:[
-    { t:'After an import (or on the idle timer), the app serializes a full snapshot — books AND organization — and pushes it to device-state.',
-      lit:['devstate'],
-      arr:[['app','worker','device-state push','write',20],['worker','devstate','','write',0]] },
-    { t:'Mobile opens: it requests the snapshot; the response carries the (encrypted) data.',
-      lit:['mobile','devstate'],
-      arr:[['devstate','worker','','read',0],['worker','mobile','device-state','read',20]] },
-    { t:'Mobile decrypts locally (the passphrase never leaves your devices) and renders your organized library. That’s the whole flow — mobile writes nothing.',
+    { t:'The full view sends a new version of the Complete Copy — books, organization and your own fields — about a minute after you stop changing things, or when you leave the tab (and right after a Restore). Parts first, then the version’s manifest…',
+      lit:['devstate','ccVer'],
+      arr:[['app','worker','','write',20],['worker','ccVer','Complete Copy parts + manifest','write',0,CC_VER([690,452])]] },
+    { t:'…then its pointer moves to the new version, and versions beyond the two newest are deleted. Each version expires 90 days after it was sent, so a full view that stops sending leaves the copy to expire.',
+      lit:['ccPtr','ccVer'],
+      arr:[['app','worker','','write',20],['worker','ccPtr','pointer moves','write',0,CC_PTR([690,478])]] },
+    { t:'The compact view opens: it reads the pointer alone (at most once a minute) and compares it with the version it last showed — if they differ, it offers the newer library.',
+      lit:['mobile','ccPtr'],
+      arr:[['ccPtr','worker','','read',0,CC_PTR()],['worker','mobile','“is there a newer one?”','read',0,MOBILE([130,330])]] },
+    { t:'To load, it reads the pointed version’s parts and checks the checksum; if that fails it tries the next-newest version, then the pre-7.0 one-item copy.',
+      lit:['mobile','ccVer'],
+      arr:[['ccVer','worker','','read',0,CC_VER()],['worker','mobile','Complete Copy','read',0,MOBILE([130,352])]] },
+    { t:'It decrypts locally (the key never leaves your devices), shows your organized library, and saves a copy in its own browser for offline use. That’s the whole flow — it writes nothing to the cloud.',
       lit:['mobile'] }
   ]},
 
 { id:'6a', layout:'v7', title:'6a · Disaster reel — tab closes mid-fetch',
-  intro:'The same interruption that corrupted the library in 0a, replayed under 7.0.',
+  intro:'The same interruption that corrupted the library in 0a, replayed today.',
   steps:[
     { t:'A library fetch is sending its multi-part run: part 1, part 2…',
       lit:['runBooks','mailbox'], show:['runBooks'], hide:['mailEmpty'],
@@ -463,81 +501,118 @@ const SCENARIOS = [
     { t:'💥 The user closes the tab prematurely — before the remaining parts and the run manifest are written.',
       lit:['fetchers'],
       arr:[['fetchers','worker','✖ interrupted','fail',-50]] },
-    { t:'The run has no manifest → it does not exist to any reader. The canonical library never noticed anything. Compare 0a: the same event, zero damage.',
+    { t:'The run has no manifest → it does not exist to any reader. The Fetched Copy never noticed anything. Compare 0a: the same event, zero damage.',
       lit:['genA','ptr'], mark:[['runBooks','dim']] },
-    { t:'The next fetch simply re-sends (the orphaned parts age out on their own). Nothing to recover, nothing to rebuild.',
+    { t:'The next fetch simply re-sends; the unfinished parts expire on their own (90 days — the nightly cleanup leaves them alone, it never deletes an unabsorbed run). Nothing to recover, nothing to rebuild.',
       lit:['fetchers'] }
   ]},
 
 { id:'6b', layout:'v7', title:'6b · Disaster reel — two merges at once',
-  intro:'The app and a fetcher (or two tabs) both consolidate simultaneously. Pre-7.0 this was the classic RMW race (0b). Now:',
+  intro:'The full view and a fetcher (or two tabs) both consolidate simultaneously. Pre-7.0 this was the classic RMW race (0b). Now:',
   steps:[
-    { t:'Both writers read the same starting state (gen A + pending runs).',
+    { t:'Both writers read the same starting state (version A + pending runs).',
       lit:['ptr','genA','mailbox'], show:['runBooks','letterWish'], hide:['mailEmpty'],
       arr:[['genA','worker','','read',-10],['worker','app','read','read',30],['worker','fetchers','read','read',30]] },
-    { t:'Each writes its own COMPLETE generation under a unique id — disjoint storage, so they cannot tear each other. Two committed generations now sit on the stack.',
+    { t:'Each writes its own COMPLETE version under a unique id — separate storage, so they cannot tear each other. Two finished versions now sit on the stack.',
       lit:['genB'], show:['genB'],
-      arr:[['app','worker','gen B (commit)','write',-30],['fetchers','worker','gen B′ (commit)','write',-30]] },
-    { t:'Both flip the pointer; the LAST flip wins — one atomic slot, exactly one winner. The loser’s generation is orphaned and cleaned up. At no moment did a torn state exist.',
+      arr:[['app','worker','version B (finished)','write',-30],['fetchers','worker','version B′ (finished)','write',-30]] },
+    { t:'Both move the pointer; the LAST move wins — one slot, one winner. The other version stays on the stack as the older of the two kept, until a later save pushes it out. At no moment did a torn state exist.',
       lit:['ptr','genB'], hide:['ptrA'], show:['ptrB'],
-      arr:[['app','worker','flip','write',-45],['fetchers','worker','flip (wins)','write',-60],['worker','ptr','','write',0]] },
-    { t:'Anything the winner did NOT absorb is still in the mailbox — letters are only retired by the generation that absorbed them — so the next merge sweeps it up. Total cost of the race: one wasted write. Lost data: none.',
-      lit:['mailbox','letterWish','absB'] }
+      arr:[['app','worker','pointer','write',-45],['fetchers','worker','pointer (wins)','write',-60],['worker','ptr','','write',0]] },
+    { t:'Anything the winner did NOT absorb is still in the mailbox — letters are only retired by the version that absorbed them — so the next merge sweeps it up. Total cost of the race: one wasted write. Lost data: none.',
+      lit:['mailbox','letterWish','absB'] },
+    { t:'The caveat: the pointer is one item in Cloudflare KV, where a change can take up to a minute (or more) to reach every location — so for that minute two readers in different places can see different “current” versions, and “last” means last to arrive where you read. Harmless for this race (both versions are complete), but it is why nothing today can say “refuse this write, you haven’t seen the newest” — the proposed design (below) moves the pointer where that’s possible.',
+      lit:['ptr'] }
   ]},
 
 { id:'6c', layout:'v7', title:'6c · Disaster reel — delete vs. in-flight fetch',
   intro:'The resurrection race: you permanently delete a book while a fetch that started before the delete is still running.',
   steps:[
-    { t:'A library fetch is in flight — it read the canonical (book included) and is fetching from Amazon.',
+    { t:'A library fetch is in flight — it read the Fetched Copy (book included) and is fetching from Amazon.',
       lit:['fetchers','genA'],
       arr:[['genA','worker','','read',-10],['worker','fetchers','read (book included)','read',30]] },
-    { t:'Meanwhile you permanently delete the book (empty it from Trash). The app sends a tombstone letter — it does NOT rewrite the library (that rewrite WAS the race, pre-7.0).',
+    { t:'Meanwhile you permanently delete the book (empty it from Trash). The full view sends a tombstone letter — it does NOT rewrite the library (that rewrite WAS the race, pre-7.0).',
       lit:['letterTomb'], show:['letterTomb'], hide:['mailEmpty'],
       arr:[['app','worker','tombstone letter','write',-20],['worker','letterTomb','','write',0]] },
     { t:'The fetch finishes and sends its run — which still contains the deleted book (fetched from pre-delete state).',
       lit:['runBooks'], show:['runBooks'],
       arr:[['fetchers','worker','run (book included)','write',-40],['worker','runBooks','','write',10]] },
-    { t:'The next import (Scenario 3’s merge) sees BOTH: the tombstone blocks any data fetched BEFORE the delete. The book stays dead, and the tombstone persists in the new generation to keep blocking stale copies.',
+    { t:'The next import (Scenario 3’s merge) sees BOTH: the tombstone blocks any data fetched BEFORE the delete. The book stays dead, and the tombstone persists in the new version to keep blocking stale copies.',
       lit:['app','letterTomb','runBooks'],
       arr:[['worker','app','merge: tombstone wins','read',30]] },
     { t:'A DELIBERATE re-add later (newer than the delete) still works — a fresh sighting revives the book and clears the tombstone. Deletes stay deleted; intent stays honored.',
       lit:['letterWish'], show:['letterWish'] }
   ]},
 
-{ id:'6d', layout:'v7', title:'6d · Disaster reel — backup restore',
+{ id:'6d', layout:'v7', title:'6d · Disaster reel — Restore Backup',
   intro:'Pre-7.0, a restore never touched the relay — the next import quietly merged pre-restore data back in. Now a restore is a baseline.',
   steps:[
-    { t:'You restore a backup. Locally the library and organization are replaced — same as always.',
+    { t:'You restore a backup. In this browser the library and organization are replaced — exactly what the backup holds.',
       lit:['app'] },
-    { t:'The app sends the restored library as a RESET run: a new baseline that outranks everything older in the mailbox.',
+    { t:'The full view sends the restored books as a RESET run: a new baseline that outranks everything older in the mailbox.',
       lit:['letterReset'], show:['letterReset','runBooks','letterWish'], hide:['mailEmpty'],
       arr:[['app','worker','reset run','write',-20],['worker','letterReset','','write',0]] },
-    { t:'It immediately consolidates: a new generation built from the reset, whose absorbedRuns ledger marks every older run as superseded — pre-restore letters can never re-apply.',
-      lit:['genB','absB'], show:['genB'], hide:['ptrA'],
-      arr:[['app','worker','gen B + pointer flip','write',-40],['worker','genB','','write',0]],
+    { t:'It immediately consolidates: a new version built from the reset, whose absorbedRuns ledger marks every older run as superseded — pre-restore letters can never re-apply.',
+      lit:['genB','absB','ptr'], show:['genB','ptrB'], hide:['ptrA'],
+      arr:[['app','worker','version B + pointer','write',-40],['worker','genB','','write',0]],
       mark:[['runBooks','dim'],['letterWish','dim']] },
-    { t:'Runs arriving AFTER the reset merge normally on top. The restore actually stuck — on every device.',
-      lit:['ptr','genB'], show:['ptrB'] }
-  ]}
-,
+    { t:'And it sends the restored organization as a fresh Complete Copy at once, stamped as new — so the compact view shows the restored library.',
+      lit:['devstate','ccVer'],
+      arr:[['app','worker','','write',20],['worker','ccVer','Complete Copy send','write',0,CC_VER([690,452])]] },
+    { t:'Runs arriving AFTER the reset merge normally on top. The restore stuck in the cloud: both copies carry it. (Another browser’s own organization is untouched — that is “Keep your tabs and browsers in step”, not built.)',
+      lit:['ptr','genB'] }
+  ]},
 
 { id:'6e', layout:'v7', title:'6e · Disaster reel — a letter arrives mid-merge',
-  intro:'The app is consolidating — it has ALREADY read the mailbox — when a fetcher drops a new letter. Does it get lost?',
+  intro:'The full view is consolidating — it has ALREADY read the mailbox — when a fetcher drops a new letter. Does it get lost?',
   steps:[
-    { t:'The app begins an import: it reads the live generation and the mailbox, and starts merging. Its picture of the mailbox is now frozen.',
+    { t:'The full view begins an import: it reads the current version and the mailbox, and starts merging. Its picture of the mailbox is now frozen.',
       lit:['ptr','genA','mailbox'], show:['runBooks'], hide:['mailEmpty'],
       arr:[['genA','worker','','read',-10],['mailbox','worker','','read',10],['worker','app','read (snapshot taken)','read',30]] },
-    { t:'While the merge runs, a wishlist add lands in the mailbox — a letter the app never saw.',
+    { t:'While the merge runs, a wishlist add lands in the mailbox — a letter the full view never saw.',
       lit:['letterWish'], show:['letterWish'],
       arr:[['fetchers','worker','new letter','write',-30],['worker','letterWish','','write',0]] },
-    { t:'The app commits gen B. Its absorbedRuns ledger lists ONLY the runs it actually read — the new letter is not in it. Pointer flips; done.',
+    { t:'The full view commits version B. Its absorbedRuns ledger lists ONLY the runs it actually read — the new letter is not in it. Pointer moves; done.',
       lit:['genB','absB','ptr'], show:['genB','ptrB'], hide:['ptrA'], mark:[['runBooks','dim']],
-      arr:[['app','worker','gen B + pointer flip','write',-40],['worker','genB','','write',0]] },
-    { t:'The new letter is therefore still “pending” — visible to every reader, untouched by the flip. Letters are only ever retired by the generation that absorbed them, so a letter can never be stranded by timing.',
+      arr:[['app','worker','version B + pointer','write',-40],['worker','genB','','write',0]] },
+    { t:'The new letter is therefore still “pending” — visible to every reader, untouched by the pointer move. Letters are only ever retired by the version that absorbed them, so a letter can never be stranded by timing.',
       lit:['letterWish','absB'] },
     { t:'The update banner (or the next import) picks it up and the next merge absorbs it. Worst case for bad timing: the book appears one import later. Lost: nothing.',
       lit:['app','letterWish'],
       arr:[['worker','app','next import absorbs it','read',30]] }
+  ]},
+
+{ id:'7', layout:'v7', title:'7 · Revoke — wipe the cloud copy and lock its key out',
+  intro:'Relay Setup → “Revoke credentials & wipe relay” (the danger zone at the bottom). Today the only way to delete a cloud copy on purpose.',
+  steps:[
+    { t:'After you confirm, the full view sends a revoke — signed like every write, carrying a proof made from the key.',
+      lit:['app'], show:['runBooks','letterWish'], hide:['mailEmpty'],
+      arr:[['app','worker','revoke (signed)','write',0]] },
+    { t:'The worker deletes everything stored for that cloud copy: the mailbox, both stacks of versions, both pointers, and any pre-7.0 items.',
+      lit:['worker'],
+      mark:[['canon','gone'],['genA','gone'],['ghostGen','gone'],['ptr','gone'],['ptrA','gone'],['mailbox','gone'],['runBooks','gone'],['letterWish','gone'],
+            ['devstate','gone'],['ccVer','gone'],['ccGhost','gone'],['ccPtr','gone'],['ccPtrArrow','gone'],['legacy','gone']],
+      arr:[['worker','canon','delete all','fail',0],['worker','mailbox','','fail',0],['worker','ccVer','','fail',0,CC_VER()]] },
+    { t:'…and puts it on the block list: every later request for it is refused (403). This browser forgets the key, and Relay Setup reopens to make a new one (then set up the bookmarklet and the phone again — the old key is built into them).',
+      lit:['admin','app'],
+      arr:[['fetchers','worker','✖ old key → 403','fail',-30]] },
+    { t:'KNOWN GAPS (outside review 2): the write key and the proof stay stored for ever (TODO: delete the write key on revoke); and making new credentials WITHOUT revoking leaves the old cloud copy alive and usable by anyone holding the old key — “Make a new key” is meant to revoke (GLOSSARY), but it doesn’t yet.',
+      lit:['admin'] }
+  ]},
+
+{ id:'8', layout:'v7', title:'8 · The nightly cleanup and daily summary',
+  intro:'Every night at 23:55 UTC each relay wakes on its own, checks its storage and emails the daily summary. It deletes only what an interrupted or never-repeated save left behind — the same rules the app follows when it saves.',
+  steps:[
+    { t:'It lists every stored item and groups them by cloud copy (one storage count per relay).',
+      lit:['worker','canon','mailbox','devstate'],
+      arr:[['canon','worker','list everything','read',-10],['mailbox','worker','','read',10],['ccVer','worker','','read',0,CC_VER()]] },
+    { t:'Per cloud copy it deletes: versions beyond the two newest (in either stack); unfinished versions (no manifest) over 10 minutes old; and mailbox runs of 2+ letters that the current Fetched Copy lists as absorbed, once that version is over 10 minutes old.',
+      lit:['ghostGen','runBooks'], show:['runBooks'], hide:['mailEmpty'], mark:[['runBooks','gone']],
+      arr:[['worker','mailbox','delete absorbed runs','fail',0]] },
+    { t:'Never: a run nothing has absorbed (it may be the only copy of a change — the email lists these as “not yet imported - kept”), or a version a pointer names. A cloud copy whose pointer is missing isn’t judged at all. At most 20 deletes a night — a backlog clears over several nights.',
+      lit:['ptr','genA','ccPtr','ccVer'] },
+    { t:'Then it emails the daily summary: usage of both relays against Cloudflare’s free limits, the storage check, and what it deleted or kept. (Production also checks usage every 30 minutes and alerts at 25/50/75/90%.)',
+      lit:['worker','admin'] }
   ]}
 ];
 
@@ -570,21 +645,40 @@ function edgeTowards(from, to){
   }
   return { x: from.x, y: from.y + Math.sign(dy) * from.b.height/2 };
 }
-function drawArrow(fromId, toId, label, cls, bend, dimmed){
+// route (optional): { via: [[x,y],…], at: [x,y] } — a straight-segment path through the via points (so an arrow can go
+// AROUND a box instead of across it), its label at `at`. Without `via`: one curve, bent by `bend`, its label at `at` or
+// else at the bend.
+// The busiest pairs get one fixed lane, labels in the clear strip between the worker and the two big boxes (their
+// labels used to land on the Fetched Copy's and the Mailbox's titles). A step's own route still wins.
+const LANE_RIGHT = { via:[[850,148]], at:[720,156] };
+const DEFAULT_ROUTE = { 'fetchers>worker': LANE_RIGHT, 'worker>fetchers': LANE_RIGHT,
+                        'app>worker': { at:[365,154] }, 'worker>app': { at:[365,154] } };
+function drawArrow(fromId, toId, label, cls, bend, dimmed, route){
+  route = route || DEFAULT_ROUTE[fromId + '>' + toId];
   const a = centerOf(fromId), b = centerOf(toId);
-  const p1 = edgeTowards(a, b), p2 = edgeTowards(b, a);
-  const mx = (p1.x + p2.x)/2, my = (p1.y + p2.y)/2;
-  const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy) || 1;
-  const nx = -dy/len, ny = dx/len;
-  const cx = mx + nx * (bend||0), cy = my + ny * (bend||0);
+  let d, lx, ly;
+  if (route && route.via) {
+    const pts = route.via.map(([x, y]) => ({ x, y }));
+    const all = [edgeTowards(a, pts[0]), ...pts, edgeTowards(b, pts[pts.length - 1])];
+    d = 'M ' + all.map(p => `${p.x} ${p.y}`).join(' L ');
+    [lx, ly] = route.at || [(all[0].x + all[1].x)/2, (all[0].y + all[1].y)/2 - 4];
+  } else {
+    const p1 = edgeTowards(a, b), p2 = edgeTowards(b, a);
+    const mx = (p1.x + p2.x)/2, my = (p1.y + p2.y)/2;
+    const dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy) || 1;
+    const nx = -dy/len, ny = dx/len;
+    const cx = mx + nx * (bend||0), cy = my + ny * (bend||0);
+    d = `M ${p1.x} ${p1.y} Q ${cx} ${cy} ${p2.x} ${p2.y}`;
+    [lx, ly] = (route && route.at) || [cx, cy - 4];
+  }
   const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-  path.setAttribute('d', `M ${p1.x} ${p1.y} Q ${cx} ${cy} ${p2.x} ${p2.y}`);
+  path.setAttribute('d', d);
   path.setAttribute('class', 'arrow ' + (dimmed ? 'old' : (cls||'write')));
   path.setAttribute('marker-end','url(#mk)');
   arrowsG.appendChild(path);
-  if (label) {
+  if (label && !dimmed) {   // earlier steps' arrows stay as a faint trace, unlabeled — their labels piled up on the boxes
     const t = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x', cx); t.setAttribute('y', cy - 4);
+    t.setAttribute('x', lx); t.setAttribute('y', ly);
     t.setAttribute('text-anchor','middle');
     t.setAttribute('class','alabel ' + (dimmed ? 'old' : (cls||'write')));
     t.textContent = label;
@@ -611,7 +705,7 @@ function render(){
     (st.show||[]).forEach(id => el(id) && el(id).classList.remove('hiddenEl'));
     (st.hide||[]).forEach(id => el(id) && el(id).classList.add('hiddenEl'));
     (st.mark||[]).forEach(([id, c]) => el(id) && el(id).classList.add(c));
-    (st.arr ||[]).forEach(([f, to, label, cls, bend]) => drawArrow(f, to, label, cls, bend, !isCurrent));
+    (st.arr ||[]).forEach(([f, to, label, cls, bend, route]) => drawArrow(f, to, label, cls, bend, !isCurrent, route));
     if (isCurrent) (st.lit||[]).forEach(id => el(id) && el(id).classList.add('lit'));
   }
   el('title').textContent = sc.title;
