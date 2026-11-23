@@ -139,6 +139,8 @@
       - [Split the main code file into modules](#split-the-main-code-file-into-modules)
       - [Test on Safari and iPhone](#test-on-safari-and-iphone)
       - [Our working names in the code and docs: Fetched Copy, Complete Copy, compact view, full view](#our-working-names-in-the-code-and-docs-fetched-copy-complete-copy-compact-view-full-view)
+      - [Tests and tools run under a venv named for its Python, called by its path](#tests-and-tools-run-under-a-venv-named-for-its-python-called-by-its-path)
+      - [A "machine's trouble" that repeats the same way, run alone, says it's probably not the machine](#a-machines-trouble-that-repeats-the-same-way-run-alone-says-its-probably-not-the-machine)
   - [👀 Watching](#watching)
     - [Turn more of our working rules into automatic checks (my tooling)](#turn-more-of-our-working-rules-into-automatic-checks-my-tooling)
     - [Generated test libraries: made-up books at any size, with their own covers](#generated-test-libraries-made-up-books-at-any-size-with-their-own-covers)
@@ -4031,6 +4033,54 @@ names"); the code, comments and design docs still use the old ones.
    (the comb), and the relay's stored key names (`relay:{id}:device-state`…) are a stored format: those stay, or
    change only with a migration and a design Ron has seen.
 3. **When it migrates,** the old names go to the glossary's anti-list, so nothing new uses them.
+
+#### Tests and tools run under a venv named for its Python, called by its path
+<!-- id 20261123-1655 -->
+
+_Why it matters:_ Which Python runs the tests must not depend on the path, the `py` launcher's default or how VS Code
+started. On 2026-11-23 a test that passed on Nov 19 failed every time with no code changed: the commit check calls a
+bare `python`, and since the 11-20 restart this session had the venv active, so `python` was a different interpreter.
+A bare `python` or `py` gets whichever Python the path or the launcher happens to pick — and the global packages,
+not the project's known-working versions.
+
+**Decided** (Ron, 2026-11-23):
+1. **A venv is named for its Python version** — `.venv314` for today's (3.14); another version gets its own
+   (`.venv313`…), so several can sit side by side without confusion, and a tool that needs another version gets its
+   own venv.
+2. **Tests and tools run under the project's venv, never the global Python:** the commit check and every tool that
+   starts Python call the venv's interpreter **by its path** (`.venv314\Scripts\python.exe`). Checked 2026-11-23: run
+   that way, with nothing activated, Python uses the venv's packages and only those (`pyvenv.cfg` tells it);
+   `activate` only puts `Scripts` first on the shell's path, sets `VIRTUAL_ENV` and changes the prompt. **No venv →
+   stop loud** with the one command that makes it (`py -3.14 -m venv .venv314`, then `pip install -r
+   requirements-dev.txt`).
+3. **Launcher-safe:** a venv's `python.exe` on Windows starts the real interpreter as a second process, so nothing
+   may assume a started program's process id is its own (RUN-057's fix, fc6bb79).
+4. **A venv still leans on its base:** `pyvenv.cfg` points at the Python it was made from — uninstalling that Python
+   breaks the venv. The versioned name says which base it needs.
+5. **The sweep** (the comb — site-map before claiming coverage): `git-hooks/pre-commit` and every hook that calls
+   Python; `tools/run_tests.py` (starts tests with its own interpreter); `tools/copies.py` (links the venv into each
+   copy); `tools/merge_branches.py`; the double-click scripts (pytools `keepopen`); `.gitignore`; VS Code's interpreter
+   setting; `docs/design/TESTING.md`, `SESSION-TOOLING.md`; `requirements-dev.txt`'s instructions.
+6. **The Projects-root `CLAUDE-TOOLING.md`** gets the rule for every project — a venv named for its Python; hooks and
+   tools call it by path, never a bare `python` / `py` — next to pytools' how-to.
+7. Enforcement code (`git-hooks/`, `tools/run_tests.py`, `tools/merge_branches.py`, the CLAUDE files): its own branch,
+   built with Ron's word.
+
+#### A "machine's trouble" that repeats the same way, run alone, says it's probably not the machine
+<!-- id 20261123-1656 -->
+
+_Why it matters:_ On 2026-11-23 RUN-057 stalled at the same check four times, twice rerun alone with the whole PC to
+itself, and each time the runner said "not proven — the machine was too busy". It was a real bug (the test's stand-in
+under a venv launcher, fixed in fc6bb79). The label hid it for hours, blocked a commit, and sent us looking at Windows
+updates and a crash.
+
+**Decided** (Ron, 2026-11-23 — his word to change `tools/run_tests.py` for it):
+1. When a file's rerun alone stops at the **same check, the same way** as its first run, the runner says so plainly —
+   *"the same check stalled the same way twice, run alone: probably a real problem, not the machine"* — naming the
+   check. Still "not proven" (the commit stays refused), but the words stop pointing at the PC.
+2. Test first: a stand-in that stalls the same way every time must get the new words; one that stalls once and then
+   passes keeps today's.
+3. Enforcement code (`tools/run_tests.py`): its own branch.
 
 ---
 
