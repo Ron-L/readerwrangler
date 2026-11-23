@@ -224,12 +224,17 @@ if mode in ("serve", "serve-strict"):
     class Strict(http.server.HTTPServer):
         allow_reuse_address = False   # a taken port is refused, as wrangler's runtime refuses it
     srv = (Strict if mode == "serve-strict" else http.server.HTTPServer)(("127.0.0.1", port), H)
-    open(pids + ".bound-" + str(os.getpid()), "w").close()
+    open(pids + ".bound-" + os.environ.get("STANDIN_BOUND", str(os.getpid())), "w").close()
     srv.serve_forever()
 elif mode == "strict":                # like wrangler on a taken port: its server can't start, so it stops, never ready
     note("relay")
+    # The server's "bound" note is named by a token chosen HERE, never by the server's process id: a venv's
+    # python.exe is a launcher that starts the real interpreter as a second process, so the id Popen returns isn't
+    # the server's own os.getpid() — waiting on it hung 20 s every time under the venv (2026-11-23, RUN-057).
+    bound = pids + ".bound-" + f"{os.getpid()}-{time.time_ns()}"
+    os.environ["STANDIN_BOUND"] = bound.rsplit(".bound-", 1)[1]
     srv = child("serve-strict")
-    while not os.path.exists(pids + ".bound-" + str(srv.pid)):
+    while not os.path.exists(bound):
         if srv.poll() is not None:
             sys.exit("the stand-in's server couldn't take the port — stopping, as wrangler does")
         time.sleep(0.05)
