@@ -322,19 +322,10 @@ and "Warn when another browser has newer changes"; both earlier designs re-read 
      under 768 pixels) can save another computer's newer copy over this one's library, silently. A phone that later
      writes ("Phone: change Book Lists and tags") is a writer under the same rule — the same copy, no special case.
    - **How the cloud enforces it: a Durable Object holds each cloud copy's pointer** (Ron + Claude, 2026-11-22,
-     outside review 3 item 10 — Ron's design). On KV alone the relay can't refuse reliably (KV is eventually
-     consistent: up to 60 s or more between locations; two near-simultaneous writes can both pass). The bulky parts
-     stay in KV, under new names per version, never overwritten; one Durable Object per cloud copy (strongly
-     consistent, one request at a time) holds "the current version is #42" and moves it only if it still says what
-     the writer last saw. Readers ask it for the current version, read that version's parts from KV, and wait and retry
-     if a part isn't visible yet. **The older version is deleted after a grace period (~10 minutes, by the object's
-     alarm), not kept until the next write** — so the second kept version goes, for both cloud copies (storage
-     roughly halves between writes); a torn upload already never becomes current. **Chosen over R2** (also strongly
-     consistent, with conditional writes) because the same object can also hold the exact write counter (outside
-     review 2 found the KV counter doesn't hold) and the write-key registration without a race. Costs: one small round
-     trip per read; free plan 100,000 Durable Object requests a day. A relay storage change: a design Ron sees first,
-     and readers fall back to the old KV pointer until a copy's next write moves it. Cloudflare's own advice: "send all
-     writes for a given key through a corresponding Durable Object instance, then read that value from KV."
+     outside review 3 item 10 — Ron's design): compare-and-swap on the pointer; the parts stay in KV; the older
+     version deleted ~10 minutes after it's replaced; the same object holds the exact write counter and the write key.
+     **The design lives in `docs/design/MULTI-INSTANCE.md` §4 ("How the cloud enforces it — the pointer keeper"),
+     drawn step by step in `docs/design/RELAY-FLOWS.html`, the Proposed group (P0–P4)** — moved there 2026-11-23.
 3. **This retires both earlier designs' gatekeepers** — the read-only second tab (with "Edit here instead") and the
    cross-browser "soft lease" with its 15–30-second check. Neither blocks you any more, and the lease's record would
    have cost a cloud write every 15–30 seconds per active user (about 120 an hour, against ~1,000 a day on

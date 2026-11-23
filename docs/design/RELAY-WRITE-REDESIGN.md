@@ -240,6 +240,13 @@ Phase 1 needs exactly three rules:
 1. **Global quota counters** — writes **and `list`s** (both 1,000/day pools), UTC-day, per-account and per-channel. Feeds the normal/conserve switch and the worker's server-side gate.
 2. **Merge-lease** — short-lived, single-flights canonical merges.
 
+**Not built (2026-11-23)** — neither job: the quota counter is still a KV counter in the worker (outside review 2
+found it doesn't hold — sampled 1 in 5 and saved only when allowed, so the auto-block can't trigger), and the
+merge-lease wasn't built either (two merges at once are safe without it — RELAY-FLOWS 6b). **A third job, decided 2026-11-22:** the pointer
+keeper — one Durable Object per cloud copy holding both copies' pointers with compare-and-swap, the older version
+deleted ~10 minutes after it's replaced. It would hold the exact write counter too. Design: `MULTI-INSTANCE.md` §4
+("How the cloud enforces it — the pointer keeper"); drawn in `RELAY-FLOWS.html`, Proposed group.
+
 (The v1 "full-fetch advisory" DO job is **cut** [review over-eng. #1] — parallel full fetches are already safe, the advisory only saved wasted scraping time, and it carried coordination infrastructure for a UX nicety. Revisit only if real users actually double-fetch.)
 
 **Fairness / enforcement:**

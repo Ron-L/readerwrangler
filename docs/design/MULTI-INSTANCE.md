@@ -100,9 +100,10 @@ saw). Model them as one state machine, not flags.
 2. Every write says "I'm replacing the version I last saw" and is refused if that has changed. Two places:
    - **this browser's storage** — compare the stored `savedAt` with the one this tab last loaded or wrote, before
      each organization write;
-   - **the cloud copy** — an optional "expect" generation on the device-state pointer flip (`handlePutPointer`); the
-     worker answers 409 if the pointer has moved. KV takes up to ~a minute to agree everywhere, so this is a guard
-     for one person moving between machines, not a lock (the same honesty the lease had).
+   - **the cloud copy** — the pointer moves only if it still names the version the writer last saw; otherwise 409.
+     **How:** the pointer keeper below (2026-11-22). *(Superseded: an optional "expect" generation on today's KV
+     pointer flip, `handlePutPointer` — KV takes up to a minute or more to agree everywhere, so two near-simultaneous
+     sends could both pass; it was a guard, not a lock.)*
 3. **The responses (the same everywhere):**
    - **behind, with no changes of its own** → catch up silently; toast *"Caught up with changes from your other tab /
      browser"* + **Undo**;
@@ -110,12 +111,42 @@ saw). Model them as one state machine, not flags.
    - **both changed** → a banner, not a modal (you keep working): **Use the other one's** / **Keep this one's**; this
      copy sends nothing to the cloud until you choose.
 
+**How the cloud enforces it — the pointer keeper** (decided 2026-11-22, Ron's design, outside review 3 item 10; moved
+here from the TODO 2026-11-23. Drawn step by step: `RELAY-FLOWS.html`, the Proposed group, P0–P4. Not built.)
+- **Why not KV alone:** KV is eventually consistent — up to 60 s or more between Cloudflare locations, and two
+  near-simultaneous writes can both pass a read-then-write check. So the relay can't refuse "you haven't seen the
+  newest" reliably on KV, and today the last pointer move silently wins (RELAY-FLOWS 6b).
+- **The design:** one **Durable Object per cloud copy** (per Cloud Sync Key — it holds the pointers of both its
+  copies, the Fetched Copy and the Complete Copy). A Durable Object is strongly consistent and answers one request at a
+  time. It holds "the current version is #42" and moves it only if it still says what the writer last saw
+  (compare-and-swap). The bulky parts stay in KV, under a new name per version, never overwritten. Readers ask it for
+  the current version, read that version's parts from KV, and wait and retry if a part isn't visible yet.
+- **The older version is deleted after a grace period (~10 minutes, by the object's alarm)**, not kept until the next
+  write — so the second kept version goes, for both copies (storage roughly halves between writes). The grace lets a
+  reader that started on the old version finish; a torn upload already never becomes current.
+- **The same object also holds** the exact write counter (outside review 2 found the KV counter doesn't hold:
+  sampled 1 in 5 and saved only when allowed — RELAY-WRITE-REDESIGN.md §12 planned a Durable Object for exact counters
+  from the start) and the write-key registration without a race (review 2, §2.1.5 item 5).
+- **Chosen over R2** (also strongly consistent, with conditional writes) for those two extra jobs.
+- **It covers every "hasn't seen the newest" writer, not just a second computer:** the "just reset" mark, a cleared
+  browser, a new computer given the key by hand, books brought back by a fetch without their folders — a writer that
+  has seen no version can't replace one (TODO "Restore from Cloud Sync", item 6). The compact view's own local save
+  follows the same rule (outside review 3 item 8), and so will a compact view that writes one day (TODO "Phone: change
+  Book Lists and tags").
+- **Costs:** one small round trip per read; the free plan allows 100,000 Durable Object requests a day.
+- **Moving over:** readers fall back to today's KV pointer until a copy's next write moves it into the object. A relay
+  storage change — a design Ron sees before it's built (CLAUDE.md hard stop).
+- Cloudflare's own advice: *"send all writes for a given key through a corresponding Durable Object instance, then read
+  that value from KV."*
+- **Not the non-goal below:** this object holds a pointer and a counter; it doesn't hold a WebSocket or push anything —
+  live two-way sync stays rejected.
+
 **What differs by place — only how a copy hears, and how it catches up:**
 
 | | Hears | Catches up by |
 |---|---|---|
 | Tab | At once, free: the `storage` event (the app saves the organization on every change) | Reloading from storage |
-| Browser | On return (`visibilitychange` / focus: one read of the device-state pointer — the phone's freshness check, `getDeviceStatePointerGen`) or when the cloud refuses a send | Taking the cloud copy — which writes its storage, which brings its other tabs along |
+| Browser | On return (`visibilitychange` / focus: one read of the Complete Copy's pointer — the compact view's freshness check today, `getDeviceStatePointerGen`; the keeper once built) or when the cloud refuses a send | Taking the cloud copy — which writes its storage, which brings its other tabs along |
 
 The layers stack: a browser catching up from the cloud IS a storage write, so its tabs follow by the tab rule.
 

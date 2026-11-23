@@ -108,7 +108,7 @@
 <body>
 <header>
   <h1>Relay Data Flows — how ReaderWrangler sync moves</h1>
-  <p>Companion to <code>RELAY-WRITE-REDESIGN.md</code>. <b>Today</b> = as built (app 7.31, relay worker 7.25), each step checked against the code on 2026-11-23. Start with the <b>Tour</b>, then step the scenarios — 0a/0b are history: the pre-7.0 design and why it broke (torn write, RMW race). Known defects are marked as such, with the review that found them. A protocol cheat-sheet is at the bottom.</p>
+  <p>Companion to <code>RELAY-WRITE-REDESIGN.md</code>. <b>Today</b> = as built (app 7.31, relay worker 7.25), each step checked against the code on 2026-11-23. Start with the <b>Tour</b>, then step the scenarios — 0a/0b are history: the pre-7.0 design and why it broke (torn write, RMW race). Known defects are marked as such, with the review that found them. <b>Proposed</b> (P0–P4) = the decided, not-built pointer keeper — its text is <code>MULTI-INSTANCE.md</code> §4 (“How the cloud enforces it”). A protocol cheat-sheet is at the bottom (today only).</p>
   <p><b>Names</b> (our working names, GLOSSARY.md): <b>Fetched Copy</b> = the cloud copy of your books as fetched (code: canonical, <code>/gen</code>, “generations”) · <b>Complete Copy</b> = books + organization + your own fields (code: device-state, <code>/dstate</code>) · <b>full view</b> = <code>readerwrangler.js</code> · <b>compact view</b> = <code>mobile.js</code>. A “version” here is what the code calls a generation.</p>
 </header>
 
@@ -231,6 +231,34 @@
           <text x="685" y="593" text-anchor="middle" class="t-tiny">moves an old library into the stack; they expire</text></g>
       </g>
 
+      <!-- ========== Proposed (not built): the pointer keeper — drawn over the v7 stores ========== -->
+      <g id="layout-p" class="hiddenEl">
+        <g id="app2"><rect class="box" x="25" y="300" width="160" height="80" rx="10"/>
+          <text x="105" y="330" text-anchor="middle" class="t-bold">Your laptop</text>
+          <text x="105" y="350" text-anchor="middle" class="t-small">another full view</text></g>
+        <g id="keeper"><rect class="store" x="555" y="448" width="260" height="160" rx="10"/>
+          <text x="685" y="468" text-anchor="middle" class="t-bold">Pointer keeper</text>
+          <text x="685" y="483" text-anchor="middle" class="t-tiny">a Durable Object &#8212; one per cloud copy &#183; strongly</text>
+          <text x="685" y="495" text-anchor="middle" class="t-tiny">consistent, answers one request at a time</text></g>
+        <g id="kpF"><rect class="chip body" x="570" y="503" width="230" height="24" rx="6"/>
+          <text x="685" y="519" text-anchor="middle" class="t-small">Fetched Copy &#8594; version A</text></g>
+        <g id="kpC17"><rect class="chip body" x="570" y="533" width="230" height="24" rx="6"/>
+          <text x="685" y="549" text-anchor="middle" class="t-small">Complete Copy &#8594; version 17</text></g>
+        <g id="kpC18" class="hiddenEl"><rect class="chip body" x="570" y="533" width="230" height="24" rx="6"/>
+          <text x="685" y="549" text-anchor="middle" class="t-small">Complete Copy &#8594; version 18</text></g>
+        <g id="kpC18b" class="hiddenEl"><rect class="chip body" x="570" y="533" width="230" height="24" rx="6"/>
+          <text x="685" y="549" text-anchor="middle" class="t-small">Complete Copy &#8594; version 18&#8242;</text></g>
+        <g id="kpExtra"><rect class="chip body" x="570" y="563" width="230" height="38" rx="6"/>
+          <text x="685" y="578" text-anchor="middle" class="t-tiny">exact write count &#183; the write key</text>
+          <text x="685" y="592" text-anchor="middle" class="t-tiny">alarm: delete the old version after ~10 min</text></g>
+        <g id="pc17"><rect class="chip body" x="290" y="506" width="200" height="26" rx="7"/>
+          <text x="390" y="523" text-anchor="middle" class="t-small">version 17</text></g>
+        <g id="pc18" class="hiddenEl"><rect class="chip body" x="290" y="538" width="200" height="26" rx="7"/>
+          <text x="390" y="555" text-anchor="middle" class="t-small">version 18</text></g>
+        <g id="pc18b" class="hiddenEl"><rect class="chip body" x="290" y="570" width="200" height="26" rx="7"/>
+          <text x="390" y="587" text-anchor="middle" class="t-small">version 18&#8242;</text></g>
+      </g>
+
       <!-- ========== V6 stores (pre-7.0) ========== -->
       <g id="layout-v6" class="hiddenEl">
         <g id="v6lib"><rect class="store" x="275" y="160" width="540" height="270" rx="10"/>
@@ -320,10 +348,11 @@
 const CC_VER = (at) => ({ via:[[545,551]], at });   // worker <-> the Complete Copy's newest version
 const CC_PTR = (at) => ({ via:[[545,518]], at });   // worker <-> its pointer
 const MOBILE = (at) => ({ via:[[230,106],[230,510]], at });
+const KEEP_PATH = (y, at) => ({ via:[[545,y]], at });   // proposed: down the same gap, to the keeper or a version at height y
 
 const SCENARIOS = [
 
-{ id:'T', layout:'v7', title:'Tour — the pieces of the diagram',
+{ id:'T', layout:'v7', group:'Start here', title:'Tour — the pieces of the diagram',
   intro:'What each part is, before any data moves. Step through once; every scenario builds on this vocabulary.',
   steps:[
     { t:'The Worker is the only door: nothing touches the stored data except by sending it a message (an ordinary HTTPS request — see the cheat-sheet below). It checks each write’s signature, rate-limits, stamps server time into ids, and enforces the commit rules. It also wakes on a clock: every night it cleans up leftovers and emails the daily summary (scenario 8). Everything it stores is encrypted — the key stays on your devices, never in Cloudflare.',
@@ -344,7 +373,7 @@ const SCENARIOS = [
       lit:['legacy','admin'] }
   ]},
 
-{ id:'0a', layout:'v6', title:'0a · History (before 7.0) — the original corruption',
+{ id:'0a', layout:'v6', group:'History — before 7.0', title:'0a · History (before 7.0) — the original corruption',
   intro:'How one closed tab corrupted the synced library — the bug that motivated 7.0. The library is a set of fixed slots, edited in place. Striped = existing data.',
   steps:[
     { t:'You click Add to Wishlist on Amazon. To add ONE book, the fetcher must rewrite the whole library — so first it downloads all of it.',
@@ -386,7 +415,7 @@ const SCENARIOS = [
       lit:['app'], arr:[['v6lib','worker','','fail',0],['worker','app','import — book missing','fail',30]] }
   ]},
 
-{ id:'1', layout:'v7', title:'1 · Wishlist, series or author add',
+{ id:'1', layout:'v7', group:'Today — as built', title:'1 · Wishlist, series or author add',
   intro:'The simplest write: one sealed, self-committing letter. The Fetched Copy itself is never touched. (The wishlist, series-page and author-page fetchers all send this way.)',
   steps:[
     { t:'The fetcher reads what’s already known: the current version (found via the pointer) plus any pending letters in the mailbox — purely for duplicate detection. Read-only; the data flows store → worker → fetcher.',
@@ -613,6 +642,90 @@ const SCENARIOS = [
       lit:['ptr','genA','ccPtr','ccVer'] },
     { t:'Then it emails the daily summary: usage of both relays against Cloudflare’s free limits, the storage check, and what it deleted or kept. (Production also checks usage every 30 minutes and alerts at 25/50/75/90%.)',
       lit:['worker','admin'] }
+  ]},
+
+/* ---------- Proposed — not built (TODO "Keep your tabs and browsers in step", decided 2026-11-22: Ron's design) ---------- */
+
+{ id:'P0', layout:'p', group:'Proposed — not built', title:'P0 · Proposed — the pointer keeper',
+  intro:'Not built. The decided design (TODO “Keep your tabs and browsers in step”, 2026-11-22 — Ron’s design): how the cloud enforces “never replace a version you haven’t seen”. Today’s KV pointers and kept older versions are left out of this picture.',
+  steps:[
+    { t:'The pointer keeper: one Durable Object per cloud copy — Cloudflare storage that is strongly consistent and answers one request at a time. It holds which version is current, for both copies. The bulky parts stay in KV under a new name per version, never overwritten — as today.',
+      lit:['keeper','kpF','kpC17'] },
+    { t:'Readers ask the keeper “what’s current?”, then read that version’s parts from KV. A part that isn’t visible yet (KV can take a minute to reach every location) → wait and retry.',
+      lit:['kpF','kpC17','genA','pc17'] },
+    { t:'Compare before you overwrite: every save says “I’m replacing version 17 — the one I last saw.” The keeper moves the pointer only if it still says 17; otherwise it refuses, and that writer catches up first (P2–P4).',
+      lit:['keeper','kpC17'] },
+    { t:'The old version is deleted about 10 minutes after it’s replaced — by the keeper’s alarm, long enough for a reader that started on it to finish — not kept until the next save. So between saves each copy holds one version (storage roughly halves). A torn upload already never becomes current.',
+      lit:['kpExtra'] },
+    { t:'The same keeper can hold the exact write count (today’s KV counter doesn’t hold — scenario 4) and register the write key without a race. Chosen over R2 for that reason. Cost: one small round trip per read; the free plan allows 100,000 Durable Object requests a day.',
+      lit:['kpExtra','admin'] },
+    { t:'Unchanged: the worker is still the only door; the mailbox, letters, absorbed runs, signatures and encryption stay as they are. Moving over: until a copy’s next save moves its pointer into the keeper, readers fall back to today’s KV pointer. A relay storage change — a design Ron sees before it’s built.',
+      lit:['worker','mailbox'] }
+  ]},
+
+{ id:'P1', layout:'p', title:'P1 · Proposed — a normal save',
+  intro:'One full view saves the Complete Copy; nobody else is writing. (The Fetched Copy’s merges work the same way.)',
+  steps:[
+    { t:'The full view saves version 18 of the Complete Copy: its parts, then its manifest, to KV — exactly as today.',
+      lit:['pc18'], show:['pc18'],
+      arr:[['app','worker','','write',0],['worker','pc18','version 18: parts + manifest','write',0,KEEP_PATH(551,[660,150])]] },
+    { t:'Then: “move the Complete Copy from 17 to 18.” The keeper still says 17 → it moves to 18. It answers one request at a time, so no other save can slip in between the check and the move.',
+      lit:['kpC18'], show:['kpC18'], hide:['kpC17'],
+      arr:[['app','worker','','write',0],['worker','keeper','move 17 → 18: done','write',0,KEEP_PATH(528,[660,150])]] },
+    { t:'About 10 minutes later the keeper’s alarm deletes version 17.',
+      lit:['kpExtra','pc17'], mark:[['pc17','gone']],
+      arr:[['keeper','pc17','','fail',0]] },
+    { t:'A reader — here the compact view — asks the keeper what’s current (18), then reads version 18’s parts from KV; a part not visible yet → it waits and retries.',
+      lit:['mobile','kpC18','pc18'],
+      arr:[['keeper','worker','','read',0,KEEP_PATH(528)],['pc18','worker','','read',0,KEEP_PATH(551)],['worker','mobile','version 18','read',0,MOBILE([130,330])]] }
+  ]},
+
+{ id:'P2', layout:'p', title:'P2 · Proposed — a browser that’s behind',
+  intro:'Two computers, one Cloud Sync Key. This one was last in step at version 17 and has no changes of its own.',
+  steps:[
+    { t:'Your laptop saved version 18 (as in P1) while this computer — last in step at 17, nothing changed since — sat idle.',
+      lit:['app2','kpC18','pc18'], show:['pc18','kpC18'], hide:['kpC17'],
+      arr:[['app2','worker','laptop saves 18','write',0],['worker','keeper','','write',0,KEEP_PATH(528)]] },
+    { t:'You come back to this computer: one small read — the keeper says 18; I last saw 17 → I’m behind.',
+      lit:['app','kpC18'],
+      arr:[['keeper','worker','','read',0,KEEP_PATH(528)],['worker','app','current is 18 — I saw 17','read',0]] },
+    { t:'Nothing changed here → it takes version 18, saves it in this browser (its other tabs follow), and says “Caught up with changes from your other browser” — with Undo.',
+      lit:['app','pc18'],
+      arr:[['pc18','worker','','read',0,KEEP_PATH(551)],['worker','app','version 18','read',0]] },
+    { t:'Had both changed since 17, it would send nothing and show a banner — Use the other one’s / Keep this one’s — and nothing is overwritten either way (P3). Today nothing notices: each computer just sends over the other’s, and the compact view shows whichever sent last.',
+      lit:['app','app2'] }
+  ]},
+
+{ id:'P3', layout:'p', title:'P3 · Proposed — two saves at once',
+  intro:'Both computers last saw version 17, and both changed something. Blue = this computer, rose = your laptop. Compare 6b: today the last pointer move silently wins.',
+  steps:[
+    { t:'Each writes its own version’s parts — 18 here, 18′ on the laptop. Separate names in KV, so they can’t clash.',
+      lit:['pc18','pc18b'], show:['pc18','pc18b'], mark:[['pc18','w1'],['pc18b','w2']],
+      arr:[['app','worker','','w1',0],['app2','worker','','w2',0],
+           ['worker','pc18','','w1',0,KEEP_PATH(551)],['worker','pc18b','18 and 18′: parts + manifests','w2',0,KEEP_PATH(583,[660,150])]] },
+    { t:'The laptop asks first: “move 17 → 18′” — the keeper says 17 → moved.',
+      lit:['kpC18b'], show:['kpC18b'], hide:['kpC17'],
+      arr:[['app2','worker','','w2',0],['worker','keeper','17 → 18′: done','w2',0,KEEP_PATH(528,[660,150])]] },
+    { t:'This computer asks “move 17 → 18” — the keeper now says 18′ → refused. It sends nothing more until you choose.',
+      lit:['app','kpC18b'],
+      arr:[['app','worker','','w1',0],['worker','keeper','','w1',0,KEEP_PATH(528)],['worker','app','✖ refused — it says 18′ now','fail',0]] },
+    { t:'Both changed since 17 → the banner here: Use the other one’s / Keep this one’s. Nothing was overwritten. The unused version 18 (and the replaced 17) are deleted by the alarm about 10 minutes later.',
+      lit:['app'], mark:[['pc18','gone'],['pc17','gone']] }
+  ]},
+
+{ id:'P4', layout:'p', title:'P4 · Proposed — after a reset',
+  intro:'The “just reset” case (TODO “Restore from Cloud Sync”, item 6) is one case of the same rule. So is a cleared browser, or a new computer given the key by hand.',
+  steps:[
+    { t:'You reset ReaderWrangler on this computer. This browser now holds nothing — and has seen no version of the cloud copy.',
+      lit:['app'] },
+    { t:'A fetch and an Import bring the books back — without their folders (the Fetched Copy holds no organization).',
+      lit:['app','genA'],
+      arr:[['genA','worker','','read',-10],['worker','app','books, no folders','read',0]] },
+    { t:'Today the next change would send a Complete Copy with no folders over the cloud’s — and one more send loses the old one. With the keeper, that send says “I’m replacing: nothing — I’ve never seen a version.” The keeper holds 17 → refused. The cloud copy survives, whatever the app does.',
+      lit:['kpC17','pc17'],
+      arr:[['app','worker','','write',0],['worker','keeper','','write',0,KEEP_PATH(528)],['worker','app','✖ refused — 17 exists, you haven’t seen it','fail',0]] },
+    { t:'And the app asks once, before sending anything: “You’ve reset ReaderWrangler. Bring your library back? Restore from Cloud Sync / Restore backup file… / Start fresh.” Restore takes version 17; Start fresh replaces it knowingly.',
+      lit:['app','pc17'] }
   ]}
 ];
 
@@ -622,14 +735,22 @@ const arrowsG = document.getElementById('arrows');
 const sel = document.getElementById('scenario');
 const stepsOl = document.getElementById('steps');
 const DYN = ['lit','broken','gone','fresh','w1','w2'];        // classes stripped on reset
-const DYN_HIDE = ['genB','ptrB','runBooks','letterWish','letterTomb','letterReset','copyW1','copyW2'];
+const DYN_HIDE = ['genB','ptrB','runBooks','letterWish','letterTomb','letterReset','copyW1','copyW2',
+                  'kpC18','kpC18b','pc18','pc18b'];
+const DYN_SHOW = ['kpC17'];                                    // proposed: shown at the start of each scenario
+// Today's KV pointers and kept older versions — not in the proposed picture (the keeper holds the pointers; the old
+// version is deleted ~10 minutes after it's replaced).
+const TODAY_ONLY = ['ptr','ptrA','ghostGen','ccPtr','ccPtrArrow','ccGhost','ccVer','legacy'];
 const DYN_DIM = ['runBooks','letterWish'];                     // may get 'dim' during scenarios
 let cur = 0, step = 0;   // step = number of steps applied (0 = overview)
 
+// The dropdown, in groups (a scenario's `group` starts a new one; the rest follow it).
+let optGroup = null;
 SCENARIOS.forEach((s, i) => {
+  if (s.group) { optGroup = document.createElement('optgroup'); optGroup.label = s.group; sel.appendChild(optGroup); }
   const o = document.createElement('option');
   o.value = i; o.textContent = s.title;
-  sel.appendChild(o);
+  (optGroup || sel).appendChild(o);
 });
 
 function el(id){ return document.getElementById(id); }
@@ -652,7 +773,10 @@ function edgeTowards(from, to){
 // labels used to land on the Fetched Copy's and the Mailbox's titles). A step's own route still wins.
 const LANE_RIGHT = { via:[[850,148]], at:[720,156] };
 const DEFAULT_ROUTE = { 'fetchers>worker': LANE_RIGHT, 'worker>fetchers': LANE_RIGHT,
-                        'app>worker': { at:[365,154] }, 'worker>app': { at:[365,154] } };
+                        'app>worker': { at:[365,154] }, 'worker>app': { at:[365,154] },
+                        // the proposed scenarios' second computer: down the left margin, inside the compact view's lane
+                        'app2>worker': { via:[[215,340],[215,150]], at:[105,288] },
+                        'worker>app2': { via:[[215,150],[215,340]], at:[105,288] } };
 function drawArrow(fromId, toId, label, cls, bend, dimmed, route){
   route = route || DEFAULT_ROUTE[fromId + '>' + toId];
   const a = centerOf(fromId), b = centerOf(toId);
@@ -687,14 +811,18 @@ function drawArrow(fromId, toId, label, cls, bend, dimmed, route){
 }
 
 function resetDiagram(layout){
+  const proposed = layout === 'p';   // the v7 stores, plus the keeper, minus today's KV pointers
   arrowsG.innerHTML = '';
-  el('layout-v7').classList.toggle('hiddenEl', layout !== 'v7');
+  el('layout-v7').classList.toggle('hiddenEl', layout !== 'v7' && !proposed);
   el('layout-v6').classList.toggle('hiddenEl', layout !== 'v6');
+  el('layout-p').classList.toggle('hiddenEl', !proposed);
   DYN.forEach(c => svg.querySelectorAll('.' + c).forEach(n => n.classList.remove(c)));
   DYN_HIDE.forEach(id => el(id) && el(id).classList.add('hiddenEl'));
+  DYN_SHOW.forEach(id => el(id) && el(id).classList.remove('hiddenEl'));
   DYN_DIM.forEach(id => el(id) && el(id).classList.remove('dim'));
   if (el('ptrA')) el('ptrA').classList.remove('hiddenEl');
   if (el('mailEmpty')) el('mailEmpty').classList.remove('hiddenEl');
+  TODAY_ONLY.forEach(id => el(id).classList.toggle('hiddenEl', proposed));
 }
 
 function render(){
