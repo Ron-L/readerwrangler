@@ -239,6 +239,57 @@ test('MERGE-017', 'userEdited unions both sides (local wins on conflict)', () =>
     assert.deepStrictEqual(merged.userEdited, { title: true, author: true });
 });
 
+// ---- Only THIS browser's edit mark keeps the local value (outside review 3 item 12.3, 2026-11-23) ----
+// The marks are joined (MERGE-017), but the VALUE is decided by this browser's own mark: a field only the incoming
+// copy edited (another computer's edit, carried into the Fetched Copy by its Restore Backup) takes the incoming value.
+// Until 7.31.1 the joined mark decided — the local value was kept AND marked edited, locking it for good.
+test('MERGE-025', 'an edit only the incoming copy made wins, for each editable field — and stays marked', () => {
+    const { local, incoming } = makePair();
+    incoming.userEdited = { title: true, author: true, series: true, seriesPosition: true, isHidden: true };
+    incoming.isHidden = true;
+    const merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.title, 'Amazon Title');
+    assert.strictEqual(merged.author, 'Amazon Author');
+    assert.strictEqual(merged.series, 'Amazon Series');
+    assert.strictEqual(merged.seriesPosition, 1);
+    assert.strictEqual(merged.isHidden, true);
+    assert.deepStrictEqual(merged.userEdited,
+        { title: true, author: true, series: true, seriesPosition: true, isHidden: true });
+});
+
+test('MERGE-026', 'the walked-through case: computer B never edited the series; the Fetched Copy carries A\'s edit', () => {
+    const { local, incoming } = makePair();
+    local.series = 'Fond Series';                                   // B's library: Amazon's name, not edited
+    incoming.series = 'Fun Series'; incoming.userEdited = { series: true };   // A's edit, via A's Restore Backup
+    const merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.series, 'Fun Series', 'B takes A\'s edit');
+    assert.strictEqual(merged.userEdited.series, true);
+});
+
+test('MERGE-027', 'ownership and format follow an edit only the incoming copy made', () => {
+    const { local, incoming } = makePair();
+    local.onWishlist = false; local.ownershipType = 'purchased';
+    incoming.onWishlist = true; incoming.ownershipType = 'wishlist'; incoming.binding = 'Paperback';
+    incoming.userEdited = { onWishlist: true, binding: true };
+    const merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.onWishlist, true);
+    assert.strictEqual(merged.ownershipType, 'wishlist');
+    assert.strictEqual(merged.binding, 'Paperback');
+});
+
+test('MERGE-028', 'both copies edited the same field → this browser\'s value wins (unchanged)', () => {
+    const { local, incoming } = makePair();
+    const both = { title: true, series: true, onWishlist: true, binding: true };
+    local.userEdited = { ...both }; incoming.userEdited = { ...both };
+    local.onWishlist = true; local.ownershipType = 'wishlist';
+    incoming.onWishlist = false; incoming.ownershipType = 'purchased';
+    const merged = mergeBookFields(local, incoming);
+    assert.strictEqual(merged.title, 'Local Title');
+    assert.strictEqual(merged.series, 'Local Series');
+    assert.strictEqual(merged.ownershipType, 'wishlist');
+    assert.strictEqual(merged.binding, 'Hardcover');
+});
+
 // ---- lastAmazonOwnershipType: fresh signal wins, keep local if incoming lacks it ----
 test('MERGE-018', 'lastAmazonOwnershipType: incoming wins, falls back to local when absent', () => {
     let { local, incoming } = makePair();
