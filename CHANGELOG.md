@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **An edit made on your other computer now comes through.** After a backup was restored on one computer, Import
+  from Relay on another could keep that computer's old title, author or series for a book, and stop taking corrections
+  for it; it now takes your edit.
+
 ### Removed
 - **Removed an old copy of ReaderWrangler (version 4) that was still on the website.** Opening it would have quietly
   undone your organization: every book back in the Inbox, and your Book Lists, Searches and tags gone.

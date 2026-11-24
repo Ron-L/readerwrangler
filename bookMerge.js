@@ -45,18 +45,22 @@ const assignUserOwnedFields = (target, local) => {
 // Pure function — no side effects, safe to unit-test.
 const mergeBookFields = (local, incoming) => {
     const ue = { ...(incoming.userEdited || {}), ...(local.userEdited || {}) };  // union; local wins on conflict
+    // 7.31.1 (outside review 3 item 12.3) - the VALUE is decided by THIS browser's mark, never the joined one: a field
+    // only the incoming copy edited (another computer's edit, carried into the Fetched Copy by its Restore Backup)
+    // takes the incoming value. Deciding by the union kept the local value AND marked it edited — locked for good.
+    const localEdited = local.userEdited || {};
     const merged = { ...incoming };                       // Amazon-owned fields default to incoming
 
     assignUserOwnedFields(merged, local);                 // user-owned: local wins (clear survives)
-    for (const f of _USER_OVERRIDABLE_FIELDS) {           // overridable: user edit wins, else incoming
-        merged[f] = ue[f] ? local[f] : incoming[f];
+    for (const f of _USER_OVERRIDABLE_FIELDS) {           // overridable: this browser's edit wins, else incoming
+        merged[f] = localEdited[f] ? local[f] : incoming[f];
     }
 
     // ownershipType rides the onWishlist edit flag (one decision, two fields)
-    merged.ownershipType = ue.onWishlist ? local.ownershipType : incoming.ownershipType;
-    // format: an edited binding wins; else take incoming, but an incoming BLANK never
+    merged.ownershipType = localEdited.onWishlist ? local.ownershipType : incoming.ownershipType;
+    // format: this browser's edited binding wins; else take incoming, but an incoming BLANK never
     // erases a known binding (a lean fetch must not undo the scan's backfill)
-    merged.binding = ue.binding ? local.binding : (incoming.binding ?? local.binding);
+    merged.binding = localEdited.binding ? local.binding : (incoming.binding ?? local.binding);
     // Amazon-ownership snapshot: fresh Amazon signal wins, keep local if incoming lacks it
     merged.lastAmazonOwnershipType = incoming.lastAmazonOwnershipType ?? local.lastAmazonOwnershipType;
     merged.addedToWishlist = incoming.addedToWishlist ?? local.addedToWishlist;

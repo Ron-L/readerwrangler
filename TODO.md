@@ -71,7 +71,7 @@
         - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
         - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
       - [Tag from Collections, round 2: clearer window, safer tags (decided 2026-10-20)](#tag-from-collections-round-2-clearer-window-safer-tags-decided-2026-10-20)
-      - [Import from Relay keeps another computer's edit only when this computer edited the field too](#import-from-relay-keeps-another-computers-edit-only-when-this-computer-edited-the-field-too)
+      - [✅ Import from Relay keeps another computer's edit only when this computer edited the field too](#-import-from-relay-keeps-another-computers-edit-only-when-this-computer-edited-the-field-too)
     - [Polish](#polish)
       - [A saved setting that reads fine but holds nonsense inside — check each value, not just the note](#a-saved-setting-that-reads-fine-but-holds-nonsense-inside--check-each-value-not-just-the-note)
       - ["N now owned" after an import: a Show them button, and each column reads its date from one place](#n-now-owned-after-an-import-a-show-them-button-and-each-column-reads-its-date-from-one-place)
@@ -2556,7 +2556,7 @@ before building; this task is the plan. One concern per alpha (Law 6), smallest 
 5. **Retire the hidden "seen" field** (item 10) — moved 2026-10-20/21 into the Polish task "Retire two leftover book
    fields: the hidden 'seen' flag and the old price-goal field" (one data round for both).
 
-#### Import from Relay keeps another computer's edit only when this computer edited the field too
+#### ✅ Import from Relay keeps another computer's edit only when this computer edited the field too
 <!-- id 20261123-1915 -->
 
 _Why it matters:_ After a Restore Backup on computer A, the Fetched Copy holds A's edited titles, authors, series… with
@@ -2578,6 +2578,8 @@ local "Old Title" (not edited) + incoming "My Fixed Title" (edited) → "Old Tit
 3. **Left as today:** both computers edited the same field differently → this browser keeps its own. Fixed properly by
    "Edits travel between computers: newest edit wins, per field" (After launch, Relay and sync).
 4. A small task in sprint 12: its own branch, an alpha, ships with the next release; unit tests cover it.
+5. **✅ Built 2026-11-24** (7.31.1-alpha.1, fix/merge-edit-marks squashed): MERGE-025..028 — three failed before the
+   fix, 28/28 after.
 
 ### Polish
 
@@ -3715,7 +3717,13 @@ built — it changes stored formats):
    rating) travel too is part of the design — today they never cross ("local wins").
 5. **Keep Amazon's original beside an edit** (Ron's idea, 2026-11-23): a book stores Amazon's value next to your edit,
    so a Restore Backup can send both, the app can show Amazon's title beside yours, and "back to Amazon's" is one click.
-6. **Weigh against "Keep your tabs and browsers in step"** (Before launch): that task takes the whole Complete Copy when
+6. **Found 2026-11-24, building the 12.3 fix (read in code, not run):** when the Fetched Copy folds in a later library
+   fetch (`relay-client.js` composeCanonical ~1057, `{...previous, ...fetched}`), Amazon's title / series… overwrite an
+   edited value, but the "edited" mark carried in by a Restore Backup stays — so the Fetched Copy can hold Amazon's
+   value marked as your edit, and a computer that never edited it takes it as an edit (no worse than before the fix,
+   which locked its own old value instead). Per-field edit times settle it: an edit newer than the fetch stays, an
+   older one gives way and drops its mark.
+7. **Weigh against "Keep your tabs and browsers in step"** (Before launch): that task takes the whole Complete Copy when
    a browser is behind, with a banner when both changed; per-field newest-wins would make most of those banners
    unnecessary for book fields. The two designs are drawn together.
 
