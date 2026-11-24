@@ -3715,7 +3715,13 @@ built — it changes stored formats):
    rating) travel too is part of the design — today they never cross ("local wins").
 5. **Keep Amazon's original beside an edit** (Ron's idea, 2026-11-23): a book stores Amazon's value next to your edit,
    so a Restore Backup can send both, the app can show Amazon's title beside yours, and "back to Amazon's" is one click.
-6. **Weigh against "Keep your tabs and browsers in step"** (Before launch): that task takes the whole Complete Copy when
+6. **Found 2026-11-24, building the 12.3 fix (read in code, not run):** when the Fetched Copy folds in a later library
+   fetch (`relay-client.js` composeCanonical ~1057, `{...previous, ...fetched}`), Amazon's title / series… overwrite an
+   edited value, but the "edited" mark carried in by a Restore Backup stays — so the Fetched Copy can hold Amazon's
+   value marked as your edit, and a computer that never edited it takes it as an edit (no worse than before the fix,
+   which locked its own old value instead). Per-field edit times settle it: an edit newer than the fetch stays, an
+   older one gives way and drops its mark.
+7. **Weigh against "Keep your tabs and browsers in step"** (Before launch): that task takes the whole Complete Copy when
    a browser is behind, with a banner when both changed; per-field newest-wins would make most of those banners
    unnecessary for book fields. The two designs are drawn together.
 
