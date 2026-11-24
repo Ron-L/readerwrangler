@@ -479,6 +479,14 @@ library. Found or confirmed by the cold review of this TODO (2026-11-19), every 
     page, the guide): *"your organization is kept for 90 days after your last change; Save Backup is your backup."*
     Today "a backup of your books and organization" overstates it: the Complete Copy keeps two versions minutes apart
     and expires 90 days after the last send.
+17. **Say that a private window throws the library away** (outside review 3, item 12.5; Ron 2026-11-24) — one
+    sentence, always shown, no detection (browsers hide private mode on purpose; guessing is worse than saying it
+    plainly): the Welcome screen, the User Guide, SUPPORT-KB. *"Your library is kept in this browser. A private window
+    (Chrome's Incognito mode, Edge's InPrivate) throws it away when you close it — use a normal window, and Save Backup
+    now and then."* Ron's rule: name each browser's own term, not only "private window". A Save Backup made in the
+    private window survives it (Restore Backup brings everything back). **If item 3 is built, update this sentence.**
+    Note for item 3 (to check when building — not verified): Chrome may quietly answer "no" for any site not yet used
+    much, so "say plainly if the browser says no" could reach every newcomer — time or word it so it doesn't.
 
 #### Fetcher work, in build order
 
