@@ -4,6 +4,7 @@
   - [🔝 Up next](#up-next)
     - [🚦 The launch gate — target: January 2027](#the-launch-gate--target-january-2027)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
+      - [Know whether the browser will keep your library: a status light, what to do, and back up before you leave](#know-whether-the-browser-will-keep-your-library-a-status-light-what-to-do-and-back-up-before-you-leave)
       - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
       - [Book details window: one Save — nothing changes until you click it, and nothing is lost without asking](#book-details-window-one-save--nothing-changes-until-you-click-it-and-nothing-is-lost-without-asking)
       - [A one-day truth-and-safety release: small things that are false or unsafe today](#a-one-day-truth-and-safety-release-small-things-that-are-false-or-unsafe-today)
@@ -284,6 +285,47 @@ into that task, 2026-11-19 (Ron): it isn't needed for launch, so its review runs
    file changed but its own (git, in the project and the private notes), nothing it started still running, and the
    next nightly relay summary shows no writes it could have made.
 
+#### Know whether the browser will keep your library: a status light, what to do, and back up before you leave
+<!-- id 20261124-1330 -->
+
+_Why it matters:_ By default a browser may delete a site's data **without asking** when the disk runs low, or when all
+sites together pass what it will use (Chrome: 80% of the disk). It deletes the **least recently used site first, all
+of its data at once** (MDN, "Storage quotas and eviction criteria", read 2026-11-24). A site the browser has agreed to
+keep ("persistent") is skipped. A budget laptop with a 256 GB SSD that fills up, and a ReaderWrangler not opened for a
+while, is the case — rare by Chrome's own research ("data is very rarely cleared automatically"), but the loss is total
+for anyone without a backup. Today the app never asks, and never says. (Ron, 2026-11-24: "THAT IS A BIG DANGER.")
+
+**The facts it rests on** (MDN; web.dev "Persistent storage", read 2026-11-24):
+- The app can **check without any prompt** whether the browser keeps its data (`navigator.storage.persisted()`), and
+  **ask** (`persist()`). Chrome and Edge decide by themselves, no prompt — the signals they name *include* how much the
+  site is used, whether it is **bookmarked** or **installed** (as an app), and whether it may **show notifications**;
+  a "no" can be asked again later and is judged again. **Firefox asks the person** with a popup. Safari decides by
+  itself from "the user's history of interaction with the site".
+- A newcomer will usually get "no" at first — the browser judges by history with the site.
+- Deleting isn't tied to closing a tab; it happens when space runs short, least recently used site first. While you
+  work, ReaderWrangler is the **most** recently used site, so every other site's data would go before it — the sound
+  advice is "your work is safe while you work; Save Backup before you leave". (No source says an open site is never
+  deleted; this is the order the sources give.)
+- **Not covered by "keep":** a private window (truth-and-safety item 17); Safari deletes a site's data after 7 days
+  of Safari use without visiting it, kept or not (MDN states no exemption) — in Safari, back up always, until "Restore
+  from Cloud Sync" can bring the organization back (TODO "Safari deletes a library…"); someone clearing their own
+  browsing data.
+
+**Decided** (Ron, 2026-11-24 — high priority; replaces truth-and-safety item 3):
+1. **A status light**, always visible in the status area: **green** = the browser keeps ReaderWrangler's data; **red**
+   = it hasn't agreed yet. The app checks at start and after the person does something that may change the answer.
+2. **Red, clicked → what it means and what to do,** plainly: *"Your browser hasn't agreed to keep ReaderWrangler's data
+   yet. Until it does, it could delete it if your disk runs low. Your work is safe while you work — Save Backup before
+   you leave."* Then **how to convince the browser**, per browser: Chrome / Edge — bookmark ReaderWrangler, or install it
+   as an app, and keep using it; Firefox — answer **Allow** when it asks; then **Check again** (asks once more). Wording
+   is Ron's at build time (GLOSSARY first).
+3. **No blocking** (Law 18): organizing stays open while the light is red — a newcomer is red on day one. Instead, a
+   **Save Backup reminder** that comes back while the light is red, and "back up before you leave" in the explanation.
+4. **Ask at the right moment** (from item 3): `persist()` once there is a library worth keeping (after the first
+   Import), again after a bookmark/install, never in a loop.
+5. Words that promise the data is kept (index.html "Your data stays in your browser", the security page, the guide)
+   are checked against this — truth-and-safety's job.
+
 #### Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes
 <!-- id 20260830-0000; merged 20260922-0000d -->
 
@@ -443,7 +485,8 @@ library. Found or confirmed by the cold review of this TODO (2026-11-19), every 
    full pass later.
 2. **Remove the old version 4 app from the site** — it shares your library's storage (Polish → Small fixes, "Remove
    the old version 4 app from the site — it shares your library's storage": that item, built here).
-3. **Ask the browser to keep the library's storage** (`navigator.storage.persist()`) — never asked today, so the
+3. **Moved 2026-11-24 to its own task, high in the launch gate** — "Know whether the browser will keep your library…"
+   (Ron: "a BIG DANGER"). Was: **Ask the browser to keep the library's storage** (`navigator.storage.persist()`) — never asked today, so the
    browser may clear it when the disk is short (and Safari clears a site after 7 days unvisited). For anyone who never
    saved a backup, that is the whole organization. Ask once, at the right moment; say plainly if the browser says no.
    Not in the TODO before 2026-11-19.
@@ -484,7 +527,7 @@ library. Found or confirmed by the cold review of this TODO (2026-11-19), every 
     plainly): the Welcome screen, the User Guide, SUPPORT-KB. *"Your library is kept in this browser. A private window
     (Chrome's Incognito mode, Edge's InPrivate) throws it away when you close it — use a normal window, and Save Backup
     now and then."* Ron's rule: name each browser's own term, not only "private window". A Save Backup made in the
-    private window survives it (Restore Backup brings everything back). **If item 3 is built, update this sentence.**
+    private window survives it (Restore Backup brings everything back). **When "Know whether the browser will keep your library…" is built, update this sentence.**
     Note for item 3 (to check when building — not verified): Chrome may quietly answer "no" for any site not yet used
     much, so "say plainly if the browser says no" could reach every newcomer — time or word it so it doesn't.
 
