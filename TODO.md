@@ -71,6 +71,7 @@
         - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
         - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
       - [Tag from Collections, round 2: clearer window, safer tags (decided 2026-10-20)](#tag-from-collections-round-2-clearer-window-safer-tags-decided-2026-10-20)
+      - [Import from Relay keeps another computer's edit only when this computer edited the field too](#import-from-relay-keeps-another-computers-edit-only-when-this-computer-edited-the-field-too)
     - [Polish](#polish)
       - [A saved setting that reads fine but holds nonsense inside — check each value, not just the note](#a-saved-setting-that-reads-fine-but-holds-nonsense-inside--check-each-value-not-just-the-note)
       - ["N now owned" after an import: a Show them button, and each column reads its date from one place](#n-now-owned-after-an-import-a-show-them-button-and-each-column-reads-its-date-from-one-place)
@@ -122,6 +123,7 @@
       - [Smaller organization syncs (send only what changed in your folders, tags and lists)](#smaller-organization-syncs-send-only-what-changed-in-your-folders-tags-and-lists)
       - [One copy instead of two: the Fetched Copy and the Complete Copy as one](#one-copy-instead-of-two-the-fetched-copy-and-the-complete-copy-as-one)
       - [Bookmarklet: when your key no longer works, say so plainly — and never show the Channel ID in an error](#bookmarklet-when-your-key-no-longer-works-say-so-plainly--and-never-show-the-channel-id-in-an-error)
+      - [Edits travel between computers: newest edit wins, per field](#edits-travel-between-computers-newest-edit-wins-per-field)
     - [Features](#features)
       - [Build the support assistant (custom GPT)](#build-the-support-assistant-custom-gpt)
       - ["Read in Kindle": open a book in the Kindle app or Cloud Reader](#read-in-kindle-open-a-book-in-the-kindle-app-or-cloud-reader)
@@ -2554,6 +2556,29 @@ before building; this task is the plan. One concern per alpha (Law 6), smallest 
 5. **Retire the hidden "seen" field** (item 10) — moved 2026-10-20/21 into the Polish task "Retire two leftover book
    fields: the hidden 'seen' flag and the old price-goal field" (one data round for both).
 
+#### Import from Relay keeps another computer's edit only when this computer edited the field too
+<!-- id 20261123-1915 -->
+
+_Why it matters:_ After a Restore Backup on computer A, the Fetched Copy holds A's edited titles, authors, series… with
+their "edited" marks. When computer B (same Cloud Sync Key) does an Import from Relay, a field B never edited should
+take A's value — instead B keeps its old value **and marks it edited**, so it never takes A's edit or Amazon's later
+corrections either. Silent, and permanent for that field on B. (Outside review 3, item 12.3.)
+
+**What happens** (checked 2026-11-23): `bookMerge.js` joins both sides' marks (line 47), then for the six editable
+fields — title, author, series, series number, wishlist, hidden — keeps this browser's value when the JOINED mark is
+set (line 52). The same misreading decides ownership (the wishlist mark, line 56) and the format (line 59). The rule
+the code's own comment states (`storage.js` ~215): *if this browser's copy was edited, keep it; otherwise take the
+incoming value.* Test MERGE-017 checks that the marks are joined, never which value wins. Reproduced:
+local "Old Title" (not edited) + incoming "My Fixed Title" (edited) → "Old Title", marked edited.
+
+**Decided** (Ron, 2026-11-23 — option 1 of 3, "now"; worked through step by step in the conversation):
+1. Decide each of those fields by **this browser's** mark only; keep joining the marks.
+2. Failing tests first: only the incoming book edited → its value wins (and the format / ownership lines alike); both
+   edited → this browser's value wins (unchanged).
+3. **Left as today:** both computers edited the same field differently → this browser keeps its own. Fixed properly by
+   "Edits travel between computers: newest edit wins, per field" (After launch, Relay and sync).
+4. A small task in sprint 12: its own branch, an alpha, ships with the next release; unit tests cover it.
+
 ### Polish
 
 #### A saved setting that reads fine but holds nonsense inside — check each value, not just the note
@@ -3662,6 +3687,37 @@ also prints the full Channel ID on screen — exactly the kind of error people s
 
 (Left over from "Ask before restoring when relay credentials don't match", shipped 7.14.3; Ron filed it on its own
 2026-10-16. docs/design/RELAY-CRED-MISMATCH.md "Future" — superseded by the above.)
+
+#### Edits travel between computers: newest edit wins, per field
+<!-- id 20261123-1916 -->
+
+_Why it matters:_ Today an ordinary edit (a title or series fixed, a tag, a note, a price goal) never leaves the
+computer it was made on: the mailbox carries only fetches, permanent deletes and Restore Backups, and no full view reads
+the Complete Copy. One person with two computers (work and home) on one Cloud Sync Key sees them drift apart. And when
+both computers edited the same field, nothing can say which edit is newer.
+
+**Decided to design** (Ron, 2026-11-23, outside review 3 item 12.3 — option 3; a design Ron sees before anything is
+built — it changes stored formats):
+1. **Every edit carries a time, per field:** the "edited" mark becomes a time (`title: true` → `title: <time>`); old
+   marks read as "edited, time unknown" = oldest.
+2. **The time is the relay's** (Ron's idea), without asking the relay per edit:
+   - the offset to the relay's clock is relearned at **every** contact (sends, freshness checks, Imports) — the relay
+     already stamps its own time into every run and version id;
+   - between contacts the stamp is "relay time at the last contact + the browser's elapsed-time stopwatch" — immune to
+     someone setting the clock by hand; the clock's time zone never matters (it counts in UTC underneath);
+   - **"never older than what I've already seen"** (a hybrid logical clock): an edit's time is at least one tick after
+     the newest time this computer has received — so one person on two computers is always ordered right, whatever
+     the clocks say; only true simultaneous edits by two people fall back to the corrected time (a dead heat = a toss-up).
+3. **How an edit travels:** a new mailbox run, "edit" — book, field, value, time — built like the tombstone, sent
+   batched with the Complete Copy's send (one small write per batch); folding into the Fetched Copy keeps the newest
+   time per field; Import from Relay's merge keeps the newest per field.
+4. **Which fields:** the six editable Amazon fields for certain; whether your own fields (price goals, tags, notes,
+   rating) travel too is part of the design — today they never cross ("local wins").
+5. **Keep Amazon's original beside an edit** (Ron's idea, 2026-11-23): a book stores Amazon's value next to your edit,
+   so a Restore Backup can send both, the app can show Amazon's title beside yours, and "back to Amazon's" is one click.
+6. **Weigh against "Keep your tabs and browsers in step"** (Before launch): that task takes the whole Complete Copy when
+   a browser is behind, with a banner when both changed; per-field newest-wins would make most of those banners
+   unnecessary for book fields. The two designs are drawn together.
 
 ### Features
 

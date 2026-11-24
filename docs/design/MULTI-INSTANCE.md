@@ -202,6 +202,13 @@ snapshot), so their organizations drift apart forever and the phone mirrors whic
 last. Verdict: not dangerous, just incoherent — give a second real desktop (e.g. the Firefox
 experiment) its **own channel** unless collecting the same fetcher data twice is the goal.
 
+**That advice describes today's behavior, not the intent** (Ron, 2026-11-23): two computers sharing one Cloud Sync Key
+— one person at work and at home — is an intended use. The advice holds only until §4 ("Tabs and browsers in step")
+and TODO "Edits travel between computers: newest edit wins, per field" are built. One more crossing exists today: a
+Restore Backup puts the backup's edited book fields into the Fetched Copy (outside review 3 item 12.3; the merge's
+misreading of those marks is TODO "Import from Relay keeps another computer's edit only when this computer edited the
+field too").
+
 ## 6. Sequential coherence across browsers (2026-09-22) — folded into §4 on 2026-11-02
 
 This section designed the cross-browser half separately: a check on returning to a browser (kept — §4's "hears on
