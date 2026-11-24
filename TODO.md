@@ -1593,10 +1593,26 @@ ReaderWrangler whatever we say, and someone who opens it less than weekly loses 
 Risk 10). Every iPhone and iPad browser is Safari underneath.
 
 **Decided** (Ron: "Yes to all, especially the bookmarklet as a breadcrumb", 2026-11-20)
-1. **A one-line notice when the app opens in Safari:** Safari deletes a site's saved data after 7 days without a
-   visit — use Chrome or Edge, or save a backup often. On iPhone and iPad: add ReaderWrangler to the Home Screen, which
-   WebKit says is exempt (its own counter) — and say that the Home Screen app starts empty, so you restore once. (A
-   Mac "Add to Dock" web app keeps its own data too, but no source says it's exempt — don't promise it.)
+1. **A dialog on EVERY start of the full view in Safari** (Ron, 2026-11-24 — replaces the 11-20 one-line notice):
+   the person at risk is the one who works a day or two, then stays away 7+ days — a reminder near the deadline never
+   reaches them, and coming back resets the count; we can't tell who will leave, so everyone in Safari's full view is
+   warned, every start, while they're here. A stopping box is allowed here by Law 18's exception (the damage can't be
+   undone — as for the other-account fetch). **Advice split by device** (Ron): on a Mac — use Chrome, Edge or Firefox
+   (their own engines; the 7-day rule is Safari's); on iPhone and iPad — every browser is WebKit, so the fix is **Add to
+   Home Screen**, which Apple exempts ("We do not expect the first-party in such a web application to have its website
+   data deleted" — webkit.org/blog/10218), and the Home Screen app starts empty, so you restore once. (A Mac "Add to
+   Dock" web app: no source says it's exempt — don't promise it.) Against reading it blind (Ron agreed all three):
+   - **the dialog does the fix** (Law 20): **[Save Backup now]**, the device's advice (switch browser / how to Add to
+     Home Screen), then **[Continue]**;
+   - **it shows what changes each time**, so it gets read: *"Your last backup: 3 days ago — 14 changes since."*;
+   - **at the danger moment, leaving:** in Safari's full view, with changes since the last backup, closing the tab
+     brings up the browser's own "Leave site?" question (its words can't be changed; it stops a casual close).
+   Not shown in Safari from the Home Screen (detectable: the standalone flag). **Softens** only once "Restore from
+   Cloud Sync" can bring the organization back from the Complete Copy. Facts read 2026-11-24: the 7 days count days
+   of browser use; a tap, click or typing on the site resets them; on iPhone/iPad Apple's tracking prevention is on in
+   every browser since iOS 14 (secondary sources: simoahava.com, cookiebees.io) — whether the 7-day count bites the
+   same way outside Safari is unsettled (thinktecture.com), so treat it as yes. Ties to "Know whether the browser will
+   keep your library…" (the status light is red in Safari permanently).
 2. **An empty library in Safari:** the getting-started words, plus *"If you've used ReaderWrangler in this browser
    before, Safari may have cleared it — restore your backup file"*; once "Restore from Cloud Sync" exists (in this
    gate), *"or restore from Cloud Sync"* — its copy is kept 90 days after its last update.
