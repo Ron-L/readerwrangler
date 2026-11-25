@@ -8,7 +8,10 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-11-16 (through release 7.31.0)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-11-25 (through release 7.31.1)** — all sections human-reviewed (§1–21).
+7.31.1: Import from Relay takes another computer's edit (title, author, series…) when this computer never edited that
+field; the old version 4 page is gone from the site. Comb for "version 4", "v4", "edit", "two computers", "Import from
+Relay" keeping or dropping edits: no entry described either — nothing changed.
 7.31.0: a message never blocks a click, and a book left in no folder is caught at once — §13 gains "A message popped up
 over what I wanted to click"; §19's table gains the red bar "'Dune' was in no folder — it's in the Inbox now" (shown to
 everyone, with **Report this problem**); §19's Diagnostics answer, its red-bar row and its "hit a problem" box row: the

@@ -72,7 +72,6 @@
         - [Folder dragging: where you drop decides pinned, and the level](#folder-dragging-where-you-drop-decides-pinned-and-the-level)
         - [Stray double spaces in author names create duplicate authors](#stray-double-spaces-in-author-names-create-duplicate-authors)
       - [Tag from Collections, round 2: clearer window, safer tags (decided 2026-10-20)](#tag-from-collections-round-2-clearer-window-safer-tags-decided-2026-10-20)
-      - [✅ Import from Relay keeps another computer's edit only when this computer edited the field too](#-import-from-relay-keeps-another-computers-edit-only-when-this-computer-edited-the-field-too)
     - [Polish](#polish)
       - [A saved setting that reads fine but holds nonsense inside — check each value, not just the note](#a-saved-setting-that-reads-fine-but-holds-nonsense-inside--check-each-value-not-just-the-note)
       - ["N now owned" after an import: a Show them button, and each column reads its date from one place](#n-now-owned-after-an-import-a-show-them-button-and-each-column-reads-its-date-from-one-place)
@@ -108,7 +107,6 @@
         - [Bulk Edit hints that read like "you can type several values"](#bulk-edit-hints-that-read-like-you-can-type-several-values)
         - [With a filter on, the right pane still shows subfolders with no matching books](#with-a-filter-on-the-right-pane-still-shows-subfolders-with-no-matching-books)
         - [A missing book description: one quiet line, on the computer and the phone](#a-missing-book-description-one-quiet-line-on-the-computer-and-the-phone)
-        - [✅ Remove the old version 4 app from the site — it shares your library's storage](#-remove-the-old-version-4-app-from-the-site--it-shares-your-librarys-storage)
         - [The phone's cover copies: still worth it? And why wasn't the browser's own cache enough?](#the-phones-cover-copies-still-worth-it-and-why-wasnt-the-browsers-own-cache-enough)
         - [Relay Setup's Test connection always checks the production relay](#relay-setups-test-connection-always-checks-the-production-relay)
         - [F2 follows the Delete key's rule: what's selected, where you're working, and words when it can't](#f2-follows-the-delete-keys-rule-whats-selected-where-youre-working-and-words-when-it-cant)
@@ -494,7 +492,7 @@ library. Found or confirmed by the cold review of this TODO (2026-11-19), every 
 1. **"Tested browsers: Chrome, Edge, Firefox. Safari is untested."** (README.md and features.html) — only Chrome is
    tested (the screen tests run Chrome). Say what's true now; "Say plainly what ReaderWrangler works with" does the
    full pass later.
-2. **Remove the old version 4 app from the site** — it shares your library's storage (Polish → Small fixes, "Remove
+2. ✅ **Done in 7.31.1** (2026-11-22/25). **Remove the old version 4 app from the site** — it shares your library's storage (Polish → Small fixes, "Remove
    the old version 4 app from the site — it shares your library's storage": that item, built here).
 3. **Moved 2026-11-24 to its own task, high in the launch gate** — "Know whether the browser will keep your library…"
    (Ron: "a BIG DANGER"). Was: **Ask the browser to keep the library's storage** (`navigator.storage.persist()`) — never asked today, so the
@@ -2661,31 +2659,6 @@ before building; this task is the plan. One concern per alpha (Law 6), smallest 
 5. **Retire the hidden "seen" field** (item 10) — moved 2026-10-20/21 into the Polish task "Retire two leftover book
    fields: the hidden 'seen' flag and the old price-goal field" (one data round for both).
 
-#### ✅ Import from Relay keeps another computer's edit only when this computer edited the field too
-<!-- id 20261123-1915 -->
-
-_Why it matters:_ After a Restore Backup on computer A, the Fetched Copy holds A's edited titles, authors, series… with
-their "edited" marks. When computer B (same Cloud Sync Key) does an Import from Relay, a field B never edited should
-take A's value — instead B keeps its old value **and marks it edited**, so it never takes A's edit or Amazon's later
-corrections either. Silent, and permanent for that field on B. (Outside review 3, item 12.3.)
-
-**What happens** (checked 2026-11-23): `bookMerge.js` joins both sides' marks (line 47), then for the six editable
-fields — title, author, series, series number, wishlist, hidden — keeps this browser's value when the JOINED mark is
-set (line 52). The same misreading decides ownership (the wishlist mark, line 56) and the format (line 59). The rule
-the code's own comment states (`storage.js` ~215): *if this browser's copy was edited, keep it; otherwise take the
-incoming value.* Test MERGE-017 checks that the marks are joined, never which value wins. Reproduced:
-local "Old Title" (not edited) + incoming "My Fixed Title" (edited) → "Old Title", marked edited.
-
-**Decided** (Ron, 2026-11-23 — option 1 of 3, "now"; worked through step by step in the conversation):
-1. Decide each of those fields by **this browser's** mark only; keep joining the marks.
-2. Failing tests first: only the incoming book edited → its value wins (and the format / ownership lines alike); both
-   edited → this browser's value wins (unchanged).
-3. **Left as today:** both computers edited the same field differently → this browser keeps its own. Fixed properly by
-   "Edits travel between computers: newest edit wins, per field" (After launch, Relay and sync).
-4. A small task in sprint 12: its own branch, an alpha, ships with the next release; unit tests cover it.
-5. **✅ Built 2026-11-24** (7.31.1-alpha.1, fix/merge-edit-marks squashed): MERGE-025..028 — three failed before the
-   fix, 28/28 after.
-
 ### Polish
 
 #### A saved setting that reads fine but holds nonsense inside — check each value, not just the note
@@ -3512,23 +3485,6 @@ _Why it matters:_ So a missing description reads as known, not broken — and th
    Amazon…" exists; until then, just the plain line.
 3. **Written once, used by both:** the wording lives in one shared place (uiHelpers) that the computer and the phone
    both use, so they can't drift apart again.
-
-##### ✅ Remove the old version 4 app from the site — it shares your library's storage
-<!-- id 20261104-1254 -->
-
-_Why it matters:_ The old app is still live at readerwrangler.com/v4/readerwrangler.html (checked 2026-11-04: it
-answers). Browsers keep storage per **site**, not per folder, so it shares the **same storage as the real library** —
-anyone who opens it (a stray bookmark, a search result) runs old code against current library data. It's also simply
-confusing.
-
-**Decided** (Ron + Claude, 2026-11-04, in the TODO review — replaces the 2026-02-05 decision to keep it online "as
-historical reference", docs/design/archive/V4-REMOVAL-PLAN.md)
-1. Delete the `v4/` folder; git history keeps it forever (every release tag up to `v7.25.0` still contains it).
-2. Drop `v4/` from the version guard's not-shipped list (git-hooks/version-guard.py); add a note to the removal plan.
-3. Nothing links to it (checked 2026-11-04: only a code comment and archived design notes mention it).
-4. Closed at the same time: "Check nothing was lost between versions 4 and 5" — nine months and 20+ releases of daily
-   use since 5.0, the book-field table's round-trip check guards the data, and outside review 4 looks at today's
-   features fresh.
 
 ##### The phone's cover copies: still worth it? And why wasn't the browser's own cache enough?
 <!-- id 20261110-1734a -->
