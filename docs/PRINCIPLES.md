@@ -590,6 +590,17 @@ rejected one fix, caught a misreading in another and proposed a better third (pe
 two copies in the relay?" became the pointer-keeper design. The records name a design or idea as Ron's 21 times since
 the 6.16.0 post-mortem (August), and Laws 19–22 are his. Pairs with Law 1 (discussion is not approval — and it is where
 the design gets good) and Law 24 (the platform's facts belong in that layout).
+**Applied first: outside review 3, Q7 (2026-11-25)** — "move your own book fields (tags on books, ratings, notes,
+price goals) out of the book store, into the organization?" **Laid out first:** the two stores in this browser (the
+51 MB book store, rewritten whole on every edit; the 107 K organization), a table of what each action reads and writes
+(Save Backup, Restore Backup, Import from Relay, the Complete Copy send, the compact view), and the books-only loss
+step by step. **What that exposed:** the recovery screen's "everything falls into place" is untrue for your own fields
+(Import from Relay brings the books back without them); the 51 MB rewrite is local and fixable on its own ("save only
+the changed book"); Save Backup with no books is a no-op except against a second loss. **How the decision followed:**
+Ron weighed a rare, unexplained, once-seen loss — which a full deletion wouldn't spare anyway — against a stored-format
+and every-site change, with Restore from Cloud Sync planned as the better recovery: drop the move ("if we were starting
+from scratch, it would be the better design, but I don't see the value in changing now vs the risk"), keep one honesty
+fix, file the local rewrite as low priority. The full record: `.private/OUTSIDE-REVIEW-DATA-SAFETY-DECISIONS.md`, Q7.
 **Enforcement**: memory `feedback_slow_down_on_data_flow` and `feedback_exact_verbs_and_stores`; the review question
 before any data or sync decision — "have I laid out the stores, the actions and what is where, step by step, basics
 included?"
