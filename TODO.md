@@ -4,6 +4,7 @@
   - [🔝 Up next](#up-next)
     - [🚦 The launch gate — target: January 2027](#the-launch-gate--target-january-2027)
       - [Outside reviews before building: launch risks, security, data safety, a newcomer's first look](#outside-reviews-before-building-launch-risks-security-data-safety-a-newcomers-first-look)
+      - [Re-review the TODO's order after the outside reviews: priorities and grouping](#re-review-the-todos-order-after-the-outside-reviews-priorities-and-grouping)
       - [Know whether the browser will keep your library: a status light, what to do, and back up before you leave](#know-whether-the-browser-will-keep-your-library-a-status-light-what-to-do-and-back-up-before-you-leave)
       - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
       - [Book details window: one Save — nothing changes until you click it, and nothing is lost without asking](#book-details-window-one-save--nothing-changes-until-you-click-it-and-nothing-is-lost-without-asking)
@@ -291,10 +292,23 @@ into that task, 2026-11-19 (Ron): it isn't needed for launch, so its review runs
    it — that's the reviewer reporting on itself. At each reviewer's finish, before its report is trusted: no project
    file changed but its own (git, in the project and the private notes), nothing it started still running, and the
    next nightly relay summary shows no writes it could have made.
-7. **After the last outside review (review 4): re-review the TODO's ORDER** (Ron, 2026-11-25) — not another look at
-   every item, just whether the priorities still look right after four reviews, and which tasks to group so work
-   done together is done once (same files, same screens, same stored formats). It answers how far up "Restore from
-   Cloud Sync" moves (Ron: "fairly high now"; the better recovery for every loss). Proposed to Ron; the order is his.
+7. **After the last outside review (review 4): re-review the TODO's ORDER** — its own task, right after this one:
+   "Re-review the TODO's order after the outside reviews".
+
+#### Re-review the TODO's order after the outside reviews: priorities and grouping
+<!-- id 20261125-1435 -->
+
+_Why it matters:_ Four outside reviews have filed and moved a lot of work. Before building resumes, the order should
+reflect what we now know — and work that touches the same files, screens or stored formats should be grouped, so it
+is done once instead of twice.
+
+**Decided** (Ron, 2026-11-25 — asked as its own task, right after the outside reviews):
+1. **Right after review 4.** Not another look at every item — just the ORDER: do the priorities still look right?
+2. **Grouping:** which tasks share files, screens or stored formats (the cloud library's formats, the empty-library
+   screen, Restore, the bookmarklet…) and should be built together.
+3. **It settles "Restore from Cloud Sync"'s place** (Ron: "fairly high now" — the better recovery for every loss,
+   outside review 3 Q7).
+4. Proposed to Ron as a reordered list with the reasons; the order is his (Claude never reorders on its own).
 
 #### Know whether the browser will keep your library: a status light, what to do, and back up before you leave
 <!-- id 20261124-1330 -->
