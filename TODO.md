@@ -1423,6 +1423,19 @@ the big targets are locked down, people with ready-made attack scripts go after 
     line on the Security & Privacy page. Free; Cloudflare says it uses no cookies. Rejected: a per-person limit (the
     relay can't tell people apart), email sign-up (breaks "no account"), browser fingerprinting (unreliable,
     skippable, and it's tracking).
+    **Where the check runs — decided 2026-11-25 (Ron, outside review 2 item 5):** NOT in the app's page. Cloudflare's
+    script can't be pinned or copied ("Load `api.js` from the exact URL… Proxying or caching this file will cause
+    Turnstile to fail") and would run where the key is readable. Instead:
+    1. **The relay worker serves one small page** (its own code answers one address with a web page — not stored in
+       KV); it's on the relay's address, a different site, so browsers keep its storage apart from readerwrangler.com's.
+    2. The app opens it (a pop-up or a box); the person passes the check there; the page passes **only the ticket**
+       back to the app (the browser's window-to-window message); the app sends it with its request as before.
+    3. **The locks:** our widget's hostname list names only that page; the relay holds the secret key (a worker
+       secret) and refuses a ticket whose answer says it was solved anywhere else (Cloudflare: "Validate the action and
+       hostname"); the page puts a fingerprint of the new write key into the ticket's custom data (returned by
+       Cloudflare), so a ticket works only for the one library it was solved for; and the relay remembers used
+       tickets itself, exactly (the Durable Object — the pointer keeper), because Cloudflare's "token-reuse detection
+       is eventually consistent" — one ticket could otherwise pass twice in its 5 minutes.
 12. **The brakes** (the review's five, revised for item 11 — Ron, 2026-11-20). They catch what gets past the human
     check (checks solved by hand or by a paid service, or a real surge) and cap the one cost that grows, storage:
     1. **New cloud libraries are counted, never refused:** an email to Ron when a day's count reaches 5, then after 8
