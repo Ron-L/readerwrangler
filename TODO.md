@@ -119,6 +119,9 @@
       - [Folder right-click menu: add Auto-Organize](#folder-right-click-menu-add-auto-organize)
       - [A refused Restore shows a false "Restore Warning" box a minute later](#a-refused-restore-shows-a-false-restore-warning-box-a-minute-later)
       - [Share Library: a copy of your library for a friend, without your Cloud Sync Key](#share-library-a-copy-of-your-library-for-a-friend-without-your-cloud-sync-key)
+      - [Deleted folders go to the Trash, like books](#deleted-folders-go-to-the-trash-like-books)
+      - [The Import's 30-second limit really stops the Import](#the-imports-30-second-limit-really-stops-the-import)
+      - [An open tab learns that a new version of ReaderWrangler is out](#an-open-tab-learns-that-a-new-version-of-readerwrangler-is-out)
   - [🗄️ After launch](#after-launch)
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
@@ -3690,6 +3693,43 @@ swap libraries ("Books I Want To Borrow From Ron"); a rule people must remember 
 4. **The friend opens it with Restore, in a browser profile of their own** (help notes, with pictures) — until "Several
    people on one installation" is weighed again. The later, fuller version is "Share a filtered, read-only copy of
    your library" (Someday).
+
+#### Deleted folders go to the Trash, like books
+<!-- id 20261125-1440 -->
+
+_Why it matters:_ A deleted folder is removed and its books go to its parent or the Inbox; only Undo brings it back, and
+undo lives in memory (50 steps), gone at the next reload. Books go to the Trash; folders don't. Outside review 3, item
+12 (the reviewer's finding: `readerwrangler.js` ~4392-4424, ~7671 — not re-checked by me).
+
+**Decided** (Ron, 2026-11-22, outside review 3 — the report's "smaller, and can wait"; agreed that day, filed 2026-11-25)
+1. **A deleted folder goes to the Trash with its shape** — its subfolders and which books it held — and Restore from the
+   Trash puts it back where it was (Ron: "Keep the folder org in the trash? Doable I'd think").
+2. Design first: what the Trash shows for a folder, and emptying it (a stored-format change — Ron sees it).
+
+#### The Import's 30-second limit really stops the Import
+<!-- id 20261125-1441 -->
+
+_Why it matters:_ It is a race: after "Import timed out" the Import keeps running, while the mark that says "an Import
+is running" is cleared — so a second Import or a Restore Backup can start on top of it. Outside review 3, item 12 (1b.5;
+the reviewer's finding, read in code, not run: `readerwrangler.js` ~6049-6053, ~6151 — not re-checked by me).
+
+**Decided** (Ron, 2026-11-22, outside review 3 — the report's "smaller, and can wait"; agreed that day, filed 2026-11-25)
+1. **The running mark stays until the Import has really ended** (finished, failed or stopped) — the time limit only
+   changes what the person is told.
+2. Test first: a slow Import past 30 s; a second Import or a Restore meanwhile is refused with the existing "already
+   running" words.
+
+#### An open tab learns that a new version of ReaderWrangler is out
+<!-- id 20261125-1442 -->
+
+_Why it matters:_ Nothing notices a new version: an open tab keeps the old code and keeps writing the whole organization
+and the whole book store. The reviewer found nothing lost by that today, but any future change of a stored shape would
+meet an older tab (and see "A saved organization that can't be read is kept aside…"). Outside review 3, item 12 (1f).
+Not the same as "Keep your tabs and browsers in step" — that is about your DATA's version; this is the APP's.
+
+**Decided** (Ron, 2026-11-22, outside review 3 — the report's "smaller, and can wait"; agreed that day, filed 2026-11-25)
+1. **When the site has a newer version**, the open tab says so and offers **Reload** (a banner, not a box — Law 18).
+2. Low priority until a release changes a stored shape; then before that release.
 
 ## 🗄️ After launch
 
