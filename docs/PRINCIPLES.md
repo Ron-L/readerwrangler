@@ -576,6 +576,24 @@ Pairs with Law 2 (never assume): the vendor's semantics are facts to verify, not
 **Enforcement**: every design doc that rests on a platform feature has a "Guarantees and failure modes" section with
 its sources; the gate checklist's item 8 names vendor semantics; memory `feedback_platform_guarantees_first`.
 
+### 25. Slow down on the data flow — lay it out, basics first, before deciding (how we work best)
+When a question touches stored data, sync or any multi-step mechanism, **don't jump to the answer or the options.**
+First lay the mechanism out on its own, apart from the narrative: which stores exist, who writes and who reads each,
+which action moves what — with exact names — as numbered steps, with a "what is where" table per step. **Include the
+basics**, even when they feel obvious. Then decide. The discussion that follows is where the better options come from:
+treat the first options as a draft, and a new idea from Ron as the likely winner to weigh, not a detour. (Ron,
+2026-11-25, on the 7.31.1 post-mortem: "When you slow down, explain the data flow in detail and not buried in the
+larger text flow and include the basics, it exposes a lot more and the discussion often pays off in a big way. This is
+not the first time that we found new options after the full discussion." — and, choosing a law over a memory note: "I
+recall this happening numerous times.") Earned: review 3 item 12.3 (2026-11-23) — four rounds of mechanics, then Ron
+rejected one fix, caught a misreading in another and proposed a better third (per-field edit times); 2026-11-22, "why
+two copies in the relay?" became the pointer-keeper design. The records name a design or idea as Ron's 21 times since
+the 6.16.0 post-mortem (August), and Laws 19–22 are his. Pairs with Law 1 (discussion is not approval — and it is where
+the design gets good) and Law 24 (the platform's facts belong in that layout).
+**Enforcement**: memory `feedback_slow_down_on_data_flow` and `feedback_exact_verbs_and_stores`; the review question
+before any data or sync decision — "have I laid out the stores, the actions and what is where, step by step, basics
+included?"
+
 ---
 
 ## SECOND TIER — by theme (the best of the rest)
