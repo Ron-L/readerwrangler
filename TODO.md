@@ -13,6 +13,7 @@
       - [A saved organization that can't be read is kept aside, never replaced at the next start](#a-saved-organization-that-cant-be-read-is-kept-aside-never-replaced-at-the-next-start)
       - [A save that fails part-way is undone, not kept — a failed Restore leaves no fragment](#a-save-that-fails-part-way-is-undone-not-kept-a-failed-restore-leaves-no-fragment)
       - [Restore Backup asks whenever there's an organization, and shows what it will replace](#restore-backup-asks-whenever-theres-an-organization-and-shows-what-it-will-replace)
+      - [Words from outside never become code on Amazon's page: the fetchers' message boxes, and the key's shape](#words-from-outside-never-become-code-on-amazons-page-the-fetchers-message-boxes-and-the-keys-shape)
       - [A one-day truth-and-safety release: small things that are false or unsafe today](#a-one-day-truth-and-safety-release-small-things-that-are-false-or-unsafe-today)
       - [Fetcher work, in build order](#fetcher-work-in-build-order)
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
@@ -583,6 +584,30 @@ reviewer's finding — not re-checked by me).
 2. **Show the counts** — now and in the backup: books, folders, Book Lists, Searches — so the person sees what changes.
 3. **Later:** keep one automatic copy of what a Restore replaces (until the next Restore).
 4. Before launch for the question and counts; the automatic copy can follow. Wording is Ron's.
+
+#### Words from outside never become code on Amazon's page: the fetchers' message boxes, and the key's shape
+<!-- id 20261125-1600 -->
+
+_Why it matters:_ The five fetchers run inside your signed-in Amazon page, where the bookmarklet also places your Cloud
+Sync Key. The app itself is React, which shows every string as text; the fetchers' message boxes build HTML by hand, so
+outside words placed in them are followed as instructions — including "run this code". Three ways in (outside review 2,
+item 2; all checked in our code 2026-11-25): (1) the relay's reply to a failed request goes into the error message the
+boxes show (`relay-client.js:673`) — a taken-over relay could run code on every fetcher user's Amazon page; (2) Amazon's
+own page text — a series name, a title — goes into messages (e.g. `amazon-wishlist-fetcher.js:709`); (3) the key's two
+values are stored unchecked (`readerwrangler.js:1930`) and pasted between quote marks into the bookmarklet's own code
+(`:6163`) — a crafted key, from a stranger's backup file, runs at every click. Each unlikely; each the worst outcome
+there is.
+
+**Decided** (Ron, 2026-11-25, outside review 2 item 2 — before launch):
+1. **The four older fetchers** (Download Library, Download Collections, Add Book to Wishlist, Add Series to Wishlist)
+   show outside words in their message boxes **as text** — the `escapeHtml` the newest (Add Bibliography to Wishlist)
+   already has, or `textContent`.
+2. **A commit check** (Ron's word given 2026-11-25 — it touches `git-hooks/`) refuses pasting a variable into HTML in
+   any file that runs on Amazon's page, so it can't come back.
+3. **Refuse a key that isn't the expected shape** at every way in — typed, Load credentials from backup file, Restore
+   Backup, the phone link. (Escaping isn't enough: the browser undoes it before running a bookmarklet.)
+4. **Then correct `SECURITY.md`**: "a taken-over relay sees only encrypted blobs" becomes true only once (1) is fixed.
+5. Tests first: a relay reply, a series name and a key value each carrying markup or a quote mark; nothing runs.
 
 #### A one-day truth-and-safety release: small things that are false or unsafe today
 <!-- id 20261119-1548 -->
