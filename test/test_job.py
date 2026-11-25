@@ -200,7 +200,11 @@ def leaver(d, name, sleep_after=0.0, hold_pipes=False):
         f.write(f"# sample\n# tags: job-sample, tier 1\n# covers: tools/job.py\n"
                 "import os, subprocess, sys, time\n"
                 f"open({pids!r} + '.unit', 'w').write(str(os.getpid()))\n"
-                f"c = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']{out})\n"
+                # The child runs on the BASE interpreter, so it is one process under a venv too: a venv's
+                # python.exe is a launcher that starts the real interpreter as a second process, which made
+                # left_running 2 where JOB-005 expects 1 (2026-11-25, the 7.31.1 release run; RUN-057's cousin).
+                f"c = subprocess.Popen([getattr(sys, '_base_executable', sys.executable), '-c', "
+                f"'import time; time.sleep(60)']{out})\n"
                 f"open({pids!r} + '.child', 'w').write(str(c.pid))\n"
                 f"print('started a child', flush=True)\ntime.sleep({sleep_after})\n"
                 "print('1 passed, 0 failed')\n")
