@@ -1914,8 +1914,13 @@ could read the key and send it away.
 | React, ReactDOM | the app (readerwrangler.html ~128–129) | `@18` — any 18.x |
 | marked | changelog.html | no version at all — always the newest, even a new major |
 | img-comparison-slider (script + style) | index.html | `@8` — any 8.x |
-| Tailwind | the app, reset.html, security.html | unversioned (Tailwind's docs: this CDN isn't for production) |
-| Babel 7.29.7, qrcodejs 1.0.0, html5-qrcode 2.3.8 (phone, on demand — mobile.js ~2415) | the app, the phone | yes |
+| qrcodejs 1.0.0, html5-qrcode 2.3.8 (phone, on demand — mobile.js ~2442) | the app, the phone | yes (no integrity) |
+| GoatCounter's `count.js` | the app, the home page | no (outside review 2) |
+
+**No longer loaded from outside (since 7.27, the app built ahead of time):** Babel and Tailwind run only in our build,
+pinned exactly — `tools/build/package.json` (Babel 7.29.7, Tailwind 3.4.17) and its `package-lock.json` (each package's
+download and fingerprint), installed once with `npm ci`, which installs exactly the lock file; the result (`dist/`)
+is served from our own site. Ron asked (2026-11-25) whether a rebuild fetches the newest — it doesn't.
 
 **Decided** (Ron + Claude, 2026-11-01/02, in the TODO review)
 1. **Exact versions** for all six (Tailwind's CDN takes an exact version in its address). Its lasting fix stays the
@@ -1926,7 +1931,11 @@ could read the key and send it away.
    takeover, which served malicious code to 100,000+ sites that had trusted that CDN for years).
 3. **For the first copy** — the practical limit of what can be known: prefer old, widely used versions; check each
    exact version's security advisories; verify the copy matches the release npm recorded.
-4. **A content security policy on our pages — the real fix for "a bad copy steals the key"** (a `<meta>` policy tag;
+4. **A content security policy on our pages — corrected 2026-11-25 (outside review 2, item 5; Ron agreed): it does NOT
+   keep a bad script from sending your key anywhere** — the relay (a script can write the key into a cloud library of
+   its own) and GoatCounter (an event name is free text) take anything sent. Describe it honestly, here and in public:
+   *"limits what an injected script can load and where it can send."* With every script served from our own site
+   (item 6), the policy can say **"scripts only from here"** — its one strong, simple form. Originally: (a `<meta>` policy tag;
    GitHub Pages can't send headers): the page may contact ONLY the servers we list — our two relays, GoatCounter,
    Amazon's image servers, and the library CDNs — so a malicious library could read the key but couldn't send it
    anywhere (background requests, images, beacons, form posts are all refused). Tested with the browser driver
@@ -1942,7 +1951,14 @@ could read the key and send it away.
      tool), serves data not pages, and never receives the passphrase.
 5. **A commit check:** refuse an outside script or stylesheet without an exact version and an integrity hash, and a
    page without the policy — so a new page can't quietly regress.
-6. **No self-hosting** (considered and dropped, Ron 2026-11-02): it protects against later tampering no better than
+6. **REVERSED 2026-11-25 (Ron, outside review 2 item 5): serve every outside script from our own site** — React,
+   ReactDOM, qrcodejs, html5-qrcode, the picture slider, marked, GoatCounter's `count.js` (GoatCounter supports it):
+   seven files across four pages, each copied at an exact version and checked against npm's recorded release. New
+   facts the 11-02 weighing didn't have: it's every page of the site, not one; each outside host sees every visitor's
+   address — a privacy line to write and keep true; and it allows the "scripts only from here" policy. Exact versions
+   and integrity values (items 1–2) still apply to anything left outside. **The human check (Turnstile) is the one
+   script that can't be copied** — see "Cloudflare's 'are you human' check". Was: **No self-hosting** (considered and
+   dropped, Ron 2026-11-02): it protects against later tampering no better than
    integrity checks; its gains — the app keeps loading if a CDN is down, and a CDN doesn't see visitors — are
    availability and privacy, not security, and don't justify maintaining copies of other people's files.
    (Evidence, 2026-11-17: in a deliberate load test, one page start failed because ReactDOM's download from unpkg.com
