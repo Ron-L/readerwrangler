@@ -1113,6 +1113,24 @@ nothing on the computer reads it back; Import from Relay merges only the books t
    click it while the (empty) ReaderWrangler page is open and it hands the key straight to the app. **Never through
    the address bar** (a link carrying the key lands in the browser's history, and its synced history on other
    devices). The bookmarklet's breadcrumb mark (the "keep your library" task, item 7) tells the app to offer this.
+   **The plan, completed with Ron (2026-11-24):**
+   1. **A page can't see your bookmarks** (only browser extensions can), so the app can't find the bookmarklet by
+      itself. Arriving through the bookmarklet's "open ReaderWrangler" button brings the breadcrumb mark → the app
+      KNOWS; arriving any other way, the empty screen ASKS: *"Used ReaderWrangler before? If you have its bookmarklet,
+      click it now — it can bring back your Cloud Sync Key."*
+   2. **The bookmarklet gets a ReaderWrangler-page case** — today its menu changes by page (bookmarklet-nav-hub.js ~63-71:
+      Amazon's library, collections, book, series, author pages) but has none for a ReaderWrangler page (Ron: the menu
+      "currently nothing on the menu relates to this scenario"). Clicked on a ReaderWrangler page, it runs inside that
+      page, so the two talk directly: the app announces "ReaderWrangler, no key / no library"; the bookmarklet then
+      shows **no menu** and hands the key straight to the app — one click. A page that already has its key: "already
+      connected" (or the usual menu), nothing handed over. A test/dev bookmarklet on the live site (or the reverse):
+      says so, hands nothing.
+   3. **One box, the choices inside** (not two prompts): *"Found your Cloud Sync Key in your bookmarklet (support code
+      …7Q2K9). Restore your library from Cloud Sync — books, folders, tags and notes, last saved 2 days ago?"*
+      **[Restore] [Just the key] [Not now]** — never adopted silently, even from your own bookmarklet (outside review 2
+      warned Restore and the phone link adopt keys silently); the support code shows it's yours. Before Restore from
+      Cloud Sync exists, the box offers the key only: *"…Use this key? Then Import from Relay brings your books back;
+      Restore Backup brings back your folders."* Wording is Ron's at build time.
 
 #### Lock the Cloud Sync Key in backups with an optional key password
 <!-- id 20261104-1024 -->
