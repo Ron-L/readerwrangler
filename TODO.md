@@ -14,6 +14,7 @@
       - [A save that fails part-way is undone, not kept — a failed Restore leaves no fragment](#a-save-that-fails-part-way-is-undone-not-kept-a-failed-restore-leaves-no-fragment)
       - [Restore Backup asks whenever there's an organization, and shows what it will replace](#restore-backup-asks-whenever-theres-an-organization-and-shows-what-it-will-replace)
       - [Words from outside never become code on Amazon's page: the fetchers' message boxes, and the key's shape](#words-from-outside-never-become-code-on-amazons-page-the-fetchers-message-boxes-and-the-keys-shape)
+      - [A Cloud Sync Key never changes hands without asking: the bookmarklet stays on Amazon, keys arrive only when you say so](#a-cloud-sync-key-never-changes-hands-without-asking-the-bookmarklet-stays-on-amazon-keys-arrive-only-when-you-say-so)
       - [A one-day truth-and-safety release: small things that are false or unsafe today](#a-one-day-truth-and-safety-release-small-things-that-are-false-or-unsafe-today)
       - [Fetcher work, in build order](#fetcher-work-in-build-order)
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
@@ -608,6 +609,32 @@ there is.
    Backup, the phone link. (Escaping isn't enough: the browser undoes it before running a bookmarklet.)
 4. **Then correct `SECURITY.md`**: "a taken-over relay sees only encrypted blobs" becomes true only once (1) is fixed.
 5. Tests first: a relay reply, a series name and a key value each carrying markup or a quote mark; nothing runs.
+
+#### A Cloud Sync Key never changes hands without asking: the bookmarklet stays on Amazon, keys arrive only when you say so
+<!-- id 20261125-1620 -->
+
+_Why it matters:_ The Cloud Sync Key opens your cloud library — whoever has it can read and change your books and
+organization. Outside review 2, item 3 (all checked in our code 2026-11-25): (1) **taking yours** — the bookmarklet's
+first act, on whatever page it is clicked, is to place the key on that page, before anything checks where it is: a wrong
+tab, or a page built to ask for the click, gets the key; (2) **giving you theirs, silently** — so your library and
+organization then sync to a cloud library someone else can read: **Restore Backup** of someone else's file in a browser
+that has no key yet (with a different key already here it asks — since 7.14.3, `readerwrangler.js` ~6251); **Load
+credentials from backup file** (`:11829`, no question); **the phone pairing link** (`mobile.js` 2419-2435) — no
+question, and it REPLACES a key already there; the compact view also opens in a computer window under 768 pixels, so a
+link opened there swaps the computer's key, and the status light stays green.
+
+**Decided** (Ron, 2026-11-25, outside review 2 item 3):
+1. **The bookmarklet works only on Amazon's pages and ReaderWrangler's own** (the empty-page key hand-back needs
+   ReaderWrangler's) — its very first statement checks; anywhere else it only offers to go to Amazon. **Built into the
+   same new bookmarklet as the Cloud Sync rename** (Ron, 2026-11-25: grouped — that release already makes everyone drag
+   a new one; changing the bookmarklet later means every user dragging again).
+2. **Always ask before a key arrives** from Restore Backup into a key-less browser, Load credentials from backup file,
+   or the phone link — with the support code: *"Use the Cloud Sync Key in this file (support code …7Q2K9)? It replaces
+   yours."* The same "never adopted silently" rule as the bookmarklet hand-back (TODO "Restore from Cloud Sync", item
+   7).
+3. **The QR code carries the key as text, not a link** — it can't be forwarded and opened as a link.
+4. Shares the key-shape check of "Words from outside never become code on Amazon's page…", item 3.
+5. Before launch. Wording is Ron's (GLOSSARY first).
 
 #### A one-day truth-and-safety release: small things that are false or unsafe today
 <!-- id 20261119-1548 -->
@@ -1460,6 +1487,9 @@ the big targets are locked down, people with ready-made attack scripts go after 
 
 #### Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one
 <!-- id 20260828-0000a -->
+
+**Grouped with it** (Ron, 2026-11-25): its new bookmarklet also carries the check from "A Cloud Sync Key never changes
+hands without asking…", item 1 — the bookmarklet works only on Amazon's pages and ReaderWrangler's own.
 
 _Why it matters:_ "Relay", "Credentials", "Channel ID" and "Passphrase" are engineering words, and users juggle two
 values that are really one secret. And today making new credentials doesn't retire the old ones: whoever holds an old
