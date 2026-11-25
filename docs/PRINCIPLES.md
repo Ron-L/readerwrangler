@@ -562,6 +562,20 @@ over-engineer it.")
 **Enforcement**: every new mechanism's TODO entry or brief states the three numbers; the cold review of the TODO checks
 for tooling items without them.
 
+### 24. Know a platform's guarantees before building on it — and say them first
+Before building on a platform feature — browser storage, Cloudflare KV, a Durable Object, a browser API — state **what
+it guarantees and how it fails**, from the vendor's own documentation with the link, and say it to Ron before the
+design is settled: what can delete it, what limits it, how long until it's consistent, how each browser differs.
+"It's saved" is not a guarantee until the vendor says for how long and against what. (Ron approved, 2026-11-25 —
+review queue Q-050, from the 7.31.1 post-mortem. Earned: ReaderWrangler chose browser storage over a year ago and no one
+said a browser may delete it — under low disk space, least recently used site first and all of it at once; in Safari
+after 7 days of use without a visit; in a private window on close. It surfaced piecemeal in two review lists and fully
+only on 2026-11-24, because Ron asked "tell me more": "All this time we've been walking around with a loaded foot
+gun!" KV's eventual consistency — up to a minute or more between locations — surfaced the same late way, 2026-11-22.)
+Pairs with Law 2 (never assume): the vendor's semantics are facts to verify, not to recall.
+**Enforcement**: every design doc that rests on a platform feature has a "Guarantees and failure modes" section with
+its sources; the gate checklist's item 8 names vendor semantics; memory `feedback_platform_guarantees_first`.
+
 ---
 
 ## SECOND TIER — by theme (the best of the rest)
