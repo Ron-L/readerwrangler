@@ -153,7 +153,7 @@ var MenuDivider = () => /*#__PURE__*/React.createElement("div", { className: "rw
 // Clear emergency reset timer — app code loaded successfully
 if (window._appMountTimer) {clearTimeout(window._appMountTimer);window._appMountTimer = null;}
 
-var ORGANIZER_VERSION = "7.31.1"; // Build version for this file
+var ORGANIZER_VERSION = "7.31.2-alpha.1"; // Build version for this file
 // The build line a copy of the diagnostics carries under its first line — Diagnostics' Copy and Help → Report a
 // problem… (7.29.0: one copy, so the two can't drift)
 var DIAGNOSTICS_HEADER = [`Desktop app ${ORGANIZER_VERSION} (page ${APP_VERSION})`];
@@ -11788,7 +11788,7 @@ function ReaderWrangler() {
       React.createElement('button', {
         onClick: async () => {
           if (hasCreds) {
-            var confirmed = await showConfirmDialog('SYNC', 'Regenerate credentials', 'This will invalidate your current bookmarklet and unpair any mobile devices. You will need to drag a new bookmarklet to your bookmarks bar and re-pair your phone.', 'Regenerate', 'Cancel');
+            var confirmed = await showConfirmDialog('SYNC', 'Regenerate credentials', 'This makes a new key for this browser. Your old key keeps working — on your old bookmarklet, your phone, and for anyone who has it — and afterwards it can\'t be revoked from here. To lock it out, cancel and use Revoke credentials & wipe relay first.', 'Regenerate', 'Cancel');
             if (!confirmed) return;
           }
           var channelId = crypto.randomUUID();
