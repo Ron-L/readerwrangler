@@ -325,6 +325,17 @@ for anyone without a backup. Today the app never asks, and never says. (Ron, 202
    Import), again after a bookmark/install, never in a loop.
 5. Words that promise the data is kept (index.html "Your data stays in your browser", the security page, the guide)
    are checked against this — truth-and-safety's job.
+6. **An empty library may be a deleted one — in every browser** (Ron, 2026-11-24; moved from the Safari task, item 2,
+   which was Safari-only): a browser that deletes a site to free space deletes ALL of it at once — books, organization
+   and the Cloud Sync Key — so today the app shows the plain Welcome screen of a brand-new user (only a books-only
+   loss gets the "your folders and lists are intact" screen, readerwrangler.js ~9923). The empty-library screen adds:
+   *"If you've used ReaderWrangler in this browser before, your browser may have cleared it — restore your backup
+   file"*; once "Restore from Cloud Sync" exists, that first.
+7. **The bookmarklet is the breadcrumb — in every browser** (moved from the Safari task, item 3): it lives in your
+   bookmarks, not in the site's storage, so it survives the deletion. Its "open ReaderWrangler" button adds a mark
+   (after `#`) saying "this person has a bookmarklet" — never the key. An empty library plus that mark = the library
+   was lost, for certain: say so plainly, with the restore buttons. And the bookmarklet can hand the key back (TODO
+   "Restore from Cloud Sync", item 7).
 
 #### Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes
 <!-- id 20260830-0000; merged 20260922-0000d -->
@@ -1095,6 +1106,13 @@ nothing on the computer reads it back; Import from Relay merges only the books t
    - **Turned down:** a "last chance" prompt at the first push that would overwrite the cloud (it interrupts 60 s after
      an unrelated change or on leaving the tab — "a stopping prompt is still a block", Law 18 — and asks about a reset
      that may be an hour old).
+7. **After the browser deleted everything, the key must come back first** (Ron, 2026-11-24 — a gap: item 2 assumed the
+   key is still here). A browser that deletes a site to free space deletes the Cloud Sync Key with the library, so the
+   restore first gets the key back, three ways: **typed in**; **from a backup file** (Relay Setup's "Load credentials
+   from backup file" already does it); or **from the bookmarklet**, which holds it and survives in your bookmarks —
+   click it while the (empty) ReaderWrangler page is open and it hands the key straight to the app. **Never through
+   the address bar** (a link carrying the key lands in the browser's history, and its synced history on other
+   devices). The bookmarklet's breadcrumb mark (the "keep your library" task, item 7) tells the app to offer this.
 
 #### Lock the Cloud Sync Key in backups with an optional key password
 <!-- id 20261104-1024 -->
@@ -1613,10 +1631,12 @@ Risk 10). Every iPhone and iPad browser is Safari underneath.
    every browser since iOS 14 (secondary sources: simoahava.com, cookiebees.io) — whether the 7-day count bites the
    same way outside Safari is unsettled (thinktecture.com), so treat it as yes. Ties to "Know whether the browser will
    keep your library…" (the status light is red in Safari permanently).
-2. **An empty library in Safari:** the getting-started words, plus *"If you've used ReaderWrangler in this browser
+2. **Moved 2026-11-24 to "Know whether the browser will keep your library…", item 6 — now for every browser** (any
+   browser may delete a site to free space). Was: **An empty library in Safari:** the getting-started words, plus *"If you've used ReaderWrangler in this browser
    before, Safari may have cleared it — restore your backup file"*; once "Restore from Cloud Sync" exists (in this
    gate), *"or restore from Cloud Sync"* — its copy is kept 90 days after its last update.
-3. **The bookmarklet is the breadcrumb.** It's made at Cloud Sync setup and holds the Cloud Sync Key. Its "open
+3. **Moved 2026-11-24 to "Know whether the browser will keep your library…", item 7 — every browser.** Was: **The
+   bookmarklet is the breadcrumb.** It's made at Cloud Sync setup and holds the Cloud Sync Key. Its "open
    ReaderWrangler" button (bookmarklet-nav-hub.js ~381) opens the app with nothing extra today; it adds a mark to the
    address (after `#`, so it never leaves the browser) that says "this person has a bookmarklet" — **never the key**,
    which would land in the browser's history. An empty library plus that mark means the library was lost, for certain:
