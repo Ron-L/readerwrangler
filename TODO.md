@@ -4809,6 +4809,12 @@ replies ever need to come *from* the contact address (Gmail's "Send mail as" thr
 Resend's new inbox product ("Inboxes") isn't needed for support — the forwarder already receives (Ron + Claude,
 2026-11-20); "Relay worker: one release…", item 7, still considers it for the daily summaries.
 
+**Also watch: a forced move off Resend's legacy sending system** (Ron, 2026-11-25). Resend's dashboard says our domain
+"still sends through our legacy infrastructure" and offers "Resend Forge" (faster, better deliverability). Nothing
+needs it today — the relay's emails arrive. **If Resend announces it will retire the legacy system,** move before the
+deadline: a change to the relay's email setup, so Ron's (an outside service), and test that the nightly summaries and
+alerts still arrive.
+
 ---
 
 ## 🧊 Someday

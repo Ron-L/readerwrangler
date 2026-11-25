@@ -20,7 +20,7 @@ vault; see `docs/design/DATA-DURABILITY.md`).
 | Crons | usage alerts (every 30 min) + daily summary (23:55 UTC) | none (alerts would double-send) |
 | Secrets | 4 (see below) | none (alert/cron paths only; dev doesn't run them) |
 
-Account: `lewis.ron.c@gmail.com`, account id `fd7a55c0…` (also in `wrangler.toml` as `CF_ACCOUNT_ID`).
+Account: the sign-in address is in the private notes (`.private/TODO.md`, "Accounts"); account id `fd7a55c0…` (also in `wrangler.toml` as `CF_ACCOUNT_ID`).
 All of this except namespace creation and secrets is declared in [`wrangler.toml`](wrangler.toml).
 
 ## Everyday commands
