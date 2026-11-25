@@ -117,6 +117,7 @@
   - [🗄️ After launch](#after-launch)
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
+      - [Save only the changed book to this browser's book store](#save-only-the-changed-book-to-this-browsers-book-store)
     - [Relay and sync](#relay-and-sync)
       - [Edit Kindle collections from ReaderWrangler](#edit-kindle-collections-from-readerwrangler)
       - [Smaller organization syncs (send only what changed in your folders, tags and lists)](#smaller-organization-syncs-send-only-what-changed-in-your-folders-tags-and-lists)
@@ -282,6 +283,10 @@ into that task, 2026-11-19 (Ron): it isn't needed for launch, so its review runs
    it — that's the reviewer reporting on itself. At each reviewer's finish, before its report is trusted: no project
    file changed but its own (git, in the project and the private notes), nothing it started still running, and the
    next nightly relay summary shows no writes it could have made.
+7. **After the last outside review (review 4): re-review the TODO's ORDER** (Ron, 2026-11-25) — not another look at
+   every item, just whether the priorities still look right after four reviews, and which tasks to group so work
+   done together is done once (same files, same screens, same stored formats). It answers how far up "Restore from
+   Cloud Sync" moves (Ron: "fairly high now"; the better recovery for every loss). Proposed to Ron; the order is his.
 
 #### Know whether the browser will keep your library: a status light, what to do, and back up before you leave
 <!-- id 20261124-1330 -->
@@ -329,6 +334,10 @@ for anyone without a backup. Today the app never asks, and never says. (Ron, 202
    loss gets the "your folders and lists are intact" screen, readerwrangler.js ~9923). The empty-library screen adds:
    *"If you've used ReaderWrangler in this browser before, your browser may have cleared it — restore your backup
    file"*; once "Restore from Cloud Sync" exists, that first.
+   **And the books-only screen stops over-promising** (Ron, 2026-11-25, outside review 3 Q7): *"…bring your books back
+   and everything falls into place"* is untrue for your own fields — Import from Relay brings the books back without
+   their tags, ratings, notes and price goals (the reviewer's experiment: all 0). Say they come back only from a
+   backup file (and, once built, from Restore from Cloud Sync).
 7. **The bookmarklet is the breadcrumb — in every browser** (moved from the Safari task, item 3): it lives in your
    bookmarks, not in the site's storage, so it survives the deletion. Its "open ReaderWrangler" button adds a mark
    (after `#`) saying "this person has a bookmarklet" — never the key. An empty library plus that mark = the library
@@ -3642,6 +3651,16 @@ _Why it matters:_ A small but noticeable delay on every click while searching or
 
 **How (technical)**
 - The cached list is `explorerDisplayItems` (a useMemo); profile with DevTools Performance.
+
+#### Save only the changed book to this browser's book store
+<!-- id 20261125-1415 -->
+
+_Why it matters:_ Every change to any book — one tag, one rating — clears this browser's whole book store and writes
+all ~3,270 records again (about 51 million characters; `storage.js` ~267, `store.clear()` then every book). The
+browser's database can replace a single record by its ID instead. Local only — nothing in the cloud changes.
+
+**Decided** (Ron, 2026-11-25, outside review 3 Q7): **low priority — build it when it causes a problem** (edits feel
+slow, or a save fails part-way); Law 23 — no evidence it costs anything today.
 
 ### Relay and sync
 
