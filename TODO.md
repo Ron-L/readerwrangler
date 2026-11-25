@@ -7,6 +7,11 @@
       - [Know whether the browser will keep your library: a status light, what to do, and back up before you leave](#know-whether-the-browser-will-keep-your-library-a-status-light-what-to-do-and-back-up-before-you-leave)
       - [Keep your tabs and browsers in step: catch up quietly, never overwrite newer changes](#keep-your-tabs-and-browsers-in-step-catch-up-quietly-never-overwrite-newer-changes)
       - [Book details window: one Save — nothing changes until you click it, and nothing is lost without asking](#book-details-window-one-save--nothing-changes-until-you-click-it-and-nothing-is-lost-without-asking)
+      - [Import from Relay keeps the books the cloud doesn't have — it never removes an owned book silently](#import-from-relay-keeps-the-books-the-cloud-doesnt-have-it-never-removes-an-owned-book-silently)
+      - [The "Something went wrong" screen: when the app didn't load, say so — never recommend a reset](#the-something-went-wrong-screen-when-the-app-didnt-load-say-so-never-recommend-a-reset)
+      - [A saved organization that can't be read is kept aside, never replaced at the next start](#a-saved-organization-that-cant-be-read-is-kept-aside-never-replaced-at-the-next-start)
+      - [A save that fails part-way is undone, not kept — a failed Restore leaves no fragment](#a-save-that-fails-part-way-is-undone-not-kept-a-failed-restore-leaves-no-fragment)
+      - [Restore Backup asks whenever there's an organization, and shows what it will replace](#restore-backup-asks-whenever-theres-an-organization-and-shows-what-it-will-replace)
       - [A one-day truth-and-safety release: small things that are false or unsafe today](#a-one-day-truth-and-safety-release-small-things-that-are-false-or-unsafe-today)
       - [Fetcher work, in build order](#fetcher-work-in-build-order)
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
@@ -490,6 +495,77 @@ Decided:
 - Step 2: rating / price goal / tags join `editBookFields` as staged fields; Save folds them into the one `EDIT_BOOK`
   undo step. Completes the edit-in-place pattern in OWNERSHIP-MODEL §4. Rationale and Ron's context-keying principle:
   UNDO-MODEL.md, section "fully transactional".
+
+#### Import from Relay keeps the books the cloud doesn't have — it never removes an owned book silently
+<!-- id 20261125-1430 -->
+
+_Why it matters:_ An Import from Relay keeps only the books the Fetched Copy holds, plus wishlist books it lacks — so
+every **owned** book the Fetched Copy doesn't hold is removed from this browser, with its own fields and its places in
+folders, under the message "No new books found". No undo. Ways in: a new or different Cloud Sync Key, a first fetch cut
+short, a Restore Backup on a second computer — and certain for anyone who makes a new key and adds a wishlist book
+before fetching the library. Outside review 3, ranked item 3 (one of its two silent, total losses); checked in our code
+2026-11-22 (`storage.js` 142-155).
+
+**Decided** (Ron + Claude, 2026-11-22, outside review 3 — agreed that day, filed 2026-11-25)
+1. **Keep the books the incoming set doesn't have**, as wishlist books already are kept; remove a book only when a
+   deletion letter (tombstone) names it.
+2. **Say it in the Import's message:** how many books the cloud didn't have (kept).
+3. No question needed. **Before launch, and before "make a new key"** ships (it makes the case ordinary).
+4. Test first: an Import whose Fetched Copy lacks an owned book keeps it, its fields and its folder places.
+
+#### The "Something went wrong" screen: when the app didn't load, say so — never recommend a reset
+<!-- id 20261125-1431 -->
+
+_Why it matters:_ When the app's code simply didn't download (a dropped connection, a blocked script), the screen
+recommends a reset — naming damaged data as the cause, and a reset erases everything in this browser. Many people will
+see this screen sooner or later; some will follow it. Outside review 3, ranked item 4; checked 2026-11-22
+(`readerwrangler.html` ~359).
+
+**Decided** (Ron + Claude, 2026-11-22, outside review 3 — agreed that day, filed 2026-11-25)
+1. **A script failed to load →** *"ReaderWrangler couldn't load — check your connection and reload"*, with no reset
+   button.
+2. **The app really broke →** put **"Save my data to a file first"** above Reset — a small page script that writes out
+   the saved items and the book store, needing no app.
+3. Wording is Ron's (GLOSSARY first). The planned reset-message task covers the words; this covers the cause.
+
+#### A saved organization that can't be read is kept aside, never replaced at the next start
+<!-- id 20261125-1432 -->
+
+_Why it matters:_ When the saved organization can't be read, or has another shape (an older tab or page meeting a newer
+format — the version 4 page was one), the next start replaces it: every folder, Book List, Search and the tag list, with
+one box at most. Outside review 3, ranked item 6 (the reviewer's finding — not re-checked by me).
+
+**Decided** (Ron + Claude, 2026-11-22, outside review 3 — agreed that day, filed 2026-11-25)
+1. **Before anything is saved, copy the text that couldn't be used** to a second item under another name.
+2. **While books exist and no folder list was found, keep saving closed** and say: *"don't save a backup — restore one,
+   or send us this"* (Report a problem).
+3. Before launch. Check the reviewer's paths in the code first.
+
+#### A save that fails part-way is undone, not kept — a failed Restore leaves no fragment
+<!-- id 20261125-1433 -->
+
+_Why it matters:_ If writing the books fails part-way (a bad record), what was written so far is kept — part of the
+library, and those books' places in folders, lost; the two boxes shown don't say anything was lost. Outside review 3,
+ranked item 7 (the reviewer's finding — not re-checked by me).
+
+**Decided** (Ron + Claude, 2026-11-22, outside review 3 — agreed that day, filed 2026-11-25)
+1. **In the one save** (`storage.js` ~264-270), cancel the whole write on any error while adding books.
+2. Then "Restore checks every book, folder and list inside a backup…" (already planned) refuses the bad record up front.
+3. Before launch. Test first: a save with one bad record leaves the book store exactly as before.
+
+#### Restore Backup asks whenever there's an organization, and shows what it will replace
+<!-- id 20261125-1434 -->
+
+_Why it matters:_ Restore Backup is what a person in trouble reaches for, and it reaches further than its question
+shows: it replaces whatever is newer than the backup, and on a second computer its reset can lead to books removed at
+the next Import (see "Import from Relay keeps the books the cloud doesn't have…"). Outside review 3, ranked item 9 (the
+reviewer's finding — not re-checked by me).
+
+**Decided** (Ron + Claude, 2026-11-22, outside review 3 — agreed that day, filed 2026-11-25)
+1. **Ask whenever an organization exists**, not only when books do.
+2. **Show the counts** — now and in the backup: books, folders, Book Lists, Searches — so the person sees what changes.
+3. **Later:** keep one automatic copy of what a Restore replaces (until the next Restore).
+4. Before launch for the question and counts; the automatic copy can follow. Wording is Ron's.
 
 #### A one-day truth-and-safety release: small things that are false or unsafe today
 <!-- id 20261119-1548 -->
