@@ -1384,7 +1384,9 @@ close this out").
    delete one encrypted note (the app requests a full refresh; the fetcher reads it at start and deletes it after a
    successful refresh). Idle until the app + fetcher part ships; the signed-writes gate covers its writes. Name the new
    key kind in the daily email.
-9. **Delete a cloud library nobody has used for a year** (Ron + Claude, 2026-11-04). Today a cloud library whose key was
+9. **Delete a cloud library nobody has used for a year** (Ron + Claude, 2026-11-04). **VERY low priority** (Ron, 2026-11-25: nothing
+   is a year idle for 12 months yet; every version and mailbox run carries the relay's own time in its name, so once
+   built, anything already a year idle goes at the next nightly run — nothing lost by waiting). Today a cloud library whose key was
    lost (so it can't be revoked) keeps its books forever — encrypted, harmless, but storage. The nightly cleanup deletes
    a channel's copies after a year with no activity. **Say so** in the app, on the security page and in the help notes:
    *"A cloud library nobody uses for a year is deleted. Your library stays safe in your browser and in your backups, and
