@@ -8,7 +8,8 @@ and page implies a question; (2) **real usage** — the working-session transcri
 **any support-shaped answer lands here (facts/fixes) or in WORKFLOW-PATTERNS.md (usage
 patterns) in the same breath as answering.** The Release Checklist backstops it._
 
-_**Up to date as of 2026-11-25 (through release 7.31.1)** — all sections human-reviewed (§1–21).
+_**Up to date as of 2026-11-26 (through release 7.31.2)** — all sections human-reviewed (§1–21) except 7.31.2's one
+added passage (§2, "Regenerating doesn't shut out the old key").
 7.31.1: Import from Relay takes another computer's edit (title, author, series…) when this computer never edited that
 field; the old version 4 page is gone from the site. Comb for "version 4", "v4", "edit", "two computers", "Import from
 Relay" keeping or dropping edits: no entry described either — nothing changed.
@@ -140,7 +141,9 @@ you make via the bookmarklet from any product page — print editions included.
 it's how your (already logged-in) browser session reads your own library. Nothing to install,
 no password ever given to ReaderWrangler. Your ReaderWrangler relay credentials are baked
 into it when you create it — if you ever regenerate credentials, drag a fresh bookmarklet
-(the app detects mismatches and offers it).
+(the app detects mismatches and offers it). **Regenerating doesn't shut out the old key** — it keeps working on the
+old bookmarklet, the phone, and for anyone who has it, and the app forgets it, so it can't be revoked afterwards. To
+lock out a key that got out: **Revoke credentials & wipe relay** first, then regenerate (the app says so since 7.31.2).
 
 **What are my credentials?** A **Channel ID** and a **Passphrase** (File → Relay Setup). The
 Channel ID is your private channel through the Cloudflare relay; the Passphrase is the key that

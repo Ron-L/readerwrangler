@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.31.2] - 2026-11-26
+
+### Fixed
+- **Regenerate no longer suggests it shuts out your old key.** Making a new key leaves the old one working — on your old
+  bookmarklet, your phone, and for anyone who has it. The Regenerate box and the Security & Privacy page now say so:
+  to lock out a key that got out, use **Revoke credentials & wipe relay** in Relay Setup first, then make a new one.
+
+### Added
+- **A private way to report a security weakness** — the Security & Privacy page links to GitHub's private "Report a
+  vulnerability" form, so a weakness isn't posted on the public issue list.
+
 ## [7.31.1] - 2026-11-25
 
 ### Fixed
