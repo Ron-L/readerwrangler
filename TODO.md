@@ -1518,6 +1518,19 @@ the big targets are locked down, people with ready-made attack scripts go after 
     is set six months ahead each time.
 15. **"Amazon stopped a fetch" emails** — the relay's half of "When Amazon stops a fetch: tell Ron…" (the fetcher work):
     a small request the bookmarklet can send; at most one email a day per kind of problem.
+16. **Make the write limit real — or honest** (Ron, 2026-11-26, outside review 2 item 8). Today it doesn't work: only 1
+    request in 5 updates the KV counter (since 7.5.0), and the count is saved only when a write is allowed — so it never
+    passes 200, the automatic block at 2,000 can't happen, and past 200 four writes in five still go through (the
+    reviewer: 4,016 of 5,000 allowed). The fix:
+    1. **Count only signed writes** (traffic that proved itself) — since 7.25.0 only the key's holder can write.
+    2. **Refuse every request over the limit**, not 1 in 5.
+    3. **Never block for good on unproven traffic** — registering a write key is unsigned and counts first; a working
+       block there would let anyone with just a Channel ID get a cloud library blocked forever.
+    4. **Exact** once the pointer keeper (a Durable Object) exists — it was planned to hold the exact write counter.
+    5. **Correct the worker's comments and the nightly email's line** "auto-blocked for abuse 0 — 0 is what is expected"
+       (it reads 0 because the block can't happen). `SECURITY.md` was corrected 2026-11-26.
+    - Not doing: an account-wide daily write budget ("conserve mode") — Cloudflare's paid plan at launch (Ron's intent)
+      gives about a million writes a month; a per-library limit can't guard the shared allowance anyway.
 
 **Watch out**
 - One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**; alphas deploy from the branch,

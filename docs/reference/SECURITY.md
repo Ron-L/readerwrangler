@@ -272,7 +272,18 @@ The relay Worker includes server-side protections against abuse and monitoring f
 
 ### Rate Limiting
 
-Write operations (upload chunks, upload manifest, update device state) are rate-limited per channelId:
+> **As built today, this limit does NOT work as designed** (outside review 2, item 8, 2026-11-22; confirmed in the
+> code, `relay-worker.js` ~909-950). Since 7.5.0 only 1 request in 5 updates the counter, and the count is saved only
+> when a write is allowed — so it never passes 200, the **automatic block at 2,000 can never happen**, and past 200
+> about four writes in five still go through (the reviewer measured 4,016 of 5,000 allowed). Since 7.25.0 signed writes
+> mean only the key's holder can write to a cloud library, so a stranger with just the Channel ID can't flood it.
+> **Decided fix** (Ron, 2026-11-26 — TODO "Relay worker: one release…"): count only signed writes; refuse every request
+> over the limit; never block for good on unproven traffic (registering a key is unsigned — a working block there would
+> let anyone with an ID get a cloud library blocked); exact once the pointer keeper (a Durable Object) exists. The
+> account-wide daily allowance is covered by Cloudflare's paid plan at launch. The design as written below is the
+> intent, not today's behavior.
+
+Write operations (upload chunks, upload manifest, update device state) are rate-limited per channelId (design):
 
 - **Limit**: 200 write operations per hour per channel
 - **Window**: Sliding 1-hour window using KV counters with TTL
