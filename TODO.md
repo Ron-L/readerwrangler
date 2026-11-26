@@ -15,6 +15,7 @@
       - [Restore Backup asks whenever there's an organization, and shows what it will replace](#restore-backup-asks-whenever-theres-an-organization-and-shows-what-it-will-replace)
       - [Words from outside never become code on Amazon's page: the fetchers' message boxes, and the key's shape](#words-from-outside-never-become-code-on-amazons-page-the-fetchers-message-boxes-and-the-keys-shape)
       - [A Cloud Sync Key never changes hands without asking: the bookmarklet stays on Amazon, keys arrive only when you say so](#a-cloud-sync-key-never-changes-hands-without-asking-the-bookmarklet-stays-on-amazon-keys-arrive-only-when-you-say-so)
+      - [What can reach production: a fresh review of Amazon-page changes, a daily foreign-push check, a production token kept off the PC](#what-can-reach-production-a-fresh-review-of-amazon-page-changes-a-daily-foreign-push-check-a-production-token-kept-off-the-pc)
       - [A one-day truth-and-safety release: small things that are false or unsafe today](#a-one-day-truth-and-safety-release-small-things-that-are-false-or-unsafe-today)
       - [Fetcher work, in build order](#fetcher-work-in-build-order)
         - [Fetcher odds and ends (progress figure, frozen timer, request pacing)](#fetcher-odds-and-ends-progress-figure-frozen-timer-request-pacing)
@@ -636,6 +637,44 @@ link opened there swaps the computer's key, and the status light stays green.
 3. **The QR code carries the key as text, not a link** — it can't be forwarded and opened as a link.
 4. Shares the key-shape check of "Words from outside never become code on Amazon's page…", item 3.
 5. Before launch. Wording is Ron's (GLOSSARY first).
+
+#### What can reach production: a fresh review of Amazon-page changes, a daily foreign-push check, a production token kept off the PC
+<!-- id 20261126-1135 -->
+
+_Why it matters:_ Nine files run inside every user's signed-in Amazon page — the bookmarklet's menu
+(`bookmarklet-nav-hub.js`), the five fetchers, and three sync files (`relay-client.js`, `relay-crypto.js`,
+`relay-compress.js`) — plus the one line in the app that writes the bookmarklet (`readerwrangler.js` ~6163). A change to
+any of them reaches every user within ten minutes of a production push. Outside review 2, item 7: the PC and the agent
+are part of that chain — Git's credential manager holds a token that can push to both repositories (anything running as
+Ron could use it; the 2025 npm worm scanned for exactly such tokens), the agent writes the code and reads web pages, and
+nothing reviews what changes in those nine files before they go live.
+
+**Decided** (Ron, 2026-11-26, outside review 2 item 7):
+1. **A fresh reviewer at "push to prod"** — when any of the nine files (or the bookmarklet line) changed since the last
+   release, a separate agent, started cold, reads their diff against the CHANGELOG and the release commit message (which
+   lists the changed files — Ron's idea; the user-facing CHANGELOG stays free of file names) and says whether every
+   change has a stated reason. Not the agent that wrote it (Law 12). Releases that don't touch them pass straight
+   through. Enforcement code (`.claude/`) — Ron's word given.
+2. **A daily foreign-push check at session start** — `tools/sync_remotes.py` already reports what is "only there" on a
+   remote; run it with the nightly relay check and say plainly if either repository holds a commit we didn't make.
+3. **A production token kept off the PC** — try GitHub's fine-grained tokens: a dev token (pushes to the dev repository
+   only) stored as today; a prod token (production repository only) NOT stored by Git, pasted at each production push.
+   Find a low-friction way: Git's own sign-in window, or one ready-made command Ron runs in VS Code's terminal (the
+   agent's commands have no keyboard). Where the prod token lives: **1st choice LastPass** (copy, paste); **2nd choice a
+   Logitech keyboard macro** (plain text in Logitech's settings — not where token-scanning worms look, not labelled as a
+   token; add a couple of decoys). Each production push request reminds Ron of the key combination / LastPass entry.
+   Defeats the automated token-stealing worms; not a patient attacker already on the PC (nothing short of a separate
+   machine does). Before launch.
+4. **Install scripts off for the whole PC** (`ignore-scripts`, Ron's user npm setting — Ron: "YES"): the 2025 worm
+   spread through scripts that run when a package installs. Apply it, then re-run each install here (`tools/build`,
+   `relay`) and the full tests, and give a package that truly needs its script a one-line exception. Protects Ron's
+   other projects too. Plus: update tools deliberately, preferring versions a few weeks old.
+5. **The relay checks what the site serves — daily, low priority**: once a night with the summary, fetch the nine files
+   as readerwrangler.com serves them and compare them with fingerprints the release stored ON THE RELAY (never read from
+   GitHub — someone who changed the files could change those too); email only on a difference. Catches tampering that
+   never went through us. Low priority now the domain is verified.
+Dropped: an email on every push to production (Ron: noise he'd ignore); Ron reading diffs himself ("You write the
+code… I trust you" — the fresh reviewer replaces it).
 
 #### A one-day truth-and-safety release: small things that are false or unsafe today
 <!-- id 20261119-1548 -->
@@ -1973,7 +2012,9 @@ is served from our own site. Ron asked (2026-11-25) whether a rebuild fetches th
    - The bookmarklet (on Amazon's pages) can't use our policy — Amazon's page sets its own — but it loads only our own
      three scripts, no outside libraries. The relay uses no libraries (one self-contained file; `wrangler` is a deploy
      tool), serves data not pages, and never receives the passphrase.
-5. **A commit check:** refuse an outside script or stylesheet without an exact version and an integrity hash, and a
+5. **A commit check** — and, with self-hosting (Ron, 2026-11-26, review 2 item 7): **a change to a served library
+   file needs a CHANGELOG line that explains it**, so an infected copy can't slip in unnoticed. Originally: refuse an
+   outside script or stylesheet without an exact version and an integrity hash, and a
    page without the policy — so a new page can't quietly regress.
 6. **REVERSED 2026-11-25 (Ron, outside review 2 item 5): serve every outside script from our own site** — React,
    ReactDOM, qrcodejs, html5-qrcode, the picture slider, marked, GoatCounter's `count.js` (GoatCounter supports it):
