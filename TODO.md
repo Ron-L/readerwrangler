@@ -634,7 +634,8 @@ link opened there swaps the computer's key, and the status light stays green.
 1. **The bookmarklet works only on Amazon's pages and ReaderWrangler's own** (the empty-page key hand-back needs
    ReaderWrangler's) — its very first statement checks; anywhere else it only offers to go to Amazon. **Built into the
    same new bookmarklet as the Cloud Sync rename** (Ron, 2026-11-25: grouped — that release already makes everyone drag
-   a new one; changing the bookmarklet later means every user dragging again).
+   a new one; changing the bookmarklet later means every user dragging again). **Then update the Security & Privacy
+   page:** the bookmarklet section says *"It does nothing on any other site."*
 2. **Always ask before a key arrives** from Restore Backup into a key-less browser, Load credentials from backup file,
    or the phone link — with the support code: *"Use the Cloud Sync Key in this file (support code …7Q2K9)? It replaces
    yours."* The same "never adopted silently" rule as the bookmarklet hand-back (TODO "Restore from Cloud Sync", item
@@ -772,6 +773,11 @@ launch.
 6. "A long fetch resumes after an interruption", then "Refresh all books from Amazon" (the same long run; its
    request note is in "Relay worker: one release…", item 8).
 7. "A fetch from someone else's Amazon account stops before mixing two libraries".
+- **With step 1 (the wrapper): the 16 counts the fetchers send from Amazon's page** (Ron, 2026-11-26, outside review 2
+  item 12): send them with no page address (`referrerPolicy = 'no-referrer'` — GoatCounter otherwise gets whatever
+  Amazon's page allows), and mark them `prod-` / `dev-` like the app's counts. Two carry a word from Amazon's answer
+  (`newOwnershipType=…`, amazon-library-fetcher.js ~2593; `fetch-unknown-node-type=…`, ~1641) — never a title; keep it
+  so. A fetcher change: Ron's live Amazon test.
 - Stays elsewhere: "Bookmarklet: when your key no longer works…" (After launch).
 
 
@@ -1374,7 +1380,8 @@ member forwarding a file is far likelier than any attacker.
    backup. A weak password can be guessed by someone determined with the file — accepted for this threat (Ron).
 7. **Ripples:** the Disconnect wording ("Relay Setup: disconnect…", part of the Cloud Sync rename) says the key is in your backups "locked
    with your key password, if you set one"; the private-values commit check still refuses an unlocked key in a
-   backup-shaped file (a locked one holds only scrambled text).
+   backup-shaped file (a locked one holds only scrambled text). **Then update the Security & Privacy page:** the key
+   row says "inside your backup files — locked with your key password, if you set one".
 
 #### Relay worker: one release of changes (backup alerter, clearer daily email, strict ID check)
 <!-- id 20261024-1045 -->
@@ -1420,7 +1427,7 @@ close this out").
 4. **The nightly email names mailboxes by 6 characters, not 4** (`shortId`, relay-worker.js ~1211) — moved from the
    Cloud Sync task (item 3); it becomes the support code that task shows beside the key. **One way everywhere:** today
    the email names a channel two ways — the last 4 characters (`…21fc`, `shortId`) and the FIRST 8 in the "Kept / not
-   judged" and budget lines (`41e0e16f…`, `ch.slice(0, 8)`, ~1287 / ~1304). Use the 6-character support code in every
+   judged" and budget lines (the first 8 characters, `ch.slice(0, 8)`, ~1287 / ~1304). Use the 6-character support code in every
    line (found 2026-10-30).
 5. **The test scripts clean up after themselves:** `relay/test-phase1.mjs` leaves one unimported run on the
    `22222222…` test channel each run (19 now; they expire after 90 days). And since 7.25.0 every run of
@@ -1480,8 +1487,8 @@ the big targets are locked down, people with ready-made attack scripts go after 
     1. Test first: on an ID with no write key, a revoke, a delete, a cleanup and a "begin an upload" are refused;
        registering still works.
     2. **It cuts off no one** (checked 2026-11-26, `.private/relay_inventory.py`): the only library without a write
-       key that holds data is production's 58c1bfd7… (a Complete Copy saved Sep 8, never since; expires Dec 7) — dev's
-       e9721301… is ours (expires Nov 30). Registering stays open, and every app since 7.25.0 registers before its
+       key that holds data is production's other-user library (a Complete Copy saved Sep 8, never since; expires Dec 7) —
+       dev's is ours (expires Nov 30); their IDs are in `.private/TODO.md`. Registering stays open, and every app since 7.25.0 registers before its
        first write; only a tab left open since before 7.25.0 is refused ("update the app"). **Before the deploy:
        re-run the inventory** on both relays.
 11. **Cloudflare's "are you human" check (Turnstile) when a cloud library is created** — at Cloud Sync setup and "make a
@@ -1580,6 +1587,8 @@ the big targets are locked down, people with ready-made attack scripts go after 
     4. **Correct `docs/design/RELAY-SECURITY-PLAN.md`'s note** "an exact replay is harmless… only begin/mint creates
        something new" — a one-request upload creates a new stored item too; and its table's "big upload parts" row.
     5. Test first: a relabeled upload fails to open; a size-only signature is refused; an exact repeat is skipped.
+    6. **Then update the Security & Privacy page** (its task, item 11): the sync server no longer knows the kind of
+       each upload waiting — drop it from the row.
     - Choice 4 of the review (the relay itself skipping, repeating or rolling back) → the pointer keeper, in "Keep your
       tabs and browsers in step…".
 18. **Know the cloud libraries — how many, how old, which format** (Ron + Claude, 2026-11-26, outside review 2 item
@@ -1598,7 +1607,8 @@ the big targets are locked down, people with ready-made attack scripts go after 
        90 days and older; by format; by the app version of the last write; with no write key; browsers per library
        (1 / 2 / 3+); book counts in bands (under 500 / 500–2,000 / more).
     4. Nothing says who anyone is or which books; each new thing collected gets its line on the security page
-       (outside review 2 item 12, the privacy lines).
+       (outside review 2 item 12, the privacy lines). **Then update the Security & Privacy page** (its task, item 11):
+       check the sync server row names exactly what this stores.
     5. `.private/relay_inventory.py` (2026-11-26) is the one-off, per-library version of this (read-only; IDs shortened
        to 8 characters) — for Ron's checks, never the email.
 
@@ -1610,7 +1620,7 @@ the big targets are locked down, people with ready-made attack scripts go after 
   hours and a replaced test schedule kept mailing. Test with the on-demand summary instead (PowerShell; one email each;
   Resend allows 100 a day):
   `$k = Read-Host "TEST_ALERT_KEY"; Invoke-RestMethod -Method Post -Uri ("https://readerwrangler-relay-dev.readerwrangler.workers.dev/run-summary?key=" + [uri]::EscapeDataString($k))`
-- Leave production channel `58c1bfd7…` alone — another user's data; it expires Dec 7.
+- Leave the other user's production library alone (its ID: `.private/TODO.md`) — it expires Dec 7.
 - Relay tests: `node relay/test-signed-writes.mjs` and `RELAY_URL=… node relay/test-phase1.mjs` — both run against a
   local relay first (`cd relay && npx wrangler dev --env dev --local`), then dev; both refuse production.
 - Inventory tool: `analyze-relay-keys.js` in the TODO notes' folder (key dumps hold channel IDs — credentials — delete
@@ -1625,7 +1635,7 @@ the big targets are locked down, people with ready-made attack scripts go after 
 - Tool survey 2026-11-03 (docs/design/TOOL-SURVEY.md): Cloudflare's official skills (`cloudflare/skills`) — the skills only, not the remote
   server with access to the Cloudflare account; the local Workers Vitest plugin for tests; `wrangler telemetry disable`.
 - **Channel IDs in the emails in the app's short form** (2026-11-09): the daily summary says "channel 22222222…" (first
-  8 only — relay-worker.js ~1383, ~1400); the app's log and Relay Setup now show `41e0e16f...726c` (first 8 … last 4,
+  8 only — relay-worker.js ~1383, ~1400); the app's log and Relay Setup now show the first 8 … last 4 characters (`xxxxxxxx...xxxx`,
   logger.js `shortChannelId`, Ron) so old and new keys read differently. The emails should match.
 
 #### Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one
@@ -2047,7 +2057,51 @@ decide later.
    says "our own description of the design". Done 2026-11-26 meanwhile: a line at its top saying parts are out of
    date, and its "never at risk, regardless of any scenario" corrected.
 9. **The Contact section points to GitHub's private "Report a vulnerability"** (turned on by Ron, 2026-11-26) rather
-   than the public issue list, for weaknesses.
+   than the public issue list, for weaknesses. ✅ Done in 7.31.2.
+
+**Added by outside review 2, item 12** (Ron, 2026-11-26 — the privacy lines the table lacked; report §2.7)
+10. **What Amazon tells us about purchases** — a row: *"If you buy something on Amazon after following a link from
+    ReaderWrangler, Amazon tells us what was bought — not who bought it."* (Associates reports list products ordered
+    through tagged links, other items in the same visit included. With a handful of users, titles and a day can point
+    at one person.) **Before it ships, check Amazon's own description of the report** — the reviewer found it by search.
+11. **What the sync server knows — the row written from what's true at launch:** an ID for your cloud library, how
+    many books (in plain text — the nightly counts use it in bands; low-sensitivity, so said, not sealed), its size,
+    when it was first used and last saved, a random ID for each browser that saves to it, its format number and the
+    app version that last saved it; never the contents. **The kind of each upload waiting** (books, wishlist-add,
+    deletion, reset) is in plain text **until "Relay worker: one release…" item 17 seals it** — say it until then.
+12. **The counts sent from Amazon's page** — the GoatCounter row adds *"…and counts of what the bookmarklet did on
+    Amazon's page (for example 'library sent'). Never a title, an author or a folder name."* (16 named counts; two
+    carry a word from Amazon's answer — an ownership type, a page-part type.)
+13. **Who sees your internet address** — a row: *"Like any website, the services that deliver our pages see it: [list,
+    each linked to its policy]. Our own code keeps none."* At launch: Cloudflare (with your cloud library's ID — it
+    could tie the two), GitHub (logs every visitor), the code hosts (until every script is served from our own site),
+    Google (fonts, while that's open), Amazon's picture servers (each cover shown), GoatCounter (holds it up to 8
+    hours, stores none — their words).
+14. **REVERSES item 2's opening** (Ron, 2026-11-26): not *"ReaderWrangler doesn't collect personal information"* — an
+    internet address and a lasting ID are personal data under European and British law, even with contents encrypted.
+    Literally true instead, e.g. *"ReaderWrangler has no accounts. We never see your books, your folders or your Cloud
+    Sync Key — the table below says exactly what we do see."*
+15. **Your email address:** *"We don't have it — unless you write to us"* (then the mail forwarder and Ron's mailbox
+    have it, and anything attached). Wherever support is offered: *"Never send us a backup file — it holds your Cloud
+    Sync Key."*
+16. **The phone page has no lock** — one line: whoever holds your unlocked phone sees your library.
+17. **Support codes:** one sentence where the support code is offered — quoting it in an email ties it to your
+    address (that's what it's for).
+
+**This page changes when planned work lands** (Ron, 2026-11-26: "list this page and the change needed as part of the
+implementation") — each of these tasks carries its own "Then update the Security & Privacy page" line; the release
+comb (CLAUDE.md) is the backstop:
+| Task | The page's change |
+|---|---|
+| "Relay worker: one release…" item 17 (sealed labels) | the sync server row drops "the kind of each upload waiting" |
+| "Relay worker: one release…" item 18 (format number) | the row names the format and app version (already in item 11 above — check it's still true) |
+| "Relay worker: one release…" item 11 (Turnstile) | item 4's line about the "are you human" check |
+| "Relay worker: one release…" item 9 (one-year deletion) | *"A cloud library nobody uses for a year is deleted"* |
+| "Outside code libraries…" item 6 (every script from our own site) | the address row drops the code hosts; "loads code from unpkg / cdnjs" becomes "loads no code from anyone else" |
+| This task's "Still open" (Google Fonts) | if served ourselves, the address row drops Google |
+| "A Cloud Sync Key never changes hands…" item 1 | the bookmarklet section: *"It does nothing on any other site."* |
+| "Lock the Cloud Sync Key in backups with an optional key password" | the key row: "inside your backup files — locked with your key password, if you set one" |
+| "Phone: remove Save Credentials to File" | the key row stops naming any other file |
 
 #### An accessibility page: what works, and how to tell us what doesn't
 <!-- id 20261120-1700a -->
@@ -2094,7 +2148,9 @@ is served from our own site. Ron asked (2026-11-25) whether a rebuild fetches th
    keep a bad script from sending your key anywhere** — the relay (a script can write the key into a cloud library of
    its own) and GoatCounter (an event name is free text) take anything sent. Describe it honestly, here and in public:
    *"limits what an injected script can load and where it can send."* With every script served from our own site
-   (item 6), the policy can say **"scripts only from here"** — its one strong, simple form. Originally: (a `<meta>` policy tag;
+   (item 6), the policy can say **"scripts only from here"** — its one strong, simple form. **Then update the Security
+   & Privacy page** (its task, the "changes when planned work lands" table): the address row drops the code hosts, and
+   "loads code from unpkg / cdnjs" becomes "loads no code from anyone else". Originally: (a `<meta>` policy tag;
    GitHub Pages can't send headers): the page may contact ONLY the servers we list — our two relays, GoatCounter,
    Amazon's image servers, and the library CDNs — so a malicious library could read the key but couldn't send it
    anywhere (background requests, images, beacons, form posts are all refused). Tested with the browser driver
@@ -3990,7 +4046,8 @@ _Why it matters:_ The compact view's button writes your Cloud Sync Key as a plai
 (`mobile.js` ~1006-1020), which cloud backup apps often copy. It's no longer needed: the computer's QR code re-pairs the
 phone in seconds. Outside review 2, item 6.
 
-**Decided** (Ron, 2026-11-26, outside review 2 item 6): remove it. Low priority.
+**Decided** (Ron, 2026-11-26, outside review 2 item 6): remove it. Low priority. **Then update the Security & Privacy
+page:** the key row names no other file than backups.
 
 ## 🗄️ After launch
 

@@ -311,11 +311,11 @@ device-state must be **planned for chunking** — do not assume 25 MB holds for 
 | Prod | legacy single-key `device-state` | ~17 MB | yes — expires Nov 26 |
 | Prod | unabsorbed Sep 9 reset run `…3560` | ~18 MB | reclaimable after the next prod save absorbs it |
 | Prod | 2 library generations + 2 device-state generations | ~70 MB | no |
-| Prod | channel `58c1bfd7…` device-state (2 gens × 3 chunks) | ~80–120 MB | no — another user's live data (see note) |
+| Prod | the other user's channel (ID in the private notes) device-state (2 gens × 3 chunks) | ~80–120 MB | no — another user's live data (see note) |
 
 **≈265 MB is recoverable** by fixing F1/F2 and sweeping once.
 
-**Note — channel `58c1bfd7…`.** First recorded 2026-09-07 (v7.7.1 PM: "mystery prod channel … no library"); re-saved Sep 8 20:33/20:52 UTC by device `dc6e0a03b` (not one of Ron's), now expiring Dec 7. Owner confirmed it isn't his (no other browsers/machines; the only stress test was Feb 2026). Treated as a real user's live data: **left alone**, and not leftover by any sweep rule.
+**Note — the other user's channel (ID in the private notes).** First recorded 2026-09-07 (v7.7.1 PM: "mystery prod channel … no library"); re-saved Sep 8 20:33/20:52 UTC by device `dc6e0a03b` (not one of Ron's), now expiring Dec 7. Owner confirmed it isn't his (no other browsers/machines; the only stress test was Feb 2026). Treated as a real user's live data: **left alone**, and not leftover by any sweep rule.
 
 **Capacity note.** That channel's device-state needs 3 × 20 MB chunks per generation — a large library costs ~100–120 MB of device-state alone under keep-2, before library generations and letters. §14's "~250 MB per heavy user" understates a big library; storage, not writes, is the likely first free-tier ceiling (one Ron-sized user ≈ 250 MB; three is past 1 GB once leftovers accumulate).
 

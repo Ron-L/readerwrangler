@@ -433,7 +433,7 @@ the other modules or the page's inline scripts. Totals: **critical** 6, **error*
       **`?logDetail=on|off`** (the `?contributor=` pattern: applied, remembered, removed from the address bar); `?log=`
       goes (pre-release — only Ron and the screen tests used it; an old remembered `debug` turns both on once). Tests
       rewritten FIRST: LOG-001/016–022, LOGUI-001–006, the driver ("both on").
-   2. **The Channel ID form of Relay Setup** in every logged line: `41e0e16f...726c` (first 8 … last 4) — one shared
+   2. **The Channel ID form of Relay Setup** in every logged line: `abcd1234...5678` (first 8 … last 4) — one shared
       function for the log's cleaner and Relay Setup, so old and new credentials can be told apart (Ron); the
       passphrase stays fully hidden ("[passphrase]").
    3. **The window** — its own, opened from **two doors**: a "Full log…" link at the bottom of the 🕐 history panel and
@@ -501,7 +501,7 @@ the other modules or the page's inline scripts. Totals: **critical** 6, **error*
 5. **Messages a test plants:** the `test` option, shown to people as `IMPORT-!TEST!` / `IMPORT-12-!TEST!` (§2); the
    marker a constant in the module.
 6. **The rest as decided:** the kept log (§1: the last ~500, repeats counted, batched saves, page loads), the scrubber
-   (before anything is stored or copied: Channel IDs become Relay Setup's short form `41e0e16f...726c` — one function,
+   (before anything is stored or copied: Channel IDs become Relay Setup's short form `abcd1234...5678` — one function,
    `shortChannelId`, shared with Relay Setup; the passphrase becomes "[passphrase]"), and "ours only" (our scripts'
    uncaught errors and failed promises logged as errors; extension messages ignored).
 7. **Step 2 built** `logger.js` (loaded first in readerwrangler.html and reset.html), its function tests written first
