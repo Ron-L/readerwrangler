@@ -62,6 +62,11 @@
 - Which triggers/actions were valuable
 - What rules prevented mistakes
 
+### Did a discussion change the answer? (always answer — "no" is fine)
+- A question, pushback or scenario from Ron, or a laid-out mechanism, that made the answer better than the first
+  proposal? → add it to **`C:/Users/Ron/Projects/BETTER-IDEAS.md`** the same day (first · exchange · better · whose ·
+  source), and name it here.
+
 ---
 
 ## 🔄 Rule Updates Made/Proposed
