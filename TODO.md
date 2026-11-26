@@ -125,6 +125,7 @@
       - [Deleted folders go to the Trash, like books](#deleted-folders-go-to-the-trash-like-books)
       - [The Import's 30-second limit really stops the Import](#the-imports-30-second-limit-really-stops-the-import)
       - [An open tab learns that a new version of ReaderWrangler is out](#an-open-tab-learns-that-a-new-version-of-readerwrangler-is-out)
+      - [Phone: remove "Save Credentials to File"](#phone-remove-save-credentials-to-file)
   - [🗄️ After launch](#after-launch)
     - [Speed](#speed)
       - [Clicking between books lags slightly while a filter is on](#clicking-between-books-lags-slightly-while-a-filter-is-on)
@@ -1314,6 +1315,10 @@ member forwarding a file is far likelier than any attacker.
 5. **Restore never blocks:** a skipped or wrong password restores everything else, then says *"Cloud Sync wasn't
    reconnected — enter your Cloud Sync Key, or make a new one if you don't want to keep using your current cloud library
    (a new key means a new cloud library)."*
+5a. **Remembered in this browser is safe** (Ron, 2026-11-26, outside review 2 item 6): this browser's storage already holds the key itself, unlocked (the
+    app needs it to sync), so storing the password beside it exposes nothing new — its only job is the key inside files
+    that leave this PC. Typed again only to restore on another computer. The field is a standard password field so a
+    password manager can save and fill it — **test with Ron's LastPass.**
 6. **Under the hood:** the same password-to-key method the relay already uses (relay-crypto), on one field of the
    backup. A weak password can be guessed by someone determined with the file — accepted for this threat (Ron).
 7. **Ripples:** the Disconnect wording ("Relay Setup: disconnect…", part of the Cloud Sync rename) says the key is in your backups "locked
@@ -1502,6 +1507,12 @@ the big targets are locked down, people with ready-made attack scripts go after 
 
 #### Cloud Sync: rename Relay, show one Cloud Sync Key, and 'make a new key' retires the old one
 <!-- id 20260828-0000a -->
+
+**Viewing your key — grouped with it** (Ron, 2026-11-26, outside review 2 item 6): show the current key in **Relay Setup → Credentials → Enter
+Credentials Manually** (where people look — today it's visible only, by accident, in the phone-pairing section's "Or
+enter manually on your phone", readerwrangler.js ~11941), and in the pairing section; both **hidden by default** with
+**Show/Hide**, one shared setting **remembered** in this browser (Ron: never bothered at his own desk). Keeps the key
+viewable now that backups lock it.
 
 **Grouped with it** (Ron, 2026-11-25): its new bookmarklet also carries the check from "A Cloud Sync Key never changes
 hands without asking…", item 1 — the bookmarklet works only on Amazon's pages and ReaderWrangler's own.
@@ -3779,6 +3790,10 @@ with the next sprint that touches app code, as a small extra task.
 #### Share Library: a copy of your library for a friend, without your Cloud Sync Key
 <!-- id 20261122-1440 -->
 
+**Stays in Polish; grouping for the order re-review** (Ron, 2026-11-26, outside review 2 item 6): a menu item right beside Save Backup; build it with "Lock
+the Cloud Sync Key in backups…" (same menu, same reason — sharing safely) and "One backup writer…" (same file builder).
+It is the safe tool for the one real key leak so far (a demo file made from a backup, public July 3 – Oct 31, 2026).
+
 _Why it matters:_ Sending a friend your library today means Save Backup, then remembering to take your Cloud Sync Key
 out by hand — and a backup carries the key, so whoever has the file can overwrite or wipe your cloud library. Readers
 swap libraries ("Books I Want To Borrow From Ron"); a rule people must remember fails, a menu item doesn't.
@@ -3830,6 +3845,15 @@ Not the same as "Keep your tabs and browsers in step" — that is about your DAT
 **Decided** (Ron, 2026-11-22, outside review 3 — the report's "smaller, and can wait"; agreed that day, filed 2026-11-25)
 1. **When the site has a newer version**, the open tab says so and offers **Reload** (a banner, not a box — Law 18).
 2. Low priority until a release changes a stored shape; then before that release.
+
+#### Phone: remove "Save Credentials to File"
+<!-- id 20261126-1050 -->
+
+_Why it matters:_ The compact view's button writes your Cloud Sync Key as a plain file into the phone's Downloads
+(`mobile.js` ~1006-1020), which cloud backup apps often copy. It's no longer needed: the computer's QR code re-pairs the
+phone in seconds. Outside review 2, item 6.
+
+**Decided** (Ron, 2026-11-26, outside review 2 item 6): remove it. Low priority.
 
 ## 🗄️ After launch
 
