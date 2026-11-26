@@ -1,7 +1,10 @@
 # ReaderWrangler Security Model
 
 **Created**: 2026-03-21
-**Last Updated**: 2026-03-23
+**Last Updated**: 2026-03-23 (two corrections 2026-11-26, marked where they are)
+
+> **Parts of this document are out of date.** It describes the design as of March 2026; ReaderWrangler has changed
+> since (Cloud Sync, signed writes, the visit counter, the phone page). It is being rewritten before launch.
 
 ---
 
@@ -372,11 +375,16 @@ Even if an attacker gains full access to the Cloudflare Worker and KV namespace,
 
 Book titles and reading preferences are not financial or medical data. However, a user's library can reveal personal interests, political views, religious beliefs, or other private information. The encryption and no-account architecture respect this — we protect the data as if it matters, because to the user, it does.
 
-**What is never at risk, regardless of any scenario above:**
+**What ReaderWrangler never touches — and the trust the bookmarklet asks for** (corrected 2026-11-26; it used to say
+"never at risk, regardless of any scenario", which isn't true):
 
-- **Your Amazon account credentials** — ReaderWrangler never accesses, stores, or transmits your Amazon username or password. The bookmarklet reads publicly visible book data from pages you're already logged into.
-- **Your payment information** — No financial data of any kind is involved.
-- **Your identity** — There are no accounts, no email addresses, no personal identifiers anywhere in the system.
+- **Your Amazon password** — ReaderWrangler never sees, stores or sends your Amazon username or password.
+- **The trust** — the bookmarklet runs our code in your signed-in Amazon page and uses that sign-in only to read your
+  book list (it asks Amazon's own services for it, with your sign-in). You are trusting that our site serves the code
+  we publish; if our site were taken over, that trust would be misplaced until we noticed.
+- **Your payment information** — no financial data of any kind is involved.
+- **Your identity** — there are no accounts and no email addresses. The sync server does keep a random ID for each
+  cloud library and for each browser that writes to it; neither says who you are.
 
 ### "You have to trust GitHub Pages"
 

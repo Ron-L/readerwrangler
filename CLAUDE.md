@@ -106,7 +106,9 @@ The version guard enforces them (see the commit checks). **No version increment:
 - **CHANGELOG.md** (Ron's word on the copy first), **README.md** + its mirror index.html "Recent Features" / "Coming
   Soon", synced into features.html; "Coming Soon" re-aligned with the TODO's real priorities.
 - **Sweep support-shaped material** into `docs/design/SUPPORT-KB.md` (facts/fixes) and `WORKFLOW-PATTERNS.md` (usage) —
-  a comb: grep the KB for every term the release touched; bump its "up to date as of" stamp.
+  a comb: grep the KB for every term the release touched; bump its "up to date as of" stamp. **The same comb over the
+  Security & Privacy page (`security.html`) and `docs/reference/SECURITY.md`** — every promise still true of the code
+  (Ron, 2026-11-26: 48 sentences had drifted).
 - **Tests:** `py tools/run_tests.py --tier all --release` passes (every tier ran, nothing skipped); every task promoted
   its tests and filed its gaps; the post-mortem names any bug no test would have caught — and that test gets written.
 - **TODO.md:** delete every ✅ section (TODO is future-only).

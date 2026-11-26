@@ -738,6 +738,13 @@ library. Found or confirmed by the cold review of this TODO (2026-11-19), every 
     private window survives it (Restore Backup brings everything back). **When "Know whether the browser will keep your library…" is built, update this sentence.**
     Note for item 3 (to check when building — not verified): Chrome may quietly answer "no" for any site not yet used
     much, so "say plainly if the browser says no" could reach every newcomer — time or word it so it doesn't.
+18. **"Your keys never leave your device"** (outside review 2, item 11; Ron 2026-11-26) — security.html ~113 and ~134,
+    index.html ~1351, features.html ~808, README.md ~120 (and "your data stays in your browser", index.html ~7, ~59,
+    ~1369 — the same claim). The key is inside the bookmarklet (which the browser copies to your other devices with
+    your bookmarks), inside every backup, and on the Amazon page while the bookmarklet runs. Say what's true, e.g.
+    *"Your Cloud Sync Key is never sent to us. It is kept in your browser, inside your bookmarklet — which your browser
+    may copy to your other devices along with your bookmarks — and inside your backup files."* (GLOSSARY first; Ron's
+    word on the wording.)
 
 #### Fetcher work, in build order
 
@@ -2029,6 +2036,18 @@ literally true. It existed only as a sub-bullet of "Outside reviews before build
 
 **Still open:** keep Google Fonts (disclosed) or serve the fonts ourselves (then nothing to disclose) — disclose now,
 decide later.
+
+**Added by outside review 2, item 11** (Ron, 2026-11-26)
+7. **The checklist is the reviewer's sentence-by-sentence list** — `.private/OUTSIDE-REVIEW-SECURITY-REPORT.md`
+   §2.6.1 (the page, 19 sentences), §2.6.2 (`docs/reference/SECURITY.md`, 29 sentences) and §2.6.3 (the same claims on
+   the other pages). **Re-check every sentence against the code at rewrite time** — the decided work (the bookmarklet
+   only on Amazon, every script from our own site, sealed labels, no writes without a write key) changes what's true.
+   Words from GLOSSARY: the report's suggested sentences say "your cloud copy", now on the never-see list.
+8. **`docs/reference/SECURITY.md` gets the same full pass** — rewritten, not patched; the page's link to it then
+   says "our own description of the design". Done 2026-11-26 meanwhile: a line at its top saying parts are out of
+   date, and its "never at risk, regardless of any scenario" corrected.
+9. **The Contact section points to GitHub's private "Report a vulnerability"** (turned on by Ron, 2026-11-26) rather
+   than the public issue list, for weaknesses.
 
 #### An accessibility page: what works, and how to tell us what doesn't
 <!-- id 20261120-1700a -->
