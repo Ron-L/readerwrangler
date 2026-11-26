@@ -416,6 +416,11 @@ and "Warn when another browser has newer changes"; both earlier designs re-read 
      version deleted ~10 minutes after it's replaced; the same object holds the exact write counter and the write key.
      **The design lives in `docs/design/MULTI-INSTANCE.md` §4 ("How the cloud enforces it — the pointer keeper"),
      drawn step by step in `docs/design/RELAY-FLOWS.html`, the Proposed group (P0–P4)** — moved there 2026-11-23.
+   - **The relay itself can't skip, repeat or roll back** (Ron + Claude, 2026-11-26, outside review 2 item 9, choice 4):
+     the combined copy's list of uploads already combined moves inside the encryption (so the relay can't make an
+     Import skip an upload or combine one twice — an old reset combined again throws away everything since), and each
+     computer remembers the newest version it has seen and refuses an older one. Built with the pointer keeper — the
+     same rebuild of how versions are recorded.
 3. **This retires both earlier designs' gatekeepers** — the read-only second tab (with "Edit here instead") and the
    cross-browser "soft lease" with its 15–30-second check. Neither blocks you any more, and the lease's record would
    have cost a cloud write every 15–30 seconds per active user (about 120 an hour, against ~1,000 a day on
@@ -1531,8 +1536,35 @@ the big targets are locked down, people with ready-made attack scripts go after 
        (it reads 0 because the block can't happen). `SECURITY.md` was corrected 2026-11-26.
     - Not doing: an account-wide daily write budget ("conserve mode") — Cloudflare's paid plan at launch (Ron's intent)
       gives about a million writes a month; a per-library limit can't guard the shared allowance anyway.
+17. **An upload's label can't be changed** (Ron + Claude, 2026-11-26, outside review 2 item 9). Today an upload's label
+    (books, wishlist-add, collections, deletion, reset) sits beside the encrypted books in plain text, and an upload
+    under 1 MB (one request — most uploads) is signed over its **size** only. So anyone who has seen the request
+    (Cloudflare, an add-on watching requests, security software inspecting connections, a script on Amazon's page) can
+    send it again within 5 minutes with "books" changed to "reset" — same size, accepted as a new upload — and the next
+    Import empties the cloud's combined copy and its deletion records, and today removes the owned books it no longer
+    has from the browser. The relay itself can change any upload's label. Checked 2026-11-26: `relay-client.js`
+    ~699-704 (written) and ~792-797 (read), `relay-worker.js` 166 (the size-only list) and 592 (a new upload per
+    request); the reset at `composeCanonical` ~1088.
+    1. **The label and the fetch date sealed inside the encryption**, read only from there — neither a replayer nor the
+       relay can change them. An upload with no label inside (stored before this) is read as an ordinary books upload,
+       never a reset. In `relay-client.js` alone (the app and every bookmarklet button share it). A stored-format
+       change: this is the design Ron has seen.
+    2. **Every write signed over its contents** — the size-only list deleted (less code; it also closes a large
+       upload's small hole: a piece overwritten with same-size junk before the closing request arrives, which loses that
+       upload). Fingerprinting a 5–20 MB piece exceeds the free plan's 10 ms per request, so **this ships with
+       Cloudflare's paid plan on** (Ron: "We go to paid plan when we implement your recommendations" — before launch if
+       this is). Not doing: smaller pieces to fit the free plan — 5–20× the writes, against the free plan's 1,000 a day.
+    3. **Import skips an exact repeat** — an upload whose fingerprint matches one already combined (two genuine uploads
+       are never identical: the encryption starts each from a fresh random value). Closes the one harmful exact replay:
+       a resent reset arriving after other uploads.
+    4. **Correct `docs/design/RELAY-SECURITY-PLAN.md`'s note** "an exact replay is harmless… only begin/mint creates
+       something new" — a one-request upload creates a new stored item too; and its table's "big upload parts" row.
+    5. Test first: a relabeled upload fails to open; a size-only signature is refused; an exact repeat is skipped.
+    - Choice 4 of the review (the relay itself skipping, repeating or rolling back) → the pointer keeper, in "Keep your
+      tabs and browsers in step…".
 
 **Watch out**
+- **Turn on Cloudflare's paid plan before this release's relay deploy** (item 17.2 needs its computing allowance).
 - One `WORKER_VERSION`; dev first, then production — **Ron's yes before each deploy**; alphas deploy from the branch,
   and both relays are redeployed from main at the release.
 - **Never test with a temporary schedule** — Cloudflare's schedule incidents (2026-10-12/13/14) delayed changes by
