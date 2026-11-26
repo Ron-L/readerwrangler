@@ -1464,6 +1464,19 @@ the big targets are locked down, people with ready-made attack scripts go after 
 10. **No storing without a write key** — remove the path that accepts unsigned writes for a channel with no key (Ron:
     "We can definitely remove that acceptance of an unsigned write without the key"). Every current app version
     registers its key before its first write (relay-client.js ~96–114).
+    **How** (Ron + Claude, 2026-11-26, outside review 2 item 10): **in the one gate** (`route()`, relay-worker.js
+    ~232–246 — every non-read request naming a Channel ID passes it, revoke included), a cloud library with no write
+    key → **refuse every write except registering** — today's line ~196 "no write key → let it through" becomes a
+    refusal, so revoke, deletes, cleanup and "begin an upload" are covered, and so is any route added later. (Today
+    revoke on a made-up ID writes two stored items that never expire, runs three storage listings and counts a
+    "revoked" in GoatCounter — for free, from anyone.)
+    1. Test first: on an ID with no write key, a revoke, a delete, a cleanup and a "begin an upload" are refused;
+       registering still works.
+    2. **It cuts off no one** (checked 2026-11-26, `.private/relay_inventory.py`): the only library without a write
+       key that holds data is production's 58c1bfd7… (a Complete Copy saved Sep 8, never since; expires Dec 7) — dev's
+       e9721301… is ours (expires Nov 30). Registering stays open, and every app since 7.25.0 registers before its
+       first write; only a tab left open since before 7.25.0 is refused ("update the app"). **Before the deploy:
+       re-run the inventory** on both relays.
 11. **Cloudflare's "are you human" check (Turnstile) when a cloud library is created** — at Cloud Sync setup and "make a
     new key", once per person, never on fetches. The check hands the app a one-time ticket; the app sends it with the
     new write key; the relay asks Cloudflare whether the ticket is real before registering the key. With item 10, no
@@ -1562,6 +1575,25 @@ the big targets are locked down, people with ready-made attack scripts go after 
     5. Test first: a relabeled upload fails to open; a size-only signature is refused; an exact repeat is skipped.
     - Choice 4 of the review (the relay itself skipping, repeating or rolling back) → the pointer keeper, in "Keep your
       tabs and browsers in step…".
+18. **Know the cloud libraries — how many, how old, which format** (Ron + Claude, 2026-11-26, outside review 2 item
+    10). Ron: collect as much as we can without touching privacy, and when a change like the write key ships, be able
+    to tell how many libraries use it and how many don't. Today the nightly email gives totals only.
+    1. **A format number per cloud library**, kept apart from the app's version. Format 1 = no write key, format 2 =
+       a write key (the relay tells them apart — no stamping); **format 3 = item 17's sealed labels**, and every later
+       change we need to track gets the next number. Item 17's rule "no label inside = an ordinary upload" becomes
+       "format below 3"; when format 2's count stays at zero, its reading code can go.
+    2. **Where:** with each save the app sends the format, the app version that wrote it and the date (signed); the
+       relay puts them in the **small plain label Cloudflare lets each stored item carry** (up to 1 KB), on the
+       library's "current version" marker — it comes back free with the listing the nightly already does, so no
+       read per library (hundreds a night at launch). When the pointer keeper moves that marker, the label moves with
+       it (designed then).
+    3. **The nightly email's counting lines** — counts only, no library named: libraries last written within 7 / 30 /
+       90 days and older; by format; by the app version of the last write; with no write key; browsers per library
+       (1 / 2 / 3+); book counts in bands (under 500 / 500–2,000 / more).
+    4. Nothing says who anyone is or which books; each new thing collected gets its line on the security page
+       (outside review 2 item 12, the privacy lines).
+    5. `.private/relay_inventory.py` (2026-11-26) is the one-off, per-library version of this (read-only; IDs shortened
+       to 8 characters) — for Ron's checks, never the email.
 
 **Watch out**
 - **Turn on Cloudflare's paid plan before this release's relay deploy** (item 17.2 needs its computing allowance).
