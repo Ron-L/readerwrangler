@@ -643,6 +643,15 @@ link opened there swaps the computer's key, and the status light stays green.
 3. **The QR code carries the key as text, not a link** — it can't be forwarded and opened as a link.
 4. Shares the key-shape check of "Words from outside never become code on Amazon's page…", item 3.
 5. Before launch. Wording is Ron's (GLOSSARY first).
+6. **The bookmarklet checks the domain still belongs to us, before it loads anything** (Ron's idea, 2026-11-26,
+   outside review 2 item 13). It asks the public registry for readerwrangler.com's **registered date** — the owner's
+   name and email can't be checked (Porkbun's privacy service shows the same for any owner) but the registered date,
+   **2025-11-16T21:40:31Z**, changes only if the name lapses and someone registers it new (not on renewal, not on a
+   move between registrars). Mismatch → load nothing and say *"readerwrangler.com has changed hands — this bookmarklet
+   stopped to protect your key."*; no answer in 2 seconds → carry on (an outage mustn't block you, and a new owner
+   can't silence the registry). It lives in the bookmarklet itself — the loaded code is what's in doubt. **Proven
+   possible 2026-11-26** (Ron's live test: the registry answered from amazon.com/yourbooks and the collections page,
+   with the date above). Built into the same new bookmarklet as item 1.
 
 #### What can reach production: a fresh review of Amazon-page changes, a daily foreign-push check, a production token kept off the PC
 <!-- id 20261126-1135 -->
@@ -679,6 +688,19 @@ nothing reviews what changes in those nine files before they go live.
    as readerwrangler.com serves them and compare them with fingerprints the release stored ON THE RELAY (never read from
    GitHub — someone who changed the files could change those too); email only on a difference. Catches tampering that
    never went through us. Low priority now the domain is verified.
+6. **Signed code for the bookmarklet** (Ron + Claude, 2026-11-26, outside review 2 item 13 — Ron's public/private key
+   idea, made to work without a second server). The bookmarklet holds a **public key**; each release signs the scripts
+   the bookmarklet loads with a **private key kept off the PC** (with the production token: LastPass); the bookmarklet
+   downloads each script and its signature, checks it, and runs it only if it checks. Covers a lapsed domain **and** a
+   taken-over GitHub account changing the served code (review 2 item 7's worst case) — the registry check ("A Cloud Sync
+   Key never changes hands…", item 6) covers only the first.
+   **Proven possible 2026-11-26** (Ron's live test on amazon.com/yourbooks and the collections page, a throwaway file
+   on dev): the page reached our script as text, fingerprinted it, and ran it every way tried — eval, new Function, a
+   script made in the page, an inline script — and today's script tag. **Still to design:** the chain (the menu script
+   checks every script it loads, with the same public key); key loss (= a new bookmarklet for everyone) and rotation;
+   the signing step in the release (one command, the key never on disk); and what happens if Amazon's page ever forbids
+   running downloaded text (it would forbid today's way too). Built in the same new bookmarklet as the Cloud Sync
+   rename if the design is ready, since changing the bookmarklet means every user dragging a new one.
 Dropped: an email on every push to production (Ron: noise he'd ignore); Ron reading diffs himself ("You write the
 code… I trust you" — the fresh reviewer replaces it).
 
@@ -1547,7 +1569,11 @@ the big targets are locked down, people with ready-made attack scripts go after 
     use the short form (first 8 … last 4) the logs use.
 14. **security.txt's reminder:** the relay reads readerwrangler.com/.well-known/security.txt each night and sends its
     own email that stands out — weekly in the 4 weeks before the expiry date, daily in the last week (Ron). The date
-    is set six months ahead each time.
+    is set six months ahead each time. **With it — the domain's expiry** (outside review 2 item 13, Ron 2026-11-26):
+    each night the relay reads readerwrangler.com's expiry date from the public registry
+    (`https://rdap.verisign.com/com/v1/domain/readerwrangler.com`, the "expiration" event); **a red line when fewer than
+    60 days are left** — with auto-renew on, that can only mean the renewal failed. A lapsed name would hand every
+    returning visitor's library and key (this site's browser storage) to whoever registers it next.
 15. **"Amazon stopped a fetch" emails** — the relay's half of "When Amazon stops a fetch: tell Ron…" (the fetcher work):
     a small request the bookmarklet can send; at most one email a day per kind of problem.
 16. **Make the write limit real — or honest** (Ron, 2026-11-26, outside review 2 item 8). Today it doesn't work: only 1
@@ -2240,6 +2266,12 @@ when he's ready: GitHub Mobile's tap-to-approve on the phone. Meanwhile, Ron's o
 1. Save each service's recovery codes in the password manager.
 2. Check that Porkbun's domain lock (the block on moving the domain to another registrar) is on.
 3. The email account the services send codes to is the real master key — keep it protected.
+   - Step 2 **confirmed 2026-11-26** from the public registry: the domain shows "client transfer prohibited" and
+     "client delete prohibited" (Porkbun's lock is on). Auto-renew is on (Ron, 2026-11-25).
+4. **Pay the domain 10 years ahead, before launch** (Ron, 2026-11-26, outside review 2 item 13). It expires
+   2027-11-16 (registered 2025-11-16); the rules allow 10 years ahead — about 8 more at $11.81 a year (Porkbun's .com
+   price, checked 2026-11-26). Covers the case auto-renew and the nightly check can't: Ron unable to act for a while.
+   Ron: "It'd be a miracle if anyone is still using this in 10 years."
 
 **When:** before launch — the reminder lives here, not in anyone's memory.
 
@@ -4556,7 +4588,9 @@ Ron can't continue, the app should be able to outlive him (outside review 1, Ris
 (GitHub Pages, a domain, Cloudflare for Cloud Sync, Resend for email, GoatCounter, Amazon Associates if wanted), how
 each is set up, and every place the app names the site or the relay, so a clone can be pointed at new ones. After
 launch. The one before-launch piece is the LICENSE's continuity exception ("A one-day truth-and-safety release",
-item 13).
+item 13). **The guide's first rule** (Ron, 2026-11-26, outside review 2 item 13): *"The domain must never lapse while
+bookmarklets exist — it is the one thing that can't be handed over late."* Every bookmarklet loads its code from it,
+and the browser hands this site's storage (each visitor's library and key) to whoever owns the name.
 
 #### Split the main code file into modules
 <!-- id 20261014-1030at -->
