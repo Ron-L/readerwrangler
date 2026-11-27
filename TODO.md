@@ -704,6 +704,21 @@ nothing reviews what changes in those nine files before they go live.
    the signing step in the release (one command, the key never on disk); and what happens if Amazon's page ever forbids
    running downloaded text (it would forbid today's way too). Built in the same new bookmarklet as the Cloud Sync
    rename if the design is ready, since changing the bookmarklet means every user dragging a new one.
+7. **"Did it go live?" after every push — and a fix, not just a notice** (Ron, 2026-11-27, outside review 2 item 14).
+   GitHub's public record of the last ~100 site updates per repository: the **build never failed; the deploy step
+   failed about 1 in 12** (8 on prod, 5 on dev; "cancelled" ones are only superseded by a newer push), and a failed
+   deploy is **not retried** — the site stays on the old version until the next push. Ron: "Sometimes I say push and
+   'that's it for tonight' and leave." So:
+   1. **In `tools/sync_remotes.py`, after it pushes:** wait for that commit's deploy in GitHub's public record (no
+      sign-in needed), then fetch the live site and confirm it serves what was pushed (the app's version / a file's
+      fingerprint).
+   2. **A failed deploy → retry once with an empty commit** (no change goes out — covered by the "push to prod" that
+      caused it), then check again.
+   3. **Still failing → the final message and `.private/PROGRESS.md`** say so.
+   4. **Every session start checks it too, with the relay check:** the last deploy on each repository, and whether the
+      live site serves what `main` holds — so last night's failure is the first thing Ron hears.
+   5. GitHub's own failure email stays as the net for when no session runs.
+   `tools/sync_remotes.py` and the session-start hook are enforcement code — this is Ron's word for them.
 Dropped: an email on every push to production (Ron: noise he'd ignore); Ron reading diffs himself ("You write the
 code… I trust you" — the fresh reviewer replaces it).
 
@@ -741,7 +756,9 @@ library. Found or confirmed by the cold review of this TODO (2026-11-19), every 
 9. **"No cloud storage, no tracking"** — untrue since Cloud Sync and the visit counter; say what's true.
 10. **features.html's "the only tool…"** — drop the claim (Ron: "hyperbole but we can change it anyway").
 11. **security.txt expires 2026-12-31** (`.well-known/security.txt`) — set it six months ahead; the relay's reminder
-    email keeps it current from then on ("Relay worker: one release of changes", item 14).
+    email keeps it current from then on ("Relay worker: one release of changes", item 14). **Built 2026-11-27**
+    (outside review 2 item 14): expires 2027-05-31, and the file is now reachable at all (`.nojekyll` — GitHub's
+    build had hidden `.well-known`, a 404 since 2025-12-31); live on dev, ✅ once production serves it.
 12. **"Not created or endorsed by Amazon"** in the app's About, as the site pages already say.
 13. **The LICENSE's "Affiliate Attribution Condition"** puts Ron's tag on sites not listed in his Associates account
     (which its rules forbid). Replace it: public hosting needs Ron's written permission; **except** that if
@@ -1572,7 +1589,8 @@ the big targets are locked down, people with ready-made attack scripts go after 
     use the short form (first 8 … last 4) the logs use.
 14. **security.txt's reminder:** the relay reads readerwrangler.com/.well-known/security.txt each night and sends its
     own email that stands out — weekly in the 4 weeks before the expiry date, daily in the last week (Ron). The date
-    is set six months ahead each time. **With it — the domain's expiry** (outside review 2 item 13, Ron 2026-11-26):
+    is set six months ahead each time. **A "not found" is a red line too** (outside review 2 item 14, Ron
+    2026-11-27): the file was unreachable for 11 months without anyone knowing. **With it — the domain's expiry** (outside review 2 item 13, Ron 2026-11-26):
     each night the relay reads readerwrangler.com's expiry date from the public registry
     (`https://rdap.verisign.com/com/v1/domain/readerwrangler.com`, the "expiration" event); **a red line when fewer than
     60 days are left** — with auto-renew on, that can only mean the renewal failed. A lapsed name would hand every
