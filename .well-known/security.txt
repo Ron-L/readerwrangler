@@ -1,10 +1,8 @@
-# ReaderWrangler Security Contact
-# https://securitytxt.org/
-
+# ReaderWrangler security contact - https://securitytxt.org/
+# To report a weakness privately, use the first Contact (GitHub's private form) or the email.
+Contact: https://github.com/Ron-L/readerwrangler/security/advisories/new
 Contact: mailto:contact@readerwrangler.com
-Contact: https://github.com/Ron-L/ReaderWrangler/issues
-
+Policy: https://readerwrangler.com/security.html
+Canonical: https://readerwrangler.com/.well-known/security.txt
 Preferred-Languages: en
-
-# This file is valid until 2026-12-31
-Expires: 2026-12-31T23:59:59.000Z
+Expires: 2027-05-31T23:59:59.000Z
