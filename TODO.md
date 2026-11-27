@@ -313,6 +313,9 @@ is done once instead of twice.
 3. **It settles "Restore from Cloud Sync"'s place** (Ron: "fairly high now" — the better recovery for every loss,
    outside review 3 Q7).
 4. Proposed to Ron as a reordered list with the reasons; the order is his (Claude never reorders on its own).
+5. **Close the backlog report's "Outside reviews" shading** — `tools/backlog_report.py` EVENTS: replace its
+   `dt.date.today()` with the day the reviews ended (Ron, 2026-11-26: mark the review like the TODO review), then
+   republish the backlog page.
 
 #### Know whether the browser will keep your library: a status light, what to do, and back up before you leave
 <!-- id 20261124-1330 -->

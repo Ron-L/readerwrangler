@@ -134,6 +134,12 @@ EVENTS = [
     (dt.date(2026, 10, 14), dt.date(2026, 11, 4), 'TODO review',
      'the TODO overhaul (Oct 14-15), then the one-by-one review: tasks filed, merged and dropped ON PURPOSE — high '
      'amber and grey bars here are the list being sorted, not new work or finished work'),
+    # Still going: its last day is "today" until the reviews close — the task "Re-review the TODO's order after the
+    # outside reviews" sets the real end date here.
+    (dt.date(2026, 11, 19), dt.date.today(), 'Outside reviews',
+     'four cold outside reviews (launch risks, security, data safety, newcomer) and Ron deciding each item — new tasks '
+     'filed ON PURPOSE, so the open count climbs while the done count barely moves (a few small fixes shipped along '
+     'the way: 7.31.1, 7.31.2)'),
 ]
 
 # Spaces around the ";" are optional (2026-10-22) — keep in step with ID_RE in git-hooks/check-toc.js.
