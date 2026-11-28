@@ -2293,6 +2293,13 @@ when he's ready: GitHub Mobile's tap-to-approve on the phone. Meanwhile, Ron's o
    2027-11-16 (registered 2025-11-16); the rules allow 10 years ahead — about 8 more at $11.81 a year (Porkbun's .com
    price, checked 2026-11-26). Covers the case auto-renew and the nightly check can't: Ron unable to act for a while.
    Ron: "It'd be a miracle if anyone is still using this in 10 years."
+5. **Refuse mail that pretends to be from readerwrangler.com** (outside review 2 item 15, Ron 2026-11-27) — in
+   Porkbun's DNS, the TXT record `_dmarc`: `v=DMARC1; p=none;` → **`v=DMARC1; p=quarantine;`** (forgeries go to spam).
+   **Safe since 2026-11-27:** every route that sends as readerwrangler.com is now signed by it — the relay (Resend),
+   the Gmail web page ("Send mail as" through Resend), and Outlook.exe (a send-only account straight to Resend; a
+   signed macro moves each sent message into Gmail's Sent Mail). Proven by Proton's headers: dmarc=pass, no PC name or
+   home address. If the relay's own mail ever fails after this, the session-start relay check sees the nightly
+   summaries go missing (its Gmail search skips spam). Ron's click; Claude confirms the record from public DNS after.
 
 **When:** before launch — the reminder lives here, not in anyone's memory.
 
